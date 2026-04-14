@@ -688,40 +688,41 @@ class SFr extends S {
   String get importDataSubtitle => 'Charger les données depuis un fichier .lfs';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => 'Importer depuis la configuration OpenSSH';
 
   @override
   String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'Import ponctuel des hôtes depuis ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle =>
+      'Sélectionner un fichier de configuration OpenSSH';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'Import de configuration SSH';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return '$count hôte(s) trouvé(s)';
   }
 
   @override
   String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+      'Aucun hôte importable trouvé dans ce fichier.';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return 'Impossible de lire les fichiers de clés pour : $hosts. Ces hôtes seront importés sans identifiants.';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return 'Importé dans le dossier : $folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return '$count hôte(s) importé(s) depuis la configuration SSH';
   }
 
   @override
@@ -730,53 +731,54 @@ class SFr extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => 'Exporter l\'archive';
 
   @override
   String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+      'Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => 'Exporter le code QR';
 
   @override
   String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+      'Partager les sessions et clés sélectionnées via un code QR';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => 'Importer une archive';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle =>
+      'Charger les données depuis un fichier .lfs';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => 'Importer la configuration OpenSSH';
 
   @override
   String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'Import ponctuel des hôtes depuis ~/.ssh/config';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => 'Importer les clés SSH depuis ~/.ssh';
 
   @override
   String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+      'Analyser ~/.ssh à la recherche de clés privées et ajouter celles sélectionnées au gestionnaire de clés';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => 'Importer les clés SSH';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return '$count clé(s) trouvée(s) — choisissez lesquelles importer';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound => 'Aucune clé privée trouvée dans ~/.ssh.';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return '$count clé(s) importée(s)';
   }
 
   @override

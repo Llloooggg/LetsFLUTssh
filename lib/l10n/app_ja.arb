@@ -202,6 +202,79 @@
   "exportData": "データをエクスポート",
   "exportDataSubtitle": "セッション、設定、鍵を暗号化された .lfs ファイルに保存",
   "importDataSubtitle": ".lfs ファイルからデータを読み込み",
+  "importFromSshConfig": "OpenSSH 設定からインポート",
+  "importFromSshConfigSubtitle": "~/.ssh/config からホストを一度だけインポート",
+  "sshConfigPickerTitle": "OpenSSH 設定ファイルを選択",
+  "sshConfigPreviewTitle": "SSH 設定のインポート",
+  "sshConfigPreviewHostsFound": "{count} 件のホストが見つかりました",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "このファイルにインポート可能なホストが見つかりません。",
+  "sshConfigPreviewMissingKeys": "次のホストの鍵ファイルを読み込めませんでした: {hosts}。これらのホストは認証情報なしでインポートされます。",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "フォルダにインポート: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "SSH 設定から {count} 件のホストをインポートしました",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "アーカイブをエクスポート",
+  "exportArchiveSubtitle": "セッション、設定、鍵を暗号化された .lfs ファイルに保存",
+  "exportQrCode": "QR コードをエクスポート",
+  "exportQrCodeSubtitle": "選択したセッションと鍵を QR コードで共有",
+  "importArchive": "アーカイブをインポート",
+  "importArchiveSubtitle": ".lfs ファイルからデータを読み込み",
+  "importOpensshConfig": "OpenSSH 設定をインポート",
+  "importOpensshConfigSubtitle": "~/.ssh/config からホストを一度だけインポート",
+  "importSshKeys": "~/.ssh から SSH 鍵をインポート",
+  "importSshKeysSubtitle": "~/.ssh から秘密鍵をスキャンし、選択したものを鍵マネージャーに追加",
+  "importSshKeysTitle": "SSH 鍵をインポート",
+  "importSshKeysFound": "{count} 件の鍵が見つかりました — インポートするものを選択",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "~/.ssh に秘密鍵が見つかりません。",
+  "importedSshKeys": "{count} 件の鍵をインポートしました",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "アーカイブを暗号化するためのマスターパスワードを設定してください。",
   "passwordsDoNotMatch": "パスワードが一致しません",
   "exportedTo": "エクスポート先: {path}",

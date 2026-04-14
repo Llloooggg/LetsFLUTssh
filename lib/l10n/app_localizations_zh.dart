@@ -673,40 +673,38 @@ class SZh extends S {
   String get importDataSubtitle => '从 .lfs 文件加载数据';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => '从 OpenSSH 配置导入';
 
   @override
-  String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+  String get importFromSshConfigSubtitle => '从 ~/.ssh/config 一次性导入主机';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle => '选择 OpenSSH 配置文件';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'SSH 配置导入';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return '找到 $count 个主机';
   }
 
   @override
-  String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+  String get sshConfigPreviewNoHosts => '此文件中未找到可导入的主机。';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return '无法读取以下主机的密钥文件：$hosts。这些主机将在没有凭据的情况下被导入。';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return '已导入到文件夹：$folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return '已从 SSH 配置导入 $count 个主机';
   }
 
   @override
@@ -715,53 +713,49 @@ class SZh extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => '导出存档';
 
   @override
-  String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+  String get exportArchiveSubtitle => '将会话、配置和密钥保存为加密的 .lfs 文件';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => '导出二维码';
 
   @override
-  String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+  String get exportQrCodeSubtitle => '通过二维码分享所选会话和密钥';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => '导入存档';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle => '从 .lfs 文件加载数据';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => '导入 OpenSSH 配置';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+  String get importOpensshConfigSubtitle => '从 ~/.ssh/config 一次性导入主机';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => '从 ~/.ssh 导入 SSH 密钥';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+  String get importSshKeysSubtitle => '扫描 ~/.ssh 中的私钥，并将选中的密钥添加到密钥管理器';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => '导入 SSH 密钥';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return '找到 $count 个密钥 — 请选择要导入的密钥';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound => '在 ~/.ssh 中未找到私钥。';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return '已导入 $count 个密钥';
   }
 
   @override

@@ -686,40 +686,40 @@ class SId extends S {
   String get importDataSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => 'Impor dari konfigurasi OpenSSH';
 
   @override
   String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'Impor sekali saja host dari ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle => 'Pilih file konfigurasi OpenSSH';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'Impor konfigurasi SSH';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return '$count host ditemukan';
   }
 
   @override
   String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+      'Tidak ada host yang dapat diimpor di file ini.';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return 'Tidak dapat membaca file kunci untuk: $hosts. Host ini akan diimpor tanpa kredensial.';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return 'Diimpor ke folder: $folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return 'Berhasil mengimpor $count host dari konfigurasi SSH';
   }
 
   @override
@@ -728,53 +728,54 @@ class SId extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => 'Ekspor arsip';
 
   @override
   String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+      'Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => 'Ekspor kode QR';
 
   @override
   String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+      'Bagikan sesi dan kunci terpilih melalui kode QR';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => 'Impor arsip';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => 'Impor konfigurasi OpenSSH';
 
   @override
   String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'Impor sekali saja host dari ~/.ssh/config';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => 'Impor kunci SSH dari ~/.ssh';
 
   @override
   String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+      'Pindai ~/.ssh untuk kunci privat dan tambahkan yang dipilih ke pengelola kunci';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => 'Impor kunci SSH';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return '$count kunci ditemukan — pilih mana yang akan diimpor';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound =>
+      'Tidak ada kunci privat yang ditemukan di ~/.ssh.';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return 'Berhasil mengimpor $count kunci';
   }
 
   @override

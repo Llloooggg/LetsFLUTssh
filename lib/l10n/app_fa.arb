@@ -202,6 +202,79 @@
   "exportData": "خروجی گرفتن از داده",
   "exportDataSubtitle": "ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs",
   "importDataSubtitle": "بارگذاری داده از فایل .lfs",
+  "importFromSshConfig": "وارد کردن از پیکربندی OpenSSH",
+  "importFromSshConfigSubtitle": "وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config",
+  "sshConfigPickerTitle": "انتخاب فایل پیکربندی OpenSSH",
+  "sshConfigPreviewTitle": "وارد کردن پیکربندی SSH",
+  "sshConfigPreviewHostsFound": "{count} میزبان یافت شد",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "هیچ میزبان قابل واردسازی در این فایل یافت نشد.",
+  "sshConfigPreviewMissingKeys": "نمی‌توان فایل‌های کلید را برای این موارد خواند: {hosts}. این میزبان‌ها بدون اعتبارنامه وارد می‌شوند.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "وارد شد به پوشه: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "{count} میزبان از پیکربندی SSH وارد شد",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "خروجی گرفتن از آرشیو",
+  "exportArchiveSubtitle": "ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs",
+  "exportQrCode": "خروجی گرفتن کد QR",
+  "exportQrCodeSubtitle": "اشتراک‌گذاری جلسات و کلیدهای انتخاب‌شده از طریق کد QR",
+  "importArchive": "وارد کردن آرشیو",
+  "importArchiveSubtitle": "بارگذاری داده از فایل .lfs",
+  "importOpensshConfig": "وارد کردن پیکربندی OpenSSH",
+  "importOpensshConfigSubtitle": "وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config",
+  "importSshKeys": "وارد کردن کلیدهای SSH از ~/.ssh",
+  "importSshKeysSubtitle": "اسکن ~/.ssh برای یافتن کلیدهای خصوصی و افزودن موارد انتخاب‌شده به مدیر کلید",
+  "importSshKeysTitle": "وارد کردن کلیدهای SSH",
+  "importSshKeysFound": "{count} کلید یافت شد — انتخاب کنید کدام‌ها وارد شوند",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "هیچ کلید خصوصی در ~/.ssh یافت نشد.",
+  "importedSshKeys": "{count} کلید وارد شد",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.",
   "passwordsDoNotMatch": "رمزهای عبور مطابقت ندارند",
   "exportedTo": "خروجی گرفته شد به: {path}",

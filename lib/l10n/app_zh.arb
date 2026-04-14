@@ -202,6 +202,79 @@
   "exportData": "导出数据",
   "exportDataSubtitle": "将会话、配置和密钥保存为加密的 .lfs 文件",
   "importDataSubtitle": "从 .lfs 文件加载数据",
+  "importFromSshConfig": "从 OpenSSH 配置导入",
+  "importFromSshConfigSubtitle": "从 ~/.ssh/config 一次性导入主机",
+  "sshConfigPickerTitle": "选择 OpenSSH 配置文件",
+  "sshConfigPreviewTitle": "SSH 配置导入",
+  "sshConfigPreviewHostsFound": "找到 {count} 个主机",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "此文件中未找到可导入的主机。",
+  "sshConfigPreviewMissingKeys": "无法读取以下主机的密钥文件：{hosts}。这些主机将在没有凭据的情况下被导入。",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "已导入到文件夹：{folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "已从 SSH 配置导入 {count} 个主机",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "导出存档",
+  "exportArchiveSubtitle": "将会话、配置和密钥保存为加密的 .lfs 文件",
+  "exportQrCode": "导出二维码",
+  "exportQrCodeSubtitle": "通过二维码分享所选会话和密钥",
+  "importArchive": "导入存档",
+  "importArchiveSubtitle": "从 .lfs 文件加载数据",
+  "importOpensshConfig": "导入 OpenSSH 配置",
+  "importOpensshConfigSubtitle": "从 ~/.ssh/config 一次性导入主机",
+  "importSshKeys": "从 ~/.ssh 导入 SSH 密钥",
+  "importSshKeysSubtitle": "扫描 ~/.ssh 中的私钥，并将选中的密钥添加到密钥管理器",
+  "importSshKeysTitle": "导入 SSH 密钥",
+  "importSshKeysFound": "找到 {count} 个密钥 — 请选择要导入的密钥",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "在 ~/.ssh 中未找到私钥。",
+  "importedSshKeys": "已导入 {count} 个密钥",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "设置主密码以加密存档。",
   "passwordsDoNotMatch": "密码不一致",
   "exportedTo": "已导出至：{path}",

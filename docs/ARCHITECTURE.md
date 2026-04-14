@@ -737,6 +737,7 @@ class DeepLinkHandler {
 | `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
 | `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
+| `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
 
 #### .lfs format
 

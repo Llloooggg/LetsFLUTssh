@@ -202,6 +202,79 @@
   "exportData": "Xuất dữ liệu",
   "exportDataSubtitle": "Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa",
   "importDataSubtitle": "Tải dữ liệu từ tệp .lfs",
+  "importFromSshConfig": "Nhập từ cấu hình OpenSSH",
+  "importFromSshConfigSubtitle": "Nhập một lần các host từ ~/.ssh/config",
+  "sshConfigPickerTitle": "Chọn tệp cấu hình OpenSSH",
+  "sshConfigPreviewTitle": "Nhập cấu hình SSH",
+  "sshConfigPreviewHostsFound": "Đã tìm thấy {count} host",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Không tìm thấy host nào có thể nhập trong tệp này.",
+  "sshConfigPreviewMissingKeys": "Không thể đọc tệp khóa cho: {hosts}. Các host này sẽ được nhập mà không có thông tin xác thực.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Đã nhập vào thư mục: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "Đã nhập {count} host từ cấu hình SSH",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Xuất kho lưu trữ",
+  "exportArchiveSubtitle": "Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa",
+  "exportQrCode": "Xuất mã QR",
+  "exportQrCodeSubtitle": "Chia sẻ phiên và khóa đã chọn qua mã QR",
+  "importArchive": "Nhập kho lưu trữ",
+  "importArchiveSubtitle": "Tải dữ liệu từ tệp .lfs",
+  "importOpensshConfig": "Nhập cấu hình OpenSSH",
+  "importOpensshConfigSubtitle": "Nhập một lần các host từ ~/.ssh/config",
+  "importSshKeys": "Nhập khóa SSH từ ~/.ssh",
+  "importSshKeysSubtitle": "Quét ~/.ssh để tìm khóa riêng tư và thêm những khóa đã chọn vào trình quản lý khóa",
+  "importSshKeysTitle": "Nhập khóa SSH",
+  "importSshKeysFound": "Đã tìm thấy {count} khóa — chọn khóa nào để nhập",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Không tìm thấy khóa riêng tư nào trong ~/.ssh.",
+  "importedSshKeys": "Đã nhập {count} khóa",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "Đặt mật khẩu chính để mã hóa kho lưu trữ.",
   "passwordsDoNotMatch": "Mật khẩu không khớp",
   "exportedTo": "Đã xuất đến: {path}",

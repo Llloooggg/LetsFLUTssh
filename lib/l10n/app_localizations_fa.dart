@@ -682,40 +682,40 @@ class SFa extends S {
   String get importDataSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => 'وارد کردن از پیکربندی OpenSSH';
 
   @override
   String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle => 'انتخاب فایل پیکربندی OpenSSH';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'وارد کردن پیکربندی SSH';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return '$count میزبان یافت شد';
   }
 
   @override
   String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+      'هیچ میزبان قابل واردسازی در این فایل یافت نشد.';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return 'نمی‌توان فایل‌های کلید را برای این موارد خواند: $hosts. این میزبان‌ها بدون اعتبارنامه وارد می‌شوند.';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return 'وارد شد به پوشه: $folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return '$count میزبان از پیکربندی SSH وارد شد';
   }
 
   @override
@@ -724,53 +724,53 @@ class SFa extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => 'خروجی گرفتن از آرشیو';
 
   @override
   String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+      'ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => 'خروجی گرفتن کد QR';
 
   @override
   String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+      'اشتراک‌گذاری جلسات و کلیدهای انتخاب‌شده از طریق کد QR';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => 'وارد کردن آرشیو';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => 'وارد کردن پیکربندی OpenSSH';
 
   @override
   String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => 'وارد کردن کلیدهای SSH از ~/.ssh';
 
   @override
   String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+      'اسکن ~/.ssh برای یافتن کلیدهای خصوصی و افزودن موارد انتخاب‌شده به مدیر کلید';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => 'وارد کردن کلیدهای SSH';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return '$count کلید یافت شد — انتخاب کنید کدام‌ها وارد شوند';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound => 'هیچ کلید خصوصی در ~/.ssh یافت نشد.';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return '$count کلید وارد شد';
   }
 
   @override

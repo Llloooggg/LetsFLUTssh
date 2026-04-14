@@ -785,12 +785,12 @@ void main() {
     testWidgets('renders export tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         400,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Data'), findsOneWidget);
-      expect(find.text('Export Data'), findsOneWidget);
+      expect(find.text('Export archive'), findsOneWidget);
       expect(
         find.text('Save sessions, config, and keys to encrypted .lfs file'),
         findsOneWidget,
@@ -816,11 +816,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         400,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
@@ -846,11 +846,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         400,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
@@ -881,11 +881,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         400,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
@@ -915,11 +915,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
@@ -961,11 +961,11 @@ void main() {
       await tester.pump();
 
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -980,11 +980,11 @@ void main() {
     testWidgets('renders import tile with subtitle and icon', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
+        find.text('Import archive'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Import Data'), findsOneWidget);
+      expect(find.text('Import archive'), findsOneWidget);
       expect(find.text('Load data from .lfs file'), findsOneWidget);
       expect(find.byIcon(Icons.download), findsOneWidget);
     });
@@ -1008,11 +1008,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
+        find.text('Import archive'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Import Data'));
+      await tester.tap(find.text('Import archive'));
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
@@ -1037,11 +1037,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
+        find.text('Import archive'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Import Data'));
+      await tester.tap(find.text('Import archive'));
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
@@ -1071,11 +1071,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
+        find.text('Import archive'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Import Data'));
+      await tester.tap(find.text('Import archive'));
       await tester.pump();
 
       expect(find.text('Next'), findsOneWidget);
@@ -1101,11 +1101,11 @@ void main() {
       await tester.pumpWidget(buildFullApp(sessions: sessions));
       await tester.pump();
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
+        find.text('Import archive'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Import Data'));
+      await tester.tap(find.text('Import archive'));
       await tester.pump();
 
       // Tap Next with empty password — dialog should stay open
@@ -1350,11 +1350,11 @@ void main() {
       await tester.pump();
 
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
 
       // Verify export dialog is shown
@@ -1383,11 +1383,11 @@ void main() {
       await tester.pump();
 
       await tester.scrollUntilVisible(
-        find.text('Export Data'),
+        find.text('Export archive'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Export Data'));
+      await tester.tap(find.text('Export archive'));
       await tester.pump();
 
       // Verify export dialog is shown
@@ -1421,11 +1421,11 @@ void main() {
       await tester.pump();
 
       await tester.scrollUntilVisible(
-        find.text('Import Data'),
+        find.text('Import archive'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Import Data'));
+      await tester.tap(find.text('Import archive'));
       await tester.pump();
 
       // Import dialog opens
@@ -2860,11 +2860,11 @@ void main() {
 
       await tester.pumpWidget(buildFullApp());
       await tester.scrollUntilVisible(
-        find.text('Share via QR Code'),
+        find.text('Export QR code'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Share via QR Code'));
+      await tester.tap(find.text('Export QR code'));
       await tester.pumpAndSettle();
 
       // No warning toast — dialog opens even with zero sessions

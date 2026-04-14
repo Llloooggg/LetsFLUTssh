@@ -673,40 +673,38 @@ class SKo extends S {
   String get importDataSubtitle => '.lfs 파일에서 데이터 불러오기';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => 'OpenSSH 설정에서 가져오기';
 
   @override
-  String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+  String get importFromSshConfigSubtitle => '~/.ssh/config에서 호스트를 한 번만 가져오기';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle => 'OpenSSH 설정 파일 선택';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'SSH 설정 가져오기';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return '호스트 $count개를 찾았습니다';
   }
 
   @override
-  String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+  String get sshConfigPreviewNoHosts => '이 파일에서 가져올 수 있는 호스트를 찾을 수 없습니다.';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return '다음 호스트의 키 파일을 읽을 수 없습니다: $hosts. 이 호스트는 자격 증명 없이 가져옵니다.';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return '폴더로 가져옴: $folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return 'SSH 설정에서 호스트 $count개를 가져왔습니다';
   }
 
   @override
@@ -715,53 +713,49 @@ class SKo extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => '아카이브 내보내기';
 
   @override
-  String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+  String get exportArchiveSubtitle => '세션, 설정 및 키를 암호화된 .lfs 파일로 저장';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => 'QR 코드 내보내기';
 
   @override
-  String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+  String get exportQrCodeSubtitle => '선택한 세션과 키를 QR 코드로 공유';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => '아카이브 가져오기';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle => '.lfs 파일에서 데이터 불러오기';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => 'OpenSSH 설정 가져오기';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+  String get importOpensshConfigSubtitle => '~/.ssh/config에서 호스트를 한 번만 가져오기';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => '~/.ssh에서 SSH 키 가져오기';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+  String get importSshKeysSubtitle => '~/.ssh를 스캔하여 개인 키를 찾아 선택한 키를 키 관리자에 추가';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => 'SSH 키 가져오기';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return '키 $count개를 찾았습니다 — 가져올 항목을 선택하세요';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound => '~/.ssh에서 개인 키를 찾을 수 없습니다.';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return '키 $count개를 가져왔습니다';
   }
 
   @override

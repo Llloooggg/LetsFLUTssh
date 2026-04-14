@@ -686,40 +686,40 @@ class STr extends S {
   String get importDataSubtitle => '.lfs dosyasından veri yükle';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => 'OpenSSH yapılandırmasından içe aktar';
 
   @override
   String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      '~/.ssh/config dosyasından tek seferlik host içe aktarma';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle => 'OpenSSH yapılandırma dosyasını seç';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'SSH yapılandırma içe aktarma';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return '$count host bulundu';
   }
 
   @override
   String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+      'Bu dosyada içe aktarılabilir host bulunamadı.';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return 'Şu hostlar için anahtar dosyaları okunamadı: $hosts. Bu hostlar kimlik bilgileri olmadan içe aktarılacak.';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return 'Klasöre içe aktarıldı: $folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return 'SSH yapılandırmasından $count host içe aktarıldı';
   }
 
   @override
@@ -728,53 +728,54 @@ class STr extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => 'Arşivi dışa aktar';
 
   @override
   String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+      'Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => 'QR kodu dışa aktar';
 
   @override
   String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+      'Seçilen oturumları ve anahtarları QR kodu ile paylaş';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => 'Arşivi içe aktar';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle => '.lfs dosyasından veri yükle';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => 'OpenSSH yapılandırmasını içe aktar';
 
   @override
   String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      '~/.ssh/config dosyasından tek seferlik host içe aktarma';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => '~/.ssh dizininden SSH anahtarlarını içe aktar';
 
   @override
   String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+      '~/.ssh dizinini özel anahtarlar için tara ve seçilenleri anahtar yöneticisine ekle';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => 'SSH anahtarlarını içe aktar';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return '$count anahtar bulundu — hangilerini içe aktaracağınızı seçin';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound =>
+      '~/.ssh dizininde özel anahtar bulunamadı.';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return '$count anahtar içe aktarıldı';
   }
 
   @override

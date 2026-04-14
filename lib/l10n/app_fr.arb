@@ -202,6 +202,79 @@
   "exportData": "Exporter les données",
   "exportDataSubtitle": "Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré",
   "importDataSubtitle": "Charger les données depuis un fichier .lfs",
+  "importFromSshConfig": "Importer depuis la configuration OpenSSH",
+  "importFromSshConfigSubtitle": "Import ponctuel des hôtes depuis ~/.ssh/config",
+  "sshConfigPickerTitle": "Sélectionner un fichier de configuration OpenSSH",
+  "sshConfigPreviewTitle": "Import de configuration SSH",
+  "sshConfigPreviewHostsFound": "{count} hôte(s) trouvé(s)",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Aucun hôte importable trouvé dans ce fichier.",
+  "sshConfigPreviewMissingKeys": "Impossible de lire les fichiers de clés pour : {hosts}. Ces hôtes seront importés sans identifiants.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Importé dans le dossier : {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "{count} hôte(s) importé(s) depuis la configuration SSH",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Exporter l'archive",
+  "exportArchiveSubtitle": "Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré",
+  "exportQrCode": "Exporter le code QR",
+  "exportQrCodeSubtitle": "Partager les sessions et clés sélectionnées via un code QR",
+  "importArchive": "Importer une archive",
+  "importArchiveSubtitle": "Charger les données depuis un fichier .lfs",
+  "importOpensshConfig": "Importer la configuration OpenSSH",
+  "importOpensshConfigSubtitle": "Import ponctuel des hôtes depuis ~/.ssh/config",
+  "importSshKeys": "Importer les clés SSH depuis ~/.ssh",
+  "importSshKeysSubtitle": "Analyser ~/.ssh à la recherche de clés privées et ajouter celles sélectionnées au gestionnaire de clés",
+  "importSshKeysTitle": "Importer les clés SSH",
+  "importSshKeysFound": "{count} clé(s) trouvée(s) — choisissez lesquelles importer",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Aucune clé privée trouvée dans ~/.ssh.",
+  "importedSshKeys": "{count} clé(s) importée(s)",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "Définissez un mot de passe principal pour chiffrer l'archive.",
   "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
   "exportedTo": "Exporté vers : {path}",

@@ -202,6 +202,79 @@
   "exportData": "डेटा निर्यात करें",
   "exportDataSubtitle": "सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें",
   "importDataSubtitle": ".lfs फ़ाइल से डेटा लोड करें",
+  "importFromSshConfig": "OpenSSH कॉन्फ़िग से आयात करें",
+  "importFromSshConfigSubtitle": "~/.ssh/config से होस्ट का एक-बार आयात",
+  "sshConfigPickerTitle": "OpenSSH कॉन्फ़िग फ़ाइल चुनें",
+  "sshConfigPreviewTitle": "SSH कॉन्फ़िग आयात",
+  "sshConfigPreviewHostsFound": "{count} होस्ट मिले",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "इस फ़ाइल में कोई आयात योग्य होस्ट नहीं मिला।",
+  "sshConfigPreviewMissingKeys": "इनके लिए कुंजी फ़ाइलें नहीं पढ़ी जा सकीं: {hosts}. ये होस्ट बिना क्रेडेंशियल के आयात होंगे।",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "फ़ोल्डर में आयात किया गया: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "SSH कॉन्फ़िग से {count} होस्ट आयात किए गए",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "आर्काइव निर्यात करें",
+  "exportArchiveSubtitle": "सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें",
+  "exportQrCode": "QR कोड निर्यात करें",
+  "exportQrCodeSubtitle": "चयनित सत्र और कुंजियाँ QR कोड के माध्यम से साझा करें",
+  "importArchive": "आर्काइव आयात करें",
+  "importArchiveSubtitle": ".lfs फ़ाइल से डेटा लोड करें",
+  "importOpensshConfig": "OpenSSH कॉन्फ़िग आयात करें",
+  "importOpensshConfigSubtitle": "~/.ssh/config से होस्ट का एक-बार आयात",
+  "importSshKeys": "~/.ssh से SSH कुंजियाँ आयात करें",
+  "importSshKeysSubtitle": "~/.ssh में निजी कुंजियों के लिए स्कैन करें और चयनित को कुंजी प्रबंधक में जोड़ें",
+  "importSshKeysTitle": "SSH कुंजियाँ आयात करें",
+  "importSshKeysFound": "{count} कुंजी मिली — चुनें कौन-सी आयात करनी हैं",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "~/.ssh में कोई निजी कुंजी नहीं मिली।",
+  "importedSshKeys": "{count} कुंजी आयात की गईं",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।",
   "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते",
   "exportedTo": "निर्यात किया गया: {path}",

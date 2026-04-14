@@ -202,6 +202,79 @@
   "exportData": "Ekspor Data",
   "exportDataSubtitle": "Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi",
   "importDataSubtitle": "Muat data dari file .lfs",
+  "importFromSshConfig": "Impor dari konfigurasi OpenSSH",
+  "importFromSshConfigSubtitle": "Impor sekali saja host dari ~/.ssh/config",
+  "sshConfigPickerTitle": "Pilih file konfigurasi OpenSSH",
+  "sshConfigPreviewTitle": "Impor konfigurasi SSH",
+  "sshConfigPreviewHostsFound": "{count} host ditemukan",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Tidak ada host yang dapat diimpor di file ini.",
+  "sshConfigPreviewMissingKeys": "Tidak dapat membaca file kunci untuk: {hosts}. Host ini akan diimpor tanpa kredensial.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Diimpor ke folder: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "Berhasil mengimpor {count} host dari konfigurasi SSH",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Ekspor arsip",
+  "exportArchiveSubtitle": "Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi",
+  "exportQrCode": "Ekspor kode QR",
+  "exportQrCodeSubtitle": "Bagikan sesi dan kunci terpilih melalui kode QR",
+  "importArchive": "Impor arsip",
+  "importArchiveSubtitle": "Muat data dari file .lfs",
+  "importOpensshConfig": "Impor konfigurasi OpenSSH",
+  "importOpensshConfigSubtitle": "Impor sekali saja host dari ~/.ssh/config",
+  "importSshKeys": "Impor kunci SSH dari ~/.ssh",
+  "importSshKeysSubtitle": "Pindai ~/.ssh untuk kunci privat dan tambahkan yang dipilih ke pengelola kunci",
+  "importSshKeysTitle": "Impor kunci SSH",
+  "importSshKeysFound": "{count} kunci ditemukan — pilih mana yang akan diimpor",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Tidak ada kunci privat yang ditemukan di ~/.ssh.",
+  "importedSshKeys": "Berhasil mengimpor {count} kunci",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "Atur kata sandi utama untuk mengenkripsi arsip.",
   "passwordsDoNotMatch": "Kata sandi tidak cocok",
   "exportedTo": "Diekspor ke: {path}",

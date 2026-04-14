@@ -682,40 +682,40 @@ class SVi extends S {
   String get importDataSubtitle => 'Tải dữ liệu từ tệp .lfs';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
+  String get importFromSshConfig => 'Nhập từ cấu hình OpenSSH';
 
   @override
   String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'Nhập một lần các host từ ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+  String get sshConfigPickerTitle => 'Chọn tệp cấu hình OpenSSH';
 
   @override
-  String get sshConfigPreviewTitle => 'SSH config import';
+  String get sshConfigPreviewTitle => 'Nhập cấu hình SSH';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    return 'Đã tìm thấy $count host';
   }
 
   @override
   String get sshConfigPreviewNoHosts =>
-      'No importable hosts found in this file.';
+      'Không tìm thấy host nào có thể nhập trong tệp này.';
 
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
-    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+    return 'Không thể đọc tệp khóa cho: $hosts. Các host này sẽ được nhập mà không có thông tin xác thực.';
   }
 
   @override
   String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
+    return 'Đã nhập vào thư mục: $folder';
   }
 
   @override
   String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
+    return 'Đã nhập $count host từ cấu hình SSH';
   }
 
   @override
@@ -724,53 +724,53 @@ class SVi extends S {
   }
 
   @override
-  String get exportArchive => 'Export archive';
+  String get exportArchive => 'Xuất kho lưu trữ';
 
   @override
   String get exportArchiveSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
+      'Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa';
 
   @override
-  String get exportQrCode => 'Export QR code';
+  String get exportQrCode => 'Xuất mã QR';
 
   @override
-  String get exportQrCodeSubtitle =>
-      'Share selected sessions and keys via QR code';
+  String get exportQrCodeSubtitle => 'Chia sẻ phiên và khóa đã chọn qua mã QR';
 
   @override
-  String get importArchive => 'Import archive';
+  String get importArchive => 'Nhập kho lưu trữ';
 
   @override
-  String get importArchiveSubtitle => 'Load data from .lfs file';
+  String get importArchiveSubtitle => 'Tải dữ liệu từ tệp .lfs';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importOpensshConfig => 'Nhập cấu hình OpenSSH';
 
   @override
   String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+      'Nhập một lần các host từ ~/.ssh/config';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get importSshKeys => 'Nhập khóa SSH từ ~/.ssh';
 
   @override
   String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+      'Quét ~/.ssh để tìm khóa riêng tư và thêm những khóa đã chọn vào trình quản lý khóa';
 
   @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get importSshKeysTitle => 'Nhập khóa SSH';
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    return 'Đã tìm thấy $count khóa — chọn khóa nào để nhập';
   }
 
   @override
-  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+  String get importSshKeysNoneFound =>
+      'Không tìm thấy khóa riêng tư nào trong ~/.ssh.';
 
   @override
   String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
+    return 'Đã nhập $count khóa';
   }
 
   @override

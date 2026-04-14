@@ -202,6 +202,79 @@
   "exportData": "Экспорт данных",
   "exportDataSubtitle": "Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs",
   "importDataSubtitle": "Загрузить данные из файла .lfs",
+  "importFromSshConfig": "Импорт из конфигурации OpenSSH",
+  "importFromSshConfigSubtitle": "Разовый импорт хостов из ~/.ssh/config",
+  "sshConfigPickerTitle": "Выбрать файл конфигурации OpenSSH",
+  "sshConfigPreviewTitle": "Импорт конфигурации SSH",
+  "sshConfigPreviewHostsFound": "Найдено хостов: {count}",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "В этом файле не найдено хостов для импорта.",
+  "sshConfigPreviewMissingKeys": "Не удалось прочитать файлы ключей для: {hosts}. Эти хосты будут импортированы без учётных данных.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Импортировано в папку: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "Импортировано хостов из конфигурации SSH: {count}",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Экспорт архива",
+  "exportArchiveSubtitle": "Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs",
+  "exportQrCode": "Экспорт QR-кода",
+  "exportQrCodeSubtitle": "Поделиться выбранными сессиями и ключами через QR-код",
+  "importArchive": "Импорт архива",
+  "importArchiveSubtitle": "Загрузить данные из файла .lfs",
+  "importOpensshConfig": "Импорт конфигурации OpenSSH",
+  "importOpensshConfigSubtitle": "Разовый импорт хостов из ~/.ssh/config",
+  "importSshKeys": "Импорт SSH-ключей из ~/.ssh",
+  "importSshKeysSubtitle": "Сканировать ~/.ssh на наличие приватных ключей и добавить выбранные в менеджер ключей",
+  "importSshKeysTitle": "Импорт SSH-ключей",
+  "importSshKeysFound": "Найдено ключей: {count} — выберите, какие импортировать",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "В ~/.ssh не найдено приватных ключей.",
+  "importedSshKeys": "Импортировано ключей: {count}",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "Задайте мастер-пароль для шифрования архива.",
   "passwordsDoNotMatch": "Пароли не совпадают",
   "exportedTo": "Экспортировано в: {path}",

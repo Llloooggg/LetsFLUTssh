@@ -202,6 +202,79 @@
   "exportData": "Veriyi Dışa Aktar",
   "exportDataSubtitle": "Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet",
   "importDataSubtitle": ".lfs dosyasından veri yükle",
+  "importFromSshConfig": "OpenSSH yapılandırmasından içe aktar",
+  "importFromSshConfigSubtitle": "~/.ssh/config dosyasından tek seferlik host içe aktarma",
+  "sshConfigPickerTitle": "OpenSSH yapılandırma dosyasını seç",
+  "sshConfigPreviewTitle": "SSH yapılandırma içe aktarma",
+  "sshConfigPreviewHostsFound": "{count} host bulundu",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Bu dosyada içe aktarılabilir host bulunamadı.",
+  "sshConfigPreviewMissingKeys": "Şu hostlar için anahtar dosyaları okunamadı: {hosts}. Bu hostlar kimlik bilgileri olmadan içe aktarılacak.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Klasöre içe aktarıldı: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "SSH yapılandırmasından {count} host içe aktarıldı",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Arşivi dışa aktar",
+  "exportArchiveSubtitle": "Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet",
+  "exportQrCode": "QR kodu dışa aktar",
+  "exportQrCodeSubtitle": "Seçilen oturumları ve anahtarları QR kodu ile paylaş",
+  "importArchive": "Arşivi içe aktar",
+  "importArchiveSubtitle": ".lfs dosyasından veri yükle",
+  "importOpensshConfig": "OpenSSH yapılandırmasını içe aktar",
+  "importOpensshConfigSubtitle": "~/.ssh/config dosyasından tek seferlik host içe aktarma",
+  "importSshKeys": "~/.ssh dizininden SSH anahtarlarını içe aktar",
+  "importSshKeysSubtitle": "~/.ssh dizinini özel anahtarlar için tara ve seçilenleri anahtar yöneticisine ekle",
+  "importSshKeysTitle": "SSH anahtarlarını içe aktar",
+  "importSshKeysFound": "{count} anahtar bulundu — hangilerini içe aktaracağınızı seçin",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "~/.ssh dizininde özel anahtar bulunamadı.",
+  "importedSshKeys": "{count} anahtar içe aktarıldı",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "Arşivi şifrelemek için bir ana şifre belirleyin.",
   "passwordsDoNotMatch": "Şifreler eşleşmiyor",
   "exportedTo": "Dışa aktarıldı: {path}",

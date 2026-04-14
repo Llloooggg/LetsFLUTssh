@@ -202,6 +202,79 @@
   "exportData": "تصدير البيانات",
   "exportDataSubtitle": "حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر",
   "importDataSubtitle": "تحميل البيانات من ملف .lfs",
+  "importFromSshConfig": "استيراد من إعدادات OpenSSH",
+  "importFromSshConfigSubtitle": "استيراد لمرة واحدة للمضيفين من ~/.ssh/config",
+  "sshConfigPickerTitle": "اختيار ملف إعدادات OpenSSH",
+  "sshConfigPreviewTitle": "استيراد إعدادات SSH",
+  "sshConfigPreviewHostsFound": "تم العثور على {count} مضيف",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "لم يتم العثور على مضيفين قابلين للاستيراد في هذا الملف.",
+  "sshConfigPreviewMissingKeys": "تعذر قراءة ملفات المفاتيح لـ: {hosts}. سيتم استيراد هؤلاء المضيفين بدون بيانات اعتماد.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "تم الاستيراد إلى المجلد: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "تم استيراد {count} مضيف من إعدادات SSH",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "~/.ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "تصدير الأرشيف",
+  "exportArchiveSubtitle": "حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر",
+  "exportQrCode": "تصدير رمز QR",
+  "exportQrCodeSubtitle": "مشاركة الجلسات والمفاتيح المحددة عبر رمز QR",
+  "importArchive": "استيراد الأرشيف",
+  "importArchiveSubtitle": "تحميل البيانات من ملف .lfs",
+  "importOpensshConfig": "استيراد إعدادات OpenSSH",
+  "importOpensshConfigSubtitle": "استيراد لمرة واحدة للمضيفين من ~/.ssh/config",
+  "importSshKeys": "استيراد مفاتيح SSH من ~/.ssh",
+  "importSshKeysSubtitle": "فحص ~/.ssh بحثًا عن المفاتيح الخاصة وإضافة المحدد منها إلى مدير المفاتيح",
+  "importSshKeysTitle": "استيراد مفاتيح SSH",
+  "importSshKeysFound": "تم العثور على {count} مفتاح — اختر أيها تريد استيراده",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "لم يتم العثور على مفاتيح خاصة في ~/.ssh.",
+  "importedSshKeys": "تم استيراد {count} مفتاح",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "setMasterPasswordHint": "عيّن كلمة مرور رئيسية لتشفير الأرشيف.",
   "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
   "exportedTo": "تم التصدير إلى: {path}",
