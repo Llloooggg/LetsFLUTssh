@@ -2,12 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/db/database_opener.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
-import 'package:letsflutssh/core/security/security_level.dart';
-import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
-import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -180,14 +177,13 @@ void main() {
     });
   });
 
-  group('KeyStore with external key', () {
-    test('setEncryptionKey allows loadAll and saveAll', () async {
-      final key = await manager.enable('mypassword');
-      final store = KeyStore();
+  group('KeyStore with DB', () {
+    test('setDatabase allows save and loadAll', () async {
+      final db = openTestDatabase();
+      final store = KeyStore()..setDatabase(db);
 
-      store.setEncryptionKey(key, SecurityLevel.masterPassword);
-      await store.saveAll({
-        'k1': SshKeyEntry(
+      await store.save(
+        SshKeyEntry(
           id: 'k1',
           label: 'test',
           privateKey: 'pk',
@@ -195,79 +191,11 @@ void main() {
           keyType: 'ed25519',
           createdAt: DateTime(2024),
         ),
-      });
+      );
 
-      final store2 = KeyStore();
-      store2.setEncryptionKey(key, SecurityLevel.masterPassword);
-      final all = await store2.loadAll();
+      final all = await store.loadAll();
       expect(all['k1']?.label, 'test');
-    });
-
-    test('plaintext mode stores keys.json', () async {
-      final store = KeyStore();
-      await store.saveAll({
-        'k1': SshKeyEntry(
-          id: 'k1',
-          label: 'test',
-          privateKey: 'pk',
-          publicKey: 'pub',
-          keyType: 'ed25519',
-          createdAt: DateTime(2024),
-        ),
-      });
-      expect(await File('${tempDir.path}/keys.json').exists(), isTrue);
-    });
-  });
-
-  group('Re-encryption flow', () {
-    Session makeSession(String label, String password) => Session(
-      label: label,
-      server: const ServerAddress(host: 'example.com', user: 'root'),
-      auth: SessionAuth(password: password),
-    );
-
-    test('enable → re-encrypt → load with derived key', () async {
-      // Save session in plaintext first.
-      final store = SessionStore(directory: tempDir.path);
-      await store.add(makeSession('s1', 'secret'));
-
-      // Enable master password and re-encrypt.
-      final key = await manager.enable('masterpass');
-      await store.reEncrypt(key, SecurityLevel.masterPassword);
-
-      // Plaintext file should be gone, encrypted file should exist.
-      expect(await File('${tempDir.path}/sessions.json').exists(), isFalse);
-      expect(await File('${tempDir.path}/sessions.enc').exists(), isTrue);
-
-      // Verify data loads correctly with derived key.
-      final freshStore = SessionStore(directory: tempDir.path);
-      freshStore.setEncryptionKey(key, SecurityLevel.masterPassword);
-      final loaded = await freshStore.load();
-      expect(loaded.length, 1);
-      expect(loaded.first.label, 's1');
-      expect(loaded.first.auth.password, 'secret');
-    });
-
-    test('disable → re-encrypt to plaintext → load without key', () async {
-      // Start with master password enabled.
-      final key = await manager.enable('masterpass');
-      final store = SessionStore(directory: tempDir.path);
-      store.setEncryptionKey(key, SecurityLevel.masterPassword);
-      await store.add(makeSession('s1', 'secret'));
-
-      // Disable master password — re-encrypt to plaintext.
-      await store.reEncrypt(null, SecurityLevel.plaintext);
-      await manager.disable();
-
-      // Encrypted file should be gone, plaintext file should exist.
-      expect(await File('${tempDir.path}/sessions.enc').exists(), isFalse);
-      expect(await File('${tempDir.path}/sessions.json').exists(), isTrue);
-
-      // Verify data loads without key.
-      final freshStore = SessionStore(directory: tempDir.path);
-      final loaded = await freshStore.load();
-      expect(loaded.length, 1);
-      expect(loaded.first.auth.password, 'secret');
+      await db.close();
     });
   });
 }

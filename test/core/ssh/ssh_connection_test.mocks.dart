@@ -14,6 +14,7 @@ import 'package:dartssh2/src/ssh_client.dart' as _i9;
 import 'package:dartssh2/src/ssh_forward.dart' as _i5;
 import 'package:dartssh2/src/ssh_session.dart' as _i6;
 import 'package:dartssh2/src/ssh_signal.dart' as _i12;
+import 'package:letsflutssh/core/db/database.dart' as _i14;
 import 'package:letsflutssh/core/ssh/known_hosts.dart' as _i13;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i11;
@@ -648,6 +649,24 @@ class MockSSHSession extends _i1.Mock implements _i6.SSHSession {
 /// See the documentation for Mockito's code generation for more information.
 class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
   @override
+  Map<String, String> get entries =>
+      (super.noSuchMethod(
+            Invocation.getter(#entries),
+            returnValue: <String, String>{},
+            returnValueForMissingStub: <String, String>{},
+          )
+          as Map<String, String>);
+
+  @override
+  int get count =>
+      (super.noSuchMethod(
+            Invocation.getter(#count),
+            returnValue: 0,
+            returnValueForMissingStub: 0,
+          )
+          as int);
+
+  @override
   set onUnknownHost(
     _i2.Future<bool> Function(String, int, String, String)? value,
   ) => super.noSuchMethod(
@@ -660,6 +679,12 @@ class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
     _i2.Future<bool> Function(String, int, String, String)? value,
   ) => super.noSuchMethod(
     Invocation.setter(#onHostKeyChanged, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void setDatabase(_i14.AppDatabase? db) => super.noSuchMethod(
+    Invocation.method(#setDatabase, [db]),
     returnValueForMissingStub: null,
   );
 
@@ -685,4 +710,64 @@ class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
             returnValueForMissingStub: _i2.Future<bool>.value(false),
           )
           as _i2.Future<bool>);
+
+  @override
+  _i2.Future<void> removeHost(String? hostPort) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeHost, [hostPort]),
+            returnValue: _i2.Future<void>.value(),
+            returnValueForMissingStub: _i2.Future<void>.value(),
+          )
+          as _i2.Future<void>);
+
+  @override
+  _i2.Future<void> removeMultiple(Set<String>? hostPorts) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeMultiple, [hostPorts]),
+            returnValue: _i2.Future<void>.value(),
+            returnValueForMissingStub: _i2.Future<void>.value(),
+          )
+          as _i2.Future<void>);
+
+  @override
+  _i2.Future<void> clearAll() =>
+      (super.noSuchMethod(
+            Invocation.method(#clearAll, []),
+            returnValue: _i2.Future<void>.value(),
+            returnValueForMissingStub: _i2.Future<void>.value(),
+          )
+          as _i2.Future<void>);
+
+  @override
+  _i2.Future<int> importFromFile(String? path) =>
+      (super.noSuchMethod(
+            Invocation.method(#importFromFile, [path]),
+            returnValue: _i2.Future<int>.value(0),
+            returnValueForMissingStub: _i2.Future<int>.value(0),
+          )
+          as _i2.Future<int>);
+
+  @override
+  _i2.Future<int> importFromString(String? content) =>
+      (super.noSuchMethod(
+            Invocation.method(#importFromString, [content]),
+            returnValue: _i2.Future<int>.value(0),
+            returnValueForMissingStub: _i2.Future<int>.value(0),
+          )
+          as _i2.Future<int>);
+
+  @override
+  String exportToString() =>
+      (super.noSuchMethod(
+            Invocation.method(#exportToString, []),
+            returnValue: _i11.dummyValue<String>(
+              this,
+              Invocation.method(#exportToString, []),
+            ),
+            returnValueForMissingStub: _i11.dummyValue<String>(
+              this,
+              Invocation.method(#exportToString, []),
+            ),
+          )
+          as String);
 }

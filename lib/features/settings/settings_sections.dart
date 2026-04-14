@@ -570,16 +570,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  /// Re-encrypt all three data stores and update global security state.
+  /// Re-encrypt the database and update global security state.
+  ///
+  /// With drift, encryption is at the DB file level — no per-store re-encryption.
+  /// TODO: Implement PRAGMA rekey for live re-encryption.
   Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
-    final sessionStore = ref.read(sessionStoreProvider);
-    final keyStore = ref.read(keyStoreProvider);
-    final knownHosts = ref.read(knownHostsProvider);
-
-    await sessionStore.reEncrypt(key, level);
-    await keyStore.reEncrypt(key, level);
-    await knownHosts.reEncrypt(key, level);
-
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     } else {

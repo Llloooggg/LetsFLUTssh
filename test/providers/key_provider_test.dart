@@ -1,31 +1,19 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/db/database.dart';
+import 'package:letsflutssh/core/db/database_opener.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory tempDir;
+  late AppDatabase db;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('key_prov_test_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => tempDir.path,
-        );
+    db = openTestDatabase();
   });
 
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        );
-    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+  tearDown(() async {
+    await db.close();
   });
 
   group('keyStoreProvider', () {
@@ -41,6 +29,7 @@ void main() {
     test('returns empty list when no keys stored', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
+      container.read(keyStoreProvider).setDatabase(db);
       final keys = await container.read(sshKeysProvider.future);
       expect(keys, isEmpty);
     });
@@ -48,13 +37,12 @@ void main() {
     test('returns keys sorted by createdAt descending', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final store = container.read(keyStoreProvider);
+      final store = container.read(keyStoreProvider)..setDatabase(db);
 
-      // Add two keys with different creation dates
       final olderKey = SshKeyEntry(
         id: 'older',
         label: 'Old Key',
-        privateKey: '-----BEGIN OPENSSH PRIVATE KEY-----\nold\n-----END OPENSSH PRIVATE KEY-----',
+        privateKey: 'pk-old',
         publicKey: 'ssh-ed25519 AAAA old',
         keyType: 'ssh-ed25519',
         createdAt: DateTime(2024, 1, 1),
@@ -62,7 +50,7 @@ void main() {
       final newerKey = SshKeyEntry(
         id: 'newer',
         label: 'New Key',
-        privateKey: '-----BEGIN OPENSSH PRIVATE KEY-----\nnew\n-----END OPENSSH PRIVATE KEY-----',
+        privateKey: 'pk-new',
         publicKey: 'ssh-ed25519 AAAA new',
         keyType: 'ssh-ed25519',
         createdAt: DateTime(2025, 1, 1),
@@ -71,12 +59,10 @@ void main() {
       await store.save(olderKey);
       await store.save(newerKey);
 
-      // Invalidate provider to reload
       container.invalidate(sshKeysProvider);
       final keys = await container.read(sshKeysProvider.future);
 
       expect(keys, hasLength(2));
-      // Newer key should come first (descending sort)
       expect(keys[0].id, 'newer');
       expect(keys[1].id, 'older');
     });
@@ -84,25 +70,23 @@ void main() {
     test('reloads after invalidation', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final store = container.read(keyStoreProvider);
+      final store = container.read(keyStoreProvider)..setDatabase(db);
 
-      // Initial read
       var keys = await container.read(sshKeysProvider.future);
       expect(keys, isEmpty);
 
-      // Add a key
       await store.save(
         SshKeyEntry(
           id: 'test',
           label: 'Test Key',
-          privateKey: '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
+          privateKey: 'pk-test',
           publicKey: 'ssh-ed25519 AAAA test',
           keyType: 'ssh-ed25519',
           createdAt: DateTime.now(),
         ),
       );
 
-      // Should still be empty (cached)
+      // Still cached
       keys = await container.read(sshKeysProvider.future);
       expect(keys, isEmpty);
 

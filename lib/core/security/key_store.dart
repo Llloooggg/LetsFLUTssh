@@ -1,18 +1,14 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pinenacl/ed25519.dart' as ed25519;
 import 'package:pointycastle/export.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import 'aes_gcm.dart';
-import 'security_level.dart';
+import '../db/database.dart';
 
 /// Supported SSH key types for generation.
 enum SshKeyType {
@@ -88,90 +84,47 @@ class SshKeyEntry {
   int get hashCode => Object.hash(id, label, privateKey);
 }
 
-/// SSH key store with three-level security.
+/// SSH key store backed by drift database.
 ///
-/// - [SecurityLevel.plaintext]: `keys.json` in cleartext.
-/// - [SecurityLevel.keychain] / [SecurityLevel.masterPassword]: `keys.enc`
-///   encrypted with AES-256-GCM.
+/// Keeps the same public API as the old file-based store. Call [setDatabase]
+/// before [loadAll] — without a database, reads return empty and writes are
+/// no-ops.
 class KeyStore {
-  static const _jsonFileName = 'keys.json';
-  static const _encFileName = 'keys.enc';
-
-  String? _basePath;
+  AppDatabase? _db;
   Map<String, SshKeyEntry>? _cache;
 
-  SecurityLevel _level;
-  Uint8List? _encryptionKey;
-
-  KeyStore({SecurityLevel level = SecurityLevel.plaintext}) : _level = level;
-
-  /// Current security level.
-  SecurityLevel get securityLevel => _level;
-
-  /// Set the encryption key (from keychain or master password).
-  void setEncryptionKey(Uint8List key, SecurityLevel level) {
-    _encryptionKey = key;
-    _level = level;
+  /// Inject the opened database. Replaces the old `setEncryptionKey()`.
+  void setDatabase(AppDatabase db) {
+    _db = db;
     _cache = null;
-  }
-
-  /// Clear the encryption key (revert to plaintext).
-  void clearEncryptionKey() {
-    _encryptionKey = null;
-    _level = SecurityLevel.plaintext;
-    _cache = null;
-  }
-
-  Future<String> _getBasePath() async {
-    if (_basePath != null) return _basePath!;
-    final dir = await getApplicationSupportDirectory();
-    _basePath = dir.path;
-    return _basePath!;
   }
 
   /// Load all stored keys.
   Future<Map<String, SshKeyEntry>> loadAll() async {
     if (_cache != null) return Map.of(_cache!);
+    final db = _db;
+    if (db == null) return {};
 
-    final basePath = await _getBasePath();
-
-    if (_encryptionKey != null) {
-      // Encrypted mode.
-      final encFile = File('$basePath/$_encFileName');
-      if (!await encFile.exists()) return {};
-      try {
-        final encData = await encFile.readAsBytes();
-        final json = AesGcm.decrypt(encData, _encryptionKey!);
-        return _parseAndCache(json);
-      } catch (e) {
-        AppLogger.instance.log('Failed to load keys: $e', name: 'KeyStore');
-        if (e is KeyStoreException) rethrow;
-        throw KeyStoreException(
-          'Failed to decrypt keys. Key may be incorrect.',
-          cause: e,
+    try {
+      final dbKeys = await db.sshKeyDao.getAll();
+      final result = <String, SshKeyEntry>{};
+      for (final k in dbKeys) {
+        result[k.id] = SshKeyEntry(
+          id: k.id,
+          label: k.label,
+          privateKey: k.privateKey,
+          publicKey: k.publicKey,
+          keyType: k.keyType,
+          createdAt: k.createdAt,
+          isGenerated: k.isGenerated,
         );
       }
-    } else {
-      // Plaintext mode.
-      final jsonFile = File('$basePath/$_jsonFileName');
-      if (!await jsonFile.exists()) return {};
-      try {
-        final json = await jsonFile.readAsString();
-        return _parseAndCache(json);
-      } catch (e) {
-        AppLogger.instance.log('Failed to load keys: $e', name: 'KeyStore');
-        throw KeyStoreException('Failed to parse keys file.', cause: e);
-      }
+      _cache = result;
+      return Map.of(result);
+    } catch (e) {
+      AppLogger.instance.log('Failed to load keys', name: 'KeyStore', error: e);
+      throw KeyStoreException('Failed to load keys.', cause: e);
     }
-  }
-
-  Map<String, SshKeyEntry> _parseAndCache(String json) {
-    final map = jsonDecode(json) as Map<String, dynamic>;
-    final result = map.map(
-      (k, v) => MapEntry(k, SshKeyEntry.fromJson(v as Map<String, dynamic>)),
-    );
-    _cache = result;
-    return Map.of(result);
   }
 
   /// Load all keys, returning empty map on any error.
@@ -187,43 +140,20 @@ class KeyStore {
     }
   }
 
-  /// Save all keys.
+  /// Save all keys (replaces entire store).
   Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
-    final basePath = await _getBasePath();
-    final json = jsonEncode(keys.map((k, v) => MapEntry(k, v.toJson())));
+    final db = _db;
+    if (db == null) return;
 
-    if (_encryptionKey != null) {
-      final encData = AesGcm.encrypt(json, _encryptionKey!);
-      await writeBytesAtomic('$basePath/$_encFileName', encData);
-    } else {
-      await writeFileAtomic(
-        '$basePath/$_jsonFileName',
-        const JsonEncoder.withIndent(
-          '  ',
-        ).convert(keys.map((k, v) => MapEntry(k, v.toJson()))),
-      );
+    // Delete all existing, then re-insert
+    final existing = await db.sshKeyDao.getAll();
+    for (final k in existing) {
+      await db.sshKeyDao.deleteById(k.id);
+    }
+    for (final entry in keys.values) {
+      await db.sshKeyDao.insert(_toCompanion(entry));
     }
     _cache = Map.of(keys);
-  }
-
-  /// Re-encrypt all data with a new key and security level.
-  Future<void> reEncrypt(Uint8List? newKey, SecurityLevel newLevel) async {
-    final basePath = await _getBasePath();
-    final data = await loadAllSafe();
-
-    _encryptionKey = newKey;
-    _level = newLevel;
-    _cache = null;
-    await saveAll(data);
-
-    // Clean up opposite format file.
-    if (newKey != null) {
-      final jsonFile = File('$basePath/$_jsonFileName');
-      if (await jsonFile.exists()) await jsonFile.delete();
-    } else {
-      final encFile = File('$basePath/$_encFileName');
-      if (await encFile.exists()) await encFile.delete();
-    }
   }
 
   /// Get a single key entry.
@@ -234,16 +164,22 @@ class KeyStore {
 
   /// Add or update a key entry.
   Future<void> save(SshKeyEntry entry) async {
-    final all = await loadAllSafe();
-    all[entry.id] = entry;
-    await saveAll(all);
+    final db = _db;
+    if (db == null) return;
+
+    final existing = await db.sshKeyDao.getById(entry.id);
+    if (existing != null) {
+      await db.sshKeyDao.update(_toCompanion(entry));
+    } else {
+      await db.sshKeyDao.insert(_toCompanion(entry));
+    }
+    _cache?[entry.id] = entry;
   }
 
   /// Delete a key entry.
   Future<void> delete(String id) async {
-    final all = await loadAllSafe();
-    all.remove(id);
-    await saveAll(all);
+    await _db?.sshKeyDao.deleteById(id);
+    _cache?.remove(id);
   }
 
   /// Import a key from PEM text. Returns the created entry.
@@ -288,6 +224,18 @@ class KeyStore {
       isGenerated: true,
     );
   }
+
+  // ── Internals ───────────────────────────────────────────────────
+
+  static SshKeysCompanion _toCompanion(SshKeyEntry e) =>
+      SshKeysCompanion.insert(
+        id: e.id,
+        label: e.label,
+        privateKey: e.privateKey,
+        publicKey: e.publicKey,
+        keyType: e.keyType,
+        createdAt: e.createdAt,
+      );
 
   static SSHKeyPair _generateEd25519(String comment) {
     final signingKey = ed25519.SigningKey.generate();

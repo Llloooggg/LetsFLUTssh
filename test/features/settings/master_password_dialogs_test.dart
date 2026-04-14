@@ -316,8 +316,9 @@ void main() {
       // Pump a single frame: the dialog closes synchronously via
       // Navigator.pop. Do NOT pumpAndSettle — the settings screen then
       // triggers the real PBKDF2 enable flow on an Isolate, which widget
-      // tests can't drive.
+      // tests can't drive. Extra pumps let isolate and toast timers settle.
       await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
 
       // The dialog is gone. The "Set Master Password" text no longer
       // appears because the settings tile label is "Manage Master Password".

@@ -14,6 +14,7 @@ import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
+import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
@@ -331,10 +332,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       if (!mounted) return;
       final derivedKey = await _showUnlockDialog(manager);
       if (derivedKey != null) {
-        _injectKey(derivedKey, SecurityLevel.masterPassword);
+        _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
         AppLogger.instance.log('Master password unlocked', name: 'App');
       } else {
         _credentialsWereReset = true;
+        _injectDatabase(); // Open DB without encryption after reset
         AppLogger.instance.log(
           'Master password reset — credentials cleared',
           name: 'App',
@@ -346,13 +348,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // 2. Keychain key exists — use it.
     final keychainKey = await keyStorage.readKey();
     if (keychainKey != null) {
-      _injectKey(keychainKey, SecurityLevel.keychain);
+      _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
       AppLogger.instance.log('Keychain key loaded', name: 'App');
       return;
     }
 
-    // 3. Existing plaintext install — nothing to do.
+    // 3. Existing plaintext install — open DB without encryption.
     if (await _hasAnyData()) {
+      _injectDatabase();
       AppLogger.instance.log('Plaintext mode (no encryption)', name: 'App');
       return;
     }
@@ -385,7 +388,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     if (result.masterPassword != null) {
       final key = await manager.enable(result.masterPassword!);
-      _injectKey(key, SecurityLevel.masterPassword);
+      _injectDatabase(key: key, level: SecurityLevel.masterPassword);
       AppLogger.instance.log(
         'First launch: master password enabled',
         name: 'App',
@@ -394,18 +397,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       final key = AesGcm.generateKey();
       final stored = await keyStorage.writeKey(key);
       if (stored) {
-        _injectKey(key, SecurityLevel.keychain);
+        _injectDatabase(key: key, level: SecurityLevel.keychain);
         AppLogger.instance.log(
           'First launch: keychain encryption enabled',
           name: 'App',
         );
       } else {
+        _injectDatabase();
         AppLogger.instance.log(
           'First launch: keychain write failed, falling back to plaintext',
           name: 'App',
         );
       }
     } else {
+      _injectDatabase();
       AppLogger.instance.log(
         'First launch: plaintext mode (no keychain, no master password)',
         name: 'App',
@@ -413,12 +418,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
   }
 
-  /// Inject the encryption key into all data stores and update global state.
-  void _injectKey(Uint8List key, SecurityLevel level) {
-    ref.read(sessionStoreProvider).setEncryptionKey(key, level);
-    ref.read(keyStoreProvider).setEncryptionKey(key, level);
-    ref.read(knownHostsProvider).setEncryptionKey(key, level);
-    ref.read(securityStateProvider.notifier).set(level, key);
+  /// Open the database (with optional encryption) and inject into all stores.
+  void _injectDatabase({
+    Uint8List? key,
+    SecurityLevel level = SecurityLevel.plaintext,
+  }) {
+    final db = openDatabase(encryptionKey: key);
+    ref.read(sessionStoreProvider).setDatabase(db);
+    ref.read(keyStoreProvider).setDatabase(db);
+    ref.read(knownHostsProvider).setDatabase(db);
+    if (key != null) {
+      ref.read(securityStateProvider.notifier).set(level, key);
+    }
   }
 
   /// Show unlock dialog using the navigator key context.

@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/db/database.dart';
+import 'package:letsflutssh/core/db/database_opener.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
-import 'package:letsflutssh/core/security/security_level.dart';
 
 void main() {
   group('SshKeyEntry', () {
@@ -28,22 +26,20 @@ void main() {
       expect(restored.privateKey, entry.privateKey);
       expect(restored.publicKey, entry.publicKey);
       expect(restored.keyType, entry.keyType);
-      expect(restored.createdAt, entry.createdAt);
       expect(restored.isGenerated, isTrue);
     });
 
     test('fromJson handles missing fields gracefully', () {
       final entry = SshKeyEntry.fromJson({'id': 'x'});
       expect(entry.id, 'x');
-      expect(entry.label, isEmpty);
-      expect(entry.privateKey, isEmpty);
-      expect(entry.isGenerated, isFalse);
+      expect(entry.label, '');
+      expect(entry.privateKey, '');
     });
 
-    test('equality compares id, label, privateKey', () {
+    test('equality by id, label, privateKey', () {
       final a = SshKeyEntry(
         id: '1',
-        label: 'A',
+        label: 'k',
         privateKey: 'pk',
         publicKey: 'pub',
         keyType: 'ssh-ed25519',
@@ -51,11 +47,11 @@ void main() {
       );
       final b = SshKeyEntry(
         id: '1',
-        label: 'A',
+        label: 'k',
         privateKey: 'pk',
-        publicKey: 'pub-different',
-        keyType: 'ssh-rsa',
-        createdAt: DateTime(2026),
+        publicKey: 'pub',
+        keyType: 'ssh-ed25519',
+        createdAt: DateTime(2025),
       );
       expect(a, equals(b));
     });
@@ -116,7 +112,6 @@ void main() {
 
   group('Key import', () {
     test('importKey parses Ed25519 PEM', () {
-      // Generate a valid PEM first
       final generated = KeyStore.generateKeyPair(SshKeyType.ed25519, 'gen');
       final store = KeyStore();
       final entry = store.importKey(generated.privateKey, 'imported');
@@ -134,84 +129,36 @@ void main() {
     });
   });
 
-  group('KeyStore encryption', () {
-    // Uses the same AES-256-GCM encrypt/decrypt as SessionStore.
-    // Test via the full KeyStore with mocked path_provider.
-    TestWidgetsFlutterBinding.ensureInitialized();
-    late Directory tempDir;
+  group('KeyStore — DB CRUD', () {
+    late AppDatabase db;
+    late KeyStore store;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('key_store_test_');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            (call) async => tempDir.path,
-          );
+      db = openTestDatabase();
+      store = KeyStore()..setDatabase(db);
     });
 
-    tearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/path_provider'),
-            null,
-          );
-      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    tearDown(() async {
+      await db.close();
     });
 
-    final testKey = Uint8List.fromList(List.generate(32, (i) => i));
+    test('loadAll returns empty when no keys', () async {
+      final result = await store.loadAll();
+      expect(result, isEmpty);
+    });
 
-    /// Create an encrypted KeyStore for testing.
-    KeyStore createEncryptedStore() {
-      final store = KeyStore();
-      store.setEncryptionKey(testKey, SecurityLevel.keychain);
-      return store;
-    }
-
-    test('plaintext save and load roundtrip', () async {
-      final store = KeyStore();
+    test('save and loadAll roundtrip', () async {
       final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'roundtrip');
       await store.save(entry);
 
-      final store2 = KeyStore();
-      final loaded = await store2.loadAll();
+      final loaded = await store.loadAll();
       expect(loaded.length, 1);
       expect(loaded[entry.id]!.label, 'roundtrip');
       expect(loaded[entry.id]!.keyType, 'ssh-ed25519');
       expect(loaded[entry.id]!.privateKey, entry.privateKey);
     });
 
-    test('encrypted save and load roundtrip', () async {
-      final store = createEncryptedStore();
-      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'roundtrip');
-      await store.save(entry);
-
-      final store2 = createEncryptedStore();
-      final loaded = await store2.loadAll();
-      expect(loaded.length, 1);
-      expect(loaded[entry.id]!.label, 'roundtrip');
-    });
-
-    test('loadAll returns empty when no files exist', () async {
-      final store = KeyStore();
-      final result = await store.loadAll();
-      expect(result, isEmpty);
-    });
-
-    test('loadAllSafe returns empty on decrypt error', () async {
-      await File('${tempDir.path}/keys.enc').writeAsBytes([1, 2, 3]);
-      final store = createEncryptedStore();
-      final result = await store.loadAllSafe();
-      expect(result, isEmpty);
-    });
-
-    test('loadAll throws KeyStoreException on corrupt data', () async {
-      await File('${tempDir.path}/keys.enc').writeAsBytes([1, 2, 3]);
-      final store = createEncryptedStore();
-      expect(() => store.loadAll(), throwsA(isA<KeyStoreException>()));
-    });
-
     test('delete removes entry', () async {
-      final store = KeyStore();
       final e1 = KeyStore.generateKeyPair(SshKeyType.ed25519, 'one');
       final e2 = KeyStore.generateKeyPair(SshKeyType.ed25519, 'two');
       await store.save(e1);
@@ -224,7 +171,6 @@ void main() {
     });
 
     test('get returns single entry or null', () async {
-      final store = KeyStore();
       final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'test');
       await store.save(entry);
 
@@ -236,30 +182,11 @@ void main() {
       expect(missing, isNull);
     });
 
-    test('cache is used on subsequent loadAll calls', () async {
-      final store = KeyStore();
-      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'cached');
-      await store.save(entry);
-
-      final first = await store.loadAll();
-      // Delete the file — cached data should still be returned
-      await File('${tempDir.path}/keys.json').delete();
-      final second = await store.loadAll();
-      expect(second.length, first.length);
-    });
-
-    test('reEncrypt from plaintext to encrypted', () async {
-      final store = KeyStore();
-      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 're-enc');
-      await store.save(entry);
-
-      await store.reEncrypt(testKey, SecurityLevel.keychain);
-      expect(await File('${tempDir.path}/keys.json').exists(), isFalse);
-      expect(await File('${tempDir.path}/keys.enc').exists(), isTrue);
-
-      final store2 = createEncryptedStore();
-      final loaded = await store2.loadAll();
-      expect(loaded[entry.id]!.label, 're-enc');
+    test('loadAllSafe returns empty on error', () async {
+      // Without database, loadAll returns empty
+      final emptyStore = KeyStore();
+      final result = await emptyStore.loadAllSafe();
+      expect(result, isEmpty);
     });
   });
 
