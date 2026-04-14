@@ -1046,5 +1046,41 @@
   "pinnedSnippets": "Pinned",
   "allSnippets": "All",
   "sendToTerminal": "Send to terminal",
-  "commandCopied": "Command copied to clipboard"
+  "commandCopied": "Command copied to clipboard",
+
+  "tags": "Tags",
+  "tagsSubtitle": "Organize sessions and folders with color tags",
+  "noTags": "No tags yet",
+  "addTag": "Add Tag",
+  "deleteTag": "Delete Tag",
+  "deleteTagConfirm": "Delete tag \"{name}\"? It will be removed from all sessions and folders.",
+  "@deleteTagConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagName": "Tag Name",
+  "tagNameHint": "e.g. Production, Staging",
+  "tagColor": "Color",
+  "tagCreated": "Tag created",
+  "tagDeleted": "Tag \"{name}\" deleted",
+  "@tagDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagCount": "{count, plural, =0{No tags} =1{1 tag} other{{count} tags}}",
+  "@tagCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "manageTags": "Manage Tags",
+  "editTags": "Edit Tags"
 }

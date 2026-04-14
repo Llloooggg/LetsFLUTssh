@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
@@ -51,20 +52,22 @@ void main() {
     Set<String> selectedIds = const {},
     Set<String> selectedFolderPaths = const {},
   }) {
-    return MaterialApp(
-      localizationsDelegates: S.localizationsDelegates,
-      supportedLocales: S.supportedLocales,
-      theme: AppTheme.dark(),
-      home: Scaffold(
-        body: SizedBox(
-          width: 300,
-          height: 600,
-          child: SessionTreeView(
-            tree: overrideTree ?? tree,
-            onSessionTap: onSessionTap,
-            onSessionDoubleTap: onSessionDoubleTap,
-            selectedIds: selectedIds,
-            selectedFolderPaths: selectedFolderPaths,
+    return ProviderScope(
+      child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 600,
+            child: SessionTreeView(
+              tree: overrideTree ?? tree,
+              onSessionTap: onSessionTap,
+              onSessionDoubleTap: onSessionDoubleTap,
+              selectedIds: selectedIds,
+              selectedFolderPaths: selectedFolderPaths,
+            ),
           ),
         ),
       ),
@@ -395,15 +398,17 @@ void main() {
       );
       final tree = SessionTree.build([s], emptyFolders: const {});
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(tree: tree),
+              ),
             ),
           ),
         ),
@@ -424,15 +429,17 @@ void main() {
       );
       final tree = SessionTree.build([s], emptyFolders: const {});
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(tree: tree),
+              ),
             ),
           ),
         ),
@@ -449,15 +456,17 @@ void main() {
     testWidgets('empty folder renders with 0 count', (tester) async {
       final tree = SessionTree.build([], emptyFolders: {'EmptyFolder'});
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(tree: tree),
+              ),
             ),
           ),
         ),
@@ -501,20 +510,22 @@ void main() {
       Offset? contextPos;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onSessionContextMenu: (session, pos) {
-                  contextSession = session;
-                  contextPos = pos;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onSessionContextMenu: (session, pos) {
+                    contextSession = session;
+                    contextPos = pos;
+                  },
+                ),
               ),
             ),
           ),
@@ -540,20 +551,22 @@ void main() {
       Offset? contextPos;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onFolderContextMenu: (folder, pos) {
-                  contextFolder = folder;
-                  contextPos = pos;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onFolderContextMenu: (folder, pos) {
+                    contextFolder = folder;
+                    contextPos = pos;
+                  },
+                ),
               ),
             ),
           ),
@@ -588,19 +601,21 @@ void main() {
       final singleTree = SessionTree.build(singleSession);
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: singleTree,
-                onBackgroundContextMenu: (pos) {
-                  contextPos = pos;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: singleTree,
+                  onBackgroundContextMenu: (pos) {
+                    contextPos = pos;
+                  },
+                ),
               ),
             ),
           ),
@@ -627,21 +642,23 @@ void main() {
       String? targetFolder;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                selectedIds: const {'1'}, // must be selected to drag
-                onSessionMoved: (sessionId, target) {
-                  movedSessionId = sessionId;
-                  targetFolder = target;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  selectedIds: const {'1'}, // must be selected to drag
+                  onSessionMoved: (sessionId, target) {
+                    movedSessionId = sessionId;
+                    targetFolder = target;
+                  },
+                ),
               ),
             ),
           ),
@@ -674,21 +691,23 @@ void main() {
       String? targetFolder;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                selectedIds: const {'1'}, // must be selected to drag
-                onSessionMoved: (sessionId, target) {
-                  movedSessionId = sessionId;
-                  targetFolder = target;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  selectedIds: const {'1'}, // must be selected to drag
+                  onSessionMoved: (sessionId, target) {
+                    movedSessionId = sessionId;
+                    targetFolder = target;
+                  },
+                ),
               ),
             ),
           ),
@@ -737,23 +756,25 @@ void main() {
       final twoFolderTree = SessionTree.build(twoFolderSessions);
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: twoFolderTree,
-                selectedFolderPaths: const {
-                  'GroupA',
-                }, // must be selected to drag
-                onFolderMoved: (folder, target) {
-                  movedFolder = folder;
-                  targetParent = target;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: twoFolderTree,
+                  selectedFolderPaths: const {
+                    'GroupA',
+                  }, // must be selected to drag
+                  onFolderMoved: (folder, target) {
+                    movedFolder = folder;
+                    targetParent = target;
+                  },
+                ),
               ),
             ),
           ),
@@ -789,17 +810,19 @@ void main() {
       Set<String>? selectedIds;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onMarqueeSelect: (ids, _) => selectedIds = ids,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onMarqueeSelect: (ids, _) => selectedIds = ids,
+                ),
               ),
             ),
           ),
@@ -825,17 +848,19 @@ void main() {
       Set<String>? selectedIds;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onMarqueeSelect: (ids, _) => selectedIds = ids,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onMarqueeSelect: (ids, _) => selectedIds = ids,
+                ),
               ),
             ),
           ),
@@ -862,15 +887,17 @@ void main() {
       addTearDown(crossMarquee.dispose);
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(tree: tree, crossMarquee: crossMarquee),
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(tree: tree, crossMarquee: crossMarquee),
+              ),
             ),
           ),
         ),
@@ -900,18 +927,20 @@ void main() {
         Set<String>? selectedIds;
 
         await tester.pumpWidget(
-          MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionTreeView(
-                  tree: tree,
-                  crossMarquee: crossMarquee,
-                  onMarqueeSelect: (ids, _) => selectedIds = ids,
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: SizedBox(
+                  width: 300,
+                  height: 600,
+                  child: SessionTreeView(
+                    tree: tree,
+                    crossMarquee: crossMarquee,
+                    onMarqueeSelect: (ids, _) => selectedIds = ids,
+                  ),
                 ),
               ),
             ),
@@ -952,17 +981,19 @@ void main() {
       Set<String>? selectedIds;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onMarqueeSelect: (ids, _) => selectedIds = ids,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onMarqueeSelect: (ids, _) => selectedIds = ids,
+                ),
               ),
             ),
           ),
@@ -990,20 +1021,22 @@ void main() {
       Set<String>? selectedFolderPaths;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onMarqueeSelect: (ids, folders) {
-                  selectedIds = ids;
-                  selectedFolderPaths = folders;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onMarqueeSelect: (ids, folders) {
+                    selectedIds = ids;
+                    selectedFolderPaths = folders;
+                  },
+                ),
               ),
             ),
           ),
@@ -1028,17 +1061,19 @@ void main() {
 
     testWidgets('selected folder gets highlight background', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                selectedFolderPaths: const {'Production'},
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  selectedFolderPaths: const {'Production'},
+                ),
               ),
             ),
           ),
@@ -1072,21 +1107,23 @@ void main() {
       Set<String>? clearedFolders;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                selectedIds: const {'1'}, // active selection
-                onMarqueeSelect: (ids, folders) {
-                  clearedIds = ids;
-                  clearedFolders = folders;
-                },
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  selectedIds: const {'1'}, // active selection
+                  onMarqueeSelect: (ids, folders) {
+                    clearedIds = ids;
+                    clearedFolders = folders;
+                  },
+                ),
               ),
             ),
           ),
@@ -1109,17 +1146,19 @@ void main() {
       String? toggledFolder;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: SizedBox(
-              width: 300,
-              height: 600,
-              child: SessionTreeView(
-                tree: tree,
-                onToggleFolderSelected: (path) => toggledFolder = path,
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionTreeView(
+                  tree: tree,
+                  onToggleFolderSelected: (path) => toggledFolder = path,
+                ),
               ),
             ),
           ),
@@ -1154,18 +1193,20 @@ void main() {
       'dragging selected session with bulk selection creates BulkDrag feedback',
       (tester) async {
         await tester.pumpWidget(
-          MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionTreeView(
-                  tree: tree,
-                  selectedIds: const {'1', '2'},
-                  selectedFolderPaths: const {'Production/Web'},
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: SizedBox(
+                  width: 300,
+                  height: 600,
+                  child: SessionTreeView(
+                    tree: tree,
+                    selectedIds: const {'1', '2'},
+                    selectedFolderPaths: const {'Production/Web'},
+                  ),
                 ),
               ),
             ),

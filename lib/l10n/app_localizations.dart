@@ -75,8 +75,7 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the S.supportedLocales
 /// property.
 abstract class S {
-  S(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  S(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -96,13 +95,12 @@ abstract class S {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -120,7 +118,7 @@ abstract class S {
     Locale('ru'),
     Locale('tr'),
     Locale('vi'),
-    Locale('zh'),
+    Locale('zh')
   ];
 
   /// No description provided for @appTitle.
@@ -2984,6 +2982,90 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Command copied to clipboard'**
   String get commandCopied;
+
+  /// No description provided for @tags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get tags;
+
+  /// No description provided for @tagsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize sessions and folders with color tags'**
+  String get tagsSubtitle;
+
+  /// No description provided for @noTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet'**
+  String get noTags;
+
+  /// No description provided for @addTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Tag'**
+  String get addTag;
+
+  /// No description provided for @deleteTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Tag'**
+  String get deleteTag;
+
+  /// No description provided for @deleteTagConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag \"{name}\"? It will be removed from all sessions and folders.'**
+  String deleteTagConfirm(String name);
+
+  /// No description provided for @tagName.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag Name'**
+  String get tagName;
+
+  /// No description provided for @tagNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Production, Staging'**
+  String get tagNameHint;
+
+  /// No description provided for @tagColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get tagColor;
+
+  /// No description provided for @tagCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag created'**
+  String get tagCreated;
+
+  /// No description provided for @tagDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag \"{name}\" deleted'**
+  String tagDeleted(String name);
+
+  /// No description provided for @tagCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No tags} =1{1 tag} other{{count} tags}}'**
+  String tagCount(int count);
+
+  /// No description provided for @manageTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Tags'**
+  String get manageTags;
+
+  /// No description provided for @editTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Tags'**
+  String get editTags;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
@@ -2995,67 +3077,38 @@ class _SDelegate extends LocalizationsDelegate<S> {
   }
 
   @override
-  bool isSupported(Locale locale) => <String>[
-    'ar',
-    'de',
-    'en',
-    'es',
-    'fa',
-    'fr',
-    'hi',
-    'id',
-    'ja',
-    'ko',
-    'pt',
-    'ru',
-    'tr',
-    'vi',
-    'zh',
-  ].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['ar', 'de', 'en', 'es', 'fa', 'fr', 'hi', 'id', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_SDelegate old) => false;
 }
 
 S lookupS(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar':
-      return SAr();
-    case 'de':
-      return SDe();
-    case 'en':
-      return SEn();
-    case 'es':
-      return SEs();
-    case 'fa':
-      return SFa();
-    case 'fr':
-      return SFr();
-    case 'hi':
-      return SHi();
-    case 'id':
-      return SId();
-    case 'ja':
-      return SJa();
-    case 'ko':
-      return SKo();
-    case 'pt':
-      return SPt();
-    case 'ru':
-      return SRu();
-    case 'tr':
-      return STr();
-    case 'vi':
-      return SVi();
-    case 'zh':
-      return SZh();
+    case 'ar': return SAr();
+    case 'de': return SDe();
+    case 'en': return SEn();
+    case 'es': return SEs();
+    case 'fa': return SFa();
+    case 'fr': return SFr();
+    case 'hi': return SHi();
+    case 'id': return SId();
+    case 'ja': return SJa();
+    case 'ko': return SKo();
+    case 'pt': return SPt();
+    case 'ru': return SRu();
+    case 'tr': return STr();
+    case 'vi': return SVi();
+    case 'zh': return SZh();
   }
 
   throw FlutterError(
     'S.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }

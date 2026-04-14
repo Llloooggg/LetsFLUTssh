@@ -440,8 +440,7 @@ class SZh extends S {
   String get unknownHost => '未知主机';
 
   @override
-  String get hostKeyChangedWarning =>
-      '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
+  String get hostKeyChangedWarning => '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
 
   @override
   String get unknownHostMessage => '无法验证此主机的真实性。确定要继续连接吗？';
@@ -1452,8 +1451,7 @@ class SZh extends S {
   String get forgotPassword => '忘记密码？';
 
   @override
-  String get forgotPasswordWarning =>
-      '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
+  String get forgotPasswordWarning => '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
 
   @override
   String get resetAndDeleteCredentials => '重置并删除凭据';
@@ -1482,12 +1480,10 @@ class SZh extends S {
   String get securitySetupKeychainOptional => '您还可以设置主密码以获得额外保护。';
 
   @override
-  String get securitySetupNoKeychain =>
-      '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
+  String get securitySetupNoKeychain => '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
+  String get securitySetupNoKeychainHint => '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
 
   @override
   String get securitySetupRecommendMasterPassword => '建议设置主密码以保护您的数据。';
@@ -1617,4 +1613,59 @@ class SZh extends S {
 
   @override
   String get commandCopied => 'Command copied to clipboard';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+
+  @override
+  String get noTags => 'No tags yet';
+
+  @override
+  String get addTag => 'Add Tag';
+
+  @override
+  String get deleteTag => 'Delete Tag';
+
+  @override
+  String deleteTagConfirm(String name) {
+    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+  }
+
+  @override
+  String get tagName => 'Tag Name';
+
+  @override
+  String get tagNameHint => 'e.g. Production, Staging';
+
+  @override
+  String get tagColor => 'Color';
+
+  @override
+  String get tagCreated => 'Tag created';
+
+  @override
+  String tagDeleted(String name) {
+    return 'Tag \"$name\" deleted';
+  }
+
+  @override
+  String tagCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+      zero: 'No tags',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
+  String get editTags => 'Edit Tags';
 }

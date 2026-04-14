@@ -46,6 +46,7 @@ import 'providers/master_password_provider.dart';
 import 'providers/security_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/snippet_provider.dart';
+import 'providers/tag_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -429,6 +430,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.read(keyStoreProvider).setDatabase(db);
     ref.read(knownHostsProvider).setDatabase(db);
     ref.read(snippetStoreProvider).setDatabase(db);
+    ref.read(tagStoreProvider).setDatabase(db);
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }

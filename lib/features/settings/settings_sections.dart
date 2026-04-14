@@ -177,6 +177,12 @@ class _SshKeysSection extends ConsumerWidget {
           subtitle: S.of(context).snippetsSubtitle,
           onTap: () => SnippetManagerDialog.show(context),
         ),
+        _ActionTile(
+          icon: Icons.label_outline,
+          title: S.of(context).tags,
+          subtitle: S.of(context).tagsSubtitle,
+          onTap: () => TagManagerDialog.show(context),
+        ),
       ],
     );
   }

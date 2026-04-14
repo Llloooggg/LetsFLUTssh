@@ -21,6 +21,7 @@ import '../../widgets/mobile_selection_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
+import '../tags/tag_assign_dialog.dart';
 import 'session_edit_dialog.dart';
 import 'session_tree_view.dart';
 
@@ -582,6 +583,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           icon: Icons.copy,
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
+        ContextMenuItem(
+          label: S.of(context).editTags,
+          icon: Icons.label_outline,
+          onTap: () =>
+              TagAssignDialog.showForSession(context, sessionId: session.id),
+        ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
           label: S.of(context).delete,
@@ -802,6 +809,18 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             label: S.of(context).renameFolder,
             icon: Icons.drive_file_rename_outline,
             onTap: () => _renameFolder(context, ref, folderPath),
+          ),
+          ContextMenuItem(
+            label: S.of(context).editTags,
+            icon: Icons.label_outline,
+            onTap: () {
+              final folderId = ref
+                  .read(sessionStoreProvider)
+                  .folderIdByPath(folderPath);
+              if (folderId != null) {
+                TagAssignDialog.showForFolder(context, folderId: folderId);
+              }
+            },
           ),
           ContextMenuItem(
             label: S.of(context).deleteFolder,

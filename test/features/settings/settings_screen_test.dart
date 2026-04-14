@@ -208,7 +208,7 @@ void main() {
   });
 
   /// Simple buildApp without session provider (used for basic UI tests).
-  Widget buildApp({AppConfig? initialConfig, double height = 1200}) {
+  Widget buildApp({AppConfig? initialConfig, double height = 1600}) {
     final config = initialConfig ?? AppConfig.defaults;
     return ProviderScope(
       overrides: [
@@ -253,7 +253,7 @@ void main() {
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
-        home: const SizedBox(height: 2000, child: SettingsScreen()),
+        home: const SizedBox(height: 2400, child: SettingsScreen()),
       ),
     );
   }
@@ -799,6 +799,10 @@ void main() {
     });
 
     testWidgets('tap opens export dialog', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final sessions = [
         Session(
           label: 'Test',
@@ -825,6 +829,10 @@ void main() {
     testWidgets('export dialog shows session and credential options', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final sessions = [
         Session(
           label: 'Test',
@@ -853,6 +861,10 @@ void main() {
     });
 
     testWidgets('export cancel closes dialog without action', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final sessions = [
         Session(
           label: 'Test',
@@ -1145,7 +1157,7 @@ void main() {
     testWidgets('tapping Source Code copies URL and shows toast', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2610,7 +2622,7 @@ void main() {
     });
 
     testWidgets('tapping source code copies URL to clipboard', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

@@ -27,6 +27,10 @@ class SessionStore {
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
   Set<String> get collapsedFolders => Set.unmodifiable(_collapsedFolders);
 
+  /// Resolve a folder path string to its DB folder ID.
+  /// Returns null if the path is empty or not found.
+  String? folderIdByPath(String path) => findFolderIdByPath(path, _folderMap);
+
   /// Inject the opened database. Replaces the old `setEncryptionKey()`.
   void setDatabase(AppDatabase db) {
     _db = db;
