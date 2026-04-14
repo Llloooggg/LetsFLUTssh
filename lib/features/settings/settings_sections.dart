@@ -680,8 +680,67 @@ class _ExportImportTile extends ConsumerWidget {
           subtitle: S.of(context).importFromSshConfigSubtitle,
           onTap: () => _showSshConfigImportDialog(context, ref),
         ),
+        _ActionTile(
+          icon: Icons.vpn_key,
+          title: S.of(context).importSshKeys,
+          subtitle: S.of(context).importSshKeysSubtitle,
+          onTap: () => _showSshKeysImportDialog(context, ref),
+        ),
       ],
     );
+  }
+
+  Future<void> _showSshKeysImportDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    try {
+      final sshDir = p.join(plat.homeDirectory, '.ssh');
+      final candidates = SshDirKeyScanner().scan(sshDir);
+      if (!context.mounted) return;
+
+      final selected = await SshKeysImportDialog.show(
+        context,
+        candidates: candidates,
+      );
+      if (selected == null || selected.isEmpty || !context.mounted) return;
+
+      final keyStore = ref.read(keyStoreProvider);
+      final date = DateTime.now().toIso8601String().split('T').first;
+      var imported = 0;
+      for (final k in selected) {
+        try {
+          final entry = keyStore.importKey(k.pem, '${k.suggestedLabel} $date');
+          await keyStore.importForMerge(entry);
+          imported++;
+        } catch (e) {
+          AppLogger.instance.log(
+            'Skipped ${k.path}: $e',
+            name: 'Settings',
+            error: e,
+          );
+        }
+      }
+      if (!context.mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).importedSshKeys(imported),
+        level: imported > 0 ? ToastLevel.success : ToastLevel.error,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'SSH keys import failed: $e',
+        name: 'Settings',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
+          level: ToastLevel.error,
+        );
+      }
+    }
   }
 
   Future<void> _showSshConfigImportDialog(

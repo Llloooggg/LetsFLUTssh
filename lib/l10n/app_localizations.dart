@@ -1413,6 +1413,42 @@ abstract class S {
   /// **'~/.ssh {date}'**
   String sshConfigImportFolderName(String date);
 
+  /// No description provided for @importSshKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Import SSH keys from ~/.ssh'**
+  String get importSshKeys;
+
+  /// No description provided for @importSshKeysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan ~/.ssh for private keys and add selected ones to the key manager'**
+  String get importSshKeysSubtitle;
+
+  /// No description provided for @importSshKeysTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import SSH keys'**
+  String get importSshKeysTitle;
+
+  /// No description provided for @importSshKeysFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} key(s) found — pick which to import'**
+  String importSshKeysFound(int count);
+
+  /// No description provided for @importSshKeysNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No private keys found in ~/.ssh.'**
+  String get importSshKeysNoneFound;
+
+  /// No description provided for @importedSshKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} key(s)'**
+  String importedSshKeys(int count);
+
   /// No description provided for @setMasterPasswordHint.
   ///
   /// In en, this message translates to:

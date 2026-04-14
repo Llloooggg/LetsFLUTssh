@@ -728,6 +728,29 @@ class SEs extends S {
   }
 
   @override
+  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+
+  @override
+  String get importSshKeysSubtitle =>
+      'Scan ~/.ssh for private keys and add selected ones to the key manager';
+
+  @override
+  String get importSshKeysTitle => 'Import SSH keys';
+
+  @override
+  String importSshKeysFound(int count) {
+    return '$count key(s) found — pick which to import';
+  }
+
+  @override
+  String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
+
+  @override
+  String importedSshKeys(int count) {
+    return 'Imported $count key(s)';
+  }
+
+  @override
   String get setMasterPasswordHint =>
       'Establezca una contraseña maestra para cifrar el archivo.';
 

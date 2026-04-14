@@ -417,6 +417,26 @@
     }
   },
   "sshConfigImportFolderName": "~/.ssh {date}",
+  "importSshKeys": "Import SSH keys from ~/.ssh",
+  "importSshKeysSubtitle": "Scan ~/.ssh for private keys and add selected ones to the key manager",
+  "importSshKeysTitle": "Import SSH keys",
+  "importSshKeysFound": "{count} key(s) found — pick which to import",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "No private keys found in ~/.ssh.",
+  "importedSshKeys": "Imported {count} key(s)",
+  "@importedSshKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
