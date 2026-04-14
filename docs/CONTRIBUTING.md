@@ -127,6 +127,8 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
+**New contributors:** start with [ADDING_A_FEATURE.md](ADDING_A_FEATURE.md) — a hands-on walkthrough of the project's layers, conventions, and tooling using a small example feature.
+
 For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — module structure, data models, API references, state management, data flows, and design decisions.
 
 ## Coding Conventions
@@ -161,15 +163,15 @@ Format: `type: short description`
 | `style:`    | Formatting, whitespace          | No                        |
 | `revert:`   | Revert a previous commit        | No                        |
 
-Optional scope in parentheses (e.g. `feat(snippets):`, `fix(import):`) — lowercase, alphanumeric + dashes.
+**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`) — lowercase, alphanumeric + dashes. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
 
 **Examples:**
 
 ```
-feat: add port forwarding support
-fix: handle SSH disconnect during file transfer
-refactor: extract shared dialog logic into ConfirmDialog widget
-test: add tests for credential store encryption
+feat(port-forward): add port forwarding support
+fix(sftp): handle SSH disconnect during file transfer
+refactor(dialogs): extract shared dialog logic into ConfirmDialog widget
+test(credentials): add tests for credential store encryption
 docs: update README with mobile screenshots
 chore: upgrade dartssh2 to 2.16.0
 ci: add commit message linting for PRs

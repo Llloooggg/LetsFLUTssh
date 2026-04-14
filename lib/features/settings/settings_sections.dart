@@ -902,8 +902,7 @@ class _ExportImportTile extends ConsumerWidget {
     return p.join(dir, defaultName);
   }
 
-  Future<void> _showImportDialog(BuildContext context, WidgetRef ref) async {
-    // Pick file
+  Future<String?> _pickLfsFile(BuildContext context) async {
     final title = S.of(context).pathToLfsFile;
     final initDir = await _defaultDirectory();
     final result = await FilePicker.pickFiles(
@@ -912,19 +911,19 @@ class _ExportImportTile extends ConsumerWidget {
       type: FileType.custom,
       allowedExtensions: ['lfs'],
     );
-    final path = result?.files.single.path;
+    return result?.files.single.path;
+  }
+
+  Future<void> _showImportDialog(BuildContext context, WidgetRef ref) async {
+    final path = await _pickLfsFile(context);
     if (path == null || !context.mounted) return;
 
-    // Preview archive
     final passwordCtrl = TextEditingController();
-
     try {
-      // Get password first
       final password = await AppDialog.show<String>(
         context,
         builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
       );
-
       if (password == null || !context.mounted) return;
 
       // Decrypt once — reuse for both preview and import to avoid running
@@ -957,40 +956,12 @@ class _ExportImportTile extends ConsumerWidget {
         filePath: path,
         preview: preview,
       );
-
       if (importConfig == null || !context.mounted) return;
 
-      // Filter the already-decrypted data by user's choices.
-      // Always pass managerKeys/tags/snippets when sessions are included —
-      // they may be FK-referenced by sessions (keyId, tag links, snippet links)
-      // and must be imported first to satisfy foreign key constraints.
-      final wantSessions = importConfig.options.includeSessions;
-      final filteredResult = ImportResult(
-        sessions: wantSessions ? fullImport.sessions : [],
-        emptyFolders: wantSessions ? fullImport.emptyFolders : {},
-        managerKeys: wantSessions && importConfig.options.includeManagerKeys
-            ? fullImport.managerKeys
-            : [],
-        tags: importConfig.options.includeTags ? fullImport.tags : [],
-        sessionTags: wantSessions && importConfig.options.includeTags
-            ? fullImport.sessionTags
-            : [],
-        folderTags: wantSessions && importConfig.options.includeTags
-            ? fullImport.folderTags
-            : [],
-        snippets: importConfig.options.includeSnippets
-            ? fullImport.snippets
-            : [],
-        sessionSnippets: wantSessions && importConfig.options.includeSnippets
-            ? fullImport.sessionSnippets
-            : [],
-        config: importConfig.options.includeConfig ? fullImport.config : null,
-        mode: importConfig.mode,
-        knownHostsContent: importConfig.options.includeKnownHosts
-            ? fullImport.knownHostsContent
-            : null,
+      final filteredResult = fullImport.filtered(
+        importConfig.options,
+        importConfig.mode,
       );
-
       await _applyFilteredImport(context, ref, filteredResult);
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
@@ -1028,10 +999,7 @@ class _ExportImportTile extends ConsumerWidget {
         getSessions: () => ref.read(sessionProvider),
         applyConfig: (config) =>
             ref.read(configProvider.notifier).update((_) => config),
-        saveManagerKey: (entry) async {
-          await keyStore.save(entry);
-          return entry.id;
-        },
+        saveManagerKey: (entry) => keyStore.importForMerge(entry),
         saveTag: (tag) async {
           await tagStore.add(tag);
           return tag.id;
@@ -1046,6 +1014,11 @@ class _ExportImportTile extends ConsumerWidget {
         getEmptyFolders: () => store.emptyFolders,
         restoreSnapshot: (sessions, folders) =>
             store.restoreSnapshot(sessions, folders),
+        existingTagIds: () async =>
+            (await tagStore.loadAll()).map((t) => t.id).toSet(),
+        existingSnippetIds: () async =>
+            (await snippetStore.loadAll()).map((s) => s.id).toSet(),
+        getCurrentConfig: () => ref.read(configProvider),
       );
       await importService.applyResult(importResult);
 

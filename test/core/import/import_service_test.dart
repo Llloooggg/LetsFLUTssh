@@ -721,5 +721,180 @@ void main() {
         expect(errorFolders, isNot(contains('BadFolder')));
       });
     });
+
+    group('merge mode copy-on-conflict', () {
+      test(
+        'remaps colliding session id and suffixes label with (copy)',
+        () async {
+          final existing = makeSession('1', 'A');
+          store.add(existing);
+
+          final incoming = makeSession('1', 'A'); // same id as existing
+
+          await service.applyResult(
+            ImportResult(sessions: [incoming], mode: ImportMode.merge),
+          );
+
+          expect(store, hasLength(2));
+          expect(store[0].id, '1');
+          expect(store[1].id, isNot('1'));
+          expect(store[1].label, 'A (copy)');
+        },
+      );
+
+      test('tag id collision inserts fresh id + "(copy)" name', () async {
+        final savedTags = <Tag>[];
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+          saveTag: (t) async {
+            savedTags.add(t);
+            return t.id;
+          },
+          existingTagIds: () async => {'t1'},
+        );
+
+        final incoming = Tag(id: 't1', name: 'work');
+        await svc.applyResult(
+          ImportResult(
+            sessions: const [],
+            tags: [incoming],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(savedTags, hasLength(1));
+        expect(savedTags.first.id, isNot('t1'));
+        expect(savedTags.first.name, 'work (copy)');
+      });
+
+      test('snippet id collision inserts fresh id + "(copy)" title', () async {
+        final savedSnippets = <Snippet>[];
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+          saveSnippet: (s) async {
+            savedSnippets.add(s);
+            return s.id;
+          },
+          existingSnippetIds: () async => {'sn1'},
+        );
+
+        final incoming = Snippet(id: 'sn1', title: 'run', command: 'ls');
+        await svc.applyResult(
+          ImportResult(
+            sessions: const [],
+            snippets: [incoming],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(savedSnippets, hasLength(1));
+        expect(savedSnippets.first.id, isNot('sn1'));
+        expect(savedSnippets.first.title, 'run (copy)');
+      });
+
+      test('session-tag/snippet links follow remapped session id', () async {
+        final existing = makeSession('s1', 'orig');
+        store.add(existing);
+        final taggedSessions = <({String sessionId, String tagId})>[];
+        final linkedSnippets = <({String sessionId, String snippetId})>[];
+
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (config) => appliedConfig = config,
+          saveTag: (t) async => t.id,
+          tagSession: (sid, tid) async =>
+              taggedSessions.add((sessionId: sid, tagId: tid)),
+          saveSnippet: (s) async => s.id,
+          linkSnippetToSession: (snid, sid) async =>
+              linkedSnippets.add((sessionId: sid, snippetId: snid)),
+        );
+
+        final incoming = makeSession('s1', 'dup'); // collides
+        await svc.applyResult(
+          ImportResult(
+            sessions: [incoming],
+            tags: [Tag(id: 'tag1', name: 'x')],
+            sessionTags: const [ExportLink(sessionId: 's1', targetId: 'tag1')],
+            snippets: [Snippet(id: 'sn1', title: 'cmd', command: 'ls')],
+            sessionSnippets: const [
+              ExportLink(sessionId: 's1', targetId: 'sn1'),
+            ],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        // Remapped session id is the one assigned to the imported copy.
+        final newId = store.last.id;
+        expect(newId, isNot('s1'));
+        expect(taggedSessions.single.sessionId, newId);
+        expect(linkedSnippets.single.sessionId, newId);
+      });
+    });
+
+    group('replace mode config rollback', () {
+      test(
+        'applyConfig failure rolls back sessions, folders, and config',
+        () async {
+          final oldSession = makeSession('old', 'Old');
+          store.add(oldSession);
+          const oldConfig = AppConfig(terminal: TerminalConfig(fontSize: 12.0));
+          const newConfig = AppConfig(terminal: TerminalConfig(fontSize: 24.0));
+          appliedConfig = oldConfig;
+
+          var applyCount = 0;
+          final restored = <Session>[];
+          final restoredFolders = <String>{};
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => store.add(s),
+            deleteSession: (id) async {
+              store.removeWhere((x) => x.id == id);
+              deletedIds.add(id);
+            },
+            getSessions: () => store,
+            applyConfig: (c) {
+              applyCount++;
+              if (applyCount == 1) {
+                throw Exception('config write failed');
+              }
+              appliedConfig = c;
+            },
+            getEmptyFolders: () => {'F1'},
+            restoreSnapshot: (sessions, folders) async {
+              restored.addAll(sessions);
+              restoredFolders.addAll(folders);
+            },
+            getCurrentConfig: () => oldConfig,
+          );
+
+          final newSession = makeSession('new', 'New');
+          await expectLater(
+            svc.applyResult(
+              ImportResult(
+                sessions: [newSession],
+                config: newConfig,
+                mode: ImportMode.replace,
+              ),
+            ),
+            throwsA(isA<Exception>()),
+          );
+
+          expect(restored.map((s) => s.id), contains('old'));
+          expect(restoredFolders, contains('F1'));
+          expect(appliedConfig, oldConfig, reason: 'config was rolled back');
+        },
+      );
+    });
   });
 }

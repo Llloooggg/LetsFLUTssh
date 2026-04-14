@@ -4,11 +4,10 @@
 
 ## Checklist
 
-- Commits follow `type: description` format (see [CONTRIBUTING.md](docs/CONTRIBUTING.md#commit-messages))
-- Version bumped in `pubspec.yaml` + `settings_screen.dart` (if app code changed)
-- `make analyze` passes
-- `make test` passes
-- New code has tests
+- Commits follow `type: description` format (see [CONTRIBUTING.md](../docs/CONTRIBUTING.md#commit-messages)) — version bump is automatic, do **not** edit `pubspec.yaml` manually
+- `make check` passes (analyzer + tests)
+- New code has tests (target 100% coverage)
+- User-facing strings added to **all** `lib/l10n/app_*.arb` files (if UI changed)
 - Manually tested on: <!-- e.g. Linux, Windows, Android -->
 
 ## Related issues

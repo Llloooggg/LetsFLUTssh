@@ -1049,10 +1049,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       getSessions: () => ref.read(sessionProvider),
       applyConfig: (config) =>
           ref.read(configProvider.notifier).update((_) => config),
-      saveManagerKey: (entry) async {
-        await keyStore.save(entry);
-        return entry.id;
-      },
+      saveManagerKey: (entry) => keyStore.importForMerge(entry),
       saveTag: (tag) async {
         await tagStore.add(tag);
         return tag.id;
@@ -1067,6 +1064,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       getEmptyFolders: () => store.emptyFolders,
       restoreSnapshot: (sessions, folders) =>
           store.restoreSnapshot(sessions, folders),
+      existingTagIds: () async =>
+          (await tagStore.loadAll()).map((t) => t.id).toSet(),
+      existingSnippetIds: () async =>
+          (await snippetStore.loadAll()).map((s) => s.id).toSet(),
+      getCurrentConfig: () => ref.read(configProvider),
     );
   }
 }

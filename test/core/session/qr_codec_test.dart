@@ -661,8 +661,10 @@ void main() {
       expect(json['v'], 4);
     });
 
-    test('decodes payload with unknown future version', () {
-      // Simulate a v99 payload — should decode successfully
+    test('rejects payload with future version beyond current schema', () {
+      // Future versions may carry unknown fields that this build cannot
+      // interpret — parsing them would silently drop data, so rejection is
+      // the safer contract.
       final payload = jsonEncode({
         'v': 99,
         's': [
@@ -671,10 +673,7 @@ void main() {
       });
       final compressed = Deflate(utf8.encode(payload)).getBytes();
       final encoded = base64Url.encode(compressed);
-      final result = decodeExportPayload(encoded);
-      expect(result, isNotNull);
-      expect(result!.sessions, hasLength(1));
-      expect(result.sessions.first.label, 'future');
+      expect(decodeExportPayload(encoded), isNull);
     });
 
     test('decodes v1 old format without version field', () {
