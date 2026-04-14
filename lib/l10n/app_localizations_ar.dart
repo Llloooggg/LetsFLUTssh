@@ -865,7 +865,7 @@ class SAr extends S {
 
   @override
   String get qrTooLarge =>
-      'كبير جداً — ألغِ تحديد بعض الجلسات أو استخدم تصدير ملف .lfs.';
+      'كبير جداً — ألغِ تحديد بعض العناصر أو استخدم تصدير ملف .lfs.';
 
   @override
   String get exportAll => 'تصدير الكل';

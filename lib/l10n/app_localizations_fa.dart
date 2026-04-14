@@ -869,7 +869,7 @@ class SFa extends S {
 
   @override
   String get qrTooLarge =>
-      'حجم بیش از حد است — برخی جلسات را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
+      'حجم بیش از حد است — برخی موارد را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
 
   @override
   String get exportAll => 'خروجی همه';

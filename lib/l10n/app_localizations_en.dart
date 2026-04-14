@@ -868,7 +868,7 @@ class SEn extends S {
 
   @override
   String get qrTooLarge =>
-      'Too large — deselect some sessions or use .lfs file export.';
+      'Too large — deselect some items or use .lfs file export.';
 
   @override
   String get exportAll => 'Export All';

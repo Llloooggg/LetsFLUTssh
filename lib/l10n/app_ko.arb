@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "QR로 세션 내보내기",
   "qrNoCredentialsWarning": "비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.",
   "qrTooManyForSingleCode": "하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.",
-  "qrTooLarge": "너무 큽니다 — 일부 세션을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.",
+  "qrTooLarge": "너무 큽니다 — 일부 항목을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.",
   "exportAll": "모두 내보내기",
   "showQr": "QR 표시",
   "sort": "정렬",

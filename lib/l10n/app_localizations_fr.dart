@@ -876,7 +876,7 @@ class SFr extends S {
 
   @override
   String get qrTooLarge =>
-      'Trop volumineux — désélectionnez des sessions ou utilisez l\'export en fichier .lfs.';
+      'Trop volumineux — désélectionnez des éléments ou utilisez l\'export en fichier .lfs.';
 
   @override
   String get exportAll => 'Tout exporter';

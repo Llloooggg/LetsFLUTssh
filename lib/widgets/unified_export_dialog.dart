@@ -148,20 +148,28 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     _cachedPayloadKnownHosts = null;
   }
 
-  /// Total payload size with current options. Calculated directly (one call).
+  /// Total payload size with current options.
+  ///
+  /// Manager keys are calculated separately because sessions in the dialog
+  /// have keyId but not keyData (resolved later during actual export).
   int get _payloadSize {
     if (_payloadSizeCacheValid && _cachedPayloadSize != null) {
       return _cachedPayloadSize!;
     }
-    final result = calculateExportPayloadSize(
+    // Base size without manager keys (sessions have unresolved keyId).
+    final base = calculateExportPayloadSize(
       _selectedSessions,
       emptyFolders: _relevantEmptyFolders,
-      options: _options,
+      options: _options.copyWith(includeManagerKeys: false),
       config: _options.includeConfig ? widget.config : null,
       knownHostsContent: _options.includeKnownHosts
           ? widget.knownHostsContent
           : null,
     );
+    // Add manager keys size separately (uses actual key data from widget).
+    final result = _options.includeManagerKeys
+        ? base + _managerKeysExtraSize()
+        : base;
     _cachedPayloadSize = result;
     _cachedPayloadOptions = _options;
     _cachedPayloadSelectedIds = Set.of(_selectedIds);
@@ -484,10 +492,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                             children: _buildTreeItems(tree, 0),
                           ),
                         ),
-                        if (widget.isQrMode) ...[
-                          const SizedBox(height: 12),
-                          _buildSizeIndicator(sizePercent, sizeColor),
-                        ],
+                        const SizedBox(height: 12),
+                        _buildSizeIndicator(sizePercent, sizeColor),
                       ],
                     ),
                   ),

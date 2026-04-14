@@ -872,7 +872,7 @@ class SPt extends S {
 
   @override
   String get qrTooLarge =>
-      'Muito grande — desmarque algumas sessões ou use a exportação em arquivo .lfs.';
+      'Muito grande — desmarque alguns itens ou use a exportação em arquivo .lfs.';
 
   @override
   String get exportAll => 'Exportar Tudo';

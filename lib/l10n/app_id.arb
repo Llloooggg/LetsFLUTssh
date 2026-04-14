@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "Ekspor Sesi via QR",
   "qrNoCredentialsWarning": "Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.",
   "qrTooManyForSingleCode": "Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.",
-  "qrTooLarge": "Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.",
+  "qrTooLarge": "Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.",
   "exportAll": "Ekspor Semua",
   "showQr": "Tampilkan QR",
   "sort": "Urutkan",

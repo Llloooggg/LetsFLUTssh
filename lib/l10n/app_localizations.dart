@@ -1692,7 +1692,7 @@ abstract class S {
   /// No description provided for @qrTooLarge.
   ///
   /// In en, this message translates to:
-  /// **'Too large — deselect some sessions or use .lfs file export.'**
+  /// **'Too large — deselect some items or use .lfs file export.'**
   String get qrTooLarge;
 
   /// No description provided for @exportAll.

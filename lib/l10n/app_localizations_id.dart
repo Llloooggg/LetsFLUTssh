@@ -873,7 +873,7 @@ class SId extends S {
 
   @override
   String get qrTooLarge =>
-      'Terlalu besar — batalkan beberapa sesi atau gunakan ekspor file .lfs.';
+      'Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.';
 
   @override
   String get exportAll => 'Ekspor Semua';

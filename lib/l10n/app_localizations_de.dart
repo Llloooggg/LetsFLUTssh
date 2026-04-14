@@ -874,7 +874,7 @@ class SDe extends S {
 
   @override
   String get qrTooLarge =>
-      'Zu groß — reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Dateiexport.';
+      'Zu groß — wählen Sie einige Elemente ab oder nutzen Sie den .lfs-Dateiexport.';
 
   @override
   String get exportAll => 'Alle exportieren';

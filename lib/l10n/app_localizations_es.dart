@@ -874,7 +874,7 @@ class SEs extends S {
 
   @override
   String get qrTooLarge =>
-      'Demasiado grande — deseleccione algunas sesiones o use la exportación en archivo .lfs.';
+      'Demasiado grande — deseleccione algunos elementos o use la exportación en archivo .lfs.';
 
   @override
   String get exportAll => 'Exportar todo';

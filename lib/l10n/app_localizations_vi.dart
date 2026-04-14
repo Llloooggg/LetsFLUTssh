@@ -868,7 +868,7 @@ class SVi extends S {
 
   @override
   String get qrTooLarge =>
-      'Quá lớn — bỏ chọn một số phiên hoặc sử dụng xuất tệp .lfs.';
+      'Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.';
 
   @override
   String get exportAll => 'Xuất tất cả';

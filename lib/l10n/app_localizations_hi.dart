@@ -870,7 +870,7 @@ class SHi extends S {
 
   @override
   String get qrTooLarge =>
-      'बहुत बड़ा — कुछ सत्र अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
+      'बहुत बड़ा — कुछ आइटम अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
 
   @override
   String get exportAll => 'सभी निर्यात करें';

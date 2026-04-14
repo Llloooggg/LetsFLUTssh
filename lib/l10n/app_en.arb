@@ -477,7 +477,7 @@
   "exportSessionsViaQr": "Export Sessions via QR",
   "qrNoCredentialsWarning": "Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.",
   "qrTooManyForSingleCode": "Too many sessions for a single QR code. Deselect some or use .lfs export.",
-  "qrTooLarge": "Too large — deselect some sessions or use .lfs file export.",
+  "qrTooLarge": "Too large — deselect some items or use .lfs file export.",
   "exportAll": "Export All",
   "showQr": "Show QR",
   "sort": "Sort",

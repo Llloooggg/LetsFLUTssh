@@ -874,7 +874,7 @@ class STr extends S {
 
   @override
   String get qrTooLarge =>
-      'Çok büyük — bazı oturumların seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.';
+      'Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.';
 
   @override
   String get exportAll => 'Tümünü Dışa Aktar';

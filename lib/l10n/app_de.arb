@@ -258,7 +258,7 @@
   "exportSessionsViaQr": "Sitzungen per QR exportieren",
   "qrNoCredentialsWarning": "Passwörter und SSH-Schlüssel sind NICHT enthalten.\nImportierte Sitzungen müssen die Zugangsdaten nachträglich erhalten.",
   "qrTooManyForSingleCode": "Zu viele Sitzungen für einen einzelnen QR-Code. Reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Export.",
-  "qrTooLarge": "Zu groß — reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Dateiexport.",
+  "qrTooLarge": "Zu groß — wählen Sie einige Elemente ab oder nutzen Sie den .lfs-Dateiexport.",
   "exportAll": "Alle exportieren",
   "showQr": "QR anzeigen",
   "sort": "Sortieren",
