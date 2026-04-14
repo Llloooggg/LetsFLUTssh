@@ -1353,6 +1353,66 @@ abstract class S {
   /// **'Load data from .lfs file'**
   String get importDataSubtitle;
 
+  /// No description provided for @importFromSshConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from OpenSSH config'**
+  String get importFromSshConfig;
+
+  /// No description provided for @importFromSshConfigSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time import of hosts from ~/.ssh/config'**
+  String get importFromSshConfigSubtitle;
+
+  /// No description provided for @sshConfigPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select OpenSSH config file'**
+  String get sshConfigPickerTitle;
+
+  /// No description provided for @sshConfigPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH config import'**
+  String get sshConfigPreviewTitle;
+
+  /// No description provided for @sshConfigPreviewHostsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} host(s) found'**
+  String sshConfigPreviewHostsFound(int count);
+
+  /// No description provided for @sshConfigPreviewNoHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'No importable hosts found in this file.'**
+  String get sshConfigPreviewNoHosts;
+
+  /// No description provided for @sshConfigPreviewMissingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read key files for: {hosts}. These hosts will be imported without credentials.'**
+  String sshConfigPreviewMissingKeys(String hosts);
+
+  /// No description provided for @sshConfigPreviewFolderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported to folder: {folder}'**
+  String sshConfigPreviewFolderLabel(String folder);
+
+  /// No description provided for @sshConfigImportedHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} host(s) from SSH config'**
+  String sshConfigImportedHosts(int count);
+
+  /// No description provided for @sshConfigImportFolderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported from ~/.ssh ({date})'**
+  String sshConfigImportFolderName(String date);
+
   /// No description provided for @setMasterPasswordHint.
   ///
   /// In en, this message translates to:

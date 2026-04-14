@@ -379,6 +379,51 @@
   "exportData": "Export Data",
   "exportDataSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
   "importDataSubtitle": "Load data from .lfs file",
+  "importFromSshConfig": "Import from OpenSSH config",
+  "importFromSshConfigSubtitle": "One-time import of hosts from ~/.ssh/config",
+  "sshConfigPickerTitle": "Select OpenSSH config file",
+  "sshConfigPreviewTitle": "SSH config import",
+  "sshConfigPreviewHostsFound": "{count} host(s) found",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "No importable hosts found in this file.",
+  "sshConfigPreviewMissingKeys": "Could not read key files for: {hosts}. These hosts will be imported without credentials.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Imported to folder: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportedHosts": "Imported {count} host(s) from SSH config",
+  "@sshConfigImportedHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigImportFolderName": "Imported from ~/.ssh ({date})",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "setMasterPasswordHint": "Set a master password to encrypt the archive.",
   "passwordsDoNotMatch": "Passwords do not match",
   "exportedTo": "Exported to: {path}",

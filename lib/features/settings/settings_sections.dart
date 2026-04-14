@@ -674,8 +674,77 @@ class _ExportImportTile extends ConsumerWidget {
           subtitle: S.of(context).importDataSubtitle,
           onTap: () => _showImportDialog(context, ref),
         ),
+        _ActionTile(
+          icon: Icons.settings_ethernet,
+          title: S.of(context).importFromSshConfig,
+          subtitle: S.of(context).importFromSshConfigSubtitle,
+          onTap: () => _showSshConfigImportDialog(context, ref),
+        ),
       ],
     );
+  }
+
+  Future<void> _showSshConfigImportDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    try {
+      final path = await _pickSshConfigFile(context);
+      if (path == null || !context.mounted) return;
+
+      final content = await File(path).readAsString();
+      if (!context.mounted) return;
+
+      final folderLabel = S
+          .of(context)
+          .sshConfigImportFolderName(
+            DateTime.now().toIso8601String().split('T').first,
+          );
+      final preview = OpenSshConfigImporter().buildPreview(
+        configContent: content,
+        folderLabel: folderLabel,
+      );
+      final accepted = await SshConfigImportPreviewDialog.show(
+        context,
+        preview: preview,
+        folderLabel: folderLabel,
+      );
+      if (accepted != true || !context.mounted) return;
+      if (preview.result.sessions.isEmpty) return;
+
+      await _applyFilteredImport(context, ref, preview.result);
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S
+              .of(context)
+              .sshConfigImportedHosts(preview.result.sessions.length),
+          level: ToastLevel.success,
+        );
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'SSH config import failed: $e',
+        name: 'Settings',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
+          level: ToastLevel.error,
+        );
+      }
+    }
+  }
+
+  Future<String?> _pickSshConfigFile(BuildContext context) async {
+    final title = S.of(context).sshConfigPickerTitle;
+    final result = await FilePicker.pickFiles(
+      dialogTitle: title,
+      type: FileType.any,
+    );
+    return result?.files.single.path;
   }
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {

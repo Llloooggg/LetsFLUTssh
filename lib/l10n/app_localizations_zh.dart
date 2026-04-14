@@ -673,6 +673,48 @@ class SZh extends S {
   String get importDataSubtitle => '从 .lfs 文件加载数据';
 
   @override
+  String get importFromSshConfig => 'Import from OpenSSH config';
+
+  @override
+  String get importFromSshConfigSubtitle =>
+      'One-time import of hosts from ~/.ssh/config';
+
+  @override
+  String get sshConfigPickerTitle => 'Select OpenSSH config file';
+
+  @override
+  String get sshConfigPreviewTitle => 'SSH config import';
+
+  @override
+  String sshConfigPreviewHostsFound(int count) {
+    return '$count host(s) found';
+  }
+
+  @override
+  String get sshConfigPreviewNoHosts =>
+      'No importable hosts found in this file.';
+
+  @override
+  String sshConfigPreviewMissingKeys(String hosts) {
+    return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
+  }
+
+  @override
+  String sshConfigPreviewFolderLabel(String folder) {
+    return 'Imported to folder: $folder';
+  }
+
+  @override
+  String sshConfigImportedHosts(int count) {
+    return 'Imported $count host(s) from SSH config';
+  }
+
+  @override
+  String sshConfigImportFolderName(String date) {
+    return 'Imported from ~/.ssh ($date)';
+  }
+
+  @override
   String get setMasterPasswordHint => '设置主密码以加密存档。';
 
   @override
