@@ -93,10 +93,12 @@ class SId extends S {
   String get managerKeys => 'Kunci dari pengelola';
 
   @override
-  String get managerKeysMayBeLarge => 'Kunci pengelola dapat melebihi ukuran QR';
+  String get managerKeysMayBeLarge =>
+      'Kunci pengelola dapat melebihi ukuran QR';
 
   @override
-  String get qrPasswordWarning => 'Kata sandi akan tidak terenkripsi dalam kode QR. Siapa pun yang memindai dapat melihatnya.';
+  String get qrPasswordWarning =>
+      'Kata sandi akan tidak terenkripsi dalam kode QR. Siapa pun yang memindai dapat melihatnya.';
 
   @override
   String get sshKeysMayBeLarge => 'Kunci dapat melebihi ukuran QR';
@@ -107,10 +109,12 @@ class SId extends S {
   }
 
   @override
-  String get qrCredentialsWarning => 'Kata sandi dan kunci SSH AKAN terlihat di kode QR';
+  String get qrCredentialsWarning =>
+      'Kata sandi dan kunci SSH AKAN terlihat di kode QR';
 
   @override
-  String get qrCredentialsTooLarge => 'Kredensial membuat kode QR terlalu besar';
+  String get qrCredentialsTooLarge =>
+      'Kredensial membuat kode QR terlalu besar';
 
   @override
   String get terminal => 'Terminal';
@@ -163,7 +167,8 @@ class SId extends S {
   String get openInBrowser => 'Buka di Browser';
 
   @override
-  String get couldNotOpenBrowser => 'Tidak dapat membuka browser — URL disalin ke clipboard';
+  String get couldNotOpenBrowser =>
+      'Tidak dapat membuka browser — URL disalin ke clipboard';
 
   @override
   String get checkForUpdates => 'Periksa Pembaruan';
@@ -395,7 +400,8 @@ class SId extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst => 'Sediakan file kunci atau teks PEM terlebih dahulu';
+  String get provideKeyFirst =>
+      'Sediakan file kunci atau teks PEM terlebih dahulu';
 
   @override
   String get keyTextPem => 'Teks Kunci (PEM)';
@@ -422,10 +428,12 @@ class SId extends S {
   String get qrGenerationFailed => 'Pembuatan QR gagal';
 
   @override
-  String get scanWithCameraApp => 'Pindai dengan aplikasi kamera di perangkat\nyang telah memasang LetsFLUTssh.';
+  String get scanWithCameraApp =>
+      'Pindai dengan aplikasi kamera di perangkat\nyang telah memasang LetsFLUTssh.';
 
   @override
-  String get noPasswordsInQr => 'Tidak ada kata sandi atau kunci dalam kode QR ini';
+  String get noPasswordsInQr =>
+      'Tidak ada kata sandi atau kunci dalam kode QR ini';
 
   @override
   String get copyLink => 'Salin Tautan';
@@ -440,10 +448,12 @@ class SId extends S {
   String get unknownHost => 'Host Tidak Dikenal';
 
   @override
-  String get hostKeyChangedWarning => 'PERINGATAN: Kunci host untuk server ini telah berubah. Ini bisa menandakan serangan man-in-the-middle, atau server mungkin telah diinstal ulang.';
+  String get hostKeyChangedWarning =>
+      'PERINGATAN: Kunci host untuk server ini telah berubah. Ini bisa menandakan serangan man-in-the-middle, atau server mungkin telah diinstal ulang.';
 
   @override
-  String get unknownHostMessage => 'Keaslian host ini tidak dapat diverifikasi. Apakah Anda yakin ingin melanjutkan koneksi?';
+  String get unknownHostMessage =>
+      'Keaslian host ini tidak dapat diverifikasi. Apakah Anda yakin ingin melanjutkan koneksi?';
 
   @override
   String get host => 'Host';
@@ -476,10 +486,12 @@ class SId extends S {
   String get confirmPassword => 'Konfirmasi Kata Sandi';
 
   @override
-  String get importModeMergeDescription => 'Tambahkan sesi baru, pertahankan yang ada';
+  String get importModeMergeDescription =>
+      'Tambahkan sesi baru, pertahankan yang ada';
 
   @override
-  String get importModeReplaceDescription => 'Ganti semua sesi dengan yang diimpor';
+  String get importModeReplaceDescription =>
+      'Ganti semua sesi dengan yang diimpor';
 
   @override
   String errorPrefix(String error) {
@@ -585,7 +597,8 @@ class SId extends S {
   String get noActiveSession => 'Tidak ada sesi aktif';
 
   @override
-  String get createConnectionHint => 'Buat koneksi baru atau pilih dari sidebar';
+  String get createConnectionHint =>
+      'Buat koneksi baru atau pilih dari sidebar';
 
   @override
   String get hideSidebar => 'Sembunyikan Sidebar (Ctrl+B)';
@@ -666,13 +679,15 @@ class SId extends S {
   String get exportData => 'Ekspor Data';
 
   @override
-  String get exportDataSubtitle => 'Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi';
+  String get exportDataSubtitle =>
+      'Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi';
 
   @override
   String get importDataSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get setMasterPasswordHint => 'Atur kata sandi utama untuk mengenkripsi arsip.';
+  String get setMasterPasswordHint =>
+      'Atur kata sandi utama untuk mengenkripsi arsip.';
 
   @override
   String get passwordsDoNotMatch => 'Kata sandi tidak cocok';
@@ -700,7 +715,8 @@ class SId extends S {
   String get shareViaQrCode => 'Bagikan via Kode QR';
 
   @override
-  String get shareViaQrSubtitle => 'Ekspor sesi ke kode QR untuk dipindai perangkat lain';
+  String get shareViaQrSubtitle =>
+      'Ekspor sesi ke kode QR untuk dipindai perangkat lain';
 
   @override
   String get dataLocation => 'Lokasi Data';
@@ -784,7 +800,8 @@ class SId extends S {
   String get useSftpFromSessions => 'Gunakan \"SFTP\" dari Sesi';
 
   @override
-  String get anotherInstanceRunning => 'Instance LetsFLUTssh lain sudah berjalan.';
+  String get anotherInstanceRunning =>
+      'Instance LetsFLUTssh lain sudah berjalan.';
 
   @override
   String importFailedShort(String error) {
@@ -819,7 +836,8 @@ class SId extends S {
   String get connectionError => 'Kesalahan koneksi';
 
   @override
-  String get resizeWindowToViewFiles => 'Ubah ukuran jendela untuk melihat file';
+  String get resizeWindowToViewFiles =>
+      'Ubah ukuran jendela untuk melihat file';
 
   @override
   String get completed => 'Selesai';
@@ -846,13 +864,16 @@ class SId extends S {
   String get exportSessionsViaQr => 'Ekspor Sesi via QR';
 
   @override
-  String get qrNoCredentialsWarning => 'Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.';
+  String get qrNoCredentialsWarning =>
+      'Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.';
 
   @override
-  String get qrTooManyForSingleCode => 'Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.';
+  String get qrTooManyForSingleCode =>
+      'Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.';
 
   @override
-  String get qrTooLarge => 'Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.';
+  String get qrTooLarge =>
+      'Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.';
 
   @override
   String get exportAll => 'Ekspor Semua';
@@ -899,7 +920,8 @@ class SId extends S {
   String get errBadFileDescriptor => 'Deskriptor file buruk';
 
   @override
-  String get errResourceTemporarilyUnavailable => 'Sumber daya sementara tidak tersedia';
+  String get errResourceTemporarilyUnavailable =>
+      'Sumber daya sementara tidak tersedia';
 
   @override
   String get errOutOfMemory => 'Kehabisan memori';
@@ -941,7 +963,8 @@ class SId extends S {
   String get errAddressAlreadyInUse => 'Alamat sudah digunakan';
 
   @override
-  String get errCannotAssignAddress => 'Tidak dapat menetapkan alamat yang diminta';
+  String get errCannotAssignAddress =>
+      'Tidak dapat menetapkan alamat yang diminta';
 
   @override
   String get errNetworkIsDown => 'Jaringan tidak aktif';
@@ -1043,7 +1066,8 @@ class SId extends S {
   }
 
   @override
-  String get errDecryptionFailed => 'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
+  String get errDecryptionFailed =>
+      'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1076,13 +1100,15 @@ class SId extends S {
   String get subitems => 'Item';
 
   @override
-  String get storagePermissionRequired => 'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
+  String get storagePermissionRequired =>
+      'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
 
   @override
   String get grantPermission => 'Berikan izin';
 
   @override
-  String get storagePermissionLimited => 'Akses terbatas — berikan izin penyimpanan penuh untuk semua file';
+  String get storagePermissionLimited =>
+      'Akses terbatas — berikan izin penyimpanan penuh untuk semua file';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1173,7 +1199,8 @@ class SId extends S {
   String get dropKeyFileHere => 'Seret file kunci ke sini';
 
   @override
-  String get sessionNoCredentials => 'Sesi tidak memiliki kredensial — edit untuk menambahkan kata sandi atau kunci';
+  String get sessionNoCredentials =>
+      'Sesi tidak memiliki kredensial — edit untuk menambahkan kata sandi atau kunci';
 
   @override
   String dragItemCount(int count) {
@@ -1205,7 +1232,8 @@ class SId extends S {
   String get sshConnectionChannel => 'Koneksi SSH';
 
   @override
-  String get sshConnectionChannelDesc => 'Menjaga koneksi SSH tetap aktif di latar belakang.';
+  String get sshConnectionChannelDesc =>
+      'Menjaga koneksi SSH tetap aktif di latar belakang.';
 
   @override
   String get sshActive => 'SSH aktif';
@@ -1250,7 +1278,8 @@ class SId extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'Tidak ada host dikenal. Hubungkan ke server untuk menambahkan.';
+  String get knownHostsEmpty =>
+      'Tidak ada host dikenal. Hubungkan ke server untuk menambahkan.';
 
   @override
   String get removeHost => 'Hapus host';
@@ -1264,7 +1293,8 @@ class SId extends S {
   String get clearAllKnownHosts => 'Hapus semua host dikenal';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Hapus semua host dikenal? Setiap kunci server perlu diverifikasi ulang.';
+  String get clearAllKnownHostsConfirm =>
+      'Hapus semua host dikenal? Setiap kunci server perlu diverifikasi ulang.';
 
   @override
   String get importKnownHosts => 'Impor host dikenal';
@@ -1406,7 +1436,8 @@ class SId extends S {
   String get unlock => 'Buka kunci';
 
   @override
-  String get masterPasswordSubtitle => 'Lindungi kredensial tersimpan dengan kata sandi';
+  String get masterPasswordSubtitle =>
+      'Lindungi kredensial tersimpan dengan kata sandi';
 
   @override
   String get setMasterPassword => 'Atur kata sandi utama';
@@ -1421,10 +1452,12 @@ class SId extends S {
   String get masterPasswordEnabled => 'Kredensial dilindungi kata sandi utama';
 
   @override
-  String get masterPasswordDisabled => 'Kredensial menggunakan kunci otomatis (tanpa kata sandi)';
+  String get masterPasswordDisabled =>
+      'Kredensial menggunakan kunci otomatis (tanpa kata sandi)';
 
   @override
-  String get enterMasterPassword => 'Masukkan kata sandi utama untuk mengakses kredensial tersimpan.';
+  String get enterMasterPassword =>
+      'Masukkan kata sandi utama untuk mengakses kredensial tersimpan.';
 
   @override
   String get wrongMasterPassword => 'Kata sandi salah. Silakan coba lagi.';
@@ -1448,13 +1481,15 @@ class SId extends S {
   String get masterPasswordRemoved => 'Kata sandi utama dihapus';
 
   @override
-  String get masterPasswordWarning => 'Jika Anda lupa kata sandi ini, semua kata sandi dan kunci SSH tersimpan akan hilang. Tidak ada pemulihan.';
+  String get masterPasswordWarning =>
+      'Jika Anda lupa kata sandi ini, semua kata sandi dan kunci SSH tersimpan akan hilang. Tidak ada pemulihan.';
 
   @override
   String get forgotPassword => 'Lupa kata sandi?';
 
   @override
-  String get forgotPasswordWarning => 'Ini akan menghapus SEMUA kata sandi, kunci SSH, dan frasa sandi tersimpan. Sesi dan pengaturan akan dipertahankan. Tindakan ini tidak dapat dibatalkan.';
+  String get forgotPasswordWarning =>
+      'Ini akan menghapus SEMUA kata sandi, kunci SSH, dan frasa sandi tersimpan. Sesi dan pengaturan akan dipertahankan. Tindakan ini tidak dapat dibatalkan.';
 
   @override
   String get resetAndDeleteCredentials => 'Reset dan hapus data';
@@ -1469,7 +1504,8 @@ class SId extends S {
   String get reEncrypting => 'Mengenkripsi ulang data...';
 
   @override
-  String get confirmRemoveMasterPassword => 'Masukkan kata sandi saat ini untuk menghapus perlindungan kata sandi utama. Kredensial akan dienkripsi ulang dengan kunci otomatis.';
+  String get confirmRemoveMasterPassword =>
+      'Masukkan kata sandi saat ini untuk menghapus perlindungan kata sandi utama. Kredensial akan dienkripsi ulang dengan kunci otomatis.';
 
   @override
   String get securitySetupTitle => 'Pengaturan keamanan';
@@ -1480,16 +1516,20 @@ class SId extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => 'Anda juga bisa mengatur kata sandi utama untuk perlindungan tambahan.';
+  String get securitySetupKeychainOptional =>
+      'Anda juga bisa mengatur kata sandi utama untuk perlindungan tambahan.';
 
   @override
-  String get securitySetupNoKeychain => 'Rantai kunci sistem tidak terdeteksi. Tanpa rantai kunci, data sesi (host, kata sandi, kunci) akan disimpan dalam teks biasa.';
+  String get securitySetupNoKeychain =>
+      'Rantai kunci sistem tidak terdeteksi. Tanpa rantai kunci, data sesi (host, kata sandi, kunci) akan disimpan dalam teks biasa.';
 
   @override
-  String get securitySetupNoKeychainHint => 'Ini normal di WSL, Linux tanpa GUI, atau instalasi minimal. Untuk mengaktifkan rantai kunci di Linux: instal libsecret dan daemon rantai kunci (cth. gnome-keyring).';
+  String get securitySetupNoKeychainHint =>
+      'Ini normal di WSL, Linux tanpa GUI, atau instalasi minimal. Untuk mengaktifkan rantai kunci di Linux: instal libsecret dan daemon rantai kunci (cth. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'Kami sarankan mengatur kata sandi utama untuk melindungi data Anda.';
+  String get securitySetupRecommendMasterPassword =>
+      'Kami sarankan mengatur kata sandi utama untuk melindungi data Anda.';
 
   @override
   String get continueWithKeychain => 'Lanjutkan dengan rantai kunci';
@@ -1524,7 +1564,8 @@ class SId extends S {
   String get enableKeychain => 'Aktifkan enkripsi rantai kunci';
 
   @override
-  String get enableKeychainSubtitle => 'Enkripsi ulang data tersimpan menggunakan rantai kunci sistem';
+  String get enableKeychainSubtitle =>
+      'Enkripsi ulang data tersimpan menggunakan rantai kunci sistem';
 
   @override
   String get keychainEnabled => 'Enkripsi rantai kunci diaktifkan';
@@ -1533,7 +1574,8 @@ class SId extends S {
   String get manageMasterPassword => 'Kelola kata sandi utama';
 
   @override
-  String get manageMasterPasswordSubtitle => 'Atur, ubah, atau hapus kata sandi utama';
+  String get manageMasterPasswordSubtitle =>
+      'Atur, ubah, atau hapus kata sandi utama';
 
   @override
   String get snippets => 'Snippets';
@@ -1698,10 +1740,12 @@ class SId extends S {
   String get disableKeychain => 'Nonaktifkan enkripsi keychain';
 
   @override
-  String get disableKeychainSubtitle => 'Beralih ke penyimpanan teks biasa (tidak disarankan)';
+  String get disableKeychainSubtitle =>
+      'Beralih ke penyimpanan teks biasa (tidak disarankan)';
 
   @override
-  String get disableKeychainConfirm => 'Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?';
+  String get disableKeychainConfirm =>
+      'Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?';
 
   @override
   String get keychainDisabled => 'Enkripsi keychain dinonaktifkan';
