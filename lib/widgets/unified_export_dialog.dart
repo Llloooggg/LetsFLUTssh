@@ -706,30 +706,28 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             }),
             _formatSize(_knownHostsSize()),
           ),
-        if (widget.tagCount > 0)
-          _buildCheckboxRow(
-            Icons.label_outline,
-            'Tags (${widget.tagCount})',
-            _options.includeTags,
-            () => setState(() {
-              _invalidatePayloadCache();
-              _options = _options.copyWith(includeTags: !_options.includeTags);
-            }),
-            null,
-          ),
-        if (widget.snippetCount > 0)
-          _buildCheckboxRow(
-            Icons.code,
-            'Snippets (${widget.snippetCount})',
-            _options.includeSnippets,
-            () => setState(() {
-              _invalidatePayloadCache();
-              _options = _options.copyWith(
-                includeSnippets: !_options.includeSnippets,
-              );
-            }),
-            null,
-          ),
+        _buildCheckboxRow(
+          Icons.label_outline,
+          'Tags (${widget.tagCount})',
+          _options.includeTags,
+          () => setState(() {
+            _invalidatePayloadCache();
+            _options = _options.copyWith(includeTags: !_options.includeTags);
+          }),
+          null,
+        ),
+        _buildCheckboxRow(
+          Icons.code,
+          'Snippets (${widget.snippetCount})',
+          _options.includeSnippets,
+          () => setState(() {
+            _invalidatePayloadCache();
+            _options = _options.copyWith(
+              includeSnippets: !_options.includeSnippets,
+            );
+          }),
+          null,
+        ),
       ],
     );
   }
