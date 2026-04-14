@@ -1313,14 +1313,6 @@ class _QrExportTile extends ConsumerWidget {
 
   Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
-    if (sessions.isEmpty) {
-      Toast.show(
-        context,
-        message: S.of(context).noSessionsToExport,
-        level: ToastLevel.warning,
-      );
-      return;
-    }
     final store = ref.read(sessionStoreProvider);
 
     // Load all manager keys for size calculation (before resolving sessions)

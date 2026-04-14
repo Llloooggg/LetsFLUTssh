@@ -2846,10 +2846,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // QR Export — empty sessions
+  // QR Export — empty sessions opens dialog (can export config/known hosts)
   // ---------------------------------------------------------------------------
   group('SettingsScreen — QR Export', () {
-    testWidgets('empty sessions shows warning toast', (tester) async {
+    testWidgets('empty sessions still opens export dialog', (tester) async {
       tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -2862,10 +2862,11 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Share via QR Code'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text('No sessions to export'), findsOneWidget);
-      Toast.clearAllForTest();
+      // No warning toast — dialog opens even with zero sessions
+      // (user can still export config or known hosts via QR).
+      expect(find.text('No sessions to export'), findsNothing);
     });
   });
 
