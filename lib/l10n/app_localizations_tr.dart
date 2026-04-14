@@ -1741,4 +1741,19 @@ class STr extends S {
   String exportSnippets(int count) {
     return 'Kod parçacıkları ($count)';
   }
+
+  @override
+  String get disableKeychain =>
+      'Anahtar zinciri şifrelemesini devre dışı bırak';
+
+  @override
+  String get disableKeychainSubtitle => 'Düz metin depolamaya geç (önerilmez)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?';
+
+  @override
+  String get keychainDisabled =>
+      'Anahtar zinciri şifrelemesi devre dışı bırakıldı';
 }

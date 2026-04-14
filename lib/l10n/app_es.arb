@@ -473,5 +473,9 @@
   "sessionKeysFromManager": "Claves de sesión del gestor",
   "allKeysFromManager": "Todas las claves del gestor",
   "exportTags": "Etiquetas ({count})",
-  "exportSnippets": "Fragmentos ({count})"
+  "exportSnippets": "Fragmentos ({count})",
+  "disableKeychain": "Desactivar cifrado del llavero",
+  "disableKeychainSubtitle": "Cambiar a almacenamiento en texto plano (no recomendado)",
+  "disableKeychainConfirm": "La base de datos se volverá a cifrar sin clave. Las sesiones y claves se almacenarán en texto plano en el disco. ¿Continuar?",
+  "keychainDisabled": "Cifrado del llavero desactivado"
 }

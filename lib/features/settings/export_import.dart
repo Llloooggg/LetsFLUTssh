@@ -41,164 +41,26 @@ class ExportImport {
 
   /// Export app data to an encrypted .lfs file.
   ///
-  /// [options] controls what data to include in the export.
-  /// [emptyFolders] set of empty folder paths to preserve.
-  /// [knownHostsContent] is the decrypted known_hosts text (from
+  /// [input] groups sessions/config/tags/etc inputs. See [LfsExportInput].
+  /// [input.knownHostsContent] is the decrypted known_hosts text (from
   /// [KnownHostsManager.exportToString]). Pass null to omit known_hosts.
   ///
   /// Returns the file path of the created archive.
   static Future<String> export({
     required String masterPassword,
-    required List<Session> sessions,
-    required AppConfig config,
+    required LfsExportInput input,
     required String outputPath,
-    ExportOptions options = const ExportOptions(),
-    Set<String> emptyFolders = const {},
-    String? knownHostsContent,
-    List<SshKeyEntry> managerKeyEntries = const [],
-    List<Tag> tags = const [],
-    List<ExportLink> sessionTags = const [],
-    List<ExportFolderTagLink> folderTags = const [],
-    List<Snippet> snippets = const [],
-    List<ExportLink> sessionSnippets = const [],
   }) async {
-    // Build ZIP archive in memory
-    final archive = Archive();
-
-    // Sessions with credentials (if included)
-    if (options.includeSessions) {
-      final sessionsJson = const JsonEncoder.withIndent(
-        '  ',
-      ).convert(sessions.map((s) => s.toJsonWithCredentials()).toList());
-      final sessionsBytes = utf8.encode(sessionsJson);
-      archive.addFile(
-        ArchiveFile(_sessionsFile, sessionsBytes.length, sessionsBytes),
-      );
-
-      // Empty folders (if sessions included)
-      if (emptyFolders.isNotEmpty) {
-        final foldersJson = const JsonEncoder.withIndent(
-          '  ',
-        ).convert(emptyFolders.toList());
-        final foldersBytes = utf8.encode(foldersJson);
-        archive.addFile(
-          ArchiveFile(_emptyFoldersFile, foldersBytes.length, foldersBytes),
-        );
-      }
-    }
-
-    // Manager keys (if included)
-    if (options.hasManagerKeys && managerKeyEntries.isNotEmpty) {
-      final keysJson = const JsonEncoder.withIndent('  ').convert(
-        managerKeyEntries
-            .map(
-              (e) => {
-                'id': e.id,
-                'label': e.label,
-                'private_key': e.privateKey,
-                'public_key': e.publicKey,
-                'key_type': e.keyType,
-                'is_generated': e.isGenerated,
-                'created_at': e.createdAt.toIso8601String(),
-              },
-            )
-            .toList(),
-      );
-      final keysBytes = utf8.encode(keysJson);
-      archive.addFile(ArchiveFile(_keysFile, keysBytes.length, keysBytes));
-    }
-
-    // Config (if included)
-    if (options.includeConfig) {
-      final configJson = const JsonEncoder.withIndent(
-        '  ',
-      ).convert(config.toJson());
-      final configBytes = utf8.encode(configJson);
-      archive.addFile(
-        ArchiveFile(_configFile, configBytes.length, configBytes),
-      );
-    }
-
-    // Known hosts (if included)
-    if (options.includeKnownHosts &&
-        knownHostsContent != null &&
-        knownHostsContent.isNotEmpty) {
-      final khBytes = utf8.encode(knownHostsContent);
-      archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
-    }
-
-    // Tags (if included)
-    if (options.includeTags && tags.isNotEmpty) {
-      _addJsonFile(
-        archive,
-        _tagsFile,
-        tags
-            .map(
-              (t) => {
-                'id': t.id,
-                'name': t.name,
-                'color': t.color,
-                'created_at': t.createdAt.toIso8601String(),
-              },
-            )
-            .toList(),
-      );
-      if (sessionTags.isNotEmpty) {
-        _addJsonFile(
-          archive,
-          _sessionTagsFile,
-          sessionTags
-              .map((l) => {'session_id': l.sessionId, 'tag_id': l.targetId})
-              .toList(),
-        );
-      }
-      if (folderTags.isNotEmpty) {
-        _addJsonFile(
-          archive,
-          _folderTagsFile,
-          folderTags
-              .map((l) => {'folder_path': l.folderPath, 'tag_id': l.tagId})
-              .toList(),
-        );
-      }
-    }
-
-    // Snippets (if included)
-    if (options.includeSnippets && snippets.isNotEmpty) {
-      _addJsonFile(
-        archive,
-        _snippetsFile,
-        snippets
-            .map(
-              (s) => {
-                'id': s.id,
-                'title': s.title,
-                'command': s.command,
-                'description': s.description,
-                'created_at': s.createdAt.toIso8601String(),
-                'updated_at': s.updatedAt.toIso8601String(),
-              },
-            )
-            .toList(),
-      );
-      if (sessionSnippets.isNotEmpty) {
-        _addJsonFile(
-          archive,
-          _sessionSnippetsFile,
-          sessionSnippets
-              .map((l) => {'session_id': l.sessionId, 'snippet_id': l.targetId})
-              .toList(),
-        );
-      }
-    }
+    final archive = _buildArchive(input);
 
     // Encode ZIP
     final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
     AppLogger.instance.log(
       'Export: ZIP archive ${zipBytes.length} bytes, '
-      '${sessions.length} sessions, '
-      'config=${options.includeConfig}, '
-      'knownHosts=${options.includeKnownHosts && knownHostsContent != null}',
+      '${input.sessions.length} sessions, '
+      'config=${input.options.includeConfig}, '
+      'knownHosts='
+      '${input.options.includeKnownHosts && input.knownHostsContent != null}',
       name: 'ExportImport',
     );
 
@@ -217,6 +79,143 @@ class ExportImport {
     await file.writeAsBytes(encrypted);
 
     return outputPath;
+  }
+
+  /// Build the ZIP archive in memory from [input].
+  static Archive _buildArchive(LfsExportInput input) {
+    final archive = Archive();
+    _addSessions(archive, input);
+    _addManagerKeys(archive, input);
+    _addConfig(archive, input);
+    _addKnownHosts(archive, input);
+    _addTags(archive, input);
+    _addSnippets(archive, input);
+    return archive;
+  }
+
+  static void _addSessions(Archive archive, LfsExportInput input) {
+    if (!input.options.includeSessions) return;
+    final sessionsJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(input.sessions.map((s) => s.toJsonWithCredentials()).toList());
+    final sessionsBytes = utf8.encode(sessionsJson);
+    archive.addFile(
+      ArchiveFile(_sessionsFile, sessionsBytes.length, sessionsBytes),
+    );
+
+    if (input.emptyFolders.isNotEmpty) {
+      final foldersJson = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(input.emptyFolders.toList());
+      final foldersBytes = utf8.encode(foldersJson);
+      archive.addFile(
+        ArchiveFile(_emptyFoldersFile, foldersBytes.length, foldersBytes),
+      );
+    }
+  }
+
+  static void _addManagerKeys(Archive archive, LfsExportInput input) {
+    if (!input.options.hasManagerKeys || input.managerKeyEntries.isEmpty) {
+      return;
+    }
+    final keysJson = const JsonEncoder.withIndent('  ').convert(
+      input.managerKeyEntries
+          .map(
+            (e) => {
+              'id': e.id,
+              'label': e.label,
+              'private_key': e.privateKey,
+              'public_key': e.publicKey,
+              'key_type': e.keyType,
+              'is_generated': e.isGenerated,
+              'created_at': e.createdAt.toIso8601String(),
+            },
+          )
+          .toList(),
+    );
+    final keysBytes = utf8.encode(keysJson);
+    archive.addFile(ArchiveFile(_keysFile, keysBytes.length, keysBytes));
+  }
+
+  static void _addConfig(Archive archive, LfsExportInput input) {
+    if (!input.options.includeConfig) return;
+    final configJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(input.config.toJson());
+    final configBytes = utf8.encode(configJson);
+    archive.addFile(ArchiveFile(_configFile, configBytes.length, configBytes));
+  }
+
+  static void _addKnownHosts(Archive archive, LfsExportInput input) {
+    final kh = input.knownHostsContent;
+    if (!input.options.includeKnownHosts || kh == null || kh.isEmpty) return;
+    final khBytes = utf8.encode(kh);
+    archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
+  }
+
+  static void _addTags(Archive archive, LfsExportInput input) {
+    if (!input.options.includeTags || input.tags.isEmpty) return;
+    _addJsonFile(
+      archive,
+      _tagsFile,
+      input.tags
+          .map(
+            (t) => {
+              'id': t.id,
+              'name': t.name,
+              'color': t.color,
+              'created_at': t.createdAt.toIso8601String(),
+            },
+          )
+          .toList(),
+    );
+    if (input.sessionTags.isNotEmpty) {
+      _addJsonFile(
+        archive,
+        _sessionTagsFile,
+        input.sessionTags
+            .map((l) => {'session_id': l.sessionId, 'tag_id': l.targetId})
+            .toList(),
+      );
+    }
+    if (input.folderTags.isNotEmpty) {
+      _addJsonFile(
+        archive,
+        _folderTagsFile,
+        input.folderTags
+            .map((l) => {'folder_path': l.folderPath, 'tag_id': l.tagId})
+            .toList(),
+      );
+    }
+  }
+
+  static void _addSnippets(Archive archive, LfsExportInput input) {
+    if (!input.options.includeSnippets || input.snippets.isEmpty) return;
+    _addJsonFile(
+      archive,
+      _snippetsFile,
+      input.snippets
+          .map(
+            (s) => {
+              'id': s.id,
+              'title': s.title,
+              'command': s.command,
+              'description': s.description,
+              'created_at': s.createdAt.toIso8601String(),
+              'updated_at': s.updatedAt.toIso8601String(),
+            },
+          )
+          .toList(),
+    );
+    if (input.sessionSnippets.isNotEmpty) {
+      _addJsonFile(
+        archive,
+        _sessionSnippetsFile,
+        input.sessionSnippets
+            .map((l) => {'session_id': l.sessionId, 'snippet_id': l.targetId})
+            .toList(),
+      );
+    }
   }
 
   /// Decrypt an .lfs file and parse the archive contents.
@@ -580,5 +579,35 @@ class ImportResult {
     this.config,
     required this.mode,
     this.knownHostsContent,
+  });
+}
+
+/// Bundle of inputs for [ExportImport.export]. Groups related optional
+/// parameters so the public signature stays small.
+class LfsExportInput {
+  final List<Session> sessions;
+  final AppConfig config;
+  final ExportOptions options;
+  final Set<String> emptyFolders;
+  final String? knownHostsContent;
+  final List<SshKeyEntry> managerKeyEntries;
+  final List<Tag> tags;
+  final List<ExportLink> sessionTags;
+  final List<ExportFolderTagLink> folderTags;
+  final List<Snippet> snippets;
+  final List<ExportLink> sessionSnippets;
+
+  const LfsExportInput({
+    required this.sessions,
+    required this.config,
+    this.options = const ExportOptions(),
+    this.emptyFolders = const {},
+    this.knownHostsContent,
+    this.managerKeyEntries = const [],
+    this.tags = const [],
+    this.sessionTags = const [],
+    this.folderTags = const [],
+    this.snippets = const [],
+    this.sessionSnippets = const [],
   });
 }

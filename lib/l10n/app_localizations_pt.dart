@@ -1736,11 +1736,25 @@ class SPt extends S {
 
   @override
   String exportTags(int count) {
-    return 'Tags ($count)';
+    return 'Etiquetas ($count)';
   }
 
   @override
   String exportSnippets(int count) {
-    return 'Snippets ($count)';
+    return 'Trechos ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Desativar criptografia do chaveiro';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Mudar para armazenamento em texto simples (não recomendado)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?';
+
+  @override
+  String get keychainDisabled => 'Criptografia do chaveiro desativada';
 }

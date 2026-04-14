@@ -21,7 +21,9 @@ import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../core/security/key_store.dart';
 import '../../core/snippets/snippet.dart';
+import '../../core/snippets/snippet_store.dart';
 import '../../core/tags/tag.dart';
+import '../../core/tags/tag_store.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/master_password_provider.dart';
 import '../../providers/security_provider.dart';
@@ -44,10 +46,6 @@ import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
-import '../key_manager/key_manager_dialog.dart';
-import '../snippets/snippet_manager_dialog.dart';
-import '../tags/tag_manager_dialog.dart';
-import 'known_hosts_manager.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
@@ -110,11 +108,6 @@ List<_Section> _buildSections(BuildContext context) => [
     title: S.of(context).security,
     icon: Icons.security,
     builder: _SecuritySection.new,
-  ),
-  _Section(
-    title: S.of(context).sshKeys,
-    icon: Icons.vpn_key,
-    builder: _SshKeysSection.new,
   ),
   _Section(
     title: S.of(context).data,

@@ -467,5 +467,9 @@
   "sessionKeysFromManager": "Khóa phiên từ trình quản lý",
   "allKeysFromManager": "Tất cả khóa từ trình quản lý",
   "exportTags": "Thẻ ({count})",
-  "exportSnippets": "Đoạn mã ({count})"
+  "exportSnippets": "Đoạn mã ({count})",
+  "disableKeychain": "Tắt mã hóa keychain",
+  "disableKeychainSubtitle": "Chuyển sang lưu trữ văn bản thuần (không khuyến nghị)",
+  "disableKeychainConfirm": "Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?",
+  "keychainDisabled": "Đã tắt mã hóa keychain"
 }

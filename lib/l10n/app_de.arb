@@ -472,6 +472,10 @@
   "sessionsOnly": "Sitzungen",
   "sessionKeysFromManager": "Sitzungsschlüssel aus dem Manager",
   "allKeysFromManager": "Alle Schlüssel aus dem Manager",
-  "exportTags": "Tags ({count})",
-  "exportSnippets": "Snippets ({count})"
+  "exportTags": "Schlagwörter ({count})",
+  "exportSnippets": "Codeschnipsel ({count})",
+  "disableKeychain": "Schlüsselbund-Verschlüsselung deaktivieren",
+  "disableKeychainSubtitle": "Auf Klartextspeicherung umstellen (nicht empfohlen)",
+  "disableKeychainConfirm": "Die Datenbank wird ohne Schlüssel neu verschlüsselt. Sitzungen und Schlüssel werden im Klartext auf der Festplatte gespeichert. Fortfahren?",
+  "keychainDisabled": "Schlüsselbund-Verschlüsselung deaktiviert"
 }

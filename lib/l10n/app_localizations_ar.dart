@@ -1730,4 +1730,18 @@ class SAr extends S {
   String exportSnippets(int count) {
     return 'القصاصات ($count)';
   }
+
+  @override
+  String get disableKeychain => 'تعطيل تشفير سلسلة المفاتيح';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'التبديل إلى التخزين بنص عادي (غير موصى به)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟';
+
+  @override
+  String get keychainDisabled => 'تم تعطيل تشفير سلسلة المفاتيح';
 }

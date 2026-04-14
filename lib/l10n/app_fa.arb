@@ -467,5 +467,9 @@
   "sessionKeysFromManager": "کلیدهای نشست از مدیر",
   "allKeysFromManager": "همه کلیدها از مدیر",
   "exportTags": "برچسب‌ها ({count})",
-  "exportSnippets": "قطعه‌ها ({count})"
+  "exportSnippets": "قطعه‌ها ({count})",
+  "disableKeychain": "غیرفعال‌سازی رمزنگاری کلیدستان",
+  "disableKeychainSubtitle": "تغییر به ذخیره‌سازی متن ساده (توصیه نمی‌شود)",
+  "disableKeychainConfirm": "پایگاه داده بدون کلید دوباره رمزنگاری می‌شود. نشست‌ها و کلیدها به‌صورت متن ساده روی دیسک ذخیره خواهند شد. ادامه می‌دهید؟",
+  "keychainDisabled": "رمزنگاری کلیدستان غیرفعال شد"
 }

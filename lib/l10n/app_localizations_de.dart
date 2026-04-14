@@ -1744,11 +1744,25 @@ class SDe extends S {
 
   @override
   String exportTags(int count) {
-    return 'Tags ($count)';
+    return 'Schlagwörter ($count)';
   }
 
   @override
   String exportSnippets(int count) {
-    return 'Snippets ($count)';
+    return 'Codeschnipsel ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Schlüsselbund-Verschlüsselung deaktivieren';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Auf Klartextspeicherung umstellen (nicht empfohlen)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'Die Datenbank wird ohne Schlüssel neu verschlüsselt. Sitzungen und Schlüssel werden im Klartext auf der Festplatte gespeichert. Fortfahren?';
+
+  @override
+  String get keychainDisabled => 'Schlüsselbund-Verschlüsselung deaktiviert';
 }

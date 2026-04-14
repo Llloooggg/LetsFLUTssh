@@ -472,6 +472,10 @@
   "sessionsOnly": "Sessões",
   "sessionKeysFromManager": "Chaves de sessão do gerenciador",
   "allKeysFromManager": "Todas as chaves do gerenciador",
-  "exportTags": "Tags ({count})",
-  "exportSnippets": "Snippets ({count})"
+  "exportTags": "Etiquetas ({count})",
+  "exportSnippets": "Trechos ({count})",
+  "disableKeychain": "Desativar criptografia do chaveiro",
+  "disableKeychainSubtitle": "Mudar para armazenamento em texto simples (não recomendado)",
+  "disableKeychainConfirm": "O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?",
+  "keychainDisabled": "Criptografia do chaveiro desativada"
 }

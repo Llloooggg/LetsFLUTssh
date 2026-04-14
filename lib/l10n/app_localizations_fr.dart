@@ -1737,7 +1737,7 @@ class SFr extends S {
   String get fullBackup => 'Sauvegarde complète';
 
   @override
-  String get sessionsOnly => 'Sessions';
+  String get sessionsOnly => 'Sessions uniquement';
 
   @override
   String get sessionKeysFromManager => 'Clés de session du gestionnaire';
@@ -1754,4 +1754,18 @@ class SFr extends S {
   String exportSnippets(int count) {
     return 'Extraits ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Désactiver le chiffrement du trousseau';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Passer au stockage en texte clair (non recommandé)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'La base de données sera rechiffrée sans clé. Les sessions et les clés seront stockées en texte clair sur le disque. Continuer ?';
+
+  @override
+  String get keychainDisabled => 'Chiffrement du trousseau désactivé';
 }

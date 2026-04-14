@@ -49,12 +49,14 @@ void main() {
       home: Scaffold(
         body: SingleChildScrollView(
           child: UnifiedExportDialog(
-            sessions: sessions,
-            emptyFolders: emptyFolders,
-            config: config,
-            knownHostsContent: knownHostsContent,
+            data: UnifiedExportDialogData(
+              sessions: sessions,
+              emptyFolders: emptyFolders,
+              config: config,
+              knownHostsContent: knownHostsContent,
+              managerKeys: managerKeys,
+            ),
             isQrMode: isQrMode,
-            managerKeys: managerKeys,
           ),
         ),
       ),
@@ -221,8 +223,10 @@ void main() {
                 onPressed: () async {
                   result = await UnifiedExportDialog.show(
                     context,
-                    sessions: [makeSession('1', 'Test')],
-                    emptyFolders: {},
+                    data: UnifiedExportDialogData(
+                      sessions: [makeSession('1', 'Test')],
+                      emptyFolders: const {},
+                    ),
                     isQrMode: false,
                   );
                 },
@@ -254,8 +258,10 @@ void main() {
                 onPressed: () async {
                   await UnifiedExportDialog.show(
                     context,
-                    sessions: [makeSession('1', 'Test')],
-                    emptyFolders: {},
+                    data: UnifiedExportDialogData(
+                      sessions: [makeSession('1', 'Test')],
+                      emptyFolders: const {},
+                    ),
                     isQrMode: false,
                   );
                 },
@@ -300,8 +306,10 @@ void main() {
                 onPressed: () async {
                   await UnifiedExportDialog.show(
                     context,
-                    sessions: sessions,
-                    emptyFolders: {},
+                    data: UnifiedExportDialogData(
+                      sessions: sessions,
+                      emptyFolders: const {},
+                    ),
                     isQrMode: true,
                   );
                 },

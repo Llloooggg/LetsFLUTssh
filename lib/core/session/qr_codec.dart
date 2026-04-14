@@ -128,6 +128,35 @@ class ExportOptions {
 /// Manager keys carry metadata in `mk` and sessions flag `mg:1`.
 /// The entire JSON is deflate-compressed before base64 encoding.
 
+/// Bundle of inputs for [encodeExportPayload] / [calculateExportPayloadSize]
+/// besides the primary `sessions` list. Groups related optional parameters
+/// to keep public function signatures small.
+class ExportPayloadInput {
+  final Set<String> emptyFolders;
+  final ExportOptions options;
+  final AppConfig? config;
+  final String? knownHostsContent;
+  final Map<String, SshKeyEntry> managerKeyEntries;
+  final List<Tag> tags;
+  final List<ExportLink> sessionTags;
+  final List<ExportFolderTagLink> folderTags;
+  final List<Snippet> snippets;
+  final List<ExportLink> sessionSnippets;
+
+  const ExportPayloadInput({
+    this.emptyFolders = const {},
+    this.options = const ExportOptions(),
+    this.config,
+    this.knownHostsContent,
+    this.managerKeyEntries = const {},
+    this.tags = const [],
+    this.sessionTags = const [],
+    this.folderTags = const [],
+    this.snippets = const [],
+    this.sessionSnippets = const [],
+  });
+}
+
 /// Deduplicate SSH keys across sessions and return a short-id map.
 ///
 /// Keys are deduplicated by content — the same physical key used both
@@ -176,172 +205,190 @@ _deduplicateKeys(List<Session> sessions, ExportOptions options) {
 
 /// Encode sessions into a compact JSON, compress with deflate, return base64url.
 ///
-/// [managerKeyEntries] maps keyId → [SshKeyEntry] for manager key metadata.
-/// Pass empty map when manager keys are not included.
+/// [input] groups optional parameters. See [ExportPayloadInput].
 String encodeExportPayload(
   List<Session> sessions, {
-  Set<String> emptyFolders = const {},
-  ExportOptions options = const ExportOptions(),
-  AppConfig? config,
-  String? knownHostsContent,
-  Map<String, SshKeyEntry> managerKeyEntries = const {},
-  List<Tag> tags = const [],
-  List<ExportLink> sessionTags = const [],
-  List<ExportFolderTagLink> folderTags = const [],
-  List<Snippet> snippets = const [],
-  List<ExportLink> sessionSnippets = const [],
+  ExportPayloadInput input = const ExportPayloadInput(),
 }) {
+  final options = input.options;
   final (:keyMap, :sessionKeyIds, :managerShortIds) = _deduplicateKeys(
     sessions,
     options,
   );
 
-  // For "all manager keys" mode, add keys not referenced by any session.
-  if (options.includeAllManagerKeys && managerKeyEntries.isNotEmpty) {
-    final keyToShortId = <String, String>{};
-    keyMap.forEach((shortId, keyData) => keyToShortId[keyData] = shortId);
-    var counter = keyMap.length;
-    for (final entry in managerKeyEntries.entries) {
-      if (keyToShortId.containsKey(entry.value.privateKey)) {
-        // Key already in map (from session dedup), just mark as manager.
-        managerShortIds.add(keyToShortId[entry.value.privateKey]!);
-        continue;
-      }
-      final shortId = 'k$counter';
-      counter++;
-      keyMap[shortId] = entry.value.privateKey;
-      managerShortIds.add(shortId);
-    }
-  }
+  _addAllManagerKeys(keyMap, managerShortIds, input);
 
   final payload = <String, dynamic>{'v': _currentFormatVersion};
   if (keyMap.isNotEmpty) payload['km'] = keyMap;
 
-  // Manager key metadata: shortId → {label, type, publicKey}
-  if (managerShortIds.isNotEmpty) {
-    final mk = <String, dynamic>{};
-    // Build reverse lookup: privateKey → SshKeyEntry
-    final keyDataToEntry = <String, SshKeyEntry>{};
-    for (final e in managerKeyEntries.values) {
-      keyDataToEntry[e.privateKey] = e;
-    }
-    for (final shortId in managerShortIds) {
-      final keyData = keyMap[shortId];
-      if (keyData == null) continue;
-      final entry = keyDataToEntry[keyData];
-      if (entry != null) {
-        mk[shortId] = {
-          'l': entry.label,
-          't': entry.keyType,
-          'p': entry.publicKey,
-        };
-      }
-    }
-    if (mk.isNotEmpty) payload['mk'] = mk;
-  }
-
-  if (options.includeSessions) {
-    payload['s'] = sessions
-        .map(
-          (s) => encodeSessionCompact(
-            s,
-            keyId: sessionKeyIds[s.id],
-            isManagerKey:
-                s.keyId.isNotEmpty &&
-                sessionKeyIds.containsKey(s.id) &&
-                managerShortIds.contains(sessionKeyIds[s.id]),
-            includePasswords: options.includePasswords,
-          ),
-        )
-        .toList();
-    if (emptyFolders.isNotEmpty) payload['eg'] = emptyFolders.toList();
-  }
-  if (options.includeConfig && config != null) {
-    payload['c'] = config.toJson();
-  }
-  if (options.includeKnownHosts && knownHostsContent != null) {
-    payload['kh'] = knownHostsContent;
-  }
-
-  // Tags
-  if (options.includeTags && tags.isNotEmpty) {
-    payload['tg'] = tags
-        .map(
-          (t) => {'i': t.id, 'n': t.name, if (t.color != null) 'cl': t.color},
-        )
-        .toList();
-    if (sessionTags.isNotEmpty) {
-      payload['st'] = sessionTags
-          .map((l) => {'si': l.sessionId, 'ti': l.targetId})
-          .toList();
-    }
-    if (folderTags.isNotEmpty) {
-      payload['ft'] = folderTags
-          .map((l) => {'fi': l.folderPath, 'ti': l.tagId})
-          .toList();
-    }
-  }
-
-  // Snippets
-  if (options.includeSnippets && snippets.isNotEmpty) {
-    payload['sn'] = snippets
-        .map(
-          (s) => {
-            'i': s.id,
-            't': s.title,
-            'cm': s.command,
-            if (s.description.isNotEmpty) 'd': s.description,
-          },
-        )
-        .toList();
-    if (sessionSnippets.isNotEmpty) {
-      payload['ss'] = sessionSnippets
-          .map((l) => {'si': l.sessionId, 'ni': l.targetId})
-          .toList();
-    }
-  }
+  _encodeManagerKeyMetadata(payload, keyMap, managerShortIds, input);
+  _encodeSessionsAndFolders(
+    payload,
+    sessions,
+    input,
+    sessionKeyIds,
+    managerShortIds,
+  );
+  _encodeConfigAndHosts(payload, input);
+  _encodeTagsPayload(payload, input);
+  _encodeSnippetsPayload(payload, input);
 
   final json = jsonEncode(payload);
   final compressed = Deflate(utf8.encode(json)).getBytes();
   final encoded = base64Url.encode(compressed);
   AppLogger.instance.log(
     'Encoded payload: ${sessions.length} sessions, '
-    '${emptyFolders.length} folders, '
-    '${tags.length} tags, ${snippets.length} snippets, '
-    'config=${config != null}, knownHosts=${knownHostsContent != null}, '
+    '${input.emptyFolders.length} folders, '
+    '${input.tags.length} tags, ${input.snippets.length} snippets, '
+    'config=${input.config != null}, '
+    'knownHosts=${input.knownHostsContent != null}, '
     'size=${encoded.length} bytes',
     name: 'QrCodec',
   );
   return encoded;
 }
 
+/// For "all manager keys" mode, add keys not referenced by any session.
+void _addAllManagerKeys(
+  Map<String, String> keyMap,
+  Set<String> managerShortIds,
+  ExportPayloadInput input,
+) {
+  if (!input.options.includeAllManagerKeys) return;
+  if (input.managerKeyEntries.isEmpty) return;
+
+  final keyToShortId = <String, String>{};
+  keyMap.forEach((shortId, keyData) => keyToShortId[keyData] = shortId);
+  var counter = keyMap.length;
+  for (final entry in input.managerKeyEntries.entries) {
+    final existing = keyToShortId[entry.value.privateKey];
+    if (existing != null) {
+      // Key already in map (from session dedup), just mark as manager.
+      managerShortIds.add(existing);
+      continue;
+    }
+    final shortId = 'k$counter';
+    counter++;
+    keyMap[shortId] = entry.value.privateKey;
+    managerShortIds.add(shortId);
+  }
+}
+
+void _encodeManagerKeyMetadata(
+  Map<String, dynamic> payload,
+  Map<String, String> keyMap,
+  Set<String> managerShortIds,
+  ExportPayloadInput input,
+) {
+  if (managerShortIds.isEmpty) return;
+  final mk = <String, dynamic>{};
+  final keyDataToEntry = <String, SshKeyEntry>{};
+  for (final e in input.managerKeyEntries.values) {
+    keyDataToEntry[e.privateKey] = e;
+  }
+  for (final shortId in managerShortIds) {
+    final keyData = keyMap[shortId];
+    if (keyData == null) continue;
+    final entry = keyDataToEntry[keyData];
+    if (entry != null) {
+      mk[shortId] = {
+        'l': entry.label,
+        't': entry.keyType,
+        'p': entry.publicKey,
+      };
+    }
+  }
+  if (mk.isNotEmpty) payload['mk'] = mk;
+}
+
+void _encodeSessionsAndFolders(
+  Map<String, dynamic> payload,
+  List<Session> sessions,
+  ExportPayloadInput input,
+  Map<String, String?> sessionKeyIds,
+  Set<String> managerShortIds,
+) {
+  if (!input.options.includeSessions) return;
+  payload['s'] = sessions
+      .map(
+        (s) => encodeSessionCompact(
+          s,
+          keyId: sessionKeyIds[s.id],
+          isManagerKey:
+              s.keyId.isNotEmpty &&
+              sessionKeyIds.containsKey(s.id) &&
+              managerShortIds.contains(sessionKeyIds[s.id]),
+          includePasswords: input.options.includePasswords,
+        ),
+      )
+      .toList();
+  if (input.emptyFolders.isNotEmpty) {
+    payload['eg'] = input.emptyFolders.toList();
+  }
+}
+
+void _encodeConfigAndHosts(
+  Map<String, dynamic> payload,
+  ExportPayloadInput input,
+) {
+  final config = input.config;
+  if (input.options.includeConfig && config != null) {
+    payload['c'] = config.toJson();
+  }
+  final kh = input.knownHostsContent;
+  if (input.options.includeKnownHosts && kh != null) {
+    payload['kh'] = kh;
+  }
+}
+
+void _encodeTagsPayload(
+  Map<String, dynamic> payload,
+  ExportPayloadInput input,
+) {
+  if (!input.options.includeTags || input.tags.isEmpty) return;
+  payload['tg'] = input.tags
+      .map((t) => {'i': t.id, 'n': t.name, if (t.color != null) 'cl': t.color})
+      .toList();
+  if (input.sessionTags.isNotEmpty) {
+    payload['st'] = input.sessionTags
+        .map((l) => {'si': l.sessionId, 'ti': l.targetId})
+        .toList();
+  }
+  if (input.folderTags.isNotEmpty) {
+    payload['ft'] = input.folderTags
+        .map((l) => {'fi': l.folderPath, 'ti': l.tagId})
+        .toList();
+  }
+}
+
+void _encodeSnippetsPayload(
+  Map<String, dynamic> payload,
+  ExportPayloadInput input,
+) {
+  if (!input.options.includeSnippets || input.snippets.isEmpty) return;
+  payload['sn'] = input.snippets
+      .map(
+        (s) => {
+          'i': s.id,
+          't': s.title,
+          'cm': s.command,
+          if (s.description.isNotEmpty) 'd': s.description,
+        },
+      )
+      .toList();
+  if (input.sessionSnippets.isNotEmpty) {
+    payload['ss'] = input.sessionSnippets
+        .map((l) => {'si': l.sessionId, 'ni': l.targetId})
+        .toList();
+  }
+}
+
 /// Calculate the byte size of the encoded payload (deflate compressed + base64).
 int calculateExportPayloadSize(
   List<Session> sessions, {
-  Set<String> emptyFolders = const {},
-  ExportOptions options = const ExportOptions(),
-  AppConfig? config,
-  String? knownHostsContent,
-  Map<String, SshKeyEntry> managerKeyEntries = const {},
-  List<Tag> tags = const [],
-  List<ExportLink> sessionTags = const [],
-  List<ExportFolderTagLink> folderTags = const [],
-  List<Snippet> snippets = const [],
-  List<ExportLink> sessionSnippets = const [],
+  ExportPayloadInput input = const ExportPayloadInput(),
 }) {
-  return encodeExportPayload(
-    sessions,
-    emptyFolders: emptyFolders,
-    options: options,
-    config: config,
-    knownHostsContent: knownHostsContent,
-    managerKeyEntries: managerKeyEntries,
-    tags: tags,
-    sessionTags: sessionTags,
-    folderTags: folderTags,
-    snippets: snippets,
-    sessionSnippets: sessionSnippets,
-  ).length;
+  return encodeExportPayload(sessions, input: input).length;
 }
 
 /// Wrap encoded sessions into a deep link URI for QR code.
@@ -410,120 +457,13 @@ ExportPayloadData? _parsePayload(String payload) {
       return null;
     }
 
-    final keyMap = <String, String>{};
-    if (json.containsKey('km')) {
-      final km = json['km'] as Map<String, dynamic>;
-      keyMap.addAll(km.cast<String, String>());
-    }
-
-    // Manager key metadata (v3+): shortId → {label, type, publicKey}
-    final managerKeyMeta = <String, Map<String, dynamic>>{};
-    if (json.containsKey('mk')) {
-      final mk = json['mk'] as Map<String, dynamic>;
-      for (final entry in mk.entries) {
-        managerKeyMeta[entry.key] = entry.value as Map<String, dynamic>;
-      }
-    }
-
-    final sessions = <Session>[];
-    final emptyFolders = <String>{};
-    if (json.containsKey('s')) {
-      for (final m in (json['s'] as List).cast<Map<String, dynamic>>()) {
-        sessions.add(_decodeSession(m, keyMap));
-      }
-      final ef = json['eg'] as List?;
-      if (ef != null) emptyFolders.addAll(ef.cast<String>());
-    }
-
-    // Build SshKeyEntry list for manager keys
-    final managerKeys = <SshKeyEntry>[];
-    for (final entry in managerKeyMeta.entries) {
-      final shortId = entry.key;
-      final meta = entry.value;
-      final keyData = keyMap[shortId];
-      if (keyData == null) continue;
-      managerKeys.add(
-        SshKeyEntry(
-          id: shortId,
-          label: meta['l'] as String? ?? '',
-          privateKey: keyData,
-          publicKey: meta['p'] as String? ?? '',
-          keyType: meta['t'] as String? ?? '',
-          createdAt: DateTime.now(),
-        ),
-      );
-    }
-
-    AppConfig? config;
-    if (json.containsKey('c')) {
-      config = AppConfig.fromJson(json['c'] as Map<String, dynamic>);
-    }
-    String? knownHostsContent;
-    if (json.containsKey('kh')) {
-      knownHostsContent = json['kh'] as String?;
-    }
-
-    // Tags (v4+)
-    final tags = <Tag>[];
-    final sessionTagLinks = <ExportLink>[];
-    final folderTagLinks = <ExportFolderTagLink>[];
-    if (json.containsKey('tg')) {
-      for (final t in (json['tg'] as List).cast<Map<String, dynamic>>()) {
-        tags.add(
-          Tag(
-            id: t['i'] as String? ?? '',
-            name: t['n'] as String? ?? '',
-            color: t['cl'] as String?,
-          ),
-        );
-      }
-      if (json.containsKey('st')) {
-        for (final l in (json['st'] as List).cast<Map<String, dynamic>>()) {
-          sessionTagLinks.add(
-            ExportLink(
-              sessionId: l['si'] as String? ?? '',
-              targetId: l['ti'] as String? ?? '',
-            ),
-          );
-        }
-      }
-      if (json.containsKey('ft')) {
-        for (final l in (json['ft'] as List).cast<Map<String, dynamic>>()) {
-          folderTagLinks.add(
-            ExportFolderTagLink(
-              folderPath: l['fi'] as String? ?? '',
-              tagId: l['ti'] as String? ?? '',
-            ),
-          );
-        }
-      }
-    }
-
-    // Snippets (v4+)
-    final decodedSnippets = <Snippet>[];
-    final sessionSnippetLinks = <ExportLink>[];
-    if (json.containsKey('sn')) {
-      for (final s in (json['sn'] as List).cast<Map<String, dynamic>>()) {
-        decodedSnippets.add(
-          Snippet(
-            id: s['i'] as String? ?? '',
-            title: s['t'] as String? ?? '',
-            command: s['cm'] as String? ?? '',
-            description: s['d'] as String? ?? '',
-          ),
-        );
-      }
-      if (json.containsKey('ss')) {
-        for (final l in (json['ss'] as List).cast<Map<String, dynamic>>()) {
-          sessionSnippetLinks.add(
-            ExportLink(
-              sessionId: l['si'] as String? ?? '',
-              targetId: l['ni'] as String? ?? '',
-            ),
-          );
-        }
-      }
-    }
+    final keyMap = _parseKeyMap(json);
+    final (sessions, emptyFolders) = _parseSessions(json, keyMap);
+    final managerKeys = _parseManagerKeys(json, keyMap);
+    final config = _parseConfig(json);
+    final knownHostsContent = _parseKnownHosts(json);
+    final (tags, sessionTagLinks, folderTagLinks) = _parseTags(json);
+    final (decodedSnippets, sessionSnippetLinks) = _parseSnippets(json);
 
     AppLogger.instance.log(
       'Decoded payload: ${sessions.length} sessions, '
@@ -553,6 +493,132 @@ ExportPayloadData? _parsePayload(String payload) {
   } catch (_) {
     return null;
   }
+}
+
+Map<String, String> _parseKeyMap(Map<String, dynamic> json) {
+  final keyMap = <String, String>{};
+  if (json.containsKey('km')) {
+    final km = json['km'] as Map<String, dynamic>;
+    keyMap.addAll(km.cast<String, String>());
+  }
+  return keyMap;
+}
+
+(List<Session>, Set<String>) _parseSessions(
+  Map<String, dynamic> json,
+  Map<String, String> keyMap,
+) {
+  final sessions = <Session>[];
+  final emptyFolders = <String>{};
+  if (json.containsKey('s')) {
+    for (final m in (json['s'] as List).cast<Map<String, dynamic>>()) {
+      sessions.add(_decodeSession(m, keyMap));
+    }
+    final ef = json['eg'] as List?;
+    if (ef != null) emptyFolders.addAll(ef.cast<String>());
+  }
+  return (sessions, emptyFolders);
+}
+
+List<SshKeyEntry> _parseManagerKeys(
+  Map<String, dynamic> json,
+  Map<String, String> keyMap,
+) {
+  final managerKeys = <SshKeyEntry>[];
+  if (!json.containsKey('mk')) return managerKeys;
+  final mk = json['mk'] as Map<String, dynamic>;
+  for (final entry in mk.entries) {
+    final meta = entry.value as Map<String, dynamic>;
+    final keyData = keyMap[entry.key];
+    if (keyData == null) continue;
+    managerKeys.add(
+      SshKeyEntry(
+        id: entry.key,
+        label: meta['l'] as String? ?? '',
+        privateKey: keyData,
+        publicKey: meta['p'] as String? ?? '',
+        keyType: meta['t'] as String? ?? '',
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+  return managerKeys;
+}
+
+AppConfig? _parseConfig(Map<String, dynamic> json) {
+  if (!json.containsKey('c')) return null;
+  return AppConfig.fromJson(json['c'] as Map<String, dynamic>);
+}
+
+String? _parseKnownHosts(Map<String, dynamic> json) {
+  if (!json.containsKey('kh')) return null;
+  return json['kh'] as String?;
+}
+
+(List<Tag>, List<ExportLink>, List<ExportFolderTagLink>) _parseTags(
+  Map<String, dynamic> json,
+) {
+  final tags = <Tag>[];
+  final sessionTagLinks = <ExportLink>[];
+  final folderTagLinks = <ExportFolderTagLink>[];
+  if (!json.containsKey('tg')) return (tags, sessionTagLinks, folderTagLinks);
+  for (final t in (json['tg'] as List).cast<Map<String, dynamic>>()) {
+    tags.add(
+      Tag(
+        id: t['i'] as String? ?? '',
+        name: t['n'] as String? ?? '',
+        color: t['cl'] as String?,
+      ),
+    );
+  }
+  if (json.containsKey('st')) {
+    for (final l in (json['st'] as List).cast<Map<String, dynamic>>()) {
+      sessionTagLinks.add(
+        ExportLink(
+          sessionId: l['si'] as String? ?? '',
+          targetId: l['ti'] as String? ?? '',
+        ),
+      );
+    }
+  }
+  if (json.containsKey('ft')) {
+    for (final l in (json['ft'] as List).cast<Map<String, dynamic>>()) {
+      folderTagLinks.add(
+        ExportFolderTagLink(
+          folderPath: l['fi'] as String? ?? '',
+          tagId: l['ti'] as String? ?? '',
+        ),
+      );
+    }
+  }
+  return (tags, sessionTagLinks, folderTagLinks);
+}
+
+(List<Snippet>, List<ExportLink>) _parseSnippets(Map<String, dynamic> json) {
+  final decodedSnippets = <Snippet>[];
+  final sessionSnippetLinks = <ExportLink>[];
+  if (!json.containsKey('sn')) return (decodedSnippets, sessionSnippetLinks);
+  for (final s in (json['sn'] as List).cast<Map<String, dynamic>>()) {
+    decodedSnippets.add(
+      Snippet(
+        id: s['i'] as String? ?? '',
+        title: s['t'] as String? ?? '',
+        command: s['cm'] as String? ?? '',
+        description: s['d'] as String? ?? '',
+      ),
+    );
+  }
+  if (json.containsKey('ss')) {
+    for (final l in (json['ss'] as List).cast<Map<String, dynamic>>()) {
+      sessionSnippetLinks.add(
+        ExportLink(
+          sessionId: l['si'] as String? ?? '',
+          targetId: l['ni'] as String? ?? '',
+        ),
+      );
+    }
+  }
+  return (decodedSnippets, sessionSnippetLinks);
 }
 
 /// Encode a session into the compact QR payload format.

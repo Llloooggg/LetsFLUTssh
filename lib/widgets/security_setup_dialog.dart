@@ -202,6 +202,11 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         onPressed: _showSetMasterPassword,
         child: Text(l10n.setMasterPassword),
       ),
+      const SizedBox(height: 8),
+      TextButton(
+        onPressed: _continueWithoutEncryption,
+        child: Text(l10n.continueWithoutEncryption),
+      ),
     ];
   }
 

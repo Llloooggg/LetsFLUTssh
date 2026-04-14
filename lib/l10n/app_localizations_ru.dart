@@ -1740,4 +1740,18 @@ class SRu extends S {
   String exportSnippets(int count) {
     return 'Сниппеты ($count)';
   }
+
+  @override
+  String get disableKeychain => 'Отключить шифрование связки ключей';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'Перейти к хранению в открытом виде (не рекомендуется)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'База данных будет перешифрована без ключа. Сессии и ключи будут храниться на диске в открытом виде. Продолжить?';
+
+  @override
+  String get keychainDisabled => 'Шифрование связки ключей отключено';
 }

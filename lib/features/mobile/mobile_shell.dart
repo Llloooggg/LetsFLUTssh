@@ -16,6 +16,7 @@ import '../../widgets/context_menu.dart';
 import '../../widgets/status_indicator.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_model.dart';
+import '../tools/tools_screen.dart';
 import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
 import 'mobile_file_browser.dart';
@@ -162,6 +163,16 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                 ],
               );
             },
+          ),
+          const SizedBox(width: 8),
+          AppIconButton(
+            icon: Icons.build_outlined,
+            size: 15,
+            boxSize: 32,
+            backgroundColor: AppTheme.bg3,
+            borderRadius: AppTheme.radiusLg,
+            onTap: () => ToolsScreen.show(context),
+            tooltip: S.of(context).tools,
           ),
           const SizedBox(width: 8),
           AppIconButton(

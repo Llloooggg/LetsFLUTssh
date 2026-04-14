@@ -469,9 +469,13 @@
   "enterMasterPasswordPrompt": "Entrez le mot de passe principal:",
   "nextStep": "Suivant",
   "fullBackup": "Sauvegarde complète",
-  "sessionsOnly": "Sessions",
+  "sessionsOnly": "Sessions uniquement",
   "sessionKeysFromManager": "Clés de session du gestionnaire",
   "allKeysFromManager": "Toutes les clés du gestionnaire",
   "exportTags": "Étiquettes ({count})",
-  "exportSnippets": "Extraits ({count})"
+  "exportSnippets": "Extraits ({count})",
+  "disableKeychain": "Désactiver le chiffrement du trousseau",
+  "disableKeychainSubtitle": "Passer au stockage en texte clair (non recommandé)",
+  "disableKeychainConfirm": "La base de données sera rechiffrée sans clé. Les sessions et les clés seront stockées en texte clair sur le disque. Continuer ?",
+  "keychainDisabled": "Chiffrement du trousseau désactivé"
 }

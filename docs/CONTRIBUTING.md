@@ -78,6 +78,35 @@ make build-apk    # APK (per-ABI: arm64, arm, x64)
 make build-aab    # App Bundle (for Play Store)
 ```
 
+**Release signing:** Local builds use the debug keystore by default. CI release builds use a persistent keystore from GitHub Secrets — see [Release signing setup](#release-signing-setup) below.
+
+#### Release signing setup
+
+The Android release builds in CI need a stable signing key — without it, every build is signed with a different debug key, so users cannot update the app (Android rejects the upgrade as a "package conflict").
+
+**One-time keystore generation (do this once, store securely):**
+
+```bash
+keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias letsflutssh
+```
+
+Set passwords and remember them. Back up `release.jks` somewhere safe — losing it means future updates can't be signed with the same key, breaking app updates for all users.
+
+**GitHub Secrets to add to the repo:**
+
+- `ANDROID_KEYSTORE_BASE64` — output of `base64 -w0 release.jks`
+- `ANDROID_KEY_PROPERTIES` — content of a `key.properties` file:
+  ```
+  storePassword=YOUR_STORE_PASSWORD
+  keyPassword=YOUR_KEY_PASSWORD
+  keyAlias=letsflutssh
+  storeFile=app/release.jks
+  ```
+
+The CI workflow (`build-release.yml`) decodes the keystore and writes `android/key.properties` before building the APK.
+
+For local release builds, drop the same `release.jks` into `android/app/` and create `android/key.properties` with the same content. Both files are gitignored.
+
 ### iOS
 
 Requires Xcode on macOS.

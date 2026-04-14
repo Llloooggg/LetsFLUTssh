@@ -476,5 +476,9 @@
   "sessionKeysFromManager": "Ключи сессий из менеджера",
   "allKeysFromManager": "Все ключи из менеджера",
   "exportTags": "Теги ({count})",
-  "exportSnippets": "Сниппеты ({count})"
+  "exportSnippets": "Сниппеты ({count})",
+  "disableKeychain": "Отключить шифрование связки ключей",
+  "disableKeychainSubtitle": "Перейти к хранению в открытом виде (не рекомендуется)",
+  "disableKeychainConfirm": "База данных будет перешифрована без ключа. Сессии и ключи будут храниться на диске в открытом виде. Продолжить?",
+  "keychainDisabled": "Шифрование связки ключей отключено"
 }

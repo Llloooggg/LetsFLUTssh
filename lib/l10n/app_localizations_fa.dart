@@ -1731,4 +1731,18 @@ class SFa extends S {
   String exportSnippets(int count) {
     return 'قطعه‌ها ($count)';
   }
+
+  @override
+  String get disableKeychain => 'غیرفعال‌سازی رمزنگاری کلیدستان';
+
+  @override
+  String get disableKeychainSubtitle =>
+      'تغییر به ذخیره‌سازی متن ساده (توصیه نمی‌شود)';
+
+  @override
+  String get disableKeychainConfirm =>
+      'پایگاه داده بدون کلید دوباره رمزنگاری می‌شود. نشست‌ها و کلیدها به‌صورت متن ساده روی دیسک ذخیره خواهند شد. ادامه می‌دهید؟';
+
+  @override
+  String get keychainDisabled => 'رمزنگاری کلیدستان غیرفعال شد';
 }
