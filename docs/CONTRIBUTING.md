@@ -127,6 +127,8 @@ make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
+**New contributors:** start with [ADDING_A_FEATURE.md](ADDING_A_FEATURE.md) — a hands-on walkthrough of the project's layers, conventions, and tooling using a small example feature.
+
 For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — module structure, data models, API references, state management, data flows, and design decisions.
 
 ## Coding Conventions
