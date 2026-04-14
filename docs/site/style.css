@@ -55,6 +55,19 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.hero-home-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.hero-home-link:hover h1 {
+  color: var(--accent);
+  transition: color 0.15s ease;
+}
+
 .logo {
   width: 96px;
   height: 96px;
