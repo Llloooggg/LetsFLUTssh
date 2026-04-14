@@ -41,6 +41,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+; Uninstall-time tasks (shown in the uninstaller wizard)
+[UninstallDelete]
+; Optional removal handled by Code section below.
+
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -56,3 +60,43 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: ""; ValueData: "URL:LetsFLUTssh Protocol"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\letsflutssh\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; ─────────────────────────────────────────────────────────────────
+; Uninstaller: optional removal of user data
+; (sessions DB, master password salt/verifier, logs, etc. in %APPDATA%\letsflutssh)
+; ─────────────────────────────────────────────────────────────────
+[Code]
+var
+  RemoveDataCheckBox: TNewCheckBox;
+
+procedure InitializeUninstallProgressForm();
+var
+  Page: TNewNotebookPage;
+  DataPath: string;
+begin
+  DataPath := ExpandConstant('{userappdata}\letsflutssh');
+  if not DirExists(DataPath) then exit;
+
+  Page := UninstallProgressForm.InnerNotebook.Pages[0];
+
+  RemoveDataCheckBox := TNewCheckBox.Create(UninstallProgressForm);
+  RemoveDataCheckBox.Parent := Page;
+  RemoveDataCheckBox.Top := Page.Height - ScaleY(28);
+  RemoveDataCheckBox.Left := 0;
+  RemoveDataCheckBox.Width := Page.Width;
+  RemoveDataCheckBox.Height := ScaleY(20);
+  RemoveDataCheckBox.Caption := 'Also delete user data (sessions, keys, logs)';
+  RemoveDataCheckBox.Checked := False;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataPath: string;
+begin
+  if (CurUninstallStep = usPostUninstall) and Assigned(RemoveDataCheckBox)
+     and RemoveDataCheckBox.Checked then begin
+    DataPath := ExpandConstant('{userappdata}\letsflutssh');
+    if DirExists(DataPath) then
+      DelTree(DataPath, True, True, True);
+  end;
+end;

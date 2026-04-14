@@ -2189,14 +2189,25 @@ All application data is stored in a single SQLite database via the drift ORM:
 
 ### Files on disk
 
-| File | Encryption | Format | Purpose |
-|------|-----------|--------|---------|
-| `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data |
-| `config.json` | No | JSON | App config (loaded before DB opens) |
-| `credentials.salt` | No | 32 raw bytes | Master password salt (needed before DB) |
-| `credentials.verify` | No | AES-256-GCM | Master password verifier |
-| `logs/letsflutssh.log` | No | Text | Debug logs |
-| `app.lock` | No | PID text | Single-instance lock (desktop) |
+All files live in the platform's app-support directory (see **Location** below). Inside that directory:
+
+| Path | Encryption | Format | Purpose | Created when |
+|------|-----------|--------|---------|--------------|
+| `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
+| `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
+| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs. Loaded **before** the DB opens (needed for splash screen and security preferences) | First config save |
+| `credentials.salt` | No | 32 raw bytes | PBKDF2 salt for master-password key derivation. Presence = master password is enabled | Master password setup |
+| `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
+| `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
+| `logs/letsflutssh.log.1`…`.3` | No | Text | Rotated log files | After log rotation |
+| `app.lock` | No | PID text | Single-instance lock — exclusive `RandomAccessFile.lock`. OS releases on process exit | Each app start (desktop only) |
+
+**Legacy files** (created by older versions, no longer used — safe to delete):
+- `sessions.json`, `sessions.enc` — replaced by `letsflutssh.db` in v4.0
+- `keys.json`, `keys.enc` — replaced by `SshKeys` table
+- `known_hosts`, `known_hosts.enc` — replaced by `KnownHosts` table
+- `credentials.enc` — replaced by SQLCipher-encrypted DB
+- `credential.key` — eliminated; key now lives only in the OS keychain
 
 ### Database initialization
 
@@ -2216,6 +2227,19 @@ All application data is stored in a single SQLite database via the drift ORM:
 - iOS: app sandbox
 
 **Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed.
+
+### Uninstall behavior
+
+User data lives **outside** the install directory in `getApplicationSupportDirectory()`, so removing the app binary leaves the data behind by design — protects against accidental data loss on reinstall/upgrade. Users who want a clean uninstall:
+
+| Platform | How user data is removed |
+|----------|--------------------------|
+| Windows (Inno Setup) | Uninstaller offers a "Also delete user data" checkbox. Unchecked by default. If checked, `%APPDATA%\letsflutssh\` is recursively deleted post-uninstall |
+| Linux (.deb) | `apt-get remove` keeps user data; `apt-get purge` also removes config, but user data in `~/.local/share/letsflutssh/` must be deleted manually |
+| Linux (AppImage) | No installer — delete `~/.local/share/letsflutssh/` manually |
+| macOS (.dmg) | Drag-to-Trash leaves user data in `~/Library/Application Support/letsflutssh/` — delete manually |
+| Android | OS uninstall removes the entire app sandbox including user data |
+| iOS | OS uninstall removes the entire app sandbox including user data |
 
 ### Store → DAO pattern
 
