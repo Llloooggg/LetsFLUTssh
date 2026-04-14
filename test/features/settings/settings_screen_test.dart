@@ -854,8 +854,11 @@ void main() {
       await tester.pump();
 
       expect(find.byType(Dialog), findsOneWidget);
-      // UnifiedExportDialog shows session name and credential checkboxes
+      // UnifiedExportDialog shows session name and (collapsed) credential section
       expect(find.text('Test'), findsOneWidget);
+      // Expand the "What to import:" section to reveal credential checkboxes.
+      await tester.tap(find.text('What to import:'));
+      await tester.pumpAndSettle();
       expect(find.text('Session passwords'), findsOneWidget);
       expect(find.byType(Checkbox), findsWidgets);
     });

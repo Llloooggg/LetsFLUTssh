@@ -8,12 +8,14 @@ import '../../theme/app_theme.dart';
 import 'app_dialog.dart';
 import 'hover_region.dart';
 import 'mode_button.dart';
-import 'styled_form_field.dart';
 
 /// Result from the LFS import preview dialog.
+///
+/// The master password is NOT part of this result — the caller must have
+/// already decrypted the archive to build the [LfsPreview], so it already
+/// has the password in hand.
 typedef LfsImportPreviewResult = ({
   String filePath,
-  String password,
   ImportMode mode,
   ExportOptions options,
 });
@@ -21,7 +23,7 @@ typedef LfsImportPreviewResult = ({
 /// Dialog for previewing .lfs archive and selecting what data to import.
 ///
 /// Shows archive contents (sessions count, has config, has known_hosts),
-/// allows user to select what to import, choose import mode, and enter password.
+/// allows user to select what to import and choose import mode.
 class LfsImportPreviewDialog extends StatefulWidget {
   final String filePath;
   final LfsPreview preview;
@@ -50,44 +52,43 @@ class LfsImportPreviewDialog extends StatefulWidget {
 }
 
 class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
-  final _passwordCtrl = TextEditingController();
   var _mode = ImportMode.merge;
   late ExportOptions _options;
 
   @override
   void initState() {
     super.initState();
-    // Initialize options based on what's available in the archive.
-    // Sessions, keys, tags, snippets, known_hosts default to enabled.
-    // Config defaults to disabled — importing config would overwrite the
-    // user's local app settings (theme, locale, font size, etc.).
-    _options = ExportOptions(
-      includeSessions: widget.preview.hasSessions,
-      includeConfig: false,
-      includeKnownHosts: widget.preview.hasKnownHosts,
-      includeManagerKeys: widget.preview.managerKeyCount > 0,
-      includeTags: widget.preview.tagCount > 0,
-      includeSnippets: widget.preview.snippetCount > 0,
-    );
-    _passwordCtrl.addListener(_onPasswordChanged);
+    _options = _fullPreset;
   }
 
-  @override
-  void dispose() {
-    _passwordCtrl.removeListener(_onPasswordChanged);
-    _passwordCtrl.dispose();
-    super.dispose();
-  }
+  /// Full import: every data type present in the archive is ON. All manager
+  /// keys stay OFF by default — opt-in, since it overwrites the local
+  /// manager (the conservative "session keys only" flag captures what the
+  /// imported sessions actually reference).
+  ExportOptions get _fullPreset => ExportOptions(
+    includeSessions: widget.preview.hasSessions,
+    includeConfig: widget.preview.hasConfig,
+    includeKnownHosts: widget.preview.hasKnownHosts,
+    includeManagerKeys: widget.preview.managerKeyCount > 0,
+    includeTags: widget.preview.tagCount > 0,
+    includeSnippets: widget.preview.snippetCount > 0,
+  );
 
-  void _onPasswordChanged() => setState(() {});
+  /// Selective: sessions only (plus session-linked keys/tags/snippets so
+  /// foreign keys resolve). Known hosts and config stay OFF.
+  ExportOptions get _selectivePreset => ExportOptions(
+    includeSessions: widget.preview.hasSessions,
+    includeManagerKeys: widget.preview.managerKeyCount > 0,
+    includeTags: widget.preview.tagCount > 0,
+    includeSnippets: widget.preview.snippetCount > 0,
+  );
+
+  bool _isPresetActive(ExportOptions preset) => _options == preset;
 
   void _submit() {
-    if (_passwordCtrl.text.isEmpty) return;
     if (!_options.hasAnySelection) return;
-
     Navigator.pop(context, (
       filePath: widget.filePath,
-      password: _passwordCtrl.text,
       mode: _mode,
       options: _options,
     ));
@@ -100,40 +101,19 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Archive info
           _buildArchiveInfo(),
-          const SizedBox(height: 16),
-
-          // Data type checkboxes
+          const SizedBox(height: 12),
+          _buildPresets(),
+          const SizedBox(height: 8),
           _buildDataTypeCheckboxes(),
           const SizedBox(height: 12),
-
-          // Password input
-          StyledInput(
-            controller: _passwordCtrl,
-            obscure: true,
-            autofocus: true,
-            labelText: S.of(context).masterPassword,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 10,
-            ),
-            onSubmitted: (v) {
-              if (v.isNotEmpty && _options.hasAnySelection) {
-                _submit();
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Mode selector
           _buildModeSelector(),
           const SizedBox(height: 4),
           Text(
             _mode == ImportMode.merge
                 ? S.of(context).importModeMergeDescription
                 : S.of(context).importModeReplaceDescription,
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         ],
       ),
@@ -141,7 +121,7 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
         AppDialogAction.primary(
           label: S.of(context).import_,
-          enabled: _passwordCtrl.text.isNotEmpty && _options.hasAnySelection,
+          enabled: _options.hasAnySelection,
           onTap: _submit,
         ),
       ],
@@ -161,7 +141,7 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
         children: [
           Text(
             p.basename(widget.filePath),
-            style: TextStyle(
+            style: AppFonts.inter(
               fontSize: AppFonts.md,
               fontWeight: FontWeight.w600,
               color: AppTheme.fg,
@@ -220,13 +200,13 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
           const SizedBox(width: 8),
           Text(
             '$label:',
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
+              style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.fg,
@@ -239,13 +219,38 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
     );
   }
 
+  Widget _buildPresets() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Wrap(
+        spacing: 8,
+        children: [
+          ChoiceChip(
+            avatar: const Icon(Icons.download_for_offline, size: 18),
+            label: const Text('Full import'),
+            selected: _isPresetActive(_fullPreset),
+            selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+            onSelected: (_) => setState(() => _options = _fullPreset),
+          ),
+          ChoiceChip(
+            avatar: const Icon(Icons.filter_alt, size: 18),
+            label: const Text('Selective'),
+            selected: _isPresetActive(_selectivePreset),
+            selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+            onSelected: (_) => setState(() => _options = _selectivePreset),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDataTypeCheckboxes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           S.of(context).importWhatToImport,
-          style: TextStyle(
+          style: AppFonts.inter(
             fontSize: AppFonts.sm,
             fontWeight: FontWeight.w600,
             color: AppTheme.fg,
@@ -266,12 +271,28 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
             _options.includeConfig,
             (v) => setState(() => _options = _options.withIncludeConfig(v)),
           ),
-        _buildCheckbox(
-          Icons.vpn_key,
-          S.of(context).sshKeys,
-          _options.includeManagerKeys,
-          (v) => setState(() => _options = _options.withIncludeManagerKeys(v)),
-        ),
+        if (widget.preview.managerKeyCount > 0) ...[
+          _buildCheckbox(
+            Icons.vpn_key,
+            'Session SSH keys',
+            _options.includeManagerKeys,
+            (v) => setState(
+              () => _options = _options
+                  .withIncludeManagerKeys(v)
+                  .withIncludeAllManagerKeys(false),
+            ),
+          ),
+          _buildCheckbox(
+            Icons.cloud_done,
+            'All manager keys',
+            _options.includeAllManagerKeys,
+            (v) => setState(
+              () => _options = _options
+                  .withIncludeAllManagerKeys(v)
+                  .withIncludeManagerKeys(false),
+            ),
+          ),
+        ],
         _buildCheckbox(
           Icons.label_outline,
           S.of(context).tags,
@@ -312,7 +333,7 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+              style: AppFonts.inter(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
           ],
         ),

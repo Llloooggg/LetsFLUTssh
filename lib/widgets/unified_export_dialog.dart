@@ -81,6 +81,7 @@ class UnifiedExportDialog extends StatefulWidget {
 class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   late ExportOptions _options;
   late final Set<String> _selectedIds;
+  bool _checkboxesExpanded = false;
 
   // Cache for size calculations — invalidated on every selection/option change.
   // All size values are computed together in a single pass to avoid redundant
@@ -593,7 +594,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildPresets(),
-                        _buildDataCheckboxes(),
+                        _buildCheckboxesSection(),
                         if (widget.isQrMode && _options.includePasswords)
                           _buildQrSecurityWarning(),
                         const AppDivider(),
@@ -699,6 +700,55 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           ],
         ),
         const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  String _activePresetLabel() {
+    if (_isPresetActive(_fullBackupPreset)) return 'Full backup';
+    if (_isPresetActive(_sessionsPreset)) return 'Sessions';
+    return 'Custom';
+  }
+
+  Widget _buildCheckboxesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HoverRegion(
+          onTap: () =>
+              setState(() => _checkboxesExpanded = !_checkboxesExpanded),
+          builder: (hovered) => Container(
+            color: hovered ? AppTheme.hover : null,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(
+                  _checkboxesExpanded ? Icons.expand_more : Icons.chevron_right,
+                  size: 18,
+                  color: AppTheme.fgDim,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  S.of(context).importWhatToImport,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.fg,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _activePresetLabel(),
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgDim,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_checkboxesExpanded) _buildDataCheckboxes(),
       ],
     );
   }
@@ -838,7 +888,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           Expanded(
             child: Text(
               S.of(context).qrPasswordWarning,
-              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.orange),
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.orange,
+              ),
             ),
           ),
         ],
@@ -873,7 +926,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(
+                    style: AppFonts.inter(
                       fontWeight: FontWeight.w600,
                       fontSize: AppFonts.md,
                       color: warningText != null
@@ -884,7 +937,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                   if (warningText != null)
                     Text(
                       warningText,
-                      style: TextStyle(
+                      style: AppFonts.inter(
                         fontSize: AppFonts.xs,
                         color: AppTheme.orange,
                       ),
@@ -895,7 +948,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             if (sizeLabel != null)
               Text(
                 sizeLabel,
-                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fgDim,
+                ),
               ),
           ],
         ),
@@ -922,9 +978,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     _selectedIds.length,
                     widget.data.sessions.length,
                   ),
-              style: TextStyle(
+              style: AppFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: AppFonts.md,
+                color: AppTheme.fg,
               ),
             ),
           ],
@@ -966,9 +1023,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               Expanded(
                 child: Text(
                   node.name,
-                  style: TextStyle(
+                  style: AppFonts.inter(
                     fontSize: AppFonts.md,
                     fontWeight: FontWeight.w500,
+                    color: AppTheme.fg,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1006,7 +1064,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                   session.label.isNotEmpty
                       ? session.label
                       : session.displayName,
-                  style: TextStyle(
+                  style: AppFonts.inter(
                     fontSize: AppFonts.md,
                     color: isIncomplete ? AppTheme.orange : AppTheme.fg,
                   ),
@@ -1032,12 +1090,12 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                   (_payloadSize / 1024).toStringAsFixed(1),
                   (qrMaxPayloadBytes / 1024).toStringAsFixed(1),
                 ),
-            style: TextStyle(fontSize: AppFonts.sm, color: sizeColor),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: sizeColor),
           )
         else
           Text(
             S.of(context).exportTotalSize(_formatSize(_payloadSize)),
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         if (widget.isQrMode) ...[
           const SizedBox(height: 4),
@@ -1053,7 +1111,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             const SizedBox(height: 8),
             Text(
               S.of(context).qrTooLarge,
-              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.red),
             ),
           ],
         ],
