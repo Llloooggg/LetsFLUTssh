@@ -104,6 +104,7 @@ Future<void> main() async {
         _showGlobalErrorDialog(ctx, error);
       }
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
     return true;
   };
 
@@ -171,6 +172,7 @@ Future<void> main() async {
           _showGlobalErrorDialog(ctx, error);
         }
       });
+      WidgetsBinding.instance.ensureVisualUpdate();
     },
   );
 }
