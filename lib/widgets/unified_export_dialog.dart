@@ -708,17 +708,17 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           ),
         _buildCheckboxRow(
           Icons.label_outline,
-          'Tags (${widget.tagCount})',
+          S.of(context).tags,
           _options.includeTags,
           () => setState(() {
             _invalidatePayloadCache();
             _options = _options.copyWith(includeTags: !_options.includeTags);
           }),
-          null,
+          _formatSize(0),
         ),
         _buildCheckboxRow(
           Icons.code,
-          'Snippets (${widget.snippetCount})',
+          S.of(context).snippets,
           _options.includeSnippets,
           () => setState(() {
             _invalidatePayloadCache();
@@ -726,7 +726,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               includeSnippets: !_options.includeSnippets,
             );
           }),
-          null,
+          _formatSize(0),
         ),
       ],
     );
