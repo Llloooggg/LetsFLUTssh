@@ -93,12 +93,10 @@ class SHi extends S {
   String get managerKeys => 'मैनेजर से कुंजियाँ';
 
   @override
-  String get managerKeysMayBeLarge =>
-      'मैनेजर कुंजियाँ QR आकार सीमा से अधिक हो सकती हैं';
+  String get managerKeysMayBeLarge => 'मैनेजर कुंजियाँ QR आकार सीमा से अधिक हो सकती हैं';
 
   @override
-  String get qrPasswordWarning =>
-      'पासवर्ड QR कोड में बिना एन्क्रिप्शन के होंगे। इसे स्कैन करने वाला कोई भी देख सकता है।';
+  String get qrPasswordWarning => 'पासवर्ड QR कोड में बिना एन्क्रिप्शन के होंगे। इसे स्कैन करने वाला कोई भी देख सकता है।';
 
   @override
   String get sshKeysMayBeLarge => 'कुंजियां QR आकार से अधिक हो सकती हैं';
@@ -109,12 +107,10 @@ class SHi extends S {
   }
 
   @override
-  String get qrCredentialsWarning =>
-      'पासवर्ड और SSH कुंजियां QR कोड में दिखेंगी';
+  String get qrCredentialsWarning => 'पासवर्ड और SSH कुंजियां QR कोड में दिखेंगी';
 
   @override
-  String get qrCredentialsTooLarge =>
-      'क्रेडेंशियल QR कोड को बहुत बड़ा बनाते हैं';
+  String get qrCredentialsTooLarge => 'क्रेडेंशियल QR कोड को बहुत बड़ा बनाते हैं';
 
   @override
   String get terminal => 'टर्मिनल';
@@ -167,8 +163,7 @@ class SHi extends S {
   String get openInBrowser => 'ब्राउज़र में खोलें';
 
   @override
-  String get couldNotOpenBrowser =>
-      'ब्राउज़र नहीं खुल सका — URL क्लिपबोर्ड पर कॉपी किया गया';
+  String get couldNotOpenBrowser => 'ब्राउज़र नहीं खुल सका — URL क्लिपबोर्ड पर कॉपी किया गया';
 
   @override
   String get checkForUpdates => 'अपडेट जांचें';
@@ -400,8 +395,7 @@ class SHi extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst =>
-      'पहले एक कुंजी फ़ाइल या PEM टेक्स्ट प्रदान करें';
+  String get provideKeyFirst => 'पहले एक कुंजी फ़ाइल या PEM टेक्स्ट प्रदान करें';
 
   @override
   String get keyTextPem => 'कुंजी टेक्स्ट (PEM)';
@@ -428,8 +422,7 @@ class SHi extends S {
   String get qrGenerationFailed => 'QR बनाना विफल';
 
   @override
-  String get scanWithCameraApp =>
-      'LetsFLUTssh इंस्टॉल किए गए डिवाइस पर\nकिसी भी कैमरा ऐप से स्कैन करें।';
+  String get scanWithCameraApp => 'LetsFLUTssh इंस्टॉल किए गए डिवाइस पर\nकिसी भी कैमरा ऐप से स्कैन करें।';
 
   @override
   String get noPasswordsInQr => 'इस QR कोड में कोई पासवर्ड या कुंजी नहीं है';
@@ -447,12 +440,10 @@ class SHi extends S {
   String get unknownHost => 'अज्ञात होस्ट';
 
   @override
-  String get hostKeyChangedWarning =>
-      'चेतावनी: इस सर्वर की होस्ट कुंजी बदल गई है। यह मैन-इन-द-मिडल हमले का संकेत हो सकता है, या सर्वर पुनः इंस्टॉल किया गया हो सकता है।';
+  String get hostKeyChangedWarning => 'चेतावनी: इस सर्वर की होस्ट कुंजी बदल गई है। यह मैन-इन-द-मिडल हमले का संकेत हो सकता है, या सर्वर पुनः इंस्टॉल किया गया हो सकता है।';
 
   @override
-  String get unknownHostMessage =>
-      'इस होस्ट की प्रामाणिकता सत्यापित नहीं की जा सकती। क्या आप कनेक्ट करना जारी रखना चाहते हैं?';
+  String get unknownHostMessage => 'इस होस्ट की प्रामाणिकता सत्यापित नहीं की जा सकती। क्या आप कनेक्ट करना जारी रखना चाहते हैं?';
 
   @override
   String get host => 'होस्ट';
@@ -675,15 +666,13 @@ class SHi extends S {
   String get exportData => 'डेटा निर्यात करें';
 
   @override
-  String get exportDataSubtitle =>
-      'सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें';
+  String get exportDataSubtitle => 'सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें';
 
   @override
   String get importDataSubtitle => '.lfs फ़ाइल से डेटा लोड करें';
 
   @override
-  String get setMasterPasswordHint =>
-      'आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।';
+  String get setMasterPasswordHint => 'आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।';
 
   @override
   String get passwordsDoNotMatch => 'पासवर्ड मेल नहीं खाते';
@@ -711,8 +700,7 @@ class SHi extends S {
   String get shareViaQrCode => 'QR कोड से साझा करें';
 
   @override
-  String get shareViaQrSubtitle =>
-      'दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें';
+  String get shareViaQrSubtitle => 'दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें';
 
   @override
   String get dataLocation => 'डेटा स्थान';
@@ -796,8 +784,7 @@ class SHi extends S {
   String get useSftpFromSessions => 'सत्रों से \"SFTP\" का उपयोग करें';
 
   @override
-  String get anotherInstanceRunning =>
-      'LetsFLUTssh का एक अन्य इंस्टेंस पहले से चल रहा है।';
+  String get anotherInstanceRunning => 'LetsFLUTssh का एक अन्य इंस्टेंस पहले से चल रहा है।';
 
   @override
   String importFailedShort(String error) {
@@ -832,8 +819,7 @@ class SHi extends S {
   String get connectionError => 'कनेक्शन त्रुटि';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'फ़ाइलें देखने के लिए विंडो का आकार बदलें';
+  String get resizeWindowToViewFiles => 'फ़ाइलें देखने के लिए विंडो का आकार बदलें';
 
   @override
   String get completed => 'पूर्ण';
@@ -848,8 +834,7 @@ class SHi extends S {
   String get exit => 'बाहर निकलें';
 
   @override
-  String get exitConfirmation =>
-      'सक्रिय सत्र डिस्कनेक्ट हो जाएंगे। बाहर निकलें?';
+  String get exitConfirmation => 'सक्रिय सत्र डिस्कनेक्ट हो जाएंगे। बाहर निकलें?';
 
   @override
   String get hintFolderExample => 'उदा. Production';
@@ -861,16 +846,13 @@ class SHi extends S {
   String get exportSessionsViaQr => 'QR से सत्र निर्यात करें';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।';
+  String get qrNoCredentialsWarning => 'पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।';
+  String get qrTooManyForSingleCode => 'एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।';
 
   @override
-  String get qrTooLarge =>
-      'बहुत बड़ा — कुछ आइटम अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
+  String get qrTooLarge => 'बहुत बड़ा — कुछ आइटम अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
 
   @override
   String get exportAll => 'सभी निर्यात करें';
@@ -917,8 +899,7 @@ class SHi extends S {
   String get errBadFileDescriptor => 'खराब फ़ाइल डिस्क्रिप्टर';
 
   @override
-  String get errResourceTemporarilyUnavailable =>
-      'संसाधन अस्थायी रूप से अनुपलब्ध';
+  String get errResourceTemporarilyUnavailable => 'संसाधन अस्थायी रूप से अनुपलब्ध';
 
   @override
   String get errOutOfMemory => 'मेमोरी समाप्त';
@@ -960,8 +941,7 @@ class SHi extends S {
   String get errAddressAlreadyInUse => 'पता पहले से उपयोग में है';
 
   @override
-  String get errCannotAssignAddress =>
-      'अनुरोधित पता निर्दिष्ट नहीं किया जा सकता';
+  String get errCannotAssignAddress => 'अनुरोधित पता निर्दिष्ट नहीं किया जा सकता';
 
   @override
   String get errNetworkIsDown => 'नेटवर्क बंद है';
@@ -1063,8 +1043,7 @@ class SHi extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
+  String get errDecryptionFailed => 'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
 
   @override
   String errWithPath(String error, String path) {
@@ -1097,15 +1076,13 @@ class SHi extends S {
   String get subitems => 'आइटम';
 
   @override
-  String get storagePermissionRequired =>
-      'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
+  String get storagePermissionRequired => 'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
 
   @override
   String get grantPermission => 'अनुमति दें';
 
   @override
-  String get storagePermissionLimited =>
-      'सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें';
+  String get storagePermissionLimited => 'सीमित पहुँच — सभी फ़ाइलों के लिए पूर्ण स्टोरेज अनुमति दें';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1196,8 +1173,7 @@ class SHi extends S {
   String get dropKeyFileHere => 'कुंजी फ़ाइल यहाँ छोड़ें';
 
   @override
-  String get sessionNoCredentials =>
-      'सत्र में क्रेडेंशियल नहीं हैं — पासवर्ड या कुंजी जोड़ने के लिए इसे संपादित करें';
+  String get sessionNoCredentials => 'सत्र में क्रेडेंशियल नहीं हैं — पासवर्ड या कुंजी जोड़ने के लिए इसे संपादित करें';
 
   @override
   String dragItemCount(int count) {
@@ -1229,8 +1205,7 @@ class SHi extends S {
   String get sshConnectionChannel => 'SSH कनेक्शन';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'SSH कनेक्शन को पृष्ठभूमि में सक्रिय रखता है।';
+  String get sshConnectionChannelDesc => 'SSH कनेक्शन को पृष्ठभूमि में सक्रिय रखता है।';
 
   @override
   String get sshActive => 'SSH सक्रिय';
@@ -1261,8 +1236,7 @@ class SHi extends S {
   String get knownHosts => 'ज्ञात होस्ट';
 
   @override
-  String get knownHostsSubtitle =>
-      'विश्वसनीय SSH सर्वर फ़िंगरप्रिंट प्रबंधित करें';
+  String get knownHostsSubtitle => 'विश्वसनीय SSH सर्वर फ़िंगरप्रिंट प्रबंधित करें';
 
   @override
   String knownHostsCount(int count) {
@@ -1277,8 +1251,7 @@ class SHi extends S {
   }
 
   @override
-  String get knownHostsEmpty =>
-      'कोई ज्ञात होस्ट नहीं। एक जोड़ने के लिए सर्वर से कनेक्ट करें।';
+  String get knownHostsEmpty => 'कोई ज्ञात होस्ट नहीं। एक जोड़ने के लिए सर्वर से कनेक्ट करें।';
 
   @override
   String get removeHost => 'होस्ट हटाएं';
@@ -1292,15 +1265,13 @@ class SHi extends S {
   String get clearAllKnownHosts => 'सभी ज्ञात होस्ट साफ़ करें';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      'सभी ज्ञात होस्ट हटाएं? प्रत्येक सर्वर कुंजी की पुनः पुष्टि करनी होगी।';
+  String get clearAllKnownHostsConfirm => 'सभी ज्ञात होस्ट हटाएं? प्रत्येक सर्वर कुंजी की पुनः पुष्टि करनी होगी।';
 
   @override
   String get importKnownHosts => 'ज्ञात होस्ट आयात करें';
 
   @override
-  String get importKnownHostsSubtitle =>
-      'OpenSSH known_hosts फ़ाइल से आयात करें';
+  String get importKnownHostsSubtitle => 'OpenSSH known_hosts फ़ाइल से आयात करें';
 
   @override
   String get exportKnownHosts => 'ज्ञात होस्ट निर्यात करें';
@@ -1335,8 +1306,7 @@ class SHi extends S {
   String get sshKeys => 'SSH कुंजियाँ';
 
   @override
-  String get sshKeysSubtitle =>
-      'प्रमाणीकरण के लिए SSH कुंजी जोड़ी प्रबंधित करें';
+  String get sshKeysSubtitle => 'प्रमाणीकरण के लिए SSH कुंजी जोड़ी प्रबंधित करें';
 
   @override
   String get noKeys => 'कोई SSH कुंजी नहीं। आयात करें या जनरेट करें।';
@@ -1439,8 +1409,7 @@ class SHi extends S {
   String get unlock => 'अनलॉक करें';
 
   @override
-  String get masterPasswordSubtitle =>
-      'सहेजे गए क्रेडेंशियल को पासवर्ड से सुरक्षित करें';
+  String get masterPasswordSubtitle => 'सहेजे गए क्रेडेंशियल को पासवर्ड से सुरक्षित करें';
 
   @override
   String get setMasterPassword => 'मास्टर पासवर्ड सेट करें';
@@ -1452,16 +1421,13 @@ class SHi extends S {
   String get removeMasterPassword => 'मास्टर पासवर्ड हटाएं';
 
   @override
-  String get masterPasswordEnabled =>
-      'क्रेडेंशियल मास्टर पासवर्ड से सुरक्षित हैं';
+  String get masterPasswordEnabled => 'क्रेडेंशियल मास्टर पासवर्ड से सुरक्षित हैं';
 
   @override
-  String get masterPasswordDisabled =>
-      'क्रेडेंशियल स्वचालित रूप से जनरेट की गई कुंजी का उपयोग करते हैं (पासवर्ड नहीं)';
+  String get masterPasswordDisabled => 'क्रेडेंशियल स्वचालित रूप से जनरेट की गई कुंजी का उपयोग करते हैं (पासवर्ड नहीं)';
 
   @override
-  String get enterMasterPassword =>
-      'सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।';
+  String get enterMasterPassword => 'सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।';
 
   @override
   String get wrongMasterPassword => 'गलत पासवर्ड। कृपया पुनः प्रयास करें।';
@@ -1485,15 +1451,13 @@ class SHi extends S {
   String get masterPasswordRemoved => 'मास्टर पासवर्ड हटाया गया';
 
   @override
-  String get masterPasswordWarning =>
-      'यदि आप यह पासवर्ड भूल जाते हैं, तो सभी सहेजे गए पासवर्ड और SSH कुंजियाँ खो जाएंगी। पुनर्प्राप्ति संभव नहीं है।';
+  String get masterPasswordWarning => 'यदि आप यह पासवर्ड भूल जाते हैं, तो सभी सहेजे गए पासवर्ड और SSH कुंजियाँ खो जाएंगी। पुनर्प्राप्ति संभव नहीं है।';
 
   @override
   String get forgotPassword => 'पासवर्ड भूल गए?';
 
   @override
-  String get forgotPasswordWarning =>
-      'यह सभी सहेजे गए पासवर्ड, SSH कुंजियाँ और पासफ़्रेज़ हटा देगा। सत्र और सेटिंग्स बनी रहेंगी। यह क्रिया पूर्ववत नहीं की जा सकती।';
+  String get forgotPasswordWarning => 'यह सभी सहेजे गए पासवर्ड, SSH कुंजियाँ और पासफ़्रेज़ हटा देगा। सत्र और सेटिंग्स बनी रहेंगी। यह क्रिया पूर्ववत नहीं की जा सकती।';
 
   @override
   String get resetAndDeleteCredentials => 'रीसेट करें और डेटा हटाएं';
@@ -1508,8 +1472,7 @@ class SHi extends S {
   String get reEncrypting => 'डेटा पुनः एन्क्रिप्ट हो रहा है...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'मास्टर पासवर्ड सुरक्षा हटाने के लिए वर्तमान पासवर्ड दर्ज करें। क्रेडेंशियल स्वचालित कुंजी से पुनः एन्क्रिप्ट होंगे।';
+  String get confirmRemoveMasterPassword => 'मास्टर पासवर्ड सुरक्षा हटाने के लिए वर्तमान पासवर्ड दर्ज करें। क्रेडेंशियल स्वचालित कुंजी से पुनः एन्क्रिप्ट होंगे।';
 
   @override
   String get securitySetupTitle => 'सुरक्षा सेटअप';
@@ -1520,20 +1483,16 @@ class SHi extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'अतिरिक्त सुरक्षा के लिए मास्टर पासवर्ड भी सेट कर सकते हैं।';
+  String get securitySetupKeychainOptional => 'अतिरिक्त सुरक्षा के लिए मास्टर पासवर्ड भी सेट कर सकते हैं।';
 
   @override
-  String get securitySetupNoKeychain =>
-      'OS कीचेन नहीं पाया गया। कीचेन के बिना, सत्र डेटा (होस्ट, पासवर्ड, कुंजियाँ) सादे पाठ में संग्रहीत होगा।';
+  String get securitySetupNoKeychain => 'OS कीचेन नहीं पाया गया। कीचेन के बिना, सत्र डेटा (होस्ट, पासवर्ड, कुंजियाँ) सादे पाठ में संग्रहीत होगा।';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      'WSL, हेडलेस Linux या न्यूनतम इंस्टॉलेशन में यह सामान्य है। Linux पर कीचेन सक्षम करने के लिए: libsecret और कीरिंग डेमन (जैसे gnome-keyring) इंस्टॉल करें।';
+  String get securitySetupNoKeychainHint => 'WSL, हेडलेस Linux या न्यूनतम इंस्टॉलेशन में यह सामान्य है। Linux पर कीचेन सक्षम करने के लिए: libsecret और कीरिंग डेमन (जैसे gnome-keyring) इंस्टॉल करें।';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'अपने डेटा की सुरक्षा के लिए मास्टर पासवर्ड सेट करने की सिफारिश की जाती है।';
+  String get securitySetupRecommendMasterPassword => 'अपने डेटा की सुरक्षा के लिए मास्टर पासवर्ड सेट करने की सिफारिश की जाती है।';
 
   @override
   String get continueWithKeychain => 'कीचेन के साथ जारी रखें';
@@ -1568,8 +1527,7 @@ class SHi extends S {
   String get enableKeychain => 'कीचेन एन्क्रिप्शन सक्षम करें';
 
   @override
-  String get enableKeychainSubtitle =>
-      'OS कीचेन का उपयोग करके संग्रहीत डेटा को पुनः एन्क्रिप्ट करें';
+  String get enableKeychainSubtitle => 'OS कीचेन का उपयोग करके संग्रहीत डेटा को पुनः एन्क्रिप्ट करें';
 
   @override
   String get keychainEnabled => 'कीचेन एन्क्रिप्शन सक्षम';
@@ -1578,8 +1536,7 @@ class SHi extends S {
   String get manageMasterPassword => 'मास्टर पासवर्ड प्रबंधित करें';
 
   @override
-  String get manageMasterPasswordSubtitle =>
-      'मास्टर पासवर्ड सेट, बदलें या हटाएं';
+  String get manageMasterPasswordSubtitle => 'मास्टर पासवर्ड सेट, बदलें या हटाएं';
 
   @override
   String get snippets => 'Snippets';
@@ -1744,13 +1701,26 @@ class SHi extends S {
   String get disableKeychain => 'कीचेन एन्क्रिप्शन अक्षम करें';
 
   @override
-  String get disableKeychainSubtitle =>
-      'सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)';
+  String get disableKeychainSubtitle => 'सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)';
 
   @override
-  String get disableKeychainConfirm =>
-      'डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?';
+  String get disableKeychainConfirm => 'डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?';
 
   @override
   String get keychainDisabled => 'कीचेन एन्क्रिप्शन अक्षम किया गया';
+
+  @override
+  String get presetFullImport => 'Full import';
+
+  @override
+  String get presetSelective => 'Selective';
+
+  @override
+  String get presetCustom => 'Custom';
+
+  @override
+  String get sessionSshKeys => 'Session SSH keys';
+
+  @override
+  String get allManagerKeys => 'All manager keys';
 }

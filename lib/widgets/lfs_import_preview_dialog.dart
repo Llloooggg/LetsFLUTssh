@@ -227,14 +227,14 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
         children: [
           ChoiceChip(
             avatar: const Icon(Icons.download_for_offline, size: 18),
-            label: const Text('Full import'),
+            label: Text(S.of(context).presetFullImport),
             selected: _isPresetActive(_fullPreset),
             selectedColor: AppTheme.accent.withValues(alpha: 0.2),
             onSelected: (_) => setState(() => _options = _fullPreset),
           ),
           ChoiceChip(
             avatar: const Icon(Icons.filter_alt, size: 18),
-            label: const Text('Selective'),
+            label: Text(S.of(context).presetSelective),
             selected: _isPresetActive(_selectivePreset),
             selectedColor: AppTheme.accent.withValues(alpha: 0.2),
             onSelected: (_) => setState(() => _options = _selectivePreset),
@@ -274,7 +274,7 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
         if (widget.preview.managerKeyCount > 0) ...[
           _buildCheckbox(
             Icons.vpn_key,
-            'Session SSH keys',
+            S.of(context).sessionSshKeys,
             _options.includeManagerKeys,
             (v) => setState(
               () => _options = _options
@@ -284,7 +284,7 @@ class _LfsImportPreviewDialogState extends State<LfsImportPreviewDialog> {
           ),
           _buildCheckbox(
             Icons.cloud_done,
-            'All manager keys',
+            S.of(context).allManagerKeys,
             _options.includeAllManagerKeys,
             (v) => setState(
               () => _options = _options

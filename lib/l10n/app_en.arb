@@ -1107,5 +1107,10 @@
   "disableKeychain": "Disable keychain encryption",
   "disableKeychainSubtitle": "Switch to plaintext storage (not recommended)",
   "disableKeychainConfirm": "The database will be re-encrypted without a key. Sessions and keys will be stored in plaintext on disk. Continue?",
-  "keychainDisabled": "Keychain encryption disabled"
+  "keychainDisabled": "Keychain encryption disabled",
+  "presetFullImport": "Full import",
+  "presetSelective": "Selective",
+  "presetCustom": "Custom",
+  "sessionSshKeys": "Session SSH keys",
+  "allManagerKeys": "All manager keys"
 }

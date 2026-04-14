@@ -678,7 +678,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           children: [
             ChoiceChip(
               avatar: const Icon(Icons.backup, size: 18),
-              label: const Text('Full backup'),
+              label: Text(S.of(context).fullBackup),
               selected: _isPresetActive(_fullBackupPreset),
               selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               onSelected: (_) => setState(() {
@@ -689,7 +689,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             ),
             ChoiceChip(
               avatar: const Icon(Icons.dns, size: 18),
-              label: const Text('Sessions'),
+              label: Text(S.of(context).sessionsOnly),
               selected: _isPresetActive(_sessionsPreset),
               selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               onSelected: (_) => setState(() {
@@ -705,9 +705,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   }
 
   String _activePresetLabel() {
-    if (_isPresetActive(_fullBackupPreset)) return 'Full backup';
-    if (_isPresetActive(_sessionsPreset)) return 'Sessions';
-    return 'Custom';
+    final s = S.of(context);
+    if (_isPresetActive(_fullBackupPreset)) return s.fullBackup;
+    if (_isPresetActive(_sessionsPreset)) return s.sessionsOnly;
+    return s.presetCustom;
   }
 
   Widget _buildCheckboxesSection() {

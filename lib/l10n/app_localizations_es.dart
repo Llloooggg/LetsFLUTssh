@@ -93,12 +93,10 @@ class SEs extends S {
   String get managerKeys => 'Claves del gestor';
 
   @override
-  String get managerKeysMayBeLarge =>
-      'Las claves del gestor pueden exceder el tamaño QR';
+  String get managerKeysMayBeLarge => 'Las claves del gestor pueden exceder el tamaño QR';
 
   @override
-  String get qrPasswordWarning =>
-      'Las contraseñas estarán sin cifrar en el código QR. Cualquiera que lo escanee podrá verlas.';
+  String get qrPasswordWarning => 'Las contraseñas estarán sin cifrar en el código QR. Cualquiera que lo escanee podrá verlas.';
 
   @override
   String get sshKeysMayBeLarge => 'Las claves pueden exceder el tamaño QR';
@@ -109,12 +107,10 @@ class SEs extends S {
   }
 
   @override
-  String get qrCredentialsWarning =>
-      'Las contraseñas y claves SSH SERÁN visibles en el código QR';
+  String get qrCredentialsWarning => 'Las contraseñas y claves SSH SERÁN visibles en el código QR';
 
   @override
-  String get qrCredentialsTooLarge =>
-      'Las credenciales hacen el código QR demasiado grande';
+  String get qrCredentialsTooLarge => 'Las credenciales hacen el código QR demasiado grande';
 
   @override
   String get terminal => 'Terminal';
@@ -167,8 +163,7 @@ class SEs extends S {
   String get openInBrowser => 'Abrir en el navegador';
 
   @override
-  String get couldNotOpenBrowser =>
-      'No se pudo abrir el navegador — URL copiada al portapapeles';
+  String get couldNotOpenBrowser => 'No se pudo abrir el navegador — URL copiada al portapapeles';
 
   @override
   String get checkForUpdates => 'Buscar actualizaciones';
@@ -400,8 +395,7 @@ class SEs extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst =>
-      'Primero proporcione un archivo de clave o texto PEM';
+  String get provideKeyFirst => 'Primero proporcione un archivo de clave o texto PEM';
 
   @override
   String get keyTextPem => 'Texto de clave (PEM)';
@@ -428,12 +422,10 @@ class SEs extends S {
   String get qrGenerationFailed => 'Error al generar QR';
 
   @override
-  String get scanWithCameraApp =>
-      'Escanee con cualquier aplicación de cámara en un dispositivo\nque tenga LetsFLUTssh instalado.';
+  String get scanWithCameraApp => 'Escanee con cualquier aplicación de cámara en un dispositivo\nque tenga LetsFLUTssh instalado.';
 
   @override
-  String get noPasswordsInQr =>
-      'Este código QR no contiene contraseñas ni claves';
+  String get noPasswordsInQr => 'Este código QR no contiene contraseñas ni claves';
 
   @override
   String get copyLink => 'Copiar enlace';
@@ -448,12 +440,10 @@ class SEs extends S {
   String get unknownHost => 'Host desconocido';
 
   @override
-  String get hostKeyChangedWarning =>
-      'ADVERTENCIA: La clave del host de este servidor ha cambiado. Esto podría indicar un ataque de intermediario, o el servidor puede haber sido reinstalado.';
+  String get hostKeyChangedWarning => 'ADVERTENCIA: La clave del host de este servidor ha cambiado. Esto podría indicar un ataque de intermediario, o el servidor puede haber sido reinstalado.';
 
   @override
-  String get unknownHostMessage =>
-      'No se puede establecer la autenticidad de este host. ¿Está seguro de que desea continuar conectando?';
+  String get unknownHostMessage => 'No se puede establecer la autenticidad de este host. ¿Está seguro de que desea continuar conectando?';
 
   @override
   String get host => 'Host';
@@ -486,12 +476,10 @@ class SEs extends S {
   String get confirmPassword => 'Confirmar contraseña';
 
   @override
-  String get importModeMergeDescription =>
-      'Añadir sesiones nuevas, conservar las existentes';
+  String get importModeMergeDescription => 'Añadir sesiones nuevas, conservar las existentes';
 
   @override
-  String get importModeReplaceDescription =>
-      'Reemplazar todas las sesiones con las importadas';
+  String get importModeReplaceDescription => 'Reemplazar todas las sesiones con las importadas';
 
   @override
   String errorPrefix(String error) {
@@ -597,8 +585,7 @@ class SEs extends S {
   String get noActiveSession => 'Sin sesión activa';
 
   @override
-  String get createConnectionHint =>
-      'Cree una nueva conexión o seleccione una de la barra lateral';
+  String get createConnectionHint => 'Cree una nueva conexión o seleccione una de la barra lateral';
 
   @override
   String get hideSidebar => 'Ocultar barra lateral (Ctrl+B)';
@@ -679,15 +666,13 @@ class SEs extends S {
   String get exportData => 'Exportar datos';
 
   @override
-  String get exportDataSubtitle =>
-      'Guardar sesiones, configuración y claves en un archivo .lfs cifrado';
+  String get exportDataSubtitle => 'Guardar sesiones, configuración y claves en un archivo .lfs cifrado';
 
   @override
   String get importDataSubtitle => 'Cargar datos desde un archivo .lfs';
 
   @override
-  String get setMasterPasswordHint =>
-      'Establezca una contraseña maestra para cifrar el archivo.';
+  String get setMasterPasswordHint => 'Establezca una contraseña maestra para cifrar el archivo.';
 
   @override
   String get passwordsDoNotMatch => 'Las contraseñas no coinciden';
@@ -715,8 +700,7 @@ class SEs extends S {
   String get shareViaQrCode => 'Compartir vía código QR';
 
   @override
-  String get shareViaQrSubtitle =>
-      'Exportar sesiones a QR para escanear desde otro dispositivo';
+  String get shareViaQrSubtitle => 'Exportar sesiones a QR para escanear desde otro dispositivo';
 
   @override
   String get dataLocation => 'Ubicación de los datos';
@@ -800,8 +784,7 @@ class SEs extends S {
   String get useSftpFromSessions => 'Use \"SFTP\" desde Sesiones';
 
   @override
-  String get anotherInstanceRunning =>
-      'Otra instancia de LetsFLUTssh ya está en ejecución.';
+  String get anotherInstanceRunning => 'Otra instancia de LetsFLUTssh ya está en ejecución.';
 
   @override
   String importFailedShort(String error) {
@@ -836,8 +819,7 @@ class SEs extends S {
   String get connectionError => 'Error de conexión';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'Cambie el tamaño de la ventana para ver los archivos';
+  String get resizeWindowToViewFiles => 'Cambie el tamaño de la ventana para ver los archivos';
 
   @override
   String get completed => 'Completado';
@@ -852,8 +834,7 @@ class SEs extends S {
   String get exit => 'Salir';
 
   @override
-  String get exitConfirmation =>
-      'Las sesiones activas serán desconectadas. ¿Salir?';
+  String get exitConfirmation => 'Las sesiones activas serán desconectadas. ¿Salir?';
 
   @override
   String get hintFolderExample => 'ej. Production';
@@ -865,16 +846,13 @@ class SEs extends S {
   String get exportSessionsViaQr => 'Exportar sesiones vía QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Las contraseñas y claves SSH NO están incluidas.\nLas sesiones importadas necesitarán que se completen las credenciales.';
+  String get qrNoCredentialsWarning => 'Las contraseñas y claves SSH NO están incluidas.\nLas sesiones importadas necesitarán que se completen las credenciales.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'Demasiadas sesiones para un solo código QR. Deseleccione algunas o use la exportación .lfs.';
+  String get qrTooManyForSingleCode => 'Demasiadas sesiones para un solo código QR. Deseleccione algunas o use la exportación .lfs.';
 
   @override
-  String get qrTooLarge =>
-      'Demasiado grande — deseleccione algunos elementos o use la exportación en archivo .lfs.';
+  String get qrTooLarge => 'Demasiado grande — deseleccione algunos elementos o use la exportación en archivo .lfs.';
 
   @override
   String get exportAll => 'Exportar todo';
@@ -921,8 +899,7 @@ class SEs extends S {
   String get errBadFileDescriptor => 'Descriptor de archivo incorrecto';
 
   @override
-  String get errResourceTemporarilyUnavailable =>
-      'Recurso temporalmente no disponible';
+  String get errResourceTemporarilyUnavailable => 'Recurso temporalmente no disponible';
 
   @override
   String get errOutOfMemory => 'Memoria agotada';
@@ -964,8 +941,7 @@ class SEs extends S {
   String get errAddressAlreadyInUse => 'La dirección ya está en uso';
 
   @override
-  String get errCannotAssignAddress =>
-      'No se puede asignar la dirección solicitada';
+  String get errCannotAssignAddress => 'No se puede asignar la dirección solicitada';
 
   @override
   String get errNetworkIsDown => 'La red está caída';
@@ -1024,8 +1000,7 @@ class SEs extends S {
   String get errSshOpenShellFailed => 'Error al abrir el shell';
 
   @override
-  String get errSshLoadKeyFileFailed =>
-      'Error al cargar el archivo de clave SSH';
+  String get errSshLoadKeyFileFailed => 'Error al cargar el archivo de clave SSH';
 
   @override
   String get errSshParseKeyFailed => 'Error al analizar los datos de clave PEM';
@@ -1068,8 +1043,7 @@ class SEs extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'Error al descifrar las credenciales. El archivo de clave puede estar dañado.';
+  String get errDecryptionFailed => 'Error al descifrar las credenciales. El archivo de clave puede estar dañado.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1102,15 +1076,13 @@ class SEs extends S {
   String get subitems => 'Elementos';
 
   @override
-  String get storagePermissionRequired =>
-      'Se requiere permiso de almacenamiento para explorar archivos locales';
+  String get storagePermissionRequired => 'Se requiere permiso de almacenamiento para explorar archivos locales';
 
   @override
   String get grantPermission => 'Conceder permiso';
 
   @override
-  String get storagePermissionLimited =>
-      'Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos';
+  String get storagePermissionLimited => 'Acceso limitado — conceda permiso de almacenamiento completo para todos los archivos';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1201,8 +1173,7 @@ class SEs extends S {
   String get dropKeyFileHere => 'Arrastre el archivo de clave aquí';
 
   @override
-  String get sessionNoCredentials =>
-      'La sesión no tiene credenciales — edítela para agregar una contraseña o clave';
+  String get sessionNoCredentials => 'La sesión no tiene credenciales — edítela para agregar una contraseña o clave';
 
   @override
   String dragItemCount(int count) {
@@ -1234,8 +1205,7 @@ class SEs extends S {
   String get sshConnectionChannel => 'Conexión SSH';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'Mantiene las conexiones SSH activas en segundo plano.';
+  String get sshConnectionChannelDesc => 'Mantiene las conexiones SSH activas en segundo plano.';
 
   @override
   String get sshActive => 'SSH activo';
@@ -1266,8 +1236,7 @@ class SEs extends S {
   String get knownHosts => 'Hosts conocidos';
 
   @override
-  String get knownHostsSubtitle =>
-      'Gestión de huellas digitales de servidores SSH de confianza';
+  String get knownHostsSubtitle => 'Gestión de huellas digitales de servidores SSH de confianza';
 
   @override
   String knownHostsCount(int count) {
@@ -1282,8 +1251,7 @@ class SEs extends S {
   }
 
   @override
-  String get knownHostsEmpty =>
-      'Sin hosts conocidos. Conéctese a un servidor para agregar uno.';
+  String get knownHostsEmpty => 'Sin hosts conocidos. Conéctese a un servidor para agregar uno.';
 
   @override
   String get removeHost => 'Eliminar host';
@@ -1297,15 +1265,13 @@ class SEs extends S {
   String get clearAllKnownHosts => 'Eliminar todos los hosts conocidos';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      '¿Eliminar todos los hosts conocidos? Cada clave de servidor deberá ser verificada de nuevo.';
+  String get clearAllKnownHostsConfirm => '¿Eliminar todos los hosts conocidos? Cada clave de servidor deberá ser verificada de nuevo.';
 
   @override
   String get importKnownHosts => 'Importar hosts conocidos';
 
   @override
-  String get importKnownHostsSubtitle =>
-      'Importar desde archivo OpenSSH known_hosts';
+  String get importKnownHostsSubtitle => 'Importar desde archivo OpenSSH known_hosts';
 
   @override
   String get exportKnownHosts => 'Exportar hosts conocidos';
@@ -1340,8 +1306,7 @@ class SEs extends S {
   String get sshKeys => 'Claves SSH';
 
   @override
-  String get sshKeysSubtitle =>
-      'Gestión de pares de claves SSH para autenticación';
+  String get sshKeysSubtitle => 'Gestión de pares de claves SSH para autenticación';
 
   @override
   String get noKeys => 'Sin claves SSH. Importe o genere una.';
@@ -1432,8 +1397,7 @@ class SEs extends S {
   }
 
   @override
-  String get passphraseWrong =>
-      'Frase de contraseña incorrecta. Por favor, inténtelo de nuevo.';
+  String get passphraseWrong => 'Frase de contraseña incorrecta. Por favor, inténtelo de nuevo.';
 
   @override
   String get passphrase => 'Frase de contraseña';
@@ -1445,8 +1409,7 @@ class SEs extends S {
   String get unlock => 'Desbloquear';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Proteger credenciales guardadas con contraseña';
+  String get masterPasswordSubtitle => 'Proteger credenciales guardadas con contraseña';
 
   @override
   String get setMasterPassword => 'Establecer contraseña maestra';
@@ -1458,20 +1421,16 @@ class SEs extends S {
   String get removeMasterPassword => 'Eliminar contraseña maestra';
 
   @override
-  String get masterPasswordEnabled =>
-      'Las credenciales están protegidas por contraseña maestra';
+  String get masterPasswordEnabled => 'Las credenciales están protegidas por contraseña maestra';
 
   @override
-  String get masterPasswordDisabled =>
-      'Las credenciales usan clave auto-generada (sin contraseña)';
+  String get masterPasswordDisabled => 'Las credenciales usan clave auto-generada (sin contraseña)';
 
   @override
-  String get enterMasterPassword =>
-      'Ingrese la contraseña maestra para acceder a sus credenciales guardadas.';
+  String get enterMasterPassword => 'Ingrese la contraseña maestra para acceder a sus credenciales guardadas.';
 
   @override
-  String get wrongMasterPassword =>
-      'Contraseña incorrecta. Por favor, inténtelo de nuevo.';
+  String get wrongMasterPassword => 'Contraseña incorrecta. Por favor, inténtelo de nuevo.';
 
   @override
   String get newPassword => 'Nueva contraseña';
@@ -1480,8 +1439,7 @@ class SEs extends S {
   String get currentPassword => 'Contraseña actual';
 
   @override
-  String get passwordTooShort =>
-      'La contraseña debe tener al menos 8 caracteres';
+  String get passwordTooShort => 'La contraseña debe tener al menos 8 caracteres';
 
   @override
   String get masterPasswordSet => 'Contraseña maestra activada';
@@ -1493,22 +1451,19 @@ class SEs extends S {
   String get masterPasswordRemoved => 'Contraseña maestra eliminada';
 
   @override
-  String get masterPasswordWarning =>
-      'Si olvida esta contraseña, todas las contraseñas y claves SSH guardadas se perderán. No hay recuperación posible.';
+  String get masterPasswordWarning => 'Si olvida esta contraseña, todas las contraseñas y claves SSH guardadas se perderán. No hay recuperación posible.';
 
   @override
   String get forgotPassword => '¿Olvidó su contraseña?';
 
   @override
-  String get forgotPasswordWarning =>
-      'Esto eliminará TODAS las contraseñas, claves SSH y frases de contraseña guardadas. Las sesiones y configuraciones se conservarán. Esta acción es irreversible.';
+  String get forgotPasswordWarning => 'Esto eliminará TODAS las contraseñas, claves SSH y frases de contraseña guardadas. Las sesiones y configuraciones se conservarán. Esta acción es irreversible.';
 
   @override
   String get resetAndDeleteCredentials => 'Restablecer y eliminar datos';
 
   @override
-  String get credentialsReset =>
-      'Todas las credenciales guardadas han sido eliminadas';
+  String get credentialsReset => 'Todas las credenciales guardadas han sido eliminadas';
 
   @override
   String get derivingKey => 'Derivando clave de cifrado...';
@@ -1517,8 +1472,7 @@ class SEs extends S {
   String get reEncrypting => 'Re-cifrando datos...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'Ingrese su contraseña actual para eliminar la protección de contraseña maestra. Las credenciales serán re-cifradas con una clave auto-generada.';
+  String get confirmRemoveMasterPassword => 'Ingrese su contraseña actual para eliminar la protección de contraseña maestra. Las credenciales serán re-cifradas con una clave auto-generada.';
 
   @override
   String get securitySetupTitle => 'Configuración de seguridad';
@@ -1529,20 +1483,16 @@ class SEs extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'También puede establecer una contraseña maestra para protección adicional.';
+  String get securitySetupKeychainOptional => 'También puede establecer una contraseña maestra para protección adicional.';
 
   @override
-  String get securitySetupNoKeychain =>
-      'No se detectó llavero del sistema. Sin llavero, los datos de sesión (hosts, contraseñas, claves) se almacenarán en texto plano.';
+  String get securitySetupNoKeychain => 'No se detectó llavero del sistema. Sin llavero, los datos de sesión (hosts, contraseñas, claves) se almacenarán en texto plano.';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      'Esto es normal en WSL, Linux sin interfaz gráfica o instalaciones mínimas. Para habilitar el llavero en Linux: instale libsecret y un demonio de llavero (ej. gnome-keyring).';
+  String get securitySetupNoKeychainHint => 'Esto es normal en WSL, Linux sin interfaz gráfica o instalaciones mínimas. Para habilitar el llavero en Linux: instale libsecret y un demonio de llavero (ej. gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'Recomendamos establecer una contraseña maestra para proteger sus datos.';
+  String get securitySetupRecommendMasterPassword => 'Recomendamos establecer una contraseña maestra para proteger sus datos.';
 
   @override
   String get continueWithKeychain => 'Continuar con llavero';
@@ -1577,8 +1527,7 @@ class SEs extends S {
   String get enableKeychain => 'Activar cifrado de llavero';
 
   @override
-  String get enableKeychainSubtitle =>
-      'Volver a cifrar datos almacenados usando llavero del sistema';
+  String get enableKeychainSubtitle => 'Volver a cifrar datos almacenados usando llavero del sistema';
 
   @override
   String get keychainEnabled => 'Cifrado de llavero activado';
@@ -1587,8 +1536,7 @@ class SEs extends S {
   String get manageMasterPassword => 'Gestionar contraseña maestra';
 
   @override
-  String get manageMasterPasswordSubtitle =>
-      'Establecer, cambiar o eliminar contraseña maestra';
+  String get manageMasterPasswordSubtitle => 'Establecer, cambiar o eliminar contraseña maestra';
 
   @override
   String get snippets => 'Snippets';
@@ -1753,13 +1701,26 @@ class SEs extends S {
   String get disableKeychain => 'Desactivar cifrado del llavero';
 
   @override
-  String get disableKeychainSubtitle =>
-      'Cambiar a almacenamiento en texto plano (no recomendado)';
+  String get disableKeychainSubtitle => 'Cambiar a almacenamiento en texto plano (no recomendado)';
 
   @override
-  String get disableKeychainConfirm =>
-      'La base de datos se volverá a cifrar sin clave. Las sesiones y claves se almacenarán en texto plano en el disco. ¿Continuar?';
+  String get disableKeychainConfirm => 'La base de datos se volverá a cifrar sin clave. Las sesiones y claves se almacenarán en texto plano en el disco. ¿Continuar?';
 
   @override
   String get keychainDisabled => 'Cifrado del llavero desactivado';
+
+  @override
+  String get presetFullImport => 'Full import';
+
+  @override
+  String get presetSelective => 'Selective';
+
+  @override
+  String get presetCustom => 'Custom';
+
+  @override
+  String get sessionSshKeys => 'Session SSH keys';
+
+  @override
+  String get allManagerKeys => 'All manager keys';
 }

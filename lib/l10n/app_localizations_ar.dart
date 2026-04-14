@@ -96,8 +96,7 @@ class SAr extends S {
   String get managerKeysMayBeLarge => 'قد تتجاوز مفاتيح المدير حجم رمز QR';
 
   @override
-  String get qrPasswordWarning =>
-      'ستكون كلمات المرور غير مشفرة في رمز QR. يمكن لأي شخص مسحه رؤيتها.';
+  String get qrPasswordWarning => 'ستكون كلمات المرور غير مشفرة في رمز QR. يمكن لأي شخص مسحه رؤيتها.';
 
   @override
   String get sshKeysMayBeLarge => 'قد تتجاوز المفاتيح حجم رمز QR';
@@ -108,8 +107,7 @@ class SAr extends S {
   }
 
   @override
-  String get qrCredentialsWarning =>
-      'ستكون كلمات المرور ومفاتيح SSH مرئية في رمز QR';
+  String get qrCredentialsWarning => 'ستكون كلمات المرور ومفاتيح SSH مرئية في رمز QR';
 
   @override
   String get qrCredentialsTooLarge => 'بيانات الاعتماد تجعل رمز QR كبيرًا جدًا';
@@ -165,8 +163,7 @@ class SAr extends S {
   String get openInBrowser => 'فتح في المتصفح';
 
   @override
-  String get couldNotOpenBrowser =>
-      'تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة';
+  String get couldNotOpenBrowser => 'تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة';
 
   @override
   String get checkForUpdates => 'التحقق من التحديثات';
@@ -425,8 +422,7 @@ class SAr extends S {
   String get qrGenerationFailed => 'فشل إنشاء رمز QR';
 
   @override
-  String get scanWithCameraApp =>
-      'امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.';
+  String get scanWithCameraApp => 'امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.';
 
   @override
   String get noPasswordsInQr => 'لا توجد كلمات مرور أو مفاتيح في رمز QR هذا';
@@ -444,12 +440,10 @@ class SAr extends S {
   String get unknownHost => 'مضيف غير معروف';
 
   @override
-  String get hostKeyChangedWarning =>
-      'تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.';
+  String get hostKeyChangedWarning => 'تحذير: تغيّر مفتاح المضيف لهذا الخادم. قد يشير ذلك إلى هجوم رجل في المنتصف، أو ربما تمت إعادة تثبيت الخادم.';
 
   @override
-  String get unknownHostMessage =>
-      'لا يمكن التحقق من هوية هذا المضيف. هل أنت متأكد أنك تريد متابعة الاتصال؟';
+  String get unknownHostMessage => 'لا يمكن التحقق من هوية هذا المضيف. هل أنت متأكد أنك تريد متابعة الاتصال؟';
 
   @override
   String get host => 'المضيف';
@@ -482,8 +476,7 @@ class SAr extends S {
   String get confirmPassword => 'تأكيد كلمة المرور';
 
   @override
-  String get importModeMergeDescription =>
-      'إضافة جلسات جديدة والاحتفاظ بالحالية';
+  String get importModeMergeDescription => 'إضافة جلسات جديدة والاحتفاظ بالحالية';
 
   @override
   String get importModeReplaceDescription => 'استبدال جميع الجلسات بالمستوردة';
@@ -592,8 +585,7 @@ class SAr extends S {
   String get noActiveSession => 'لا توجد جلسة نشطة';
 
   @override
-  String get createConnectionHint =>
-      'أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي';
+  String get createConnectionHint => 'أنشئ اتصالاً جديداً أو اختر واحداً من الشريط الجانبي';
 
   @override
   String get hideSidebar => 'إخفاء الشريط الجانبي (Ctrl+B)';
@@ -674,8 +666,7 @@ class SAr extends S {
   String get exportData => 'تصدير البيانات';
 
   @override
-  String get exportDataSubtitle =>
-      'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
+  String get exportDataSubtitle => 'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
 
   @override
   String get importDataSubtitle => 'تحميل البيانات من ملف .lfs';
@@ -793,8 +784,7 @@ class SAr extends S {
   String get useSftpFromSessions => 'استخدم \"SFTP\" من الجلسات';
 
   @override
-  String get anotherInstanceRunning =>
-      'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
+  String get anotherInstanceRunning => 'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
 
   @override
   String importFailedShort(String error) {
@@ -856,16 +846,13 @@ class SAr extends S {
   String get exportSessionsViaQr => 'تصدير الجلسات عبر QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
+  String get qrNoCredentialsWarning => 'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
+  String get qrTooManyForSingleCode => 'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
 
   @override
-  String get qrTooLarge =>
-      'كبير جداً — ألغِ تحديد بعض العناصر أو استخدم تصدير ملف .lfs.';
+  String get qrTooLarge => 'كبير جداً — ألغِ تحديد بعض العناصر أو استخدم تصدير ملف .lfs.';
 
   @override
   String get exportAll => 'تصدير الكل';
@@ -963,8 +950,7 @@ class SAr extends S {
   String get errNetworkIsUnreachable => 'الشبكة غير قابلة للوصول';
 
   @override
-  String get errConnectionResetByPeer =>
-      'أُعيد تعيين الاتصال من قبل الطرف الآخر';
+  String get errConnectionResetByPeer => 'أُعيد تعيين الاتصال من قبل الطرف الآخر';
 
   @override
   String get errConnectionTimedOut => 'انتهت مهلة الاتصال';
@@ -1057,8 +1043,7 @@ class SAr extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
+  String get errDecryptionFailed => 'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1091,15 +1076,13 @@ class SAr extends S {
   String get subitems => 'العناصر';
 
   @override
-  String get storagePermissionRequired =>
-      'يلزم إذن التخزين لتصفح الملفات المحلية';
+  String get storagePermissionRequired => 'يلزم إذن التخزين لتصفح الملفات المحلية';
 
   @override
   String get grantPermission => 'منح الإذن';
 
   @override
-  String get storagePermissionLimited =>
-      'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
+  String get storagePermissionLimited => 'وصول محدود — امنح إذن التخزين الكامل لجميع الملفات';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1190,8 +1173,7 @@ class SAr extends S {
   String get dropKeyFileHere => 'اسحب ملف المفتاح هنا';
 
   @override
-  String get sessionNoCredentials =>
-      'الجلسة لا تحتوي على بيانات اعتماد — قم بتعديلها لإضافة كلمة مرور أو مفتاح';
+  String get sessionNoCredentials => 'الجلسة لا تحتوي على بيانات اعتماد — قم بتعديلها لإضافة كلمة مرور أو مفتاح';
 
   @override
   String dragItemCount(int count) {
@@ -1223,8 +1205,7 @@ class SAr extends S {
   String get sshConnectionChannel => 'اتصال SSH';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'يحافظ على اتصالات SSH نشطة في الخلفية.';
+  String get sshConnectionChannelDesc => 'يحافظ على اتصالات SSH نشطة في الخلفية.';
 
   @override
   String get sshActive => 'SSH نشط';
@@ -1270,8 +1251,7 @@ class SAr extends S {
   }
 
   @override
-  String get knownHostsEmpty =>
-      'لا يوجد مضيفون معروفون. اتصل بخادم لإضافة واحد.';
+  String get knownHostsEmpty => 'لا يوجد مضيفون معروفون. اتصل بخادم لإضافة واحد.';
 
   @override
   String get removeHost => 'إزالة المضيف';
@@ -1285,8 +1265,7 @@ class SAr extends S {
   String get clearAllKnownHosts => 'مسح جميع المضيفين المعروفين';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      'إزالة جميع المضيفين المعروفين؟ سيحتاج كل مفتاح خادم إلى إعادة التحقق.';
+  String get clearAllKnownHostsConfirm => 'إزالة جميع المضيفين المعروفين؟ سيحتاج كل مفتاح خادم إلى إعادة التحقق.';
 
   @override
   String get importKnownHosts => 'استيراد المضيفين المعروفين';
@@ -1430,8 +1409,7 @@ class SAr extends S {
   String get unlock => 'فتح القفل';
 
   @override
-  String get masterPasswordSubtitle =>
-      'حماية بيانات الاعتماد المحفوظة بكلمة مرور';
+  String get masterPasswordSubtitle => 'حماية بيانات الاعتماد المحفوظة بكلمة مرور';
 
   @override
   String get setMasterPassword => 'تعيين كلمة المرور الرئيسية';
@@ -1443,16 +1421,13 @@ class SAr extends S {
   String get removeMasterPassword => 'إزالة كلمة المرور الرئيسية';
 
   @override
-  String get masterPasswordEnabled =>
-      'بيانات الاعتماد محمية بكلمة المرور الرئيسية';
+  String get masterPasswordEnabled => 'بيانات الاعتماد محمية بكلمة المرور الرئيسية';
 
   @override
-  String get masterPasswordDisabled =>
-      'بيانات الاعتماد تستخدم مفتاحاً مولداً تلقائياً (بدون كلمة مرور)';
+  String get masterPasswordDisabled => 'بيانات الاعتماد تستخدم مفتاحاً مولداً تلقائياً (بدون كلمة مرور)';
 
   @override
-  String get enterMasterPassword =>
-      'أدخل كلمة المرور الرئيسية للوصول إلى بيانات الاعتماد المحفوظة.';
+  String get enterMasterPassword => 'أدخل كلمة المرور الرئيسية للوصول إلى بيانات الاعتماد المحفوظة.';
 
   @override
   String get wrongMasterPassword => 'كلمة مرور خاطئة. حاول مرة أخرى.';
@@ -1476,15 +1451,13 @@ class SAr extends S {
   String get masterPasswordRemoved => 'تمت إزالة كلمة المرور الرئيسية';
 
   @override
-  String get masterPasswordWarning =>
-      'إذا نسيت هذه الكلمة، ستفقد جميع كلمات المرور ومفاتيح SSH المحفوظة. لا يمكن الاسترداد.';
+  String get masterPasswordWarning => 'إذا نسيت هذه الكلمة، ستفقد جميع كلمات المرور ومفاتيح SSH المحفوظة. لا يمكن الاسترداد.';
 
   @override
   String get forgotPassword => 'نسيت كلمة المرور؟';
 
   @override
-  String get forgotPasswordWarning =>
-      'سيؤدي هذا إلى حذف جميع كلمات المرور ومفاتيح SSH وعبارات المرور المحفوظة. سيتم الاحتفاظ بالجلسات والإعدادات. لا يمكن التراجع عن هذا الإجراء.';
+  String get forgotPasswordWarning => 'سيؤدي هذا إلى حذف جميع كلمات المرور ومفاتيح SSH وعبارات المرور المحفوظة. سيتم الاحتفاظ بالجلسات والإعدادات. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
   String get resetAndDeleteCredentials => 'إعادة تعيين وحذف البيانات';
@@ -1499,8 +1472,7 @@ class SAr extends S {
   String get reEncrypting => 'جارٍ إعادة التشفير...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'أدخل كلمة المرور الحالية لإزالة حماية كلمة المرور الرئيسية. سيتم إعادة تشفير البيانات بمفتاح مولد تلقائياً.';
+  String get confirmRemoveMasterPassword => 'أدخل كلمة المرور الحالية لإزالة حماية كلمة المرور الرئيسية. سيتم إعادة تشفير البيانات بمفتاح مولد تلقائياً.';
 
   @override
   String get securitySetupTitle => 'إعداد الأمان';
@@ -1511,20 +1483,16 @@ class SAr extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'يمكنك أيضاً تعيين كلمة مرور رئيسية لحماية إضافية.';
+  String get securitySetupKeychainOptional => 'يمكنك أيضاً تعيين كلمة مرور رئيسية لحماية إضافية.';
 
   @override
-  String get securitySetupNoKeychain =>
-      'لم يتم اكتشاف سلسلة مفاتيح النظام. بدونها، سيتم تخزين بيانات الجلسة (المضيفون، كلمات المرور، المفاتيح) كنص عادي.';
+  String get securitySetupNoKeychain => 'لم يتم اكتشاف سلسلة مفاتيح النظام. بدونها، سيتم تخزين بيانات الجلسة (المضيفون، كلمات المرور، المفاتيح) كنص عادي.';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      'هذا طبيعي في WSL أو Linux بدون واجهة رسومية أو التثبيتات المحدودة. لتفعيل سلسلة المفاتيح في Linux: ثبّت libsecret وخفي سلسلة المفاتيح (مثل gnome-keyring).';
+  String get securitySetupNoKeychainHint => 'هذا طبيعي في WSL أو Linux بدون واجهة رسومية أو التثبيتات المحدودة. لتفعيل سلسلة المفاتيح في Linux: ثبّت libsecret وخفي سلسلة المفاتيح (مثل gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'نوصي بتعيين كلمة مرور رئيسية لحماية بياناتك.';
+  String get securitySetupRecommendMasterPassword => 'نوصي بتعيين كلمة مرور رئيسية لحماية بياناتك.';
 
   @override
   String get continueWithKeychain => 'المتابعة مع سلسلة المفاتيح';
@@ -1559,8 +1527,7 @@ class SAr extends S {
   String get enableKeychain => 'تفعيل تشفير سلسلة المفاتيح';
 
   @override
-  String get enableKeychainSubtitle =>
-      'إعادة تشفير البيانات المخزنة باستخدام سلسلة مفاتيح النظام';
+  String get enableKeychainSubtitle => 'إعادة تشفير البيانات المخزنة باستخدام سلسلة مفاتيح النظام';
 
   @override
   String get keychainEnabled => 'تم تفعيل تشفير سلسلة المفاتيح';
@@ -1569,8 +1536,7 @@ class SAr extends S {
   String get manageMasterPassword => 'إدارة كلمة المرور الرئيسية';
 
   @override
-  String get manageMasterPasswordSubtitle =>
-      'تعيين أو تغيير أو إزالة كلمة المرور الرئيسية';
+  String get manageMasterPasswordSubtitle => 'تعيين أو تغيير أو إزالة كلمة المرور الرئيسية';
 
   @override
   String get snippets => 'Snippets';
@@ -1735,13 +1701,26 @@ class SAr extends S {
   String get disableKeychain => 'تعطيل تشفير سلسلة المفاتيح';
 
   @override
-  String get disableKeychainSubtitle =>
-      'التبديل إلى التخزين بنص عادي (غير موصى به)';
+  String get disableKeychainSubtitle => 'التبديل إلى التخزين بنص عادي (غير موصى به)';
 
   @override
-  String get disableKeychainConfirm =>
-      'ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟';
+  String get disableKeychainConfirm => 'ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟';
 
   @override
   String get keychainDisabled => 'تم تعطيل تشفير سلسلة المفاتيح';
+
+  @override
+  String get presetFullImport => 'Full import';
+
+  @override
+  String get presetSelective => 'Selective';
+
+  @override
+  String get presetCustom => 'Custom';
+
+  @override
+  String get sessionSshKeys => 'Session SSH keys';
+
+  @override
+  String get allManagerKeys => 'All manager keys';
 }
