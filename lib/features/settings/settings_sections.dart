@@ -960,14 +960,30 @@ class _ExportImportTile extends ConsumerWidget {
 
       if (importConfig == null || !context.mounted) return;
 
-      // Filter the already-decrypted data by user's choices
+      // Filter the already-decrypted data by user's choices.
+      // Always pass managerKeys/tags/snippets when sessions are included —
+      // they may be FK-referenced by sessions (keyId, tag links, snippet links)
+      // and must be imported first to satisfy foreign key constraints.
+      final wantSessions = importConfig.options.includeSessions;
       final filteredResult = ImportResult(
-        sessions: importConfig.options.includeSessions
-            ? fullImport.sessions
+        sessions: wantSessions ? fullImport.sessions : [],
+        emptyFolders: wantSessions ? fullImport.emptyFolders : {},
+        managerKeys: wantSessions && importConfig.options.includeManagerKeys
+            ? fullImport.managerKeys
             : [],
-        emptyFolders: importConfig.options.includeSessions
-            ? fullImport.emptyFolders
-            : {},
+        tags: importConfig.options.includeTags ? fullImport.tags : [],
+        sessionTags: wantSessions && importConfig.options.includeTags
+            ? fullImport.sessionTags
+            : [],
+        folderTags: wantSessions && importConfig.options.includeTags
+            ? fullImport.folderTags
+            : [],
+        snippets: importConfig.options.includeSnippets
+            ? fullImport.snippets
+            : [],
+        sessionSnippets: wantSessions && importConfig.options.includeSnippets
+            ? fullImport.sessionSnippets
+            : [],
         config: importConfig.options.includeConfig ? fullImport.config : null,
         mode: importConfig.mode,
         knownHostsContent: importConfig.options.includeKnownHosts

@@ -75,6 +75,20 @@ class AppLogger {
     }
   }
 
+  /// Strips sensitive data (PEM private keys, passwords in SQL) from a string.
+  /// Applied to all log messages and error traces.
+  static String sanitize(String input) {
+    // Redact OpenSSH/PKCS private keys in PEM format.
+    final pemPattern = RegExp(
+      r'-----BEGIN[^-]*PRIVATE KEY-----[\s\S]*?-----END[^-]*PRIVATE KEY-----',
+      multiLine: true,
+    );
+    var out = input.replaceAll(pemPattern, '[REDACTED PRIVATE KEY]');
+    // Redact base64-encoded key blobs (long continuous base64 runs).
+    out = out.replaceAll(RegExp(r'[A-Za-z0-9+/=]{200,}'), '[REDACTED BASE64]');
+    return out;
+  }
+
   /// Log a message. Also forwards to dart:developer log (DevTools).
   /// File write only happens if logging is [enabled].
   void log(
@@ -84,7 +98,9 @@ class AppLogger {
     StackTrace? stackTrace,
   }) {
     final tag = name ?? 'App';
-    dev.log(message, name: tag, error: error);
+    final safeMsg = sanitize(message);
+    final safeError = error == null ? null : sanitize(error.toString());
+    dev.log(safeMsg, name: tag, error: safeError);
 
     if (!_enabled || _sink == null) return;
 
@@ -94,13 +110,13 @@ class AppLogger {
           '${now.hour.toString().padLeft(2, '0')}:'
           '${now.minute.toString().padLeft(2, '0')}:'
           '${now.second.toString().padLeft(2, '0')}';
-      _sink!.writeln('$ts [$tag] $message');
-      if (error != null) {
-        _sink!.writeln('  Error: $error');
+      _sink!.writeln('$ts [$tag] $safeMsg');
+      if (safeError != null) {
+        _sink!.writeln('  Error: $safeError');
       }
       if (stackTrace != null) {
         _sink!.writeln('  Stack trace:');
-        _sink!.writeln('$stackTrace');
+        _sink!.writeln(sanitize('$stackTrace'));
       }
     } catch (_) {
       // Don't crash the app for logging failures.
