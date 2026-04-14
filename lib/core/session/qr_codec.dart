@@ -65,30 +65,113 @@ class ExportOptions {
   /// Whether any manager key mode is enabled.
   bool get hasManagerKeys => includeManagerKeys || includeAllManagerKeys;
 
-  ExportOptions copyWith({
-    bool? includeSessions,
-    bool? includeConfig,
-    bool? includeKnownHosts,
-    bool? includePasswords,
-    bool? includeEmbeddedKeys,
-    bool? includeManagerKeys,
-    bool? includeAllManagerKeys,
-    bool? includeTags,
-    bool? includeSnippets,
-  }) {
-    return ExportOptions(
-      includeSessions: includeSessions ?? this.includeSessions,
-      includeConfig: includeConfig ?? this.includeConfig,
-      includeKnownHosts: includeKnownHosts ?? this.includeKnownHosts,
-      includePasswords: includePasswords ?? this.includePasswords,
-      includeEmbeddedKeys: includeEmbeddedKeys ?? this.includeEmbeddedKeys,
-      includeManagerKeys: includeManagerKeys ?? this.includeManagerKeys,
-      includeAllManagerKeys:
-          includeAllManagerKeys ?? this.includeAllManagerKeys,
-      includeTags: includeTags ?? this.includeTags,
-      includeSnippets: includeSnippets ?? this.includeSnippets,
-    );
-  }
+  ExportOptions withIncludeSessions(bool v) => ExportOptions(
+    includeSessions: v,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeConfig(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: v,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeKnownHosts(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: v,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludePasswords(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: v,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeEmbeddedKeys(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: v,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeManagerKeys(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: v,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeAllManagerKeys(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: v,
+    includeTags: includeTags,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeTags(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: v,
+    includeSnippets: includeSnippets,
+  );
+
+  ExportOptions withIncludeSnippets(bool v) => ExportOptions(
+    includeSessions: includeSessions,
+    includeConfig: includeConfig,
+    includeKnownHosts: includeKnownHosts,
+    includePasswords: includePasswords,
+    includeEmbeddedKeys: includeEmbeddedKeys,
+    includeManagerKeys: includeManagerKeys,
+    includeAllManagerKeys: includeAllManagerKeys,
+    includeTags: includeTags,
+    includeSnippets: v,
+  );
 
   bool get hasAnySelection =>
       includeSessions || includeConfig || includeKnownHosts;

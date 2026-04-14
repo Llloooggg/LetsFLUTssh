@@ -157,6 +157,11 @@ Format: `type: short description`
 | `chore:`    | Config, tooling                 | No                        |
 | `chore(deps):` | Dependency updates (auto-generated) | Yes — under **Dependencies** |
 | `ci:`       | CI/CD workflow changes          | No                        |
+| `i18n:`     | Translation / l10n string changes | No                      |
+| `style:`    | Formatting, whitespace          | No                        |
+| `revert:`   | Revert a previous commit        | No                        |
+
+Optional scope in parentheses (e.g. `feat(snippets):`, `fix(import):`) — lowercase, alphanumeric + dashes.
 
 **Examples:**
 
@@ -186,7 +191,7 @@ Version bumps are **fully automated**. The bump script (`scripts/bump-version.sh
 | `fix:`, `refactor:`, `perf:`, `build:`, Dependabot `Bump ...` | **patch** |
 | `feat:`                                 | **minor** |
 | `BREAKING CHANGE` or `feat!:`           | **major** |
-| `docs:`, `test:`, `ci:`, `chore:`, `Revert "..."` | **no bump** |
+| `docs:`, `test:`, `ci:`, `chore:`, `i18n:`, `style:`, `revert:` | **no bump** |
 
 **Do not bump the version manually** — just use the correct conventional commit prefix. The `version:` field in `pubspec.yaml` remains the single source of truth (`package_info_plus` reads it at runtime).
 

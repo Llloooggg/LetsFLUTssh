@@ -92,7 +92,9 @@ void main() {
       expect(find.text('Yes'), findsNWidgets(2));
     });
 
-    testWidgets('renders password field', (tester) async {
+    testWidgets('does NOT render a password field (caller already decrypted)', (
+      tester,
+    ) async {
       final preview = makePreview();
 
       await tester.pumpWidget(
@@ -100,8 +102,9 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Master Password'), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
+      // Preview dialog must not prompt for password again — caller has it.
+      expect(find.text('Master Password'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
     });
 
     testWidgets('renders mode selector with Merge and Replace', (tester) async {
@@ -158,9 +161,7 @@ void main() {
       expect(find.text('Import'), findsOneWidget);
     });
 
-    testWidgets('Import button is disabled with empty password', (
-      tester,
-    ) async {
+    testWidgets('Import button is rendered with defaults', (tester) async {
       final preview = makePreview();
 
       await tester.pumpWidget(
@@ -171,8 +172,6 @@ void main() {
       );
       await tester.pump();
 
-      // Import button exists but should be disabled (enabled=false means
-      // the widget is rendered in disabled state, not absent)
       expect(find.text('Import'), findsOneWidget);
     });
 
@@ -230,23 +229,16 @@ void main() {
       expect(result, isNull);
     });
 
-    testWidgets('entering password enables Import button', (tester) async {
+    testWidgets('shows preset chips (Full / Selective)', (tester) async {
       final preview = makePreview();
 
       await tester.pumpWidget(
-        buildDialog(filePath: '${tempDir.path}/pass.lfs', preview: preview),
+        buildDialog(filePath: '${tempDir.path}/preset.lfs', preview: preview),
       );
       await tester.pump();
 
-      // Import button exists
-      expect(find.text('Import'), findsOneWidget);
-
-      // Enter password
-      await tester.enterText(find.byType(TextField), 'mypassword');
-      await tester.pump();
-
-      // Import button is still visible (enabled state)
-      expect(find.text('Import'), findsOneWidget);
+      expect(find.text('Full import'), findsOneWidget);
+      expect(find.text('Selective'), findsOneWidget);
     });
 
     testWidgets('can toggle config checkbox', (tester) async {
@@ -257,16 +249,11 @@ void main() {
       );
       await tester.pump();
 
-      // Config checkbox starts unchecked
-      // Tap the App Settings row to toggle
+      // Config checkbox defaults to ON (archive has config).
+      // Tap the App Settings row to toggle it off.
       await tester.tap(find.text('App Settings'));
       await tester.pump();
 
-      // After toggle, config should be included — verify by checking
-      // that the import button is still enabled (it was already enabled
-      // due to sessions, so we verify via the state indirectly)
-      // The best we can do in widget test is verify no crash and UI
-      // responds — the actual options are internal state.
       expect(find.text('Import'), findsOneWidget);
     });
 
@@ -297,19 +284,23 @@ void main() {
       expect(find.text('Add new sessions, keep existing'), findsOneWidget);
     });
 
-    testWidgets('submit with empty password does nothing', (tester) async {
-      final preview = makePreview();
+    testWidgets('Import with no selection stays open', (tester) async {
+      const preview = LfsPreview(
+        sessions: [],
+        hasConfig: false,
+        hasKnownHosts: false,
+      );
 
       await tester.pumpWidget(
         buildDialog(filePath: '${tempDir.path}/empty.lfs', preview: preview),
       );
       await tester.pump();
 
-      // Tap Import with empty password — dialog should stay open
+      // With no data in the archive, _options.hasAnySelection is false
+      // and Import is disabled. Dialog stays open.
       await tester.tap(find.text('Import'));
       await tester.pump();
 
-      // Dialog is still visible
       expect(find.text('Import Data'), findsOneWidget);
     });
 

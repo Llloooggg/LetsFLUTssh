@@ -19,16 +19,36 @@
   <header class="hero">
     <div class="container">
       <div class="hero-content">
-        <img src="https://raw.githubusercontent.com/Llloooggg/LetsFLUTssh/main/assets/icons/icon.png" alt="LetsFLUTssh logo" class="logo">
-        <h1>LetsFLUTssh</h1>
+        <a href="./" class="hero-home-link" aria-label="Home">
+          <img src="https://raw.githubusercontent.com/Llloooggg/LetsFLUTssh/main/assets/icons/icon.png" alt="LetsFLUTssh logo" class="logo">
+          <h1>LetsFLUTssh</h1>
+        </a>
         <p class="tagline">Lightweight cross-platform SSH/SFTP client with GUI</p>
         <p class="subtitle">Open-source alternative to Xshell and Termius</p>
 
         <div class="badges">
-          <a href="https://github.com/Llloooggg/LetsFLUTssh/releases"><img src="https://img.shields.io/github/v/release/Llloooggg/LetsFLUTssh?style=flat-square&color=4D78CC" alt="Release"></a>
-          <a href="https://github.com/Llloooggg/LetsFLUTssh/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GPL_3.0-blue.svg?style=flat-square&color=4D78CC" alt="License"></a>
-          <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Llloooggg/LetsFLUTssh/ci.yml?style=flat-square&color=98C379" alt="CI"></a>
-          <a href="https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh"><img src="https://img.shields.io/sonar/coverage/Llloooggg_LetsFLUTssh?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&color=98C379" alt="Coverage"></a>
+          <div class="badge-row">
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/releases"><img src="https://img.shields.io/github/v/release/Llloooggg/LetsFLUTssh?include_prereleases" alt="Release"></a>
+            <a href="https://github.com/Llloooggg/LetsFLUTssh"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-blue" alt="Platform"></a>
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GPL_3.0-blue.svg" alt="License"></a>
+            <a href="https://www.bestpractices.dev/projects/12283"><img src="https://www.bestpractices.dev/projects/12283/badge" alt="OpenSSF Best Practices"></a>
+          </div>
+          <div class="badge-row">
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml"><img src="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/cfl-fuzz.yml"><img src="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/cfl-fuzz.yml/badge.svg" alt="ClusterFuzzLite"></a>
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build-release.yml"><img src="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/build-release.yml/badge.svg?event=push" alt="Build"></a>
+          </div>
+          <div class="badge-row">
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv.yml"><img src="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/osv.yml/badge.svg" alt="OSV-Scanner"></a>
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/codeql.yml"><img src="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
+            <a href="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/semgrep.yml"><img src="https://github.com/Llloooggg/LetsFLUTssh/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
+          </div>
+          <div class="badge-row">
+            <a href="https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh"><img src="https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=security_rating" alt="Security Rating"></a>
+            <a href="https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh"><img src="https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=reliability_rating" alt="Reliability Rating"></a>
+            <a href="https://sonarcloud.io/summary/new_code?id=Llloooggg_LetsFLUTssh"><img src="https://sonarcloud.io/api/project_badges/measure?project=Llloooggg_LetsFLUTssh&metric=coverage" alt="Coverage"></a>
+            <a href="https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh"><img src="https://api.scorecard.dev/projects/github.com/Llloooggg/LetsFLUTssh/badge" alt="OpenSSF Scorecard"></a>
+          </div>
         </div>
 
         <div class="cta">
@@ -46,11 +66,11 @@
   <section class="screenshots">
     <div class="container">
       <div class="screenshot-grid">
-        <figure>
+        <figure class="screenshot-clickable">
           <img src="https://raw.githubusercontent.com/Llloooggg/LetsFLUTssh/main/docs/screenshots/LetsFLUTssh_terminal.png" alt="Terminal screenshot">
           <figcaption>SSH Terminal — session tree, tabbed terminal with htop</figcaption>
         </figure>
-        <figure>
+        <figure class="screenshot-clickable">
           <img src="https://raw.githubusercontent.com/Llloooggg/LetsFLUTssh/main/docs/screenshots/LetsFLUTssh_files.png" alt="File browser screenshot">
           <figcaption>SFTP File Browser — dual-pane local/remote with transfer panel</figcaption>
         </figure>
@@ -74,14 +94,18 @@
         <a href="https://github.com/Llloooggg/LetsFLUTssh/issues">Issues</a>
         <span class="sep">·</span>
         <a href="https://github.com/Llloooggg/LetsFLUTssh/releases">Releases</a>
-        <span class="sep">·</span>
-        <a href="https://www.donationalerts.com/r/llloooggg">Support</a>
       </p>
       <p class="muted">GPL-3.0 · Built with Flutter · OneDark theme</p>
     </div>
   </footer>
 
+  <div id="lightbox" class="lightbox" hidden aria-hidden="true" role="dialog" aria-label="Image preview">
+    <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
+    <img class="lightbox-image" src="" alt="">
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
   <script src="render.js"></script>
+  <script src="lightbox.js"></script>
 </body>
 </html>

@@ -93,12 +93,10 @@ class STr extends S {
   String get managerKeys => 'Yöneticideki anahtarlar';
 
   @override
-  String get managerKeysMayBeLarge =>
-      'Yönetici anahtarları QR boyutunu aşabilir';
+  String get managerKeysMayBeLarge => 'Yönetici anahtarları QR boyutunu aşabilir';
 
   @override
-  String get qrPasswordWarning =>
-      'Parolalar QR kodunda şifresiz olacaktır. Taranan herkes görebilir.';
+  String get qrPasswordWarning => 'Parolalar QR kodunda şifresiz olacaktır. Taranan herkes görebilir.';
 
   @override
   String get sshKeysMayBeLarge => 'Anahtarlar QR boyutunu aşabilir';
@@ -109,12 +107,10 @@ class STr extends S {
   }
 
   @override
-  String get qrCredentialsWarning =>
-      'Şifreler ve SSH anahtarları QR kodunda GÖRÜNECEK';
+  String get qrCredentialsWarning => 'Şifreler ve SSH anahtarları QR kodunda GÖRÜNECEK';
 
   @override
-  String get qrCredentialsTooLarge =>
-      'Kimlik bilgileri QR kodunu çok büyük yapıyor';
+  String get qrCredentialsTooLarge => 'Kimlik bilgileri QR kodunu çok büyük yapıyor';
 
   @override
   String get terminal => 'Terminal';
@@ -167,15 +163,13 @@ class STr extends S {
   String get openInBrowser => 'Tarayıcıda Aç';
 
   @override
-  String get couldNotOpenBrowser =>
-      'Tarayıcı açılamadı — URL panoya kopyalandı';
+  String get couldNotOpenBrowser => 'Tarayıcı açılamadı — URL panoya kopyalandı';
 
   @override
   String get checkForUpdates => 'Güncellemeleri Kontrol Et';
 
   @override
-  String get checkForUpdatesOnStartup =>
-      'Başlangıçta Güncellemeleri Kontrol Et';
+  String get checkForUpdatesOnStartup => 'Başlangıçta Güncellemeleri Kontrol Et';
 
   @override
   String get checking => 'Kontrol ediliyor...';
@@ -401,8 +395,7 @@ class STr extends S {
   String get portRange => '1-65535';
 
   @override
-  String get provideKeyFirst =>
-      'Önce bir anahtar dosyası veya PEM metni sağlayın';
+  String get provideKeyFirst => 'Önce bir anahtar dosyası veya PEM metni sağlayın';
 
   @override
   String get keyTextPem => 'Anahtar Metni (PEM)';
@@ -429,8 +422,7 @@ class STr extends S {
   String get qrGenerationFailed => 'QR oluşturma başarısız';
 
   @override
-  String get scanWithCameraApp =>
-      'LetsFLUTssh yüklü bir cihazda\nherhangi bir kamera uygulamasıyla tarayın.';
+  String get scanWithCameraApp => 'LetsFLUTssh yüklü bir cihazda\nherhangi bir kamera uygulamasıyla tarayın.';
 
   @override
   String get noPasswordsInQr => 'Bu QR kodunda şifre veya anahtar yok';
@@ -448,12 +440,10 @@ class STr extends S {
   String get unknownHost => 'Bilinmeyen Ana Bilgisayar';
 
   @override
-  String get hostKeyChangedWarning =>
-      'UYARI: Bu sunucunun ana bilgisayar anahtarı değişti. Bu, ortadaki adam saldırısına veya sunucunun yeniden kurulmasına işaret edebilir.';
+  String get hostKeyChangedWarning => 'UYARI: Bu sunucunun ana bilgisayar anahtarı değişti. Bu, ortadaki adam saldırısına veya sunucunun yeniden kurulmasına işaret edebilir.';
 
   @override
-  String get unknownHostMessage =>
-      'Bu ana bilgisayarın kimliği doğrulanamıyor. Bağlanmaya devam etmek istediğinizden emin misiniz?';
+  String get unknownHostMessage => 'Bu ana bilgisayarın kimliği doğrulanamıyor. Bağlanmaya devam etmek istediğinizden emin misiniz?';
 
   @override
   String get host => 'Ana Bilgisayar';
@@ -486,12 +476,10 @@ class STr extends S {
   String get confirmPassword => 'Şifreyi Onayla';
 
   @override
-  String get importModeMergeDescription =>
-      'Yeni oturumları ekle, mevcut olanları koru';
+  String get importModeMergeDescription => 'Yeni oturumları ekle, mevcut olanları koru';
 
   @override
-  String get importModeReplaceDescription =>
-      'Tüm oturumları içe aktarılanlarla değiştir';
+  String get importModeReplaceDescription => 'Tüm oturumları içe aktarılanlarla değiştir';
 
   @override
   String errorPrefix(String error) {
@@ -597,8 +585,7 @@ class STr extends S {
   String get noActiveSession => 'Aktif oturum yok';
 
   @override
-  String get createConnectionHint =>
-      'Yeni bir bağlantı oluşturun veya kenar çubuğundan birini seçin';
+  String get createConnectionHint => 'Yeni bir bağlantı oluşturun veya kenar çubuğundan birini seçin';
 
   @override
   String get hideSidebar => 'Kenar Çubuğunu Gizle (Ctrl+B)';
@@ -679,15 +666,13 @@ class STr extends S {
   String get exportData => 'Veriyi Dışa Aktar';
 
   @override
-  String get exportDataSubtitle =>
-      'Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet';
+  String get exportDataSubtitle => 'Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet';
 
   @override
   String get importDataSubtitle => '.lfs dosyasından veri yükle';
 
   @override
-  String get setMasterPasswordHint =>
-      'Arşivi şifrelemek için bir ana şifre belirleyin.';
+  String get setMasterPasswordHint => 'Arşivi şifrelemek için bir ana şifre belirleyin.';
 
   @override
   String get passwordsDoNotMatch => 'Şifreler eşleşmiyor';
@@ -715,8 +700,7 @@ class STr extends S {
   String get shareViaQrCode => 'QR Kodu ile Paylaş';
 
   @override
-  String get shareViaQrSubtitle =>
-      'Oturumları başka bir cihazdan taranmak üzere QR koduna aktar';
+  String get shareViaQrSubtitle => 'Oturumları başka bir cihazdan taranmak üzere QR koduna aktar';
 
   @override
   String get dataLocation => 'Veri Konumu';
@@ -800,8 +784,7 @@ class STr extends S {
   String get useSftpFromSessions => 'Oturumlardan \"SFTP\" kullanın';
 
   @override
-  String get anotherInstanceRunning =>
-      'LetsFLUTssh\'ın başka bir örneği zaten çalışıyor.';
+  String get anotherInstanceRunning => 'LetsFLUTssh\'ın başka bir örneği zaten çalışıyor.';
 
   @override
   String importFailedShort(String error) {
@@ -836,8 +819,7 @@ class STr extends S {
   String get connectionError => 'Bağlantı hatası';
 
   @override
-  String get resizeWindowToViewFiles =>
-      'Dosyaları görüntülemek için pencereyi yeniden boyutlandırın';
+  String get resizeWindowToViewFiles => 'Dosyaları görüntülemek için pencereyi yeniden boyutlandırın';
 
   @override
   String get completed => 'Tamamlandı';
@@ -852,8 +834,7 @@ class STr extends S {
   String get exit => 'Çıkış';
 
   @override
-  String get exitConfirmation =>
-      'Aktif oturumların bağlantısı kesilecek. Çıkılsın mı?';
+  String get exitConfirmation => 'Aktif oturumların bağlantısı kesilecek. Çıkılsın mı?';
 
   @override
   String get hintFolderExample => 'örn. Production';
@@ -865,16 +846,13 @@ class STr extends S {
   String get exportSessionsViaQr => 'Oturumları QR ile Dışa Aktar';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Şifreler ve SSH anahtarları DAHİL DEĞİLDİR.\nİçe aktarılan oturumların kimlik bilgilerinin doldurulması gerekecektir.';
+  String get qrNoCredentialsWarning => 'Şifreler ve SSH anahtarları DAHİL DEĞİLDİR.\nİçe aktarılan oturumların kimlik bilgilerinin doldurulması gerekecektir.';
 
   @override
-  String get qrTooManyForSingleCode =>
-      'Tek bir QR kodu için çok fazla oturum. Bazılarının seçimini kaldırın veya .lfs dışa aktarımını kullanın.';
+  String get qrTooManyForSingleCode => 'Tek bir QR kodu için çok fazla oturum. Bazılarının seçimini kaldırın veya .lfs dışa aktarımını kullanın.';
 
   @override
-  String get qrTooLarge =>
-      'Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.';
+  String get qrTooLarge => 'Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.';
 
   @override
   String get exportAll => 'Tümünü Dışa Aktar';
@@ -921,8 +899,7 @@ class STr extends S {
   String get errBadFileDescriptor => 'Geçersiz dosya tanımlayıcı';
 
   @override
-  String get errResourceTemporarilyUnavailable =>
-      'Kaynak geçici olarak kullanılamıyor';
+  String get errResourceTemporarilyUnavailable => 'Kaynak geçici olarak kullanılamıyor';
 
   @override
   String get errOutOfMemory => 'Bellek yetersiz';
@@ -1066,8 +1043,7 @@ class STr extends S {
   }
 
   @override
-  String get errDecryptionFailed =>
-      'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
+  String get errDecryptionFailed => 'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1100,15 +1076,13 @@ class STr extends S {
   String get subitems => 'Öğeler';
 
   @override
-  String get storagePermissionRequired =>
-      'Yerel dosyalara göz atmak için depolama izni gerekli';
+  String get storagePermissionRequired => 'Yerel dosyalara göz atmak için depolama izni gerekli';
 
   @override
   String get grantPermission => 'İzin ver';
 
   @override
-  String get storagePermissionLimited =>
-      'Sınırlı erişim — tüm dosyalar için tam depolama izni verin';
+  String get storagePermissionLimited => 'Sınırlı erişim — tüm dosyalar için tam depolama izni verin';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1199,8 +1173,7 @@ class STr extends S {
   String get dropKeyFileHere => 'Anahtar dosyasını buraya sürükleyin';
 
   @override
-  String get sessionNoCredentials =>
-      'Oturumda kimlik bilgisi yok — şifre veya anahtar eklemek için düzenleyin';
+  String get sessionNoCredentials => 'Oturumda kimlik bilgisi yok — şifre veya anahtar eklemek için düzenleyin';
 
   @override
   String dragItemCount(int count) {
@@ -1232,8 +1205,7 @@ class STr extends S {
   String get sshConnectionChannel => 'SSH Bağlantısı';
 
   @override
-  String get sshConnectionChannelDesc =>
-      'SSH bağlantılarını arka planda canlı tutar.';
+  String get sshConnectionChannelDesc => 'SSH bağlantılarını arka planda canlı tutar.';
 
   @override
   String get sshActive => 'SSH aktif';
@@ -1264,8 +1236,7 @@ class STr extends S {
   String get knownHosts => 'Bilinen Sunucular';
 
   @override
-  String get knownHostsSubtitle =>
-      'Güvenilir SSH sunucu parmak izlerini yönetin';
+  String get knownHostsSubtitle => 'Güvenilir SSH sunucu parmak izlerini yönetin';
 
   @override
   String knownHostsCount(int count) {
@@ -1280,8 +1251,7 @@ class STr extends S {
   }
 
   @override
-  String get knownHostsEmpty =>
-      'Bilinen sunucu yok. Eklemek için bir sunucuya bağlanın.';
+  String get knownHostsEmpty => 'Bilinen sunucu yok. Eklemek için bir sunucuya bağlanın.';
 
   @override
   String get removeHost => 'Sunucuyu kaldır';
@@ -1295,15 +1265,13 @@ class STr extends S {
   String get clearAllKnownHosts => 'Tüm bilinen sunucuları temizle';
 
   @override
-  String get clearAllKnownHostsConfirm =>
-      'Tüm bilinen sunucular kaldırılsın mı? Her sunucu anahtarı yeniden doğrulanmalı.';
+  String get clearAllKnownHostsConfirm => 'Tüm bilinen sunucular kaldırılsın mı? Her sunucu anahtarı yeniden doğrulanmalı.';
 
   @override
   String get importKnownHosts => 'Bilinen sunucuları içe aktar';
 
   @override
-  String get importKnownHostsSubtitle =>
-      'OpenSSH known_hosts dosyasından içe aktar';
+  String get importKnownHostsSubtitle => 'OpenSSH known_hosts dosyasından içe aktar';
 
   @override
   String get exportKnownHosts => 'Bilinen sunucuları dışa aktar';
@@ -1338,8 +1306,7 @@ class STr extends S {
   String get sshKeys => 'SSH Anahtarları';
 
   @override
-  String get sshKeysSubtitle =>
-      'Kimlik doğrulama için SSH anahtar çiftlerini yönetin';
+  String get sshKeysSubtitle => 'Kimlik doğrulama için SSH anahtar çiftlerini yönetin';
 
   @override
   String get noKeys => 'SSH anahtarı yok. İçe aktarın veya oluşturun.';
@@ -1442,8 +1409,7 @@ class STr extends S {
   String get unlock => 'Kilidi aç';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Kayıtlı kimlik bilgilerini şifreyle koruyun';
+  String get masterPasswordSubtitle => 'Kayıtlı kimlik bilgilerini şifreyle koruyun';
 
   @override
   String get setMasterPassword => 'Ana şifre belirle';
@@ -1458,12 +1424,10 @@ class STr extends S {
   String get masterPasswordEnabled => 'Kimlik bilgileri ana şifreyle korunuyor';
 
   @override
-  String get masterPasswordDisabled =>
-      'Kimlik bilgileri otomatik oluşturulan anahtar kullanıyor (şifresiz)';
+  String get masterPasswordDisabled => 'Kimlik bilgileri otomatik oluşturulan anahtar kullanıyor (şifresiz)';
 
   @override
-  String get enterMasterPassword =>
-      'Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.';
+  String get enterMasterPassword => 'Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.';
 
   @override
   String get wrongMasterPassword => 'Yanlış şifre. Lütfen tekrar deneyin.';
@@ -1487,15 +1451,13 @@ class STr extends S {
   String get masterPasswordRemoved => 'Ana şifre kaldırıldı';
 
   @override
-  String get masterPasswordWarning =>
-      'Bu şifreyi unutursanız, tüm kayıtlı şifreler ve SSH anahtarları kaybolacak. Kurtarma mümkün değil.';
+  String get masterPasswordWarning => 'Bu şifreyi unutursanız, tüm kayıtlı şifreler ve SSH anahtarları kaybolacak. Kurtarma mümkün değil.';
 
   @override
   String get forgotPassword => 'Şifrenizi mi unuttunuz?';
 
   @override
-  String get forgotPasswordWarning =>
-      'Bu işlem TÜM kayıtlı şifreleri, SSH anahtarlarını ve parolaları silecek. Oturumlar ve ayarlar korunacak. Bu işlem geri alınamaz.';
+  String get forgotPasswordWarning => 'Bu işlem TÜM kayıtlı şifreleri, SSH anahtarlarını ve parolaları silecek. Oturumlar ve ayarlar korunacak. Bu işlem geri alınamaz.';
 
   @override
   String get resetAndDeleteCredentials => 'Sıfırla ve verileri sil';
@@ -1510,8 +1472,7 @@ class STr extends S {
   String get reEncrypting => 'Veriler yeniden şifreleniyor...';
 
   @override
-  String get confirmRemoveMasterPassword =>
-      'Ana şifre korumasını kaldırmak için mevcut şifrenizi girin. Kimlik bilgileri otomatik anahtarla yeniden şifrelenecek.';
+  String get confirmRemoveMasterPassword => 'Ana şifre korumasını kaldırmak için mevcut şifrenizi girin. Kimlik bilgileri otomatik anahtarla yeniden şifrelenecek.';
 
   @override
   String get securitySetupTitle => 'Güvenlik ayarları';
@@ -1522,20 +1483,16 @@ class STr extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional =>
-      'Ek koruma için ana şifre de belirleyebilirsiniz.';
+  String get securitySetupKeychainOptional => 'Ek koruma için ana şifre de belirleyebilirsiniz.';
 
   @override
-  String get securitySetupNoKeychain =>
-      'Sistem anahtar zinciri algılanmadı. Anahtar zinciri olmadan oturum verileriniz (sunucular, şifreler, anahtarlar) düz metin olarak saklanacak.';
+  String get securitySetupNoKeychain => 'Sistem anahtar zinciri algılanmadı. Anahtar zinciri olmadan oturum verileriniz (sunucular, şifreler, anahtarlar) düz metin olarak saklanacak.';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      'WSL, grafik arayüzsüz Linux veya minimal kurulumlar için normaldir. Linux\'ta anahtar zincirini etkinleştirmek için: libsecret ve bir anahtar zinciri arka plan hizmeti (örn. gnome-keyring) yükleyin.';
+  String get securitySetupNoKeychainHint => 'WSL, grafik arayüzsüz Linux veya minimal kurulumlar için normaldir. Linux\'ta anahtar zincirini etkinleştirmek için: libsecret ve bir anahtar zinciri arka plan hizmeti (örn. gnome-keyring) yükleyin.';
 
   @override
-  String get securitySetupRecommendMasterPassword =>
-      'Verilerinizi korumak için ana şifre belirlemenizi öneriyoruz.';
+  String get securitySetupRecommendMasterPassword => 'Verilerinizi korumak için ana şifre belirlemenizi öneriyoruz.';
 
   @override
   String get continueWithKeychain => 'Anahtar zinciriyle devam et';
@@ -1570,8 +1527,7 @@ class STr extends S {
   String get enableKeychain => 'Anahtar zinciri şifrelemesini etkinleştir';
 
   @override
-  String get enableKeychainSubtitle =>
-      'Sistem anahtar zincirini kullanarak saklanan verileri yeniden şifrele';
+  String get enableKeychainSubtitle => 'Sistem anahtar zincirini kullanarak saklanan verileri yeniden şifrele';
 
   @override
   String get keychainEnabled => 'Anahtar zinciri şifrelemesi etkinleştirildi';
@@ -1580,8 +1536,7 @@ class STr extends S {
   String get manageMasterPassword => 'Ana şifreyi yönet';
 
   @override
-  String get manageMasterPasswordSubtitle =>
-      'Ana şifreyi belirle, değiştir veya kaldır';
+  String get manageMasterPasswordSubtitle => 'Ana şifreyi belirle, değiştir veya kaldır';
 
   @override
   String get snippets => 'Snippets';
@@ -1743,17 +1698,29 @@ class STr extends S {
   }
 
   @override
-  String get disableKeychain =>
-      'Anahtar zinciri şifrelemesini devre dışı bırak';
+  String get disableKeychain => 'Anahtar zinciri şifrelemesini devre dışı bırak';
 
   @override
   String get disableKeychainSubtitle => 'Düz metin depolamaya geç (önerilmez)';
 
   @override
-  String get disableKeychainConfirm =>
-      'Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?';
+  String get disableKeychainConfirm => 'Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?';
 
   @override
-  String get keychainDisabled =>
-      'Anahtar zinciri şifrelemesi devre dışı bırakıldı';
+  String get keychainDisabled => 'Anahtar zinciri şifrelemesi devre dışı bırakıldı';
+
+  @override
+  String get presetFullImport => 'Full import';
+
+  @override
+  String get presetSelective => 'Selective';
+
+  @override
+  String get presetCustom => 'Custom';
+
+  @override
+  String get sessionSshKeys => 'Session SSH keys';
+
+  @override
+  String get allManagerKeys => 'All manager keys';
 }

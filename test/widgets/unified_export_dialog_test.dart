@@ -157,6 +157,10 @@ void main() {
       await tester.pumpWidget(buildDialog(sessions: sessions, isQrMode: true));
       await tester.pump();
 
+      // Expand the collapsed "What to import" section to reveal checkboxes.
+      await tester.tap(find.text('What to import:'));
+      await tester.pumpAndSettle();
+
       // Embedded keys are OFF by default — enable it (second checkbox)
       final embeddedKeysCheckbox = find.byType(Checkbox).at(1);
       await tester.tap(embeddedKeysCheckbox);
@@ -417,6 +421,10 @@ void main() {
 
       await tester.pumpWidget(buildDialog(sessions: sessions, isQrMode: false));
       await tester.pump();
+
+      // Expand the collapsed "What to import" section to reveal checkboxes.
+      await tester.tap(find.text('What to import:'));
+      await tester.pumpAndSettle();
 
       // Tap the session passwords checkbox (English l10n)
       await tester.tap(find.text('Session passwords'));

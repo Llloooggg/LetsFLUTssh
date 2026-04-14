@@ -4,7 +4,9 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 
 import '../core/config/app_config.dart';
+import '../core/security/key_store.dart';
 import '../core/session/qr_codec.dart';
+import '../../features/settings/export_import.dart';
 import '../core/session/session.dart';
 import '../core/snippets/snippet.dart';
 import '../core/tags/tag.dart';
@@ -26,9 +28,11 @@ class UnifiedExportDialogData {
   final String? knownHostsContent;
 
   /// Map of keyId -> keyData for keys stored in the manager.
-  /// Used to calculate export size for manager keys separately from
-  /// embedded keys.
+  /// Used for QR-mode manager key size estimation.
   final Map<String, String> managerKeys;
+
+  /// Full SshKeyEntry map for .lfs archive size estimation.
+  final Map<String, SshKeyEntry> managerKeyEntries;
 
   /// All tags for size calculation and export.
   final List<Tag> tags;
@@ -42,6 +46,7 @@ class UnifiedExportDialogData {
     this.config,
     this.knownHostsContent,
     this.managerKeys = const {},
+    this.managerKeyEntries = const {},
     this.tags = const [],
     this.snippets = const [],
   });
@@ -76,6 +81,7 @@ class UnifiedExportDialog extends StatefulWidget {
 class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   late ExportOptions _options;
   late final Set<String> _selectedIds;
+  bool _checkboxesExpanded = false;
 
   // Cache for size calculations — invalidated on every selection/option change.
   // All size values are computed together in a single pass to avoid redundant
@@ -173,31 +179,76 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     if (_payloadSizeCacheValid && _cachedPayloadSize != null) {
       return _cachedPayloadSize!;
     }
-    // Base size without any manager keys (sessions have unresolved keyId,
-    // so encodeExportPayload can't calculate manager key sizes).
+    final result = widget.isQrMode ? _qrPayloadSize() : _lfsArchiveSize();
+    _cachedPayloadSize = result;
+    _cachedPayloadOptions = _options;
+    _cachedPayloadSelectedIds = Set.of(_selectedIds);
+    _cachedPayloadKnownHosts = widget.data.knownHostsContent;
+    return result;
+  }
+
+  /// QR payload size: deflate-compressed JSON, base64url-encoded.
+  int _qrPayloadSize() {
     final base = calculateExportPayloadSize(
       _selectedSessions,
       input: ExportPayloadInput(
         emptyFolders: _relevantEmptyFolders,
-        options: _options.copyWith(
-          includeManagerKeys: false,
-          includeAllManagerKeys: false,
-        ),
+        options: _options
+            .withIncludeManagerKeys(false)
+            .withIncludeAllManagerKeys(false),
         config: _options.includeConfig ? widget.data.config : null,
         knownHostsContent: _options.includeKnownHosts
             ? widget.data.knownHostsContent
             : null,
       ),
     );
-    // Add manager keys size separately (uses actual key data from widget).
-    final result = _options.hasManagerKeys
-        ? base + _managerKeysExtraSize()
-        : base;
-    _cachedPayloadSize = result;
-    _cachedPayloadOptions = _options;
-    _cachedPayloadSelectedIds = Set.of(_selectedIds);
-    _cachedPayloadKnownHosts = widget.data.knownHostsContent;
-    return result;
+    return _options.hasManagerKeys ? base + _managerKeysExtraSize() : base;
+  }
+
+  /// .lfs archive size: ZIP + AES-GCM overhead (salt+IV+tag = 60 bytes).
+  int _lfsArchiveSize() {
+    final resolvedSessions = _resolveSessionsForLfsSize();
+    final keyEntries = _selectedManagerKeyEntries();
+    return ExportImport.calculateLfsSize(
+      LfsExportInput(
+        sessions: resolvedSessions,
+        config: widget.data.config ?? AppConfig.defaults,
+        options: _options,
+        emptyFolders: _relevantEmptyFolders,
+        knownHostsContent: widget.data.knownHostsContent,
+        managerKeyEntries: keyEntries,
+        tags: _options.includeTags ? widget.data.tags : const [],
+        snippets: _options.includeSnippets ? widget.data.snippets : const [],
+      ),
+    );
+  }
+
+  /// Resolve manager-key sessions with their keyData for accurate size calc.
+  List<Session> _resolveSessionsForLfsSize() {
+    final entries = widget.data.managerKeyEntries;
+    if (entries.isEmpty) return _selectedSessions;
+    return _selectedSessions.map((s) {
+      if (s.keyId.isEmpty || s.keyData.isNotEmpty) return s;
+      final entry = entries[s.keyId];
+      if (entry == null) return s;
+      return s.copyWith(auth: s.auth.copyWith(keyData: entry.privateKey));
+    }).toList();
+  }
+
+  /// Pick manager key entries to include in .lfs archive per current options.
+  List<SshKeyEntry> _selectedManagerKeyEntries() {
+    if (!_options.hasManagerKeys) return const [];
+    final all = widget.data.managerKeyEntries;
+    if (all.isEmpty) return const [];
+    if (_options.includeAllManagerKeys) return all.values.toList();
+    final usedIds = _selectedSessions
+        .where((s) => s.keyId.isNotEmpty)
+        .map((s) => s.keyId)
+        .toSet();
+    return all.entries
+        .where((e) => usedIds.contains(e.key))
+        .map((e) => e.value)
+        .toList();
   }
 
   /// Size contribution of one credential type, measured against a baseline
@@ -212,11 +263,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     required bool includeManagerKeys,
   }) {
     if (_selectedSessions.isEmpty) return 0;
-    final baselineOptions = _options.copyWith(
-      includePasswords: false,
-      includeEmbeddedKeys: false,
-      includeManagerKeys: false,
-    );
+    final baselineOptions = _options
+        .withIncludePasswords(false)
+        .withIncludeEmbeddedKeys(false)
+        .withIncludeManagerKeys(false);
     final baseline = calculateExportPayloadSize(
       _selectedSessions,
       input: ExportPayloadInput(options: baselineOptions),
@@ -224,11 +274,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     final withCred = calculateExportPayloadSize(
       _selectedSessions,
       input: ExportPayloadInput(
-        options: _options.copyWith(
-          includePasswords: includePasswords,
-          includeEmbeddedKeys: includeEmbeddedKeys,
-          includeManagerKeys: includeManagerKeys,
-        ),
+        options: _options
+            .withIncludePasswords(includePasswords)
+            .withIncludeEmbeddedKeys(includeEmbeddedKeys)
+            .withIncludeManagerKeys(includeManagerKeys),
       ),
     );
     return (withCred - baseline).clamp(0, withCred);
@@ -545,7 +594,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildPresets(),
-                        _buildDataCheckboxes(),
+                        _buildCheckboxesSection(),
                         if (widget.isQrMode && _options.includePasswords)
                           _buildQrSecurityWarning(),
                         const AppDivider(),
@@ -629,7 +678,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           children: [
             ChoiceChip(
               avatar: const Icon(Icons.backup, size: 18),
-              label: const Text('Full backup'),
+              label: Text(S.of(context).fullBackup),
               selected: _isPresetActive(_fullBackupPreset),
               selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               onSelected: (_) => setState(() {
@@ -640,7 +689,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             ),
             ChoiceChip(
               avatar: const Icon(Icons.dns, size: 18),
-              label: const Text('Sessions'),
+              label: Text(S.of(context).sessionsOnly),
               selected: _isPresetActive(_sessionsPreset),
               selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               onSelected: (_) => setState(() {
@@ -651,6 +700,56 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           ],
         ),
         const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  String _activePresetLabel() {
+    final s = S.of(context);
+    if (_isPresetActive(_fullBackupPreset)) return s.fullBackup;
+    if (_isPresetActive(_sessionsPreset)) return s.sessionsOnly;
+    return s.presetCustom;
+  }
+
+  Widget _buildCheckboxesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HoverRegion(
+          onTap: () =>
+              setState(() => _checkboxesExpanded = !_checkboxesExpanded),
+          builder: (hovered) => Container(
+            color: hovered ? AppTheme.hover : null,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(
+                  _checkboxesExpanded ? Icons.expand_more : Icons.chevron_right,
+                  size: 18,
+                  color: AppTheme.fgDim,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  S.of(context).importWhatToImport,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.fg,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _activePresetLabel(),
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgDim,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_checkboxesExpanded) _buildDataCheckboxes(),
       ],
     );
   }
@@ -666,9 +765,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             _options.includeConfig,
             () => setState(() {
               _invalidatePayloadCache();
-              _options = _options.copyWith(
-                includeConfig: !_options.includeConfig,
-              );
+              _options = _options.withIncludeConfig(!_options.includeConfig);
             }),
             _formatSize(_configSize()),
           ),
@@ -678,8 +775,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includePasswords,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includePasswords: !_options.includePasswords,
+            _options = _options.withIncludePasswords(
+              !_options.includePasswords,
             );
           }),
           _formatSize(_passwordsExtraSize()),
@@ -690,8 +787,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeEmbeddedKeys,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeEmbeddedKeys: !_options.includeEmbeddedKeys,
+            _options = _options.withIncludeEmbeddedKeys(
+              !_options.includeEmbeddedKeys,
             );
           }),
           _formatSize(_embeddedKeysExtraSize()),
@@ -703,10 +800,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeManagerKeys,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeManagerKeys: !_options.includeManagerKeys,
-              includeAllManagerKeys: false,
-            );
+            _options = _options
+                .withIncludeManagerKeys(!_options.includeManagerKeys)
+                .withIncludeAllManagerKeys(false);
           }),
           _formatSize(_managerKeysExtraSize()),
           warningText: _managerKeysWarningText,
@@ -717,10 +813,9 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeAllManagerKeys,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeAllManagerKeys: !_options.includeAllManagerKeys,
-              includeManagerKeys: false,
-            );
+            _options = _options
+                .withIncludeAllManagerKeys(!_options.includeAllManagerKeys)
+                .withIncludeManagerKeys(false);
           }),
           _formatSize(_managerKeysExtraSize()),
           warningText: _allManagerKeysWarningText,
@@ -732,8 +827,8 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             _options.includeKnownHosts,
             () => setState(() {
               _invalidatePayloadCache();
-              _options = _options.copyWith(
-                includeKnownHosts: !_options.includeKnownHosts,
+              _options = _options.withIncludeKnownHosts(
+                !_options.includeKnownHosts,
               );
             }),
             _formatSize(_knownHostsSize()),
@@ -744,7 +839,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeTags,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(includeTags: !_options.includeTags);
+            _options = _options.withIncludeTags(!_options.includeTags);
           }),
           _formatSize(_tagsSize()),
         ),
@@ -754,9 +849,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           _options.includeSnippets,
           () => setState(() {
             _invalidatePayloadCache();
-            _options = _options.copyWith(
-              includeSnippets: !_options.includeSnippets,
-            );
+            _options = _options.withIncludeSnippets(!_options.includeSnippets);
           }),
           _formatSize(_snippetsSize()),
         ),
@@ -796,7 +889,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
           Expanded(
             child: Text(
               S.of(context).qrPasswordWarning,
-              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.orange),
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.orange,
+              ),
             ),
           ),
         ],
@@ -831,7 +927,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(
+                    style: AppFonts.inter(
                       fontWeight: FontWeight.w600,
                       fontSize: AppFonts.md,
                       color: warningText != null
@@ -842,7 +938,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                   if (warningText != null)
                     Text(
                       warningText,
-                      style: TextStyle(
+                      style: AppFonts.inter(
                         fontSize: AppFonts.xs,
                         color: AppTheme.orange,
                       ),
@@ -853,7 +949,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             if (sizeLabel != null)
               Text(
                 sizeLabel,
-                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fgDim,
+                ),
               ),
           ],
         ),
@@ -880,9 +979,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     _selectedIds.length,
                     widget.data.sessions.length,
                   ),
-              style: TextStyle(
+              style: AppFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: AppFonts.md,
+                color: AppTheme.fg,
               ),
             ),
           ],
@@ -924,9 +1024,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               Expanded(
                 child: Text(
                   node.name,
-                  style: TextStyle(
+                  style: AppFonts.inter(
                     fontSize: AppFonts.md,
                     fontWeight: FontWeight.w500,
+                    color: AppTheme.fg,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -964,7 +1065,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                   session.label.isNotEmpty
                       ? session.label
                       : session.displayName,
-                  style: TextStyle(
+                  style: AppFonts.inter(
                     fontSize: AppFonts.md,
                     color: isIncomplete ? AppTheme.orange : AppTheme.fg,
                   ),
@@ -990,12 +1091,12 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                   (_payloadSize / 1024).toStringAsFixed(1),
                   (qrMaxPayloadBytes / 1024).toStringAsFixed(1),
                 ),
-            style: TextStyle(fontSize: AppFonts.sm, color: sizeColor),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: sizeColor),
           )
         else
           Text(
             S.of(context).exportTotalSize(_formatSize(_payloadSize)),
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         if (widget.isQrMode) ...[
           const SizedBox(height: 4),
@@ -1011,7 +1112,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             const SizedBox(height: 8),
             Text(
               S.of(context).qrTooLarge,
-              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.red),
             ),
           ],
         ],

@@ -33,6 +33,21 @@
 
     target.innerHTML = marked.parse(md);
 
+    // Rewrite relative links → GitHub (blob for files, anchor stays).
+    const repoBlob = 'https://github.com/Llloooggg/LetsFLUTssh/blob/main/';
+    const repoRaw = 'https://raw.githubusercontent.com/Llloooggg/LetsFLUTssh/main/';
+    target.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (!href) return;
+      if (href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) return;
+      a.setAttribute('href', repoBlob + href);
+    });
+    target.querySelectorAll('img[src]').forEach(img => {
+      const src = img.getAttribute('src');
+      if (!src || src.startsWith('http') || src.startsWith('data:')) return;
+      img.setAttribute('src', repoRaw + src);
+    });
+
     // Make external links open in new tab.
     target.querySelectorAll('a[href^="http"]').forEach(a => {
       a.target = '_blank';

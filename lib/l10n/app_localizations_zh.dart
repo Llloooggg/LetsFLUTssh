@@ -440,8 +440,7 @@ class SZh extends S {
   String get unknownHost => '未知主机';
 
   @override
-  String get hostKeyChangedWarning =>
-      '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
+  String get hostKeyChangedWarning => '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
 
   @override
   String get unknownHostMessage => '无法验证此主机的真实性。确定要继续连接吗？';
@@ -1455,8 +1454,7 @@ class SZh extends S {
   String get forgotPassword => '忘记密码？';
 
   @override
-  String get forgotPasswordWarning =>
-      '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
+  String get forgotPasswordWarning => '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
 
   @override
   String get resetAndDeleteCredentials => '重置并删除凭据';
@@ -1485,12 +1483,10 @@ class SZh extends S {
   String get securitySetupKeychainOptional => '您还可以设置主密码以获得额外保护。';
 
   @override
-  String get securitySetupNoKeychain =>
-      '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
+  String get securitySetupNoKeychain => '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
 
   @override
-  String get securitySetupNoKeychainHint =>
-      '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
+  String get securitySetupNoKeychainHint => '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
 
   @override
   String get securitySetupRecommendMasterPassword => '建议设置主密码以保护您的数据。';
@@ -1705,9 +1701,23 @@ class SZh extends S {
   String get disableKeychainSubtitle => '切换到明文存储（不推荐）';
 
   @override
-  String get disableKeychainConfirm =>
-      '数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？';
+  String get disableKeychainConfirm => '数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？';
 
   @override
   String get keychainDisabled => '钥匙串加密已禁用';
+
+  @override
+  String get presetFullImport => 'Full import';
+
+  @override
+  String get presetSelective => 'Selective';
+
+  @override
+  String get presetCustom => 'Custom';
+
+  @override
+  String get sessionSshKeys => 'Session SSH keys';
+
+  @override
+  String get allManagerKeys => 'All manager keys';
 }
