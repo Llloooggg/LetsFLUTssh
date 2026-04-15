@@ -205,5 +205,126 @@ Host aliasonly
       expect(entries.first.hostName, isNull);
       expect(entries.first.effectiveHost, 'aliasonly');
     });
+
+    group('wildcard defaults (Host * and pattern blocks)', () {
+      test(
+        'Host * applies User / Port defaults to concrete hosts that omit them',
+        () {
+          const input = '''
+Host *
+    User default-user
+    Port 2200
+
+Host prod
+    HostName prod.example.com
+''';
+          final entries = parseOpenSshConfig(input);
+          expect(entries.map((e) => e.host), ['prod']);
+          expect(entries.first.user, 'default-user');
+          expect(entries.first.port, 2200);
+          expect(entries.first.hostName, 'prod.example.com');
+        },
+      );
+
+      test(
+        'first-match-wins: earlier block value takes precedence (OpenSSH semantics)',
+        () {
+          // Standard OpenSSH idiom: concrete hosts first, catch-all Host *
+          // at the end. `prod`'s own User/Port come first → they win;
+          // `Host *` only fills fields that weren't set yet.
+          const input = '''
+Host prod
+    HostName prod.example.com
+    User ops
+    Port 22
+
+Host *
+    User default-user
+    Port 2200
+    IdentityFile ~/.ssh/id_default
+''';
+          final entries = parseOpenSshConfig(input);
+          expect(entries.first.user, 'ops');
+          expect(entries.first.port, 22);
+          expect(entries.first.identityFiles, ['~/.ssh/id_default']);
+        },
+      );
+
+      test('pattern blocks apply only to matching concrete hosts', () {
+        const input = '''
+Host *.internal
+    User intern
+
+Host db.internal
+    HostName 10.0.0.5
+
+Host public
+    HostName public.example.com
+''';
+        final entries = parseOpenSshConfig(input);
+        final db = entries.firstWhere((e) => e.host == 'db.internal');
+        final pub = entries.firstWhere((e) => e.host == 'public');
+        expect(db.user, 'intern', reason: 'db.internal matches *.internal');
+        expect(pub.user, isNull, reason: 'public does not match *.internal');
+      });
+
+      test(
+        'IdentityFile from wildcard cascades to concrete hosts (accumulates)',
+        () {
+          const input = '''
+Host *
+    IdentityFile ~/.ssh/id_fallback
+
+Host work
+    HostName work.example.com
+    IdentityFile ~/.ssh/id_work
+''';
+          final entries = parseOpenSshConfig(input);
+          expect(entries.first.identityFiles, [
+            '~/.ssh/id_fallback',
+            '~/.ssh/id_work',
+          ]);
+        },
+      );
+
+      test('negation pattern (!) blocks a block from applying', () {
+        const input = '''
+Host * !secure
+    User generic
+
+Host normal
+    HostName n.example.com
+
+Host secure
+    HostName s.example.com
+''';
+        final entries = parseOpenSshConfig(input);
+        final normal = entries.firstWhere((e) => e.host == 'normal');
+        final secure = entries.firstWhere((e) => e.host == 'secure');
+        expect(normal.user, 'generic');
+        expect(
+          secure.user,
+          isNull,
+          reason: '!secure negates the wildcard match for host "secure"',
+        );
+      });
+
+      test('multi-pattern wildcard block matches via any positive pattern', () {
+        const input = '''
+Host git* *.ci
+    User ci-bot
+
+Host github.com
+    HostName ssh.github.com
+
+Host runner.ci
+    HostName runner.ci.example
+''';
+        final entries = parseOpenSshConfig(input);
+        for (final e in entries) {
+          expect(e.user, 'ci-bot', reason: 'both hosts match one pattern');
+        }
+      });
+    });
   });
 }

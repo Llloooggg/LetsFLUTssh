@@ -25,56 +25,99 @@ class OpenSshConfigEntry {
 
 /// Parse OpenSSH config file contents into a list of concrete host entries.
 ///
-/// Wildcard patterns (`*`, `?`, `!`) and the catch-all `Host *` block are
-/// skipped — only concrete aliases are returned. Includes are not expanded.
-/// Unknown directives are ignored silently.
+/// Wildcard blocks (`Host *`, `Host *.internal`, …) are NOT emitted as their
+/// own entries, but their directives do cascade onto every concrete host
+/// whose alias matches the pattern, using OpenSSH's first-value-wins rule:
+/// blocks are walked top-to-bottom, and each directive is taken from the
+/// first matching block that sets it. So a leading `Host *` with a default
+/// `User` / `IdentityFile` fills in those fields on every concrete host
+/// that doesn't already specify them.
+///
+/// Includes are not expanded. Negation patterns (`!`) are treated as
+/// non-matching for safety. Unknown directives are ignored silently.
 List<OpenSshConfigEntry> parseOpenSshConfig(String content) {
+  final blocks = _parseBlocks(content);
   final entries = <OpenSshConfigEntry>[];
-  final lines = const LineSplitter().convert(content);
-  // (LineSplitter handles \r\n, \r, \n)
 
-  List<String>? currentHosts;
+  for (var i = 0; i < blocks.length; i++) {
+    final block = blocks[i];
+    for (final pattern in block.patterns) {
+      if (_isWildcardPattern(pattern)) continue;
+      entries.add(_resolveEntry(pattern, blocks));
+    }
+  }
+  return entries;
+}
+
+/// Walk blocks top-to-bottom; for each directive take the first value
+/// from a block that matches [host] and sets that directive.
+OpenSshConfigEntry _resolveEntry(String host, List<_RawBlock> blocks) {
   String? hostName;
   String? user;
   int? port;
   final identityFiles = <String>[];
 
-  void flush() {
-    final hosts = currentHosts;
-    if (hosts == null) return;
-    for (final h in hosts) {
-      if (_isWildcard(h)) continue;
-      entries.add(
-        OpenSshConfigEntry(
-          host: h,
-          hostName: hostName,
-          user: user,
-          port: port,
-          identityFiles: List.unmodifiable(identityFiles),
-        ),
-      );
-    }
+  for (final block in blocks) {
+    if (!block.matches(host)) continue;
+    hostName ??= block.hostName;
+    user ??= block.user;
+    port ??= block.port;
+    // IdentityFile is additive in OpenSSH (multiple files tried in order).
+    identityFiles.addAll(block.identityFiles);
   }
 
-  for (final rawLine in lines) {
+  return OpenSshConfigEntry(
+    host: host,
+    hostName: hostName,
+    user: user,
+    port: port,
+    identityFiles: List.unmodifiable(identityFiles),
+  );
+}
+
+/// Split the file into raw Host blocks, preserving order. Malformed lines,
+/// unknown directives, and orphan directives (before any Host) are dropped
+/// so broken configs still yield whatever live entries are readable.
+List<_RawBlock> _parseBlocks(String content) {
+  final blocks = <_RawBlock>[];
+  List<String>? patterns;
+  String? hostName;
+  String? user;
+  int? port;
+  var identityFiles = <String>[];
+
+  void flush() {
+    final p = patterns;
+    if (p == null) return;
+    blocks.add(
+      _RawBlock(
+        patterns: p,
+        hostName: hostName,
+        user: user,
+        port: port,
+        identityFiles: List.unmodifiable(identityFiles),
+      ),
+    );
+  }
+
+  for (final rawLine in const LineSplitter().convert(content)) {
     final line = _stripComment(rawLine).trim();
     if (line.isEmpty) continue;
-
     final (keyword, value) = _splitKeywordValue(line);
     if (keyword == null || value == null) continue;
-
     final kw = keyword.toLowerCase();
+
     if (kw == 'host') {
       flush();
-      currentHosts = _splitHostPatterns(value);
+      patterns = _splitHostPatterns(value);
       hostName = null;
       user = null;
       port = null;
-      identityFiles.clear();
+      identityFiles = <String>[];
       continue;
     }
 
-    if (currentHosts == null) continue; // Match/global scope — skip
+    if (patterns == null) continue; // orphan directive — skip
 
     switch (kw) {
       case 'hostname':
@@ -88,11 +131,60 @@ List<OpenSshConfigEntry> parseOpenSshConfig(String content) {
     }
   }
   flush();
-  return entries;
+  return blocks;
 }
 
-bool _isWildcard(String host) =>
+/// Raw Host block kept in file order. A block matches a concrete host if any
+/// of its non-negated patterns matches AND no negation pattern matches — the
+/// same rule OpenSSH applies.
+class _RawBlock {
+  final List<String> patterns;
+  final String? hostName;
+  final String? user;
+  final int? port;
+  final List<String> identityFiles;
+
+  const _RawBlock({
+    required this.patterns,
+    required this.hostName,
+    required this.user,
+    required this.port,
+    required this.identityFiles,
+  });
+
+  bool matches(String host) {
+    var positiveMatch = false;
+    for (final raw in patterns) {
+      final isNegation = raw.startsWith('!');
+      final pattern = isNegation ? raw.substring(1) : raw;
+      if (!_globMatches(pattern, host)) continue;
+      if (isNegation) return false;
+      positiveMatch = true;
+    }
+    return positiveMatch;
+  }
+}
+
+bool _isWildcardPattern(String host) =>
     host.contains('*') || host.contains('?') || host.startsWith('!');
+
+/// Minimal OpenSSH-style glob: `*` matches any run (including empty), `?`
+/// matches exactly one char, everything else is literal. Case-sensitive.
+bool _globMatches(String pattern, String text) {
+  // Anchor at both ends.
+  final regex = StringBuffer('^');
+  for (final c in pattern.split('')) {
+    if (c == '*') {
+      regex.write('.*');
+    } else if (c == '?') {
+      regex.write('.');
+    } else {
+      regex.write(RegExp.escape(c));
+    }
+  }
+  regex.write(r'$');
+  return RegExp(regex.toString()).hasMatch(text);
+}
 
 String _stripComment(String line) {
   // Comments start with '#' but only outside quoted strings.

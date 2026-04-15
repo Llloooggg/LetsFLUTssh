@@ -163,7 +163,13 @@ Host multi
       expect(preview.hostsWithMissingKeys, isEmpty);
     });
 
-    test('wildcards and global scope are skipped', () {
+    test('wildcard blocks emit no entries of their own, but their directives '
+        'cascade onto concrete hosts via first-match-wins', () {
+      // Real OpenSSH semantics: `Host *` at the top of the file wins over
+      // the concrete `Host real` for User because "first obtained value
+      // will be used". That's why the common idiom is to put `Host *` at
+      // the END of ~/.ssh/config. Pre-host `User global` sits in a
+      // directive-before-any-Host scope that we still drop.
       final preview = importerWith({}).buildPreview(
         configContent: '''
 User global
@@ -179,6 +185,24 @@ Host real
       );
       expect(preview.result.sessions, hasLength(1));
       expect(preview.result.sessions.first.label, 'real');
+      // Host * wins over Host real because it comes first in the file.
+      expect(preview.result.sessions.first.user, 'everyone');
+      expect(preview.result.sessions.first.host, 'real.example.com');
+    });
+
+    test('concrete host placed before Host * keeps its own User', () {
+      // Practical idiom — put concrete hosts first, catch-all at the end.
+      final preview = importerWith({}).buildPreview(
+        configContent: '''
+Host real
+    HostName real.example.com
+    User alice
+
+Host *
+    User everyone
+''',
+        folderLabel: 'Imported',
+      );
       expect(preview.result.sessions.first.user, 'alice');
     });
 
