@@ -375,6 +375,8 @@
   "biometricDisabled": "باز کردن قفل زیست‌سنجی غیرفعال شد",
   "currentPasswordIncorrect": "گذرواژهٔ فعلی نادرست است",
   "wrongPassword": "گذرواژهٔ نادرست",
+  "useKeychain": "رمزگذاری با کی‌چین سیستم‌عامل",
+  "useKeychainSubtitle": "کلید پایگاه داده در مخزن اعتبارنامهٔ سیستم ذخیره می‌شود. خاموش = پایگاه داده به‌صورت متن ساده.",
   "lockScreenTitle": "LetsFLUTssh قفل است",
   "lockScreenSubtitle": "برای ادامه، گذرواژهٔ اصلی را وارد کنید یا از زیست‌سنجی استفاده کنید.",
   "unlock": "باز کردن قفل",

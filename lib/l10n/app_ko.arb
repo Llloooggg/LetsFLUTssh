@@ -375,6 +375,8 @@
   "biometricDisabled": "생체 인식 잠금 해제가 비활성화되었습니다",
   "currentPasswordIncorrect": "현재 비밀번호가 올바르지 않습니다",
   "wrongPassword": "잘못된 비밀번호",
+  "useKeychain": "OS 키체인으로 암호화",
+  "useKeychainSubtitle": "데이터베이스 키를 시스템 자격 증명 저장소에 보관합니다. 끄기 = 평문 데이터베이스.",
   "lockScreenTitle": "LetsFLUTssh이(가) 잠겨 있습니다",
   "lockScreenSubtitle": "계속하려면 마스터 비밀번호를 입력하거나 생체 인식을 사용하세요.",
   "unlock": "잠금 해제",

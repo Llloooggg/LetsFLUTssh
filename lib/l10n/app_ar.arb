@@ -375,6 +375,8 @@
   "biometricDisabled": "تم تعطيل الفتح بالمقاييس الحيوية",
   "currentPasswordIncorrect": "كلمة المرور الحالية غير صحيحة",
   "wrongPassword": "كلمة مرور خاطئة",
+  "useKeychain": "التشفير باستخدام سلسلة مفاتيح النظام",
+  "useKeychainSubtitle": "تخزين مفتاح قاعدة البيانات في مخزن بيانات الاعتماد بالنظام. إيقاف = قاعدة بيانات بنص صريح.",
   "lockScreenTitle": "LetsFLUTssh مُقفل",
   "lockScreenSubtitle": "أدخل كلمة المرور الرئيسية أو استخدم المقاييس الحيوية للمتابعة.",
   "unlock": "إلغاء القفل",

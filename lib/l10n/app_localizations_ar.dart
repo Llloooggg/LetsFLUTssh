@@ -1165,6 +1165,13 @@ class SAr extends S {
   String get wrongPassword => 'كلمة مرور خاطئة';
 
   @override
+  String get useKeychain => 'التشفير باستخدام سلسلة مفاتيح النظام';
+
+  @override
+  String get useKeychainSubtitle =>
+      'تخزين مفتاح قاعدة البيانات في مخزن بيانات الاعتماد بالنظام. إيقاف = قاعدة بيانات بنص صريح.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh مُقفل';
 
   @override

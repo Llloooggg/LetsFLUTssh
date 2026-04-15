@@ -1169,6 +1169,13 @@ class SFa extends S {
   String get wrongPassword => 'گذرواژهٔ نادرست';
 
   @override
+  String get useKeychain => 'رمزگذاری با کی‌چین سیستم‌عامل';
+
+  @override
+  String get useKeychainSubtitle =>
+      'کلید پایگاه داده در مخزن اعتبارنامهٔ سیستم ذخیره می‌شود. خاموش = پایگاه داده به‌صورت متن ساده.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh قفل است';
 
   @override

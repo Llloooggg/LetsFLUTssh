@@ -1172,6 +1172,13 @@ class SHi extends S {
   String get wrongPassword => 'गलत पासवर्ड';
 
   @override
+  String get useKeychain => 'OS कीचेन से एन्क्रिप्ट करें';
+
+  @override
+  String get useKeychainSubtitle =>
+      'डेटाबेस कुंजी को सिस्टम क्रेडेंशियल स्टोर में रखें। बंद = सादा-पाठ डेटाबेस।';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh लॉक है';
 
   @override

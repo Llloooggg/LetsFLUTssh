@@ -375,6 +375,8 @@
   "biometricDisabled": "Đã tắt mở khóa sinh trắc học",
   "currentPasswordIncorrect": "Mật khẩu hiện tại không đúng",
   "wrongPassword": "Mật khẩu không đúng",
+  "useKeychain": "Mã hoá bằng keychain của hệ điều hành",
+  "useKeychainSubtitle": "Lưu khoá cơ sở dữ liệu trong kho thông tin đăng nhập của hệ thống. Tắt = cơ sở dữ liệu ở dạng văn bản thuần.",
   "lockScreenTitle": "LetsFLUTssh đã bị khóa",
   "lockScreenSubtitle": "Nhập mật khẩu chính hoặc dùng sinh trắc học để tiếp tục.",
   "unlock": "Mở khóa",

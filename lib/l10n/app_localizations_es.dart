@@ -1178,6 +1178,13 @@ class SEs extends S {
   String get wrongPassword => 'Contraseña incorrecta';
 
   @override
+  String get useKeychain => 'Cifrar con el llavero del sistema';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Guardar la clave de la base de datos en el almacén de credenciales del sistema. Desactivado = base de datos sin cifrar.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
 
   @override

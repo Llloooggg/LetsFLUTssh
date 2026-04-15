@@ -681,6 +681,8 @@
   "biometricDisabled": "Biometric unlock disabled",
   "currentPasswordIncorrect": "Current password is incorrect",
   "wrongPassword": "Wrong password",
+  "useKeychain": "Encrypt with OS keychain",
+  "useKeychainSubtitle": "Store the database key in the system credential store. Off = plaintext database.",
   "lockScreenTitle": "LetsFLUTssh is locked",
   "lockScreenSubtitle": "Enter the master password or use biometrics to continue.",
   "unlock": "Unlock",

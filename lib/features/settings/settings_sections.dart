@@ -247,24 +247,21 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           subtitle: l10n.manageMasterPasswordSubtitle,
           onTap: () => _manageMasterPassword(context),
         ),
-        // Both keychain rows are always rendered so the layout stays stable
-        // — disabled grey when the action doesn't apply (no platform support
-        // or wrong current security level).
-        _ActionTile(
+        // Single keychain toggle — its label and behaviour flip with the
+        // current security level instead of two separate enable/disable
+        // rows. Greyed out when the platform has no keychain available or
+        // when the current mode is masterPassword (in which case the user
+        // changes mode through the master-password manager instead).
+        _Toggle(
+          label: l10n.useKeychain,
+          subtitle: l10n.useKeychainSubtitle,
           icon: Icons.enhanced_encryption,
-          title: l10n.enableKeychain,
-          subtitle: l10n.enableKeychainSubtitle,
-          enabled:
+          value: secState.level == SecurityLevel.keychain,
+          onChanged:
               _keychainAvailable == true &&
-              secState.level == SecurityLevel.plaintext,
-          onTap: () => _enableKeychain(context),
-        ),
-        _ActionTile(
-          icon: Icons.no_encryption_gmailerrorred,
-          title: l10n.disableKeychain,
-          subtitle: l10n.disableKeychainSubtitle,
-          enabled: secState.level == SecurityLevel.keychain,
-          onTap: () => _disableKeychain(context),
+                  secState.level != SecurityLevel.masterPassword
+              ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
+              : null,
         ),
         // Biometric unlock — only rendered when the device actually has
         // biometric hardware. Hidden on headless/Linux so the settings

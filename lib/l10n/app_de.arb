@@ -375,6 +375,8 @@
   "biometricDisabled": "Biometrische Entsperrung deaktiviert",
   "currentPasswordIncorrect": "Aktuelles Passwort ist falsch",
   "wrongPassword": "Falsches Passwort",
+  "useKeychain": "Mit Betriebssystem-Schlüsselbund verschlüsseln",
+  "useKeychainSubtitle": "Den Datenbankschlüssel im Anmeldeinformationsspeicher des Systems ablegen. Aus = Klartext-Datenbank.",
   "lockScreenTitle": "LetsFLUTssh ist gesperrt",
   "lockScreenSubtitle": "Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.",
   "unlock": "Entsperren",

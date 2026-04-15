@@ -32,7 +32,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
 - **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection (now also reachable from the mobile SSH keyboard bar)
 - **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
-- **Security** — encrypted SQLite storage (AES-256-GCM via SQLite3MultipleCiphers), OS keychain or master password, encrypted `.lfs` export/import, TOFU host key verification
+- **Security** — encrypted SQLite storage (AES-256-GCM via SQLite3MultipleCiphers), three storage modes (plaintext / OS keychain / master password) with on-the-fly switching, optional biometric unlock and idle auto-lock in master-password mode, page-locked in-memory secrets (mlock/VirtualLock), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`), encrypted `.lfs` export/import, TOFU host key verification
 - **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), pinch-to-zoom, deep links
 - **Auth** — password, key file, PEM text

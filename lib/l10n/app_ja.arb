@@ -375,6 +375,8 @@
   "biometricDisabled": "生体認証によるロック解除を無効にしました",
   "currentPasswordIncorrect": "現在のパスワードが正しくありません",
   "wrongPassword": "パスワードが間違っています",
+  "useKeychain": "OS のキーチェーンで暗号化",
+  "useKeychainSubtitle": "データベースキーをシステムの認証情報ストアに保存します。オフ = 平文のデータベース。",
   "lockScreenTitle": "LetsFLUTssh はロックされています",
   "lockScreenSubtitle": "続行するにはマスターパスワードを入力するか、生体認証を使用してください。",
   "unlock": "ロック解除",

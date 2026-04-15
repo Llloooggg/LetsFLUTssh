@@ -1172,6 +1172,13 @@ class SRu extends S {
   String get wrongPassword => 'Неверный пароль';
 
   @override
+  String get useKeychain => 'Шифровать ключом ОС';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Хранить ключ базы данных в системном хранилище учётных данных. Выкл. = база данных без шифрования.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh заблокирован';
 
   @override

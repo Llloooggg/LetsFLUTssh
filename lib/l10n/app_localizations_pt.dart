@@ -1176,6 +1176,13 @@ class SPt extends S {
   String get wrongPassword => 'Senha incorreta';
 
   @override
+  String get useKeychain => 'Criptografar com chaveiro do sistema';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Armazenar a chave do banco de dados no cofre de credenciais do sistema. Desligado = banco de dados em texto simples.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
 
   @override

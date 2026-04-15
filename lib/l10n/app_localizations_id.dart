@@ -1176,6 +1176,13 @@ class SId extends S {
   String get wrongPassword => 'Kata sandi salah';
 
   @override
+  String get useKeychain => 'Enkripsi dengan keychain OS';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Simpan kunci basis data di penyimpanan kredensial sistem. Mati = basis data teks biasa.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh terkunci';
 
   @override

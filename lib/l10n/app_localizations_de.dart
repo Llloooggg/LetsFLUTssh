@@ -1181,6 +1181,13 @@ class SDe extends S {
   String get wrongPassword => 'Falsches Passwort';
 
   @override
+  String get useKeychain => 'Mit Betriebssystem-Schlüsselbund verschlüsseln';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Den Datenbankschlüssel im Anmeldeinformationsspeicher des Systems ablegen. Aus = Klartext-Datenbank.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh ist gesperrt';
 
   @override

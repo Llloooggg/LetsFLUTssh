@@ -375,6 +375,8 @@
   "biometricDisabled": "Biyometrik kilit açma devre dışı",
   "currentPasswordIncorrect": "Mevcut parola yanlış",
   "wrongPassword": "Yanlış parola",
+  "useKeychain": "İşletim sistemi anahtarlığıyla şifrele",
+  "useKeychainSubtitle": "Veritabanı anahtarını sistemin kimlik bilgisi deposunda sakla. Kapalı = düz metin veritabanı.",
   "lockScreenTitle": "LetsFLUTssh kilitli",
   "lockScreenSubtitle": "Devam etmek için ana parolayı girin veya biyometriyi kullanın.",
   "unlock": "Kilidi aç",

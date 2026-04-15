@@ -31,10 +31,16 @@ This is a personal open-source project, so there are no guaranteed response time
 
 The following areas are in scope:
 
-- Credential storage and encryption (`CredentialStore`, AES-256-GCM) — key generation race guard, `CredentialStoreException` for decryption failures
+- Credential storage and encryption (drift + SQLite3MultipleCiphers, AES-256-GCM)
+- Three storage modes — plaintext (DB unencrypted), OS keychain (key in system credential store), master password (PBKDF2-SHA256 600k iterations) — switchable on the fly via `PRAGMA rekey`
+- Optional biometric unlock for master-password mode (`local_auth` + biometric-gated `flutter_secure_storage` slot)
+- Optional auto-lock — idle timer zeroes the in-memory DB key and overlays a lock screen until re-authentication
+- In-memory secret protection — DB key and PBKDF2-derived archive keys live in page-locked native buffers (`mlock` on POSIX, `VirtualLock` on Windows), zeroed + munlocked + freed on dispose
+- Lazy-load credentials — session passwords / passphrases / private keys are not held in the in-memory store cache; fetched from the encrypted DB only at the moment of connect, edit, duplicate, or export
+- Process hardening at startup — `prctl(PR_SET_DUMPABLE, 0)` on Linux/Android (no core dumps, no `gdb -p` from same UID without `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS
 - SSH key handling and authentication
-- Known hosts / TOFU verification — `chmod 600` on `known_hosts` file
-- Export/import archive encryption (`.lfs` format, PBKDF2-SHA256 600k iterations)
+- Known hosts / TOFU verification (DB-backed)
+- Export/import archive encryption (`.lfs` format, PBKDF2-SHA256 600k iterations, AES-256-GCM, atomic tmp-then-rename writes, 50 MiB pre-decrypt size cap, OpenSSH-config import rejects `..`-traversal `IdentityFile` paths)
 - Deep link URI parsing (`letsflutssh://` scheme) — host/port validation, path traversal rejection
 - File permission handling (`chmod 600` on credentials, known_hosts, config files)
 - Atomic file writes — write-to-temp-then-rename prevents data corruption on crash

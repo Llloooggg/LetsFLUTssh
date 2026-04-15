@@ -1144,6 +1144,12 @@ class SZh extends S {
   String get wrongPassword => '密码错误';
 
   @override
+  String get useKeychain => '使用操作系统钥匙串加密';
+
+  @override
+  String get useKeychainSubtitle => '将数据库密钥保存在系统凭据存储中。关闭 = 明文数据库。';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh 已锁定';
 
   @override

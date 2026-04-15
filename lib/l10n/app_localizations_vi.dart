@@ -1168,6 +1168,13 @@ class SVi extends S {
   String get wrongPassword => 'Mật khẩu không đúng';
 
   @override
+  String get useKeychain => 'Mã hoá bằng keychain của hệ điều hành';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Lưu khoá cơ sở dữ liệu trong kho thông tin đăng nhập của hệ thống. Tắt = cơ sở dữ liệu ở dạng văn bản thuần.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh đã bị khóa';
 
   @override

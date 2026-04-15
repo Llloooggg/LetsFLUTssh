@@ -375,6 +375,8 @@
   "biometricDisabled": "Déverrouillage biométrique désactivé",
   "currentPasswordIncorrect": "Mot de passe actuel incorrect",
   "wrongPassword": "Mot de passe incorrect",
+  "useKeychain": "Chiffrer avec le trousseau du système",
+  "useKeychainSubtitle": "Stocker la clé de la base de données dans le coffre d'identifiants du système. Désactivé = base de données en clair.",
   "lockScreenTitle": "LetsFLUTssh est verrouillé",
   "lockScreenSubtitle": "Saisissez le mot de passe maître ou utilisez la biométrie pour continuer.",
   "unlock": "Déverrouiller",

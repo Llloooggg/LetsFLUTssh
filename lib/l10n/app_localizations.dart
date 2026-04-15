@@ -2211,6 +2211,18 @@ abstract class S {
   /// **'Wrong password'**
   String get wrongPassword;
 
+  /// No description provided for @useKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypt with OS keychain'**
+  String get useKeychain;
+
+  /// No description provided for @useKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Store the database key in the system credential store. Off = plaintext database.'**
+  String get useKeychainSubtitle;
+
   /// No description provided for @lockScreenTitle.
   ///
   /// In en, this message translates to:

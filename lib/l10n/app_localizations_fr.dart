@@ -1183,6 +1183,13 @@ class SFr extends S {
   String get wrongPassword => 'Mot de passe incorrect';
 
   @override
+  String get useKeychain => 'Chiffrer avec le trousseau du système';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Stocker la clé de la base de données dans le coffre d\'identifiants du système. Désactivé = base de données en clair.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh est verrouillé';
 
   @override

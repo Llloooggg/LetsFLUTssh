@@ -40,25 +40,21 @@ class _ActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final bool enabled;
 
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = enabled ? AppTheme.fgDim : AppTheme.fgFaint;
-    final titleColor = enabled ? AppTheme.fg : AppTheme.fgFaint;
     final body = Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: iconColor),
+          Icon(icon, size: 16, color: AppTheme.fgDim),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -68,7 +64,7 @@ class _ActionTile extends StatelessWidget {
                   title,
                   style: AppFonts.inter(
                     fontSize: AppFonts.sm,
-                    color: titleColor,
+                    color: AppTheme.fg,
                   ),
                 ),
                 Text(
@@ -86,7 +82,6 @@ class _ActionTile extends StatelessWidget {
       ),
     );
 
-    if (!enabled) return body;
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) =>

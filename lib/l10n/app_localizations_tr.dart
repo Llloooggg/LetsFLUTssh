@@ -1176,6 +1176,13 @@ class STr extends S {
   String get wrongPassword => 'Yanlış parola';
 
   @override
+  String get useKeychain => 'İşletim sistemi anahtarlığıyla şifrele';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Veritabanı anahtarını sistemin kimlik bilgisi deposunda sakla. Kapalı = düz metin veritabanı.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh kilitli';
 
   @override

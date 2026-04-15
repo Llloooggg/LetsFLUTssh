@@ -375,6 +375,8 @@
   "biometricDisabled": "Buka kunci biometrik dinonaktifkan",
   "currentPasswordIncorrect": "Kata sandi saat ini salah",
   "wrongPassword": "Kata sandi salah",
+  "useKeychain": "Enkripsi dengan keychain OS",
+  "useKeychainSubtitle": "Simpan kunci basis data di penyimpanan kredensial sistem. Mati = basis data teks biasa.",
   "lockScreenTitle": "LetsFLUTssh terkunci",
   "lockScreenSubtitle": "Masukkan kata sandi utama atau gunakan biometrik untuk melanjutkan.",
   "unlock": "Buka kunci",

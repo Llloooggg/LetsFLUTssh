@@ -375,6 +375,8 @@
   "biometricDisabled": "बायोमेट्रिक अनलॉक अक्षम",
   "currentPasswordIncorrect": "वर्तमान पासवर्ड गलत है",
   "wrongPassword": "गलत पासवर्ड",
+  "useKeychain": "OS कीचेन से एन्क्रिप्ट करें",
+  "useKeychainSubtitle": "डेटाबेस कुंजी को सिस्टम क्रेडेंशियल स्टोर में रखें। बंद = सादा-पाठ डेटाबेस।",
   "lockScreenTitle": "LetsFLUTssh लॉक है",
   "lockScreenSubtitle": "जारी रखने के लिए मास्टर पासवर्ड दर्ज करें या बायोमेट्रिक्स का उपयोग करें।",
   "unlock": "अनलॉक करें",

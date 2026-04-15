@@ -1148,6 +1148,13 @@ class SJa extends S {
   String get wrongPassword => 'パスワードが間違っています';
 
   @override
+  String get useKeychain => 'OS のキーチェーンで暗号化';
+
+  @override
+  String get useKeychainSubtitle =>
+      'データベースキーをシステムの認証情報ストアに保存します。オフ = 平文のデータベース。';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh はロックされています';
 
   @override

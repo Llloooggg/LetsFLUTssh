@@ -1168,6 +1168,13 @@ class SEn extends S {
   String get wrongPassword => 'Wrong password';
 
   @override
+  String get useKeychain => 'Encrypt with OS keychain';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Store the database key in the system credential store. Off = plaintext database.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh is locked';
 
   @override

@@ -1147,6 +1147,13 @@ class SKo extends S {
   String get wrongPassword => '잘못된 비밀번호';
 
   @override
+  String get useKeychain => 'OS 키체인으로 암호화';
+
+  @override
+  String get useKeychainSubtitle =>
+      '데이터베이스 키를 시스템 자격 증명 저장소에 보관합니다. 끄기 = 평문 데이터베이스.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh이(가) 잠겨 있습니다';
 
   @override
