@@ -1155,10 +1155,31 @@ class _ExportImportTile extends ConsumerWidget {
       }
     }
     // iOS or Android without all-files access — fall back to SAF picker.
-    final dir = await FilePicker.getDirectoryPath(
-      dialogTitle: title,
-      initialDirectory: initDir,
-    );
+    // SAF can throw (e.g. the system picker crashes or the OEM skin blocks it
+    // entirely). Surface a localized toast instead of bubbling up a raw
+    // `PlatformException`, and log so we have diagnostics on OEMs that ship
+    // broken pickers.
+    String? dir;
+    try {
+      dir = await FilePicker.getDirectoryPath(
+        dialogTitle: title,
+        initialDirectory: initDir,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'SAF getDirectoryPath failed: $e',
+        name: 'Export',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).errExportPickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return null;
+    }
     if (dir == null) return null;
     return p.join(dir, defaultName);
   }
@@ -1313,6 +1334,9 @@ class _ExportImportTile extends ConsumerWidget {
         importKnownHosts: (content) async {
           await knownHostsMgr.importFromString(content);
         },
+        runInTransaction: store.database == null
+            ? null
+            : <T>(body) => store.database!.transaction(body),
       );
       final summary = await importService.applyResult(
         importResult,

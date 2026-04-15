@@ -1251,5 +1251,37 @@ void main() {
         },
       );
     });
+
+    test('runInTransaction wraps the body exactly once', () async {
+      var txOpen = 0;
+      var txClose = 0;
+
+      final svc = ImportService(
+        addSession: (s) async => store.add(s),
+        addEmptyFolder: (f) async {},
+        deleteSession: (id) async {},
+        getSessions: () => store,
+        applyConfig: (_) {},
+        runInTransaction: <T>(body) async {
+          txOpen++;
+          try {
+            return await body();
+          } finally {
+            txClose++;
+          }
+        },
+      );
+
+      await svc.applyResult(
+        ImportResult(
+          sessions: [makeSession('1', 'A'), makeSession('2', 'B')],
+          mode: ImportMode.merge,
+        ),
+      );
+
+      expect(txOpen, 1);
+      expect(txClose, 1);
+      expect(store, hasLength(2));
+    });
   });
 }

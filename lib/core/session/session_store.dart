@@ -36,6 +36,10 @@ class SessionStore {
     _db = db;
   }
 
+  /// Current database, or null if [setDatabase] hasn't been called yet.
+  /// Exposed so `ImportService` can open a transaction spanning every store.
+  AppDatabase? get database => _db;
+
   /// Guards concurrent [load] calls.
   Future<List<Session>>? _loadFuture;
 
