@@ -552,6 +552,9 @@ class ExportImport {
       config: config,
       mode: mode,
       knownHostsContent: knownHostsContent,
+      includeTags: options.includeTags,
+      includeSnippets: options.includeSnippets,
+      includeKnownHosts: options.includeKnownHosts,
     );
   }
 
@@ -712,6 +715,15 @@ class ImportResult {
   final ImportMode mode;
   final String? knownHostsContent;
 
+  /// User-intent flags from the preview dialog. In replace mode these decide
+  /// whether the corresponding local data gets wiped even when the archive
+  /// carries zero entries of that type (checkbox checked → "overwrite with
+  /// nothing"). In merge mode they are informational only — the data lists
+  /// already reflect the filter.
+  final bool includeTags;
+  final bool includeSnippets;
+  final bool includeKnownHosts;
+
   const ImportResult({
     required this.sessions,
     this.emptyFolders = const {},
@@ -724,6 +736,9 @@ class ImportResult {
     this.config,
     required this.mode,
     this.knownHostsContent,
+    this.includeTags = false,
+    this.includeSnippets = false,
+    this.includeKnownHosts = false,
   });
 
   /// Returns a copy of this result filtered by [options], with the given
@@ -752,6 +767,9 @@ class ImportResult {
       config: options.includeConfig ? config : null,
       mode: mode,
       knownHostsContent: options.includeKnownHosts ? knownHostsContent : null,
+      includeTags: options.includeTags,
+      includeSnippets: options.includeSnippets,
+      includeKnownHosts: options.includeKnownHosts,
     );
   }
 }

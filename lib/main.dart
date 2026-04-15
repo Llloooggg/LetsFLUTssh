@@ -996,22 +996,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
       await _buildImportService().applyResult(importResult);
 
-      // Import known hosts via the manager (handles encryption).
-      if (importResult.knownHostsContent != null) {
-        try {
-          await ref
-              .read(knownHostsProvider)
-              .importFromString(importResult.knownHostsContent!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to import known_hosts from LFS: $e',
-            name: 'App',
-            error: e,
-          );
-          // Continue — known_hosts failure shouldn't fail entire import
-        }
-      }
-
       AppLogger.instance.log(
         'LFS import success: ${importResult.sessions.length} session(s)',
         name: 'App',
@@ -1042,6 +1026,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final keyStore = ref.read(keyStoreProvider);
     final tagStore = ref.read(tagStoreProvider);
     final snippetStore = ref.read(snippetStoreProvider);
+    final knownHostsMgr = ref.read(knownHostsProvider);
     return ImportService(
       addSession: (s) => ref.read(sessionProvider.notifier).add(s),
       addEmptyFolder: (f) => store.addEmptyFolder(f),
@@ -1069,6 +1054,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       existingSnippetIds: () async =>
           (await snippetStore.loadAll()).map((s) => s.id).toSet(),
       getCurrentConfig: () => ref.read(configProvider),
+      loadAllTags: () => tagStore.loadAll(),
+      deleteAllTags: () => tagStore.deleteAll(),
+      loadAllSnippets: () => snippetStore.loadAll(),
+      deleteAllSnippets: () => snippetStore.deleteAll(),
+      exportKnownHosts: () async => knownHostsMgr.exportToString(),
+      clearKnownHosts: () => knownHostsMgr.clearAll(),
+      importKnownHosts: (content) async {
+        await knownHostsMgr.importFromString(content);
+      },
     );
   }
 }

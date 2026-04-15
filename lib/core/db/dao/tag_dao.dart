@@ -27,6 +27,13 @@ class TagDao {
     return count;
   }
 
+  /// Delete every tag. Cascades to session/folder link tables via FK.
+  Future<int> deleteAll() async {
+    final count = await _db.delete(_db.tags).go();
+    AppLogger.instance.log('Deleted all tags (rows: $count)', name: 'TagDao');
+    return count;
+  }
+
   // --- Session ↔ Tag ---
 
   Future<List<DbTag>> getForSession(String sessionId) async {

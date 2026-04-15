@@ -1135,6 +1135,7 @@ class _ExportImportTile extends ConsumerWidget {
       final keyStore = ref.read(keyStoreProvider);
       final tagStore = ref.read(tagStoreProvider);
       final snippetStore = ref.read(snippetStoreProvider);
+      final knownHostsMgr = ref.read(knownHostsProvider);
       final importService = ImportService(
         addSession: (s) => ref.read(sessionProvider.notifier).add(s),
         addEmptyFolder: (f) =>
@@ -1163,23 +1164,17 @@ class _ExportImportTile extends ConsumerWidget {
         existingSnippetIds: () async =>
             (await snippetStore.loadAll()).map((s) => s.id).toSet(),
         getCurrentConfig: () => ref.read(configProvider),
+        loadAllTags: () => tagStore.loadAll(),
+        deleteAllTags: () => tagStore.deleteAll(),
+        loadAllSnippets: () => snippetStore.loadAll(),
+        deleteAllSnippets: () => snippetStore.deleteAll(),
+        exportKnownHosts: () async => knownHostsMgr.exportToString(),
+        clearKnownHosts: () => knownHostsMgr.clearAll(),
+        importKnownHosts: (content) async {
+          await knownHostsMgr.importFromString(content);
+        },
       );
       await importService.applyResult(importResult);
-
-      // Import known hosts via the manager (handles encryption).
-      if (importResult.knownHostsContent != null) {
-        try {
-          final knownHosts = ref.read(knownHostsProvider);
-          await knownHosts.importFromString(importResult.knownHostsContent!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to import known_hosts from LFS: $e',
-            name: 'Settings',
-            error: e,
-          );
-          // Continue — known_hosts failure shouldn't fail entire import
-        }
-      }
 
       if (context.mounted) {
         Toast.show(

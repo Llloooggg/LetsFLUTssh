@@ -1015,6 +1015,188 @@ void main() {
       });
     });
 
+    group('replace mode wipe + rollback', () {
+      test(
+        'replace with includeTags clears existing tags and imports new ones',
+        () async {
+          final existingTags = [
+            Tag(id: 'old1', name: 'old-1'),
+            Tag(id: 'old2', name: 'old-2'),
+          ];
+          final tagStore = List<Tag>.of(existingTags);
+          final savedTags = <Tag>[];
+          var deleteAllCalls = 0;
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => store.add(s),
+            deleteSession: (id) async => store.removeWhere((s) => s.id == id),
+            getSessions: () => store,
+            applyConfig: (c) => appliedConfig = c,
+            saveTag: (t) async {
+              tagStore.add(t);
+              savedTags.add(t);
+              return t.id;
+            },
+            loadAllTags: () async => List.of(tagStore),
+            deleteAllTags: () async {
+              deleteAllCalls++;
+              tagStore.clear();
+            },
+          );
+
+          await svc.applyResult(
+            ImportResult(
+              sessions: [],
+              tags: [Tag(id: 'new1', name: 'new')],
+              mode: ImportMode.replace,
+              includeTags: true,
+            ),
+          );
+
+          expect(deleteAllCalls, 1);
+          expect(savedTags.single.id, 'new1');
+          expect(tagStore.map((t) => t.id), ['new1']);
+        },
+      );
+
+      test(
+        'replace with includeTags=true and empty archive wipes tags',
+        () async {
+          final tagStore = [Tag(id: 'old1', name: 'x')];
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => store.add(s),
+            deleteSession: (id) async {},
+            getSessions: () => store,
+            applyConfig: (c) => appliedConfig = c,
+            saveTag: (t) async => t.id,
+            loadAllTags: () async => List.of(tagStore),
+            deleteAllTags: () async => tagStore.clear(),
+          );
+
+          await svc.applyResult(
+            const ImportResult(
+              sessions: [],
+              mode: ImportMode.replace,
+              includeTags: true,
+            ),
+          );
+
+          expect(tagStore, isEmpty);
+        },
+      );
+
+      test(
+        'replace with includeTags=false leaves existing tags alone',
+        () async {
+          final tagStore = [Tag(id: 'keep', name: 'keep')];
+          var deleteCalled = false;
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => store.add(s),
+            deleteSession: (id) async {},
+            getSessions: () => store,
+            applyConfig: (c) => appliedConfig = c,
+            saveTag: (t) async => t.id,
+            loadAllTags: () async => List.of(tagStore),
+            deleteAllTags: () async {
+              deleteCalled = true;
+              tagStore.clear();
+            },
+          );
+
+          await svc.applyResult(
+            const ImportResult(
+              sessions: [],
+              mode: ImportMode.replace,
+              includeTags: false,
+            ),
+          );
+
+          expect(deleteCalled, isFalse);
+          expect(tagStore.map((t) => t.id), ['keep']);
+        },
+      );
+
+      test(
+        'replace rollback restores tags on session-import failure',
+        () async {
+          final tagStore = [
+            Tag(id: 'old1', name: 'original-1'),
+            Tag(id: 'old2', name: 'original-2'),
+          ];
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => throw Exception('disk full'),
+            deleteSession: (id) async {},
+            getSessions: () => store,
+            applyConfig: (c) => appliedConfig = c,
+            saveTag: (t) async {
+              tagStore.add(t);
+              return t.id;
+            },
+            loadAllTags: () async => List.of(tagStore),
+            deleteAllTags: () async => tagStore.clear(),
+            restoreSnapshot: (sessions, folders) async {},
+          );
+
+          await expectLater(
+            () => svc.applyResult(
+              ImportResult(
+                sessions: [makeSession('s1', 'x')],
+                tags: [Tag(id: 'imported', name: 'replacement')],
+                mode: ImportMode.replace,
+                includeTags: true,
+              ),
+            ),
+            throwsException,
+          );
+
+          // Rollback re-added the original tags.
+          expect(tagStore.map((t) => t.id), containsAll(['old1', 'old2']));
+        },
+      );
+
+      test(
+        'replace with includeKnownHosts clears and re-imports known_hosts',
+        () async {
+          var knownHosts = 'example.com:22 ssh-rsa AAAA';
+          final imported = <String>[];
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => store.add(s),
+            deleteSession: (id) async {},
+            getSessions: () => store,
+            applyConfig: (c) => appliedConfig = c,
+            exportKnownHosts: () async => knownHosts,
+            clearKnownHosts: () async => knownHosts = '',
+            importKnownHosts: (content) async {
+              imported.add(content);
+              knownHosts = content;
+            },
+          );
+
+          await svc.applyResult(
+            const ImportResult(
+              sessions: [],
+              knownHostsContent: 'new.example.com:22 ssh-ed25519 BBBB',
+              mode: ImportMode.replace,
+              includeKnownHosts: true,
+            ),
+          );
+
+          // Cleared first, then imported the new content.
+          expect(knownHosts, 'new.example.com:22 ssh-ed25519 BBBB');
+          expect(imported.single, 'new.example.com:22 ssh-ed25519 BBBB');
+        },
+      );
+    });
+
     group('replace mode config rollback', () {
       test(
         'applyConfig failure rolls back sessions, folders, and config',

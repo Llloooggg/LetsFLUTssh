@@ -49,6 +49,20 @@ class ImportService {
   /// Current config snapshot for rollback support in replace mode.
   final AppConfig Function()? getCurrentConfig;
 
+  /// Replace-mode wipe + rollback hooks. When [ImportResult.includeTags] /
+  /// `includeSnippets` / `includeKnownHosts` is true in replace mode, the
+  /// corresponding local store is snapshotted and cleared before the import
+  /// writes new rows — otherwise duplicate IDs or unique-name conflicts
+  /// (e.g. `Tags.name` UNIQUE) would abort the import. If the import later
+  /// throws, the captured lists are replayed back in.
+  final Future<List<Tag>> Function()? loadAllTags;
+  final Future<void> Function()? deleteAllTags;
+  final Future<List<Snippet>> Function()? loadAllSnippets;
+  final Future<void> Function()? deleteAllSnippets;
+  final Future<String> Function()? exportKnownHosts;
+  final Future<void> Function()? clearKnownHosts;
+  final Future<void> Function(String content)? importKnownHosts;
+
   ImportService({
     required this.addSession,
     required this.addEmptyFolder,
@@ -66,6 +80,13 @@ class ImportService {
     this.existingTagIds,
     this.existingSnippetIds,
     this.getCurrentConfig,
+    this.loadAllTags,
+    this.deleteAllTags,
+    this.loadAllSnippets,
+    this.deleteAllSnippets,
+    this.exportKnownHosts,
+    this.clearKnownHosts,
+    this.importKnownHosts,
   });
 
   /// Apply imported sessions and config.
@@ -86,7 +107,7 @@ class ImportService {
     );
 
     final snapshot = result.mode == ImportMode.replace
-        ? await _snapshotAndDeleteExisting()
+        ? await _snapshotAndDeleteExisting(result)
         : null;
 
     try {
@@ -142,6 +163,7 @@ class ImportService {
     );
 
     _applyImportedConfig(result);
+    await _applyImportedKnownHosts(result);
 
     AppLogger.instance.log(
       'Import complete: $imported/${result.sessions.length} sessions, '
@@ -230,6 +252,25 @@ class ImportService {
     } catch (e) {
       AppLogger.instance.log(
         'Failed to apply config: $e',
+        name: 'Import',
+        error: e,
+      );
+    }
+  }
+
+  /// Append known_hosts content from the archive. In replace mode the store
+  /// was already cleared in the snapshot step; in merge mode new entries are
+  /// added and existing host:port rows are skipped by the importer.
+  Future<void> _applyImportedKnownHosts(ImportResult result) async {
+    final content = result.knownHostsContent;
+    if (content == null || content.isEmpty) return;
+    if (importKnownHosts == null) return;
+    try {
+      await importKnownHosts!(content);
+    } catch (e) {
+      if (result.mode == ImportMode.replace) rethrow;
+      AppLogger.instance.log(
+        'Failed to import known_hosts: $e',
         name: 'Import',
         error: e,
       );
@@ -388,26 +429,61 @@ class ImportService {
     }
   }
 
-  /// Takes a snapshot of existing sessions (when rollback callbacks are
-  /// available) and deletes them. Returns the snapshot for rollback.
-  Future<_Snapshot?> _snapshotAndDeleteExisting() async {
+  /// Takes a snapshot of existing data and clears the stores that the user
+  /// asked to replace. Returns the snapshot for rollback.
+  ///
+  /// Sessions are always cleared in replace mode (that's the defining
+  /// behavior). Tags / snippets / known_hosts are only cleared when the
+  /// corresponding `includeX` flag on [result] is set — an unchecked type
+  /// stays untouched.
+  Future<_Snapshot?> _snapshotAndDeleteExisting(ImportResult result) async {
     final existing = List<Session>.of(getSessions());
-    _Snapshot? snapshot;
 
-    if (restoreSnapshot != null) {
-      final folders = getEmptyFolders != null
-          ? Set.of(getEmptyFolders!())
-          : <String>{};
-      final config = getCurrentConfig?.call();
-      snapshot = _Snapshot(existing, folders, config);
-    }
+    final folders = getEmptyFolders != null
+        ? Set.of(getEmptyFolders!())
+        : <String>{};
+    final config = getCurrentConfig?.call();
+
+    final List<Tag> tagsBackup = result.includeTags && loadAllTags != null
+        ? await loadAllTags!()
+        : const [];
+    final List<Snippet> snippetsBackup =
+        result.includeSnippets && loadAllSnippets != null
+        ? await loadAllSnippets!()
+        : const [];
+    final String? knownHostsBackup =
+        result.includeKnownHosts && exportKnownHosts != null
+        ? await exportKnownHosts!()
+        : null;
+
+    final snapshot = _Snapshot(
+      sessions: existing,
+      folders: folders,
+      config: config,
+      tags: tagsBackup,
+      snippets: snippetsBackup,
+      knownHosts: knownHostsBackup,
+    );
 
     AppLogger.instance.log(
-      'Replace mode: deleting ${existing.length} existing sessions',
+      'Replace mode: clearing sessions=${existing.length}, '
+      'tags=${result.includeTags ? tagsBackup.length : "skip"}, '
+      'snippets=${result.includeSnippets ? snippetsBackup.length : "skip"}, '
+      'knownHosts=${result.includeKnownHosts ? "yes" : "skip"}',
       name: 'Import',
     );
+
     for (final s in existing) {
       await deleteSession(s.id);
+    }
+    if (result.includeTags && deleteAllTags != null) {
+      await deleteAllTags!();
+    }
+    if (result.includeSnippets && deleteAllSnippets != null) {
+      await deleteAllSnippets!();
+    }
+    if (result.includeKnownHosts && clearKnownHosts != null) {
+      await clearKnownHosts!();
     }
 
     return snapshot;
@@ -433,27 +509,86 @@ class ImportService {
   /// Attempt to restore a pre-import snapshot. Logs but does not throw
   /// on failure — the original import error takes priority.
   Future<void> _tryRestore(_Snapshot? snapshot) async {
-    if (restoreSnapshot == null || snapshot == null) return;
-    try {
-      await restoreSnapshot!(snapshot.sessions, snapshot.folders);
-      if (snapshot.config != null) {
-        try {
-          applyConfig(snapshot.config!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to restore config after import failure',
-            name: 'Import',
-            error: e,
-          );
-        }
+    if (snapshot == null) return;
+    if (restoreSnapshot != null) {
+      try {
+        await restoreSnapshot!(snapshot.sessions, snapshot.folders);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to restore sessions snapshot',
+          name: 'Import',
+          error: e,
+        );
       }
-      AppLogger.instance.log(
-        'Restored ${snapshot.sessions.length} sessions after import failure',
-        name: 'Import',
-      );
+    }
+    if (snapshot.config != null) {
+      try {
+        applyConfig(snapshot.config!);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to restore config',
+          name: 'Import',
+          error: e,
+        );
+      }
+    }
+    await _restoreTags(snapshot.tags);
+    await _restoreSnippets(snapshot.snippets);
+    await _restoreKnownHosts(snapshot.knownHosts);
+    AppLogger.instance.log(
+      'Restored ${snapshot.sessions.length} sessions, '
+      '${snapshot.tags.length} tags, ${snapshot.snippets.length} snippets '
+      'after import failure',
+      name: 'Import',
+    );
+  }
+
+  Future<void> _restoreTags(List<Tag> tags) async {
+    if (tags.isEmpty || saveTag == null || deleteAllTags == null) return;
+    try {
+      await deleteAllTags!();
+      for (final t in tags) {
+        await saveTag!(t);
+      }
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to restore snapshot after import failure',
+        'Failed to restore tags snapshot',
+        name: 'Import',
+        error: e,
+      );
+    }
+  }
+
+  Future<void> _restoreSnippets(List<Snippet> snippets) async {
+    if (snippets.isEmpty || saveSnippet == null || deleteAllSnippets == null) {
+      return;
+    }
+    try {
+      await deleteAllSnippets!();
+      for (final s in snippets) {
+        await saveSnippet!(s);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to restore snippets snapshot',
+        name: 'Import',
+        error: e,
+      );
+    }
+  }
+
+  Future<void> _restoreKnownHosts(String? content) async {
+    if (content == null ||
+        importKnownHosts == null ||
+        clearKnownHosts == null) {
+      return;
+    }
+    try {
+      await clearKnownHosts!();
+      if (content.isNotEmpty) await importKnownHosts!(content);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to restore known_hosts snapshot',
         name: 'Import',
         error: e,
       );
@@ -465,6 +600,16 @@ class _Snapshot {
   final List<Session> sessions;
   final Set<String> folders;
   final AppConfig? config;
+  final List<Tag> tags;
+  final List<Snippet> snippets;
+  final String? knownHosts;
 
-  const _Snapshot(this.sessions, this.folders, this.config);
+  const _Snapshot({
+    required this.sessions,
+    required this.folders,
+    required this.config,
+    this.tags = const [],
+    this.snippets = const [],
+    this.knownHosts,
+  });
 }

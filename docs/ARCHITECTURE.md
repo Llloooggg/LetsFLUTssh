@@ -773,7 +773,7 @@ end-to-end, so no separate content hash is stored in the manifest.
 | Mode | Behavior |
 |------|----------|
 | **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `KeyStore.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
-| **Replace** | Full replacement of all sessions from archive. A failure at any step (sessions, folders, config) triggers a full rollback of the snapshot (sessions + folders + config) |
+| **Replace** | Full replacement of sessions from archive. Tags / snippets / known_hosts are additionally wiped when the corresponding `includeX` flag from the preview dialog is set — so a user who checks "Tags" with an empty archive ends up with zero tags. Unchecked types are left untouched. A failure at any step triggers a full rollback of the snapshot (sessions + folders + config + tags + snippets + known_hosts) |
 
 #### Import service
 
