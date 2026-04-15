@@ -1075,6 +1075,9 @@ class _ExportImportTile extends ConsumerWidget {
           includeSessions: true,
           includeConfig: true,
           includeKnownHosts: true,
+          includeAllManagerKeys: true,
+          includeTags: true,
+          includeSnippets: true,
         ),
       );
       if (!context.mounted) return;
@@ -1087,6 +1090,9 @@ class _ExportImportTile extends ConsumerWidget {
             fullImport.knownHostsContent != null &&
             fullImport.knownHostsContent!.isNotEmpty,
         emptyFolders: fullImport.emptyFolders,
+        managerKeyCount: fullImport.managerKeys.length,
+        tagCount: fullImport.tags.length,
+        snippetCount: fullImport.snippets.length,
       );
 
       final importConfig = await LfsImportPreviewDialog.show(
