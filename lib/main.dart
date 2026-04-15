@@ -57,6 +57,7 @@ import 'providers/update_provider.dart';
 import 'providers/version_provider.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
+import 'utils/format.dart';
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
 import 'utils/sanitize.dart';
@@ -1014,7 +1015,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         Navigator.of(context).pop(); // close progress
         Toast.show(
           context,
-          message: S.of(context).importFailed(e.toString()),
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
           level: ToastLevel.error,
         );
       }

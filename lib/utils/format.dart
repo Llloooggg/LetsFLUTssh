@@ -5,6 +5,7 @@ import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../l10n/app_localizations.dart';
+import 'sanitize.dart';
 
 /// Format byte size to human-readable string.
 String formatSize(int bytes) {
@@ -50,7 +51,7 @@ String sanitizeError(Object error) {
     return _sanitizeWithCause(error.message, error.cause);
   }
 
-  final msg = error.toString();
+  final msg = redactSecrets(error.toString());
   return _sanitizeErrnoMessage(msg) ?? msg;
 }
 
@@ -209,7 +210,7 @@ String _withLocalizedCause(S l10n, String localized, Object? cause) {
 
 /// Map OS error (FileSystemException, SocketException) to localized string.
 String _localizeOsError(S l10n, Object error) {
-  final msg = error.toString();
+  final msg = redactSecrets(error.toString());
 
   // FileSystemException: "OS Error: <localized text>, errno = N"
   final errnoMatch = RegExp(r'errno\s*=\s*(\d+)').firstMatch(msg);

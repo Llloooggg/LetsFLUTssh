@@ -89,17 +89,9 @@ class AppLogger {
   /// - IPv4 addresses, `user@host`, `host:port`
   /// - Home-directory paths (`/home/<user>/`, `C:\Users\<user>\`)
   static String sanitize(String input) {
-    // Redact OpenSSH/PKCS private keys in PEM format.
-    final pemPattern = RegExp(
-      r'-----BEGIN[^-]*PRIVATE KEY-----[\s\S]*?-----END[^-]*PRIVATE KEY-----',
-      multiLine: true,
-    );
-    var out = input.replaceAll(pemPattern, '[REDACTED PRIVATE KEY]');
-    // Redact base64-encoded key blobs (long continuous base64 runs).
-    out = out.replaceAll(RegExp(r'[A-Za-z0-9+/=]{200,}'), '[REDACTED BASE64]');
-    // Scrub IPs, user@host, host:port, home paths — catches data leaking
-    // through third-party exception messages.
-    return sanitizeErrorMessage(out);
+    // Strip key material first, then scrub IPs / user@host / home paths —
+    // catches data leaking through third-party exception messages.
+    return sanitizeErrorMessage(redactSecrets(input));
   }
 
   /// Log a message. Also forwards to dart:developer log (DevTools).

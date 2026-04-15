@@ -2,6 +2,58 @@ import 'package:letsflutssh/utils/sanitize.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('redactSecrets', () {
+    test('strips OpenSSH PEM private key blocks', () {
+      const input =
+          'INSERT failed: key_data = -----BEGIN OPENSSH PRIVATE KEY-----\n'
+          'b3BlbnNzaC1rZXktdjEAAAA\n'
+          'SECRET CONTENT HERE\n'
+          '-----END OPENSSH PRIVATE KEY----- trailing';
+      final out = redactSecrets(input);
+      expect(out, contains('[REDACTED PRIVATE KEY]'));
+      expect(out, isNot(contains('SECRET CONTENT')));
+      expect(out, isNot(contains('b3BlbnNzaC1rZXktdjEAAAA')));
+      expect(out, contains('trailing'));
+    });
+
+    test('strips RSA / EC PEM private key blocks', () {
+      const input =
+          '-----BEGIN RSA PRIVATE KEY-----\nAAAA\n-----END RSA PRIVATE KEY-----';
+      expect(redactSecrets(input), '[REDACTED PRIVATE KEY]');
+    });
+
+    test('strips long base64 runs (raw key blobs without PEM headers)', () {
+      final blob = 'A' * 250;
+      expect(
+        redactSecrets('before $blob after'),
+        'before [REDACTED BASE64] after',
+      );
+    });
+
+    test('leaves short base64 snippets alone', () {
+      const input = 'Error code: AABB1234==';
+      expect(redactSecrets(input), input);
+    });
+
+    test('sqlite-style INSERT parameters with PEM keys are fully redacted', () {
+      // Mirrors the drift/sqlite3 leak where a failed INSERT's toString()
+      // dumps bound parameters verbatim, including private key PEM.
+      const input =
+          'SqliteException(787): while executing statement, '
+          'FOREIGN KEY constraint failed '
+          'Causing statement: INSERT INTO "sessions" (...) VALUES (?, ?), '
+          'parameters: 44840ce3-4e4d, '
+          '-----BEGIN OPENSSH PRIVATE KEY-----\n'
+          'b3BlbnNzaC1rZXktdjEAAAAAB\n'
+          '-----END OPENSSH PRIVATE KEY-----, 22';
+      final out = redactSecrets(input);
+      expect(out, isNot(contains('b3BlbnNzaC1rZXktdjEAAAAAB')));
+      expect(out, isNot(contains('BEGIN OPENSSH PRIVATE KEY')));
+      expect(out, contains('[REDACTED PRIVATE KEY]'));
+      expect(out, contains('FOREIGN KEY constraint failed'));
+    });
+  });
+
   group('sanitizeErrorMessage', () {
     test('redacts user@host patterns', () {
       expect(
@@ -15,25 +67,13 @@ void main() {
     });
 
     test('redacts IPv4 addresses', () {
-      expect(
-        sanitizeErrorMessage('192.168.1.100'),
-        contains('<ip>'),
-      );
-      expect(
-        sanitizeErrorMessage('10.0.0.1'),
-        contains('<ip>'),
-      );
+      expect(sanitizeErrorMessage('192.168.1.100'), contains('<ip>'));
+      expect(sanitizeErrorMessage('10.0.0.1'), contains('<ip>'));
     });
 
     test('redacts port numbers', () {
-      expect(
-        sanitizeErrorMessage('192.168.1.100:22'),
-        contains(':<port>'),
-      );
-      expect(
-        sanitizeErrorMessage('example.com:2222'),
-        contains(':<port>'),
-      );
+      expect(sanitizeErrorMessage('192.168.1.100:22'), contains(':<port>'));
+      expect(sanitizeErrorMessage('example.com:2222'), contains(':<port>'));
     });
 
     test('redacts user@<ip>:<port> pattern', () {
