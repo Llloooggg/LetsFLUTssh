@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Pega el enlace letsflutssh://import?d=… (o el payload en bruto) generado en otro dispositivo. No se necesita cámara.",
   "pasteFromClipboard": "Pegar del portapapeles",
   "invalidImportLink": "El enlace no contiene un payload LetsFLUTssh válido",
-  "importAction": "Importar"
+  "importAction": "Importar",
+  "emptyFolder": "Carpeta vacía"
 }

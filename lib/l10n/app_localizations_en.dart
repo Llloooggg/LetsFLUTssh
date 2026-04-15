@@ -423,6 +423,9 @@ class SEn extends S {
   String get scanQrCode => 'Scan QR Code';
 
   @override
+  String get emptyFolder => 'Empty folder';
+
+  @override
   String get qrGenerationFailed => 'QR generation failed';
 
   @override

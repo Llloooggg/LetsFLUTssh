@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Collez le lien letsflutssh://import?d=… (ou le payload brut) généré sur un autre appareil. Pas de caméra requise.",
   "pasteFromClipboard": "Coller depuis le presse-papiers",
   "invalidImportLink": "Le lien ne contient pas de payload LetsFLUTssh valide",
-  "importAction": "Importer"
+  "importAction": "Importer",
+  "emptyFolder": "Dossier vide"
 }

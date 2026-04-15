@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/qr/qr_scanner.dart';
 import '../core/session/qr_codec.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -61,6 +64,16 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
       _controller.text = text;
       _error = null;
     });
+  }
+
+  /// Launch the native QR scanner and, if it returns a decoded payload,
+  /// submit the import straight away — the camera flow implies intent,
+  /// and an extra tap would be noise.
+  Future<void> _scanQr() async {
+    final scanned = await scanQrCode();
+    if (!mounted || scanned == null || scanned.isEmpty) return;
+    _controller.text = scanned;
+    _submit();
   }
 
   void _submit() {
@@ -126,13 +139,21 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              icon: const Icon(Icons.content_paste, size: 16),
-              label: Text(s.pasteFromClipboard),
-              onPressed: _pasteFromClipboard,
-            ),
+          Wrap(
+            spacing: 4,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.content_paste, size: 16),
+                label: Text(s.pasteFromClipboard),
+                onPressed: _pasteFromClipboard,
+              ),
+              if (Platform.isAndroid || Platform.isIOS)
+                TextButton.icon(
+                  icon: const Icon(Icons.qr_code_scanner, size: 16),
+                  label: Text(s.scanQrCode),
+                  onPressed: _scanQr,
+                ),
+            ],
           ),
         ],
       ),

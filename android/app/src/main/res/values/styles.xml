@@ -15,4 +15,8 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Full-screen black theme for the QR scanner activity. -->
+    <style name="QrScannerTheme" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>

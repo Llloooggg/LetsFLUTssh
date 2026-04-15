@@ -423,6 +423,9 @@ class SFa extends S {
   String get scanQrCode => 'اسکن کد QR';
 
   @override
+  String get emptyFolder => 'پوشه خالی';
+
+  @override
   String get qrGenerationFailed => 'تولید QR ناموفق بود';
 
   @override

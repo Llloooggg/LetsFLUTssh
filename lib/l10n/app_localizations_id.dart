@@ -425,6 +425,9 @@ class SId extends S {
   String get scanQrCode => 'Pindai Kode QR';
 
   @override
+  String get emptyFolder => 'Folder kosong';
+
+  @override
   String get qrGenerationFailed => 'Pembuatan QR gagal';
 
   @override

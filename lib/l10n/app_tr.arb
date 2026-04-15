@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Başka bir cihazda üretilen letsflutssh://import?d=… bağlantısını (veya ham yükü) yapıştırın. Kamera gerekmez.",
   "pasteFromClipboard": "Panodan yapıştır",
   "invalidImportLink": "Bağlantı geçerli bir LetsFLUTssh yükü içermiyor",
-  "importAction": "İçe aktar"
+  "importAction": "İçe aktar",
+  "emptyFolder": "Boş klasör"
 }

@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Вставьте ссылку letsflutssh://import?d=… (или сырой payload), сгенерированную на другом устройстве. Камера не нужна.",
   "pasteFromClipboard": "Вставить из буфера",
   "invalidImportLink": "Ссылка не содержит корректные данные LetsFLUTssh",
-  "importAction": "Импортировать"
+  "importAction": "Импортировать",
+  "emptyFolder": "Папка пуста"
 }

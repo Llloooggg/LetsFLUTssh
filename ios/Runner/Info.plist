@@ -99,6 +99,8 @@
 	<!-- Privacy descriptions -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>LetsFLUTssh needs local network access to connect to SSH servers on your network.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LetsFLUTssh uses the camera only to scan QR codes when you tap "Scan QR" to import sessions.</string>
 
 	<!-- Interface orientations -->
 	<key>UISupportedInterfaceOrientations</key>

@@ -30,9 +30,10 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **SSH** — xterm/VT100 terminal (256-color, RGB, mouse), tiling with recursive splits, search, multi-tab, keep-alive & reconnect
 - **SFTP** — dual-pane file browser, drag & drop, transfer queue with parallel workers
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
-- **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection
-- **Tags** — color-coded tags for sessions and folders, visual dots in tree view
+- **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection (now also reachable from the mobile SSH keyboard bar)
+- **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
 - **Security** — encrypted SQLite storage (AES-256-GCM via SQLite3MultipleCiphers), OS keychain or master password, encrypted `.lfs` export/import, TOFU host key verification
+- **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), pinch-to-zoom, deep links
 - **Auth** — password, key file, PEM text
 - **Themes** — OneDark / One Light, system auto-detection

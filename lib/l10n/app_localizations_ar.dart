@@ -421,6 +421,9 @@ class SAr extends S {
   String get scanQrCode => 'مسح رمز QR';
 
   @override
+  String get emptyFolder => 'مجلد فارغ';
+
+  @override
   String get qrGenerationFailed => 'فشل إنشاء رمز QR';
 
   @override

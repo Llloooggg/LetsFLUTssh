@@ -68,3 +68,16 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // QR scanning — CameraX pipeline + ZXing core decoder.
+    // All Apache-2.0; not Google Play Services / MLKit.  ZXing core is a
+    // pure-Java jar, the CameraX artefacts are AndroidX — both link into
+    // the APK and work offline on any Android device.
+    val cameraX = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraX")
+    implementation("androidx.camera:camera-camera2:$cameraX")
+    implementation("androidx.camera:camera-lifecycle:$cameraX")
+    implementation("androidx.camera:camera-view:$cameraX")
+    implementation("com.google.zxing:core:3.5.3")
+}

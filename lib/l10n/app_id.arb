@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Tempel tautan letsflutssh://import?d=… (atau payload mentah) yang dihasilkan pada perangkat lain. Tidak perlu kamera.",
   "pasteFromClipboard": "Tempel dari clipboard",
   "invalidImportLink": "Tautan tidak berisi payload LetsFLUTssh yang valid",
-  "importAction": "Impor"
+  "importAction": "Impor",
+  "emptyFolder": "Folder kosong"
 }

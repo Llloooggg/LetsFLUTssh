@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "پیوند letsflutssh://import?d=… (یا بار خام) تولیدشده در دستگاه دیگر را بچسبانید. نیازی به دوربین نیست.",
   "pasteFromClipboard": "چسباندن از کلیپ‌بورد",
   "invalidImportLink": "پیوند بار معتبر LetsFLUTssh را شامل نیست",
-  "importAction": "درون‌ریزی"
+  "importAction": "درون‌ریزی",
+  "emptyFolder": "پوشه خالی"
 }

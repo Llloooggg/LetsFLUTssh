@@ -241,6 +241,7 @@
   "providePasswordOrKey": "Provide a password or SSH key",
   "quickConnect": "Quick Connect",
   "scanQrCode": "Scan QR Code",
+  "emptyFolder": "Empty folder",
   "qrGenerationFailed": "QR generation failed",
   "scanWithCameraApp": "Scan with any camera app on a device\nthat has LetsFLUTssh installed.",
   "noPasswordsInQr": "No passwords or keys are in this QR code",

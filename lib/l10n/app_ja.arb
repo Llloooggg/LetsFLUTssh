@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "別の端末で生成された letsflutssh://import?d=… リンク（または生ペイロード）を貼り付けてください。カメラは不要です。",
   "pasteFromClipboard": "クリップボードから貼り付け",
   "invalidImportLink": "リンクに有効な LetsFLUTssh ペイロードが含まれていません",
-  "importAction": "インポート"
+  "importAction": "インポート",
+  "emptyFolder": "空のフォルダ"
 }

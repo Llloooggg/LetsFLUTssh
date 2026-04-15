@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "다른 기기에서 생성된 letsflutssh://import?d=… 링크(또는 원시 페이로드)를 붙여넣으세요. 카메라 불필요.",
   "pasteFromClipboard": "클립보드에서 붙여넣기",
   "invalidImportLink": "링크에 유효한 LetsFLUTssh 페이로드가 없습니다",
-  "importAction": "가져오기"
+  "importAction": "가져오기",
+  "emptyFolder": "빈 폴더"
 }

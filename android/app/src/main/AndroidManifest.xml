@@ -14,6 +14,10 @@
         android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
+    <!-- Camera: QR scanner (used only for the "Scan QR" action in Settings) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <application
         android:label="LFssh"
         android:name="${applicationName}"
@@ -83,6 +87,16 @@
                 <data android:mimeType="application/x-x509-ca-cert" />
             </intent-filter>
         </activity>
+
+        <!-- QR scanner activity: shown only when the user taps "Scan QR".
+             Launched as a singleTask child of MainActivity through a
+             MethodChannel; result is delivered back via Activity.onActivityResult. -->
+        <activity
+            android:name=".QrScannerActivity"
+            android:exported="false"
+            android:theme="@style/QrScannerTheme"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|fontScale|density" />
 
         <!-- Flutter engine registration -->
         <meta-data

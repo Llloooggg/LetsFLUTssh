@@ -426,6 +426,9 @@ class STr extends S {
   String get scanQrCode => 'QR Kodu Tara';
 
   @override
+  String get emptyFolder => 'Boş klasör';
+
+  @override
   String get qrGenerationFailed => 'QR oluşturma başarısız';
 
   @override

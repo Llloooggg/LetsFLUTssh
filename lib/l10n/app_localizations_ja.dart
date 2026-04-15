@@ -419,6 +419,9 @@ class SJa extends S {
   String get scanQrCode => 'QRコードをスキャン';
 
   @override
+  String get emptyFolder => '空のフォルダ';
+
+  @override
   String get qrGenerationFailed => 'QRコード生成に失敗しました';
 
   @override
