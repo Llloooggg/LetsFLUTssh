@@ -1,0 +1,152 @@
+import 'package:flutter/material.dart';
+
+import '../theme/app_theme.dart';
+import 'hover_region.dart';
+
+/// Collapsible "What to export/import" wrapper.
+///
+/// Renders a hoverable header with an expand/collapse chevron, a bold title,
+/// and a subtitle on the right — typically used to surface the active preset
+/// while the checkbox grid is collapsed. Shared by the unified export dialog
+/// and the LFS import preview dialog so their headers stay visually
+/// identical without duplicating the chevron/hover plumbing.
+class CollapsibleCheckboxesSection extends StatelessWidget {
+  final String title;
+  final String? trailingLabel;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final Widget body;
+
+  const CollapsibleCheckboxesSection({
+    super.key,
+    required this.title,
+    required this.expanded,
+    required this.onToggle,
+    required this.body,
+    this.trailingLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HoverRegion(
+          onTap: onToggle,
+          builder: (hovered) => Container(
+            color: hovered ? AppTheme.hover : null,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              children: [
+                Icon(
+                  expanded ? Icons.expand_more : Icons.chevron_right,
+                  size: 18,
+                  color: AppTheme.fgDim,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  title,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.fg,
+                  ),
+                ),
+                if (trailingLabel != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    trailingLabel!,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgDim,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (expanded) body,
+      ],
+    );
+  }
+}
+
+/// One row in a data-selection grid: icon + label + optional warning/subtitle
+/// below the label + trailing text (count or size).
+///
+/// Shared by the export and import preview dialogs. The whole row is
+/// tappable, so clicks anywhere toggle the checkbox.
+class DataCheckboxRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final VoidCallback onTap;
+
+  /// Right-aligned status label (count, size, "Yes"/"No"). Null hides it.
+  final String? trailingLabel;
+
+  /// Optional warning text rendered under the main label. When set, the icon
+  /// and label are tinted with [AppTheme.orange] to flag the row visually.
+  final String? warningText;
+
+  const DataCheckboxRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.trailingLabel,
+    this.warningText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasWarning = warningText != null;
+    final accent = hasWarning ? AppTheme.orange : AppTheme.fg;
+    return HoverRegion(
+      onTap: onTap,
+      builder: (hovered) => Container(
+        color: hovered ? AppTheme.hover : null,
+        child: Row(
+          children: [
+            Checkbox(value: value, onChanged: (_) => onTap()),
+            Icon(icon, size: 16, color: accent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: AppFonts.md,
+                      color: accent,
+                    ),
+                  ),
+                  if (hasWarning)
+                    Text(
+                      warningText!,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.orange,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (trailingLabel != null)
+              Text(
+                trailingLabel!,
+                style: AppFonts.inter(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fgDim,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

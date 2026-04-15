@@ -17,6 +17,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
 import 'app_divider.dart';
+import 'data_checkboxes.dart';
 import 'hover_region.dart';
 
 /// Bundle of data displayed by [UnifiedExportDialog]. Groups related
@@ -731,45 +732,13 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   }
 
   Widget _buildCheckboxesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HoverRegion(
-          onTap: () =>
-              setState(() => _checkboxesExpanded = !_checkboxesExpanded),
-          builder: (hovered) => Container(
-            color: hovered ? AppTheme.hover : null,
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            child: Row(
-              children: [
-                Icon(
-                  _checkboxesExpanded ? Icons.expand_more : Icons.chevron_right,
-                  size: 18,
-                  color: AppTheme.fgDim,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  S.of(context).importWhatToImport,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.sm,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.fg,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _activePresetLabel(),
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_checkboxesExpanded) _buildDataCheckboxes(),
-      ],
+    return CollapsibleCheckboxesSection(
+      title: S.of(context).importWhatToImport,
+      trailingLabel: _activePresetLabel(),
+      expanded: _checkboxesExpanded,
+      onToggle: () =>
+          setState(() => _checkboxesExpanded = !_checkboxesExpanded),
+      body: _buildDataCheckboxes(),
     );
   }
 
@@ -927,55 +896,13 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     String? sizeLabel, {
     String? warningText,
   }) {
-    return HoverRegion(
+    return DataCheckboxRow(
+      icon: icon,
+      label: label,
+      value: value,
       onTap: onTap,
-      builder: (hovered) => Container(
-        color: hovered ? AppTheme.hover : null,
-        child: Row(
-          children: [
-            Checkbox(value: value, onChanged: (_) => onTap()),
-            Icon(
-              icon,
-              size: 16,
-              color: warningText != null ? AppTheme.orange : AppTheme.fg,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      fontSize: AppFonts.md,
-                      color: warningText != null
-                          ? AppTheme.orange
-                          : AppTheme.fg,
-                    ),
-                  ),
-                  if (warningText != null)
-                    Text(
-                      warningText,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.orange,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (sizeLabel != null)
-              Text(
-                sizeLabel,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-          ],
-        ),
-      ),
+      trailingLabel: sizeLabel,
+      warningText: warningText,
     );
   }
 
