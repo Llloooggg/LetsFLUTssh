@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "平文保存に切り替える（非推奨）",
   "disableKeychainConfirm": "データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？",
   "keychainDisabled": "キーチェーン暗号化が無効になりました",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "~/.ssh からインポート",
+  "importFromSshDirSubtitle": "config からホスト、~/.ssh から秘密鍵を選択",
+  "sshDirImportHostsSection": "config のホスト",
+  "sshDirImportKeysSection": "~/.ssh の鍵",
+  "browseFiles": "ファイルを選択…",
+  "sshDirSessionAlreadyImported": "すでにセッションにあります"
 }

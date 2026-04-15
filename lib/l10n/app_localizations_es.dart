@@ -730,17 +730,17 @@ class SEs extends S {
   String get importArchiveSubtitle => 'Cargar datos desde archivo .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Importar desde ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Elige hosts del archivo de configuración y/o claves privadas de ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'Hosts del archivo de configuración';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Claves en ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1848,8 +1848,8 @@ class SEs extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Explorar archivos…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'ya está en las sesiones';
 }

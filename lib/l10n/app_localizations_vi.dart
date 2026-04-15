@@ -725,17 +725,17 @@ class SVi extends S {
   String get importArchiveSubtitle => 'Tải dữ liệu từ tệp .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Nhập từ ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Chọn các máy chủ từ config và/hoặc khóa riêng tư từ ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'Máy chủ từ config';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Khóa trong ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1828,8 +1828,8 @@ class SVi extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Chọn tệp…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'đã có trong các phiên';
 }

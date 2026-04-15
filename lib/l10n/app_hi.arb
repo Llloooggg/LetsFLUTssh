@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)",
   "disableKeychainConfirm": "डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?",
   "keychainDisabled": "कीचेन एन्क्रिप्शन अक्षम किया गया",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "~/.ssh से आयात करें",
+  "importFromSshDirSubtitle": "कॉन्फ़िग से होस्ट और/या ~/.ssh से निजी कुंजियाँ चुनें",
+  "sshDirImportHostsSection": "कॉन्फ़िग से होस्ट",
+  "sshDirImportKeysSection": "~/.ssh की कुंजियाँ",
+  "browseFiles": "फ़ाइल चुनें…",
+  "sshDirSessionAlreadyImported": "सत्रों में पहले से है"
 }

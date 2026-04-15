@@ -726,17 +726,17 @@ class SHi extends S {
   String get importArchiveSubtitle => '.lfs फ़ाइल से डेटा लोड करें';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => '~/.ssh से आयात करें';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'कॉन्फ़िग से होस्ट और/या ~/.ssh से निजी कुंजियाँ चुनें';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'कॉन्फ़िग से होस्ट';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => '~/.ssh की कुंजियाँ';
 
   @override
   String importSshKeysFound(int count) {
@@ -1838,8 +1838,8 @@ class SHi extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'फ़ाइल चुनें…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'सत्रों में पहले से है';
 }

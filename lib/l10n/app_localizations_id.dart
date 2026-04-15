@@ -730,17 +730,17 @@ class SId extends S {
   String get importArchiveSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Impor dari ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Pilih host dari config dan/atau kunci privat dari ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'Host dari config';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Kunci di ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1835,8 +1835,8 @@ class SId extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Jelajahi berkas…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'sudah ada di sesi';
 }

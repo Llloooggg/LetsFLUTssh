@@ -733,17 +733,18 @@ class SFr extends S {
       'Charger les données depuis un fichier .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Importer depuis ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Choisissez des hôtes depuis le fichier de configuration et/ou des clés privées depuis ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection =>
+      'Hôtes depuis le fichier de configuration';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Clés dans ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1854,8 +1855,8 @@ class SFr extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Parcourir les fichiers…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'déjà dans les sessions';
 }

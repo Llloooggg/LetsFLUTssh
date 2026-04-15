@@ -714,17 +714,16 @@ class SZh extends S {
   String get importArchiveSubtitle => '从 .lfs 文件加载数据';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => '从 ~/.ssh 导入';
 
   @override
-  String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+  String get importFromSshDirSubtitle => '从 config 选择主机，和/或从 ~/.ssh 选择私钥';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => '来自 config 的主机';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => '~/.ssh 中的密钥';
 
   @override
   String importSshKeysFound(int count) {
@@ -1792,8 +1791,8 @@ class SZh extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => '浏览文件…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => '已在会话中';
 }

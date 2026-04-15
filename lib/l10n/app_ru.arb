@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "Перейти к хранению в открытом виде (не рекомендуется)",
   "disableKeychainConfirm": "База данных будет перешифрована без ключа. Сессии и ключи будут храниться на диске в открытом виде. Продолжить?",
   "keychainDisabled": "Шифрование связки ключей отключено",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
+  "importFromSshDir": "Импорт из ~/.ssh",
+  "importFromSshDirSubtitle": "Выберите хосты из config и/или приватные ключи из ~/.ssh",
+  "sshDirImportHostsSection": "Хосты из config",
+  "sshDirImportKeysSection": "Ключи в ~/.ssh",
   "browseFiles": "Выбрать файл…",
   "sshDirSessionAlreadyImported": "уже есть в сессиях"
 }

@@ -729,17 +729,17 @@ class SPt extends S {
   String get importArchiveSubtitle => 'Carregar dados de arquivo .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Importar de ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Escolha hosts do config e/ou chaves privadas de ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'Hosts do config';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Chaves em ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1843,8 +1843,8 @@ class SPt extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Procurar arquivos…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'já está nas sessões';
 }

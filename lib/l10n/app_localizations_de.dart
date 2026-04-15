@@ -731,17 +731,17 @@ class SDe extends S {
   String get importArchiveSubtitle => 'Daten aus .lfs-Datei laden';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Aus ~/.ssh importieren';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Hosts aus der Konfiguration und/oder private Schlüssel aus ~/.ssh auswählen';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'Hosts aus der Konfiguration';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Schlüssel in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1851,8 +1851,8 @@ class SDe extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Dateien auswählen…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'bereits in Sitzungen';
 }

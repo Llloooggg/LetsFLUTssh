@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "Beralih ke penyimpanan teks biasa (tidak disarankan)",
   "disableKeychainConfirm": "Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?",
   "keychainDisabled": "Enkripsi keychain dinonaktifkan",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "Impor dari ~/.ssh",
+  "importFromSshDirSubtitle": "Pilih host dari config dan/atau kunci privat dari ~/.ssh",
+  "sshDirImportHostsSection": "Host dari config",
+  "sshDirImportKeysSection": "Kunci di ~/.ssh",
+  "browseFiles": "Jelajahi berkas…",
+  "sshDirSessionAlreadyImported": "sudah ada di sesi"
 }

@@ -730,17 +730,17 @@ class STr extends S {
   String get importArchiveSubtitle => '.lfs dosyasından veri yükle';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => '~/.ssh dizininden içe aktar';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'config\'ten sunucuları ve/veya ~/.ssh\'dan özel anahtarları seçin';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'config\'teki sunucular';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => '~/.ssh\'daki anahtarlar';
 
   @override
   String importSshKeysFound(int count) {
@@ -1842,8 +1842,8 @@ class STr extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'Dosyalara gözat…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'zaten oturumlarda mevcut';
 }

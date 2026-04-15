@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "التبديل إلى التخزين بنص عادي (غير موصى به)",
   "disableKeychainConfirm": "ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟",
   "keychainDisabled": "تم تعطيل تشفير سلسلة المفاتيح",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "الاستيراد من ~/.ssh",
+  "importFromSshDirSubtitle": "اختر المضيفين من الإعدادات و/أو المفاتيح الخاصة من ~/.ssh",
+  "sshDirImportHostsSection": "المضيفون من ملف الإعدادات",
+  "sshDirImportKeysSection": "المفاتيح في ~/.ssh",
+  "browseFiles": "تصفح الملفات…",
+  "sshDirSessionAlreadyImported": "موجودة في الجلسات بالفعل"
 }

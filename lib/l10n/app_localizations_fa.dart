@@ -726,17 +726,17 @@ class SFa extends S {
   String get importArchiveSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'وارد کردن از ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'میزبان‌ها را از فایل پیکربندی و/یا کلیدهای خصوصی را از ~/.ssh انتخاب کنید';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'میزبان‌ها از فایل پیکربندی';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'کلیدها در ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1830,8 +1830,8 @@ class SFa extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'انتخاب فایل…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'در جلسات موجود است';
 }

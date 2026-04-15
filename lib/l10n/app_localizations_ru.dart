@@ -727,17 +727,17 @@ class SRu extends S {
   String get importArchiveSubtitle => 'Загрузить данные из файла .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'Импорт из ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'Выберите хосты из config и/или приватные ключи из ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'Хосты из config';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'Ключи в ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {

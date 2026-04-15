@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "Cambiar a almacenamiento en texto plano (no recomendado)",
   "disableKeychainConfirm": "La base de datos se volverá a cifrar sin clave. Las sesiones y claves se almacenarán en texto plano en el disco. ¿Continuar?",
   "keychainDisabled": "Cifrado del llavero desactivado",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "Importar desde ~/.ssh",
+  "importFromSshDirSubtitle": "Elige hosts del archivo de configuración y/o claves privadas de ~/.ssh",
+  "sshDirImportHostsSection": "Hosts del archivo de configuración",
+  "sshDirImportKeysSection": "Claves en ~/.ssh",
+  "browseFiles": "Explorar archivos…",
+  "sshDirSessionAlreadyImported": "ya está en las sesiones"
 }

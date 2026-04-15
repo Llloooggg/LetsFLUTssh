@@ -714,17 +714,16 @@ class SKo extends S {
   String get importArchiveSubtitle => '.lfs 파일에서 데이터 불러오기';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => '~/.ssh에서 가져오기';
 
   @override
-  String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+  String get importFromSshDirSubtitle => 'config에서 호스트, ~/.ssh에서 개인 키를 선택하세요';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'config의 호스트';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => '~/.ssh의 키';
 
   @override
   String importSshKeysFound(int count) {
@@ -1799,8 +1798,8 @@ class SKo extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => '파일 찾아보기…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => '이미 세션에 있음';
 }

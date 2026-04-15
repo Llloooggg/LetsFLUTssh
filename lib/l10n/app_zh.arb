@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "切换到明文存储（不推荐）",
   "disableKeychainConfirm": "数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？",
   "keychainDisabled": "钥匙串加密已禁用",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "从 ~/.ssh 导入",
+  "importFromSshDirSubtitle": "从 config 选择主机，和/或从 ~/.ssh 选择私钥",
+  "sshDirImportHostsSection": "来自 config 的主机",
+  "sshDirImportKeysSection": "~/.ssh 中的密钥",
+  "browseFiles": "浏览文件…",
+  "sshDirSessionAlreadyImported": "已在会话中"
 }

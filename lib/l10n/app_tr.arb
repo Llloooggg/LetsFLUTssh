@@ -521,10 +521,10 @@
   "disableKeychainSubtitle": "Düz metin depolamaya geç (önerilmez)",
   "disableKeychainConfirm": "Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?",
   "keychainDisabled": "Anahtar zinciri şifrelemesi devre dışı bırakıldı",
-  "importFromSshDir": "Import from ~/.ssh",
-  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
-  "sshDirImportHostsSection": "Hosts from config",
-  "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "importFromSshDir": "~/.ssh dizininden içe aktar",
+  "importFromSshDirSubtitle": "config'ten sunucuları ve/veya ~/.ssh'dan özel anahtarları seçin",
+  "sshDirImportHostsSection": "config'teki sunucular",
+  "sshDirImportKeysSection": "~/.ssh'daki anahtarlar",
+  "browseFiles": "Dosyalara gözat…",
+  "sshDirSessionAlreadyImported": "zaten oturumlarda mevcut"
 }

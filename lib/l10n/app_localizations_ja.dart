@@ -715,17 +715,16 @@ class SJa extends S {
   String get importArchiveSubtitle => '.lfs ファイルからデータを読み込み';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => '~/.ssh からインポート';
 
   @override
-  String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+  String get importFromSshDirSubtitle => 'config からホスト、~/.ssh から秘密鍵を選択';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'config のホスト';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => '~/.ssh の鍵';
 
   @override
   String importSshKeysFound(int count) {
@@ -1801,8 +1800,8 @@ class SJa extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'ファイルを選択…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'すでにセッションにあります';
 }

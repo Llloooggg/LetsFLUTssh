@@ -725,17 +725,17 @@ class SAr extends S {
   String get importArchiveSubtitle => 'تحميل البيانات من ملف .lfs';
 
   @override
-  String get importFromSshDir => 'Import from ~/.ssh';
+  String get importFromSshDir => 'الاستيراد من ~/.ssh';
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pick hosts from config and/or private keys from ~/.ssh';
+      'اختر المضيفين من الإعدادات و/أو المفاتيح الخاصة من ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts from config';
+  String get sshDirImportHostsSection => 'المضيفون من ملف الإعدادات';
 
   @override
-  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
+  String get sshDirImportKeysSection => 'المفاتيح في ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -1830,8 +1830,8 @@ class SAr extends S {
   String get allManagerKeys => 'All manager keys';
 
   @override
-  String get browseFiles => 'Browse files…';
+  String get browseFiles => 'تصفح الملفات…';
 
   @override
-  String get sshDirSessionAlreadyImported => 'already in sessions';
+  String get sshDirSessionAlreadyImported => 'موجودة في الجلسات بالفعل';
 }
