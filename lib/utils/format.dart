@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 
+import '../core/import/import_service.dart';
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../l10n/app_localizations.dart';
@@ -32,6 +33,23 @@ String formatDuration(Duration d) {
 }
 
 String _pad(int n) => n.toString().padLeft(2, '0');
+
+/// Build a human-readable summary of an [ImportSummary] for the success
+/// toast. Leads with the localized "Imported N sessions" string and appends
+/// non-zero counts for every other type using existing translated nouns so
+/// the message stays informative without adding a dedicated ARB entry per
+/// combination.
+String formatImportSummary(S l10n, ImportSummary s) {
+  final extras = <String>[];
+  if (s.managerKeys > 0) extras.add('${s.managerKeys} ${l10n.sshKeys}');
+  if (s.tags > 0) extras.add('${s.tags} ${l10n.tags}');
+  if (s.snippets > 0) extras.add('${s.snippets} ${l10n.snippets}');
+  if (s.knownHostsApplied) extras.add(l10n.knownHosts);
+  if (s.configApplied) extras.add(l10n.appSettings);
+  final head = l10n.importedSessions(s.sessions);
+  if (extras.isEmpty) return head;
+  return '$head, ${extras.join(', ')}';
+}
 
 /// Sanitize error messages to English — strips OS-locale text from
 /// FileSystemException, SocketException, and SSH errors, replacing with

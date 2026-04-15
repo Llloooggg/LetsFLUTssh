@@ -89,7 +89,9 @@ class ImportService {
     this.importKnownHosts,
   });
 
-  /// Apply imported sessions and config.
+  /// Apply imported sessions and config. Returns a [ImportSummary] with
+  /// the number of rows actually persisted per data type — callers use it to
+  /// build an informative success toast instead of only the session count.
   ///
   /// In replace mode, takes a snapshot before deleting existing sessions.
   /// If any import fails, the snapshot is restored to prevent data loss.
@@ -97,7 +99,7 @@ class ImportService {
   /// In merge mode, id collisions with existing items (sessions/tags/snippets)
   /// are resolved by minting a fresh UUID and suffixing the label/name with
   /// `(copy)` — mirrors session duplication UX.
-  Future<void> applyResult(ImportResult result) async {
+  Future<ImportSummary> applyResult(ImportResult result) async {
     AppLogger.instance.log(
       'Applying import: mode=${result.mode.name}, '
       'sessions=${result.sessions.length}, '
@@ -111,7 +113,7 @@ class ImportService {
         : null;
 
     try {
-      await _applyCore(result, snapshot);
+      return await _applyCore(result, snapshot);
     } catch (_) {
       if (result.mode == ImportMode.replace) {
         await _tryRestore(snapshot);
@@ -120,7 +122,10 @@ class ImportService {
     }
   }
 
-  Future<void> _applyCore(ImportResult result, _Snapshot? snapshot) async {
+  Future<ImportSummary> _applyCore(
+    ImportResult result,
+    _Snapshot? snapshot,
+  ) async {
     // Import manager keys first — the saveManagerKey callback dedups by
     // fingerprint (see KeyStore), so the returned map resolves incoming keys
     // to either a brand-new or an existing stored key id.
@@ -168,9 +173,22 @@ class ImportService {
     AppLogger.instance.log(
       'Import complete: $imported/${result.sessions.length} sessions, '
       '$foldersImported/${result.emptyFolders.length} folders, '
+      '${keyIdMap.length}/${result.managerKeys.length} keys, '
       '${tagIdMap.length}/${result.tags.length} tags, '
       '${snippetIdMap.length}/${result.snippets.length} snippets imported',
       name: 'Import',
+    );
+
+    return ImportSummary(
+      sessions: imported,
+      folders: foldersImported,
+      managerKeys: keyIdMap.length,
+      tags: tagIdMap.length,
+      snippets: snippetIdMap.length,
+      configApplied: result.config != null,
+      knownHostsApplied:
+          result.knownHostsContent != null &&
+          result.knownHostsContent!.isNotEmpty,
     );
   }
 
@@ -594,6 +612,29 @@ class ImportService {
       );
     }
   }
+}
+
+/// Per-type row counts from a completed import. Feeds the success toast so
+/// the user sees what was actually applied (sessions, tags, snippets, keys,
+/// config, known_hosts) instead of only a session count.
+class ImportSummary {
+  final int sessions;
+  final int folders;
+  final int managerKeys;
+  final int tags;
+  final int snippets;
+  final bool configApplied;
+  final bool knownHostsApplied;
+
+  const ImportSummary({
+    this.sessions = 0,
+    this.folders = 0,
+    this.managerKeys = 0,
+    this.tags = 0,
+    this.snippets = 0,
+    this.configApplied = false,
+    this.knownHostsApplied = false,
+  });
 }
 
 class _Snapshot {

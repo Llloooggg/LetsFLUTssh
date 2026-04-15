@@ -1174,12 +1174,12 @@ class _ExportImportTile extends ConsumerWidget {
           await knownHostsMgr.importFromString(content);
         },
       );
-      await importService.applyResult(importResult);
+      final summary = await importService.applyResult(importResult);
 
       if (context.mounted) {
         Toast.show(
           context,
-          message: S.of(context).importedSessions(importResult.sessions.length),
+          message: formatImportSummary(S.of(context), summary),
           level: ToastLevel.success,
         );
       }

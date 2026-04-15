@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
+import 'package:letsflutssh/core/import/import_service.dart';
 import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -755,6 +756,44 @@ void main() {
         const e = SocketException('x', osError: OSError('loc', 10057));
         expect(sanitizeError(e), 'Not connected');
       });
+    });
+  });
+
+  group('formatImportSummary', () {
+    final l10n = SEn();
+
+    test('only sessions → uses localized session-count string', () {
+      final out = formatImportSummary(l10n, const ImportSummary(sessions: 3));
+      expect(out, l10n.importedSessions(3));
+    });
+
+    test('appends non-zero extras with localized nouns', () {
+      final out = formatImportSummary(
+        l10n,
+        const ImportSummary(sessions: 2, managerKeys: 4, tags: 5, snippets: 1),
+      );
+      expect(out, contains(l10n.importedSessions(2)));
+      expect(out, contains('4 ${l10n.sshKeys}'));
+      expect(out, contains('5 ${l10n.tags}'));
+      expect(out, contains('1 ${l10n.snippets}'));
+    });
+
+    test('surfaces config / known_hosts flags', () {
+      final out = formatImportSummary(
+        l10n,
+        const ImportSummary(
+          sessions: 1,
+          configApplied: true,
+          knownHostsApplied: true,
+        ),
+      );
+      expect(out, contains(l10n.appSettings));
+      expect(out, contains(l10n.knownHosts));
+    });
+
+    test('zero-everything still produces a message', () {
+      final out = formatImportSummary(l10n, const ImportSummary());
+      expect(out, l10n.importedSessions(0));
     });
   });
 }
