@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/security/key_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
@@ -186,6 +187,11 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final store = ref.read(keyStoreProvider);
     await store.delete(entry.id);
     ref.invalidate(sshKeysProvider);
+    // DB cascades `Sessions.keyId → NULL` on key deletion, but the in-memory
+    // session list still holds the stale id. Reload so the tree picks up the
+    // cleared keyId (and the invalid-session warning icon appears without
+    // needing a second interaction).
+    await ref.read(sessionProvider.notifier).load();
     await _loadKeys();
     if (mounted) {
       Toast.show(context, message: s.keyDeleted(entry.label));
