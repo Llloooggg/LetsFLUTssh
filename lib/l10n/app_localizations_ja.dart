@@ -422,7 +422,8 @@ class SJa extends S {
   String get qrGenerationFailed => 'QRコード生成に失敗しました';
 
   @override
-  String get scanWithCameraApp => 'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
+  String get scanWithCameraApp =>
+      'LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。';
 
   @override
   String get noPasswordsInQr => 'このQRコードにパスワードや鍵は含まれていません';
@@ -440,7 +441,8 @@ class SJa extends S {
   String get unknownHost => '不明なホスト';
 
   @override
-  String get hostKeyChangedWarning => '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
+  String get hostKeyChangedWarning =>
+      '警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。';
 
   @override
   String get unknownHostMessage => 'このホストの信頼性を確認できません。接続を続行しますか？';
@@ -672,6 +674,70 @@ class SJa extends S {
   String get importDataSubtitle => '.lfs ファイルからデータを読み込み';
 
   @override
+  String sshConfigPreviewHostsFound(int count) {
+    return '$count 件のホストが見つかりました';
+  }
+
+  @override
+  String get sshConfigPreviewNoHosts => 'このファイルにインポート可能なホストが見つかりません。';
+
+  @override
+  String sshConfigPreviewMissingKeys(String hosts) {
+    return '次のホストの鍵ファイルを読み込めませんでした: $hosts。これらのホストは認証情報なしでインポートされます。';
+  }
+
+  @override
+  String sshConfigPreviewFolderLabel(String folder) {
+    return 'フォルダにインポート: $folder';
+  }
+
+  @override
+  String sshConfigImportFolderName(String date) {
+    return '.ssh $date';
+  }
+
+  @override
+  String get exportArchive => 'アーカイブをエクスポート';
+
+  @override
+  String get exportArchiveSubtitle => 'セッション、設定、鍵を暗号化された .lfs ファイルに保存';
+
+  @override
+  String get exportQrCode => 'QR コードをエクスポート';
+
+  @override
+  String get exportQrCodeSubtitle => '選択したセッションと鍵を QR コードで共有';
+
+  @override
+  String get importArchive => 'アーカイブをインポート';
+
+  @override
+  String get importArchiveSubtitle => '.lfs ファイルからデータを読み込み';
+
+  @override
+  String get importFromSshDir => '~/.ssh からインポート';
+
+  @override
+  String get importFromSshDirSubtitle => '設定ファイルからホスト、~/.ssh から秘密鍵を選択';
+
+  @override
+  String get sshDirImportHostsSection => '設定ファイルのホスト';
+
+  @override
+  String get sshDirImportKeysSection => '~/.ssh の鍵';
+
+  @override
+  String importSshKeysFound(int count) {
+    return '$count 件の鍵が見つかりました — インポートするものを選択';
+  }
+
+  @override
+  String get importSshKeysNoneFound => '~/.ssh に秘密鍵が見つかりません。';
+
+  @override
+  String get sshKeyAlreadyImported => '既にストアにあります';
+
+  @override
   String get setMasterPasswordHint => 'アーカイブを暗号化するためのマスターパスワードを設定してください。';
 
   @override
@@ -846,10 +912,12 @@ class SJa extends S {
   String get exportSessionsViaQr => 'QRでセッションをエクスポート';
 
   @override
-  String get qrNoCredentialsWarning => 'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
+  String get qrNoCredentialsWarning =>
+      'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
 
   @override
-  String get qrTooManyForSingleCode => '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
+  String get qrTooManyForSingleCode =>
+      '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
 
   @override
   String get qrTooLarge => 'データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。';
@@ -1082,7 +1150,8 @@ class SJa extends S {
   String get grantPermission => '権限を付与';
 
   @override
-  String get storagePermissionLimited => '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
+  String get storagePermissionLimited =>
+      '制限付きアクセス — すべてのファイルにアクセスするにはストレージ権限を付与してください';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1173,7 +1242,8 @@ class SJa extends S {
   String get dropKeyFileHere => '鍵ファイルをここにドロップ';
 
   @override
-  String get sessionNoCredentials => 'セッションに認証情報がありません — パスワードまたは鍵を追加するために編集してください';
+  String get sessionNoCredentials =>
+      'セッションに認証情報がありません — パスワードまたは鍵を追加するために編集してください';
 
   @override
   String dragItemCount(int count) {
@@ -1264,7 +1334,8 @@ class SJa extends S {
   String get clearAllKnownHosts => 'すべての既知のホストを削除';
 
   @override
-  String get clearAllKnownHostsConfirm => 'すべての既知のホストを削除しますか？各サーバーキーの再確認が必要になります。';
+  String get clearAllKnownHostsConfirm =>
+      'すべての既知のホストを削除しますか？各サーバーキーの再確認が必要になります。';
 
   @override
   String get importKnownHosts => '既知のホストをインポート';
@@ -1448,13 +1519,15 @@ class SJa extends S {
   String get masterPasswordRemoved => 'マスターパスワードを削除しました';
 
   @override
-  String get masterPasswordWarning => 'このパスワードを忘れると、保存されたすべてのパスワードと SSH キーが失われます。復旧はできません。';
+  String get masterPasswordWarning =>
+      'このパスワードを忘れると、保存されたすべてのパスワードと SSH キーが失われます。復旧はできません。';
 
   @override
   String get forgotPassword => 'パスワードを忘れましたか？';
 
   @override
-  String get forgotPasswordWarning => '保存されたすべてのパスワード、SSH キー、パスフレーズが削除されます。セッションと設定は保持されます。この操作は元に戻せません。';
+  String get forgotPasswordWarning =>
+      '保存されたすべてのパスワード、SSH キー、パスフレーズが削除されます。セッションと設定は保持されます。この操作は元に戻せません。';
 
   @override
   String get resetAndDeleteCredentials => 'リセットしてデータを削除';
@@ -1469,7 +1542,8 @@ class SJa extends S {
   String get reEncrypting => 'データを再暗号化中...';
 
   @override
-  String get confirmRemoveMasterPassword => 'マスターパスワード保護を解除するには現在のパスワードを入力してください。認証情報は自動生成キーで再暗号化されます。';
+  String get confirmRemoveMasterPassword =>
+      'マスターパスワード保護を解除するには現在のパスワードを入力してください。認証情報は自動生成キーで再暗号化されます。';
 
   @override
   String get securitySetupTitle => 'セキュリティ設定';
@@ -1483,13 +1557,16 @@ class SJa extends S {
   String get securitySetupKeychainOptional => '追加の保護としてマスターパスワードを設定することもできます。';
 
   @override
-  String get securitySetupNoKeychain => 'OS キーチェーンが検出されませんでした。キーチェーンがない場合、セッションデータ（ホスト、パスワード、キー）は平文で保存されます。';
+  String get securitySetupNoKeychain =>
+      'OS キーチェーンが検出されませんでした。キーチェーンがない場合、セッションデータ（ホスト、パスワード、キー）は平文で保存されます。';
 
   @override
-  String get securitySetupNoKeychainHint => 'WSL、ヘッドレス Linux、最小インストールでは正常です。Linux でキーチェーンを有効にするには：libsecret とキーリングデーモン（gnome-keyring など）をインストールしてください。';
+  String get securitySetupNoKeychainHint =>
+      'WSL、ヘッドレス Linux、最小インストールでは正常です。Linux でキーチェーンを有効にするには：libsecret とキーリングデーモン（gnome-keyring など）をインストールしてください。';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'データを保護するためにマスターパスワードの設定を推奨します。';
+  String get securitySetupRecommendMasterPassword =>
+      'データを保護するためにマスターパスワードの設定を推奨します。';
 
   @override
   String get continueWithKeychain => 'キーチェーンで続行';
@@ -1701,23 +1778,30 @@ class SJa extends S {
   String get disableKeychainSubtitle => '平文保存に切り替える（非推奨）';
 
   @override
-  String get disableKeychainConfirm => 'データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？';
+  String get disableKeychainConfirm =>
+      'データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？';
 
   @override
   String get keychainDisabled => 'キーチェーン暗号化が無効になりました';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => '完全インポート';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => '選択的';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'カスタム';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'セッションの SSH 鍵';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'マネージャーのすべての鍵';
+
+  @override
+  String get browseFiles => 'ファイルを選択…';
+
+  @override
+  String get sshDirSessionAlreadyImported => 'すでにセッションにあります';
 }

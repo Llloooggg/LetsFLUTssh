@@ -140,8 +140,8 @@
   "acceptAnyway": "Aceitar Mesmo Assim",
   "accept": "Aceitar",
   "importData": "Importar Dados",
-  "masterPassword": "Senha Mestra",
-  "confirmPassword": "Confirmar Senha",
+  "masterPassword": "Senha mestra",
+  "confirmPassword": "Confirmar senha",
   "importModeMergeDescription": "Adicionar novas sessões, manter existentes",
   "importModeReplaceDescription": "Substituir todas as sessões pelas importadas",
   "errorPrefix": "Erro: {error}",
@@ -202,6 +202,55 @@
   "exportData": "Exportar Dados",
   "exportDataSubtitle": "Salvar sessões, configurações e chaves em arquivo .lfs criptografado",
   "importDataSubtitle": "Carregar dados de arquivo .lfs",
+  "sshConfigPreviewHostsFound": "{count} host(s) encontrado(s)",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Nenhum host importável encontrado neste arquivo.",
+  "sshConfigPreviewMissingKeys": "Não foi possível ler os arquivos de chave para: {hosts}. Esses hosts serão importados sem credenciais.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Importado para a pasta: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Exportar arquivo",
+  "exportArchiveSubtitle": "Salvar sessões, configurações e chaves em arquivo .lfs criptografado",
+  "exportQrCode": "Exportar código QR",
+  "exportQrCodeSubtitle": "Compartilhar sessões e chaves selecionadas via código QR",
+  "importArchive": "Importar arquivo",
+  "importArchiveSubtitle": "Carregar dados de arquivo .lfs",
+  "importSshKeysFound": "{count} chave(s) encontrada(s) — escolha quais importar",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Nenhuma chave privada encontrada em ~/.ssh.",
+  "sshKeyAlreadyImported": "já no armazenamento",
   "setMasterPasswordHint": "Defina uma senha mestra para criptografar o arquivo.",
   "passwordsDoNotMatch": "As senhas não coincidem",
   "exportedTo": "Exportado para: {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "Todos os hosts conhecidos foram limpos",
   "removedHost": "{host} removido",
   "noHostsToExport": "Nenhum host para exportar",
-  "keyType": "Tipo de chave",
-  "fingerprint": "Impressão digital",
   "tools": "Ferramentas",
   "sshKeys": "Chaves SSH",
   "sshKeysSubtitle": "Gerenciar pares de chaves SSH para autenticação",
@@ -419,7 +466,6 @@
   "passphrase": "Frase secreta",
   "rememberPassphrase": "Lembrar para esta sessão",
   "unlock": "Desbloquear",
-  "masterPassword": "Senha mestra",
   "masterPasswordSubtitle": "Proteger credenciais salvas com senha",
   "setMasterPassword": "Definir senha mestra",
   "changeMasterPassword": "Alterar senha mestra",
@@ -429,9 +475,7 @@
   "enterMasterPassword": "Digite a senha mestra para acessar suas credenciais salvas.",
   "wrongMasterPassword": "Senha incorreta. Por favor, tente novamente.",
   "newPassword": "Nova senha",
-  "confirmPassword": "Confirmar senha",
   "currentPassword": "Senha atual",
-  "passwordsDoNotMatch": "As senhas não coincidem",
   "passwordTooShort": "A senha deve ter pelo menos 8 caracteres",
   "masterPasswordSet": "Senha mestra ativada",
   "masterPasswordChanged": "Senha mestra alterada",
@@ -444,7 +488,6 @@
   "derivingKey": "Derivando chave de criptografia...",
   "reEncrypting": "Re-criptografando dados...",
   "confirmRemoveMasterPassword": "Digite sua senha atual para remover a proteção de senha mestra. As credenciais serão re-criptografadas com uma chave auto-gerada.",
-  "password": "Senha",
   "securitySetupTitle": "Configuração de segurança",
   "securitySetupKeychainFound": "Chaveiro do sistema detectado ({keychainName}). Seus dados serão criptografados automaticamente usando o chaveiro do sistema.",
   "securitySetupKeychainOptional": "Você também pode definir uma senha mestra para proteção adicional.",
@@ -477,5 +520,16 @@
   "disableKeychain": "Desativar criptografia do chaveiro",
   "disableKeychainSubtitle": "Mudar para armazenamento em texto simples (não recomendado)",
   "disableKeychainConfirm": "O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?",
-  "keychainDisabled": "Criptografia do chaveiro desativada"
+  "keychainDisabled": "Criptografia do chaveiro desativada",
+  "importFromSshDir": "Importar de ~/.ssh",
+  "importFromSshDirSubtitle": "Escolha hosts do arquivo de configuração e/ou chaves privadas de ~/.ssh",
+  "sshDirImportHostsSection": "Hosts do arquivo de configuração",
+  "sshDirImportKeysSection": "Chaves em ~/.ssh",
+  "browseFiles": "Procurar arquivos…",
+  "sshDirSessionAlreadyImported": "já está nas sessões",
+  "presetFullImport": "Importação completa",
+  "presetSelective": "Seletivo",
+  "presetCustom": "Personalizado",
+  "sessionSshKeys": "Chaves SSH da sessão",
+  "allManagerKeys": "Todas as chaves do gerenciador"
 }

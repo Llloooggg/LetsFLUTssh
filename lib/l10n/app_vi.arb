@@ -202,6 +202,55 @@
   "exportData": "Xuất dữ liệu",
   "exportDataSubtitle": "Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa",
   "importDataSubtitle": "Tải dữ liệu từ tệp .lfs",
+  "sshConfigPreviewHostsFound": "Đã tìm thấy {count} host",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Không tìm thấy host nào có thể nhập trong tệp này.",
+  "sshConfigPreviewMissingKeys": "Không thể đọc tệp khóa cho: {hosts}. Các host này sẽ được nhập mà không có thông tin xác thực.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Đã nhập vào thư mục: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Xuất kho lưu trữ",
+  "exportArchiveSubtitle": "Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa",
+  "exportQrCode": "Xuất mã QR",
+  "exportQrCodeSubtitle": "Chia sẻ phiên và khóa đã chọn qua mã QR",
+  "importArchive": "Nhập kho lưu trữ",
+  "importArchiveSubtitle": "Tải dữ liệu từ tệp .lfs",
+  "importSshKeysFound": "Đã tìm thấy {count} khóa — chọn khóa nào để nhập",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Không tìm thấy khóa riêng tư nào trong ~/.ssh.",
+  "sshKeyAlreadyImported": "đã có trong kho",
   "setMasterPasswordHint": "Đặt mật khẩu chính để mã hóa kho lưu trữ.",
   "passwordsDoNotMatch": "Mật khẩu không khớp",
   "exportedTo": "Đã xuất đến: {path}",
@@ -471,5 +520,16 @@
   "disableKeychain": "Tắt mã hóa keychain",
   "disableKeychainSubtitle": "Chuyển sang lưu trữ văn bản thuần (không khuyến nghị)",
   "disableKeychainConfirm": "Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?",
-  "keychainDisabled": "Đã tắt mã hóa keychain"
+  "keychainDisabled": "Đã tắt mã hóa keychain",
+  "importFromSshDir": "Nhập từ ~/.ssh",
+  "importFromSshDirSubtitle": "Chọn các máy chủ từ tệp cấu hình và/hoặc khóa riêng tư từ ~/.ssh",
+  "sshDirImportHostsSection": "Máy chủ từ tệp cấu hình",
+  "sshDirImportKeysSection": "Khóa trong ~/.ssh",
+  "browseFiles": "Chọn tệp…",
+  "sshDirSessionAlreadyImported": "đã có trong các phiên",
+  "presetFullImport": "Nhập toàn bộ",
+  "presetSelective": "Chọn lọc",
+  "presetCustom": "Tùy chỉnh",
+  "sessionSshKeys": "Khóa SSH của phiên",
+  "allManagerKeys": "Tất cả khóa trong trình quản lý"
 }

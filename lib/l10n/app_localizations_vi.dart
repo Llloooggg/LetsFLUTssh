@@ -93,10 +93,12 @@ class SVi extends S {
   String get managerKeys => 'Khóa từ trình quản lý';
 
   @override
-  String get managerKeysMayBeLarge => 'Khóa trình quản lý có thể vượt quá kích thước QR';
+  String get managerKeysMayBeLarge =>
+      'Khóa trình quản lý có thể vượt quá kích thước QR';
 
   @override
-  String get qrPasswordWarning => 'Mật khẩu sẽ không được mã hóa trong mã QR. Bất kỳ ai quét đều có thể nhìn thấy.';
+  String get qrPasswordWarning =>
+      'Mật khẩu sẽ không được mã hóa trong mã QR. Bất kỳ ai quét đều có thể nhìn thấy.';
 
   @override
   String get sshKeysMayBeLarge => 'Khóa có thể vượt quá kích thước QR';
@@ -107,7 +109,8 @@ class SVi extends S {
   }
 
   @override
-  String get qrCredentialsWarning => 'Mật khẩu và khóa SSH SẼ hiển thị trong mã QR';
+  String get qrCredentialsWarning =>
+      'Mật khẩu và khóa SSH SẼ hiển thị trong mã QR';
 
   @override
   String get qrCredentialsTooLarge => 'Thông tin xác thực làm mã QR quá lớn';
@@ -163,7 +166,8 @@ class SVi extends S {
   String get openInBrowser => 'Mở trong trình duyệt';
 
   @override
-  String get couldNotOpenBrowser => 'Không thể mở trình duyệt — URL đã được sao chép vào bộ nhớ tạm';
+  String get couldNotOpenBrowser =>
+      'Không thể mở trình duyệt — URL đã được sao chép vào bộ nhớ tạm';
 
   @override
   String get checkForUpdates => 'Kiểm tra cập nhật';
@@ -422,7 +426,8 @@ class SVi extends S {
   String get qrGenerationFailed => 'Tạo mã QR thất bại';
 
   @override
-  String get scanWithCameraApp => 'Quét bằng ứng dụng camera trên thiết bị\ncó cài LetsFLUTssh.';
+  String get scanWithCameraApp =>
+      'Quét bằng ứng dụng camera trên thiết bị\ncó cài LetsFLUTssh.';
 
   @override
   String get noPasswordsInQr => 'Không có mật khẩu hoặc khóa trong mã QR này';
@@ -440,10 +445,12 @@ class SVi extends S {
   String get unknownHost => 'Máy chủ không xác định';
 
   @override
-  String get hostKeyChangedWarning => 'CẢNH BÁO: Khóa máy chủ của server này đã thay đổi. Điều này có thể là dấu hiệu của tấn công man-in-the-middle, hoặc server đã được cài đặt lại.';
+  String get hostKeyChangedWarning =>
+      'CẢNH BÁO: Khóa máy chủ của server này đã thay đổi. Điều này có thể là dấu hiệu của tấn công man-in-the-middle, hoặc server đã được cài đặt lại.';
 
   @override
-  String get unknownHostMessage => 'Không thể xác minh danh tính của máy chủ này. Bạn có chắc muốn tiếp tục kết nối?';
+  String get unknownHostMessage =>
+      'Không thể xác minh danh tính của máy chủ này. Bạn có chắc muốn tiếp tục kết nối?';
 
   @override
   String get host => 'Máy chủ';
@@ -479,7 +486,8 @@ class SVi extends S {
   String get importModeMergeDescription => 'Thêm phiên mới, giữ phiên hiện có';
 
   @override
-  String get importModeReplaceDescription => 'Thay thế tất cả phiên bằng phiên nhập vào';
+  String get importModeReplaceDescription =>
+      'Thay thế tất cả phiên bằng phiên nhập vào';
 
   @override
   String errorPrefix(String error) {
@@ -585,7 +593,8 @@ class SVi extends S {
   String get noActiveSession => 'Không có phiên đang hoạt động';
 
   @override
-  String get createConnectionHint => 'Tạo kết nối mới hoặc chọn một kết nối từ thanh bên';
+  String get createConnectionHint =>
+      'Tạo kết nối mới hoặc chọn một kết nối từ thanh bên';
 
   @override
   String get hideSidebar => 'Ẩn thanh bên (Ctrl+B)';
@@ -666,13 +675,83 @@ class SVi extends S {
   String get exportData => 'Xuất dữ liệu';
 
   @override
-  String get exportDataSubtitle => 'Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa';
+  String get exportDataSubtitle =>
+      'Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa';
 
   @override
   String get importDataSubtitle => 'Tải dữ liệu từ tệp .lfs';
 
   @override
-  String get setMasterPasswordHint => 'Đặt mật khẩu chính để mã hóa kho lưu trữ.';
+  String sshConfigPreviewHostsFound(int count) {
+    return 'Đã tìm thấy $count host';
+  }
+
+  @override
+  String get sshConfigPreviewNoHosts =>
+      'Không tìm thấy host nào có thể nhập trong tệp này.';
+
+  @override
+  String sshConfigPreviewMissingKeys(String hosts) {
+    return 'Không thể đọc tệp khóa cho: $hosts. Các host này sẽ được nhập mà không có thông tin xác thực.';
+  }
+
+  @override
+  String sshConfigPreviewFolderLabel(String folder) {
+    return 'Đã nhập vào thư mục: $folder';
+  }
+
+  @override
+  String sshConfigImportFolderName(String date) {
+    return '.ssh $date';
+  }
+
+  @override
+  String get exportArchive => 'Xuất kho lưu trữ';
+
+  @override
+  String get exportArchiveSubtitle =>
+      'Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa';
+
+  @override
+  String get exportQrCode => 'Xuất mã QR';
+
+  @override
+  String get exportQrCodeSubtitle => 'Chia sẻ phiên và khóa đã chọn qua mã QR';
+
+  @override
+  String get importArchive => 'Nhập kho lưu trữ';
+
+  @override
+  String get importArchiveSubtitle => 'Tải dữ liệu từ tệp .lfs';
+
+  @override
+  String get importFromSshDir => 'Nhập từ ~/.ssh';
+
+  @override
+  String get importFromSshDirSubtitle =>
+      'Chọn các máy chủ từ tệp cấu hình và/hoặc khóa riêng tư từ ~/.ssh';
+
+  @override
+  String get sshDirImportHostsSection => 'Máy chủ từ tệp cấu hình';
+
+  @override
+  String get sshDirImportKeysSection => 'Khóa trong ~/.ssh';
+
+  @override
+  String importSshKeysFound(int count) {
+    return 'Đã tìm thấy $count khóa — chọn khóa nào để nhập';
+  }
+
+  @override
+  String get importSshKeysNoneFound =>
+      'Không tìm thấy khóa riêng tư nào trong ~/.ssh.';
+
+  @override
+  String get sshKeyAlreadyImported => 'đã có trong kho';
+
+  @override
+  String get setMasterPasswordHint =>
+      'Đặt mật khẩu chính để mã hóa kho lưu trữ.';
 
   @override
   String get passwordsDoNotMatch => 'Mật khẩu không khớp';
@@ -700,7 +779,8 @@ class SVi extends S {
   String get shareViaQrCode => 'Chia sẻ qua mã QR';
 
   @override
-  String get shareViaQrSubtitle => 'Xuất phiên sang mã QR để quét từ thiết bị khác';
+  String get shareViaQrSubtitle =>
+      'Xuất phiên sang mã QR để quét từ thiết bị khác';
 
   @override
   String get dataLocation => 'Vị trí dữ liệu';
@@ -834,7 +914,8 @@ class SVi extends S {
   String get exit => 'Thoát';
 
   @override
-  String get exitConfirmation => 'Các phiên đang hoạt động sẽ bị ngắt kết nối. Thoát?';
+  String get exitConfirmation =>
+      'Các phiên đang hoạt động sẽ bị ngắt kết nối. Thoát?';
 
   @override
   String get hintFolderExample => 'ví dụ: Production';
@@ -846,13 +927,16 @@ class SVi extends S {
   String get exportSessionsViaQr => 'Xuất phiên qua QR';
 
   @override
-  String get qrNoCredentialsWarning => 'Mật khẩu và khóa SSH KHÔNG được bao gồm.\nCác phiên nhập vào sẽ cần điền thông tin xác thực.';
+  String get qrNoCredentialsWarning =>
+      'Mật khẩu và khóa SSH KHÔNG được bao gồm.\nCác phiên nhập vào sẽ cần điền thông tin xác thực.';
 
   @override
-  String get qrTooManyForSingleCode => 'Quá nhiều phiên cho một mã QR. Bỏ chọn một số hoặc sử dụng xuất .lfs.';
+  String get qrTooManyForSingleCode =>
+      'Quá nhiều phiên cho một mã QR. Bỏ chọn một số hoặc sử dụng xuất .lfs.';
 
   @override
-  String get qrTooLarge => 'Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.';
+  String get qrTooLarge =>
+      'Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.';
 
   @override
   String get exportAll => 'Xuất tất cả';
@@ -899,7 +983,8 @@ class SVi extends S {
   String get errBadFileDescriptor => 'Mô tả tệp không hợp lệ';
 
   @override
-  String get errResourceTemporarilyUnavailable => 'Tài nguyên tạm thời không khả dụng';
+  String get errResourceTemporarilyUnavailable =>
+      'Tài nguyên tạm thời không khả dụng';
 
   @override
   String get errOutOfMemory => 'Hết bộ nhớ';
@@ -923,7 +1008,8 @@ class SVi extends S {
   String get errTooManyOpenFiles => 'Quá nhiều tệp đang mở';
 
   @override
-  String get errNoSpaceLeftOnDevice => 'Không còn dung lượng trống trên thiết bị';
+  String get errNoSpaceLeftOnDevice =>
+      'Không còn dung lượng trống trên thiết bị';
 
   @override
   String get errReadOnlyFileSystem => 'Hệ thống tệp chỉ đọc';
@@ -1043,7 +1129,8 @@ class SVi extends S {
   }
 
   @override
-  String get errDecryptionFailed => 'Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.';
+  String get errDecryptionFailed =>
+      'Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1076,13 +1163,15 @@ class SVi extends S {
   String get subitems => 'Mục';
 
   @override
-  String get storagePermissionRequired => 'Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ';
+  String get storagePermissionRequired =>
+      'Cần quyền truy cập bộ nhớ để duyệt tệp cục bộ';
 
   @override
   String get grantPermission => 'Cấp quyền';
 
   @override
-  String get storagePermissionLimited => 'Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp';
+  String get storagePermissionLimited =>
+      'Truy cập hạn chế — cấp quyền truy cập bộ nhớ đầy đủ cho tất cả tệp';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1173,7 +1262,8 @@ class SVi extends S {
   String get dropKeyFileHere => 'Kéo thả tệp khóa vào đây';
 
   @override
-  String get sessionNoCredentials => 'Phiên không có thông tin xác thực — chỉnh sửa để thêm mật khẩu hoặc khóa';
+  String get sessionNoCredentials =>
+      'Phiên không có thông tin xác thực — chỉnh sửa để thêm mật khẩu hoặc khóa';
 
   @override
   String dragItemCount(int count) {
@@ -1250,7 +1340,8 @@ class SVi extends S {
   }
 
   @override
-  String get knownHostsEmpty => 'Không có máy chủ đã biết. Kết nối tới máy chủ để thêm.';
+  String get knownHostsEmpty =>
+      'Không có máy chủ đã biết. Kết nối tới máy chủ để thêm.';
 
   @override
   String get removeHost => 'Xóa máy chủ';
@@ -1264,7 +1355,8 @@ class SVi extends S {
   String get clearAllKnownHosts => 'Xóa tất cả máy chủ đã biết';
 
   @override
-  String get clearAllKnownHostsConfirm => 'Xóa tất cả máy chủ đã biết? Mỗi khóa máy chủ sẽ cần xác minh lại.';
+  String get clearAllKnownHostsConfirm =>
+      'Xóa tất cả máy chủ đã biết? Mỗi khóa máy chủ sẽ cần xác minh lại.';
 
   @override
   String get importKnownHosts => 'Nhập máy chủ đã biết';
@@ -1406,7 +1498,8 @@ class SVi extends S {
   String get unlock => 'Mở khóa';
 
   @override
-  String get masterPasswordSubtitle => 'Bảo vệ thông tin đăng nhập đã lưu bằng mật khẩu';
+  String get masterPasswordSubtitle =>
+      'Bảo vệ thông tin đăng nhập đã lưu bằng mật khẩu';
 
   @override
   String get setMasterPassword => 'Đặt mật khẩu chính';
@@ -1418,13 +1511,16 @@ class SVi extends S {
   String get removeMasterPassword => 'Xóa mật khẩu chính';
 
   @override
-  String get masterPasswordEnabled => 'Thông tin đăng nhập được bảo vệ bởi mật khẩu chính';
+  String get masterPasswordEnabled =>
+      'Thông tin đăng nhập được bảo vệ bởi mật khẩu chính';
 
   @override
-  String get masterPasswordDisabled => 'Thông tin đăng nhập sử dụng khóa tự tạo (không có mật khẩu)';
+  String get masterPasswordDisabled =>
+      'Thông tin đăng nhập sử dụng khóa tự tạo (không có mật khẩu)';
 
   @override
-  String get enterMasterPassword => 'Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.';
+  String get enterMasterPassword =>
+      'Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.';
 
   @override
   String get wrongMasterPassword => 'Sai mật khẩu. Vui lòng thử lại.';
@@ -1448,13 +1544,15 @@ class SVi extends S {
   String get masterPasswordRemoved => 'Đã xóa mật khẩu chính';
 
   @override
-  String get masterPasswordWarning => 'Nếu bạn quên mật khẩu này, tất cả mật khẩu và khóa SSH đã lưu sẽ bị mất. Không thể khôi phục.';
+  String get masterPasswordWarning =>
+      'Nếu bạn quên mật khẩu này, tất cả mật khẩu và khóa SSH đã lưu sẽ bị mất. Không thể khôi phục.';
 
   @override
   String get forgotPassword => 'Quên mật khẩu?';
 
   @override
-  String get forgotPasswordWarning => 'Thao tác này sẽ xóa TẤT CẢ mật khẩu, khóa SSH và cụm mật khẩu đã lưu. Các phiên và cài đặt sẽ được giữ lại. Không thể hoàn tác.';
+  String get forgotPasswordWarning =>
+      'Thao tác này sẽ xóa TẤT CẢ mật khẩu, khóa SSH và cụm mật khẩu đã lưu. Các phiên và cài đặt sẽ được giữ lại. Không thể hoàn tác.';
 
   @override
   String get resetAndDeleteCredentials => 'Đặt lại và xóa dữ liệu';
@@ -1469,7 +1567,8 @@ class SVi extends S {
   String get reEncrypting => 'Đang mã hóa lại dữ liệu...';
 
   @override
-  String get confirmRemoveMasterPassword => 'Nhập mật khẩu hiện tại để xóa bảo vệ mật khẩu chính. Thông tin đăng nhập sẽ được mã hóa lại bằng khóa tự tạo.';
+  String get confirmRemoveMasterPassword =>
+      'Nhập mật khẩu hiện tại để xóa bảo vệ mật khẩu chính. Thông tin đăng nhập sẽ được mã hóa lại bằng khóa tự tạo.';
 
   @override
   String get securitySetupTitle => 'Thiết lập bảo mật';
@@ -1480,16 +1579,20 @@ class SVi extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => 'Bạn cũng có thể đặt mật khẩu chính để bảo vệ thêm.';
+  String get securitySetupKeychainOptional =>
+      'Bạn cũng có thể đặt mật khẩu chính để bảo vệ thêm.';
 
   @override
-  String get securitySetupNoKeychain => 'Không phát hiện chuỗi khóa hệ thống. Không có chuỗi khóa, dữ liệu phiên (máy chủ, mật khẩu, khóa) sẽ được lưu dạng văn bản thuần.';
+  String get securitySetupNoKeychain =>
+      'Không phát hiện chuỗi khóa hệ thống. Không có chuỗi khóa, dữ liệu phiên (máy chủ, mật khẩu, khóa) sẽ được lưu dạng văn bản thuần.';
 
   @override
-  String get securitySetupNoKeychainHint => 'Điều này bình thường trên WSL, Linux không giao diện hoặc cài đặt tối thiểu. Để bật chuỗi khóa trên Linux: cài libsecret và daemon chuỗi khóa (VD: gnome-keyring).';
+  String get securitySetupNoKeychainHint =>
+      'Điều này bình thường trên WSL, Linux không giao diện hoặc cài đặt tối thiểu. Để bật chuỗi khóa trên Linux: cài libsecret và daemon chuỗi khóa (VD: gnome-keyring).';
 
   @override
-  String get securitySetupRecommendMasterPassword => 'Chúng tôi khuyên bạn nên đặt mật khẩu chính để bảo vệ dữ liệu.';
+  String get securitySetupRecommendMasterPassword =>
+      'Chúng tôi khuyên bạn nên đặt mật khẩu chính để bảo vệ dữ liệu.';
 
   @override
   String get continueWithKeychain => 'Tiếp tục với chuỗi khóa';
@@ -1524,7 +1627,8 @@ class SVi extends S {
   String get enableKeychain => 'Bật mã hóa chuỗi khóa';
 
   @override
-  String get enableKeychainSubtitle => 'Mã hóa lại dữ liệu được lưu bằng chuỗi khóa hệ thống';
+  String get enableKeychainSubtitle =>
+      'Mã hóa lại dữ liệu được lưu bằng chuỗi khóa hệ thống';
 
   @override
   String get keychainEnabled => 'Mã hóa chuỗi khóa đã được bật';
@@ -1698,26 +1802,34 @@ class SVi extends S {
   String get disableKeychain => 'Tắt mã hóa keychain';
 
   @override
-  String get disableKeychainSubtitle => 'Chuyển sang lưu trữ văn bản thuần (không khuyến nghị)';
+  String get disableKeychainSubtitle =>
+      'Chuyển sang lưu trữ văn bản thuần (không khuyến nghị)';
 
   @override
-  String get disableKeychainConfirm => 'Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?';
+  String get disableKeychainConfirm =>
+      'Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?';
 
   @override
   String get keychainDisabled => 'Đã tắt mã hóa keychain';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Nhập toàn bộ';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Chọn lọc';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Tùy chỉnh';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Khóa SSH của phiên';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Tất cả khóa trong trình quản lý';
+
+  @override
+  String get browseFiles => 'Chọn tệp…';
+
+  @override
+  String get sshDirSessionAlreadyImported => 'đã có trong các phiên';
 }

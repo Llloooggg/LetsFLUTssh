@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
@@ -162,6 +163,10 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
     final store = ref.read(tagStoreProvider);
     await store.delete(tag.id);
     ref.invalidate(tagsProvider);
+    // SessionTags cascades on FK, but any UI that derives per-session tag
+    // lists from the in-memory session state needs a reload to drop links
+    // to the now-deleted tag.
+    await ref.read(sessionProvider.notifier).load();
     await _load();
     if (mounted) {
       Toast.show(context, message: s.tagDeleted(tag.name));

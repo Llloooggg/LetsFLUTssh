@@ -95,7 +95,9 @@ class _LoggingSection extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: S.of(context).logExportFailed('$e'),
+          message: S
+              .of(context)
+              .logExportFailed(localizeError(S.of(context), e)),
           level: ToastLevel.error,
         );
       }

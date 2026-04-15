@@ -202,6 +202,55 @@
   "exportData": "Exportar datos",
   "exportDataSubtitle": "Guardar sesiones, configuración y claves en un archivo .lfs cifrado",
   "importDataSubtitle": "Cargar datos desde un archivo .lfs",
+  "sshConfigPreviewHostsFound": "{count} host(s) encontrado(s)",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "No se encontraron hosts importables en este archivo.",
+  "sshConfigPreviewMissingKeys": "No se pudieron leer los archivos de clave para: {hosts}. Estos hosts se importarán sin credenciales.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Importado en la carpeta: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Exportar archivo",
+  "exportArchiveSubtitle": "Guardar sesiones, configuración y claves en archivo .lfs cifrado",
+  "exportQrCode": "Exportar código QR",
+  "exportQrCodeSubtitle": "Compartir sesiones y claves seleccionadas mediante código QR",
+  "importArchive": "Importar archivo",
+  "importArchiveSubtitle": "Cargar datos desde archivo .lfs",
+  "importSshKeysFound": "{count} clave(s) encontrada(s) — elige cuáles importar",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "No se encontraron claves privadas en ~/.ssh.",
+  "sshKeyAlreadyImported": "ya en el almacén",
   "setMasterPasswordHint": "Establezca una contraseña maestra para cifrar el archivo.",
   "passwordsDoNotMatch": "Las contraseñas no coinciden",
   "exportedTo": "Exportado a: {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "Todos los hosts conocidos eliminados",
   "removedHost": "{host} eliminado",
   "noHostsToExport": "No hay hosts para exportar",
-  "keyType": "Tipo de clave",
-  "fingerprint": "Huella digital",
   "tools": "Herramientas",
   "sshKeys": "Claves SSH",
   "sshKeysSubtitle": "Gestión de pares de claves SSH para autenticación",
@@ -419,7 +466,6 @@
   "passphrase": "Frase de contraseña",
   "rememberPassphrase": "Recordar para esta sesión",
   "unlock": "Desbloquear",
-  "masterPassword": "Contraseña maestra",
   "masterPasswordSubtitle": "Proteger credenciales guardadas con contraseña",
   "setMasterPassword": "Establecer contraseña maestra",
   "changeMasterPassword": "Cambiar contraseña maestra",
@@ -429,9 +475,7 @@
   "enterMasterPassword": "Ingrese la contraseña maestra para acceder a sus credenciales guardadas.",
   "wrongMasterPassword": "Contraseña incorrecta. Por favor, inténtelo de nuevo.",
   "newPassword": "Nueva contraseña",
-  "confirmPassword": "Confirmar contraseña",
   "currentPassword": "Contraseña actual",
-  "passwordsDoNotMatch": "Las contraseñas no coinciden",
   "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
   "masterPasswordSet": "Contraseña maestra activada",
   "masterPasswordChanged": "Contraseña maestra cambiada",
@@ -444,7 +488,6 @@
   "derivingKey": "Derivando clave de cifrado...",
   "reEncrypting": "Re-cifrando datos...",
   "confirmRemoveMasterPassword": "Ingrese su contraseña actual para eliminar la protección de contraseña maestra. Las credenciales serán re-cifradas con una clave auto-generada.",
-  "password": "Contraseña",
   "securitySetupTitle": "Configuración de seguridad",
   "securitySetupKeychainFound": "Llavero del sistema detectado ({keychainName}). Sus datos serán cifrados automáticamente usando el llavero del sistema.",
   "securitySetupKeychainOptional": "También puede establecer una contraseña maestra para protección adicional.",
@@ -477,5 +520,16 @@
   "disableKeychain": "Desactivar cifrado del llavero",
   "disableKeychainSubtitle": "Cambiar a almacenamiento en texto plano (no recomendado)",
   "disableKeychainConfirm": "La base de datos se volverá a cifrar sin clave. Las sesiones y claves se almacenarán en texto plano en el disco. ¿Continuar?",
-  "keychainDisabled": "Cifrado del llavero desactivado"
+  "keychainDisabled": "Cifrado del llavero desactivado",
+  "importFromSshDir": "Importar desde ~/.ssh",
+  "importFromSshDirSubtitle": "Elige hosts del archivo de configuración y/o claves privadas de ~/.ssh",
+  "sshDirImportHostsSection": "Hosts del archivo de configuración",
+  "sshDirImportKeysSection": "Claves en ~/.ssh",
+  "browseFiles": "Explorar archivos…",
+  "sshDirSessionAlreadyImported": "ya está en las sesiones",
+  "presetFullImport": "Importación completa",
+  "presetSelective": "Selectivo",
+  "presetCustom": "Personalizado",
+  "sessionSshKeys": "Claves SSH de la sesión",
+  "allManagerKeys": "Todas las claves del gestor"
 }

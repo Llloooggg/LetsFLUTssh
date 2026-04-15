@@ -93,6 +93,13 @@ class SnippetStore {
     await db.snippetDao.deleteById(id);
   }
 
+  /// Delete every snippet. Cascades to the session link table.
+  Future<void> deleteAll() async {
+    final db = _db;
+    if (db == null) return;
+    await db.snippetDao.deleteAll();
+  }
+
   /// Pin a snippet to a session.
   Future<void> linkToSession(String snippetId, String sessionId) async {
     final db = _db;

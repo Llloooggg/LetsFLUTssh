@@ -202,6 +202,55 @@
   "exportData": "تصدير البيانات",
   "exportDataSubtitle": "حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر",
   "importDataSubtitle": "تحميل البيانات من ملف .lfs",
+  "sshConfigPreviewHostsFound": "تم العثور على {count} مضيف",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "لم يتم العثور على مضيفين قابلين للاستيراد في هذا الملف.",
+  "sshConfigPreviewMissingKeys": "تعذر قراءة ملفات المفاتيح لـ: {hosts}. سيتم استيراد هؤلاء المضيفين بدون بيانات اعتماد.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "تم الاستيراد إلى المجلد: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "تصدير الأرشيف",
+  "exportArchiveSubtitle": "حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر",
+  "exportQrCode": "تصدير رمز QR",
+  "exportQrCodeSubtitle": "مشاركة الجلسات والمفاتيح المحددة عبر رمز QR",
+  "importArchive": "استيراد الأرشيف",
+  "importArchiveSubtitle": "تحميل البيانات من ملف .lfs",
+  "importSshKeysFound": "تم العثور على {count} مفتاح — اختر أيها تريد استيراده",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "لم يتم العثور على مفاتيح خاصة في ~/.ssh.",
+  "sshKeyAlreadyImported": "موجود بالفعل في المخزن",
   "setMasterPasswordHint": "عيّن كلمة مرور رئيسية لتشفير الأرشيف.",
   "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
   "exportedTo": "تم التصدير إلى: {path}",
@@ -471,5 +520,16 @@
   "disableKeychain": "تعطيل تشفير سلسلة المفاتيح",
   "disableKeychainSubtitle": "التبديل إلى التخزين بنص عادي (غير موصى به)",
   "disableKeychainConfirm": "ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟",
-  "keychainDisabled": "تم تعطيل تشفير سلسلة المفاتيح"
+  "keychainDisabled": "تم تعطيل تشفير سلسلة المفاتيح",
+  "importFromSshDir": "الاستيراد من ~/.ssh",
+  "importFromSshDirSubtitle": "اختر المضيفين من ملف الإعدادات و/أو المفاتيح الخاصة من ~/.ssh",
+  "sshDirImportHostsSection": "المضيفون من ملف الإعدادات",
+  "sshDirImportKeysSection": "المفاتيح في ~/.ssh",
+  "browseFiles": "تصفح الملفات…",
+  "sshDirSessionAlreadyImported": "موجودة في الجلسات بالفعل",
+  "presetFullImport": "استيراد كامل",
+  "presetSelective": "انتقائي",
+  "presetCustom": "مخصص",
+  "sessionSshKeys": "مفاتيح SSH للجلسة",
+  "allManagerKeys": "جميع المفاتيح في المدير"
 }

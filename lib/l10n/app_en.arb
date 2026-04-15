@@ -251,7 +251,7 @@
   "hostKeyChangedWarning": "WARNING: The host key for this server has changed. This could indicate a man-in-the-middle attack, or the server may have been reinstalled.",
   "unknownHostMessage": "The authenticity of this host cannot be established. Are you sure you want to continue connecting?",
   "host": "Host",
-  "keyType": "Key type",
+  "keyType": "Key Type",
   "fingerprint": "Fingerprint",
   "fingerprintCopied": "Fingerprint copied",
   "copyFingerprint": "Copy fingerprint",
@@ -379,6 +379,59 @@
   "exportData": "Export Data",
   "exportDataSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
   "importDataSubtitle": "Load data from .lfs file",
+  "sshConfigPreviewHostsFound": "{count} host(s) found",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "No importable hosts found in this file.",
+  "sshConfigPreviewMissingKeys": "Could not read key files for: {hosts}. These hosts will be imported without credentials.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Imported to folder: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "exportArchive": "Export archive",
+  "exportArchiveSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
+  "exportQrCode": "Export QR code",
+  "exportQrCodeSubtitle": "Share selected sessions and keys via QR code",
+  "importArchive": "Import archive",
+  "importArchiveSubtitle": "Load data from .lfs file",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh",
+  "importSshKeysFound": "{count} key(s) found — pick which to import",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "No private keys found in ~/.ssh.",
+  "sshKeyAlreadyImported": "already in store",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "setMasterPasswordHint": "Set a master password to encrypt the archive.",
   "passwordsDoNotMatch": "Passwords do not match",
   "exportedTo": "Exported to: {path}",
@@ -870,8 +923,6 @@
     }
   },
   "noHostsToExport": "No known hosts to export",
-  "keyType": "Key Type",
-  "fingerprint": "Fingerprint",
   "tools": "Tools",
   "sshKeys": "SSH Keys",
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",
@@ -944,8 +995,6 @@
   "passphrase": "Passphrase",
   "rememberPassphrase": "Remember for this session",
   "unlock": "Unlock",
-
-  "masterPassword": "Master Password",
   "masterPasswordSubtitle": "Protect saved credentials with a password",
   "setMasterPassword": "Set Master Password",
   "changeMasterPassword": "Change Master Password",
@@ -955,9 +1004,7 @@
   "enterMasterPassword": "Enter master password to unlock your saved credentials.",
   "wrongMasterPassword": "Wrong password. Please try again.",
   "newPassword": "New Password",
-  "confirmPassword": "Confirm Password",
   "currentPassword": "Current Password",
-  "passwordsDoNotMatch": "Passwords do not match",
   "passwordTooShort": "Password must be at least 8 characters",
   "masterPasswordSet": "Master password enabled",
   "masterPasswordChanged": "Master password changed",
@@ -970,13 +1017,13 @@
   "derivingKey": "Deriving encryption key...",
   "reEncrypting": "Re-encrypting data...",
   "confirmRemoveMasterPassword": "Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.",
-  "password": "Password",
-
   "securitySetupTitle": "Security Setup",
   "securitySetupKeychainFound": "OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.",
   "@securitySetupKeychainFound": {
     "placeholders": {
-      "keychainName": {"type": "String"}
+      "keychainName": {
+        "type": "String"
+      }
     }
   },
   "securitySetupKeychainOptional": "You can also set a master password for additional protection.",
@@ -985,7 +1032,6 @@
   "securitySetupRecommendMasterPassword": "We recommend setting a master password to protect your data.",
   "continueWithKeychain": "Continue with Keychain",
   "continueWithoutEncryption": "Continue without Encryption",
-
   "securityLevel": "Security Level",
   "securityLevelPlaintext": "None (plaintext)",
   "securityLevelKeychain": "OS Keychain",
@@ -994,7 +1040,9 @@
   "keychainAvailable": "Available ({name})",
   "@keychainAvailable": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "keychainNotAvailable": "Not available",
@@ -1003,7 +1051,6 @@
   "keychainEnabled": "Keychain encryption enabled",
   "manageMasterPassword": "Manage Master Password",
   "manageMasterPasswordSubtitle": "Set, change, or remove master password",
-
   "snippets": "Snippets",
   "snippetsSubtitle": "Manage reusable command snippets",
   "noSnippets": "No snippets yet",
@@ -1048,7 +1095,6 @@
   "allSnippets": "All",
   "sendToTerminal": "Send to terminal",
   "commandCopied": "Command copied to clipboard",
-
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",
@@ -1112,5 +1158,7 @@
   "presetSelective": "Selective",
   "presetCustom": "Custom",
   "sessionSshKeys": "Session SSH keys",
-  "allManagerKeys": "All manager keys"
+  "allManagerKeys": "All manager keys",
+  "browseFiles": "Browse files…",
+  "sshDirSessionAlreadyImported": "already in sessions"
 }

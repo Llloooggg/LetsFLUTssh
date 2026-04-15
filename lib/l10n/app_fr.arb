@@ -202,6 +202,55 @@
   "exportData": "Exporter les données",
   "exportDataSubtitle": "Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré",
   "importDataSubtitle": "Charger les données depuis un fichier .lfs",
+  "sshConfigPreviewHostsFound": "{count} hôte(s) trouvé(s)",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Aucun hôte importable trouvé dans ce fichier.",
+  "sshConfigPreviewMissingKeys": "Impossible de lire les fichiers de clés pour : {hosts}. Ces hôtes seront importés sans identifiants.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Importé dans le dossier : {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Exporter l'archive",
+  "exportArchiveSubtitle": "Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré",
+  "exportQrCode": "Exporter le code QR",
+  "exportQrCodeSubtitle": "Partager les sessions et clés sélectionnées via un code QR",
+  "importArchive": "Importer une archive",
+  "importArchiveSubtitle": "Charger les données depuis un fichier .lfs",
+  "importSshKeysFound": "{count} clé(s) trouvée(s) — choisissez lesquelles importer",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Aucune clé privée trouvée dans ~/.ssh.",
+  "sshKeyAlreadyImported": "déjà dans le magasin",
   "setMasterPasswordHint": "Définissez un mot de passe principal pour chiffrer l'archive.",
   "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
   "exportedTo": "Exporté vers : {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "Tous les hôtes connus supprimés",
   "removedHost": "{host} supprimé",
   "noHostsToExport": "Aucun hôte à exporter",
-  "keyType": "Type de clé",
-  "fingerprint": "Empreinte",
   "tools": "Outils",
   "sshKeys": "Clés SSH",
   "sshKeysSubtitle": "Gestion des paires de clés SSH pour l'authentification",
@@ -419,7 +466,6 @@
   "passphrase": "Phrase secrète",
   "rememberPassphrase": "Retenir pour cette session",
   "unlock": "Déverrouiller",
-  "masterPassword": "Mot de passe principal",
   "masterPasswordSubtitle": "Protéger les identifiants enregistrés par mot de passe",
   "setMasterPassword": "Définir le mot de passe principal",
   "changeMasterPassword": "Modifier le mot de passe principal",
@@ -429,9 +475,7 @@
   "enterMasterPassword": "Entrez le mot de passe principal pour accéder à vos identifiants.",
   "wrongMasterPassword": "Mot de passe incorrect. Veuillez réessayer.",
   "newPassword": "Nouveau mot de passe",
-  "confirmPassword": "Confirmer le mot de passe",
   "currentPassword": "Mot de passe actuel",
-  "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
   "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
   "masterPasswordSet": "Mot de passe principal activé",
   "masterPasswordChanged": "Mot de passe principal modifié",
@@ -444,7 +488,6 @@
   "derivingKey": "Dérivation de la clé de chiffrement...",
   "reEncrypting": "Re-chiffrement des données...",
   "confirmRemoveMasterPassword": "Entrez votre mot de passe actuel pour supprimer la protection par mot de passe principal. Les identifiants seront re-chiffrés avec une clé auto-générée.",
-  "password": "Mot de passe",
   "securitySetupTitle": "Configuration de la sécurité",
   "securitySetupKeychainFound": "Trousseau du système détecté ({keychainName}). Vos données seront automatiquement chiffrées avec votre trousseau système.",
   "securitySetupKeychainOptional": "Vous pouvez aussi définir un mot de passe principal pour une protection supplémentaire.",
@@ -477,5 +520,16 @@
   "disableKeychain": "Désactiver le chiffrement du trousseau",
   "disableKeychainSubtitle": "Passer au stockage en texte clair (non recommandé)",
   "disableKeychainConfirm": "La base de données sera rechiffrée sans clé. Les sessions et les clés seront stockées en texte clair sur le disque. Continuer ?",
-  "keychainDisabled": "Chiffrement du trousseau désactivé"
+  "keychainDisabled": "Chiffrement du trousseau désactivé",
+  "importFromSshDir": "Importer depuis ~/.ssh",
+  "importFromSshDirSubtitle": "Choisissez des hôtes depuis le fichier de configuration et/ou des clés privées depuis ~/.ssh",
+  "sshDirImportHostsSection": "Hôtes depuis le fichier de configuration",
+  "sshDirImportKeysSection": "Clés dans ~/.ssh",
+  "browseFiles": "Parcourir les fichiers…",
+  "sshDirSessionAlreadyImported": "déjà dans les sessions",
+  "presetFullImport": "Import complet",
+  "presetSelective": "Sélectif",
+  "presetCustom": "Personnalisé",
+  "sessionSshKeys": "Clés SSH de la session",
+  "allManagerKeys": "Toutes les clés du gestionnaire"
 }

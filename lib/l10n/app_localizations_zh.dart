@@ -440,7 +440,8 @@ class SZh extends S {
   String get unknownHost => '未知主机';
 
   @override
-  String get hostKeyChangedWarning => '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
+  String get hostKeyChangedWarning =>
+      '警告：此服务器的主机密钥已更改。这可能表示存在中间人攻击，或服务器已被重新安装。';
 
   @override
   String get unknownHostMessage => '无法验证此主机的真实性。确定要继续连接吗？';
@@ -670,6 +671,70 @@ class SZh extends S {
 
   @override
   String get importDataSubtitle => '从 .lfs 文件加载数据';
+
+  @override
+  String sshConfigPreviewHostsFound(int count) {
+    return '找到 $count 个主机';
+  }
+
+  @override
+  String get sshConfigPreviewNoHosts => '此文件中未找到可导入的主机。';
+
+  @override
+  String sshConfigPreviewMissingKeys(String hosts) {
+    return '无法读取以下主机的密钥文件：$hosts。这些主机将在没有凭据的情况下被导入。';
+  }
+
+  @override
+  String sshConfigPreviewFolderLabel(String folder) {
+    return '已导入到文件夹：$folder';
+  }
+
+  @override
+  String sshConfigImportFolderName(String date) {
+    return '.ssh $date';
+  }
+
+  @override
+  String get exportArchive => '导出存档';
+
+  @override
+  String get exportArchiveSubtitle => '将会话、配置和密钥保存为加密的 .lfs 文件';
+
+  @override
+  String get exportQrCode => '导出二维码';
+
+  @override
+  String get exportQrCodeSubtitle => '通过二维码分享所选会话和密钥';
+
+  @override
+  String get importArchive => '导入存档';
+
+  @override
+  String get importArchiveSubtitle => '从 .lfs 文件加载数据';
+
+  @override
+  String get importFromSshDir => '从 ~/.ssh 导入';
+
+  @override
+  String get importFromSshDirSubtitle => '从配置文件选择主机，和/或从 ~/.ssh 选择私钥';
+
+  @override
+  String get sshDirImportHostsSection => '来自配置文件的主机';
+
+  @override
+  String get sshDirImportKeysSection => '~/.ssh 中的密钥';
+
+  @override
+  String importSshKeysFound(int count) {
+    return '找到 $count 个密钥 — 请选择要导入的密钥';
+  }
+
+  @override
+  String get importSshKeysNoneFound => '在 ~/.ssh 中未找到私钥。';
+
+  @override
+  String get sshKeyAlreadyImported => '已在存储中';
 
   @override
   String get setMasterPasswordHint => '设置主密码以加密存档。';
@@ -1454,7 +1519,8 @@ class SZh extends S {
   String get forgotPassword => '忘记密码？';
 
   @override
-  String get forgotPasswordWarning => '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
+  String get forgotPasswordWarning =>
+      '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
 
   @override
   String get resetAndDeleteCredentials => '重置并删除凭据';
@@ -1483,10 +1549,12 @@ class SZh extends S {
   String get securitySetupKeychainOptional => '您还可以设置主密码以获得额外保护。';
 
   @override
-  String get securitySetupNoKeychain => '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
+  String get securitySetupNoKeychain =>
+      '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
 
   @override
-  String get securitySetupNoKeychainHint => '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
+  String get securitySetupNoKeychainHint =>
+      '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
 
   @override
   String get securitySetupRecommendMasterPassword => '建议设置主密码以保护您的数据。';
@@ -1701,23 +1769,30 @@ class SZh extends S {
   String get disableKeychainSubtitle => '切换到明文存储（不推荐）';
 
   @override
-  String get disableKeychainConfirm => '数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？';
+  String get disableKeychainConfirm =>
+      '数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？';
 
   @override
   String get keychainDisabled => '钥匙串加密已禁用';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => '完整导入';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => '选择性';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => '自定义';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => '会话 SSH 密钥';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => '管理器中的所有密钥';
+
+  @override
+  String get browseFiles => '浏览文件…';
+
+  @override
+  String get sshDirSessionAlreadyImported => '已在会话中';
 }

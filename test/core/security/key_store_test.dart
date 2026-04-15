@@ -1,4 +1,5 @@
 import 'package:dartssh2/dartssh2.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/core/db/database_opener.dart';
@@ -169,6 +170,39 @@ void main() {
       expect(loaded.length, 1);
       expect(loaded.containsKey(e2.id), isTrue);
     });
+
+    test(
+      'deleting a key nulls Sessions.key_id via FK cascade (onDelete setNull)',
+      () async {
+        // Regression: before reloading SessionStore after key delete, the
+        // in-memory session still held a keyId pointing to a row that no
+        // longer existed, so the "invalid session" warning never showed and
+        // reconnect attempts failed with FK-ish errors. The DB side must
+        // null the column on its own — this test locks that contract in.
+        final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'target');
+        await store.save(entry);
+
+        await db
+            .into(db.sessions)
+            .insert(
+              SessionsCompanion.insert(
+                id: 's-1',
+                host: 'h',
+                user: 'u',
+                keyId: Value(entry.id),
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026),
+              ),
+            );
+
+        await store.delete(entry.id);
+
+        final row = await (db.select(
+          db.sessions,
+        )..where((t) => t.id.equals('s-1'))).getSingle();
+        expect(row.keyId, isNull, reason: 'FK cascade must null the keyId');
+      },
+    );
 
     test('get returns single entry or null', () async {
       final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'test');

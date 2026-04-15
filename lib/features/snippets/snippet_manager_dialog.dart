@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/snippets/snippet.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
@@ -224,6 +225,9 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     final store = ref.read(snippetStoreProvider);
     await store.delete(snippet.id);
     ref.invalidate(snippetsProvider);
+    // SessionSnippets cascades on FK; reload so the in-memory session list
+    // doesn't hold stale snippet links in its derived UI state.
+    await ref.read(sessionProvider.notifier).load();
     await _load();
     if (mounted) {
       Toast.show(context, message: s.snippetDeleted(snippet.title));

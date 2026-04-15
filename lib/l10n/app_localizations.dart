@@ -75,7 +75,8 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the S.supportedLocales
 /// property.
 abstract class S {
-  S(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  S(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -95,12 +96,13 @@ abstract class S {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -118,7 +120,7 @@ abstract class S {
     Locale('ru'),
     Locale('tr'),
     Locale('vi'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @appTitle.
@@ -1350,6 +1352,114 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Load data from .lfs file'**
   String get importDataSubtitle;
+
+  /// No description provided for @sshConfigPreviewHostsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} host(s) found'**
+  String sshConfigPreviewHostsFound(int count);
+
+  /// No description provided for @sshConfigPreviewNoHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'No importable hosts found in this file.'**
+  String get sshConfigPreviewNoHosts;
+
+  /// No description provided for @sshConfigPreviewMissingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read key files for: {hosts}. These hosts will be imported without credentials.'**
+  String sshConfigPreviewMissingKeys(String hosts);
+
+  /// No description provided for @sshConfigPreviewFolderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported to folder: {folder}'**
+  String sshConfigPreviewFolderLabel(String folder);
+
+  /// No description provided for @sshConfigImportFolderName.
+  ///
+  /// In en, this message translates to:
+  /// **'.ssh {date}'**
+  String sshConfigImportFolderName(String date);
+
+  /// No description provided for @exportArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Export archive'**
+  String get exportArchive;
+
+  /// No description provided for @exportArchiveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save sessions, config, and keys to encrypted .lfs file'**
+  String get exportArchiveSubtitle;
+
+  /// No description provided for @exportQrCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Export QR code'**
+  String get exportQrCode;
+
+  /// No description provided for @exportQrCodeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share selected sessions and keys via QR code'**
+  String get exportQrCodeSubtitle;
+
+  /// No description provided for @importArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Import archive'**
+  String get importArchive;
+
+  /// No description provided for @importArchiveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load data from .lfs file'**
+  String get importArchiveSubtitle;
+
+  /// No description provided for @importFromSshDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from ~/.ssh'**
+  String get importFromSshDir;
+
+  /// No description provided for @importFromSshDirSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick hosts from config and/or private keys from ~/.ssh'**
+  String get importFromSshDirSubtitle;
+
+  /// No description provided for @sshDirImportHostsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Hosts from config'**
+  String get sshDirImportHostsSection;
+
+  /// No description provided for @sshDirImportKeysSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys in ~/.ssh'**
+  String get sshDirImportKeysSection;
+
+  /// No description provided for @importSshKeysFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} key(s) found — pick which to import'**
+  String importSshKeysFound(int count);
+
+  /// No description provided for @importSshKeysNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No private keys found in ~/.ssh.'**
+  String get importSshKeysNoneFound;
+
+  /// No description provided for @sshKeyAlreadyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'already in store'**
+  String get sshKeyAlreadyImported;
 
   /// No description provided for @setMasterPasswordHint.
   ///
@@ -3162,6 +3272,18 @@ abstract class S {
   /// In en, this message translates to:
   /// **'All manager keys'**
   String get allManagerKeys;
+
+  /// No description provided for @browseFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse files…'**
+  String get browseFiles;
+
+  /// No description provided for @sshDirSessionAlreadyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'already in sessions'**
+  String get sshDirSessionAlreadyImported;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
@@ -3173,38 +3295,67 @@ class _SDelegate extends LocalizationsDelegate<S> {
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['ar', 'de', 'en', 'es', 'fa', 'fr', 'hi', 'id', 'ja', 'ko', 'pt', 'ru', 'tr', 'vi', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'ar',
+    'de',
+    'en',
+    'es',
+    'fa',
+    'fr',
+    'hi',
+    'id',
+    'ja',
+    'ko',
+    'pt',
+    'ru',
+    'tr',
+    'vi',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_SDelegate old) => false;
 }
 
 S lookupS(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar': return SAr();
-    case 'de': return SDe();
-    case 'en': return SEn();
-    case 'es': return SEs();
-    case 'fa': return SFa();
-    case 'fr': return SFr();
-    case 'hi': return SHi();
-    case 'id': return SId();
-    case 'ja': return SJa();
-    case 'ko': return SKo();
-    case 'pt': return SPt();
-    case 'ru': return SRu();
-    case 'tr': return STr();
-    case 'vi': return SVi();
-    case 'zh': return SZh();
+    case 'ar':
+      return SAr();
+    case 'de':
+      return SDe();
+    case 'en':
+      return SEn();
+    case 'es':
+      return SEs();
+    case 'fa':
+      return SFa();
+    case 'fr':
+      return SFr();
+    case 'hi':
+      return SHi();
+    case 'id':
+      return SId();
+    case 'ja':
+      return SJa();
+    case 'ko':
+      return SKo();
+    case 'pt':
+      return SPt();
+    case 'ru':
+      return SRu();
+    case 'tr':
+      return STr();
+    case 'vi':
+      return SVi();
+    case 'zh':
+      return SZh();
   }
 
   throw FlutterError(
     'S.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }

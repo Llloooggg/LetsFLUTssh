@@ -202,6 +202,55 @@
   "exportData": "Daten exportieren",
   "exportDataSubtitle": "Sitzungen, Konfiguration und Schlüssel in verschlüsselter .lfs-Datei speichern",
   "importDataSubtitle": "Daten aus .lfs-Datei laden",
+  "sshConfigPreviewHostsFound": "{count} Host(s) gefunden",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "Keine importierbaren Hosts in dieser Datei gefunden.",
+  "sshConfigPreviewMissingKeys": "Schlüsseldateien konnten nicht gelesen werden für: {hosts}. Diese Hosts werden ohne Anmeldedaten importiert.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Importiert in Ordner: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Archiv exportieren",
+  "exportArchiveSubtitle": "Sitzungen, Konfiguration und Schlüssel in verschlüsselter .lfs-Datei speichern",
+  "exportQrCode": "QR-Code exportieren",
+  "exportQrCodeSubtitle": "Ausgewählte Sitzungen und Schlüssel per QR-Code teilen",
+  "importArchive": "Archiv importieren",
+  "importArchiveSubtitle": "Daten aus .lfs-Datei laden",
+  "importSshKeysFound": "{count} Schlüssel gefunden — auswählen, welche importiert werden sollen",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "Keine privaten Schlüssel in ~/.ssh gefunden.",
+  "sshKeyAlreadyImported": "bereits im Speicher",
   "setMasterPasswordHint": "Legen Sie ein Master-Passwort zum Verschlüsseln des Archivs fest.",
   "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
   "exportedTo": "Exportiert nach: {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "Alle bekannten Hosts gelöscht",
   "removedHost": "{host} entfernt",
   "noHostsToExport": "Keine Hosts zum Exportieren",
-  "keyType": "Schlüsseltyp",
-  "fingerprint": "Fingerabdruck",
   "tools": "Werkzeuge",
   "sshKeys": "SSH-Schlüssel",
   "sshKeysSubtitle": "Verwaltung von SSH-Schlüsselpaaren zur Authentifizierung",
@@ -419,7 +466,6 @@
   "passphrase": "Passphrase",
   "rememberPassphrase": "Für diese Sitzung merken",
   "unlock": "Entsperren",
-  "masterPassword": "Master-Passwort",
   "masterPasswordSubtitle": "Gespeicherte Anmeldedaten mit Passwort schützen",
   "setMasterPassword": "Master-Passwort festlegen",
   "changeMasterPassword": "Master-Passwort ändern",
@@ -429,9 +475,7 @@
   "enterMasterPassword": "Geben Sie das Master-Passwort ein, um Ihre gespeicherten Anmeldedaten zu entsperren.",
   "wrongMasterPassword": "Falsches Passwort. Bitte versuchen Sie es erneut.",
   "newPassword": "Neues Passwort",
-  "confirmPassword": "Passwort bestätigen",
   "currentPassword": "Aktuelles Passwort",
-  "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
   "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
   "masterPasswordSet": "Master-Passwort aktiviert",
   "masterPasswordChanged": "Master-Passwort geändert",
@@ -444,7 +488,6 @@
   "derivingKey": "Verschlüsselungsschlüssel wird abgeleitet...",
   "reEncrypting": "Daten werden neu verschlüsselt...",
   "confirmRemoveMasterPassword": "Geben Sie Ihr aktuelles Passwort ein, um den Master-Passwort-Schutz zu entfernen. Anmeldedaten werden mit einem automatisch generierten Schlüssel neu verschlüsselt.",
-  "password": "Passwort",
   "securitySetupTitle": "Sicherheitseinrichtung",
   "securitySetupKeychainFound": "OS-Schlüsselbund erkannt ({keychainName}). Ihre Daten werden automatisch mit Ihrem System-Schlüsselbund verschlüsselt.",
   "securitySetupKeychainOptional": "Sie können auch ein Master-Passwort für zusätzlichen Schutz festlegen.",
@@ -477,5 +520,16 @@
   "disableKeychain": "Schlüsselbund-Verschlüsselung deaktivieren",
   "disableKeychainSubtitle": "Auf Klartextspeicherung umstellen (nicht empfohlen)",
   "disableKeychainConfirm": "Die Datenbank wird ohne Schlüssel neu verschlüsselt. Sitzungen und Schlüssel werden im Klartext auf der Festplatte gespeichert. Fortfahren?",
-  "keychainDisabled": "Schlüsselbund-Verschlüsselung deaktiviert"
+  "keychainDisabled": "Schlüsselbund-Verschlüsselung deaktiviert",
+  "importFromSshDir": "Aus ~/.ssh importieren",
+  "importFromSshDirSubtitle": "Hosts aus der Konfiguration und/oder private Schlüssel aus ~/.ssh auswählen",
+  "sshDirImportHostsSection": "Hosts aus der Konfiguration",
+  "sshDirImportKeysSection": "Schlüssel in ~/.ssh",
+  "browseFiles": "Dateien auswählen…",
+  "sshDirSessionAlreadyImported": "bereits in Sitzungen",
+  "presetFullImport": "Vollständiger Import",
+  "presetSelective": "Selektiv",
+  "presetCustom": "Benutzerdefiniert",
+  "sessionSshKeys": "SSH-Schlüssel der Sitzung",
+  "allManagerKeys": "Alle Manager-Schlüssel"
 }

@@ -152,6 +152,7 @@ lib/
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
+│   ├── data_checkboxes.dart          # Shared collapsible checkbox grid used by export + import dialogs
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
 │   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
@@ -180,6 +181,7 @@ lib/
 |------|---------------|---------|
 | `ssh_client.dart` | `SSHConnection` | Wrapper over dartssh2: connect, auth, openShell, resize, keepalive, disconnect |
 | `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
+| `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH config importer |
 | `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed, CRUD management (remove/import/export/clear) |
 | `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
@@ -735,6 +737,8 @@ class DeepLinkHandler {
 |------|---------|
 | `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
 | `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
+| `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
+| `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
 
 #### .lfs format
 
@@ -770,16 +774,22 @@ end-to-end, so no separate content hash is stored in the manifest.
 | Mode | Behavior |
 |------|----------|
 | **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `KeyStore.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
-| **Replace** | Full replacement of all sessions from archive. A failure at any step (sessions, folders, config) triggers a full rollback of the snapshot (sessions + folders + config) |
+| **Replace** | Full replacement of sessions from archive. Tags / snippets / known_hosts are additionally wiped when the corresponding `includeX` flag from the preview dialog is set — so a user who checks "Tags" with an empty archive ends up with zero tags. Unchecked types are left untouched. A failure at any step triggers a full rollback of the snapshot (sessions + folders + config + tags + snippets + known_hosts) |
 
 #### Import service
 
 `ImportService` applies import results with:
-- Manager key import first — builds oldId→newId map, remaps session `keyId` fields
+- Manager key import first — builds oldId→newId map, remaps session `keyId` fields. Sessions pointing to a key that wasn't imported get `keyId` nulled out so the session still inserts without hitting `FOREIGN KEY constraint failed` on `Sessions.keyId → SshKeys.id`
 - Session import with graceful skip on failure
 - Empty folder restoration
-- Tag import with ID remapping, then session→tag and folder→tag link creation
-- Snippet import with ID remapping, then session→snippet link creation
+- Tag import with ID remapping, then session→tag and folder→tag link creation. Links referencing a tag that wasn't imported are silently skipped (otherwise the FK on `SessionTags.tagId` / `FolderTags.tagId` would fail)
+- Snippet import with ID remapping, then session→snippet link creation. Links referencing a snippet that wasn't imported are silently skipped
+
+**Session reload after linked-entity delete:** `Sessions.keyId` is declared with `onDelete: KeyAction.setNull`, and `SessionTags` / `SessionSnippets` cascade on FK, so deleting a key / tag / snippet in the DB is correct on its own. The in-memory `sessionProvider` cache doesn't see the cascade, though — the delete UI handlers (`key_manager_dialog`, `tag_manager_dialog`, `snippet_manager_dialog`) each call `sessionProvider.notifier.load()` after the delete so the session tree picks up the nulled `keyId` (the "invalid session" warning icon appears immediately) and the derived tag / snippet lists drop the stale link
+
+The OpenSSH config parser honours wildcard defaults. `Host *` / `Host *.internal` blocks emit no entries of their own, but their directives cascade onto every concrete host matching the pattern using OpenSSH's first-value-wins rule — so the common idiom "put `Host *` at the end of ~/.ssh/config for defaults that concrete hosts override" works as expected. Negation patterns (`!pattern`) block a wildcard block from applying to a matching host. `IdentityFile` entries accumulate across every matching block in file order (OpenSSH tries them sequentially at connect time).
+
+Both `applyResult()` paths return an `ImportSummary` with per-type row counts and `configApplied` / `knownHostsApplied` flags. `formatImportSummary()` in `utils/format.dart` renders it as the success toast (`Imported N sessions, K SSH keys, T tags, S snippets, …`) so users see what was actually persisted instead of only the session count. `SqliteException`s that carry a PEM private key in their bound parameters are run through `redactSecrets()` in `utils/sanitize.dart` before reaching the toast or the log file
 - Config application via typed `AppConfig` callback
 - Known hosts import via `KnownHostsManager.importFromString()`
 - Rollback support in replace mode via `restoreSnapshot` callback — snapshot includes sessions, empty folders, and (when `getCurrentConfig` is provided) the pre-import `AppConfig`, so a failed import restores atomically
@@ -1135,7 +1145,9 @@ class FilePaneController extends ChangeNotifier {
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
 | `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Preset chips ("Full backup" / "Sessions"), session tree with checkboxes, data type selection (passwords, embedded keys, session-bound manager keys, all manager keys, config, known_hosts, tags, snippets), QR size indicator |
-| `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Shows session count, config/known_hosts/tags/snippets presence, data type checkboxes, mode selector |
+| `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Filename header, preset chips (Full / Selective), collapsible checkbox grid with per-type counts on the right, merge/replace mode selector. Every checkbox is always clickable so replace mode can express "wipe this type" via a checked row even when the archive carries zero entries |
+| `ssh_dir_import_dialog.dart` | `SshDirImportDialog` | Unified picker for `~/.ssh` contents. Two collapsible sections — "Hosts from config" (from `~/.ssh/config`) and "Keys in ~/.ssh" (scanner output). Each section has a tristate "select all" row, a divider, then the indented per-item list. A "Browse files…" button per section opens a `FilePicker` rooted at `~/.ssh` so the user can pull in an extra config file or key files from elsewhere. Parsed hosts whose `user@host:port` already exists as a session, and keys whose fingerprint matches an entry in the key store, are flagged with an "already in sessions" / "already in store" trailing tag and default to **unchecked** — the same dedup contract the .lfs / QR import flow applies to session IDs and key fingerprints. New picks are deduped by session id (hosts) or private-key fingerprint (keys). Returns one combined `ImportResult` routed through the same `_applyFilteredImport` path as the .lfs archive import |
+| `data_checkboxes.dart` | `CollapsibleCheckboxesSection`, `DataCheckboxRow` | Shared visual primitives for checkbox grids. Used by [`UnifiedExportDialog`](#unified-export-dialog), `LfsImportPreviewDialog`, and `SshDirImportDialog` so every checkbox list in the app has identical chevron/hover/label/trailing layout |
 
 #### SessionConnect — flow
 

@@ -10,6 +10,7 @@ import '../../core/ssh/known_hosts.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/platform.dart' as plat;
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
@@ -345,7 +346,11 @@ class _KnownHostsManagerPanelState
       }
     } catch (e) {
       if (mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     }
   }

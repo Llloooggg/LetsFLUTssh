@@ -24,6 +24,9 @@ void main() {
     bool hasConfig = true,
     bool hasKnownHosts = true,
     Set<String> emptyFolders = const {'FolderA', 'FolderB'},
+    int managerKeyCount = 2,
+    int tagCount = 4,
+    int snippetCount = 5,
   }) {
     final sessions = List.generate(
       sessionsCount,
@@ -38,6 +41,9 @@ void main() {
       hasConfig: hasConfig,
       hasKnownHosts: hasKnownHosts,
       emptyFolders: emptyFolders,
+      managerKeyCount: managerKeyCount,
+      tagCount: tagCount,
+      snippetCount: snippetCount,
     );
   }
 
@@ -67,7 +73,7 @@ void main() {
       expect(find.text('backup.lfs'), findsOneWidget);
     });
 
-    testWidgets('renders sessions count in archive info', (tester) async {
+    testWidgets('renders per-type counts next to checkboxes', (tester) async {
       final preview = makePreview();
 
       await tester.pumpWidget(
@@ -75,11 +81,19 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Sessions:'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+      // Checkbox labels are present — no info panel anymore.
+      expect(find.text('Sessions'), findsOneWidget);
+      expect(find.text('Tags'), findsOneWidget);
+      expect(find.text('Snippets'), findsOneWidget);
+      // Right-side count labels reflect preview fields.
+      expect(find.text('3'), findsOneWidget); // sessions
+      expect(find.text('4'), findsOneWidget); // tags
+      expect(find.text('5'), findsOneWidget); // snippets
     });
 
-    testWidgets('renders config and known_hosts status', (tester) async {
+    testWidgets('config and known_hosts show Yes/No trailing label', (
+      tester,
+    ) async {
       final preview = makePreview();
 
       await tester.pumpWidget(
@@ -87,8 +101,9 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('App Settings:'), findsOneWidget);
-      expect(find.text('Known Hosts:'), findsOneWidget);
+      expect(find.text('App Settings'), findsOneWidget);
+      expect(find.text('Known Hosts'), findsOneWidget);
+      // App Settings + Known Hosts each render "Yes" trailing label.
       expect(find.text('Yes'), findsNWidgets(2));
     });
 
@@ -237,7 +252,9 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Full import'), findsOneWidget);
+      // "Full import" renders twice: once as a preset chip, once as the
+      // trailing label on the collapsible section header.
+      expect(find.text('Full import'), findsNWidgets(2));
       expect(find.text('Selective'), findsOneWidget);
     });
 
@@ -304,36 +321,60 @@ void main() {
       expect(find.text('Import Data'), findsOneWidget);
     });
 
-    testWidgets('shows empty folders count when present', (tester) async {
-      final preview = makePreview(emptyFolders: {'A', 'B', 'C'});
+    testWidgets(
+      'checkbox rows are rendered even when archive has zero of that type',
+      (tester) async {
+        // Replace-mode intent: checking "Tags" with zero imported tags wipes
+        // existing tags. The UI must keep every checkbox clickable regardless
+        // of preview counts so that intent can be expressed.
+        const preview = LfsPreview(
+          sessions: [],
+          hasConfig: false,
+          hasKnownHosts: false,
+          managerKeyCount: 0,
+          tagCount: 0,
+          snippetCount: 0,
+        );
+
+        await tester.pumpWidget(
+          buildDialog(
+            filePath: '${tempDir.path}/empty-archive.lfs',
+            preview: preview,
+          ),
+        );
+        await tester.pump();
+
+        for (final label in const [
+          'Sessions',
+          'App Settings',
+          'Tags',
+          'Snippets',
+          'Known Hosts',
+        ]) {
+          expect(find.text(label), findsOneWidget, reason: 'missing $label');
+        }
+      },
+    );
+
+    testWidgets('checkboxes collapse and expand via the section header', (
+      tester,
+    ) async {
+      final preview = makePreview();
 
       await tester.pumpWidget(
-        buildDialog(filePath: '${tempDir.path}/folders.lfs', preview: preview),
+        buildDialog(filePath: '${tempDir.path}/collapse.lfs', preview: preview),
       );
       await tester.pump();
 
-      // Empty Folders row shows the count
-      expect(find.textContaining('Empty Folders'), findsOneWidget);
-    });
+      // Expanded by default → row labels visible.
+      expect(find.text('Sessions'), findsOneWidget);
 
-    testWidgets('hides empty folders row when none', (tester) async {
-      const preview = LfsPreview(
-        sessions: [],
-        hasConfig: false,
-        hasKnownHosts: false,
-        emptyFolders: {},
-      );
-
-      await tester.pumpWidget(
-        buildDialog(
-          filePath: '${tempDir.path}/nofolders.lfs',
-          preview: preview,
-        ),
-      );
+      await tester.tap(find.text('What to import:'));
       await tester.pump();
 
-      // Empty folders label should not appear
-      expect(find.text('Empty Folders:'), findsNothing);
+      // Collapsed → row labels gone, header still present.
+      expect(find.text('Sessions'), findsNothing);
+      expect(find.text('What to import:'), findsOneWidget);
     });
   });
 }

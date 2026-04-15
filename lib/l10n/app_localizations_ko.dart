@@ -440,7 +440,8 @@ class SKo extends S {
   String get unknownHost => '알 수 없는 호스트';
 
   @override
-  String get hostKeyChangedWarning => '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
+  String get hostKeyChangedWarning =>
+      '경고: 이 서버의 호스트 키가 변경되었습니다. 이는 중간자 공격을 나타낼 수 있으며, 서버가 재설치되었을 수도 있습니다.';
 
   @override
   String get unknownHostMessage => '이 호스트의 신뢰성을 확인할 수 없습니다. 연결을 계속하시겠습니까?';
@@ -672,6 +673,70 @@ class SKo extends S {
   String get importDataSubtitle => '.lfs 파일에서 데이터 불러오기';
 
   @override
+  String sshConfigPreviewHostsFound(int count) {
+    return '호스트 $count개를 찾았습니다';
+  }
+
+  @override
+  String get sshConfigPreviewNoHosts => '이 파일에서 가져올 수 있는 호스트를 찾을 수 없습니다.';
+
+  @override
+  String sshConfigPreviewMissingKeys(String hosts) {
+    return '다음 호스트의 키 파일을 읽을 수 없습니다: $hosts. 이 호스트는 자격 증명 없이 가져옵니다.';
+  }
+
+  @override
+  String sshConfigPreviewFolderLabel(String folder) {
+    return '폴더로 가져옴: $folder';
+  }
+
+  @override
+  String sshConfigImportFolderName(String date) {
+    return '.ssh $date';
+  }
+
+  @override
+  String get exportArchive => '아카이브 내보내기';
+
+  @override
+  String get exportArchiveSubtitle => '세션, 설정 및 키를 암호화된 .lfs 파일로 저장';
+
+  @override
+  String get exportQrCode => 'QR 코드 내보내기';
+
+  @override
+  String get exportQrCodeSubtitle => '선택한 세션과 키를 QR 코드로 공유';
+
+  @override
+  String get importArchive => '아카이브 가져오기';
+
+  @override
+  String get importArchiveSubtitle => '.lfs 파일에서 데이터 불러오기';
+
+  @override
+  String get importFromSshDir => '~/.ssh에서 가져오기';
+
+  @override
+  String get importFromSshDirSubtitle => '설정 파일에서 호스트, ~/.ssh에서 개인 키를 선택하세요';
+
+  @override
+  String get sshDirImportHostsSection => '설정 파일의 호스트';
+
+  @override
+  String get sshDirImportKeysSection => '~/.ssh의 키';
+
+  @override
+  String importSshKeysFound(int count) {
+    return '키 $count개를 찾았습니다 — 가져올 항목을 선택하세요';
+  }
+
+  @override
+  String get importSshKeysNoneFound => '~/.ssh에서 개인 키를 찾을 수 없습니다.';
+
+  @override
+  String get sshKeyAlreadyImported => '이미 저장소에 있음';
+
+  @override
   String get setMasterPasswordHint => '아카이브를 암호화할 마스터 비밀번호를 설정하세요.';
 
   @override
@@ -846,10 +911,12 @@ class SKo extends S {
   String get exportSessionsViaQr => 'QR로 세션 내보내기';
 
   @override
-  String get qrNoCredentialsWarning => '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
+  String get qrNoCredentialsWarning =>
+      '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
 
   @override
-  String get qrTooManyForSingleCode => '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
+  String get qrTooManyForSingleCode =>
+      '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
   String get qrTooLarge => '너무 큽니다 — 일부 항목을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
@@ -1264,7 +1331,8 @@ class SKo extends S {
   String get clearAllKnownHosts => '모든 알려진 호스트 삭제';
 
   @override
-  String get clearAllKnownHostsConfirm => '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
+  String get clearAllKnownHostsConfirm =>
+      '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
 
   @override
   String get importKnownHosts => '알려진 호스트 가져오기';
@@ -1448,13 +1516,15 @@ class SKo extends S {
   String get masterPasswordRemoved => '마스터 비밀번호가 제거되었습니다';
 
   @override
-  String get masterPasswordWarning => '이 비밀번호를 잊으면 저장된 모든 비밀번호와 SSH 키가 손실됩니다. 복구할 수 없습니다.';
+  String get masterPasswordWarning =>
+      '이 비밀번호를 잊으면 저장된 모든 비밀번호와 SSH 키가 손실됩니다. 복구할 수 없습니다.';
 
   @override
   String get forgotPassword => '비밀번호를 잊으셨나요?';
 
   @override
-  String get forgotPasswordWarning => '저장된 모든 비밀번호, SSH 키, 암호문이 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
+  String get forgotPasswordWarning =>
+      '저장된 모든 비밀번호, SSH 키, 암호문이 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
 
   @override
   String get resetAndDeleteCredentials => '재설정 및 데이터 삭제';
@@ -1469,7 +1539,8 @@ class SKo extends S {
   String get reEncrypting => '데이터 재암호화 중...';
 
   @override
-  String get confirmRemoveMasterPassword => '마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.';
+  String get confirmRemoveMasterPassword =>
+      '마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.';
 
   @override
   String get securitySetupTitle => '보안 설정';
@@ -1480,16 +1551,20 @@ class SKo extends S {
   }
 
   @override
-  String get securitySetupKeychainOptional => '추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.';
+  String get securitySetupKeychainOptional =>
+      '추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.';
 
   @override
-  String get securitySetupNoKeychain => 'OS 키체인이 감지되지 않았습니다. 키체인 없이는 세션 데이터(호스트, 비밀번호, 키)가 평문으로 저장됩니다.';
+  String get securitySetupNoKeychain =>
+      'OS 키체인이 감지되지 않았습니다. 키체인 없이는 세션 데이터(호스트, 비밀번호, 키)가 평문으로 저장됩니다.';
 
   @override
-  String get securitySetupNoKeychainHint => 'WSL, 헤드리스 Linux 또는 최소 설치에서는 정상입니다. Linux에서 키체인을 활성화하려면: libsecret과 키링 데몬(예: gnome-keyring)을 설치하세요.';
+  String get securitySetupNoKeychainHint =>
+      'WSL, 헤드리스 Linux 또는 최소 설치에서는 정상입니다. Linux에서 키체인을 활성화하려면: libsecret과 키링 데몬(예: gnome-keyring)을 설치하세요.';
 
   @override
-  String get securitySetupRecommendMasterPassword => '데이터를 보호하기 위해 마스터 비밀번호 설정을 권장합니다.';
+  String get securitySetupRecommendMasterPassword =>
+      '데이터를 보호하기 위해 마스터 비밀번호 설정을 권장합니다.';
 
   @override
   String get continueWithKeychain => '키체인으로 계속';
@@ -1701,23 +1776,30 @@ class SKo extends S {
   String get disableKeychainSubtitle => '일반 텍스트 저장으로 전환 (권장하지 않음)';
 
   @override
-  String get disableKeychainConfirm => '데이터베이스가 키 없이 다시 암호화됩니다. 세션과 키가 디스크에 일반 텍스트로 저장됩니다. 계속하시겠습니까?';
+  String get disableKeychainConfirm =>
+      '데이터베이스가 키 없이 다시 암호화됩니다. 세션과 키가 디스크에 일반 텍스트로 저장됩니다. 계속하시겠습니까?';
 
   @override
   String get keychainDisabled => '키체인 암호화가 비활성화되었습니다';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => '전체 가져오기';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => '선택적';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => '사용자 지정';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => '세션 SSH 키';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => '모든 관리자 키';
+
+  @override
+  String get browseFiles => '파일 찾아보기…';
+
+  @override
+  String get sshDirSessionAlreadyImported => '이미 세션에 있음';
 }

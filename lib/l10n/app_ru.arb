@@ -141,7 +141,7 @@
   "accept": "Принять",
   "importData": "Импорт данных",
   "masterPassword": "Мастер-пароль",
-  "confirmPassword": "Подтвердите пароль",
+  "confirmPassword": "Подтверждение пароля",
   "importModeMergeDescription": "Добавить новые сессии, сохранить существующие",
   "importModeReplaceDescription": "Заменить все сессии импортированными",
   "errorPrefix": "Ошибка: {error}",
@@ -202,6 +202,55 @@
   "exportData": "Экспорт данных",
   "exportDataSubtitle": "Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs",
   "importDataSubtitle": "Загрузить данные из файла .lfs",
+  "sshConfigPreviewHostsFound": "Найдено хостов: {count}",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "В этом файле не найдено хостов для импорта.",
+  "sshConfigPreviewMissingKeys": "Не удалось прочитать файлы ключей для: {hosts}. Эти хосты будут импортированы без учётных данных.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "Импортировано в папку: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "Экспорт архива",
+  "exportArchiveSubtitle": "Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs",
+  "exportQrCode": "Экспорт QR-кода",
+  "exportQrCodeSubtitle": "Поделиться выбранными сессиями и ключами через QR-код",
+  "importArchive": "Импорт архива",
+  "importArchiveSubtitle": "Загрузить данные из файла .lfs",
+  "importSshKeysFound": "Найдено ключей: {count} — выберите, какие импортировать",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "В ~/.ssh не найдено приватных ключей.",
+  "sshKeyAlreadyImported": "уже в хранилище",
   "setMasterPasswordHint": "Задайте мастер-пароль для шифрования архива.",
   "passwordsDoNotMatch": "Пароли не совпадают",
   "exportedTo": "Экспортировано в: {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "Все известные хосты очищены",
   "removedHost": "Удалён {host}",
   "noHostsToExport": "Нет хостов для экспорта",
-  "keyType": "Тип ключа",
-  "fingerprint": "Отпечаток",
   "tools": "Инструменты",
   "sshKeys": "SSH-ключи",
   "sshKeysSubtitle": "Управление парами SSH-ключей для аутентификации",
@@ -419,8 +466,6 @@
   "passphrase": "Парольная фраза",
   "rememberPassphrase": "Запомнить для этой сессии",
   "unlock": "Разблокировать",
-
-  "masterPassword": "Мастер-пароль",
   "masterPasswordSubtitle": "Защита сохранённых учётных данных паролем",
   "setMasterPassword": "Установить мастер-пароль",
   "changeMasterPassword": "Изменить мастер-пароль",
@@ -430,9 +475,7 @@
   "enterMasterPassword": "Введите мастер-пароль для доступа к сохранённым учётным данным.",
   "wrongMasterPassword": "Неверный пароль. Попробуйте ещё раз.",
   "newPassword": "Новый пароль",
-  "confirmPassword": "Подтверждение пароля",
   "currentPassword": "Текущий пароль",
-  "passwordsDoNotMatch": "Пароли не совпадают",
   "passwordTooShort": "Пароль должен содержать минимум 8 символов",
   "masterPasswordSet": "Мастер-пароль установлен",
   "masterPasswordChanged": "Мастер-пароль изменён",
@@ -445,8 +488,6 @@
   "derivingKey": "Генерация ключа шифрования...",
   "reEncrypting": "Перешифрование данных...",
   "confirmRemoveMasterPassword": "Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.",
-  "password": "Пароль",
-
   "securitySetupTitle": "Настройка безопасности",
   "securitySetupKeychainFound": "Обнаружена связка ключей ОС ({keychainName}). Ваши данные будут автоматически зашифрованы с использованием системной связки ключей.",
   "securitySetupKeychainOptional": "Вы также можете установить мастер-пароль для дополнительной защиты.",
@@ -455,7 +496,6 @@
   "securitySetupRecommendMasterPassword": "Рекомендуем установить мастер-пароль для защиты ваших данных.",
   "continueWithKeychain": "Продолжить со связкой ключей",
   "continueWithoutEncryption": "Продолжить без шифрования",
-
   "securityLevel": "Уровень безопасности",
   "securityLevelPlaintext": "Нет (открытый текст)",
   "securityLevelKeychain": "Связка ключей ОС",
@@ -480,5 +520,16 @@
   "disableKeychain": "Отключить шифрование связки ключей",
   "disableKeychainSubtitle": "Перейти к хранению в открытом виде (не рекомендуется)",
   "disableKeychainConfirm": "База данных будет перешифрована без ключа. Сессии и ключи будут храниться на диске в открытом виде. Продолжить?",
-  "keychainDisabled": "Шифрование связки ключей отключено"
+  "keychainDisabled": "Шифрование связки ключей отключено",
+  "importFromSshDir": "Импорт из ~/.ssh",
+  "importFromSshDirSubtitle": "Выберите хосты из файла конфигурации и/или приватные ключи из ~/.ssh",
+  "sshDirImportHostsSection": "Хосты из файла конфигурации",
+  "sshDirImportKeysSection": "Ключи в ~/.ssh",
+  "browseFiles": "Выбрать файл…",
+  "sshDirSessionAlreadyImported": "уже есть в сессиях",
+  "presetFullImport": "Полный импорт",
+  "presetSelective": "Выборочно",
+  "presetCustom": "Настраиваемый",
+  "sessionSshKeys": "SSH-ключи сессий",
+  "allManagerKeys": "Все ключи из менеджера"
 }

@@ -133,7 +133,7 @@
   "hostKeyChangedWarning": "警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。",
   "unknownHostMessage": "このホストの信頼性を確認できません。接続を続行しますか？",
   "host": "ホスト",
-  "keyType": "鍵の種類",
+  "keyType": "キータイプ",
   "fingerprint": "フィンガープリント",
   "fingerprintCopied": "フィンガープリントをコピーしました",
   "copyFingerprint": "フィンガープリントをコピー",
@@ -141,7 +141,7 @@
   "accept": "承認",
   "importData": "データをインポート",
   "masterPassword": "マスターパスワード",
-  "confirmPassword": "パスワードを確認",
+  "confirmPassword": "パスワード確認",
   "importModeMergeDescription": "新しいセッションを追加し、既存のものを保持",
   "importModeReplaceDescription": "すべてのセッションをインポートしたもので置換",
   "errorPrefix": "エラー: {error}",
@@ -202,6 +202,55 @@
   "exportData": "データをエクスポート",
   "exportDataSubtitle": "セッション、設定、鍵を暗号化された .lfs ファイルに保存",
   "importDataSubtitle": ".lfs ファイルからデータを読み込み",
+  "sshConfigPreviewHostsFound": "{count} 件のホストが見つかりました",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "このファイルにインポート可能なホストが見つかりません。",
+  "sshConfigPreviewMissingKeys": "次のホストの鍵ファイルを読み込めませんでした: {hosts}。これらのホストは認証情報なしでインポートされます。",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "フォルダにインポート: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "アーカイブをエクスポート",
+  "exportArchiveSubtitle": "セッション、設定、鍵を暗号化された .lfs ファイルに保存",
+  "exportQrCode": "QR コードをエクスポート",
+  "exportQrCodeSubtitle": "選択したセッションと鍵を QR コードで共有",
+  "importArchive": "アーカイブをインポート",
+  "importArchiveSubtitle": ".lfs ファイルからデータを読み込み",
+  "importSshKeysFound": "{count} 件の鍵が見つかりました — インポートするものを選択",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "~/.ssh に秘密鍵が見つかりません。",
+  "sshKeyAlreadyImported": "既にストアにあります",
   "setMasterPasswordHint": "アーカイブを暗号化するためのマスターパスワードを設定してください。",
   "passwordsDoNotMatch": "パスワードが一致しません",
   "exportedTo": "エクスポート先: {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "すべての既知のホストを削除しました",
   "removedHost": "{host} を削除しました",
   "noHostsToExport": "エクスポートするホストがありません",
-  "keyType": "キータイプ",
-  "fingerprint": "フィンガープリント",
   "tools": "ツール",
   "sshKeys": "SSH キー",
   "sshKeysSubtitle": "認証用 SSH キーペアの管理",
@@ -419,7 +466,6 @@
   "passphrase": "パスフレーズ",
   "rememberPassphrase": "このセッションで記憶",
   "unlock": "ロック解除",
-  "masterPassword": "マスターパスワード",
   "masterPasswordSubtitle": "保存された認証情報をパスワードで保護",
   "setMasterPassword": "マスターパスワードを設定",
   "changeMasterPassword": "マスターパスワードを変更",
@@ -429,9 +475,7 @@
   "enterMasterPassword": "保存された認証情報にアクセスするにはマスターパスワードを入力してください。",
   "wrongMasterPassword": "パスワードが正しくありません。もう一度お試しください。",
   "newPassword": "新しいパスワード",
-  "confirmPassword": "パスワード確認",
   "currentPassword": "現在のパスワード",
-  "passwordsDoNotMatch": "パスワードが一致しません",
   "passwordTooShort": "パスワードは 8 文字以上必要です",
   "masterPasswordSet": "マスターパスワードを有効にしました",
   "masterPasswordChanged": "マスターパスワードを変更しました",
@@ -444,7 +488,6 @@
   "derivingKey": "暗号化キーを生成中...",
   "reEncrypting": "データを再暗号化中...",
   "confirmRemoveMasterPassword": "マスターパスワード保護を解除するには現在のパスワードを入力してください。認証情報は自動生成キーで再暗号化されます。",
-  "password": "パスワード",
   "securitySetupTitle": "セキュリティ設定",
   "securitySetupKeychainFound": "OS キーチェーンを検出しました ({keychainName})。データはシステムキーチェーンを使用して自動的に暗号化されます。",
   "securitySetupKeychainOptional": "追加の保護としてマスターパスワードを設定することもできます。",
@@ -477,5 +520,16 @@
   "disableKeychain": "キーチェーン暗号化を無効にする",
   "disableKeychainSubtitle": "平文保存に切り替える（非推奨）",
   "disableKeychainConfirm": "データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？",
-  "keychainDisabled": "キーチェーン暗号化が無効になりました"
+  "keychainDisabled": "キーチェーン暗号化が無効になりました",
+  "importFromSshDir": "~/.ssh からインポート",
+  "importFromSshDirSubtitle": "設定ファイルからホスト、~/.ssh から秘密鍵を選択",
+  "sshDirImportHostsSection": "設定ファイルのホスト",
+  "sshDirImportKeysSection": "~/.ssh の鍵",
+  "browseFiles": "ファイルを選択…",
+  "sshDirSessionAlreadyImported": "すでにセッションにあります",
+  "presetFullImport": "完全インポート",
+  "presetSelective": "選択的",
+  "presetCustom": "カスタム",
+  "sessionSshKeys": "セッションの SSH 鍵",
+  "allManagerKeys": "マネージャーのすべての鍵"
 }

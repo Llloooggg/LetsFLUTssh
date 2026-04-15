@@ -11,6 +11,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
+import '../../core/import/key_file_helper.dart';
+import '../../core/import/openssh_config_importer.dart';
+import '../../core/import/ssh_dir_key_scanner.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/security/aes_gcm.dart';
 import '../../core/security/master_password.dart';
@@ -44,6 +47,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
+import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
 

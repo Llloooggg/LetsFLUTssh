@@ -32,13 +32,7 @@ Future<List<Session>> _resolveSessionKeys(
 class _DataSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        _ExportImportTile(),
-        const _QrExportTile(),
-        const _DataPathTile(),
-      ],
-    );
+    return Column(children: [_ExportImportTile(), const _DataPathTile()]);
   }
 }
 
@@ -343,7 +337,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     } finally {
       passwordCtrl.dispose();
@@ -418,7 +416,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     } finally {
       currentCtrl.dispose();
@@ -477,7 +479,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     } finally {
       passwordCtrl.dispose();
@@ -548,7 +554,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     }
   }
@@ -597,7 +607,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     }
   }
@@ -664,18 +678,169 @@ class _ExportImportTile extends ConsumerWidget {
       children: [
         _ActionTile(
           icon: Icons.upload_file,
-          title: S.of(context).exportData,
-          subtitle: S.of(context).exportDataSubtitle,
+          title: S.of(context).exportArchive,
+          subtitle: S.of(context).exportArchiveSubtitle,
           onTap: () => _showExportDialog(context, ref),
         ),
+        const _QrExportTile(),
         _ActionTile(
           icon: Icons.download,
-          title: S.of(context).importData,
-          subtitle: S.of(context).importDataSubtitle,
+          title: S.of(context).importArchive,
+          subtitle: S.of(context).importArchiveSubtitle,
           onTap: () => _showImportDialog(context, ref),
+        ),
+        _ActionTile(
+          icon: Icons.folder_shared_outlined,
+          title: S.of(context).importFromSshDir,
+          subtitle: S.of(context).importFromSshDirSubtitle,
+          onTap: () => _showSshDirImportDialog(context, ref),
         ),
       ],
     );
+  }
+
+  Future<void> _showSshDirImportDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    try {
+      final sshDir = p.join(plat.homeDirectory, '.ssh');
+      final configPath = p.join(sshDir, 'config');
+      final keyStore = ref.read(keyStoreProvider);
+
+      // Scan keys regardless of config presence — user may want to import
+      // just the standalone keys.
+      final scannedKeys = SshDirKeyScanner().scan(sshDir);
+
+      // Parse config if present. Missing file = no hosts, dialog still shows
+      // the keys section.
+      OpenSshConfigImportPreview? preview;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final folderLabel = S.of(context).sshConfigImportFolderName(date);
+      final configFile = File(configPath);
+      if (await configFile.exists()) {
+        final content = await configFile.readAsString();
+        preview = OpenSshConfigImporter().buildPreview(
+          configContent: content,
+          folderLabel: folderLabel,
+          keyLabelSuffix: date,
+        );
+      }
+      if (!context.mounted) return;
+
+      // Nothing to show at all — surface a warning and bail.
+      if (scannedKeys.isEmpty && (preview?.result.sessions.isEmpty ?? true)) {
+        Toast.show(
+          context,
+          message: S.of(context).fileNotFound(sshDir),
+          level: ToastLevel.warning,
+        );
+        return;
+      }
+
+      final existing = await keyStore.loadAll();
+      final existingFingerprints = existing.values
+          .map((e) => KeyStore.privateKeyFingerprint(e.privateKey))
+          .toSet();
+      final existingSessionAddresses = ref
+          .read(sessionProvider)
+          .map(sshDirSessionAddress)
+          .toSet();
+      if (!context.mounted) return;
+
+      final filtered = await SshDirImportDialog.show(
+        context,
+        source: SshDirImportSource(
+          hostsPreview: preview,
+          keys: scannedKeys,
+          existingKeyFingerprints: existingFingerprints,
+          existingSessionAddresses: existingSessionAddresses,
+          folderLabel: folderLabel,
+        ),
+        onPickConfigFile: () => _pickConfigFile(sshDir, folderLabel, date),
+        onPickKeyFiles: () => _pickKeyFiles(sshDir),
+      );
+      if (filtered == null || !context.mounted) return;
+      if (filtered.sessions.isEmpty && filtered.managerKeys.isEmpty) return;
+
+      await _applyFilteredImport(context, ref, filtered);
+    } catch (e) {
+      AppLogger.instance.log(
+        'SSH dir import failed: $e',
+        name: 'Settings',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
+          level: ToastLevel.error,
+        );
+      }
+    }
+  }
+
+  /// File-picker that lets the user select an extra OpenSSH config file and
+  /// returns its parsed hosts. [initialDir] seeds the native dialog at
+  /// `~/.ssh` on desktop; mobile platforms ignore it and use the system
+  /// default. Returns null on cancel / read error.
+  Future<PickedConfigResult?> _pickConfigFile(
+    String initialDir,
+    String folderLabel,
+    String keyLabelSuffix,
+  ) async {
+    final result = await FilePicker.pickFiles(
+      initialDirectory: initialDir,
+      type: FileType.any,
+    );
+    final path = result?.files.single.path;
+    if (path == null) return null;
+    try {
+      final content = await File(path).readAsString();
+      final preview = OpenSshConfigImporter().buildPreview(
+        configContent: content,
+        folderLabel: folderLabel,
+        keyLabelSuffix: keyLabelSuffix,
+      );
+      return PickedConfigResult(
+        sessions: preview.result.sessions,
+        managerKeys: preview.result.managerKeys,
+        hostsWithMissingKeys: preview.hostsWithMissingKeys,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to parse picked SSH config: $e',
+        name: 'Settings',
+        error: e,
+      );
+      return null;
+    }
+  }
+
+  /// File-picker for extra SSH private keys. Multi-select; files that don't
+  /// look like a PEM private key are silently dropped. Returns null on cancel.
+  Future<List<ScannedKey>?> _pickKeyFiles(String initialDir) async {
+    final result = await FilePicker.pickFiles(
+      initialDirectory: initialDir,
+      type: FileType.any,
+      allowMultiple: true,
+    );
+    if (result == null) return null;
+    final picked = <ScannedKey>[];
+    for (final f in result.files) {
+      final path = f.path;
+      if (path == null) continue;
+      final pem = KeyFileHelper.tryReadPemKey(path);
+      if (pem == null) continue;
+      picked.add(
+        ScannedKey(
+          path: path,
+          pem: pem,
+          suggestedLabel: p.basenameWithoutExtension(path),
+        ),
+      );
+    }
+    return picked;
   }
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
@@ -744,7 +909,7 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: S.of(context).exportFailed(e.toString()),
+          message: S.of(context).exportFailed(localizeError(S.of(context), e)),
           level: ToastLevel.error,
         );
       }
@@ -937,6 +1102,9 @@ class _ExportImportTile extends ConsumerWidget {
           includeSessions: true,
           includeConfig: true,
           includeKnownHosts: true,
+          includeAllManagerKeys: true,
+          includeTags: true,
+          includeSnippets: true,
         ),
       );
       if (!context.mounted) return;
@@ -949,6 +1117,9 @@ class _ExportImportTile extends ConsumerWidget {
             fullImport.knownHostsContent != null &&
             fullImport.knownHostsContent!.isNotEmpty,
         emptyFolders: fullImport.emptyFolders,
+        managerKeyCount: fullImport.managerKeys.length,
+        tagCount: fullImport.tags.length,
+        snippetCount: fullImport.snippets.length,
       );
 
       final importConfig = await LfsImportPreviewDialog.show(
@@ -991,6 +1162,7 @@ class _ExportImportTile extends ConsumerWidget {
       final keyStore = ref.read(keyStoreProvider);
       final tagStore = ref.read(tagStoreProvider);
       final snippetStore = ref.read(snippetStoreProvider);
+      final knownHostsMgr = ref.read(knownHostsProvider);
       final importService = ImportService(
         addSession: (s) => ref.read(sessionProvider.notifier).add(s),
         addEmptyFolder: (f) =>
@@ -1019,28 +1191,22 @@ class _ExportImportTile extends ConsumerWidget {
         existingSnippetIds: () async =>
             (await snippetStore.loadAll()).map((s) => s.id).toSet(),
         getCurrentConfig: () => ref.read(configProvider),
+        loadAllTags: () => tagStore.loadAll(),
+        deleteAllTags: () => tagStore.deleteAll(),
+        loadAllSnippets: () => snippetStore.loadAll(),
+        deleteAllSnippets: () => snippetStore.deleteAll(),
+        exportKnownHosts: () async => knownHostsMgr.exportToString(),
+        clearKnownHosts: () => knownHostsMgr.clearAll(),
+        importKnownHosts: (content) async {
+          await knownHostsMgr.importFromString(content);
+        },
       );
-      await importService.applyResult(importResult);
-
-      // Import known hosts via the manager (handles encryption).
-      if (importResult.knownHostsContent != null) {
-        try {
-          final knownHosts = ref.read(knownHostsProvider);
-          await knownHosts.importFromString(importResult.knownHostsContent!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to import known_hosts from LFS: $e',
-            name: 'Settings',
-            error: e,
-          );
-          // Continue — known_hosts failure shouldn't fail entire import
-        }
-      }
+      final summary = await importService.applyResult(importResult);
 
       if (context.mounted) {
         Toast.show(
           context,
-          message: S.of(context).importedSessions(importResult.sessions.length),
+          message: formatImportSummary(S.of(context), summary),
           level: ToastLevel.success,
         );
       }
@@ -1413,8 +1579,8 @@ class _QrExportTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _ActionTile(
       icon: Icons.qr_code,
-      title: S.of(context).shareViaQrCode,
-      subtitle: S.of(context).shareViaQrSubtitle,
+      title: S.of(context).exportQrCode,
+      subtitle: S.of(context).exportQrCodeSubtitle,
       onTap: () => _showQrExport(context, ref),
     );
   }

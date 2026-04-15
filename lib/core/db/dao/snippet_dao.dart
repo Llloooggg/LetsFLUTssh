@@ -41,6 +41,16 @@ class SnippetDao {
     return count;
   }
 
+  /// Delete every snippet. Cascades to session link table via FK.
+  Future<int> deleteAll() async {
+    final count = await _db.delete(_db.snippets).go();
+    AppLogger.instance.log(
+      'Deleted all snippets (rows: $count)',
+      name: 'SnippetDao',
+    );
+    return count;
+  }
+
   // --- Session ↔ Snippet ---
 
   Future<List<DbSnippet>> getForSession(String sessionId) async {

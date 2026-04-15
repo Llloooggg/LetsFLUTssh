@@ -49,6 +49,20 @@ class ImportService {
   /// Current config snapshot for rollback support in replace mode.
   final AppConfig Function()? getCurrentConfig;
 
+  /// Replace-mode wipe + rollback hooks. When [ImportResult.includeTags] /
+  /// `includeSnippets` / `includeKnownHosts` is true in replace mode, the
+  /// corresponding local store is snapshotted and cleared before the import
+  /// writes new rows — otherwise duplicate IDs or unique-name conflicts
+  /// (e.g. `Tags.name` UNIQUE) would abort the import. If the import later
+  /// throws, the captured lists are replayed back in.
+  final Future<List<Tag>> Function()? loadAllTags;
+  final Future<void> Function()? deleteAllTags;
+  final Future<List<Snippet>> Function()? loadAllSnippets;
+  final Future<void> Function()? deleteAllSnippets;
+  final Future<String> Function()? exportKnownHosts;
+  final Future<void> Function()? clearKnownHosts;
+  final Future<void> Function(String content)? importKnownHosts;
+
   ImportService({
     required this.addSession,
     required this.addEmptyFolder,
@@ -66,9 +80,18 @@ class ImportService {
     this.existingTagIds,
     this.existingSnippetIds,
     this.getCurrentConfig,
+    this.loadAllTags,
+    this.deleteAllTags,
+    this.loadAllSnippets,
+    this.deleteAllSnippets,
+    this.exportKnownHosts,
+    this.clearKnownHosts,
+    this.importKnownHosts,
   });
 
-  /// Apply imported sessions and config.
+  /// Apply imported sessions and config. Returns a [ImportSummary] with
+  /// the number of rows actually persisted per data type — callers use it to
+  /// build an informative success toast instead of only the session count.
   ///
   /// In replace mode, takes a snapshot before deleting existing sessions.
   /// If any import fails, the snapshot is restored to prevent data loss.
@@ -76,7 +99,7 @@ class ImportService {
   /// In merge mode, id collisions with existing items (sessions/tags/snippets)
   /// are resolved by minting a fresh UUID and suffixing the label/name with
   /// `(copy)` — mirrors session duplication UX.
-  Future<void> applyResult(ImportResult result) async {
+  Future<ImportSummary> applyResult(ImportResult result) async {
     AppLogger.instance.log(
       'Applying import: mode=${result.mode.name}, '
       'sessions=${result.sessions.length}, '
@@ -86,11 +109,11 @@ class ImportService {
     );
 
     final snapshot = result.mode == ImportMode.replace
-        ? await _snapshotAndDeleteExisting()
+        ? await _snapshotAndDeleteExisting(result)
         : null;
 
     try {
-      await _applyCore(result, snapshot);
+      return await _applyCore(result, snapshot);
     } catch (_) {
       if (result.mode == ImportMode.replace) {
         await _tryRestore(snapshot);
@@ -99,41 +122,21 @@ class ImportService {
     }
   }
 
-  Future<void> _applyCore(ImportResult result, _Snapshot? snapshot) async {
-    // Import manager keys first — build oldId→newId map for session remapping.
-    // The saveManagerKey callback itself dedups by fingerprint (see KeyStore),
-    // so this map will resolve incoming keys to either a brand-new or an
-    // existing stored key id.
+  Future<ImportSummary> _applyCore(
+    ImportResult result,
+    _Snapshot? snapshot,
+  ) async {
+    // Import manager keys first — the saveManagerKey callback dedups by
+    // fingerprint (see KeyStore), so the returned map resolves incoming keys
+    // to either a brand-new or an existing stored key id.
     final keyIdMap = await _importManagerKeys(result.managerKeys);
-
-    // Remap session keyIds to the newly inserted key IDs
-    var sessions = keyIdMap.isEmpty
-        ? result.sessions
-        : result.sessions.map((s) {
-            final newKeyId = keyIdMap[s.keyId];
-            if (newKeyId == null) return s;
-            return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
-          }).toList();
+    final rekeyedSessions = _remapSessionKeyIds(result.sessions, keyIdMap);
 
     // Merge mode: remap colliding session ids to fresh UUIDs + "(copy)" label.
     // Replace mode: existing was cleared, no collisions possible.
-    final sessionIdMap = <String, String>{};
-    if (result.mode == ImportMode.merge) {
-      final existing = getSessions().map((s) => s.id).toSet();
-      sessions = sessions.map((s) {
-        if (!existing.contains(s.id)) return s;
-        final newId = const Uuid().v4();
-        sessionIdMap[s.id] = newId;
-        return Session(
-          id: newId,
-          label: s.label.isNotEmpty ? '${s.label} (copy)' : '',
-          folder: s.folder,
-          server: s.server,
-          auth: s.auth,
-          createdAt: s.createdAt,
-        );
-      }).toList();
-    }
+    final (sessions, sessionIdMap) = result.mode == ImportMode.merge
+        ? _resolveSessionCollisions(rekeyedSessions)
+        : (rekeyedSessions, const <String, String>{});
 
     final imported = await _importSessions(
       ImportResult(
@@ -144,19 +147,11 @@ class ImportService {
       snapshot,
     );
 
-    // Import empty folders
-    var foldersImported = 0;
-    for (final folder in result.emptyFolders) {
-      try {
-        await addEmptyFolder(folder);
-        foldersImported++;
-      } catch (e) {
-        if (result.mode == ImportMode.replace) rethrow;
-        AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
-      }
-    }
+    final foldersImported = await _importEmptyFolders(
+      result.emptyFolders,
+      result.mode,
+    );
 
-    // Import tags and their session/folder assignments
     final tagIdMap = await _importTags(result.tags, result.mode);
     await _importTagLinks(
       result.sessionTags,
@@ -165,7 +160,6 @@ class ImportService {
       sessionIdMap,
     );
 
-    // Import snippets and their session links
     final snippetIdMap = await _importSnippets(result.snippets, result.mode);
     await _importSnippetLinks(
       result.sessionSnippets,
@@ -173,32 +167,132 @@ class ImportService {
       sessionIdMap,
     );
 
-    // Apply config last. Merge mode: log and continue (config is independent
-    // of imported sessions). Replace mode: propagate so the outer catch in
-    // applyResult rolls back sessions/folders/config atomically.
-    if (result.config != null) {
-      if (result.mode == ImportMode.replace) {
-        applyConfig(result.config!);
-      } else {
-        try {
-          applyConfig(result.config!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to apply config: $e',
-            name: 'Import',
-            error: e,
-          );
-        }
-      }
-    }
+    _applyImportedConfig(result);
+    await _applyImportedKnownHosts(result);
 
     AppLogger.instance.log(
       'Import complete: $imported/${result.sessions.length} sessions, '
       '$foldersImported/${result.emptyFolders.length} folders, '
+      '${keyIdMap.length}/${result.managerKeys.length} keys, '
       '${tagIdMap.length}/${result.tags.length} tags, '
       '${snippetIdMap.length}/${result.snippets.length} snippets imported',
       name: 'Import',
     );
+
+    return ImportSummary(
+      sessions: imported,
+      folders: foldersImported,
+      managerKeys: keyIdMap.length,
+      tags: tagIdMap.length,
+      snippets: snippetIdMap.length,
+      configApplied: result.config != null,
+      knownHostsApplied:
+          result.knownHostsContent != null &&
+          result.knownHostsContent!.isNotEmpty,
+    );
+  }
+
+  /// Rewrite session `keyId` fields using the manager-key id map.
+  ///
+  /// Sessions referencing a keyId that is not in [keyIdMap] get their keyId
+  /// nulled out — the referenced key was not imported (either not included
+  /// in the archive or filtered out by the user), so keeping the id would
+  /// cause a `FOREIGN KEY constraint failed` on insert. The session is still
+  /// imported; the user can re-associate a key afterwards.
+  List<Session> _remapSessionKeyIds(
+    List<Session> sessions,
+    Map<String, String> keyIdMap,
+  ) {
+    return sessions.map((s) {
+      final oldKeyId = s.keyId;
+      if (oldKeyId.isEmpty) return s;
+      final newKeyId = keyIdMap[oldKeyId];
+      if (newKeyId == null) {
+        return s.copyWith(auth: s.auth.copyWith(keyId: ''));
+      }
+      return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
+    }).toList();
+  }
+
+  /// Resolve merge-mode session id collisions by minting a fresh UUID and
+  /// suffixing the label with `(copy)`. Returns the remapped list and an
+  /// oldId→newId map for downstream link rewriting.
+  (List<Session>, Map<String, String>) _resolveSessionCollisions(
+    List<Session> sessions,
+  ) {
+    final existing = getSessions().map((s) => s.id).toSet();
+    final idMap = <String, String>{};
+    final remapped = sessions.map((s) {
+      if (!existing.contains(s.id)) return s;
+      final newId = const Uuid().v4();
+      idMap[s.id] = newId;
+      return Session(
+        id: newId,
+        label: _withCopySuffix(s.label),
+        folder: s.folder,
+        server: s.server,
+        auth: s.auth,
+        createdAt: s.createdAt,
+      );
+    }).toList();
+    return (remapped, idMap);
+  }
+
+  /// Import the empty-folder set, counting successes. In replace mode a
+  /// single failure aborts the import so the outer catch can roll back;
+  /// merge mode logs and continues.
+  Future<int> _importEmptyFolders(Set<String> folders, ImportMode mode) async {
+    var imported = 0;
+    for (final folder in folders) {
+      try {
+        await addEmptyFolder(folder);
+        imported++;
+      } catch (e) {
+        if (mode == ImportMode.replace) rethrow;
+        AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
+      }
+    }
+    return imported;
+  }
+
+  /// Apply the imported config. Merge mode logs and swallows failures (config
+  /// is independent of sessions); replace mode lets them propagate so the
+  /// outer catch in [applyResult] rolls back atomically.
+  void _applyImportedConfig(ImportResult result) {
+    final config = result.config;
+    if (config == null) return;
+    if (result.mode == ImportMode.replace) {
+      applyConfig(config);
+      return;
+    }
+    try {
+      applyConfig(config);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to apply config: $e',
+        name: 'Import',
+        error: e,
+      );
+    }
+  }
+
+  /// Append known_hosts content from the archive. In replace mode the store
+  /// was already cleared in the snapshot step; in merge mode new entries are
+  /// added and existing host:port rows are skipped by the importer.
+  Future<void> _applyImportedKnownHosts(ImportResult result) async {
+    final content = result.knownHostsContent;
+    if (content == null || content.isEmpty) return;
+    if (importKnownHosts == null) return;
+    try {
+      await importKnownHosts!(content);
+    } catch (e) {
+      if (result.mode == ImportMode.replace) rethrow;
+      AppLogger.instance.log(
+        'Failed to import known_hosts: $e',
+        name: 'Import',
+        error: e,
+      );
+    }
   }
 
   /// Import manager keys into KeyStore. Returns a map of oldId→newId
@@ -235,14 +329,17 @@ class ImportService {
     final idMap = <String, String>{};
     for (final tag in tags) {
       try {
-        final effective = existing.contains(tag.id)
-            ? Tag(
-                id: const Uuid().v4(),
-                name: tag.name.isNotEmpty ? '${tag.name} (copy)' : tag.name,
-                color: tag.color,
-                createdAt: tag.createdAt,
-              )
-            : tag;
+        final Tag effective;
+        if (existing.contains(tag.id)) {
+          effective = Tag(
+            id: const Uuid().v4(),
+            name: _withCopySuffix(tag.name),
+            color: tag.color,
+            createdAt: tag.createdAt,
+          );
+        } else {
+          effective = tag;
+        }
         final newId = await saveTag!(effective);
         idMap[tag.id] = newId;
       } catch (e) {
@@ -251,6 +348,11 @@ class ImportService {
     }
     return idMap;
   }
+
+  /// Append `(copy)` to a non-empty label. Returns the input unchanged if
+  /// empty so we never produce a lone `(copy)` string.
+  static String _withCopySuffix(String label) =>
+      label.isEmpty ? label : '$label (copy)';
 
   /// Apply session→tag and folder→tag links with remapped IDs.
   Future<void> _importTagLinks(
@@ -261,7 +363,8 @@ class ImportService {
   ) async {
     if (tagSession != null) {
       for (final link in sessionLinks) {
-        final newTagId = tagIdMap[link.targetId] ?? link.targetId;
+        final newTagId = tagIdMap[link.targetId];
+        if (newTagId == null) continue; // tag not imported — would FK-fail
         final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
         try {
           await tagSession!(newSessionId, newTagId);
@@ -275,7 +378,8 @@ class ImportService {
     }
     if (tagFolder != null) {
       for (final link in folderLinks) {
-        final newTagId = tagIdMap[link.tagId] ?? link.tagId;
+        final newTagId = tagIdMap[link.tagId];
+        if (newTagId == null) continue;
         try {
           await tagFolder!(link.folderPath, newTagId);
         } catch (e) {
@@ -298,18 +402,19 @@ class ImportService {
     final idMap = <String, String>{};
     for (final snippet in snippets) {
       try {
-        final effective = existing.contains(snippet.id)
-            ? Snippet(
-                id: const Uuid().v4(),
-                title: snippet.title.isNotEmpty
-                    ? '${snippet.title} (copy)'
-                    : snippet.title,
-                command: snippet.command,
-                description: snippet.description,
-                createdAt: snippet.createdAt,
-                updatedAt: snippet.updatedAt,
-              )
-            : snippet;
+        final Snippet effective;
+        if (existing.contains(snippet.id)) {
+          effective = Snippet(
+            id: const Uuid().v4(),
+            title: _withCopySuffix(snippet.title),
+            command: snippet.command,
+            description: snippet.description,
+            createdAt: snippet.createdAt,
+            updatedAt: snippet.updatedAt,
+          );
+        } else {
+          effective = snippet;
+        }
         final newId = await saveSnippet!(effective);
         idMap[snippet.id] = newId;
       } catch (e) {
@@ -327,7 +432,9 @@ class ImportService {
   ) async {
     if (linkSnippetToSession == null) return;
     for (final link in links) {
-      final newSnippetId = snippetIdMap[link.targetId] ?? link.targetId;
+      final newSnippetId = snippetIdMap[link.targetId];
+      // snippet not imported — would FK-fail
+      if (newSnippetId == null) continue;
       final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
       try {
         await linkSnippetToSession!(newSnippetId, newSessionId);
@@ -340,26 +447,61 @@ class ImportService {
     }
   }
 
-  /// Takes a snapshot of existing sessions (when rollback callbacks are
-  /// available) and deletes them. Returns the snapshot for rollback.
-  Future<_Snapshot?> _snapshotAndDeleteExisting() async {
+  /// Takes a snapshot of existing data and clears the stores that the user
+  /// asked to replace. Returns the snapshot for rollback.
+  ///
+  /// Sessions are always cleared in replace mode (that's the defining
+  /// behavior). Tags / snippets / known_hosts are only cleared when the
+  /// corresponding `includeX` flag on [result] is set — an unchecked type
+  /// stays untouched.
+  Future<_Snapshot?> _snapshotAndDeleteExisting(ImportResult result) async {
     final existing = List<Session>.of(getSessions());
-    _Snapshot? snapshot;
 
-    if (restoreSnapshot != null) {
-      final folders = getEmptyFolders != null
-          ? Set.of(getEmptyFolders!())
-          : <String>{};
-      final config = getCurrentConfig?.call();
-      snapshot = _Snapshot(existing, folders, config);
-    }
+    final folders = getEmptyFolders != null
+        ? Set.of(getEmptyFolders!())
+        : <String>{};
+    final config = getCurrentConfig?.call();
+
+    final List<Tag> tagsBackup = result.includeTags && loadAllTags != null
+        ? await loadAllTags!()
+        : const [];
+    final List<Snippet> snippetsBackup =
+        result.includeSnippets && loadAllSnippets != null
+        ? await loadAllSnippets!()
+        : const [];
+    final String? knownHostsBackup =
+        result.includeKnownHosts && exportKnownHosts != null
+        ? await exportKnownHosts!()
+        : null;
+
+    final snapshot = _Snapshot(
+      sessions: existing,
+      folders: folders,
+      config: config,
+      tags: tagsBackup,
+      snippets: snippetsBackup,
+      knownHosts: knownHostsBackup,
+    );
 
     AppLogger.instance.log(
-      'Replace mode: deleting ${existing.length} existing sessions',
+      'Replace mode: clearing sessions=${existing.length}, '
+      'tags=${result.includeTags ? tagsBackup.length : "skip"}, '
+      'snippets=${result.includeSnippets ? snippetsBackup.length : "skip"}, '
+      'knownHosts=${result.includeKnownHosts ? "yes" : "skip"}',
       name: 'Import',
     );
+
     for (final s in existing) {
       await deleteSession(s.id);
+    }
+    if (result.includeTags && deleteAllTags != null) {
+      await deleteAllTags!();
+    }
+    if (result.includeSnippets && deleteAllSnippets != null) {
+      await deleteAllSnippets!();
+    }
+    if (result.includeKnownHosts && clearKnownHosts != null) {
+      await clearKnownHosts!();
     }
 
     return snapshot;
@@ -385,27 +527,86 @@ class ImportService {
   /// Attempt to restore a pre-import snapshot. Logs but does not throw
   /// on failure — the original import error takes priority.
   Future<void> _tryRestore(_Snapshot? snapshot) async {
-    if (restoreSnapshot == null || snapshot == null) return;
-    try {
-      await restoreSnapshot!(snapshot.sessions, snapshot.folders);
-      if (snapshot.config != null) {
-        try {
-          applyConfig(snapshot.config!);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to restore config after import failure',
-            name: 'Import',
-            error: e,
-          );
-        }
+    if (snapshot == null) return;
+    if (restoreSnapshot != null) {
+      try {
+        await restoreSnapshot!(snapshot.sessions, snapshot.folders);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to restore sessions snapshot',
+          name: 'Import',
+          error: e,
+        );
       }
-      AppLogger.instance.log(
-        'Restored ${snapshot.sessions.length} sessions after import failure',
-        name: 'Import',
-      );
+    }
+    if (snapshot.config != null) {
+      try {
+        applyConfig(snapshot.config!);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to restore config',
+          name: 'Import',
+          error: e,
+        );
+      }
+    }
+    await _restoreTags(snapshot.tags);
+    await _restoreSnippets(snapshot.snippets);
+    await _restoreKnownHosts(snapshot.knownHosts);
+    AppLogger.instance.log(
+      'Restored ${snapshot.sessions.length} sessions, '
+      '${snapshot.tags.length} tags, ${snapshot.snippets.length} snippets '
+      'after import failure',
+      name: 'Import',
+    );
+  }
+
+  Future<void> _restoreTags(List<Tag> tags) async {
+    if (tags.isEmpty || saveTag == null || deleteAllTags == null) return;
+    try {
+      await deleteAllTags!();
+      for (final t in tags) {
+        await saveTag!(t);
+      }
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to restore snapshot after import failure',
+        'Failed to restore tags snapshot',
+        name: 'Import',
+        error: e,
+      );
+    }
+  }
+
+  Future<void> _restoreSnippets(List<Snippet> snippets) async {
+    if (snippets.isEmpty || saveSnippet == null || deleteAllSnippets == null) {
+      return;
+    }
+    try {
+      await deleteAllSnippets!();
+      for (final s in snippets) {
+        await saveSnippet!(s);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to restore snippets snapshot',
+        name: 'Import',
+        error: e,
+      );
+    }
+  }
+
+  Future<void> _restoreKnownHosts(String? content) async {
+    if (content == null ||
+        importKnownHosts == null ||
+        clearKnownHosts == null) {
+      return;
+    }
+    try {
+      await clearKnownHosts!();
+      if (content.isNotEmpty) await importKnownHosts!(content);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to restore known_hosts snapshot',
         name: 'Import',
         error: e,
       );
@@ -413,10 +614,43 @@ class ImportService {
   }
 }
 
+/// Per-type row counts from a completed import. Feeds the success toast so
+/// the user sees what was actually applied (sessions, tags, snippets, keys,
+/// config, known_hosts) instead of only a session count.
+class ImportSummary {
+  final int sessions;
+  final int folders;
+  final int managerKeys;
+  final int tags;
+  final int snippets;
+  final bool configApplied;
+  final bool knownHostsApplied;
+
+  const ImportSummary({
+    this.sessions = 0,
+    this.folders = 0,
+    this.managerKeys = 0,
+    this.tags = 0,
+    this.snippets = 0,
+    this.configApplied = false,
+    this.knownHostsApplied = false,
+  });
+}
+
 class _Snapshot {
   final List<Session> sessions;
   final Set<String> folders;
   final AppConfig? config;
+  final List<Tag> tags;
+  final List<Snippet> snippets;
+  final String? knownHosts;
 
-  const _Snapshot(this.sessions, this.folders, this.config);
+  const _Snapshot({
+    required this.sessions,
+    required this.folders,
+    required this.config,
+    this.tags = const [],
+    this.snippets = const [],
+    this.knownHosts,
+  });
 }

@@ -51,6 +51,13 @@ class TagStore {
     await db.tagDao.deleteById(id);
   }
 
+  /// Delete every tag. Cascades to all session/folder link tables.
+  Future<void> deleteAll() async {
+    final db = _db;
+    if (db == null) return;
+    await db.tagDao.deleteAll();
+  }
+
   // --- Session tagging ---
 
   /// Get tags for a session.

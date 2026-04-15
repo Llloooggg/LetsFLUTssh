@@ -202,6 +202,55 @@
   "exportData": "데이터 내보내기",
   "exportDataSubtitle": "세션, 설정 및 키를 암호화된 .lfs 파일로 저장",
   "importDataSubtitle": ".lfs 파일에서 데이터 불러오기",
+  "sshConfigPreviewHostsFound": "호스트 {count}개를 찾았습니다",
+  "@sshConfigPreviewHostsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sshConfigPreviewNoHosts": "이 파일에서 가져올 수 있는 호스트를 찾을 수 없습니다.",
+  "sshConfigPreviewMissingKeys": "다음 호스트의 키 파일을 읽을 수 없습니다: {hosts}. 이 호스트는 자격 증명 없이 가져옵니다.",
+  "@sshConfigPreviewMissingKeys": {
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigPreviewFolderLabel": "폴더로 가져옴: {folder}",
+  "@sshConfigPreviewFolderLabel": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sshConfigImportFolderName": ".ssh {date}",
+  "@sshConfigImportFolderName": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exportArchive": "아카이브 내보내기",
+  "exportArchiveSubtitle": "세션, 설정 및 키를 암호화된 .lfs 파일로 저장",
+  "exportQrCode": "QR 코드 내보내기",
+  "exportQrCodeSubtitle": "선택한 세션과 키를 QR 코드로 공유",
+  "importArchive": "아카이브 가져오기",
+  "importArchiveSubtitle": ".lfs 파일에서 데이터 불러오기",
+  "importSshKeysFound": "키 {count}개를 찾았습니다 — 가져올 항목을 선택하세요",
+  "@importSshKeysFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSshKeysNoneFound": "~/.ssh에서 개인 키를 찾을 수 없습니다.",
+  "sshKeyAlreadyImported": "이미 저장소에 있음",
   "setMasterPasswordHint": "아카이브를 암호화할 마스터 비밀번호를 설정하세요.",
   "passwordsDoNotMatch": "비밀번호가 일치하지 않습니다",
   "exportedTo": "내보내기 완료: {path}",
@@ -387,8 +436,6 @@
   "clearedAllHosts": "모든 알려진 호스트를 삭제했습니다",
   "removedHost": "{host} 제거됨",
   "noHostsToExport": "내보낼 호스트가 없습니다",
-  "keyType": "키 유형",
-  "fingerprint": "지문",
   "tools": "도구",
   "sshKeys": "SSH 키",
   "sshKeysSubtitle": "인증용 SSH 키 쌍 관리",
@@ -419,7 +466,6 @@
   "passphrase": "암호문",
   "rememberPassphrase": "이 세션에서 기억",
   "unlock": "잠금 해제",
-  "masterPassword": "마스터 비밀번호",
   "masterPasswordSubtitle": "저장된 인증 정보를 비밀번호로 보호",
   "setMasterPassword": "마스터 비밀번호 설정",
   "changeMasterPassword": "마스터 비밀번호 변경",
@@ -429,9 +475,7 @@
   "enterMasterPassword": "저장된 인증 정보에 접근하려면 마스터 비밀번호를 입력하세요.",
   "wrongMasterPassword": "비밀번호가 올바르지 않습니다. 다시 시도하세요.",
   "newPassword": "새 비밀번호",
-  "confirmPassword": "비밀번호 확인",
   "currentPassword": "현재 비밀번호",
-  "passwordsDoNotMatch": "비밀번호가 일치하지 않습니다",
   "passwordTooShort": "비밀번호는 최소 8자 이상이어야 합니다",
   "masterPasswordSet": "마스터 비밀번호가 활성화되었습니다",
   "masterPasswordChanged": "마스터 비밀번호가 변경되었습니다",
@@ -444,7 +488,6 @@
   "derivingKey": "암호화 키 생성 중...",
   "reEncrypting": "데이터 재암호화 중...",
   "confirmRemoveMasterPassword": "마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.",
-  "password": "비밀번호",
   "securitySetupTitle": "보안 설정",
   "securitySetupKeychainFound": "OS 키체인이 감지되었습니다 ({keychainName}). 데이터가 시스템 키체인을 사용하여 자동으로 암호화됩니다.",
   "securitySetupKeychainOptional": "추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.",
@@ -477,5 +520,16 @@
   "disableKeychain": "키체인 암호화 비활성화",
   "disableKeychainSubtitle": "일반 텍스트 저장으로 전환 (권장하지 않음)",
   "disableKeychainConfirm": "데이터베이스가 키 없이 다시 암호화됩니다. 세션과 키가 디스크에 일반 텍스트로 저장됩니다. 계속하시겠습니까?",
-  "keychainDisabled": "키체인 암호화가 비활성화되었습니다"
+  "keychainDisabled": "키체인 암호화가 비활성화되었습니다",
+  "importFromSshDir": "~/.ssh에서 가져오기",
+  "importFromSshDirSubtitle": "설정 파일에서 호스트, ~/.ssh에서 개인 키를 선택하세요",
+  "sshDirImportHostsSection": "설정 파일의 호스트",
+  "sshDirImportKeysSection": "~/.ssh의 키",
+  "browseFiles": "파일 찾아보기…",
+  "sshDirSessionAlreadyImported": "이미 세션에 있음",
+  "presetFullImport": "전체 가져오기",
+  "presetSelective": "선택적",
+  "presetCustom": "사용자 지정",
+  "sessionSshKeys": "세션 SSH 키",
+  "allManagerKeys": "모든 관리자 키"
 }
