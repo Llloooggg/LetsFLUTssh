@@ -10,6 +10,7 @@ import 'package:pointycastle/export.dart';
 import '../../core/config/app_config.dart';
 import '../../core/progress/progress_reporter.dart';
 import '../../core/security/key_store.dart';
+import '../../core/security/secret_buffer.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/snippets/snippet.dart';
@@ -655,13 +656,18 @@ class ExportImport {
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
 
-    final key = _deriveKey(password, salt, iterations);
-
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-
-    final output = cipher.process(data);
-    return Uint8List.fromList([...salt, ...iv, ...output]);
+    final keyBuf = _deriveKeyLocked(password, salt, iterations);
+    try {
+      final cipher = GCMBlockCipher(AESEngine())
+        ..init(
+          true,
+          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
+        );
+      final output = cipher.process(data);
+      return Uint8List.fromList([...salt, ...iv, ...output]);
+    } finally {
+      keyBuf.dispose();
+    }
   }
 
   /// Decrypt bytes with password-derived key.
@@ -674,20 +680,46 @@ class ExportImport {
     final iv = data.sublist(_saltLen, _saltLen + _ivLen);
     final ciphertext = data.sublist(_saltLen + _ivLen);
 
-    final key = _deriveKey(password, salt, iterations);
-
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-
-    return cipher.process(ciphertext);
+    final keyBuf = _deriveKeyLocked(password, salt, iterations);
+    try {
+      final cipher = GCMBlockCipher(AESEngine())
+        ..init(
+          false,
+          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
+        );
+      return cipher.process(ciphertext);
+    } finally {
+      keyBuf.dispose();
+    }
   }
 
-  /// Derive 256-bit key from password using PBKDF2-SHA256.
-  static Uint8List _deriveKey(String password, Uint8List salt, int iterations) {
+  /// Derive a 256-bit key from password using PBKDF2-SHA256, copy it into a
+  /// page-locked [SecretBuffer], and zero the intermediate Dart buffers.
+  ///
+  /// pointycastle's PBKDF2 returns a regular `Uint8List` on the Dart heap —
+  /// impossible to fully erase (immutable String reuse, GC relocation), but
+  /// we can at least wipe the bytes we control before dropping the ref. The
+  /// caller then holds the key only via the native locked buffer, which the
+  /// OS guarantees not to page out and we guarantee to zero on dispose.
+  static SecretBuffer _deriveKeyLocked(
+    String password,
+    Uint8List salt,
+    int iterations,
+  ) {
+    final passwordBytes = Uint8List.fromList(utf8.encode(password));
     final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
       ..init(Pbkdf2Parameters(salt, iterations, 32));
-
-    return pbkdf2.process(Uint8List.fromList(utf8.encode(password)));
+    final derived = pbkdf2.process(passwordBytes);
+    try {
+      return SecretBuffer.fromBytes(derived);
+    } finally {
+      for (var i = 0; i < derived.length; i++) {
+        derived[i] = 0;
+      }
+      for (var i = 0; i < passwordBytes.length; i++) {
+        passwordBytes[i] = 0;
+      }
+    }
   }
 }
 
