@@ -841,17 +841,16 @@ class _ExportImportTile extends ConsumerWidget {
     return Column(
       children: [
         _ActionTile(
-          icon: Icons.upload_file,
-          title: S.of(context).exportArchive,
-          subtitle: S.of(context).exportArchiveSubtitle,
-          onTap: () => _showExportDialog(context, ref),
-        ),
-        const _QrExportTile(),
-        _ActionTile(
           icon: Icons.download,
           title: S.of(context).importArchive,
           subtitle: S.of(context).importArchiveSubtitle,
           onTap: () => _showImportDialog(context, ref),
+        ),
+        _ActionTile(
+          icon: Icons.upload_file,
+          title: S.of(context).exportArchive,
+          subtitle: S.of(context).exportArchiveSubtitle,
+          onTap: () => _showExportDialog(context, ref),
         ),
         _ActionTile(
           icon: Icons.link,
@@ -859,6 +858,7 @@ class _ExportImportTile extends ConsumerWidget {
           subtitle: S.of(context).importFromLinkSubtitle,
           onTap: () => _showPasteImportLink(context, ref),
         ),
+        const _QrExportTile(),
         _ActionTile(
           icon: Icons.folder_shared_outlined,
           title: S.of(context).importFromSshDir,
