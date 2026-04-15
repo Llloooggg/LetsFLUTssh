@@ -729,7 +729,7 @@ class SAr extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'اختر المضيفين من الإعدادات و/أو المفاتيح الخاصة من ~/.ssh';
+      'اختر المضيفين من ملف الإعدادات و/أو المفاتيح الخاصة من ~/.ssh';
 
   @override
   String get sshDirImportHostsSection => 'المضيفون من ملف الإعدادات';
@@ -1815,19 +1815,19 @@ class SAr extends S {
   String get keychainDisabled => 'تم تعطيل تشفير سلسلة المفاتيح';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'استيراد كامل';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'انتقائي';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'مخصص';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'مفاتيح SSH للجلسة';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'جميع المفاتيح في المدير';
 
   @override
   String get browseFiles => 'تصفح الملفات…';

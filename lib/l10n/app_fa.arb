@@ -526,5 +526,10 @@
   "sshDirImportHostsSection": "میزبان‌ها از فایل پیکربندی",
   "sshDirImportKeysSection": "کلیدها در ~/.ssh",
   "browseFiles": "انتخاب فایل…",
-  "sshDirSessionAlreadyImported": "در جلسات موجود است"
+  "sshDirSessionAlreadyImported": "در جلسات موجود است",
+  "presetFullImport": "واردات کامل",
+  "presetSelective": "انتخابی",
+  "presetCustom": "سفارشی",
+  "sessionSshKeys": "کلیدهای SSH جلسه",
+  "allManagerKeys": "همهٔ کلیدهای مدیر"
 }

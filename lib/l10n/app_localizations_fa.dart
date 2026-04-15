@@ -1815,19 +1815,19 @@ class SFa extends S {
   String get keychainDisabled => 'رمزنگاری کلیدستان غیرفعال شد';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'واردات کامل';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'انتخابی';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'سفارشی';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'کلیدهای SSH جلسه';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'همهٔ کلیدهای مدیر';
 
   @override
   String get browseFiles => 'انتخاب فایل…';

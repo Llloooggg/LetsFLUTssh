@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?",
   "keychainDisabled": "कीचेन एन्क्रिप्शन अक्षम किया गया",
   "importFromSshDir": "~/.ssh से आयात करें",
-  "importFromSshDirSubtitle": "कॉन्फ़िग से होस्ट और/या ~/.ssh से निजी कुंजियाँ चुनें",
-  "sshDirImportHostsSection": "कॉन्फ़िग से होस्ट",
+  "importFromSshDirSubtitle": "कॉन्फ़िग फ़ाइल से होस्ट और/या ~/.ssh से निजी कुंजियाँ चुनें",
+  "sshDirImportHostsSection": "कॉन्फ़िग फ़ाइल के होस्ट",
   "sshDirImportKeysSection": "~/.ssh की कुंजियाँ",
   "browseFiles": "फ़ाइल चुनें…",
-  "sshDirSessionAlreadyImported": "सत्रों में पहले से है"
+  "sshDirSessionAlreadyImported": "सत्रों में पहले से है",
+  "presetFullImport": "पूर्ण आयात",
+  "presetSelective": "चयनात्मक",
+  "presetCustom": "कस्टम",
+  "sessionSshKeys": "सत्र की SSH कुंजियाँ",
+  "allManagerKeys": "प्रबंधक की सभी कुंजियाँ"
 }

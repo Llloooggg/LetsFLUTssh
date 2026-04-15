@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?",
   "keychainDisabled": "Anahtar zinciri şifrelemesi devre dışı bırakıldı",
   "importFromSshDir": "~/.ssh dizininden içe aktar",
-  "importFromSshDirSubtitle": "config'ten sunucuları ve/veya ~/.ssh'dan özel anahtarları seçin",
-  "sshDirImportHostsSection": "config'teki sunucular",
+  "importFromSshDirSubtitle": "Yapılandırma dosyasından sunucuları ve/veya ~/.ssh dizinindeki özel anahtarları seçin",
+  "sshDirImportHostsSection": "Yapılandırma dosyasındaki sunucular",
   "sshDirImportKeysSection": "~/.ssh'daki anahtarlar",
   "browseFiles": "Dosyalara gözat…",
-  "sshDirSessionAlreadyImported": "zaten oturumlarda mevcut"
+  "sshDirSessionAlreadyImported": "zaten oturumlarda mevcut",
+  "presetFullImport": "Tam içe aktarma",
+  "presetSelective": "Seçici",
+  "presetCustom": "Özel",
+  "sessionSshKeys": "Oturum SSH anahtarları",
+  "allManagerKeys": "Tüm yönetici anahtarları"
 }

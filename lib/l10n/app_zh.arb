@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？",
   "keychainDisabled": "钥匙串加密已禁用",
   "importFromSshDir": "从 ~/.ssh 导入",
-  "importFromSshDirSubtitle": "从 config 选择主机，和/或从 ~/.ssh 选择私钥",
-  "sshDirImportHostsSection": "来自 config 的主机",
+  "importFromSshDirSubtitle": "从配置文件选择主机，和/或从 ~/.ssh 选择私钥",
+  "sshDirImportHostsSection": "来自配置文件的主机",
   "sshDirImportKeysSection": "~/.ssh 中的密钥",
   "browseFiles": "浏览文件…",
-  "sshDirSessionAlreadyImported": "已在会话中"
+  "sshDirSessionAlreadyImported": "已在会话中",
+  "presetFullImport": "完整导入",
+  "presetSelective": "选择性",
+  "presetCustom": "自定义",
+  "sessionSshKeys": "会话 SSH 密钥",
+  "allManagerKeys": "管理器中的所有密钥"
 }

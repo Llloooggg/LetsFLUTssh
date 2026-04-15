@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "데이터베이스가 키 없이 다시 암호화됩니다. 세션과 키가 디스크에 일반 텍스트로 저장됩니다. 계속하시겠습니까?",
   "keychainDisabled": "키체인 암호화가 비활성화되었습니다",
   "importFromSshDir": "~/.ssh에서 가져오기",
-  "importFromSshDirSubtitle": "config에서 호스트, ~/.ssh에서 개인 키를 선택하세요",
-  "sshDirImportHostsSection": "config의 호스트",
+  "importFromSshDirSubtitle": "설정 파일에서 호스트, ~/.ssh에서 개인 키를 선택하세요",
+  "sshDirImportHostsSection": "설정 파일의 호스트",
   "sshDirImportKeysSection": "~/.ssh의 키",
   "browseFiles": "파일 찾아보기…",
-  "sshDirSessionAlreadyImported": "이미 세션에 있음"
+  "sshDirSessionAlreadyImported": "이미 세션에 있음",
+  "presetFullImport": "전체 가져오기",
+  "presetSelective": "선택적",
+  "presetCustom": "사용자 지정",
+  "sessionSshKeys": "세션 SSH 키",
+  "allManagerKeys": "모든 관리자 키"
 }

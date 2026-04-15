@@ -1840,19 +1840,19 @@ class SFr extends S {
   String get keychainDisabled => 'Chiffrement du trousseau désactivé';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Import complet';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Sélectif';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Personnalisé';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Clés SSH de la session';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Toutes les clés du gestionnaire';
 
   @override
   String get browseFiles => 'Parcourir les fichiers…';

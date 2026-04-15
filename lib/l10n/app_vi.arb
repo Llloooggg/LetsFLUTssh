@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?",
   "keychainDisabled": "Đã tắt mã hóa keychain",
   "importFromSshDir": "Nhập từ ~/.ssh",
-  "importFromSshDirSubtitle": "Chọn các máy chủ từ config và/hoặc khóa riêng tư từ ~/.ssh",
-  "sshDirImportHostsSection": "Máy chủ từ config",
+  "importFromSshDirSubtitle": "Chọn các máy chủ từ tệp cấu hình và/hoặc khóa riêng tư từ ~/.ssh",
+  "sshDirImportHostsSection": "Máy chủ từ tệp cấu hình",
   "sshDirImportKeysSection": "Khóa trong ~/.ssh",
   "browseFiles": "Chọn tệp…",
-  "sshDirSessionAlreadyImported": "đã có trong các phiên"
+  "sshDirSessionAlreadyImported": "đã có trong các phiên",
+  "presetFullImport": "Nhập toàn bộ",
+  "presetSelective": "Chọn lọc",
+  "presetCustom": "Tùy chỉnh",
+  "sessionSshKeys": "Khóa SSH của phiên",
+  "allManagerKeys": "Tất cả khóa trong trình quản lý"
 }

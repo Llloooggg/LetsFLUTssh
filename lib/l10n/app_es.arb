@@ -526,5 +526,10 @@
   "sshDirImportHostsSection": "Hosts del archivo de configuración",
   "sshDirImportKeysSection": "Claves en ~/.ssh",
   "browseFiles": "Explorar archivos…",
-  "sshDirSessionAlreadyImported": "ya está en las sesiones"
+  "sshDirSessionAlreadyImported": "ya está en las sesiones",
+  "presetFullImport": "Importación completa",
+  "presetSelective": "Selectivo",
+  "presetCustom": "Personalizado",
+  "sessionSshKeys": "Claves SSH de la sesión",
+  "allManagerKeys": "Todas las claves del gestor"
 }

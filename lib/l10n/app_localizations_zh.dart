@@ -717,10 +717,10 @@ class SZh extends S {
   String get importFromSshDir => '从 ~/.ssh 导入';
 
   @override
-  String get importFromSshDirSubtitle => '从 config 选择主机，和/或从 ~/.ssh 选择私钥';
+  String get importFromSshDirSubtitle => '从配置文件选择主机，和/或从 ~/.ssh 选择私钥';
 
   @override
-  String get sshDirImportHostsSection => '来自 config 的主机';
+  String get sshDirImportHostsSection => '来自配置文件的主机';
 
   @override
   String get sshDirImportKeysSection => '~/.ssh 中的密钥';
@@ -1776,19 +1776,19 @@ class SZh extends S {
   String get keychainDisabled => '钥匙串加密已禁用';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => '完整导入';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => '选择性';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => '自定义';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => '会话 SSH 密钥';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => '管理器中的所有密钥';
 
   @override
   String get browseFiles => '浏览文件…';

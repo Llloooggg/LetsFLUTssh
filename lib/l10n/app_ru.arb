@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "База данных будет перешифрована без ключа. Сессии и ключи будут храниться на диске в открытом виде. Продолжить?",
   "keychainDisabled": "Шифрование связки ключей отключено",
   "importFromSshDir": "Импорт из ~/.ssh",
-  "importFromSshDirSubtitle": "Выберите хосты из config и/или приватные ключи из ~/.ssh",
-  "sshDirImportHostsSection": "Хосты из config",
+  "importFromSshDirSubtitle": "Выберите хосты из файла конфигурации и/или приватные ключи из ~/.ssh",
+  "sshDirImportHostsSection": "Хосты из файла конфигурации",
   "sshDirImportKeysSection": "Ключи в ~/.ssh",
   "browseFiles": "Выбрать файл…",
-  "sshDirSessionAlreadyImported": "уже есть в сессиях"
+  "sshDirSessionAlreadyImported": "уже есть в сессиях",
+  "presetFullImport": "Полный импорт",
+  "presetSelective": "Выборочно",
+  "presetCustom": "Настраиваемый",
+  "sessionSshKeys": "SSH-ключи сессий",
+  "allManagerKeys": "Все ключи из менеджера"
 }

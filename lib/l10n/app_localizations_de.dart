@@ -1836,19 +1836,19 @@ class SDe extends S {
   String get keychainDisabled => 'Schlüsselbund-Verschlüsselung deaktiviert';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Vollständiger Import';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Selektiv';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Benutzerdefiniert';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'SSH-Schlüssel der Sitzung';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Alle Manager-Schlüssel';
 
   @override
   String get browseFiles => 'Dateien auswählen…';

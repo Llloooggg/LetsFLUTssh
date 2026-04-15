@@ -733,10 +733,10 @@ class SPt extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'Escolha hosts do config e/ou chaves privadas de ~/.ssh';
+      'Escolha hosts do arquivo de configuração e/ou chaves privadas de ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Hosts do config';
+  String get sshDirImportHostsSection => 'Hosts do arquivo de configuração';
 
   @override
   String get sshDirImportKeysSection => 'Chaves em ~/.ssh';
@@ -1828,19 +1828,19 @@ class SPt extends S {
   String get keychainDisabled => 'Criptografia do chaveiro desativada';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Importação completa';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Seletivo';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Personalizado';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Chaves SSH da sessão';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Todas as chaves do gerenciador';
 
   @override
   String get browseFiles => 'Procurar arquivos…';

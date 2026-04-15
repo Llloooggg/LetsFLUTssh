@@ -522,9 +522,14 @@
   "disableKeychainConfirm": "O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?",
   "keychainDisabled": "Criptografia do chaveiro desativada",
   "importFromSshDir": "Importar de ~/.ssh",
-  "importFromSshDirSubtitle": "Escolha hosts do config e/ou chaves privadas de ~/.ssh",
-  "sshDirImportHostsSection": "Hosts do config",
+  "importFromSshDirSubtitle": "Escolha hosts do arquivo de configuração e/ou chaves privadas de ~/.ssh",
+  "sshDirImportHostsSection": "Hosts do arquivo de configuração",
   "sshDirImportKeysSection": "Chaves em ~/.ssh",
   "browseFiles": "Procurar arquivos…",
-  "sshDirSessionAlreadyImported": "já está nas sessões"
+  "sshDirSessionAlreadyImported": "já está nas sessões",
+  "presetFullImport": "Importação completa",
+  "presetSelective": "Seletivo",
+  "presetCustom": "Personalizado",
+  "sessionSshKeys": "Chaves SSH da sessão",
+  "allManagerKeys": "Todas as chaves do gerenciador"
 }

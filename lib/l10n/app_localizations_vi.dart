@@ -729,10 +729,10 @@ class SVi extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'Chọn các máy chủ từ config và/hoặc khóa riêng tư từ ~/.ssh';
+      'Chọn các máy chủ từ tệp cấu hình và/hoặc khóa riêng tư từ ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Máy chủ từ config';
+  String get sshDirImportHostsSection => 'Máy chủ từ tệp cấu hình';
 
   @override
   String get sshDirImportKeysSection => 'Khóa trong ~/.ssh';
@@ -1813,19 +1813,19 @@ class SVi extends S {
   String get keychainDisabled => 'Đã tắt mã hóa keychain';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Nhập toàn bộ';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Chọn lọc';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Tùy chỉnh';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Khóa SSH của phiên';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Tất cả khóa trong trình quản lý';
 
   @override
   String get browseFiles => 'Chọn tệp…';

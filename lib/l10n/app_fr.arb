@@ -526,5 +526,10 @@
   "sshDirImportHostsSection": "Hôtes depuis le fichier de configuration",
   "sshDirImportKeysSection": "Clés dans ~/.ssh",
   "browseFiles": "Parcourir les fichiers…",
-  "sshDirSessionAlreadyImported": "déjà dans les sessions"
+  "sshDirSessionAlreadyImported": "déjà dans les sessions",
+  "presetFullImport": "Import complet",
+  "presetSelective": "Sélectif",
+  "presetCustom": "Personnalisé",
+  "sessionSshKeys": "Clés SSH de la session",
+  "allManagerKeys": "Toutes les clés du gestionnaire"
 }

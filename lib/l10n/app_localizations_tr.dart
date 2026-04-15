@@ -734,10 +734,10 @@ class STr extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'config\'ten sunucuları ve/veya ~/.ssh\'dan özel anahtarları seçin';
+      'Yapılandırma dosyasından sunucuları ve/veya ~/.ssh dizinindeki özel anahtarları seçin';
 
   @override
-  String get sshDirImportHostsSection => 'config\'teki sunucular';
+  String get sshDirImportHostsSection => 'Yapılandırma dosyasındaki sunucular';
 
   @override
   String get sshDirImportKeysSection => '~/.ssh\'daki anahtarlar';
@@ -1827,19 +1827,19 @@ class STr extends S {
       'Anahtar zinciri şifrelemesi devre dışı bırakıldı';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Tam içe aktarma';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Seçici';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Özel';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Oturum SSH anahtarları';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Tüm yönetici anahtarları';
 
   @override
   String get browseFiles => 'Dosyalara gözat…';

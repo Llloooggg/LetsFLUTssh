@@ -730,10 +730,10 @@ class SHi extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'कॉन्फ़िग से होस्ट और/या ~/.ssh से निजी कुंजियाँ चुनें';
+      'कॉन्फ़िग फ़ाइल से होस्ट और/या ~/.ssh से निजी कुंजियाँ चुनें';
 
   @override
-  String get sshDirImportHostsSection => 'कॉन्फ़िग से होस्ट';
+  String get sshDirImportHostsSection => 'कॉन्फ़िग फ़ाइल के होस्ट';
 
   @override
   String get sshDirImportKeysSection => '~/.ssh की कुंजियाँ';
@@ -1823,19 +1823,19 @@ class SHi extends S {
   String get keychainDisabled => 'कीचेन एन्क्रिप्शन अक्षम किया गया';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'पूर्ण आयात';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'चयनात्मक';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'कस्टम';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'सत्र की SSH कुंजियाँ';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'प्रबंधक की सभी कुंजियाँ';
 
   @override
   String get browseFiles => 'फ़ाइल चुनें…';

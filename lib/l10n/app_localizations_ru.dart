@@ -731,10 +731,10 @@ class SRu extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'Выберите хосты из config и/или приватные ключи из ~/.ssh';
+      'Выберите хосты из файла конфигурации и/или приватные ключи из ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Хосты из config';
+  String get sshDirImportHostsSection => 'Хосты из файла конфигурации';
 
   @override
   String get sshDirImportKeysSection => 'Ключи в ~/.ssh';
@@ -1824,19 +1824,19 @@ class SRu extends S {
   String get keychainDisabled => 'Шифрование связки ключей отключено';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Полный импорт';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Выборочно';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Настраиваемый';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'SSH-ключи сессий';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Все ключи из менеджера';
 
   @override
   String get browseFiles => 'Выбрать файл…';

@@ -717,10 +717,10 @@ class SKo extends S {
   String get importFromSshDir => '~/.ssh에서 가져오기';
 
   @override
-  String get importFromSshDirSubtitle => 'config에서 호스트, ~/.ssh에서 개인 키를 선택하세요';
+  String get importFromSshDirSubtitle => '설정 파일에서 호스트, ~/.ssh에서 개인 키를 선택하세요';
 
   @override
-  String get sshDirImportHostsSection => 'config의 호스트';
+  String get sshDirImportHostsSection => '설정 파일의 호스트';
 
   @override
   String get sshDirImportKeysSection => '~/.ssh의 키';
@@ -1783,19 +1783,19 @@ class SKo extends S {
   String get keychainDisabled => '키체인 암호화가 비활성화되었습니다';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => '전체 가져오기';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => '선택적';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => '사용자 지정';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => '세션 SSH 키';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => '모든 관리자 키';
 
   @override
   String get browseFiles => '파일 찾아보기…';

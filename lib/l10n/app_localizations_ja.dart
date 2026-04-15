@@ -718,10 +718,10 @@ class SJa extends S {
   String get importFromSshDir => '~/.ssh からインポート';
 
   @override
-  String get importFromSshDirSubtitle => 'config からホスト、~/.ssh から秘密鍵を選択';
+  String get importFromSshDirSubtitle => '設定ファイルからホスト、~/.ssh から秘密鍵を選択';
 
   @override
-  String get sshDirImportHostsSection => 'config のホスト';
+  String get sshDirImportHostsSection => '設定ファイルのホスト';
 
   @override
   String get sshDirImportKeysSection => '~/.ssh の鍵';
@@ -1785,19 +1785,19 @@ class SJa extends S {
   String get keychainDisabled => 'キーチェーン暗号化が無効になりました';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => '完全インポート';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => '選択的';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'カスタム';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'セッションの SSH 鍵';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'マネージャーのすべての鍵';
 
   @override
   String get browseFiles => 'ファイルを選択…';

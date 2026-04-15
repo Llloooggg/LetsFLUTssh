@@ -1833,19 +1833,19 @@ class SEs extends S {
   String get keychainDisabled => 'Cifrado del llavero desactivado';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Importación completa';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Selectivo';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Personalizado';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Claves SSH de la sesión';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Todas las claves del gestor';
 
   @override
   String get browseFiles => 'Explorar archivos…';

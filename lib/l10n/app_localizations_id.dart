@@ -734,10 +734,10 @@ class SId extends S {
 
   @override
   String get importFromSshDirSubtitle =>
-      'Pilih host dari config dan/atau kunci privat dari ~/.ssh';
+      'Pilih host dari berkas konfigurasi dan/atau kunci privat dari ~/.ssh';
 
   @override
-  String get sshDirImportHostsSection => 'Host dari config';
+  String get sshDirImportHostsSection => 'Host dari berkas konfigurasi';
 
   @override
   String get sshDirImportKeysSection => 'Kunci di ~/.ssh';
@@ -1820,19 +1820,19 @@ class SId extends S {
   String get keychainDisabled => 'Enkripsi keychain dinonaktifkan';
 
   @override
-  String get presetFullImport => 'Full import';
+  String get presetFullImport => 'Impor lengkap';
 
   @override
-  String get presetSelective => 'Selective';
+  String get presetSelective => 'Selektif';
 
   @override
-  String get presetCustom => 'Custom';
+  String get presetCustom => 'Kustom';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Kunci SSH sesi';
 
   @override
-  String get allManagerKeys => 'All manager keys';
+  String get allManagerKeys => 'Semua kunci di pengelola';
 
   @override
   String get browseFiles => 'Jelajahi berkas…';
