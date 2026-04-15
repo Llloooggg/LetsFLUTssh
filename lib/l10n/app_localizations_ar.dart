@@ -688,9 +688,6 @@ class SAr extends S {
       'استيراد لمرة واحدة للمضيفين من ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'اختيار ملف إعدادات OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'استيراد إعدادات SSH';
 
   @override

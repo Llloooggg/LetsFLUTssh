@@ -695,10 +695,6 @@ class SFr extends S {
       'Import ponctuel des hôtes depuis ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle =>
-      'Sélectionner un fichier de configuration OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'Import de configuration SSH';
 
   @override

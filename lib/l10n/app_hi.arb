@@ -204,7 +204,6 @@
   "importDataSubtitle": ".lfs फ़ाइल से डेटा लोड करें",
   "importFromSshConfig": "OpenSSH कॉन्फ़िग से आयात करें",
   "importFromSshConfigSubtitle": "~/.ssh/config से होस्ट का एक-बार आयात",
-  "sshConfigPickerTitle": "OpenSSH कॉन्फ़िग फ़ाइल चुनें",
   "sshConfigPreviewTitle": "SSH कॉन्फ़िग आयात",
   "sshConfigPreviewHostsFound": "{count} होस्ट मिले",
   "@sshConfigPreviewHostsFound": {

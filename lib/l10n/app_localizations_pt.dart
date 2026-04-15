@@ -692,10 +692,6 @@ class SPt extends S {
       'Importação única de hosts de ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle =>
-      'Selecionar arquivo de configuração OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'Importação de configuração SSH';
 
   @override

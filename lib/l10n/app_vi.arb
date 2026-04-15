@@ -204,7 +204,6 @@
   "importDataSubtitle": "Tải dữ liệu từ tệp .lfs",
   "importFromSshConfig": "Nhập từ cấu hình OpenSSH",
   "importFromSshConfigSubtitle": "Nhập một lần các host từ ~/.ssh/config",
-  "sshConfigPickerTitle": "Chọn tệp cấu hình OpenSSH",
   "sshConfigPreviewTitle": "Nhập cấu hình SSH",
   "sshConfigPreviewHostsFound": "Đã tìm thấy {count} host",
   "@sshConfigPreviewHostsFound": {

@@ -689,9 +689,6 @@ class SHi extends S {
       '~/.ssh/config से होस्ट का एक-बार आयात';
 
   @override
-  String get sshConfigPickerTitle => 'OpenSSH कॉन्फ़िग फ़ाइल चुनें';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH कॉन्फ़िग आयात';
 
   @override

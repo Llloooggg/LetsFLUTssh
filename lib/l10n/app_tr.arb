@@ -204,7 +204,6 @@
   "importDataSubtitle": ".lfs dosyasından veri yükle",
   "importFromSshConfig": "OpenSSH yapılandırmasından içe aktar",
   "importFromSshConfigSubtitle": "~/.ssh/config dosyasından tek seferlik host içe aktarma",
-  "sshConfigPickerTitle": "OpenSSH yapılandırma dosyasını seç",
   "sshConfigPreviewTitle": "SSH yapılandırma içe aktarma",
   "sshConfigPreviewHostsFound": "{count} host bulundu",
   "@sshConfigPreviewHostsFound": {

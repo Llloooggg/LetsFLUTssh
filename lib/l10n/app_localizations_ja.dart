@@ -680,9 +680,6 @@ class SJa extends S {
   String get importFromSshConfigSubtitle => '~/.ssh/config からホストを一度だけインポート';
 
   @override
-  String get sshConfigPickerTitle => 'OpenSSH 設定ファイルを選択';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH 設定のインポート';
 
   @override

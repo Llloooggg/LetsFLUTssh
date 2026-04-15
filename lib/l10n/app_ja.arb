@@ -204,7 +204,6 @@
   "importDataSubtitle": ".lfs ファイルからデータを読み込み",
   "importFromSshConfig": "OpenSSH 設定からインポート",
   "importFromSshConfigSubtitle": "~/.ssh/config からホストを一度だけインポート",
-  "sshConfigPickerTitle": "OpenSSH 設定ファイルを選択",
   "sshConfigPreviewTitle": "SSH 設定のインポート",
   "sshConfigPreviewHostsFound": "{count} 件のホストが見つかりました",
   "@sshConfigPreviewHostsFound": {

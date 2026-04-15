@@ -780,10 +780,22 @@ class _ExportImportTile extends ConsumerWidget {
     WidgetRef ref,
   ) async {
     try {
-      final path = await _pickSshConfigFile(context);
-      if (path == null || !context.mounted) return;
-
-      final content = await File(path).readAsString();
+      // Auto-load ~/.ssh/config — matches the SSH keys import flow (also
+      // scans ~/.ssh without asking), and the menu subtitle already says
+      // "from ~/.ssh/config", so a file picker on top would be surprising.
+      final path = p.join(plat.homeDirectory, '.ssh', 'config');
+      final file = File(path);
+      if (!await file.exists()) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: S.of(context).fileNotFound(path),
+            level: ToastLevel.warning,
+          );
+        }
+        return;
+      }
+      final content = await file.readAsString();
       if (!context.mounted) return;
 
       final date = DateTime.now().toIso8601String().split('T').first;
@@ -825,15 +837,6 @@ class _ExportImportTile extends ConsumerWidget {
         );
       }
     }
-  }
-
-  Future<String?> _pickSshConfigFile(BuildContext context) async {
-    final title = S.of(context).sshConfigPickerTitle;
-    final result = await FilePicker.pickFiles(
-      dialogTitle: title,
-      type: FileType.any,
-    );
-    return result?.files.single.path;
   }
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {

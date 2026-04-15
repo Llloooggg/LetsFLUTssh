@@ -204,7 +204,6 @@
   "importDataSubtitle": "تحميل البيانات من ملف .lfs",
   "importFromSshConfig": "استيراد من إعدادات OpenSSH",
   "importFromSshConfigSubtitle": "استيراد لمرة واحدة للمضيفين من ~/.ssh/config",
-  "sshConfigPickerTitle": "اختيار ملف إعدادات OpenSSH",
   "sshConfigPreviewTitle": "استيراد إعدادات SSH",
   "sshConfigPreviewHostsFound": "تم العثور على {count} مضيف",
   "@sshConfigPreviewHostsFound": {

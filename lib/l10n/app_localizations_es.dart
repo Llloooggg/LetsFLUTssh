@@ -693,10 +693,6 @@ class SEs extends S {
       'Importación única de hosts desde ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle =>
-      'Seleccionar archivo de configuración OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'Importar configuración SSH';
 
   @override

@@ -679,9 +679,6 @@ class SZh extends S {
   String get importFromSshConfigSubtitle => '从 ~/.ssh/config 一次性导入主机';
 
   @override
-  String get sshConfigPickerTitle => '选择 OpenSSH 配置文件';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH 配置导入';
 
   @override

@@ -204,7 +204,6 @@
   "importDataSubtitle": "Muat data dari file .lfs",
   "importFromSshConfig": "Impor dari konfigurasi OpenSSH",
   "importFromSshConfigSubtitle": "Impor sekali saja host dari ~/.ssh/config",
-  "sshConfigPickerTitle": "Pilih file konfigurasi OpenSSH",
   "sshConfigPreviewTitle": "Impor konfigurasi SSH",
   "sshConfigPreviewHostsFound": "{count} host ditemukan",
   "@sshConfigPreviewHostsFound": {

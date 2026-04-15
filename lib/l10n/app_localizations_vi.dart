@@ -689,9 +689,6 @@ class SVi extends S {
       'Nhập một lần các host từ ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Chọn tệp cấu hình OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'Nhập cấu hình SSH';
 
   @override

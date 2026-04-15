@@ -690,9 +690,6 @@ class SRu extends S {
       'Разовый импорт хостов из ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Выбрать файл конфигурации OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'Импорт конфигурации SSH';
 
   @override

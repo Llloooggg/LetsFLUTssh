@@ -204,7 +204,6 @@
   "importDataSubtitle": "Charger les données depuis un fichier .lfs",
   "importFromSshConfig": "Importer depuis la configuration OpenSSH",
   "importFromSshConfigSubtitle": "Import ponctuel des hôtes depuis ~/.ssh/config",
-  "sshConfigPickerTitle": "Sélectionner un fichier de configuration OpenSSH",
   "sshConfigPreviewTitle": "Import de configuration SSH",
   "sshConfigPreviewHostsFound": "{count} hôte(s) trouvé(s)",
   "@sshConfigPreviewHostsFound": {

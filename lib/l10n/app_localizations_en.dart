@@ -689,9 +689,6 @@ class SEn extends S {
       'One-time import of hosts from ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Select OpenSSH config file';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH config import';
 
   @override

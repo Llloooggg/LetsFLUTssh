@@ -204,7 +204,6 @@
   "importDataSubtitle": "بارگذاری داده از فایل .lfs",
   "importFromSshConfig": "وارد کردن از پیکربندی OpenSSH",
   "importFromSshConfigSubtitle": "وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config",
-  "sshConfigPickerTitle": "انتخاب فایل پیکربندی OpenSSH",
   "sshConfigPreviewTitle": "وارد کردن پیکربندی SSH",
   "sshConfigPreviewHostsFound": "{count} میزبان یافت شد",
   "@sshConfigPreviewHostsFound": {

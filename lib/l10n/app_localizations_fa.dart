@@ -689,9 +689,6 @@ class SFa extends S {
       'وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'انتخاب فایل پیکربندی OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'وارد کردن پیکربندی SSH';
 
   @override

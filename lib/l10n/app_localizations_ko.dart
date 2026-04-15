@@ -679,9 +679,6 @@ class SKo extends S {
   String get importFromSshConfigSubtitle => '~/.ssh/config에서 호스트를 한 번만 가져오기';
 
   @override
-  String get sshConfigPickerTitle => 'OpenSSH 설정 파일 선택';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH 설정 가져오기';
 
   @override

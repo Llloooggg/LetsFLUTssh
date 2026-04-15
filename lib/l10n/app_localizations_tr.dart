@@ -693,9 +693,6 @@ class STr extends S {
       '~/.ssh/config dosyasından tek seferlik host içe aktarma';
 
   @override
-  String get sshConfigPickerTitle => 'OpenSSH yapılandırma dosyasını seç';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH yapılandırma içe aktarma';
 
   @override

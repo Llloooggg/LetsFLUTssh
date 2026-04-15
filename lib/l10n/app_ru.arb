@@ -204,7 +204,6 @@
   "importDataSubtitle": "Загрузить данные из файла .lfs",
   "importFromSshConfig": "Импорт из конфигурации OpenSSH",
   "importFromSshConfigSubtitle": "Разовый импорт хостов из ~/.ssh/config",
-  "sshConfigPickerTitle": "Выбрать файл конфигурации OpenSSH",
   "sshConfigPreviewTitle": "Импорт конфигурации SSH",
   "sshConfigPreviewHostsFound": "Найдено хостов: {count}",
   "@sshConfigPreviewHostsFound": {

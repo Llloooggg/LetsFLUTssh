@@ -1365,12 +1365,6 @@ abstract class S {
   /// **'One-time import of hosts from ~/.ssh/config'**
   String get importFromSshConfigSubtitle;
 
-  /// No description provided for @sshConfigPickerTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Select OpenSSH config file'**
-  String get sshConfigPickerTitle;
-
   /// No description provided for @sshConfigPreviewTitle.
   ///
   /// In en, this message translates to:

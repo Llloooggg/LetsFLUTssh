@@ -693,9 +693,6 @@ class SId extends S {
       'Impor sekali saja host dari ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'Pilih file konfigurasi OpenSSH';
-
-  @override
   String get sshConfigPreviewTitle => 'Impor konfigurasi SSH';
 
   @override

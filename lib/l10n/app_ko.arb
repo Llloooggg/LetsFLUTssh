@@ -204,7 +204,6 @@
   "importDataSubtitle": ".lfs 파일에서 데이터 불러오기",
   "importFromSshConfig": "OpenSSH 설정에서 가져오기",
   "importFromSshConfigSubtitle": "~/.ssh/config에서 호스트를 한 번만 가져오기",
-  "sshConfigPickerTitle": "OpenSSH 설정 파일 선택",
   "sshConfigPreviewTitle": "SSH 설정 가져오기",
   "sshConfigPreviewHostsFound": "호스트 {count}개를 찾았습니다",
   "@sshConfigPreviewHostsFound": {

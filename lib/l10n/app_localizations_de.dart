@@ -694,9 +694,6 @@ class SDe extends S {
       'Einmaliger Import von Hosts aus ~/.ssh/config';
 
   @override
-  String get sshConfigPickerTitle => 'OpenSSH-Konfigurationsdatei auswählen';
-
-  @override
   String get sshConfigPreviewTitle => 'SSH-Konfig-Import';
 
   @override
