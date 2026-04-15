@@ -759,6 +759,14 @@ class SKo extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '새 키 $imported개를 가져왔으며, $skipped개는 이미 저장소에 있습니다';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => '이미 저장소에 있음';
+
+  @override
   String get setMasterPasswordHint => '아카이브를 암호화할 마스터 비밀번호를 설정하세요.';
 
   @override

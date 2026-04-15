@@ -780,6 +780,14 @@ class SEs extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return 'Se importaron $imported clave(s) nueva(s), $skipped ya en el almacén';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'ya en el almacén';
+
+  @override
   String get setMasterPasswordHint =>
       'Establezca una contraseña maestra para cifrar el archivo.';
 

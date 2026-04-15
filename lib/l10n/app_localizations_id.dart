@@ -779,6 +779,14 @@ class SId extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return 'Berhasil mengimpor $imported kunci baru, $skipped sudah ada di penyimpanan';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'sudah ada di penyimpanan';
+
+  @override
   String get setMasterPasswordHint =>
       'Atur kata sandi utama untuk mengenkripsi arsip.';
 

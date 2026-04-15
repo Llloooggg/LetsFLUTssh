@@ -782,6 +782,14 @@ class SFr extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported nouvelle(s) clé(s) importée(s), $skipped déjà dans le magasin';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'déjà dans le magasin';
+
+  @override
   String get setMasterPasswordHint =>
       'Définissez un mot de passe principal pour chiffrer l\'archive.';
 

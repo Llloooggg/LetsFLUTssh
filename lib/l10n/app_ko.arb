@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "새 키 {imported}개를 가져왔으며, {skipped}개는 이미 저장소에 있습니다",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "이미 저장소에 있음",
   "setMasterPasswordHint": "아카이브를 암호화할 마스터 비밀번호를 설정하세요.",
   "passwordsDoNotMatch": "비밀번호가 일치하지 않습니다",
   "exportedTo": "내보내기 완료: {path}",

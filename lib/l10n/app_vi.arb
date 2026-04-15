@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "Đã nhập {imported} khóa mới, {skipped} đã có trong kho",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "đã có trong kho",
   "setMasterPasswordHint": "Đặt mật khẩu chính để mã hóa kho lưu trữ.",
   "passwordsDoNotMatch": "Mật khẩu không khớp",
   "exportedTo": "Đã xuất đến: {path}",

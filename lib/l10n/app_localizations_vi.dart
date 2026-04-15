@@ -774,6 +774,14 @@ class SVi extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return 'Đã nhập $imported khóa mới, $skipped đã có trong kho';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'đã có trong kho';
+
+  @override
   String get setMasterPasswordHint =>
       'Đặt mật khẩu chính để mã hóa kho lưu trữ.';
 

@@ -779,6 +779,14 @@ class SPt extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported nova(s) chave(s) importada(s), $skipped já no armazenamento';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'já no armazenamento';
+
+  @override
   String get setMasterPasswordHint =>
       'Defina uma senha mestra para criptografar o arquivo.';
 

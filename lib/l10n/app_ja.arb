@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "{imported} 件の新しい鍵をインポートしました。{skipped} 件は既にストアにあります",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "既にストアにあります",
   "setMasterPasswordHint": "アーカイブを暗号化するためのマスターパスワードを設定してください。",
   "passwordsDoNotMatch": "パスワードが一致しません",
   "exportedTo": "エクスポート先: {path}",

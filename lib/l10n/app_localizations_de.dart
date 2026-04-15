@@ -780,6 +780,14 @@ class SDe extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported neue(r) Schlüssel importiert, $skipped bereits im Speicher';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'bereits im Speicher';
+
+  @override
   String get setMasterPasswordHint =>
       'Legen Sie ein Master-Passwort zum Verschlüsseln des Archivs fest.';
 

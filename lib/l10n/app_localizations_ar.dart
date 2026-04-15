@@ -774,6 +774,14 @@ class SAr extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return 'تم استيراد $imported مفتاح جديد، $skipped موجود بالفعل في المخزن';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'موجود بالفعل في المخزن';
+
+  @override
   String get setMasterPasswordHint => 'عيّن كلمة مرور رئيسية لتشفير الأرشيف.';
 
   @override

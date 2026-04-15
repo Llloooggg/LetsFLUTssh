@@ -774,6 +774,14 @@ class SFa extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported کلید جدید وارد شد، $skipped از قبل در مخزن موجود است';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'از قبل در مخزن موجود است';
+
+  @override
   String get setMasterPasswordHint =>
       'یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.';
 

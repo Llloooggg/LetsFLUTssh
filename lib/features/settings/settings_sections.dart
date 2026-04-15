@@ -694,16 +694,30 @@ class _ExportImportTile extends ConsumerWidget {
       final candidates = SshDirKeyScanner().scan(sshDir);
       if (!context.mounted) return;
 
+      final keyStore = ref.read(keyStoreProvider);
+      final existing = await keyStore.loadAll();
+      final existingFingerprints = existing.values
+          .map((e) => KeyStore.privateKeyFingerprint(e.privateKey))
+          .toSet();
+      if (!context.mounted) return;
+
       final selected = await SshKeysImportDialog.show(
         context,
         candidates: candidates,
+        existingFingerprints: existingFingerprints,
       );
       if (selected == null || selected.isEmpty || !context.mounted) return;
 
-      final keyStore = ref.read(keyStoreProvider);
       final date = DateTime.now().toIso8601String().split('T').first;
       var imported = 0;
+      var skipped = 0;
       for (final k in selected) {
+        if (existingFingerprints.contains(
+          KeyStore.privateKeyFingerprint(k.pem),
+        )) {
+          skipped++;
+          continue;
+        }
         try {
           final entry = keyStore.importKey(k.pem, '${k.suggestedLabel} $date');
           await keyStore.importForMerge(entry);
@@ -717,10 +731,13 @@ class _ExportImportTile extends ConsumerWidget {
         }
       }
       if (!context.mounted) return;
+      final message = skipped == 0
+          ? S.of(context).importedSshKeys(imported)
+          : S.of(context).importedSshKeysWithSkipped(imported, skipped);
       Toast.show(
         context,
-        message: S.of(context).importedSshKeys(imported),
-        level: imported > 0 ? ToastLevel.success : ToastLevel.error,
+        message: message,
+        level: imported > 0 ? ToastLevel.success : ToastLevel.warning,
       );
     } catch (e) {
       AppLogger.instance.log(

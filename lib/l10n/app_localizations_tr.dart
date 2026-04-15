@@ -779,6 +779,14 @@ class STr extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported yeni anahtar içe aktarıldı, $skipped tanesi zaten depoda';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'zaten depoda';
+
+  @override
   String get setMasterPasswordHint =>
       'Arşivi şifrelemek için bir ana şifre belirleyin.';
 

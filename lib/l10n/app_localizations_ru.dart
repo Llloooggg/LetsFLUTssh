@@ -775,6 +775,14 @@ class SRu extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return 'Импортировано новых ключей: $imported, уже в хранилище: $skipped';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'уже в хранилище';
+
+  @override
   String get setMasterPasswordHint =>
       'Задайте мастер-пароль для шифрования архива.';
 

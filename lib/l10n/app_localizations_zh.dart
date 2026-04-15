@@ -759,6 +759,14 @@ class SZh extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '已导入 $imported 个新密钥，$skipped 个已在存储中';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => '已在存储中';
+
+  @override
   String get setMasterPasswordHint => '设置主密码以加密存档。';
 
   @override

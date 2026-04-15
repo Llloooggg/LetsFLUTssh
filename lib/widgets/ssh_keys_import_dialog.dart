@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/import/ssh_dir_key_scanner.dart';
+import '../core/security/key_store.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
@@ -8,21 +9,31 @@ import 'hover_region.dart';
 
 /// Dialog for selecting which scanned SSH keys to import.
 ///
-/// Shows a checkbox per discovered key file. Returns the list of selected
-/// keys when the user confirms, or null on cancel. All boxes start checked
-/// since the user explicitly opened the picker to import — unchecking is
-/// an exclusion workflow, not an inclusion one.
+/// Shows a checkbox per discovered key file. Keys whose fingerprint is
+/// already in [existingFingerprints] are flagged with a badge and start
+/// unchecked — they would dedup to no-ops anyway, so opting in must be
+/// explicit. Returns the list of selected keys when the user confirms,
+/// or null on cancel.
 class SshKeysImportDialog extends StatefulWidget {
   final List<ScannedKey> candidates;
+  final Set<String> existingFingerprints;
 
-  const SshKeysImportDialog({super.key, required this.candidates});
+  const SshKeysImportDialog({
+    super.key,
+    required this.candidates,
+    this.existingFingerprints = const {},
+  });
 
   static Future<List<ScannedKey>?> show(
     BuildContext context, {
     required List<ScannedKey> candidates,
+    Set<String> existingFingerprints = const {},
   }) => AppDialog.show<List<ScannedKey>>(
     context,
-    builder: (_) => SshKeysImportDialog(candidates: candidates),
+    builder: (_) => SshKeysImportDialog(
+      candidates: candidates,
+      existingFingerprints: existingFingerprints,
+    ),
   );
 
   @override
@@ -31,11 +42,20 @@ class SshKeysImportDialog extends StatefulWidget {
 
 class _SshKeysImportDialogState extends State<SshKeysImportDialog> {
   late final List<bool> _selected;
+  late final List<bool> _alreadyImported;
 
   @override
   void initState() {
     super.initState();
-    _selected = List<bool>.filled(widget.candidates.length, true);
+    _alreadyImported = widget.candidates
+        .map(
+          (k) => widget.existingFingerprints.contains(
+            KeyStore.privateKeyFingerprint(k.pem),
+          ),
+        )
+        .toList();
+    // Default-uncheck the ones already in the store.
+    _selected = _alreadyImported.map((existing) => !existing).toList();
   }
 
   bool get _hasAnySelection => _selected.any((v) => v);
@@ -95,6 +115,7 @@ class _SshKeysImportDialogState extends State<SshKeysImportDialog> {
   Widget _buildRow(int i) {
     final key = widget.candidates[i];
     final checked = _selected[i];
+    final existing = _alreadyImported[i];
     return HoverRegion(
       onTap: () => setState(() => _selected[i] = !checked),
       builder: (hovered) => Container(
@@ -113,12 +134,28 @@ class _SshKeysImportDialogState extends State<SshKeysImportDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    key.suggestedLabel,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.md,
-                      color: AppTheme.fg,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          key.suggestedLabel,
+                          style: AppFonts.inter(
+                            fontSize: AppFonts.md,
+                            color: existing ? AppTheme.fgDim : AppTheme.fg,
+                          ),
+                        ),
+                      ),
+                      if (existing) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          S.of(context).sshKeyAlreadyImported,
+                          style: AppFonts.inter(
+                            fontSize: AppFonts.xs,
+                            color: AppTheme.yellow,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   Text(
                     key.path,

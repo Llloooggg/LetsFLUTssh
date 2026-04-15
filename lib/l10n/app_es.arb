@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "Se importaron {imported} clave(s) nueva(s), {skipped} ya en el almacén",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "ya en el almacén",
   "setMasterPasswordHint": "Establezca una contraseña maestra para cifrar el archivo.",
   "passwordsDoNotMatch": "Las contraseñas no coinciden",
   "exportedTo": "Exportado a: {path}",

@@ -445,6 +445,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "Imported {imported} new key(s), {skipped} already in store",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "already in store",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {

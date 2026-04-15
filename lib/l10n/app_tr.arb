@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "{imported} yeni anahtar içe aktarıldı, {skipped} tanesi zaten depoda",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "zaten depoda",
   "setMasterPasswordHint": "Arşivi şifrelemek için bir ana şifre belirleyin.",
   "passwordsDoNotMatch": "Şifreler eşleşmiyor",
   "exportedTo": "Dışa aktarıldı: {path}",

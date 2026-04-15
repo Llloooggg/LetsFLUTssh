@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "{imported} neue(r) Schlüssel importiert, {skipped} bereits im Speicher",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "bereits im Speicher",
   "setMasterPasswordHint": "Legen Sie ein Master-Passwort zum Verschlüsseln des Archivs fest.",
   "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
   "exportedTo": "Exportiert nach: {path}",

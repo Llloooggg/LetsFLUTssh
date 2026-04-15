@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "Импортировано новых ключей: {imported}, уже в хранилище: {skipped}",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "уже в хранилище",
   "setMasterPasswordHint": "Задайте мастер-пароль для шифрования архива.",
   "passwordsDoNotMatch": "Пароли не совпадают",
   "exportedTo": "Экспортировано в: {path}",

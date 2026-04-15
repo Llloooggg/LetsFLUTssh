@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "{imported} नई कुंजी आयात की गईं, {skipped} पहले से संग्रह में हैं",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "पहले से संग्रह में है",
   "setMasterPasswordHint": "आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।",
   "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते",
   "exportedTo": "निर्यात किया गया: {path}",

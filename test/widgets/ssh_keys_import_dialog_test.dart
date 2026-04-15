@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
+import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/ssh_keys_import_dialog.dart';
@@ -38,6 +39,54 @@ void main() {
       expect(find.text('id_ed25519'), findsOneWidget);
       expect(find.text('work_rsa'), findsOneWidget);
       expect(find.byType(Checkbox), findsNWidgets(2));
+    });
+
+    testWidgets('marks already-imported keys and unchecks them by default', (
+      tester,
+    ) async {
+      final keys = [
+        scan('/home/u/.ssh/new_key'),
+        const ScannedKey(
+          path: '/home/u/.ssh/old_key',
+          pem: 'PRIVATE KEY existing',
+          suggestedLabel: 'old_key',
+        ),
+      ];
+      final existingFps = {
+        KeyStore.privateKeyFingerprint('PRIVATE KEY existing'),
+      };
+
+      List<ScannedKey>? captured;
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (context) => Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  captured = await SshKeysImportDialog.show(
+                    context,
+                    candidates: keys,
+                    existingFingerprints: existingFps,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      // Existing key shows the badge.
+      expect(find.text('already in store'), findsOneWidget);
+
+      // Submit without changing selections — only the new key should come back.
+      await tester.tap(find.text('Import Data'));
+      await tester.pumpAndSettle();
+
+      expect(captured, isNotNull);
+      expect(captured!.map((k) => k.suggestedLabel), ['new_key']);
     });
 
     testWidgets('returns only checked candidates on submit', (tester) async {

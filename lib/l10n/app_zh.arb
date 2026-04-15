@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "已导入 {imported} 个新密钥，{skipped} 个已在存储中",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "已在存储中",
   "setMasterPasswordHint": "设置主密码以加密存档。",
   "passwordsDoNotMatch": "密码不一致",
   "exportedTo": "已导出至：{path}",

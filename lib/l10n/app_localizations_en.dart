@@ -774,6 +774,14 @@ class SEn extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return 'Imported $imported new key(s), $skipped already in store';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'already in store';
+
+  @override
   String get setMasterPasswordHint =>
       'Set a master password to encrypt the archive.';
 

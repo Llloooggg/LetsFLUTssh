@@ -760,6 +760,14 @@ class SJa extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported 件の新しい鍵をインポートしました。$skipped 件は既にストアにあります';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => '既にストアにあります';
+
+  @override
   String get setMasterPasswordHint => 'アーカイブを暗号化するためのマスターパスワードを設定してください。';
 
   @override

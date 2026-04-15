@@ -774,6 +774,14 @@ class SHi extends S {
   }
 
   @override
+  String importedSshKeysWithSkipped(int imported, int skipped) {
+    return '$imported नई कुंजी आयात की गईं, $skipped पहले से संग्रह में हैं';
+  }
+
+  @override
+  String get sshKeyAlreadyImported => 'पहले से संग्रह में है';
+
+  @override
   String get setMasterPasswordHint =>
       'आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।';
 

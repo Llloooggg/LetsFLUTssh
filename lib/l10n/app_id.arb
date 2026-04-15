@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "Berhasil mengimpor {imported} kunci baru, {skipped} sudah ada di penyimpanan",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "sudah ada di penyimpanan",
   "setMasterPasswordHint": "Atur kata sandi utama untuk mengenkripsi arsip.",
   "passwordsDoNotMatch": "Kata sandi tidak cocok",
   "exportedTo": "Diekspor ke: {path}",

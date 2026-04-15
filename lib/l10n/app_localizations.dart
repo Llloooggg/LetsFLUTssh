@@ -1497,6 +1497,18 @@ abstract class S {
   /// **'Imported {count} key(s)'**
   String importedSshKeys(int count);
 
+  /// No description provided for @importedSshKeysWithSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {imported} new key(s), {skipped} already in store'**
+  String importedSshKeysWithSkipped(int imported, int skipped);
+
+  /// No description provided for @sshKeyAlreadyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'already in store'**
+  String get sshKeyAlreadyImported;
+
   /// No description provided for @setMasterPasswordHint.
   ///
   /// In en, this message translates to:

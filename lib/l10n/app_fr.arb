@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "{imported} nouvelle(s) clé(s) importée(s), {skipped} déjà dans le magasin",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "déjà dans le magasin",
   "setMasterPasswordHint": "Définissez un mot de passe principal pour chiffrer l'archive.",
   "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
   "exportedTo": "Exporté vers : {path}",

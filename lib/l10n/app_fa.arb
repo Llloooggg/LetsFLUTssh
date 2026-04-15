@@ -275,6 +275,18 @@
       }
     }
   },
+  "importedSshKeysWithSkipped": "{imported} کلید جدید وارد شد، {skipped} از قبل در مخزن موجود است",
+  "@importedSshKeysWithSkipped": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "sshKeyAlreadyImported": "از قبل در مخزن موجود است",
   "setMasterPasswordHint": "یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.",
   "passwordsDoNotMatch": "رمزهای عبور مطابقت ندارند",
   "exportedTo": "خروجی گرفته شد به: {path}",
