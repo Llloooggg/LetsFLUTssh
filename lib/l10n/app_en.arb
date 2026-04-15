@@ -1158,5 +1158,6 @@
   "presetSelective": "Selective",
   "presetCustom": "Custom",
   "sessionSshKeys": "Session SSH keys",
-  "allManagerKeys": "All manager keys"
+  "allManagerKeys": "All manager keys",
+  "browseFiles": "Browse files…"
 }

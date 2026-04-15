@@ -752,6 +752,8 @@ class _ExportImportTile extends ConsumerWidget {
           existingKeyFingerprints: existingFingerprints,
           folderLabel: folderLabel,
         ),
+        onPickConfigFile: () => _pickConfigFile(sshDir, folderLabel, date),
+        onPickKeyFiles: () => _pickKeyFiles(sshDir),
       );
       if (filtered == null || !context.mounted) return;
       if (filtered.sessions.isEmpty && filtered.managerKeys.isEmpty) return;
@@ -771,6 +773,69 @@ class _ExportImportTile extends ConsumerWidget {
         );
       }
     }
+  }
+
+  /// File-picker that lets the user select an extra OpenSSH config file and
+  /// returns its parsed hosts. [initialDir] seeds the native dialog at
+  /// `~/.ssh` on desktop; mobile platforms ignore it and use the system
+  /// default. Returns null on cancel / read error.
+  Future<PickedConfigResult?> _pickConfigFile(
+    String initialDir,
+    String folderLabel,
+    String keyLabelSuffix,
+  ) async {
+    final result = await FilePicker.pickFiles(
+      initialDirectory: initialDir,
+      type: FileType.any,
+    );
+    final path = result?.files.single.path;
+    if (path == null) return null;
+    try {
+      final content = await File(path).readAsString();
+      final preview = OpenSshConfigImporter().buildPreview(
+        configContent: content,
+        folderLabel: folderLabel,
+        keyLabelSuffix: keyLabelSuffix,
+      );
+      return PickedConfigResult(
+        sessions: preview.result.sessions,
+        managerKeys: preview.result.managerKeys,
+        hostsWithMissingKeys: preview.hostsWithMissingKeys,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to parse picked SSH config: $e',
+        name: 'Settings',
+        error: e,
+      );
+      return null;
+    }
+  }
+
+  /// File-picker for extra SSH private keys. Multi-select; files that don't
+  /// look like a PEM private key are silently dropped. Returns null on cancel.
+  Future<List<ScannedKey>?> _pickKeyFiles(String initialDir) async {
+    final result = await FilePicker.pickFiles(
+      initialDirectory: initialDir,
+      type: FileType.any,
+      allowMultiple: true,
+    );
+    if (result == null) return null;
+    final picked = <ScannedKey>[];
+    for (final f in result.files) {
+      final path = f.path;
+      if (path == null) continue;
+      final pem = KeyFileHelper.tryReadPemKey(path);
+      if (pem == null) continue;
+      picked.add(
+        ScannedKey(
+          path: path,
+          pem: pem,
+          suggestedLabel: p.basenameWithoutExtension(path),
+        ),
+      );
+    }
+    return picked;
   }
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {

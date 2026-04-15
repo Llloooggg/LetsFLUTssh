@@ -3272,6 +3272,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'All manager keys'**
   String get allManagerKeys;
+
+  /// No description provided for @browseFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse files…'**
+  String get browseFiles;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

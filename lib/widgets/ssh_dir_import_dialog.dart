@@ -7,6 +7,7 @@ import '../core/session/session.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'app_divider.dart';
 import 'app_dialog.dart';
 import 'data_checkboxes.dart';
 
@@ -30,31 +31,67 @@ class SshDirImportSource {
   bool get hasKeys => keys.isNotEmpty;
 }
 
+/// Returned by the "Browse..." picker for the hosts section — a parsed
+/// config plus any keys the parser resolved from its IdentityFile lines.
+class PickedConfigResult {
+  final List<Session> sessions;
+  final List<SshKeyEntry> managerKeys;
+  final List<String> hostsWithMissingKeys;
+
+  const PickedConfigResult({
+    required this.sessions,
+    this.managerKeys = const [],
+    this.hostsWithMissingKeys = const [],
+  });
+}
+
+/// Invoked when the user taps "Browse..." in a section. Returns `null` on
+/// cancel. The caller (settings handler) owns the [FilePicker] call so this
+/// widget stays free of platform plugins.
+typedef PickConfigCallback = Future<PickedConfigResult?> Function();
+typedef PickKeysCallback = Future<List<ScannedKey>?> Function();
+
 /// Unified import dialog for `~/.ssh`.
 ///
 /// Shows two collapsible sections using the shared [CollapsibleCheckboxesSection]
 /// primitive so the layout matches the .lfs archive / export dialogs exactly
-/// (same row metrics, same chevron, same tristate). Replaces the two separate
-/// "Import OpenSSH config" and "Import SSH keys from ~/.ssh" dialogs.
+/// (same row metrics, same chevron, same tristate).
 ///
-/// The raw key rows need a path subtitle + "already in store" badge that the
-/// generic [DataCheckboxRow] doesn't carry, so key rows are rendered with a
-/// compatible layout (checkbox + icon + label + trailing).
+/// Each section has an optional "Browse..." action that lets the user pick
+/// an additional config file or key file from outside `~/.ssh`. Newly picked
+/// items are appended to the in-dialog list and default to checked.
+///
+/// The tristate "select-all" row is separated from the per-item rows by a
+/// horizontal divider and the per-item rows are indented so the two visual
+/// scopes stay distinct even though they use the same row primitive.
 ///
 /// Returns a combined [ImportResult] on accept, or null on cancel. Sessions
 /// pointing to a deselected key get their keyId nulled by [ImportService]'s
 /// FK-safety pass.
 class SshDirImportDialog extends StatefulWidget {
   final SshDirImportSource source;
+  final PickConfigCallback? onPickConfigFile;
+  final PickKeysCallback? onPickKeyFiles;
 
-  const SshDirImportDialog({super.key, required this.source});
+  const SshDirImportDialog({
+    super.key,
+    required this.source,
+    this.onPickConfigFile,
+    this.onPickKeyFiles,
+  });
 
   static Future<ImportResult?> show(
     BuildContext context, {
     required SshDirImportSource source,
+    PickConfigCallback? onPickConfigFile,
+    PickKeysCallback? onPickKeyFiles,
   }) => AppDialog.show<ImportResult>(
     context,
-    builder: (_) => SshDirImportDialog(source: source),
+    builder: (_) => SshDirImportDialog(
+      source: source,
+      onPickConfigFile: onPickConfigFile,
+      onPickKeyFiles: onPickKeyFiles,
+    ),
   );
 
   @override
@@ -62,20 +99,30 @@ class SshDirImportDialog extends StatefulWidget {
 }
 
 class _SshDirImportDialogState extends State<SshDirImportDialog> {
-  late Set<String> _selectedHostIds;
-  late List<bool> _selectedKeys;
-  late List<bool> _keyAlreadyInStore;
+  final List<Session> _hosts = [];
+  final List<SshKeyEntry> _hostManagerKeys = [];
+  final List<String> _hostsWithMissingKeys = [];
+  final List<ScannedKey> _keys = [];
+  Set<String> _selectedHostIds = {};
+  List<bool> _selectedKeys = [];
+  List<bool> _keyAlreadyInStore = [];
   bool _hostsExpanded = true;
   bool _keysExpanded = true;
-
-  List<Session> get _hostSessions =>
-      widget.source.hostsPreview?.result.sessions ?? const [];
+  bool _pickingHosts = false;
+  bool _pickingKeys = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedHostIds = _hostSessions.map((s) => s.id).toSet();
-    _keyAlreadyInStore = widget.source.keys
+    final preview = widget.source.hostsPreview;
+    if (preview != null) {
+      _hosts.addAll(preview.result.sessions);
+      _hostManagerKeys.addAll(preview.result.managerKeys);
+      _hostsWithMissingKeys.addAll(preview.hostsWithMissingKeys);
+    }
+    _selectedHostIds = _hosts.map((s) => s.id).toSet();
+    _keys.addAll(widget.source.keys);
+    _keyAlreadyInStore = _keys
         .map(
           (k) => widget.source.existingKeyFingerprints.contains(
             KeyStore.privateKeyFingerprint(k.pem),
@@ -99,18 +146,43 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   }
 
   bool? get _hostsTristate {
-    if (_hostSessions.isEmpty) return false;
-    if (_selectedHostIds.length == _hostSessions.length) return true;
+    if (_hosts.isEmpty) return false;
+    if (_selectedHostIds.length == _hosts.length) return true;
     if (_selectedHostIds.isEmpty) return false;
     return null;
   }
 
   void _toggleAllHosts(bool? value) {
     setState(() {
-      _selectedHostIds = value == true
-          ? _hostSessions.map((s) => s.id).toSet()
-          : {};
+      _selectedHostIds = value == true ? _hosts.map((s) => s.id).toSet() : {};
     });
+  }
+
+  Future<void> _browseConfig() async {
+    final cb = widget.onPickConfigFile;
+    if (cb == null || _pickingHosts) return;
+    setState(() => _pickingHosts = true);
+    try {
+      final picked = await cb();
+      if (picked == null || !mounted) return;
+      setState(() {
+        // Append, dedup by session id. Newly picked hosts default to checked.
+        final existingIds = _hosts.map((s) => s.id).toSet();
+        for (final s in picked.sessions) {
+          if (existingIds.contains(s.id)) continue;
+          _hosts.add(s);
+          _selectedHostIds.add(s.id);
+        }
+        final existingKeyIds = _hostManagerKeys.map((k) => k.id).toSet();
+        for (final k in picked.managerKeys) {
+          if (existingKeyIds.contains(k.id)) continue;
+          _hostManagerKeys.add(k);
+        }
+        _hostsWithMissingKeys.addAll(picked.hostsWithMissingKeys);
+      });
+    } finally {
+      if (mounted) setState(() => _pickingHosts = false);
+    }
   }
 
   // --- Keys section ---
@@ -135,29 +207,55 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     });
   }
 
+  Future<void> _browseKeys() async {
+    final cb = widget.onPickKeyFiles;
+    if (cb == null || _pickingKeys) return;
+    setState(() => _pickingKeys = true);
+    try {
+      final picked = await cb();
+      if (picked == null || picked.isEmpty || !mounted) return;
+      setState(() {
+        final existingFps = _keys
+            .map((k) => KeyStore.privateKeyFingerprint(k.pem))
+            .toSet();
+        for (final k in picked) {
+          final fp = KeyStore.privateKeyFingerprint(k.pem);
+          if (!existingFps.add(fp)) continue;
+          _keys.add(k);
+          final existsInStore = widget.source.existingKeyFingerprints.contains(
+            fp,
+          );
+          _keyAlreadyInStore.add(existsInStore);
+          _selectedKeys.add(!existsInStore);
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _pickingKeys = false);
+    }
+  }
+
   // --- Submit ---
 
   bool get _hasAnySelection =>
       _selectedHostIds.isNotEmpty || _selectedKeys.any((v) => v);
 
   ImportResult _buildResult(BuildContext context) {
-    final sessions = _hostSessions
+    final sessions = _hosts
         .where((s) => _selectedHostIds.contains(s.id))
         .toList();
 
     // Manager keys come from two sources: keys already resolved by the config
     // importer (IdentityFile → SshKeyEntry) and raw keys picked up by the
-    // scanner. We only keep keys the user opted into; dedup by fingerprint
-    // so a key referenced by both paths doesn't import twice.
+    // scanner / file picker. We only keep keys the user opted into; dedup by
+    // fingerprint so a key referenced by both paths doesn't import twice.
     final keyStore = KeyStore();
     final date = DateTime.now().toIso8601String().split('T').first;
     final pickedEntries = <SshKeyEntry>[];
     final seenFingerprints = <String>{};
 
-    // Add selected scanned keys first — they keep a nice human label.
-    for (var i = 0; i < widget.source.keys.length; i++) {
+    for (var i = 0; i < _keys.length; i++) {
       if (!_selectedKeys[i]) continue;
-      final scanned = widget.source.keys[i];
+      final scanned = _keys[i];
       final fp = KeyStore.privateKeyFingerprint(scanned.pem);
       if (!seenFingerprints.add(fp)) continue;
       try {
@@ -165,20 +263,16 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
           keyStore.importKey(scanned.pem, '${scanned.suggestedLabel} $date'),
         );
       } catch (_) {
-        // Skip unparseable PEM — the logger above in the handler already
-        // warns about each malformed file; no user-facing toast needed.
+        // Skip unparseable PEM — the handler above already warns about each
+        // malformed file; no user-facing toast needed.
       }
     }
 
-    // Add config-resolved keys ONLY if a selected host references them,
-    // and we haven't already added that key via the scanner path.
     final referencedKeyIds = sessions
         .map((s) => s.keyId)
         .where((id) => id.isNotEmpty)
         .toSet();
-    for (final entry
-        in widget.source.hostsPreview?.result.managerKeys ??
-            const <SshKeyEntry>[]) {
+    for (final entry in _hostManagerKeys) {
       if (!referencedKeyIds.contains(entry.id)) continue;
       final fp = KeyStore.privateKeyFingerprint(entry.privateKey);
       if (!seenFingerprints.add(fp)) continue;
@@ -228,7 +322,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   }
 
   Widget _buildHostsSection(S s) {
-    final hostCount = _hostSessions.length;
+    final hostCount = _hosts.length;
     final trailing = hostCount == 0
         ? s.sshConfigPreviewNoHosts
         : '${_selectedHostIds.length} / $hostCount';
@@ -242,65 +336,75 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   }
 
   Widget _buildHostsBody(S s) {
-    if (_hostSessions.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
-        child: Text(
-          s.sshConfigPreviewNoHosts,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-      );
-    }
-    final missing =
-        widget.source.hostsPreview?.hostsWithMissingKeys ?? const [];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DataCheckboxRow(
-          icon: Icons.done_all,
-          label: s.sshConfigPreviewHostsFound(_hostSessions.length),
-          value: _hostsTristate ?? false,
-          onTap: () => _toggleAllHosts(_hostsTristate != true),
-          trailingLabel: '${_selectedHostIds.length} / ${_hostSessions.length}',
-        ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 220),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final session in _hostSessions)
-                  DataCheckboxRow(
-                    icon: Icons.computer,
-                    label: session.label,
-                    value: _selectedHostIds.contains(session.id),
-                    onTap: () => _toggleHost(session.id),
-                    trailingLabel:
-                        '${session.user.isEmpty ? '?' : session.user}'
-                        '@${session.host}:${session.port}'
-                        '${session.keyId.isNotEmpty ? '  (key)' : ''}',
-                  ),
-              ],
+        if (_hosts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
+            child: Text(
+              s.sshConfigPreviewNoHosts,
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgDim,
+              ),
+            ),
+          )
+        else ...[
+          DataCheckboxRow(
+            icon: Icons.done_all,
+            label: s.sshConfigPreviewHostsFound(_hosts.length),
+            value: _hostsTristate ?? false,
+            onTap: () => _toggleAllHosts(_hostsTristate != true),
+            trailingLabel: '${_selectedHostIds.length} / ${_hosts.length}',
+          ),
+          const AppDivider(),
+          // Indented list keeps the per-host rows visually distinct from the
+          // section-wide "select all" row above.
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final session in _hosts)
+                      DataCheckboxRow(
+                        icon: Icons.computer,
+                        label: session.label,
+                        value: _selectedHostIds.contains(session.id),
+                        onTap: () => _toggleHost(session.id),
+                        trailingLabel:
+                            '${session.user.isEmpty ? '?' : session.user}'
+                            '@${session.host}:${session.port}'
+                            '${session.keyId.isNotEmpty ? '  (key)' : ''}',
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-        if (missing.isNotEmpty)
+        ],
+        if (_hostsWithMissingKeys.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8, left: 4),
             child: Text(
-              s.sshConfigPreviewMissingKeys(missing.join(', ')),
+              s.sshConfigPreviewMissingKeys(_hostsWithMissingKeys.join(', ')),
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.yellow,
               ),
             ),
           ),
+        if (widget.onPickConfigFile != null)
+          _buildBrowseButton(s, forKeys: false),
       ],
     );
   }
 
   Widget _buildKeysSection(S s) {
-    final keyCount = widget.source.keys.length;
+    final keyCount = _keys.length;
     final selectedCount = _selectedKeys.where((v) => v).length;
     final trailing = keyCount == 0
         ? s.importSshKeysNoneFound
@@ -315,50 +419,74 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   }
 
   Widget _buildKeysBody(S s) {
-    if (widget.source.keys.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
-        child: Text(
-          s.importSshKeysNoneFound,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DataCheckboxRow(
-          icon: Icons.done_all,
-          label: s.importSshKeysFound(widget.source.keys.length),
-          value: _keysTristate ?? false,
-          onTap: () => _toggleAllKeys(_keysTristate != true),
-          trailingLabel:
-              '${_selectedKeys.where((v) => v).length} / ${widget.source.keys.length}',
-        ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 220),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < widget.source.keys.length; i++)
-                  DataCheckboxRow(
-                    icon: Icons.vpn_key,
-                    label: widget.source.keys[i].suggestedLabel,
-                    value: _selectedKeys[i],
-                    onTap: () => _toggleKey(i),
-                    trailingLabel: _keyAlreadyInStore[i]
-                        ? s.sshKeyAlreadyImported
-                        : null,
-                    warningText: _keyAlreadyInStore[i]
-                        ? widget.source.keys[i].path
-                        : null,
-                  ),
-              ],
+        if (_keys.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
+            child: Text(
+              s.importSshKeysNoneFound,
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgDim,
+              ),
+            ),
+          )
+        else ...[
+          DataCheckboxRow(
+            icon: Icons.done_all,
+            label: s.importSshKeysFound(_keys.length),
+            value: _keysTristate ?? false,
+            onTap: () => _toggleAllKeys(_keysTristate != true),
+            trailingLabel:
+                '${_selectedKeys.where((v) => v).length} / ${_keys.length}',
+          ),
+          const AppDivider(),
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < _keys.length; i++)
+                      DataCheckboxRow(
+                        icon: Icons.vpn_key,
+                        label: _keys[i].suggestedLabel,
+                        value: _selectedKeys[i],
+                        onTap: () => _toggleKey(i),
+                        trailingLabel: _keyAlreadyInStore[i]
+                            ? s.sshKeyAlreadyImported
+                            : null,
+                        warningText: _keyAlreadyInStore[i]
+                            ? _keys[i].path
+                            : null,
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+        ],
+        if (widget.onPickKeyFiles != null) _buildBrowseButton(s, forKeys: true),
       ],
+    );
+  }
+
+  Widget _buildBrowseButton(S s, {required bool forKeys}) {
+    final busy = forKeys ? _pickingKeys : _pickingHosts;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, left: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: busy ? null : (forKeys ? _browseKeys : _browseConfig),
+          icon: const Icon(Icons.folder_open, size: 16),
+          label: Text(s.browseFiles),
+        ),
+      ),
     );
   }
 }

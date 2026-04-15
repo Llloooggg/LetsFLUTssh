@@ -1837,4 +1837,7 @@ class SRu extends S {
 
   @override
   String get allManagerKeys => 'All manager keys';
+
+  @override
+  String get browseFiles => 'Выбрать файл…';
 }

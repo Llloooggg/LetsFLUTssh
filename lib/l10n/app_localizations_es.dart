@@ -1846,4 +1846,7 @@ class SEs extends S {
 
   @override
   String get allManagerKeys => 'All manager keys';
+
+  @override
+  String get browseFiles => 'Browse files…';
 }

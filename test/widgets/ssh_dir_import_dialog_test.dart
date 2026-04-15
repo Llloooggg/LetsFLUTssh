@@ -131,6 +131,132 @@ void main() {
       );
     });
 
+    testWidgets('per-host rows are indented relative to the select-all row', (
+      tester,
+    ) async {
+      // Visual scoping: the "select all" tristate sits flush, individual host
+      // rows live inside a left-padded container so the user can tell them
+      // apart at a glance even though they share the same row primitive.
+      await tester.pumpWidget(
+        wrap(
+          SshDirImportDialog(
+            source: SshDirImportSource(
+              hostsPreview: makeHostsPreview(hosts: 2),
+              keys: const [],
+              folderLabel: '.ssh 2026-04-15',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final selectAll = tester.getRect(find.text('2 host(s) found'));
+      final firstHost = tester.getRect(find.text('h0'));
+      // First host row label sits to the right of the select-all label.
+      expect(firstHost.left, greaterThan(selectAll.left));
+    });
+
+    testWidgets('Browse... button only appears when picker callback is wired', (
+      tester,
+    ) async {
+      // Without a callback: no button.
+      await tester.pumpWidget(
+        wrap(
+          SshDirImportDialog(
+            source: SshDirImportSource(
+              hostsPreview: makeHostsPreview(hosts: 1),
+              keys: [makeKey(0)],
+              folderLabel: '.ssh 2026-04-15',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byIcon(Icons.folder_open), findsNothing);
+
+      // With both callbacks: one button per section.
+      await tester.pumpWidget(
+        wrap(
+          SshDirImportDialog(
+            source: SshDirImportSource(
+              hostsPreview: makeHostsPreview(hosts: 1),
+              keys: [makeKey(0)],
+              folderLabel: '.ssh 2026-04-15',
+            ),
+            onPickConfigFile: () async => null,
+            onPickKeyFiles: () async => null,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byIcon(Icons.folder_open), findsNWidgets(2));
+    });
+
+    testWidgets(
+      'browsing for an extra config appends new hosts and auto-selects them',
+      (tester) async {
+        final extra = Session(
+          label: 'extra',
+          server: const ServerAddress(host: 'extra.example.com', user: 'u'),
+        );
+
+        await tester.pumpWidget(
+          wrap(
+            SshDirImportDialog(
+              source: SshDirImportSource(
+                hostsPreview: makeHostsPreview(hosts: 1),
+                keys: const [],
+                folderLabel: '.ssh 2026-04-15',
+              ),
+              onPickConfigFile: () async =>
+                  PickedConfigResult(sessions: [extra]),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // 1 initial host + select-all = "1 host(s) found" trailing.
+        expect(find.text('h0'), findsOneWidget);
+        expect(find.text('extra'), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.folder_open).first);
+        await tester.pumpAndSettle();
+
+        expect(find.text('extra'), findsOneWidget);
+        // Both rows checked → tristate select-all is fully on (value=true).
+        final selectAllValue = (tester.widget<Checkbox>(
+          find.byType(Checkbox).first,
+        )).value;
+        expect(selectAllValue, isTrue);
+      },
+    );
+
+    testWidgets(
+      'browsing for an extra key dedups by fingerprint (no double row)',
+      (tester) async {
+        final existing = makeKey(0);
+        await tester.pumpWidget(
+          wrap(
+            SshDirImportDialog(
+              source: SshDirImportSource(
+                hostsPreview: null,
+                keys: [existing],
+                folderLabel: '.ssh',
+              ),
+              onPickKeyFiles: () async => [existing],
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(find.text('id_ed25519_0'), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.folder_open).first);
+        await tester.pumpAndSettle();
+
+        expect(find.text('id_ed25519_0'), findsOneWidget); // still 1, not 2
+      },
+    );
+
     testWidgets(
       'already-imported keys start unchecked with the "already in store" badge',
       (tester) async {
