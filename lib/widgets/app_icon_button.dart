@@ -23,32 +23,42 @@ class AppIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final String? tooltip;
-  final double size;
-  final double boxSize;
+  final double? size;
+  final double? boxSize;
   final Color? color;
   final Color? hoverColor;
   final Color? backgroundColor;
   final bool active;
   final BorderRadius? borderRadius;
 
+  /// Pick a tighter default [boxSize]/[size] pair when unset. Used by dense
+  /// toolbars (file browser, dialog headers) that want to stay compact on
+  /// desktop without sacrificing the mobile touch target.
+  final bool dense;
+
   const AppIconButton({
     super.key,
     required this.icon,
     this.onTap,
     this.tooltip,
-    this.size = 14,
-    this.boxSize = 26,
+    this.size,
+    this.boxSize,
     this.color,
     this.hoverColor,
     this.backgroundColor,
     this.active = false,
     this.borderRadius,
+    this.dense = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final iconColor = color ?? (active ? AppTheme.fg : AppTheme.fgDim);
     final disabledColor = iconColor.withValues(alpha: 0.3);
+    final effectiveBox =
+        boxSize ?? (dense ? AppTheme.iconBtnBoxDense : AppTheme.iconBtnBox);
+    final effectiveIcon =
+        size ?? (dense ? AppTheme.iconBtnIconDense : AppTheme.iconBtnIcon);
 
     Widget button = HoverRegion(
       onTap: onTap,
@@ -62,12 +72,12 @@ class AppIconButton extends StatelessWidget {
           bg = backgroundColor ?? Colors.transparent;
         }
         return Container(
-          width: boxSize,
-          height: boxSize,
+          width: effectiveBox,
+          height: effectiveBox,
           decoration: BoxDecoration(color: bg, borderRadius: borderRadius),
           child: Icon(
             icon,
-            size: size,
+            size: effectiveIcon,
             color: onTap != null ? iconColor : disabledColor,
           ),
         );

@@ -1203,15 +1203,11 @@ class _PanelHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Mobile touchscreens need a bigger hit target and a visible affordance
-    // — the 24px transparent icon buttons we use on desktop don't read as
-    // tappable on a phone. Grow the hit target, add a filled background and
-    // a light border so both actions look like buttons.
+    // On mobile the shared AppIconButton already enlarges itself to a 40 px
+    // touch target — we just add a filled background/rounded corners so the
+    // two actions read as buttons, and give the header a bit more vertical
+    // breathing room.
     final mobile = isMobilePlatform;
-    final boxSize = mobile ? 40.0 : 24.0;
-    final iconSize = mobile ? 22.0 : 16.0;
-    final folderIconSize = mobile ? 20.0 : 14.0;
-    const borderRadius = AppTheme.radiusSm;
     final buttonBg = mobile ? AppTheme.bg3 : null;
     return Semantics(
       header: true,
@@ -1246,20 +1242,16 @@ class _PanelHeader extends StatelessWidget {
               icon: Icons.create_new_folder,
               onTap: onAddFolder,
               tooltip: S.of(context).newFolder,
-              size: folderIconSize,
-              boxSize: boxSize,
               backgroundColor: buttonBg,
-              borderRadius: borderRadius,
+              borderRadius: AppTheme.radiusSm,
             ),
             if (mobile) const SizedBox(width: 8),
             AppIconButton(
               icon: Icons.add,
               onTap: onAddSession,
               tooltip: S.of(context).newConnection,
-              size: iconSize,
-              boxSize: boxSize,
               backgroundColor: buttonBg,
-              borderRadius: borderRadius,
+              borderRadius: AppTheme.radiusSm,
             ),
           ],
         ),

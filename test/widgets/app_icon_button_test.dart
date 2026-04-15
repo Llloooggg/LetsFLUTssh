@@ -18,20 +18,43 @@ void main() {
 
   group('AppIconButton', () {
     testWidgets('renders icon', (tester) async {
-      await tester.pumpWidget(buildApp(const AppIconButton(icon: Icons.settings)));
+      await tester.pumpWidget(
+        buildApp(const AppIconButton(icon: Icons.settings)),
+      );
       expect(find.byIcon(Icons.settings), findsOneWidget);
     });
 
-    testWidgets('default size is 14 icon in 26x26 box', (tester) async {
+    testWidgets('default sizes come from AppTheme (14 icon on desktop)', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildApp(const AppIconButton(icon: Icons.close)));
 
+      // Defaults now resolve at build time via AppTheme so the widget's
+      // explicit size/boxSize stay null; inspect the rendered Icon for the
+      // resolved value. Test runs on desktop host so expect the 14 px icon.
       final btn = tester.widget<AppIconButton>(find.byType(AppIconButton));
-      expect(btn.size, 14);
-      expect(btn.boxSize, 26);
+      expect(btn.size, isNull);
+      expect(btn.boxSize, isNull);
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.close));
+      expect(icon.size, AppTheme.iconBtnIcon);
+    });
+
+    testWidgets('dense: true picks the dense AppTheme defaults', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(const AppIconButton(icon: Icons.close, dense: true)),
+      );
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.close));
+      expect(icon.size, AppTheme.iconBtnIconDense);
     });
 
     testWidgets('custom size and boxSize', (tester) async {
-      await tester.pumpWidget(buildApp(const AppIconButton(icon: Icons.close, size: 18, boxSize: 32)));
+      await tester.pumpWidget(
+        buildApp(const AppIconButton(icon: Icons.close, size: 18, boxSize: 32)),
+      );
 
       final icon = tester.widget<Icon>(find.byIcon(Icons.close));
       expect(icon.size, 18);
@@ -42,14 +65,18 @@ void main() {
 
     testWidgets('onTap fires callback', (tester) async {
       var tapped = false;
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () => tapped = true)));
+      await tester.pumpWidget(
+        buildApp(AppIconButton(icon: Icons.close, onTap: () => tapped = true)),
+      );
 
       await tester.tap(find.byType(AppIconButton));
       expect(tapped, isTrue);
     });
 
     testWidgets('tooltip shows when provided', (tester) async {
-      await tester.pumpWidget(buildApp(const AppIconButton(icon: Icons.close, tooltip: 'Close')));
+      await tester.pumpWidget(
+        buildApp(const AppIconButton(icon: Icons.close, tooltip: 'Close')),
+      );
       expect(find.byType(Tooltip), findsOneWidget);
       final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
       expect(tooltip.message, 'Close');
@@ -73,33 +100,50 @@ void main() {
     });
 
     testWidgets('enabled state uses normal icon color', (tester) async {
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {})));
+      await tester.pumpWidget(
+        buildApp(AppIconButton(icon: Icons.close, onTap: () {})),
+      );
 
       final icon = tester.widget<Icon>(find.byIcon(Icons.close));
       expect(icon.color, AppTheme.fgDim);
     });
 
     testWidgets('active state uses fg color', (tester) async {
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {}, active: true)));
+      await tester.pumpWidget(
+        buildApp(AppIconButton(icon: Icons.close, onTap: () {}, active: true)),
+      );
 
       final icon = tester.widget<Icon>(find.byIcon(Icons.close));
       expect(icon.color, AppTheme.fg);
     });
 
     testWidgets('custom color overrides default', (tester) async {
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {}, color: AppTheme.red)));
+      await tester.pumpWidget(
+        buildApp(
+          AppIconButton(icon: Icons.close, onTap: () {}, color: AppTheme.red),
+        ),
+      );
 
       final icon = tester.widget<Icon>(find.byIcon(Icons.close));
       expect(icon.color, AppTheme.red);
     });
 
     testWidgets('hover shows background', (tester) async {
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {})));
+      await tester.pumpWidget(
+        buildApp(AppIconButton(icon: Icons.close, onTap: () {})),
+      );
 
       // Before hover — transparent
-      Container container() =>
-          tester.widget<Container>(find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)));
-      expect((container().decoration as BoxDecoration?)?.color, Colors.transparent);
+      Container container() => tester.widget<Container>(
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
+      );
+      expect(
+        (container().decoration as BoxDecoration?)?.color,
+        Colors.transparent,
+      );
 
       // Hover
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -112,17 +156,30 @@ void main() {
     });
 
     testWidgets('active state shows active background', (tester) async {
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {}, active: true)));
+      await tester.pumpWidget(
+        buildApp(AppIconButton(icon: Icons.close, onTap: () {}, active: true)),
+      );
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
       expect((container.decoration as BoxDecoration?)?.color, AppTheme.active);
     });
 
     testWidgets('custom hoverColor is used', (tester) async {
       final customHover = AppTheme.red.withValues(alpha: 0.2);
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {}, hoverColor: customHover)));
+      await tester.pumpWidget(
+        buildApp(
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () {},
+            hoverColor: customHover,
+          ),
+        ),
+      );
 
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: Offset.zero);
@@ -131,40 +188,73 @@ void main() {
       await tester.pump();
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
       expect((container.decoration as BoxDecoration?)?.color, customHover);
     });
 
     testWidgets('borderRadius is applied', (tester) async {
       final br = BorderRadius.circular(8);
-      await tester.pumpWidget(buildApp(AppIconButton(icon: Icons.close, onTap: () {}, borderRadius: br)));
+      await tester.pumpWidget(
+        buildApp(
+          AppIconButton(icon: Icons.close, onTap: () {}, borderRadius: br),
+        ),
+      );
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
       expect((container.decoration as BoxDecoration?)?.borderRadius, br);
     });
 
     testWidgets('uses HoverRegion internally', (tester) async {
       await tester.pumpWidget(buildApp(const AppIconButton(icon: Icons.close)));
-      expect(find.descendant(of: find.byType(AppIconButton), matching: find.byType(HoverRegion)), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(HoverRegion),
+        ),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('backgroundColor shows when not hovered or active', (tester) async {
+    testWidgets('backgroundColor shows when not hovered or active', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        buildApp(AppIconButton(icon: Icons.settings, onTap: () {}, backgroundColor: AppTheme.bg3)),
+        buildApp(
+          AppIconButton(
+            icon: Icons.settings,
+            onTap: () {},
+            backgroundColor: AppTheme.bg3,
+          ),
+        ),
       );
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
       expect((container.decoration as BoxDecoration?)?.color, AppTheme.bg3);
     });
 
     testWidgets('hover overrides backgroundColor', (tester) async {
       await tester.pumpWidget(
-        buildApp(AppIconButton(icon: Icons.settings, onTap: () {}, backgroundColor: AppTheme.bg3)),
+        buildApp(
+          AppIconButton(
+            icon: Icons.settings,
+            onTap: () {},
+            backgroundColor: AppTheme.bg3,
+          ),
+        ),
       );
 
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -174,18 +264,31 @@ void main() {
       await tester.pump();
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
       expect((container.decoration as BoxDecoration?)?.color, AppTheme.hover);
     });
 
     testWidgets('active overrides backgroundColor', (tester) async {
       await tester.pumpWidget(
-        buildApp(AppIconButton(icon: Icons.settings, onTap: () {}, backgroundColor: AppTheme.bg3, active: true)),
+        buildApp(
+          AppIconButton(
+            icon: Icons.settings,
+            onTap: () {},
+            backgroundColor: AppTheme.bg3,
+            active: true,
+          ),
+        ),
       );
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
       expect((container.decoration as BoxDecoration?)?.color, AppTheme.active);
     });
@@ -204,9 +307,15 @@ void main() {
       await tester.pump();
 
       final container = tester.widget<Container>(
-        find.descendant(of: find.byType(AppIconButton), matching: find.byType(Container)),
+        find.descendant(
+          of: find.byType(AppIconButton),
+          matching: find.byType(Container),
+        ),
       );
-      expect((container.decoration as BoxDecoration?)?.color, Colors.transparent);
+      expect(
+        (container.decoration as BoxDecoration?)?.color,
+        Colors.transparent,
+      );
     });
   });
 }

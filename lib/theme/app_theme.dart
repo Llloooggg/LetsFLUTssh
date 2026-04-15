@@ -272,6 +272,23 @@ abstract final class AppTheme {
   /// 56 px — mobile bottom navigation bar.
   static const double itemHeightXl = 56;
 
+  // ── Icon button sizing ──
+  // Mobile needs ≥40 px touch targets per platform HIGs; desktop stays
+  // compact to preserve information density in toolbars/headers.
+  /// Standard icon-button hit target — 40 px on mobile, 26 px on desktop.
+  static double get iconBtnBox => plat.isMobilePlatform ? 40.0 : 26.0;
+
+  /// Standard icon size inside [iconBtnBox] — 20 px on mobile, 14 px on desktop.
+  static double get iconBtnIcon => plat.isMobilePlatform ? 20.0 : 14.0;
+
+  /// Dense icon-button hit target — used in tight toolbars (file browser,
+  /// dialog headers). Still meets the mobile touch-target floor but sits one
+  /// step down from the standard size on desktop.
+  static double get iconBtnBoxDense => plat.isMobilePlatform ? 36.0 : 22.0;
+
+  /// Dense icon size inside [iconBtnBoxDense].
+  static double get iconBtnIconDense => plat.isMobilePlatform ? 18.0 : 14.0;
+
   // ── Popup constraints ──
   /// 400 px — max height for popup menus (scrolls when content exceeds).
   static const double popupMaxHeight = 400;

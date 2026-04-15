@@ -216,8 +216,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       icon: icon,
       onTap: onTap,
       tooltip: tooltip,
-      size: 12,
-      boxSize: 20,
+      dense: true,
       color: AppTheme.fgFaint,
     );
   }

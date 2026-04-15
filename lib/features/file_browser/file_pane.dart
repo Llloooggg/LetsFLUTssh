@@ -378,8 +378,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
               setState(() => _editingPath = true);
             },
             tooltip: S.of(context).editPath,
-            size: 11,
-            boxSize: 20,
+            dense: true,
             color: AppTheme.fgFaint,
           ),
         ],
@@ -405,8 +404,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       icon: Icons.home,
       onTap: () => ctrl.navigateTo(rootPath),
       tooltip: S.of(context).root,
-      size: 11,
-      boxSize: 20,
+      dense: true,
       color: AppTheme.fgFaint,
     );
   }
@@ -484,8 +482,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       icon: icon,
       onTap: onPressed,
       tooltip: tooltip,
-      size: 11,
-      boxSize: 20,
+      dense: true,
       color: AppTheme.fgFaint,
     );
   }
