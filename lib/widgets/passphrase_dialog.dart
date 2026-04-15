@@ -145,13 +145,15 @@ class _PassphraseDialogWidgetState extends State<_PassphraseDialogWidget> {
                 ),
               ),
               const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => setState(() => _remember = !_remember),
-                child: Text(
-                  s.rememberPassphrase,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
+              Flexible(
+                child: GestureDetector(
+                  onTap: () => setState(() => _remember = !_remember),
+                  child: Text(
+                    s.rememberPassphrase,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgDim,
+                    ),
                   ),
                 ),
               ),
