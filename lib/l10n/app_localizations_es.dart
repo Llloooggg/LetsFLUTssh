@@ -1148,6 +1148,33 @@ class SEs extends S {
       'El selector de carpetas del sistema no está disponible. Pruebe otra ubicación o verifique los permisos de almacenamiento de la aplicación.';
 
   @override
+  String get biometricUnlockPrompt => 'Desbloquear LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Desbloquear con biometría';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Evita escribir la contraseña maestra al iniciar la aplicación.';
+
+  @override
+  String get biometricNotAvailable =>
+      'El desbloqueo biométrico no está disponible en este dispositivo.';
+
+  @override
+  String get biometricEnableFailed =>
+      'No se pudo activar el desbloqueo biométrico.';
+
+  @override
+  String get biometricEnabled => 'Desbloqueo biométrico activado';
+
+  @override
+  String get biometricDisabled => 'Desbloqueo biométrico desactivado';
+
+  @override
+  String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';
+
+  @override
   String get errLfsDecryptFailed =>
       'Contraseña maestra incorrecta o archivo .lfs dañado';
 

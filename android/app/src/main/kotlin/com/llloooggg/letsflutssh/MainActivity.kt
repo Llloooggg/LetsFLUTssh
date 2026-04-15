@@ -7,11 +7,13 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+// FlutterFragmentActivity (instead of FlutterActivity) is required by
+// local_auth's BiometricPrompt, which hosts its UI inside a Fragment.
+class MainActivity : FlutterFragmentActivity() {
     private val permissionChannel = "com.letsflutssh/permissions"
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private var pendingResult: MethodChannel.Result? = null

@@ -1142,6 +1142,33 @@ class SHi extends S {
       'सिस्टम फ़ोल्डर पिकर उपलब्ध नहीं है। कोई अन्य स्थान आज़माएँ या ऐप संग्रहण अनुमतियाँ जाँचें।';
 
   @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh अनलॉक करें';
+
+  @override
+  String get biometricUnlockTitle => 'बायोमेट्रिक से अनलॉक करें';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'ऐप शुरू करते समय मास्टर पासवर्ड टाइप करने से बचें।';
+
+  @override
+  String get biometricNotAvailable =>
+      'इस डिवाइस पर बायोमेट्रिक अनलॉक उपलब्ध नहीं है।';
+
+  @override
+  String get biometricEnableFailed =>
+      'बायोमेट्रिक अनलॉक चालू नहीं किया जा सका।';
+
+  @override
+  String get biometricEnabled => 'बायोमेट्रिक अनलॉक सक्षम';
+
+  @override
+  String get biometricDisabled => 'बायोमेट्रिक अनलॉक अक्षम';
+
+  @override
+  String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
+
+  @override
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
 
   @override

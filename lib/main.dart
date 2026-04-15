@@ -343,8 +343,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (dbExists) {
       // Existing v4 install — unlock with stored credentials.
 
-      // 1. Master password — show unlock dialog.
+      // 1. Master password — try biometric unlock first, fall back to dialog.
       if (await manager.isEnabled()) {
+        final bioKey = await _tryBiometricUnlock();
+        if (bioKey != null) {
+          _injectDatabase(key: bioKey, level: SecurityLevel.masterPassword);
+          AppLogger.instance.log(
+            'Master password unlocked via biometrics',
+            name: 'App',
+          );
+          return;
+        }
         if (!mounted) return;
         final derivedKey = await _showUnlockDialog(manager);
         if (derivedKey != null) {
@@ -437,6 +446,29 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
+  }
+
+  /// Attempt to unlock with biometrics. Returns the cached DB key on
+  /// success, null when biometric unlock isn't configured / device doesn't
+  /// support it / user cancelled — in which case the caller falls back to
+  /// the normal master-password dialog.
+  Future<Uint8List?> _tryBiometricUnlock() async {
+    final vault = ref.read(biometricKeyVaultProvider);
+    if (!await vault.isStored()) return null;
+    final bio = ref.read(biometricAuthProvider);
+    if (!await bio.isAvailable()) return null;
+    final reason = _localizedBiometricReason();
+    final ok = await bio.authenticate(reason);
+    if (!ok) return null;
+    return vault.read();
+  }
+
+  /// Resolve the biometric prompt reason string synchronously. Kept
+  /// separate so the `BuildContext` never escapes across an await.
+  String _localizedBiometricReason() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return 'Unlock LetsFLUTssh';
+    return S.of(ctx).biometricUnlockPrompt;
   }
 
   /// Show unlock dialog using the navigator key context.

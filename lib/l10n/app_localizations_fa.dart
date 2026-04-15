@@ -1139,6 +1139,33 @@ class SFa extends S {
       'انتخابگر پوشهٔ سیستم در دسترس نیست. مکان دیگری را امتحان کنید یا مجوزهای ذخیره‌سازی برنامه را بررسی کنید.';
 
   @override
+  String get biometricUnlockPrompt => 'باز کردن قفل LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'باز کردن قفل با زیست‌سنجی';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'هنگام اجرای برنامه نیازی به تایپ گذرواژهٔ اصلی نباشد.';
+
+  @override
+  String get biometricNotAvailable =>
+      'باز کردن قفل زیست‌سنجی روی این دستگاه در دسترس نیست.';
+
+  @override
+  String get biometricEnableFailed =>
+      'فعال‌سازی باز کردن قفل زیست‌سنجی ممکن نشد.';
+
+  @override
+  String get biometricEnabled => 'باز کردن قفل زیست‌سنجی فعال شد';
+
+  @override
+  String get biometricDisabled => 'باز کردن قفل زیست‌سنجی غیرفعال شد';
+
+  @override
+  String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
+
+  @override
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
 
   @override

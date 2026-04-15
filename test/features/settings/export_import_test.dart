@@ -674,12 +674,15 @@ void main() {
   group('ExportImport — archive size limit', () {
     test('rejects oversized archive before decrypt', () async {
       final filePath = '${tempDir.path}/huge.lfs';
-      // Write a file marginally above the limit. Content is garbage — the
-      // reject must happen on length check, long before any crypto runs.
-      final file = File(filePath);
-      await file.writeAsBytes(
-        List<int>.filled(ExportImport.maxArchiveBytes + 1, 0),
-      );
+      // Use a sparse file (truncate) instead of writing 50 MB of zeros —
+      // File.length() reports the logical size from fstat without touching
+      // the bytes, so the reject path is exercised in milliseconds.
+      final raf = await File(filePath).open(mode: FileMode.write);
+      try {
+        await raf.truncate(ExportImport.maxArchiveBytes + 1);
+      } finally {
+        await raf.close();
+      }
 
       await expectLater(
         ExportImport.import_(

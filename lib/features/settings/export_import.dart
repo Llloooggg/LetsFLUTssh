@@ -38,7 +38,19 @@ class ExportImport {
 
   static const _saltLen = 32;
   static const _ivLen = 12;
-  static const _pbkdf2Iterations = 600000;
+  static const _pbkdf2IterationsProd = 600000;
+
+  /// PBKDF2 iteration count. Constant in production — tests may lower it
+  /// via [debugSetPbkdf2Iterations] so roundtrips don't spend 500 ms per
+  /// derive, which would stretch the full suite into minutes.
+  static int _pbkdf2Iterations = _pbkdf2IterationsProd;
+
+  /// Lower PBKDF2 iterations for tests. Restores to production value when
+  /// called with null. NEVER call from production code.
+  @visibleForTesting
+  static void debugSetPbkdf2Iterations(int? iterations) {
+    _pbkdf2Iterations = iterations ?? _pbkdf2IterationsProd;
+  }
 
   /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
   /// decryption or decompression so a pathologically large file can't OOM
@@ -203,8 +215,11 @@ class ExportImport {
 
     // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
     progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
+    // Capture iteration count in the main isolate so debugSetPbkdf2Iterations
+    // (used only by tests) actually takes effect across the isolate boundary.
+    final iterations = _pbkdf2Iterations;
     final encrypted = await Isolate.run(
-      () => _encryptWithPassword(zipBytes, masterPassword),
+      () => _encryptWithPassword(zipBytes, masterPassword, iterations),
     );
     AppLogger.instance.log(
       'Export: encrypted ${encrypted.length} bytes',
@@ -408,9 +423,10 @@ class ExportImport {
     // Both cases collapse to LfsDecryptionFailedException so the UI can show
     // a single localized message.
     final Uint8List zipBytes;
+    final iterations = _pbkdf2Iterations;
     try {
       zipBytes = await Isolate.run(
-        () => _decryptWithPassword(encData, masterPassword),
+        () => _decryptWithPassword(encData, masterPassword, iterations),
       );
     } catch (e) {
       throw LfsDecryptionFailedException(cause: e);
@@ -626,7 +642,11 @@ class ExportImport {
 
   /// Encrypt bytes with password-derived key (PBKDF2 + AES-256-GCM).
   /// Format: [salt (32)] [iv (12)] [ciphertext + GCM tag]
-  static Uint8List _encryptWithPassword(Uint8List data, String password) {
+  static Uint8List _encryptWithPassword(
+    Uint8List data,
+    String password,
+    int iterations,
+  ) {
     final random = Random.secure();
     final salt = Uint8List.fromList(
       List.generate(_saltLen, (_) => random.nextInt(256)),
@@ -635,7 +655,7 @@ class ExportImport {
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
 
-    final key = _deriveKey(password, salt);
+    final key = _deriveKey(password, salt, iterations);
 
     final cipher = GCMBlockCipher(AESEngine())
       ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
@@ -645,12 +665,16 @@ class ExportImport {
   }
 
   /// Decrypt bytes with password-derived key.
-  static Uint8List _decryptWithPassword(Uint8List data, String password) {
+  static Uint8List _decryptWithPassword(
+    Uint8List data,
+    String password,
+    int iterations,
+  ) {
     final salt = data.sublist(0, _saltLen);
     final iv = data.sublist(_saltLen, _saltLen + _ivLen);
     final ciphertext = data.sublist(_saltLen + _ivLen);
 
-    final key = _deriveKey(password, salt);
+    final key = _deriveKey(password, salt, iterations);
 
     final cipher = GCMBlockCipher(AESEngine())
       ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
@@ -659,9 +683,9 @@ class ExportImport {
   }
 
   /// Derive 256-bit key from password using PBKDF2-SHA256.
-  static Uint8List _deriveKey(String password, Uint8List salt) {
+  static Uint8List _deriveKey(String password, Uint8List salt, int iterations) {
     final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, _pbkdf2Iterations, 32));
+      ..init(Pbkdf2Parameters(salt, iterations, 32));
 
     return pbkdf2.process(Uint8List.fromList(utf8.encode(password)));
   }

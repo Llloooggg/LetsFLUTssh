@@ -1151,6 +1151,33 @@ class SDe extends S {
       'Die System-Ordnerauswahl ist nicht verfügbar. Versuchen Sie einen anderen Speicherort oder überprüfen Sie die Speicherberechtigungen der App.';
 
   @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh entsperren';
+
+  @override
+  String get biometricUnlockTitle => 'Mit Biometrie entsperren';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Master-Passwort beim Start der App nicht eingeben müssen.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Biometrische Entsperrung ist auf diesem Gerät nicht verfügbar.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Biometrische Entsperrung konnte nicht aktiviert werden.';
+
+  @override
+  String get biometricEnabled => 'Biometrische Entsperrung aktiviert';
+
+  @override
+  String get biometricDisabled => 'Biometrische Entsperrung deaktiviert';
+
+  @override
+  String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';
+
+  @override
   String get errLfsDecryptFailed =>
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
 

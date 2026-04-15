@@ -274,6 +274,49 @@ class _ChangeMasterPasswordDialog extends StatelessWidget {
   }
 }
 
+class _EnableBiometricDialog extends StatelessWidget {
+  final TextEditingController currentCtrl;
+
+  const _EnableBiometricDialog({required this.currentCtrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return AppDialog(
+      title: l10n.biometricUnlockTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.biometricUnlockSubtitle,
+            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: currentCtrl,
+            obscureText: true,
+            autofocus: true,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            decoration: AppTheme.inputDecoration(
+              labelText: l10n.currentPassword,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
+        AppDialogAction.primary(
+          label: l10n.ok,
+          onTap: () {
+            if (currentCtrl.text.isEmpty) return;
+            Navigator.pop(context, currentCtrl.text);
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class _RemoveMasterPasswordDialog extends StatelessWidget {
   final TextEditingController passwordCtrl;
 

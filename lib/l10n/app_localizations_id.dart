@@ -1146,6 +1146,33 @@ class SId extends S {
       'Pemilih folder sistem tidak tersedia. Coba lokasi lain atau periksa izin penyimpanan aplikasi.';
 
   @override
+  String get biometricUnlockPrompt => 'Buka kunci LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Buka kunci dengan biometrik';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Hindari mengetik kata sandi utama saat membuka aplikasi.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Buka kunci biometrik tidak tersedia di perangkat ini.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Tidak dapat mengaktifkan buka kunci biometrik.';
+
+  @override
+  String get biometricEnabled => 'Buka kunci biometrik diaktifkan';
+
+  @override
+  String get biometricDisabled => 'Buka kunci biometrik dinonaktifkan';
+
+  @override
+  String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
+
+  @override
   String get errLfsDecryptFailed =>
       'Kata sandi utama salah atau arsip .lfs rusak';
 

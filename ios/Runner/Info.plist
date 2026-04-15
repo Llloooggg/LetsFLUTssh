@@ -101,6 +101,8 @@
 	<string>LetsFLUTssh needs local network access to connect to SSH servers on your network.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>LetsFLUTssh uses the camera only to scan QR codes when you tap "Scan QR" to import sessions.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>LetsFLUTssh uses Face ID to unlock your encrypted session store without typing the master password every time.</string>
 
 	<!-- Interface orientations -->
 	<key>UISupportedInterfaceOrientations</key>

@@ -1146,6 +1146,33 @@ class STr extends S {
       'Sistem klasör seçici kullanılamıyor. Başka bir konum deneyin veya uygulamanın depolama izinlerini kontrol edin.';
 
   @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh kilidini aç';
+
+  @override
+  String get biometricUnlockTitle => 'Biyometri ile kilidi aç';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Uygulamayı başlatırken ana parolayı yazmaktan kaçının.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Bu cihazda biyometrik kilit açma kullanılamıyor.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Biyometrik kilit açma etkinleştirilemedi.';
+
+  @override
+  String get biometricEnabled => 'Biyometrik kilit açma etkinleştirildi';
+
+  @override
+  String get biometricDisabled => 'Biyometrik kilit açma devre dışı';
+
+  @override
+  String get currentPasswordIncorrect => 'Mevcut parola yanlış';
+
+  @override
   String get errLfsDecryptFailed =>
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
 

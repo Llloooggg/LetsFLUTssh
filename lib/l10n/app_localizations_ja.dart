@@ -1121,6 +1121,30 @@ class SJa extends S {
       'システムのフォルダピッカーを利用できません。別の場所を試すか、アプリのストレージ権限を確認してください。';
 
   @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh のロックを解除';
+
+  @override
+  String get biometricUnlockTitle => '生体認証でロック解除';
+
+  @override
+  String get biometricUnlockSubtitle => 'アプリ起動時にマスターパスワードの入力を省略できます。';
+
+  @override
+  String get biometricNotAvailable => 'このデバイスでは生体認証によるロック解除を利用できません。';
+
+  @override
+  String get biometricEnableFailed => '生体認証によるロック解除を有効にできませんでした。';
+
+  @override
+  String get biometricEnabled => '生体認証によるロック解除を有効にしました';
+
+  @override
+  String get biometricDisabled => '生体認証によるロック解除を無効にしました';
+
+  @override
+  String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
+
+  @override
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
 
   @override

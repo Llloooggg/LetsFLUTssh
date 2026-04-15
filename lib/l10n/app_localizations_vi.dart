@@ -1139,6 +1139,32 @@ class SVi extends S {
       'Bộ chọn thư mục của hệ thống không khả dụng. Hãy thử vị trí khác hoặc kiểm tra quyền lưu trữ của ứng dụng.';
 
   @override
+  String get biometricUnlockPrompt => 'Mở khóa LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Mở khóa bằng sinh trắc học';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Không cần nhập mật khẩu chính khi khởi động ứng dụng.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Mở khóa sinh trắc học không khả dụng trên thiết bị này.';
+
+  @override
+  String get biometricEnableFailed => 'Không thể bật mở khóa sinh trắc học.';
+
+  @override
+  String get biometricEnabled => 'Đã bật mở khóa sinh trắc học';
+
+  @override
+  String get biometricDisabled => 'Đã tắt mở khóa sinh trắc học';
+
+  @override
+  String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';
+
+  @override
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
 
   @override

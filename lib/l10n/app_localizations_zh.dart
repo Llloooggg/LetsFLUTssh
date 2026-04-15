@@ -1117,6 +1117,30 @@ class SZh extends S {
   String get errExportPickerUnavailable => '系统文件夹选择器不可用。请尝试其他位置或检查应用的存储权限。';
 
   @override
+  String get biometricUnlockPrompt => '解锁 LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => '使用生物识别解锁';
+
+  @override
+  String get biometricUnlockSubtitle => '启动应用时无需输入主密码。';
+
+  @override
+  String get biometricNotAvailable => '此设备不支持生物识别解锁。';
+
+  @override
+  String get biometricEnableFailed => '无法启用生物识别解锁。';
+
+  @override
+  String get biometricEnabled => '已启用生物识别解锁';
+
+  @override
+  String get biometricDisabled => '已停用生物识别解锁';
+
+  @override
+  String get currentPasswordIncorrect => '当前密码不正确';
+
+  @override
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
 
   @override

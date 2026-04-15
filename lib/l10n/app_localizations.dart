@@ -2157,6 +2157,54 @@ abstract class S {
   /// **'The system folder picker is unavailable. Try another location or check app storage permissions.'**
   String get errExportPickerUnavailable;
 
+  /// No description provided for @biometricUnlockPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock LetsFLUTssh'**
+  String get biometricUnlockPrompt;
+
+  /// No description provided for @biometricUnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock with biometrics'**
+  String get biometricUnlockTitle;
+
+  /// No description provided for @biometricUnlockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip typing the master password when launching the app.'**
+  String get biometricUnlockSubtitle;
+
+  /// No description provided for @biometricNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock is not available on this device.'**
+  String get biometricNotAvailable;
+
+  /// No description provided for @biometricEnableFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not enable biometric unlock.'**
+  String get biometricEnableFailed;
+
+  /// No description provided for @biometricEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock enabled'**
+  String get biometricEnabled;
+
+  /// No description provided for @biometricDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock disabled'**
+  String get biometricDisabled;
+
+  /// No description provided for @currentPasswordIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password is incorrect'**
+  String get currentPasswordIncorrect;
+
   /// No description provided for @errLfsDecryptFailed.
   ///
   /// In en, this message translates to:

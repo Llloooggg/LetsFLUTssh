@@ -560,6 +560,26 @@ void main() {
   // Connection section
   // ---------------------------------------------------------------------------
   group('SettingsScreen — Connection section', () {
+    // Expand the test viewport so every Connection-section row fits on
+    // screen. Default 800×600 is too short now that Appearance + Security
+    // sections above Connection eat most of the initial viewport, and
+    // tap() on an offscreen widget emits a "hit test would not land"
+    // warning even when the finder itself is found.
+    setUp(() {
+      final binding = TestWidgetsFlutterBinding.instance;
+      binding.platformDispatcher.views.first.physicalSize = const Size(
+        1600,
+        2400,
+      );
+      binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
+    });
+
+    tearDown(() {
+      final binding = TestWidgetsFlutterBinding.instance;
+      binding.platformDispatcher.views.first.resetPhysicalSize();
+      binding.platformDispatcher.views.first.resetDevicePixelRatio();
+    });
+
     testWidgets('renders Connection section with defaults', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.text('Connection'), findsOneWidget);
@@ -588,6 +608,7 @@ void main() {
     testWidgets('keepalive field accepts valid value', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '30');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '60');
@@ -599,6 +620,7 @@ void main() {
     testWidgets('keepalive accepts 0 (min boundary)', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '30');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '0');
@@ -610,6 +632,7 @@ void main() {
     testWidgets('timeout field accepts valid value', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '20');
@@ -621,6 +644,7 @@ void main() {
     testWidgets('timeout min boundary 1', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '1');
@@ -632,6 +656,7 @@ void main() {
     testWidgets('timeout above max rejected', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '999');
@@ -647,6 +672,7 @@ void main() {
       );
       await tester.pumpWidget(buildFullApp(initialConfig: config));
       final field = find.widgetWithText(TextFormField, '15');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '30');
@@ -658,6 +684,7 @@ void main() {
     testWidgets('port field accepts valid value', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '22');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '2222');
@@ -669,6 +696,7 @@ void main() {
     testWidgets('port max boundary 65535', (tester) async {
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '22');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '65535');
@@ -680,6 +708,7 @@ void main() {
     testWidgets('port custom value 8022', (tester) async {
       await tester.pumpWidget(buildFullApp());
       final field = find.widgetWithText(TextFormField, '22');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '8022');

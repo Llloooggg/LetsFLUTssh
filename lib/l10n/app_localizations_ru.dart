@@ -1142,6 +1142,33 @@ class SRu extends S {
       'Системный выбор папки недоступен. Попробуйте другое расположение или проверьте разрешения на доступ к хранилищу.';
 
   @override
+  String get biometricUnlockPrompt => 'Разблокировать LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Разблокировка по биометрии';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Не вводить мастер-пароль при запуске приложения.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Биометрическая разблокировка недоступна на этом устройстве.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Не удалось включить биометрическую разблокировку.';
+
+  @override
+  String get biometricEnabled => 'Биометрическая разблокировка включена';
+
+  @override
+  String get biometricDisabled => 'Биометрическая разблокировка отключена';
+
+  @override
+  String get currentPasswordIncorrect => 'Неверный текущий пароль';
+
+  @override
   String get errLfsDecryptFailed =>
       'Неверный мастер-пароль или повреждённый архив .lfs';
 

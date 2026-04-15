@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/security/biometric_auth.dart';
+import '../core/security/biometric_key_vault.dart';
 import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
 import '../core/security/security_level.dart';
@@ -9,6 +11,17 @@ import '../core/security/security_level.dart';
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
   (_) => SecureKeyStorage(),
+);
+
+/// Biometric authentication probe + prompt. Used by the optional
+/// "unlock with biometrics" flow in master-password mode.
+final biometricAuthProvider = Provider<BiometricAuth>((_) => BiometricAuth());
+
+/// Biometric-scoped secure storage of the DB key — only populated when
+/// the user opts in to biometric unlock; read at startup before the
+/// master-password dialog.
+final biometricKeyVaultProvider = Provider<BiometricKeyVault>(
+  (_) => BiometricKeyVault(),
 );
 
 /// Current data protection level, detected at startup.

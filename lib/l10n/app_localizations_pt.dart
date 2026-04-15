@@ -1146,6 +1146,33 @@ class SPt extends S {
       'O seletor de pastas do sistema não está disponível. Tente outro local ou verifique as permissões de armazenamento do aplicativo.';
 
   @override
+  String get biometricUnlockPrompt => 'Desbloquear LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Desbloquear com biometria';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Evite digitar a senha mestra ao iniciar o aplicativo.';
+
+  @override
+  String get biometricNotAvailable =>
+      'O desbloqueio biométrico não está disponível neste dispositivo.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Não foi possível ativar o desbloqueio biométrico.';
+
+  @override
+  String get biometricEnabled => 'Desbloqueio biométrico ativado';
+
+  @override
+  String get biometricDisabled => 'Desbloqueio biométrico desativado';
+
+  @override
+  String get currentPasswordIncorrect => 'A senha atual está incorreta';
+
+  @override
   String get errLfsDecryptFailed =>
       'Senha mestra incorreta ou arquivo .lfs corrompido';
 

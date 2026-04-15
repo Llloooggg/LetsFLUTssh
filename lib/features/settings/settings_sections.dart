@@ -181,6 +181,8 @@ class _SecuritySection extends ConsumerStatefulWidget {
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   bool? _masterPasswordEnabled;
   bool? _keychainAvailable;
+  bool? _biometricAvailable;
+  bool? _biometricEnabled;
 
   @override
   void initState() {
@@ -189,18 +191,34 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _checkState() async {
+    // Master password + keychain probes first — _manageMasterPassword()
+    // branches on _masterPasswordEnabled and the wrong branch opens the
+    // "Set password" dialog instead of "Manage options". Biometric probes
+    // (slower, platform-dependent) are kept off this critical path and
+    // published in a second setState below.
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final results = await Future.wait([
+    final coreResults = await Future.wait([
       manager.isEnabled(),
       keyStorage.isAvailable(),
     ]);
-    if (mounted) {
-      setState(() {
-        _masterPasswordEnabled = results[0];
-        _keychainAvailable = results[1];
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _masterPasswordEnabled = coreResults[0];
+      _keychainAvailable = coreResults[1];
+    });
+
+    final bio = ref.read(biometricAuthProvider);
+    final bioVault = ref.read(biometricKeyVaultProvider);
+    final bioResults = await Future.wait([
+      bio.isAvailable(),
+      bioVault.isStored(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = bioResults[0];
+      _biometricEnabled = bioResults[1];
+    });
   }
 
   @override
@@ -248,8 +266,86 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           enabled: secState.level == SecurityLevel.keychain,
           onTap: () => _disableKeychain(context),
         ),
+        // Biometric unlock — only rendered when the device actually has
+        // biometric hardware. Hidden on headless/Linux so the settings
+        // layout stays compact (and so our existing tests that tap by
+        // absolute offset still land on the right widgets).
+        if (_biometricAvailable == true)
+          _Toggle(
+            label: l10n.biometricUnlockTitle,
+            subtitle: l10n.biometricUnlockSubtitle,
+            icon: Icons.fingerprint,
+            value: _biometricEnabled == true,
+            onChanged: secState.level == SecurityLevel.masterPassword
+                ? (v) => _toggleBiometricUnlock(context, v)
+                : null,
+          ),
       ],
     );
+  }
+
+  Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
+    final l10n = S.of(context);
+    if (enable) {
+      // Enabling: ask the user for their master password so we can cache the
+      // DB key in the biometric-gated vault. Without a fresh prompt there's
+      // nothing to cache — the live key in SecurityState is the same bytes,
+      // but requiring the password here matches user expectation and rejects
+      // accidental taps.
+      final currentCtrl = TextEditingController();
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+      );
+      if (password == null || !context.mounted) return;
+      final manager = ref.read(masterPasswordProvider);
+      if (!await manager.verify(password)) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: S.of(context).currentPasswordIncorrect,
+            level: ToastLevel.error,
+          );
+        }
+        return;
+      }
+      final bio = ref.read(biometricAuthProvider);
+      final ok = await bio.authenticate(l10n.biometricUnlockPrompt);
+      if (!ok) return;
+      final key = await manager.deriveKey(password);
+      final vault = ref.read(biometricKeyVaultProvider);
+      final stored = await vault.store(key);
+      if (!mounted) return;
+      if (!stored) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: l10n.biometricEnableFailed,
+            level: ToastLevel.error,
+          );
+        }
+        return;
+      }
+      setState(() => _biometricEnabled = true);
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricEnabled,
+          level: ToastLevel.success,
+        );
+      }
+    } else {
+      await ref.read(biometricKeyVaultProvider).clear();
+      if (!mounted) return;
+      setState(() => _biometricEnabled = false);
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricDisabled,
+          level: ToastLevel.success,
+        );
+      }
+    }
   }
 
   String _keychainStatusLabel(S l10n) {
@@ -466,6 +562,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     // Re-encrypt all stores with new key.
     await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+
+    // The cached biometric key (if any) was derived from the OLD password
+    // — it's now stale. Wipe it; user can re-enable biometric unlock from
+    // the toggle afterwards.
+    await ref.read(biometricKeyVaultProvider).clear();
+    if (mounted) setState(() => _biometricEnabled = false);
   }
 
   Future<void> _removeMasterPassword(BuildContext context) async {
@@ -530,6 +632,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (!isValid) {
       throw const MasterPasswordException('Current password is incorrect');
     }
+
+    // Leaving MP mode — any biometric-cached key belongs to a secret that
+    // is about to stop existing. Drop it unconditionally so the user
+    // cannot silently fall back to biometrics that wrap a now-invalid
+    // credential.
+    await ref.read(biometricKeyVaultProvider).clear();
+    if (mounted) setState(() => _biometricEnabled = false);
 
     // Try keychain first, fall back to plaintext.
     final keyStorage = ref.read(secureKeyStorageProvider);

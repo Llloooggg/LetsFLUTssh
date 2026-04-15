@@ -1153,6 +1153,33 @@ class SFr extends S {
       'Le sélecteur de dossier système n\'est pas disponible. Essayez un autre emplacement ou vérifiez les autorisations de stockage de l\'application.';
 
   @override
+  String get biometricUnlockPrompt => 'Déverrouiller LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Déverrouiller par biométrie';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Évitez de saisir le mot de passe maître au lancement de l\'application.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Le déverrouillage biométrique n\'est pas disponible sur cet appareil.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Impossible d\'activer le déverrouillage biométrique.';
+
+  @override
+  String get biometricEnabled => 'Déverrouillage biométrique activé';
+
+  @override
+  String get biometricDisabled => 'Déverrouillage biométrique désactivé';
+
+  @override
+  String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';
+
+  @override
   String get errLfsDecryptFailed =>
       'Mot de passe maître incorrect ou archive .lfs corrompue';
 

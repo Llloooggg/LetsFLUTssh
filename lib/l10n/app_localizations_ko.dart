@@ -1120,6 +1120,30 @@ class SKo extends S {
       '시스템 폴더 선택기를 사용할 수 없습니다. 다른 위치를 시도하거나 앱의 저장소 권한을 확인하세요.';
 
   @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh 잠금 해제';
+
+  @override
+  String get biometricUnlockTitle => '생체 인식으로 잠금 해제';
+
+  @override
+  String get biometricUnlockSubtitle => '앱을 실행할 때 마스터 비밀번호 입력을 건너뛸 수 있습니다.';
+
+  @override
+  String get biometricNotAvailable => '이 기기에서는 생체 인식 잠금 해제를 사용할 수 없습니다.';
+
+  @override
+  String get biometricEnableFailed => '생체 인식 잠금 해제를 활성화하지 못했습니다.';
+
+  @override
+  String get biometricEnabled => '생체 인식 잠금 해제가 활성화되었습니다';
+
+  @override
+  String get biometricDisabled => '생체 인식 잠금 해제가 비활성화되었습니다';
+
+  @override
+  String get currentPasswordIncorrect => '현재 비밀번호가 올바르지 않습니다';
+
+  @override
   String get errLfsDecryptFailed => '마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다';
 
   @override

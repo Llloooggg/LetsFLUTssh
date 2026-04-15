@@ -1136,6 +1136,32 @@ class SAr extends S {
       'منتقي المجلدات في النظام غير متاح. جرّب موقعاً آخر أو تحقق من أذونات تخزين التطبيق.';
 
   @override
+  String get biometricUnlockPrompt => 'فتح قفل LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'الفتح بالمقاييس الحيوية';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'تجنّب كتابة كلمة المرور الرئيسية عند تشغيل التطبيق.';
+
+  @override
+  String get biometricNotAvailable =>
+      'الفتح بالمقاييس الحيوية غير متاح على هذا الجهاز.';
+
+  @override
+  String get biometricEnableFailed => 'تعذّر تفعيل الفتح بالمقاييس الحيوية.';
+
+  @override
+  String get biometricEnabled => 'تم تفعيل الفتح بالمقاييس الحيوية';
+
+  @override
+  String get biometricDisabled => 'تم تعطيل الفتح بالمقاييس الحيوية';
+
+  @override
+  String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
+
+  @override
   String get errLfsDecryptFailed =>
       'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
 

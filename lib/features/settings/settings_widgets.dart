@@ -210,7 +210,7 @@ class _Toggle extends StatelessWidget {
   final String? subtitle;
   final IconData? icon;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   const _Toggle({
     required this.label,
@@ -222,29 +222,34 @@ class _Toggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onChanged != null;
+    final accent = enabled ? AppTheme.accent : AppTheme.bg4;
     return _SettingsRow(
       label: label,
       subtitle: subtitle,
       icon: icon,
       child: GestureDetector(
-        onTap: () => onChanged(!value),
-        child: Container(
-          width: 32,
-          height: 18,
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: value ? AppTheme.accent : AppTheme.bg4,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 120),
-            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: AppTheme.onAccent,
-                shape: BoxShape.circle,
+        onTap: enabled ? () => onChanged!(!value) : null,
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.5,
+          child: Container(
+            width: 32,
+            height: 18,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: value ? accent : AppTheme.bg4,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: AnimatedAlign(
+              duration: const Duration(milliseconds: 120),
+              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: AppTheme.onAccent,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ),

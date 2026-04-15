@@ -1139,6 +1139,32 @@ class SEn extends S {
       'The system folder picker is unavailable. Try another location or check app storage permissions.';
 
   @override
+  String get biometricUnlockPrompt => 'Unlock LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Unlock with biometrics';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Skip typing the master password when launching the app.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Biometric unlock is not available on this device.';
+
+  @override
+  String get biometricEnableFailed => 'Could not enable biometric unlock.';
+
+  @override
+  String get biometricEnabled => 'Biometric unlock enabled';
+
+  @override
+  String get biometricDisabled => 'Biometric unlock disabled';
+
+  @override
+  String get currentPasswordIncorrect => 'Current password is incorrect';
+
+  @override
   String get errLfsDecryptFailed =>
       'Wrong master password or corrupted .lfs archive';
 
