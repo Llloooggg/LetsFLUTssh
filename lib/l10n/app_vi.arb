@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "Đã nhập {count} host từ cấu hình SSH",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {

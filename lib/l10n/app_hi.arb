@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "SSH कॉन्फ़िग से {count} होस्ट आयात किए गए",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {

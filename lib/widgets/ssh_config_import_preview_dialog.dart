@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../core/import/openssh_config_importer.dart';
+import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
+import 'hover_region.dart';
 
 /// Preview dialog for the `~/.ssh/config` importer.
 ///
-/// Purely informational — the user sees what will be imported (hosts +
-/// any missing keys) and confirms. Returns true when the user accepts.
-class SshConfigImportPreviewDialog extends StatelessWidget {
+/// Renders every parsed host as a checkbox row so the user can cherry-pick
+/// which hosts to import. Returns the filtered [ImportResult] on accept
+/// (sessions + only the manager keys referenced by the kept sessions),
+/// or null on cancel.
+class SshConfigImportPreviewDialog extends StatefulWidget {
   final OpenSshConfigImportPreview preview;
   final String folderLabel;
 
@@ -19,11 +23,11 @@ class SshConfigImportPreviewDialog extends StatelessWidget {
     required this.folderLabel,
   });
 
-  static Future<bool?> show(
+  static Future<ImportResult?> show(
     BuildContext context, {
     required OpenSshConfigImportPreview preview,
     required String folderLabel,
-  }) => AppDialog.show<bool>(
+  }) => AppDialog.show<ImportResult>(
     context,
     builder: (_) => SshConfigImportPreviewDialog(
       preview: preview,
@@ -32,10 +36,73 @@ class SshConfigImportPreviewDialog extends StatelessWidget {
   );
 
   @override
+  State<SshConfigImportPreviewDialog> createState() =>
+      _SshConfigImportPreviewDialogState();
+}
+
+class _SshConfigImportPreviewDialogState
+    extends State<SshConfigImportPreviewDialog> {
+  late Set<String> _selectedIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = widget.preview.result.sessions.map((s) => s.id).toSet();
+  }
+
+  void _toggle(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleAll(bool? value) {
+    setState(() {
+      if (value == true) {
+        _selectedIds = widget.preview.result.sessions.map((s) => s.id).toSet();
+      } else {
+        _selectedIds = {};
+      }
+    });
+  }
+
+  ImportResult _buildFilteredResult() {
+    final selectedSessions = widget.preview.result.sessions
+        .where((s) => _selectedIds.contains(s.id))
+        .toList();
+    // Keep only manager keys referenced by the kept sessions so unselected
+    // hosts don't silently import their identity file into the key manager.
+    final referencedKeyIds = selectedSessions
+        .map((s) => s.keyId)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final filteredKeys = widget.preview.result.managerKeys
+        .where((k) => referencedKeyIds.contains(k.id))
+        .toList();
+    return ImportResult(
+      sessions: selectedSessions,
+      managerKeys: filteredKeys,
+      mode: widget.preview.result.mode,
+      emptyFolders: selectedSessions.isEmpty ? const {} : {widget.folderLabel},
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final hostCount = preview.result.sessions.length;
-    final hasHosts = hostCount > 0;
+    final allSessions = widget.preview.result.sessions;
+    final hasHosts = allSessions.isNotEmpty;
+    final allSelected = _selectedIds.length == allSessions.length;
+    final noneSelected = _selectedIds.isEmpty;
+    final tristate = allSelected
+        ? true
+        : noneSelected
+        ? false
+        : null;
 
     return AppDialog(
       title: s.sshConfigPreviewTitle,
@@ -45,26 +112,54 @@ class SshConfigImportPreviewDialog extends StatelessWidget {
         children: [
           Text(
             hasHosts
-                ? s.sshConfigPreviewHostsFound(hostCount)
+                ? s.sshConfigPreviewHostsFound(allSessions.length)
                 : s.sshConfigPreviewNoHosts,
             style: AppFonts.inter(fontSize: AppFonts.md),
           ),
           if (hasHosts) ...[
             const SizedBox(height: 8),
             Text(
-              s.sshConfigPreviewFolderLabel(folderLabel),
+              s.sshConfigPreviewFolderLabel(widget.folderLabel),
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fgDim,
               ),
             ),
-            const SizedBox(height: 12),
-            _HostList(sessions: preview.result.sessions),
-            if (preview.hostsWithMissingKeys.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            HoverRegion(
+              onTap: () => _toggleAll(tristate != true),
+              builder: (hovered) => Container(
+                color: hovered ? AppTheme.hover : null,
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: tristate,
+                      tristate: true,
+                      onChanged: _toggleAll,
+                    ),
+                    Text(
+                      '${_selectedIds.length} / ${allSessions.length}',
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.sm,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.fg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            _HostList(
+              sessions: allSessions,
+              selected: _selectedIds,
+              onToggle: _toggle,
+            ),
+            if (widget.preview.hostsWithMissingKeys.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 s.sshConfigPreviewMissingKeys(
-                  preview.hostsWithMissingKeys.join(', '),
+                  widget.preview.hostsWithMissingKeys.join(', '),
                 ),
                 style: AppFonts.inter(
                   fontSize: AppFonts.sm,
@@ -76,11 +171,11 @@ class SshConfigImportPreviewDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context, false)),
+        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
         AppDialogAction.primary(
           label: s.importData,
-          enabled: hasHosts,
-          onTap: () => Navigator.pop(context, true),
+          enabled: hasHosts && _selectedIds.isNotEmpty,
+          onTap: () => Navigator.pop(context, _buildFilteredResult()),
         ),
       ],
     );
@@ -89,7 +184,14 @@ class SshConfigImportPreviewDialog extends StatelessWidget {
 
 class _HostList extends StatelessWidget {
   final List sessions;
-  const _HostList({required this.sessions});
+  final Set<String> selected;
+  final void Function(String id) onToggle;
+
+  const _HostList({
+    required this.sessions,
+    required this.selected,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,15 +199,30 @@ class _HostList extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 260),
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final s in sessions)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(
-                  '${s.label}  —  ${s.user.isEmpty ? '?' : s.user}@${s.host}:${s.port}'
-                  '${s.keyId.isNotEmpty ? '  (key)' : ''}',
-                  style: AppFonts.mono(fontSize: AppFonts.sm),
+              HoverRegion(
+                onTap: () => onToggle(s.id),
+                builder: (hovered) => Container(
+                  color: hovered ? AppTheme.hover : null,
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: selected.contains(s.id),
+                        onChanged: (_) => onToggle(s.id),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${s.label}  —  ${s.user.isEmpty ? '?' : s.user}'
+                          '@${s.host}:${s.port}'
+                          '${s.keyId.isNotEmpty ? '  (key)' : ''}',
+                          style: AppFonts.mono(fontSize: AppFonts.sm),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],

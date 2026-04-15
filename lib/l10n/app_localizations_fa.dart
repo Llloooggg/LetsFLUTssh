@@ -711,13 +711,8 @@ class SFa extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return '$count میزبان از پیکربندی SSH وارد شد';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

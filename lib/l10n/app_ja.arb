@@ -133,7 +133,7 @@
   "hostKeyChangedWarning": "警告: このサーバーのホスト鍵が変更されました。中間者攻撃の可能性があるか、サーバーが再インストールされた可能性があります。",
   "unknownHostMessage": "このホストの信頼性を確認できません。接続を続行しますか？",
   "host": "ホスト",
-  "keyType": "鍵の種類",
+  "keyType": "キータイプ",
   "fingerprint": "フィンガープリント",
   "fingerprintCopied": "フィンガープリントをコピーしました",
   "copyFingerprint": "フィンガープリントをコピー",
@@ -141,7 +141,7 @@
   "accept": "承認",
   "importData": "データをインポート",
   "masterPassword": "マスターパスワード",
-  "confirmPassword": "パスワードを確認",
+  "confirmPassword": "パスワード確認",
   "importModeMergeDescription": "新しいセッションを追加し、既存のものを保持",
   "importModeReplaceDescription": "すべてのセッションをインポートしたもので置換",
   "errorPrefix": "エラー: {error}",
@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "SSH 設定から {count} 件のホストをインポートしました",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -471,8 +463,6 @@
   "clearedAllHosts": "すべての既知のホストを削除しました",
   "removedHost": "{host} を削除しました",
   "noHostsToExport": "エクスポートするホストがありません",
-  "keyType": "キータイプ",
-  "fingerprint": "フィンガープリント",
   "tools": "ツール",
   "sshKeys": "SSH キー",
   "sshKeysSubtitle": "認証用 SSH キーペアの管理",
@@ -503,7 +493,6 @@
   "passphrase": "パスフレーズ",
   "rememberPassphrase": "このセッションで記憶",
   "unlock": "ロック解除",
-  "masterPassword": "マスターパスワード",
   "masterPasswordSubtitle": "保存された認証情報をパスワードで保護",
   "setMasterPassword": "マスターパスワードを設定",
   "changeMasterPassword": "マスターパスワードを変更",
@@ -513,9 +502,7 @@
   "enterMasterPassword": "保存された認証情報にアクセスするにはマスターパスワードを入力してください。",
   "wrongMasterPassword": "パスワードが正しくありません。もう一度お試しください。",
   "newPassword": "新しいパスワード",
-  "confirmPassword": "パスワード確認",
   "currentPassword": "現在のパスワード",
-  "passwordsDoNotMatch": "パスワードが一致しません",
   "passwordTooShort": "パスワードは 8 文字以上必要です",
   "masterPasswordSet": "マスターパスワードを有効にしました",
   "masterPasswordChanged": "マスターパスワードを変更しました",
@@ -528,7 +515,6 @@
   "derivingKey": "暗号化キーを生成中...",
   "reEncrypting": "データを再暗号化中...",
   "confirmRemoveMasterPassword": "マスターパスワード保護を解除するには現在のパスワードを入力してください。認証情報は自動生成キーで再暗号化されます。",
-  "password": "パスワード",
   "securitySetupTitle": "セキュリティ設定",
   "securitySetupKeychainFound": "OS キーチェーンを検出しました ({keychainName})。データはシステムキーチェーンを使用して自動的に暗号化されます。",
   "securitySetupKeychainOptional": "追加の保護としてマスターパスワードを設定することもできます。",

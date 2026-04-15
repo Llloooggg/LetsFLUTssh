@@ -712,13 +712,8 @@ class SRu extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'Импортировано хостов из конфигурации SSH: $count';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

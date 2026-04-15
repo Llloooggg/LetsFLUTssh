@@ -805,24 +805,18 @@ class _ExportImportTile extends ConsumerWidget {
         folderLabel: folderLabel,
         keyLabelSuffix: date,
       );
-      final accepted = await SshConfigImportPreviewDialog.show(
+      final filtered = await SshConfigImportPreviewDialog.show(
         context,
         preview: preview,
         folderLabel: folderLabel,
       );
-      if (accepted != true || !context.mounted) return;
-      if (preview.result.sessions.isEmpty) return;
+      if (filtered == null || !context.mounted) return;
+      if (filtered.sessions.isEmpty) return;
 
-      await _applyFilteredImport(context, ref, preview.result);
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: S
-              .of(context)
-              .sshConfigImportedHosts(preview.result.sessions.length),
-          level: ToastLevel.success,
-        );
-      }
+      // _applyFilteredImport already shows a summary toast via
+      // formatImportSummary. A separate "imported N hosts" toast would be
+      // the same count under a different name, so we skip it here.
+      await _applyFilteredImport(context, ref, filtered);
     } catch (e) {
       AppLogger.instance.log(
         'SSH config import failed: $e',

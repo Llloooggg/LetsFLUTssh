@@ -716,13 +716,8 @@ class SDe extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return '$count Host(s) aus SSH-Konfiguration importiert';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

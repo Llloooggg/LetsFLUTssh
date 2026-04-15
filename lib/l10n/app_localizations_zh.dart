@@ -700,13 +700,8 @@ class SZh extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return '已从 SSH 配置导入 $count 个主机';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

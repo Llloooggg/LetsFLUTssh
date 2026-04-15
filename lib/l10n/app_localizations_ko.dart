@@ -700,13 +700,8 @@ class SKo extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'SSH 설정에서 호스트 $count개를 가져왔습니다';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

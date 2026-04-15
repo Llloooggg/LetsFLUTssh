@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "SSH 설정에서 호스트 {count}개를 가져왔습니다",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -471,8 +463,6 @@
   "clearedAllHosts": "모든 알려진 호스트를 삭제했습니다",
   "removedHost": "{host} 제거됨",
   "noHostsToExport": "내보낼 호스트가 없습니다",
-  "keyType": "키 유형",
-  "fingerprint": "지문",
   "tools": "도구",
   "sshKeys": "SSH 키",
   "sshKeysSubtitle": "인증용 SSH 키 쌍 관리",
@@ -503,7 +493,6 @@
   "passphrase": "암호문",
   "rememberPassphrase": "이 세션에서 기억",
   "unlock": "잠금 해제",
-  "masterPassword": "마스터 비밀번호",
   "masterPasswordSubtitle": "저장된 인증 정보를 비밀번호로 보호",
   "setMasterPassword": "마스터 비밀번호 설정",
   "changeMasterPassword": "마스터 비밀번호 변경",
@@ -513,9 +502,7 @@
   "enterMasterPassword": "저장된 인증 정보에 접근하려면 마스터 비밀번호를 입력하세요.",
   "wrongMasterPassword": "비밀번호가 올바르지 않습니다. 다시 시도하세요.",
   "newPassword": "새 비밀번호",
-  "confirmPassword": "비밀번호 확인",
   "currentPassword": "현재 비밀번호",
-  "passwordsDoNotMatch": "비밀번호가 일치하지 않습니다",
   "passwordTooShort": "비밀번호는 최소 8자 이상이어야 합니다",
   "masterPasswordSet": "마스터 비밀번호가 활성화되었습니다",
   "masterPasswordChanged": "마스터 비밀번호가 변경되었습니다",
@@ -528,7 +515,6 @@
   "derivingKey": "암호화 키 생성 중...",
   "reEncrypting": "데이터 재암호화 중...",
   "confirmRemoveMasterPassword": "마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.",
-  "password": "비밀번호",
   "securitySetupTitle": "보안 설정",
   "securitySetupKeychainFound": "OS 키체인이 감지되었습니다 ({keychainName}). 데이터가 시스템 키체인을 사용하여 자동으로 암호화됩니다.",
   "securitySetupKeychainOptional": "추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.",

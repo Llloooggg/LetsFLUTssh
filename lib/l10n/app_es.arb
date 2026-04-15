@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "Se importaron {count} host(s) desde la configuración SSH",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -471,8 +463,6 @@
   "clearedAllHosts": "Todos los hosts conocidos eliminados",
   "removedHost": "{host} eliminado",
   "noHostsToExport": "No hay hosts para exportar",
-  "keyType": "Tipo de clave",
-  "fingerprint": "Huella digital",
   "tools": "Herramientas",
   "sshKeys": "Claves SSH",
   "sshKeysSubtitle": "Gestión de pares de claves SSH para autenticación",
@@ -503,7 +493,6 @@
   "passphrase": "Frase de contraseña",
   "rememberPassphrase": "Recordar para esta sesión",
   "unlock": "Desbloquear",
-  "masterPassword": "Contraseña maestra",
   "masterPasswordSubtitle": "Proteger credenciales guardadas con contraseña",
   "setMasterPassword": "Establecer contraseña maestra",
   "changeMasterPassword": "Cambiar contraseña maestra",
@@ -513,9 +502,7 @@
   "enterMasterPassword": "Ingrese la contraseña maestra para acceder a sus credenciales guardadas.",
   "wrongMasterPassword": "Contraseña incorrecta. Por favor, inténtelo de nuevo.",
   "newPassword": "Nueva contraseña",
-  "confirmPassword": "Confirmar contraseña",
   "currentPassword": "Contraseña actual",
-  "passwordsDoNotMatch": "Las contraseñas no coinciden",
   "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
   "masterPasswordSet": "Contraseña maestra activada",
   "masterPasswordChanged": "Contraseña maestra cambiada",
@@ -528,7 +515,6 @@
   "derivingKey": "Derivando clave de cifrado...",
   "reEncrypting": "Re-cifrando datos...",
   "confirmRemoveMasterPassword": "Ingrese su contraseña actual para eliminar la protección de contraseña maestra. Las credenciales serán re-cifradas con una clave auto-generada.",
-  "password": "Contraseña",
   "securitySetupTitle": "Configuración de seguridad",
   "securitySetupKeychainFound": "Llavero del sistema detectado ({keychainName}). Sus datos serán cifrados automáticamente usando el llavero del sistema.",
   "securitySetupKeychainOptional": "También puede establecer una contraseña maestra para protección adicional.",

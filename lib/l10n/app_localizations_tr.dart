@@ -715,13 +715,8 @@ class STr extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'SSH yapılandırmasından $count host içe aktarıldı';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

@@ -711,13 +711,8 @@ class SVi extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'Đã nhập $count host từ cấu hình SSH';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

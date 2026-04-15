@@ -140,8 +140,8 @@
   "acceptAnyway": "Aceitar Mesmo Assim",
   "accept": "Aceitar",
   "importData": "Importar Dados",
-  "masterPassword": "Senha Mestra",
-  "confirmPassword": "Confirmar Senha",
+  "masterPassword": "Senha mestra",
+  "confirmPassword": "Confirmar senha",
   "importModeMergeDescription": "Adicionar novas sessões, manter existentes",
   "importModeReplaceDescription": "Substituir todas as sessões pelas importadas",
   "errorPrefix": "Erro: {error}",
@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "{count} host(s) importado(s) da configuração SSH",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -471,8 +463,6 @@
   "clearedAllHosts": "Todos os hosts conhecidos foram limpos",
   "removedHost": "{host} removido",
   "noHostsToExport": "Nenhum host para exportar",
-  "keyType": "Tipo de chave",
-  "fingerprint": "Impressão digital",
   "tools": "Ferramentas",
   "sshKeys": "Chaves SSH",
   "sshKeysSubtitle": "Gerenciar pares de chaves SSH para autenticação",
@@ -503,7 +493,6 @@
   "passphrase": "Frase secreta",
   "rememberPassphrase": "Lembrar para esta sessão",
   "unlock": "Desbloquear",
-  "masterPassword": "Senha mestra",
   "masterPasswordSubtitle": "Proteger credenciais salvas com senha",
   "setMasterPassword": "Definir senha mestra",
   "changeMasterPassword": "Alterar senha mestra",
@@ -513,9 +502,7 @@
   "enterMasterPassword": "Digite a senha mestra para acessar suas credenciais salvas.",
   "wrongMasterPassword": "Senha incorreta. Por favor, tente novamente.",
   "newPassword": "Nova senha",
-  "confirmPassword": "Confirmar senha",
   "currentPassword": "Senha atual",
-  "passwordsDoNotMatch": "As senhas não coincidem",
   "passwordTooShort": "A senha deve ter pelo menos 8 caracteres",
   "masterPasswordSet": "Senha mestra ativada",
   "masterPasswordChanged": "Senha mestra alterada",
@@ -528,7 +515,6 @@
   "derivingKey": "Derivando chave de criptografia...",
   "reEncrypting": "Re-criptografando dados...",
   "confirmRemoveMasterPassword": "Digite sua senha atual para remover a proteção de senha mestra. As credenciais serão re-criptografadas com uma chave auto-gerada.",
-  "password": "Senha",
   "securitySetupTitle": "Configuração de segurança",
   "securitySetupKeychainFound": "Chaveiro do sistema detectado ({keychainName}). Seus dados serão criptografados automaticamente usando o chaveiro do sistema.",
   "securitySetupKeychainOptional": "Você também pode definir uma senha mestra para proteção adicional.",

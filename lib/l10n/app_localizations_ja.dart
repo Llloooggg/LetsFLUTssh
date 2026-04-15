@@ -701,13 +701,8 @@ class SJa extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'SSH 設定から $count 件のホストをインポートしました';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

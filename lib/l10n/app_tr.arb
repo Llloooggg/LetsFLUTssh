@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "SSH yapılandırmasından {count} host içe aktarıldı",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {

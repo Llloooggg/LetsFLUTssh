@@ -711,13 +711,8 @@ class SEn extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'Imported $count host(s) from SSH config';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

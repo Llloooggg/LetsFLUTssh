@@ -717,13 +717,8 @@ class SFr extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return '$count hôte(s) importé(s) depuis la configuration SSH';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

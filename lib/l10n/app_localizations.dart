@@ -1395,16 +1395,10 @@ abstract class S {
   /// **'Imported to folder: {folder}'**
   String sshConfigPreviewFolderLabel(String folder);
 
-  /// No description provided for @sshConfigImportedHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported {count} host(s) from SSH config'**
-  String sshConfigImportedHosts(int count);
-
   /// No description provided for @sshConfigImportFolderName.
   ///
   /// In en, this message translates to:
-  /// **'~/.ssh {date}'**
+  /// **'.ssh {date}'**
   String sshConfigImportFolderName(String date);
 
   /// No description provided for @exportArchive.

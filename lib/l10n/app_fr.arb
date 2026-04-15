@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "{count} hôte(s) importé(s) depuis la configuration SSH",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -471,8 +463,6 @@
   "clearedAllHosts": "Tous les hôtes connus supprimés",
   "removedHost": "{host} supprimé",
   "noHostsToExport": "Aucun hôte à exporter",
-  "keyType": "Type de clé",
-  "fingerprint": "Empreinte",
   "tools": "Outils",
   "sshKeys": "Clés SSH",
   "sshKeysSubtitle": "Gestion des paires de clés SSH pour l'authentification",
@@ -503,7 +493,6 @@
   "passphrase": "Phrase secrète",
   "rememberPassphrase": "Retenir pour cette session",
   "unlock": "Déverrouiller",
-  "masterPassword": "Mot de passe principal",
   "masterPasswordSubtitle": "Protéger les identifiants enregistrés par mot de passe",
   "setMasterPassword": "Définir le mot de passe principal",
   "changeMasterPassword": "Modifier le mot de passe principal",
@@ -513,9 +502,7 @@
   "enterMasterPassword": "Entrez le mot de passe principal pour accéder à vos identifiants.",
   "wrongMasterPassword": "Mot de passe incorrect. Veuillez réessayer.",
   "newPassword": "Nouveau mot de passe",
-  "confirmPassword": "Confirmer le mot de passe",
   "currentPassword": "Mot de passe actuel",
-  "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
   "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
   "masterPasswordSet": "Mot de passe principal activé",
   "masterPasswordChanged": "Mot de passe principal modifié",
@@ -528,7 +515,6 @@
   "derivingKey": "Dérivation de la clé de chiffrement...",
   "reEncrypting": "Re-chiffrement des données...",
   "confirmRemoveMasterPassword": "Entrez votre mot de passe actuel pour supprimer la protection par mot de passe principal. Les identifiants seront re-chiffrés avec une clé auto-générée.",
-  "password": "Mot de passe",
   "securitySetupTitle": "Configuration de la sécurité",
   "securitySetupKeychainFound": "Trousseau du système détecté ({keychainName}). Vos données seront automatiquement chiffrées avec votre trousseau système.",
   "securitySetupKeychainOptional": "Vous pouvez aussi définir un mot de passe principal pour une protection supplémentaire.",

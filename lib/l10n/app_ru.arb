@@ -141,7 +141,7 @@
   "accept": "Принять",
   "importData": "Импорт данных",
   "masterPassword": "Мастер-пароль",
-  "confirmPassword": "Подтвердите пароль",
+  "confirmPassword": "Подтверждение пароля",
   "importModeMergeDescription": "Добавить новые сессии, сохранить существующие",
   "importModeReplaceDescription": "Заменить все сессии импортированными",
   "errorPrefix": "Ошибка: {error}",
@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "Импортировано хостов из конфигурации SSH: {count}",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -471,8 +463,6 @@
   "clearedAllHosts": "Все известные хосты очищены",
   "removedHost": "Удалён {host}",
   "noHostsToExport": "Нет хостов для экспорта",
-  "keyType": "Тип ключа",
-  "fingerprint": "Отпечаток",
   "tools": "Инструменты",
   "sshKeys": "SSH-ключи",
   "sshKeysSubtitle": "Управление парами SSH-ключей для аутентификации",
@@ -503,8 +493,6 @@
   "passphrase": "Парольная фраза",
   "rememberPassphrase": "Запомнить для этой сессии",
   "unlock": "Разблокировать",
-
-  "masterPassword": "Мастер-пароль",
   "masterPasswordSubtitle": "Защита сохранённых учётных данных паролем",
   "setMasterPassword": "Установить мастер-пароль",
   "changeMasterPassword": "Изменить мастер-пароль",
@@ -514,9 +502,7 @@
   "enterMasterPassword": "Введите мастер-пароль для доступа к сохранённым учётным данным.",
   "wrongMasterPassword": "Неверный пароль. Попробуйте ещё раз.",
   "newPassword": "Новый пароль",
-  "confirmPassword": "Подтверждение пароля",
   "currentPassword": "Текущий пароль",
-  "passwordsDoNotMatch": "Пароли не совпадают",
   "passwordTooShort": "Пароль должен содержать минимум 8 символов",
   "masterPasswordSet": "Мастер-пароль установлен",
   "masterPasswordChanged": "Мастер-пароль изменён",
@@ -529,8 +515,6 @@
   "derivingKey": "Генерация ключа шифрования...",
   "reEncrypting": "Перешифрование данных...",
   "confirmRemoveMasterPassword": "Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.",
-  "password": "Пароль",
-
   "securitySetupTitle": "Настройка безопасности",
   "securitySetupKeychainFound": "Обнаружена связка ключей ОС ({keychainName}). Ваши данные будут автоматически зашифрованы с использованием системной связки ключей.",
   "securitySetupKeychainOptional": "Вы также можете установить мастер-пароль для дополнительной защиты.",
@@ -539,7 +523,6 @@
   "securitySetupRecommendMasterPassword": "Рекомендуем установить мастер-пароль для защиты ваших данных.",
   "continueWithKeychain": "Продолжить со связкой ключей",
   "continueWithoutEncryption": "Продолжить без шифрования",
-
   "securityLevel": "Уровень безопасности",
   "securityLevelPlaintext": "Нет (открытый текст)",
   "securityLevelKeychain": "Связка ключей ОС",

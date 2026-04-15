@@ -251,7 +251,7 @@
   "hostKeyChangedWarning": "WARNING: The host key for this server has changed. This could indicate a man-in-the-middle attack, or the server may have been reinstalled.",
   "unknownHostMessage": "The authenticity of this host cannot be established. Are you sure you want to continue connecting?",
   "host": "Host",
-  "keyType": "Key type",
+  "keyType": "Key Type",
   "fingerprint": "Fingerprint",
   "fingerprintCopied": "Fingerprint copied",
   "copyFingerprint": "Copy fingerprint",
@@ -407,15 +407,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "Imported {count} host(s) from SSH config",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "exportArchive": "Export archive",
   "exportArchiveSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
   "exportQrCode": "Export QR code",
@@ -954,8 +946,6 @@
     }
   },
   "noHostsToExport": "No known hosts to export",
-  "keyType": "Key Type",
-  "fingerprint": "Fingerprint",
   "tools": "Tools",
   "sshKeys": "SSH Keys",
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",
@@ -1028,8 +1018,6 @@
   "passphrase": "Passphrase",
   "rememberPassphrase": "Remember for this session",
   "unlock": "Unlock",
-
-  "masterPassword": "Master Password",
   "masterPasswordSubtitle": "Protect saved credentials with a password",
   "setMasterPassword": "Set Master Password",
   "changeMasterPassword": "Change Master Password",
@@ -1039,9 +1027,7 @@
   "enterMasterPassword": "Enter master password to unlock your saved credentials.",
   "wrongMasterPassword": "Wrong password. Please try again.",
   "newPassword": "New Password",
-  "confirmPassword": "Confirm Password",
   "currentPassword": "Current Password",
-  "passwordsDoNotMatch": "Passwords do not match",
   "passwordTooShort": "Password must be at least 8 characters",
   "masterPasswordSet": "Master password enabled",
   "masterPasswordChanged": "Master password changed",
@@ -1054,13 +1040,13 @@
   "derivingKey": "Deriving encryption key...",
   "reEncrypting": "Re-encrypting data...",
   "confirmRemoveMasterPassword": "Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.",
-  "password": "Password",
-
   "securitySetupTitle": "Security Setup",
   "securitySetupKeychainFound": "OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.",
   "@securitySetupKeychainFound": {
     "placeholders": {
-      "keychainName": {"type": "String"}
+      "keychainName": {
+        "type": "String"
+      }
     }
   },
   "securitySetupKeychainOptional": "You can also set a master password for additional protection.",
@@ -1069,7 +1055,6 @@
   "securitySetupRecommendMasterPassword": "We recommend setting a master password to protect your data.",
   "continueWithKeychain": "Continue with Keychain",
   "continueWithoutEncryption": "Continue without Encryption",
-
   "securityLevel": "Security Level",
   "securityLevelPlaintext": "None (plaintext)",
   "securityLevelKeychain": "OS Keychain",
@@ -1078,7 +1063,9 @@
   "keychainAvailable": "Available ({name})",
   "@keychainAvailable": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "keychainNotAvailable": "Not available",
@@ -1087,7 +1074,6 @@
   "keychainEnabled": "Keychain encryption enabled",
   "manageMasterPassword": "Manage Master Password",
   "manageMasterPasswordSubtitle": "Set, change, or remove master password",
-
   "snippets": "Snippets",
   "snippetsSubtitle": "Manage reusable command snippets",
   "noSnippets": "No snippets yet",
@@ -1132,7 +1118,6 @@
   "allSnippets": "All",
   "sendToTerminal": "Send to terminal",
   "commandCopied": "Command copied to clipboard",
-
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",

@@ -710,13 +710,8 @@ class SAr extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'تم استيراد $count مضيف من إعدادات SSH';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

@@ -715,13 +715,8 @@ class SId extends S {
   }
 
   @override
-  String sshConfigImportedHosts(int count) {
-    return 'Berhasil mengimpor $count host dari konfigurasi SSH';
-  }
-
-  @override
   String sshConfigImportFolderName(String date) {
-    return '~/.ssh $date';
+    return '.ssh $date';
   }
 
   @override

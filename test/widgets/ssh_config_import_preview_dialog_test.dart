@@ -76,13 +76,69 @@ void main() {
         wrap(
           SshConfigImportPreviewDialog(
             preview: preview,
-            folderLabel: '~/.ssh 2026-04-15',
+            folderLabel: '.ssh 2026-04-15',
           ),
         ),
       );
       await tester.pump();
 
       expect(find.textContaining('bastion'), findsOneWidget);
+    });
+
+    testWidgets(
+      'per-host checkboxes default to all selected and can be toggled off',
+      (tester) async {
+        final preview = makePreview(hosts: 3);
+        await tester.pumpWidget(
+          wrap(
+            SshConfigImportPreviewDialog(
+              preview: preview,
+              folderLabel: '.ssh 2026-04-15',
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // 1 tristate + 3 per-host = 4 checkboxes, all checked initially.
+        final boxes = tester.widgetList<Checkbox>(find.byType(Checkbox));
+        expect(boxes.length, 4);
+        expect(boxes.every((c) => c.value == true), isTrue);
+
+        // Tap first host row label (h0) — should deselect just that host.
+        await tester.tap(find.textContaining('h0'));
+        await tester.pump();
+
+        final after = tester
+            .widgetList<Checkbox>(find.byType(Checkbox))
+            .toList();
+        // Tristate becomes null (mixed), one host off.
+        expect(after.first.value, isNull);
+        final hostStates = after.sublist(1).map((c) => c.value).toList();
+        expect(hostStates.where((v) => v == false).length, 1);
+        expect(hostStates.where((v) => v == true).length, 2);
+      },
+    );
+
+    testWidgets('tristate checkbox toggles all hosts on/off', (tester) async {
+      final preview = makePreview(hosts: 2);
+      await tester.pumpWidget(
+        wrap(
+          SshConfigImportPreviewDialog(
+            preview: preview,
+            folderLabel: '.ssh 2026-04-15',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Initial state: all checked. Tap the tristate (first Checkbox) to clear.
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pump();
+
+      final cleared = tester
+          .widgetList<Checkbox>(find.byType(Checkbox))
+          .toList();
+      expect(cleared.every((c) => c.value == false), isTrue);
     });
   });
 }

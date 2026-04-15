@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "تم استيراد {count} مضيف من إعدادات SSH",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {

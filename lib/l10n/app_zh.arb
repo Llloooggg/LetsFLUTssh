@@ -230,15 +230,7 @@
       }
     }
   },
-  "sshConfigImportedHosts": "已从 SSH 配置导入 {count} 个主机",
-  "@sshConfigImportedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "sshConfigImportFolderName": "~/.ssh {date}",
+  "sshConfigImportFolderName": ".ssh {date}",
   "@sshConfigImportFolderName": {
     "placeholders": {
       "date": {
@@ -287,7 +279,7 @@
   },
   "sshKeyAlreadyImported": "已在存储中",
   "setMasterPasswordHint": "设置主密码以加密存档。",
-  "passwordsDoNotMatch": "密码不一致",
+  "passwordsDoNotMatch": "密码不匹配",
   "exportedTo": "已导出至：{path}",
   "exportFailed": "导出失败：{error}",
   "pathToLfsFile": ".lfs 文件路径",
@@ -438,7 +430,7 @@
   "transferDone": "完成",
   "transferFilesProgress": "{done}/{total} 个文件",
   "folderNameLabel": "文件夹名称",
-  "folderAlreadyExists": "文件夹\u201c{name}\u201d已存在",
+  "folderAlreadyExists": "文件夹“{name}”已存在",
   "dropKeyFileHere": "将密钥文件拖放到此处",
   "sessionNoCredentials": "会话没有凭据——请先编辑添加密码或密钥",
   "dragItemCount": "{count} 个项目",
@@ -471,8 +463,6 @@
   "clearedAllHosts": "已清除所有已知主机",
   "removedHost": "已移除 {host}",
   "noHostsToExport": "没有可导出的主机",
-  "keyType": "密钥类型",
-  "fingerprint": "指纹",
   "tools": "工具",
   "sshKeys": "SSH 密钥",
   "sshKeysSubtitle": "管理用于身份验证的 SSH 密钥对",
@@ -486,7 +476,7 @@
   "keyGenerated": "密钥已生成：{label}",
   "keyImported": "密钥已导入：{label}",
   "deleteKey": "删除密钥",
-  "deleteKeyConfirm": "删除密钥\u201c{label}\u201d？使用该密钥的会话将失去访问权限。",
+  "deleteKeyConfirm": "删除密钥“{label}”？使用该密钥的会话将失去访问权限。",
   "keyDeleted": "密钥已删除：{label}",
   "publicKey": "公钥",
   "publicKeyCopied": "公钥已复制到剪贴板",
@@ -503,7 +493,6 @@
   "passphrase": "密码短语",
   "rememberPassphrase": "在此会话中记住",
   "unlock": "解锁",
-  "masterPassword": "主密码",
   "masterPasswordSubtitle": "使用密码保护已保存的凭据",
   "setMasterPassword": "设置主密码",
   "changeMasterPassword": "更改主密码",
@@ -513,9 +502,7 @@
   "enterMasterPassword": "输入主密码以访问已保存的凭据。",
   "wrongMasterPassword": "密码错误。请重试。",
   "newPassword": "新密码",
-  "confirmPassword": "确认密码",
   "currentPassword": "当前密码",
-  "passwordsDoNotMatch": "密码不匹配",
   "passwordTooShort": "密码至少需要 8 个字符",
   "masterPasswordSet": "主密码已启用",
   "masterPasswordChanged": "主密码已更改",
@@ -528,7 +515,6 @@
   "derivingKey": "正在生成加密密钥...",
   "reEncrypting": "正在重新加密数据...",
   "confirmRemoveMasterPassword": "输入当前密码以移除主密码保护。凭据将使用自动生成的密钥重新加密。",
-  "password": "密码",
   "securitySetupTitle": "安全设置",
   "securitySetupKeychainFound": "检测到系统钥匙串 ({keychainName})。您的数据将使用系统钥匙串自动加密。",
   "securitySetupKeychainOptional": "您还可以设置主密码以获得额外保护。",
