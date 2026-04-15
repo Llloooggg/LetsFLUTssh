@@ -1142,8 +1142,22 @@ class SId extends S {
       'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Pemilih folder sistem tidak tersedia. Coba lokasi lain atau periksa izin penyimpanan aplikasi.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Kata sandi utama salah atau arsip .lfs rusak';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Arsip terlalu besar ($sizeMb MB). Batasnya adalah $limitMb MB — dibatalkan sebelum dekripsi untuk melindungi memori.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Arsip menggunakan skema v$found, tetapi build ini hanya mendukung hingga v$supported. Perbarui aplikasi untuk mengimpornya.';
+  }
 
   @override
   String get progressReadingArchive => 'Membaca arsip…';

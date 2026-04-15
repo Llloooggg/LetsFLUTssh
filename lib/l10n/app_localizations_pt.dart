@@ -1142,8 +1142,22 @@ class SPt extends S {
       'Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'O seletor de pastas do sistema não está disponível. Tente outro local ou verifique as permissões de armazenamento do aplicativo.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Senha mestra incorreta ou arquivo .lfs corrompido';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Arquivo muito grande ($sizeMb MB). O limite é de $limitMb MB — interrompido antes da descriptografia para proteger a memória.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'O arquivo usa o esquema v$found, mas esta versão do app só entende até v$supported. Atualize o aplicativo para importá-lo.';
+  }
 
   @override
   String get progressReadingArchive => 'Lendo arquivo…';

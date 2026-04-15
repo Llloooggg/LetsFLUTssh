@@ -1117,7 +1117,21 @@ class SJa extends S {
   String get errDecryptionFailed => '認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。';
 
   @override
+  String get errExportPickerUnavailable =>
+      'システムのフォルダピッカーを利用できません。別の場所を試すか、アプリのストレージ権限を確認してください。';
+
+  @override
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'アーカイブが大きすぎます ($sizeMb MB)。上限は $limitMb MB です。メモリ保護のため、復号前に中止しました。';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'アーカイブはスキーマ v$found を使用していますが、このビルドは v$supported までしか対応していません。インポートするにはアプリを更新してください。';
+  }
 
   @override
   String get progressReadingArchive => 'アーカイブを読み込み中…';

@@ -670,4 +670,45 @@ void main() {
       expect(legacy.createdAt, isNull);
     });
   });
+
+  group('ExportImport — archive size limit', () {
+    test('rejects oversized archive before decrypt', () async {
+      final filePath = '${tempDir.path}/huge.lfs';
+      // Write a file marginally above the limit. Content is garbage — the
+      // reject must happen on length check, long before any crypto runs.
+      final file = File(filePath);
+      await file.writeAsBytes(
+        List<int>.filled(ExportImport.maxArchiveBytes + 1, 0),
+      );
+
+      await expectLater(
+        ExportImport.import_(
+          filePath: filePath,
+          masterPassword: 'x',
+          mode: ImportMode.merge,
+        ),
+        throwsA(isA<LfsArchiveTooLargeException>()),
+      );
+    });
+
+    test('LfsArchiveTooLargeException carries size and limit', () {
+      const ex = LfsArchiveTooLargeException(size: 123456, limit: 1000);
+      expect(ex.size, 123456);
+      expect(ex.limit, 1000);
+      expect(ex.toString(), contains('123456'));
+    });
+  });
+
+  group('ExportImport — atomic write', () {
+    test('successful export leaves no .tmp on disk', () async {
+      final outputPath = '${tempDir.path}/atomic.lfs';
+      await ExportImport.export(
+        masterPassword: 'pw',
+        outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+      );
+      expect(await File(outputPath).exists(), isTrue);
+      expect(await File('$outputPath.tmp').exists(), isFalse);
+    });
+  });
 }

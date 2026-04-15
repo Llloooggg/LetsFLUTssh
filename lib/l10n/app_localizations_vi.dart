@@ -1135,7 +1135,21 @@ class SVi extends S {
       'Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Bộ chọn thư mục của hệ thống không khả dụng. Hãy thử vị trí khác hoặc kiểm tra quyền lưu trữ của ứng dụng.';
+
+  @override
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Tệp lưu trữ quá lớn ($sizeMb MB). Giới hạn là $limitMb MB — đã hủy trước khi giải mã để bảo vệ bộ nhớ.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Tệp lưu trữ sử dụng lược đồ v$found, nhưng bản dựng này chỉ hỗ trợ đến v$supported. Hãy cập nhật ứng dụng để nhập nó.';
+  }
 
   @override
   String get progressReadingArchive => 'Đang đọc kho lưu trữ…';

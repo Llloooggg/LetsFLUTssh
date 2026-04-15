@@ -1135,7 +1135,21 @@ class SFa extends S {
       'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'انتخابگر پوشهٔ سیستم در دسترس نیست. مکان دیگری را امتحان کنید یا مجوزهای ذخیره‌سازی برنامه را بررسی کنید.';
+
+  @override
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'بایگانی بسیار بزرگ است ($sizeMb مگابایت). محدودیت $limitMb مگابایت است — برای محافظت از حافظه، پیش از رمزگشایی لغو شد.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'بایگانی از طرح v$found استفاده می‌کند، اما این نسخه فقط تا v$supported را پشتیبانی می‌کند. برای وارد کردن آن، برنامه را به‌روزرسانی کنید.';
+  }
 
   @override
   String get progressReadingArchive => 'خواندن بایگانی…';

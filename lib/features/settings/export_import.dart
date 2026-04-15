@@ -39,6 +39,14 @@ class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;
   static const _pbkdf2Iterations = 600000;
+
+  /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
+  /// decryption or decompression so a pathologically large file can't OOM
+  /// the process — PBKDF2 + AES-GCM both hold the full plaintext in memory
+  /// on mobile. Legitimate exports are dominated by session credentials and
+  /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
+  /// is generous for normal use but catches zip-bomb-scale inputs.
+  static const int maxArchiveBytes = 50 * 1024 * 1024;
   static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
@@ -203,11 +211,29 @@ class ExportImport {
       name: 'ExportImport',
     );
 
-    // Write to file
+    // Write atomically: flush to "<outputPath>.tmp", then rename. If the write
+    // fails mid-way (I/O error, out of space, process killed), we don't leave
+    // a half-formed .lfs next to a usable old one — users could pick it up,
+    // type the master password, and get a decrypt error. rename(2) is atomic
+    // on a single filesystem; on mobile/SAF the temp sits in the same dir so
+    // this holds.
     progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
     final file = File(outputPath);
     await file.parent.create(recursive: true);
-    await file.writeAsBytes(encrypted);
+    final tmp = File('$outputPath.tmp');
+    try {
+      await tmp.writeAsBytes(encrypted, flush: true);
+      await tmp.rename(outputPath);
+    } catch (e) {
+      if (await tmp.exists()) {
+        try {
+          await tmp.delete();
+        } catch (_) {
+          // Best-effort cleanup; original error is what the user needs.
+        }
+      }
+      rethrow;
+    }
 
     return outputPath;
   }
@@ -234,29 +260,18 @@ class ExportImport {
     if (appVersion != null && appVersion.isNotEmpty) {
       manifest['app_version'] = appVersion;
     }
-    final json = const JsonEncoder.withIndent('  ').convert(manifest);
-    final bytes = utf8.encode(json);
-    archive.addFile(ArchiveFile(_manifestFile, bytes.length, bytes));
+    _addRawJson(archive, _manifestFile, manifest);
   }
 
   static void _addSessions(Archive archive, LfsExportInput input) {
     if (!input.options.includeSessions) return;
-    final sessionsJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(input.sessions.map((s) => s.toJsonWithCredentials()).toList());
-    final sessionsBytes = utf8.encode(sessionsJson);
-    archive.addFile(
-      ArchiveFile(_sessionsFile, sessionsBytes.length, sessionsBytes),
+    _addJsonFile(
+      archive,
+      _sessionsFile,
+      input.sessions.map((s) => s.toJsonWithCredentials()).toList(),
     );
-
     if (input.emptyFolders.isNotEmpty) {
-      final foldersJson = const JsonEncoder.withIndent(
-        '  ',
-      ).convert(input.emptyFolders.toList());
-      final foldersBytes = utf8.encode(foldersJson);
-      archive.addFile(
-        ArchiveFile(_emptyFoldersFile, foldersBytes.length, foldersBytes),
-      );
+      _addJsonFile(archive, _emptyFoldersFile, input.emptyFolders.toList());
     }
   }
 
@@ -264,7 +279,9 @@ class ExportImport {
     if (!input.options.hasManagerKeys || input.managerKeyEntries.isEmpty) {
       return;
     }
-    final keysJson = const JsonEncoder.withIndent('  ').convert(
+    _addJsonFile(
+      archive,
+      _keysFile,
       input.managerKeyEntries
           .map(
             (e) => {
@@ -279,24 +296,17 @@ class ExportImport {
           )
           .toList(),
     );
-    final keysBytes = utf8.encode(keysJson);
-    archive.addFile(ArchiveFile(_keysFile, keysBytes.length, keysBytes));
   }
 
   static void _addConfig(Archive archive, LfsExportInput input) {
     if (!input.options.includeConfig) return;
-    final configJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(input.config.toJson());
-    final configBytes = utf8.encode(configJson);
-    archive.addFile(ArchiveFile(_configFile, configBytes.length, configBytes));
+    _addRawJson(archive, _configFile, input.config.toJson());
   }
 
   static void _addKnownHosts(Archive archive, LfsExportInput input) {
     final kh = input.knownHostsContent;
     if (!input.options.includeKnownHosts || kh == null || kh.isEmpty) return;
-    final khBytes = utf8.encode(kh);
-    archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
+    _addTextFile(archive, _knownHostsFile, kh);
   }
 
   static void _addTags(Archive archive, LfsExportInput input) {
@@ -384,6 +394,10 @@ class ExportImport {
   }) async {
     progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
     final file = File(filePath);
+    final fileSize = await file.length();
+    if (fileSize > maxArchiveBytes) {
+      throw LfsArchiveTooLargeException(size: fileSize, limit: maxArchiveBytes);
+    }
     final encData = await file.readAsBytes();
 
     progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
@@ -592,8 +606,21 @@ class ExportImport {
   // --- Crypto helpers ---
 
   static void _addJsonFile(Archive archive, String name, List<dynamic> data) {
+    _addRawJson(archive, name, data);
+  }
+
+  /// Encode any JSON-serializable value to pretty-printed UTF-8 bytes and
+  /// attach it as an archive entry. Single entry point for every JSON entry
+  /// in the archive so padding/indentation stays consistent.
+  static void _addRawJson(Archive archive, String name, Object? data) {
     final json = const JsonEncoder.withIndent('  ').convert(data);
-    final bytes = utf8.encode(json);
+    _addTextFile(archive, name, json);
+  }
+
+  /// Attach a UTF-8 text blob as an archive entry (known_hosts is raw text,
+  /// not JSON — this is the one place that path matters).
+  static void _addTextFile(Archive archive, String name, String text) {
+    final bytes = utf8.encode(text);
     archive.addFile(ArchiveFile(name, bytes.length, bytes));
   }
 
@@ -701,6 +728,19 @@ class UnsupportedLfsVersionException implements Exception {
   String toString() =>
       'UnsupportedLfsVersionException: archive schema v$found is newer '
       'than supported v$supported. Update the app to import this file.';
+}
+
+/// Thrown before decryption when the on-disk archive is larger than
+/// [ExportImport.maxArchiveBytes]. The UI should show a localized message
+/// telling the user the archive was rejected without attempting to decrypt.
+class LfsArchiveTooLargeException implements Exception {
+  final int size;
+  final int limit;
+  const LfsArchiveTooLargeException({required this.size, required this.limit});
+
+  @override
+  String toString() =>
+      'LfsArchiveTooLargeException: archive is $size bytes, limit is $limit';
 }
 
 /// Thrown when decrypting/unpacking an .lfs archive fails — either because

@@ -1116,7 +1116,21 @@ class SKo extends S {
   String get errDecryptionFailed => '자격 증명 복호화에 실패했습니다. 키 파일이 손상되었을 수 있습니다.';
 
   @override
+  String get errExportPickerUnavailable =>
+      '시스템 폴더 선택기를 사용할 수 없습니다. 다른 위치를 시도하거나 앱의 저장소 권한을 확인하세요.';
+
+  @override
   String get errLfsDecryptFailed => '마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return '아카이브가 너무 큽니다 ($sizeMb MB). 제한은 $limitMb MB이며, 메모리 보호를 위해 복호화 전에 중단되었습니다.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return '아카이브는 스키마 v$found을(를) 사용하지만, 이 빌드는 v$supported까지만 지원합니다. 가져오려면 앱을 업데이트하세요.';
+  }
 
   @override
   String get progressReadingArchive => '아카이브 읽는 중…';

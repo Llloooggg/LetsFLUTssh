@@ -1149,8 +1149,22 @@ class SFr extends S {
       'Impossible de déchiffrer les identifiants. Le fichier de clé est peut-être corrompu.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Le sélecteur de dossier système n\'est pas disponible. Essayez un autre emplacement ou vérifiez les autorisations de stockage de l\'application.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Mot de passe maître incorrect ou archive .lfs corrompue';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'L\'archive est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu avant le déchiffrement pour protéger la mémoire.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'L\'archive utilise le schéma v$found, mais cette version ne prend en charge que jusqu\'à v$supported. Mettez à jour l\'application pour l\'importer.';
+  }
 
   @override
   String get progressReadingArchive => 'Lecture de l\'archive…';

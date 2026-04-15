@@ -1135,8 +1135,22 @@ class SEn extends S {
       'Failed to decrypt credentials. Key file may be corrupted.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'The system folder picker is unavailable. Try another location or check app storage permissions.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Wrong master password or corrupted .lfs archive';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Archive is too large ($sizeMb MB). The limit is $limitMb MB — aborted before decryption to protect memory.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Archive uses schema v$found, but this build only understands up to v$supported. Update the app to import it.';
+  }
 
   @override
   String get progressReadingArchive => 'Reading archive…';

@@ -1144,8 +1144,22 @@ class SEs extends S {
       'Error al descifrar las credenciales. El archivo de clave puede estar dañado.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'El selector de carpetas del sistema no está disponible. Pruebe otra ubicación o verifique los permisos de almacenamiento de la aplicación.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Contraseña maestra incorrecta o archivo .lfs dañado';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'El archivo es demasiado grande ($sizeMb MB). El límite es de $limitMb MB: cancelado antes del descifrado para proteger la memoria.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'El archivo usa el esquema v$found, pero esta versión solo admite hasta v$supported. Actualiza la aplicación para importarlo.';
+  }
 
   @override
   String get progressReadingArchive => 'Leyendo archivo…';

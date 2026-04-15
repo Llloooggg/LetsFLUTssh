@@ -1132,8 +1132,22 @@ class SAr extends S {
       'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'منتقي المجلدات في النظام غير متاح. جرّب موقعاً آخر أو تحقق من أذونات تخزين التطبيق.';
+
+  @override
   String get errLfsDecryptFailed =>
       'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'الأرشيف كبير جدًا ($sizeMb ميجابايت). الحد الأقصى هو $limitMb ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'يستخدم الأرشيف المخطط v$found، لكن هذا الإصدار يدعم فقط حتى v$supported. قم بتحديث التطبيق لاستيراده.';
+  }
 
   @override
   String get progressReadingArchive => 'قراءة الأرشيف…';

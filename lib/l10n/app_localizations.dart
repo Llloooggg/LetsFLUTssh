@@ -2151,11 +2151,29 @@ abstract class S {
   /// **'Failed to decrypt credentials. Key file may be corrupted.'**
   String get errDecryptionFailed;
 
+  /// No description provided for @errExportPickerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The system folder picker is unavailable. Try another location or check app storage permissions.'**
+  String get errExportPickerUnavailable;
+
   /// No description provided for @errLfsDecryptFailed.
   ///
   /// In en, this message translates to:
   /// **'Wrong master password or corrupted .lfs archive'**
   String get errLfsDecryptFailed;
+
+  /// No description provided for @errLfsArchiveTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.'**
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb);
+
+  /// No description provided for @errLfsUnsupportedVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.'**
+  String errLfsUnsupportedVersion(int found, int supported);
 
   /// No description provided for @progressReadingArchive.
   ///

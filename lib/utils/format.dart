@@ -6,7 +6,10 @@ import '../core/import/import_service.dart';
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../features/settings/export_import.dart'
-    show LfsDecryptionFailedException;
+    show
+        LfsArchiveTooLargeException,
+        LfsDecryptionFailedException,
+        UnsupportedLfsVersionException;
 import '../l10n/app_localizations.dart';
 import 'sanitize.dart';
 
@@ -119,6 +122,15 @@ String? _sanitizeErrnoMessage(String msg) {
 /// Use this in UI code where [BuildContext] is available.
 /// Falls back to [sanitizeError] for unknown error types.
 String localizeError(S l10n, Object error) {
+  if (error is LfsArchiveTooLargeException) {
+    return l10n.errLfsArchiveTooLarge(
+      (error.size / (1024 * 1024)).toStringAsFixed(1),
+      (error.limit / (1024 * 1024)).toStringAsFixed(0),
+    );
+  }
+  if (error is UnsupportedLfsVersionException) {
+    return l10n.errLfsUnsupportedVersion(error.found, error.supported);
+  }
   if (error is LfsDecryptionFailedException) {
     return l10n.errLfsDecryptFailed;
   }

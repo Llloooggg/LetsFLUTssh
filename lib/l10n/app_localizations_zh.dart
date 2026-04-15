@@ -1114,7 +1114,20 @@ class SZh extends S {
   String get errDecryptionFailed => '凭据解密失败。密钥文件可能已损坏。';
 
   @override
+  String get errExportPickerUnavailable => '系统文件夹选择器不可用。请尝试其他位置或检查应用的存储权限。';
+
+  @override
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return '归档过大（$sizeMb MB）。上限为 $limitMb MB — 已在解密前中止以保护内存。';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return '归档使用架构 v$found，但此版本仅支持到 v$supported。请更新应用以导入它。';
+  }
 
   @override
   String get progressReadingArchive => '正在读取归档…';

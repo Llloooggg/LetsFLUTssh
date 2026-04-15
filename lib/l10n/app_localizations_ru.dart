@@ -1138,8 +1138,22 @@ class SRu extends S {
       'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Системный выбор папки недоступен. Попробуйте другое расположение или проверьте разрешения на доступ к хранилищу.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Неверный мастер-пароль или повреждённый архив .lfs';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Архив слишком большой ($sizeMb МБ). Лимит — $limitMb МБ — прерывание до расшифровки для защиты памяти.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Архив использует схему v$found, а эта сборка поддерживает только до v$supported. Обновите приложение для импорта.';
+  }
 
   @override
   String get progressReadingArchive => 'Чтение архива…';

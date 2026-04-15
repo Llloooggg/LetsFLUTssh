@@ -1147,8 +1147,22 @@ class SDe extends S {
       'Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Die System-Ordnerauswahl ist nicht verfügbar. Versuchen Sie einen anderen Speicherort oder überprüfen Sie die Speicherberechtigungen der App.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Archiv ist zu groß ($sizeMb MB). Das Limit beträgt $limitMb MB – Abbruch vor der Entschlüsselung zum Schutz des Speichers.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Archiv verwendet Schema v$found, aber dieser Build unterstützt nur bis v$supported. Aktualisieren Sie die App, um es zu importieren.';
+  }
 
   @override
   String get progressReadingArchive => 'Archiv wird gelesen…';

@@ -1142,8 +1142,22 @@ class STr extends S {
       'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Sistem klasör seçici kullanılamıyor. Başka bir konum deneyin veya uygulamanın depolama izinlerini kontrol edin.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Arşiv çok büyük ($sizeMb MB). Sınır $limitMb MB — belleği korumak için şifre çözme öncesi iptal edildi.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Arşiv v$found şemasını kullanıyor, ancak bu sürüm yalnızca v$supported sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.';
+  }
 
   @override
   String get progressReadingArchive => 'Arşiv okunuyor…';

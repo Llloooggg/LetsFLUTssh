@@ -1138,7 +1138,21 @@ class SHi extends S {
       'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
 
   @override
+  String get errExportPickerUnavailable =>
+      'सिस्टम फ़ोल्डर पिकर उपलब्ध नहीं है। कोई अन्य स्थान आज़माएँ या ऐप संग्रहण अनुमतियाँ जाँचें।';
+
+  @override
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'संग्रह बहुत बड़ा है ($sizeMb MB). सीमा $limitMb MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'संग्रह स्कीमा v$found का उपयोग करता है, लेकिन यह बिल्ड केवल v$supported तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.';
+  }
 
   @override
   String get progressReadingArchive => 'संग्रह पढ़ा जा रहा है…';
