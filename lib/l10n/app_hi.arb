@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "किसी अन्य डिवाइस पर जनरेट किया गया letsflutssh://import?d=… लिंक (या रॉ पेलोड) पेस्ट करें। कैमरे की आवश्यकता नहीं।",
   "pasteFromClipboard": "क्लिपबोर्ड से पेस्ट करें",
   "invalidImportLink": "लिंक में मान्य LetsFLUTssh पेलोड नहीं है",
-  "importAction": "आयात करें"
+  "importAction": "आयात करें",
+  "emptyFolder": "खाली फ़ोल्डर"
 }

@@ -423,6 +423,9 @@ class SRu extends S {
   String get scanQrCode => 'Сканировать QR-код';
 
   @override
+  String get emptyFolder => 'Папка пуста';
+
+  @override
   String get qrGenerationFailed => 'Не удалось создать QR-код';
 
   @override

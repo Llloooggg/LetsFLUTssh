@@ -879,6 +879,12 @@ abstract class S {
   /// **'Scan QR Code'**
   String get scanQrCode;
 
+  /// No description provided for @emptyFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty folder'**
+  String get emptyFolder;
+
   /// No description provided for @qrGenerationFailed.
   ///
   /// In en, this message translates to:

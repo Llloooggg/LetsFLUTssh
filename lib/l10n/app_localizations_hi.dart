@@ -425,6 +425,9 @@ class SHi extends S {
   String get scanQrCode => 'QR कोड स्कैन करें';
 
   @override
+  String get emptyFolder => 'खाली फ़ोल्डर';
+
+  @override
   String get qrGenerationFailed => 'QR बनाना विफल';
 
   @override

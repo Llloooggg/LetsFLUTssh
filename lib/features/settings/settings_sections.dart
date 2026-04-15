@@ -1114,11 +1114,17 @@ class _ExportImportTile extends ConsumerWidget {
     return (snippets, sessionSnippets);
   }
 
-  /// Opens a save-file picker.  Desktop uses the native save dialog,
-  /// mobile writes straight to shared Downloads when the app has
-  /// MANAGE_EXTERNAL_STORAGE (the SAF folder picker is skipped because
-  /// it would demand a per-export consent dialog even though we already
-  /// have full storage access — see Android SAF vs all-files access).
+  /// Opens a save-file picker.
+  ///
+  /// * Desktop — native save dialog (`FilePicker.saveFile`).
+  /// * Android with `MANAGE_EXTERNAL_STORAGE` — in-app directory picker
+  ///   that walks the filesystem via `dart:io`.  Using SAF here is the
+  ///   bug we're fixing: `ACTION_OPEN_DOCUMENT_TREE` asks the user for
+  ///   per-folder consent on every export even when all-files access is
+  ///   already granted.
+  /// * Android without all-files access, iOS — standard SAF-backed
+  ///   `FilePicker.getDirectoryPath` (unavoidable: no other way to reach
+  ///   user-visible folders when the app is scoped-storage-only).
   Future<String?> _pickSavePath(
     BuildContext context,
     String defaultName,
@@ -1136,12 +1142,17 @@ class _ExportImportTile extends ConsumerWidget {
       );
     }
     if (Platform.isAndroid) {
-      // Ask the OS for MANAGE_EXTERNAL_STORAGE if we don't already hold
-      // it — without this the probe below will always fail on Android 11+
-      // and every export falls back to the SAF picker that Den hit.
-      await requestAndroidStoragePermission();
-      final directPath = await _androidDirectDownloadsPath(defaultName);
-      if (directPath != null) return directPath;
+      final granted = await requestAndroidStoragePermission();
+      if (granted) {
+        if (!context.mounted) return null;
+        final dir = await LocalDirectoryPicker.show(
+          context,
+          title: title,
+          initialPath: initDir ?? '/storage/emulated/0',
+        );
+        if (dir == null) return null;
+        return p.join(dir, defaultName);
+      }
     }
     // iOS or Android without all-files access — fall back to SAF picker.
     final dir = await FilePicker.getDirectoryPath(
@@ -1150,34 +1161,6 @@ class _ExportImportTile extends ConsumerWidget {
     );
     if (dir == null) return null;
     return p.join(dir, defaultName);
-  }
-
-  /// Returns `/storage/emulated/0/Download/<fileName>` when Downloads is
-  /// writable via dart:io (MANAGE_EXTERNAL_STORAGE / legacy storage),
-  /// or null when we must go through SAF.
-  Future<String?> _androidDirectDownloadsPath(String fileName) async {
-    const downloadsPath = '/storage/emulated/0/Download';
-    final downloads = Directory(downloadsPath);
-    try {
-      if (!await downloads.exists()) return null;
-      // Probe write access by opening a uniquely-named sentinel file —
-      // listing alone succeeds on scoped storage without real write access.
-      final probe = File(
-        p.join(
-          downloadsPath,
-          '.lfs_write_probe_${DateTime.now().microsecondsSinceEpoch}',
-        ),
-      );
-      await probe.writeAsString('');
-      await probe.delete();
-      return p.join(downloadsPath, fileName);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Downloads not writable directly, falling back to SAF: $e',
-        name: 'Export',
-      );
-      return null;
-    }
   }
 
   Future<String?> _pickLfsFile(BuildContext context) async {

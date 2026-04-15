@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "粘贴在其他设备生成的 letsflutssh://import?d=… 链接（或原始负载）。无需摄像头。",
   "pasteFromClipboard": "从剪贴板粘贴",
   "invalidImportLink": "链接不包含有效的 LetsFLUTssh 数据",
-  "importAction": "导入"
+  "importAction": "导入",
+  "emptyFolder": "空文件夹"
 }

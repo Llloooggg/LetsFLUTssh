@@ -419,6 +419,9 @@ class SKo extends S {
   String get scanQrCode => 'QR 코드 스캔';
 
   @override
+  String get emptyFolder => '빈 폴더';
+
+  @override
   String get qrGenerationFailed => 'QR 생성 실패';
 
   @override

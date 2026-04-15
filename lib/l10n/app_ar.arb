@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "الصق رابط letsflutssh://import?d=… (أو الحمولة الخام) الذي تم إنشاؤه على جهاز آخر. لا حاجة للكاميرا.",
   "pasteFromClipboard": "لصق من الحافظة",
   "invalidImportLink": "الرابط لا يحتوي على حمولة LetsFLUTssh صالحة",
-  "importAction": "استيراد"
+  "importAction": "استيراد",
+  "emptyFolder": "مجلد فارغ"
 }

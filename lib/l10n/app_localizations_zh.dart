@@ -419,6 +419,9 @@ class SZh extends S {
   String get scanQrCode => '扫描 QR 码';
 
   @override
+  String get emptyFolder => '空文件夹';
+
+  @override
   String get qrGenerationFailed => 'QR 码生成失败';
 
   @override

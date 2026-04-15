@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Dán liên kết letsflutssh://import?d=… (hoặc payload thô) được tạo trên thiết bị khác. Không cần camera.",
   "pasteFromClipboard": "Dán từ bộ nhớ tạm",
   "invalidImportLink": "Liên kết không chứa payload LetsFLUTssh hợp lệ",
-  "importAction": "Nhập"
+  "importAction": "Nhập",
+  "emptyFolder": "Thư mục trống"
 }

@@ -425,6 +425,9 @@ class SPt extends S {
   String get scanQrCode => 'Escanear Código QR';
 
   @override
+  String get emptyFolder => 'Pasta vazia';
+
+  @override
   String get qrGenerationFailed => 'Falha ao gerar QR';
 
   @override

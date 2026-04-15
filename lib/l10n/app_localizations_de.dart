@@ -426,6 +426,9 @@ class SDe extends S {
   String get scanQrCode => 'QR-Code scannen';
 
   @override
+  String get emptyFolder => 'Leerer Ordner';
+
+  @override
   String get qrGenerationFailed => 'QR-Erzeugung fehlgeschlagen';
 
   @override

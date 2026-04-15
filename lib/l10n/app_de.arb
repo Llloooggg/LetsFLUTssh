@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Füge den auf einem anderen Gerät erzeugten letsflutssh://import?d=… Link (oder die rohe Payload) ein. Keine Kamera erforderlich.",
   "pasteFromClipboard": "Aus Zwischenablage einfügen",
   "invalidImportLink": "Der Link enthält keine gültige LetsFLUTssh-Payload",
-  "importAction": "Importieren"
+  "importAction": "Importieren",
+  "emptyFolder": "Leerer Ordner"
 }

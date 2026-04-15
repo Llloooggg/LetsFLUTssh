@@ -428,6 +428,9 @@ class SFr extends S {
   String get scanQrCode => 'Scanner le QR code';
 
   @override
+  String get emptyFolder => 'Dossier vide';
+
+  @override
   String get qrGenerationFailed => 'Échec de la génération du QR code';
 
   @override

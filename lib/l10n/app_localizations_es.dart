@@ -425,6 +425,9 @@ class SEs extends S {
   String get scanQrCode => 'Escanear código QR';
 
   @override
+  String get emptyFolder => 'Carpeta vacía';
+
+  @override
   String get qrGenerationFailed => 'Error al generar QR';
 
   @override

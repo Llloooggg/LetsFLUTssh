@@ -422,6 +422,9 @@ class SVi extends S {
   String get scanQrCode => 'Quét mã QR';
 
   @override
+  String get emptyFolder => 'Thư mục trống';
+
+  @override
   String get qrGenerationFailed => 'Tạo mã QR thất bại';
 
   @override

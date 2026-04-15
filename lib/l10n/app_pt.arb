@@ -606,5 +606,6 @@
   "pasteImportLinkDescription": "Cole o link letsflutssh://import?d=… (ou o payload bruto) gerado em outro dispositivo. Sem necessidade de câmera.",
   "pasteFromClipboard": "Colar da área de transferência",
   "invalidImportLink": "O link não contém um payload válido do LetsFLUTssh",
-  "importAction": "Importar"
+  "importAction": "Importar",
+  "emptyFolder": "Pasta vazia"
 }
