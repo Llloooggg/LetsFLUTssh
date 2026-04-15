@@ -1132,62 +1132,58 @@ class SVi extends S {
       'Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.';
 
   @override
-  String get errLfsDecryptFailed =>
-      'Wrong master password or corrupted .lfs archive';
+  String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
 
   @override
-  String get progressReadingArchive => 'Reading archive…';
+  String get progressReadingArchive => 'Đang đọc kho lưu trữ…';
 
   @override
-  String get progressDecrypting => 'Decrypting…';
+  String get progressDecrypting => 'Đang giải mã…';
 
   @override
-  String get progressParsingArchive => 'Parsing archive…';
+  String get progressParsingArchive => 'Đang phân tích kho lưu trữ…';
 
   @override
-  String get progressImportingSessions => 'Importing sessions';
+  String get progressImportingSessions => 'Đang nhập phiên';
 
   @override
-  String get progressImportingFolders => 'Importing folders';
+  String get progressImportingFolders => 'Đang nhập thư mục';
 
   @override
-  String get progressImportingManagerKeys => 'Importing SSH keys';
+  String get progressImportingManagerKeys => 'Đang nhập khóa SSH';
 
   @override
-  String get progressImportingTags => 'Importing tags';
+  String get progressImportingTags => 'Đang nhập thẻ';
 
   @override
-  String get progressImportingSnippets => 'Importing snippets';
+  String get progressImportingSnippets => 'Đang nhập snippet';
 
   @override
-  String get progressApplyingConfig => 'Applying configuration…';
+  String get progressApplyingConfig => 'Đang áp dụng cấu hình…';
 
   @override
-  String get progressImportingKnownHosts => 'Importing known_hosts…';
+  String get progressImportingKnownHosts => 'Đang nhập known_hosts…';
 
   @override
-  String get progressCollectingData => 'Collecting data…';
+  String get progressCollectingData => 'Đang thu thập dữ liệu…';
 
   @override
-  String get progressEncrypting => 'Encrypting…';
+  String get progressEncrypting => 'Đang mã hóa…';
 
   @override
-  String get progressWritingArchive => 'Writing archive…';
+  String get progressWritingArchive => 'Đang ghi kho lưu trữ…';
 
   @override
-  String get progressReencrypting => 'Re-encrypting stores…';
+  String get progressReencrypting => 'Đang mã hóa lại kho lưu trữ…';
 
   @override
-  String get progressWorking => 'Working…';
+  String get progressWorking => 'Đang xử lý…';
 
   @override
-  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+  String get saveSessionToAssignTags => 'Lưu phiên trước để gán thẻ';
 
   @override
-  String get noTagsAssigned => 'No tags assigned';
-
-  @override
-  String get manageTags => 'Manage Tags';
+  String get noTagsAssigned => 'Chưa gán thẻ';
 
   @override
   String errWithPath(String error, String path) {
@@ -1697,52 +1693,52 @@ class SVi extends S {
   String get manageMasterPasswordSubtitle => 'Đặt, đổi hoặc xóa mật khẩu chính';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'Snippet';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => 'Quản lý các snippet lệnh có thể tái sử dụng';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Chưa có snippet';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Thêm snippet';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Chỉnh sửa snippet';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Xóa snippet';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Xóa snippet \"$title\"?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Tiêu đề';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'vd. Triển khai, Khởi động lại dịch vụ';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Lệnh';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'vd. sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Mô tả (tùy chọn)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'Lệnh này làm gì?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Đã lưu snippet';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Đã xóa snippet \"$title\"';
   }
 
   @override
@@ -1750,69 +1746,69 @@ class SVi extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
+      other: '$count snippet',
       one: '1 snippet',
-      zero: 'No snippets',
+      zero: 'Không có snippet',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Chạy';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Ghim vào phiên này';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Bỏ ghim khỏi phiên này';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Đã ghim';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Tất cả';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Gửi đến terminal';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Đã sao chép lệnh';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'Thẻ';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'Tổ chức phiên và thư mục bằng thẻ màu';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Chưa có thẻ';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Thêm thẻ';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Xóa thẻ';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Xóa thẻ \"$name\"? Nó sẽ bị xóa khỏi mọi phiên và thư mục.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Tên thẻ';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'vd. Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Màu';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Đã tạo thẻ';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Đã xóa thẻ \"$name\"';
   }
 
   @override
@@ -1820,15 +1816,18 @@ class SVi extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count thẻ',
+      one: '1 thẻ',
+      zero: 'Không có thẻ',
     );
     return '$_temp0';
   }
 
   @override
-  String get editTags => 'Edit Tags';
+  String get manageTags => 'Quản lý thẻ';
+
+  @override
+  String get editTags => 'Chỉnh sửa thẻ';
 
   @override
   String get fullBackup => 'Sao lưu đầy đủ';

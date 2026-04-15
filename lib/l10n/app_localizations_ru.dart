@@ -1191,9 +1191,6 @@ class SRu extends S {
   String get noTagsAssigned => 'Теги не назначены';
 
   @override
-  String get manageTags => 'Управление тегами';
-
-  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1710,52 +1707,53 @@ class SRu extends S {
       'Установить, изменить или удалить мастер-пароль';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'Сниппеты';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle =>
+      'Управление переиспользуемыми командными сниппетами';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Сниппетов пока нет';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Добавить сниппет';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Редактировать сниппет';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Удалить сниппет';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Удалить сниппет «$title»?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Название';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'например, Деплой, Перезапуск';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Команда';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'например, sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Описание (необязательно)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'Что делает эта команда?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Сниппет сохранён';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Сниппет «$title» удалён';
   }
 
   @override
@@ -1763,69 +1761,71 @@ class SRu extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count сниппета',
+      many: '$count сниппетов',
+      few: '$count сниппета',
+      one: '1 сниппет',
+      zero: 'Нет сниппетов',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Запустить';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Закрепить за этой сессией';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Открепить от этой сессии';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Закреплённые';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Все';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Отправить в терминал';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Команда скопирована';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'Теги';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'Организуйте сессии и папки цветными тегами';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Тегов пока нет';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Добавить тег';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Удалить тег';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Удалить тег «$name»? Он будет снят со всех сессий и папок.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Имя тега';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'например, Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Цвет';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Тег создан';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Тег «$name» удалён';
   }
 
   @override
@@ -1833,15 +1833,20 @@ class SRu extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count тега',
+      many: '$count тегов',
+      few: '$count тега',
+      one: '1 тег',
+      zero: 'Нет тегов',
     );
     return '$_temp0';
   }
 
   @override
-  String get editTags => 'Edit Tags';
+  String get manageTags => 'Управление тегами';
+
+  @override
+  String get editTags => 'Редактировать теги';
 
   @override
   String get fullBackup => 'Полная резервная копия';

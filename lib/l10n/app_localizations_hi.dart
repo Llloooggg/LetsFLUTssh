@@ -1135,62 +1135,59 @@ class SHi extends S {
       'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
 
   @override
-  String get errLfsDecryptFailed =>
-      'Wrong master password or corrupted .lfs archive';
+  String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
 
   @override
-  String get progressReadingArchive => 'Reading archive…';
+  String get progressReadingArchive => 'संग्रह पढ़ा जा रहा है…';
 
   @override
-  String get progressDecrypting => 'Decrypting…';
+  String get progressDecrypting => 'डिक्रिप्ट किया जा रहा है…';
 
   @override
-  String get progressParsingArchive => 'Parsing archive…';
+  String get progressParsingArchive => 'संग्रह पार्स किया जा रहा है…';
 
   @override
-  String get progressImportingSessions => 'Importing sessions';
+  String get progressImportingSessions => 'सत्र आयात किए जा रहे हैं';
 
   @override
-  String get progressImportingFolders => 'Importing folders';
+  String get progressImportingFolders => 'फ़ोल्डर आयात किए जा रहे हैं';
 
   @override
-  String get progressImportingManagerKeys => 'Importing SSH keys';
+  String get progressImportingManagerKeys => 'SSH कुंजियाँ आयात की जा रही हैं';
 
   @override
-  String get progressImportingTags => 'Importing tags';
+  String get progressImportingTags => 'टैग आयात किए जा रहे हैं';
 
   @override
-  String get progressImportingSnippets => 'Importing snippets';
+  String get progressImportingSnippets => 'स्निपेट्स आयात किए जा रहे हैं';
 
   @override
-  String get progressApplyingConfig => 'Applying configuration…';
+  String get progressApplyingConfig => 'कॉन्फ़िगरेशन लागू किया जा रहा है…';
 
   @override
-  String get progressImportingKnownHosts => 'Importing known_hosts…';
+  String get progressImportingKnownHosts => 'known_hosts आयात किया जा रहा है…';
 
   @override
-  String get progressCollectingData => 'Collecting data…';
+  String get progressCollectingData => 'डेटा एकत्र किया जा रहा है…';
 
   @override
-  String get progressEncrypting => 'Encrypting…';
+  String get progressEncrypting => 'एन्क्रिप्ट किया जा रहा है…';
 
   @override
-  String get progressWritingArchive => 'Writing archive…';
+  String get progressWritingArchive => 'संग्रह लिखा जा रहा है…';
 
   @override
-  String get progressReencrypting => 'Re-encrypting stores…';
+  String get progressReencrypting => 'स्टोर फिर से एन्क्रिप्ट किए जा रहे हैं…';
 
   @override
-  String get progressWorking => 'Working…';
+  String get progressWorking => 'प्रसंस्करण…';
 
   @override
-  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+  String get saveSessionToAssignTags =>
+      'टैग असाइन करने के लिए पहले सत्र सहेजें';
 
   @override
-  String get noTagsAssigned => 'No tags assigned';
-
-  @override
-  String get manageTags => 'Manage Tags';
+  String get noTagsAssigned => 'कोई टैग असाइन नहीं';
 
   @override
   String errWithPath(String error, String path) {
@@ -1708,52 +1705,52 @@ class SHi extends S {
       'मास्टर पासवर्ड सेट, बदलें या हटाएं';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'स्निपेट्स';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => 'पुन: प्रयोज्य कमांड स्निपेट प्रबंधित करें';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'अभी तक कोई स्निपेट नहीं';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'स्निपेट जोड़ें';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'स्निपेट संपादित करें';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'स्निपेट हटाएँ';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'स्निपेट \"$title\" हटाएँ?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'शीर्षक';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'उदा. डिप्लॉय, सेवा पुनरारंभ';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'कमांड';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'उदा. sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'विवरण (वैकल्पिक)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'यह कमांड क्या करती है?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'स्निपेट सहेजा गया';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'स्निपेट \"$title\" हटाया गया';
   }
 
   @override
@@ -1761,69 +1758,69 @@ class SHi extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count स्निपेट',
+      one: '1 स्निपेट',
+      zero: 'कोई स्निपेट नहीं',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'चलाएँ';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'इस सत्र पर पिन करें';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'इस सत्र से अनपिन करें';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'पिन किए गए';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'सभी';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'टर्मिनल पर भेजें';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'कमांड कॉपी की गई';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'टैग';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'रंगीन टैग के साथ सत्र और फ़ोल्डर व्यवस्थित करें';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'अभी तक कोई टैग नहीं';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'टैग जोड़ें';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'टैग हटाएँ';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'टैग \"$name\" हटाएँ? यह सभी सत्रों और फ़ोल्डरों से हटा दिया जाएगा।';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'टैग का नाम';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'उदा. Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'रंग';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'टैग बनाया गया';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'टैग \"$name\" हटाया गया';
   }
 
   @override
@@ -1831,15 +1828,18 @@ class SHi extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count टैग',
+      one: '1 टैग',
+      zero: 'कोई टैग नहीं',
     );
     return '$_temp0';
   }
 
   @override
-  String get editTags => 'Edit Tags';
+  String get manageTags => 'टैग प्रबंधित करें';
+
+  @override
+  String get editTags => 'टैग संपादित करें';
 
   @override
   String get fullBackup => 'पूर्ण बैकअप';

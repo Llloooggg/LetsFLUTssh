@@ -1147,61 +1147,59 @@ class SFr extends S {
 
   @override
   String get errLfsDecryptFailed =>
-      'Wrong master password or corrupted .lfs archive';
+      'Mot de passe maître incorrect ou archive .lfs corrompue';
 
   @override
-  String get progressReadingArchive => 'Reading archive…';
+  String get progressReadingArchive => 'Lecture de l\'archive…';
 
   @override
-  String get progressDecrypting => 'Decrypting…';
+  String get progressDecrypting => 'Déchiffrement…';
 
   @override
-  String get progressParsingArchive => 'Parsing archive…';
+  String get progressParsingArchive => 'Analyse de l\'archive…';
 
   @override
-  String get progressImportingSessions => 'Importing sessions';
+  String get progressImportingSessions => 'Importation des sessions';
 
   @override
-  String get progressImportingFolders => 'Importing folders';
+  String get progressImportingFolders => 'Importation des dossiers';
 
   @override
-  String get progressImportingManagerKeys => 'Importing SSH keys';
+  String get progressImportingManagerKeys => 'Importation des clés SSH';
 
   @override
-  String get progressImportingTags => 'Importing tags';
+  String get progressImportingTags => 'Importation des étiquettes';
 
   @override
-  String get progressImportingSnippets => 'Importing snippets';
+  String get progressImportingSnippets => 'Importation des snippets';
 
   @override
-  String get progressApplyingConfig => 'Applying configuration…';
+  String get progressApplyingConfig => 'Application de la configuration…';
 
   @override
-  String get progressImportingKnownHosts => 'Importing known_hosts…';
+  String get progressImportingKnownHosts => 'Importation de known_hosts…';
 
   @override
-  String get progressCollectingData => 'Collecting data…';
+  String get progressCollectingData => 'Collecte des données…';
 
   @override
-  String get progressEncrypting => 'Encrypting…';
+  String get progressEncrypting => 'Chiffrement…';
 
   @override
-  String get progressWritingArchive => 'Writing archive…';
+  String get progressWritingArchive => 'Écriture de l\'archive…';
 
   @override
-  String get progressReencrypting => 'Re-encrypting stores…';
+  String get progressReencrypting => 'Rechiffrement des magasins…';
 
   @override
-  String get progressWorking => 'Working…';
+  String get progressWorking => 'Traitement…';
 
   @override
-  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+  String get saveSessionToAssignTags =>
+      'Enregistrez d\'abord la session pour attribuer des étiquettes';
 
   @override
-  String get noTagsAssigned => 'No tags assigned';
-
-  @override
-  String get manageTags => 'Manage Tags';
+  String get noTagsAssigned => 'Aucune étiquette attribuée';
 
   @override
   String errWithPath(String error, String path) {
@@ -1728,49 +1726,50 @@ class SFr extends S {
   String get snippets => 'Snippets';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle =>
+      'Gérez des snippets de commandes réutilisables';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Aucun snippet pour l\'instant';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Ajouter un snippet';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Modifier le snippet';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Supprimer le snippet';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Supprimer le snippet « $title » ?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Titre';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'ex. Déploiement, Redémarrer le service';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Commande';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'ex. sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Description (optionnelle)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'Que fait cette commande ?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Snippet enregistré';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Snippet « $title » supprimé';
   }
 
   @override
@@ -1780,67 +1779,68 @@ class SFr extends S {
       locale: localeName,
       other: '$count snippets',
       one: '1 snippet',
-      zero: 'No snippets',
+      zero: 'Aucun snippet',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Exécuter';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Épingler à cette session';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Détacher de cette session';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Épinglés';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Tous';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Envoyer au terminal';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Commande copiée dans le presse-papiers';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'Étiquettes';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle =>
+      'Organisez sessions et dossiers avec des étiquettes de couleur';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Aucune étiquette pour l\'instant';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Ajouter une étiquette';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Supprimer l\'étiquette';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Supprimer l\'étiquette « $name » ? Elle sera retirée de toutes les sessions et dossiers.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Nom de l\'étiquette';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'ex. Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Couleur';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Étiquette créée';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Étiquette « $name » supprimée';
   }
 
   @override
@@ -1848,15 +1848,18 @@ class SFr extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count étiquettes',
+      one: '1 étiquette',
+      zero: 'Aucune étiquette',
     );
     return '$_temp0';
   }
 
   @override
-  String get editTags => 'Edit Tags';
+  String get manageTags => 'Gérer les étiquettes';
+
+  @override
+  String get editTags => 'Modifier les étiquettes';
 
   @override
   String get fullBackup => 'Sauvegarde complète';

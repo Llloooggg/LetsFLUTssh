@@ -2253,12 +2253,6 @@ abstract class S {
   /// **'No tags assigned'**
   String get noTagsAssigned;
 
-  /// No description provided for @manageTags.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage Tags'**
-  String get manageTags;
-
   /// No description provided for @errWithPath.
   ///
   /// In en, this message translates to:
@@ -3284,6 +3278,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'{count, plural, =0{No tags} =1{1 tag} other{{count} tags}}'**
   String tagCount(int count);
+
+  /// No description provided for @manageTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Tags'**
+  String get manageTags;
 
   /// No description provided for @editTags.
   ///

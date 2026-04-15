@@ -1140,61 +1140,59 @@ class SId extends S {
 
   @override
   String get errLfsDecryptFailed =>
-      'Wrong master password or corrupted .lfs archive';
+      'Kata sandi utama salah atau arsip .lfs rusak';
 
   @override
-  String get progressReadingArchive => 'Reading archive…';
+  String get progressReadingArchive => 'Membaca arsip…';
 
   @override
-  String get progressDecrypting => 'Decrypting…';
+  String get progressDecrypting => 'Mendekripsi…';
 
   @override
-  String get progressParsingArchive => 'Parsing archive…';
+  String get progressParsingArchive => 'Mengurai arsip…';
 
   @override
-  String get progressImportingSessions => 'Importing sessions';
+  String get progressImportingSessions => 'Mengimpor sesi';
 
   @override
-  String get progressImportingFolders => 'Importing folders';
+  String get progressImportingFolders => 'Mengimpor folder';
 
   @override
-  String get progressImportingManagerKeys => 'Importing SSH keys';
+  String get progressImportingManagerKeys => 'Mengimpor kunci SSH';
 
   @override
-  String get progressImportingTags => 'Importing tags';
+  String get progressImportingTags => 'Mengimpor tag';
 
   @override
-  String get progressImportingSnippets => 'Importing snippets';
+  String get progressImportingSnippets => 'Mengimpor snippet';
 
   @override
-  String get progressApplyingConfig => 'Applying configuration…';
+  String get progressApplyingConfig => 'Menerapkan konfigurasi…';
 
   @override
-  String get progressImportingKnownHosts => 'Importing known_hosts…';
+  String get progressImportingKnownHosts => 'Mengimpor known_hosts…';
 
   @override
-  String get progressCollectingData => 'Collecting data…';
+  String get progressCollectingData => 'Mengumpulkan data…';
 
   @override
-  String get progressEncrypting => 'Encrypting…';
+  String get progressEncrypting => 'Mengenkripsi…';
 
   @override
-  String get progressWritingArchive => 'Writing archive…';
+  String get progressWritingArchive => 'Menulis arsip…';
 
   @override
-  String get progressReencrypting => 'Re-encrypting stores…';
+  String get progressReencrypting => 'Mengenkripsi ulang penyimpanan…';
 
   @override
-  String get progressWorking => 'Working…';
+  String get progressWorking => 'Memproses…';
 
   @override
-  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+  String get saveSessionToAssignTags =>
+      'Simpan sesi terlebih dahulu untuk menetapkan tag';
 
   @override
-  String get noTagsAssigned => 'No tags assigned';
-
-  @override
-  String get manageTags => 'Manage Tags';
+  String get noTagsAssigned => 'Tidak ada tag yang ditetapkan';
 
   @override
   String errWithPath(String error, String path) {
@@ -1705,52 +1703,53 @@ class SId extends S {
       'Atur, ubah, atau hapus kata sandi utama';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'Snippet';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle =>
+      'Kelola snippet perintah yang dapat digunakan kembali';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Belum ada snippet';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Tambah Snippet';
 
   @override
   String get editSnippet => 'Edit Snippet';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Hapus Snippet';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Hapus snippet \"$title\"?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Judul';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'mis. Deploy, Restart Service';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Perintah';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'mis. sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Deskripsi (opsional)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'Apa fungsi perintah ini?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Snippet disimpan';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Snippet \"$title\" dihapus';
   }
 
   @override
@@ -1758,69 +1757,69 @@ class SId extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
+      other: '$count snippet',
       one: '1 snippet',
-      zero: 'No snippets',
+      zero: 'Tidak ada snippet',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Jalankan';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Sematkan ke sesi ini';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Lepaskan dari sesi ini';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Disematkan';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Semua';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Kirim ke terminal';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Perintah disalin';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'Tag';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'Atur sesi dan folder dengan tag berwarna';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Belum ada tag';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Tambah Tag';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Hapus Tag';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Hapus tag \"$name\"? Tag akan dihapus dari semua sesi dan folder.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Nama Tag';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'mis. Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Warna';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Tag dibuat';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Tag \"$name\" dihapus';
   }
 
   @override
@@ -1828,15 +1827,18 @@ class SId extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
+      other: '$count tag',
       one: '1 tag',
-      zero: 'No tags',
+      zero: 'Tidak ada tag',
     );
     return '$_temp0';
   }
 
   @override
-  String get editTags => 'Edit Tags';
+  String get manageTags => 'Kelola tag';
+
+  @override
+  String get editTags => 'Edit Tag';
 
   @override
   String get fullBackup => 'Cadangan lengkap';

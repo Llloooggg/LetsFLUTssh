@@ -1140,61 +1140,59 @@ class SPt extends S {
 
   @override
   String get errLfsDecryptFailed =>
-      'Wrong master password or corrupted .lfs archive';
+      'Senha mestra incorreta ou arquivo .lfs corrompido';
 
   @override
-  String get progressReadingArchive => 'Reading archive…';
+  String get progressReadingArchive => 'Lendo arquivo…';
 
   @override
-  String get progressDecrypting => 'Decrypting…';
+  String get progressDecrypting => 'Descriptografando…';
 
   @override
-  String get progressParsingArchive => 'Parsing archive…';
+  String get progressParsingArchive => 'Analisando arquivo…';
 
   @override
-  String get progressImportingSessions => 'Importing sessions';
+  String get progressImportingSessions => 'Importando sessões';
 
   @override
-  String get progressImportingFolders => 'Importing folders';
+  String get progressImportingFolders => 'Importando pastas';
 
   @override
-  String get progressImportingManagerKeys => 'Importing SSH keys';
+  String get progressImportingManagerKeys => 'Importando chaves SSH';
 
   @override
-  String get progressImportingTags => 'Importing tags';
+  String get progressImportingTags => 'Importando tags';
 
   @override
-  String get progressImportingSnippets => 'Importing snippets';
+  String get progressImportingSnippets => 'Importando snippets';
 
   @override
-  String get progressApplyingConfig => 'Applying configuration…';
+  String get progressApplyingConfig => 'Aplicando configuração…';
 
   @override
-  String get progressImportingKnownHosts => 'Importing known_hosts…';
+  String get progressImportingKnownHosts => 'Importando known_hosts…';
 
   @override
-  String get progressCollectingData => 'Collecting data…';
+  String get progressCollectingData => 'Coletando dados…';
 
   @override
-  String get progressEncrypting => 'Encrypting…';
+  String get progressEncrypting => 'Criptografando…';
 
   @override
-  String get progressWritingArchive => 'Writing archive…';
+  String get progressWritingArchive => 'Gravando arquivo…';
 
   @override
-  String get progressReencrypting => 'Re-encrypting stores…';
+  String get progressReencrypting => 'Recriptografando armazenamentos…';
 
   @override
-  String get progressWorking => 'Working…';
+  String get progressWorking => 'Processando…';
 
   @override
-  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+  String get saveSessionToAssignTags =>
+      'Salve a sessão primeiro para atribuir tags';
 
   @override
-  String get noTagsAssigned => 'No tags assigned';
-
-  @override
-  String get manageTags => 'Manage Tags';
+  String get noTagsAssigned => 'Nenhuma tag atribuída';
 
   @override
   String errWithPath(String error, String path) {
@@ -1716,49 +1714,49 @@ class SPt extends S {
   String get snippets => 'Snippets';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => 'Gerencie snippets de comandos reutilizáveis';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Ainda não há snippets';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Adicionar snippet';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Editar snippet';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Excluir snippet';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Excluir o snippet \"$title\"?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Título';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'ex.: Deploy, Reiniciar serviço';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Comando';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'ex.: sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Descrição (opcional)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'O que este comando faz?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Snippet salvo';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Snippet \"$title\" excluído';
   }
 
   @override
@@ -1768,67 +1766,67 @@ class SPt extends S {
       locale: localeName,
       other: '$count snippets',
       one: '1 snippet',
-      zero: 'No snippets',
+      zero: 'Sem snippets',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Executar';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Fixar nesta sessão';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Desafixar desta sessão';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Fixados';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Todos';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Enviar ao terminal';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Comando copiado';
 
   @override
   String get tags => 'Tags';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'Organize sessões e pastas com tags coloridas';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Ainda não há tags';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Adicionar tag';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Excluir tag';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Excluir a tag \"$name\"? Ela será removida de todas as sessões e pastas.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Nome da tag';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'ex.: Produção, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Cor';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Tag criada';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Tag \"$name\" excluída';
   }
 
   @override
@@ -1838,13 +1836,16 @@ class SPt extends S {
       locale: localeName,
       other: '$count tags',
       one: '1 tag',
-      zero: 'No tags',
+      zero: 'Sem tags',
     );
     return '$_temp0';
   }
 
   @override
-  String get editTags => 'Edit Tags';
+  String get manageTags => 'Gerenciar tags';
+
+  @override
+  String get editTags => 'Editar tags';
 
   @override
   String get fullBackup => 'Backup completo';
