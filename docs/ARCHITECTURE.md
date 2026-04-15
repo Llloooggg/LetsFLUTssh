@@ -1783,6 +1783,14 @@ All long operations surface progress through this type — `ExportImport.export/
 
 `LfsDecryptionFailedException` (from `ExportImport`) wraps GCM auth-tag failures and ZIP decoder failures so the UI can render a single localized "wrong master password or corrupted archive" message without leaking `InvalidCipherTextException` stack traces.
 
+`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before PBKDF2 + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
+
+`UnsupportedLfsVersionException` fires when `manifest.schema_version` is newer than `ExportImport.currentSchemaVersion`. Legacy archives without a `manifest.json` fall back to `LfsManifest.legacy()` (schema v1, null appVersion) so pre-manifest exports still import cleanly.
+
+`.lfs` writes use a tmp-then-rename pattern (`<path>.tmp` → `<path>`) so an I/O failure mid-export can't leave a partially-written file that would fail decryption on next import.
+
+`OpenSshConfigImporter.isSuspiciousPath` rejects `IdentityFile` entries that contain `..` segments before the path is dereferenced — a maliciously crafted `~/.ssh/config` cannot coerce the importer into reading files outside the user's intended key directory.
+
 ---
 
 ## 8. Theme System
@@ -2290,7 +2298,9 @@ All files live in the platform's app-support directory (see **Location** below).
 - Android: app internal storage
 - iOS: app sandbox
 
-**Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed.
+**Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `ImportService.applyResult` wraps its entire body in `AppDatabase.transaction(...)` via the injected `runInTransaction` hook, so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback before the replace-mode snapshot restore runs).
+
+**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `onUpgrade` → per-version steps, `beforeOpen` → `PRAGMA foreign_keys = ON`). Bump `schemaVersion` when adding/renaming columns or tables and append a `from{N-1}to{N}` branch to `onUpgrade`. Never skip a version — the schema history above the `schemaVersion` getter documents every bump.
 
 ### Uninstall behavior
 

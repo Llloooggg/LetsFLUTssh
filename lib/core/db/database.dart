@@ -30,8 +30,29 @@ part 'database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
+  /// Schema version. Bump this when adding/renaming columns or tables and
+  /// extend [migration] with a `from{N-1}to{N}` step. Never skip a version.
+  ///
+  /// History:
+  ///   1 — initial schema (first public release).
   @override
   int get schemaVersion => 1;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      // Upgrade steps go here as the schema evolves, e.g.:
+      //   if (from < 2) { await m.addColumn(sessions, sessions.newCol); }
+    },
+    beforeOpen: (details) async {
+      // Foreign keys are also set in database_opener; repeat here so drift's
+      // own opener (used in tests that skip database_opener) honours them.
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 
   // DAOs — lazy-initialized, one per domain.
   late final sessionDao = SessionDao(this);
