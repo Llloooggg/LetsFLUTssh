@@ -1159,6 +1159,28 @@ class SZh extends S {
   String get progressWorking => '处理中…';
 
   @override
+  String get importFromLink => '从 QR 链接导入';
+
+  @override
+  String get importFromLinkSubtitle => '粘贴从其他设备复制的 letsflutssh:// 深层链接';
+
+  @override
+  String get pasteImportLinkTitle => '粘贴导入链接';
+
+  @override
+  String get pasteImportLinkDescription =>
+      '粘贴在其他设备生成的 letsflutssh://import?d=… 链接（或原始负载）。无需摄像头。';
+
+  @override
+  String get pasteFromClipboard => '从剪贴板粘贴';
+
+  @override
+  String get invalidImportLink => '链接不包含有效的 LetsFLUTssh 数据';
+
+  @override
+  String get importAction => '导入';
+
+  @override
   String get saveSessionToAssignTags => '先保存会话才能分配标签';
 
   @override

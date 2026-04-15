@@ -1180,6 +1180,29 @@ class SFa extends S {
   String get progressWorking => 'در حال پردازش…';
 
   @override
+  String get importFromLink => 'درون‌ریزی از پیوند QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'پیوند letsflutssh:// کپی‌شده از دستگاه دیگر را بچسبانید';
+
+  @override
+  String get pasteImportLinkTitle => 'چسباندن پیوند درون‌ریزی';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'پیوند letsflutssh://import?d=… (یا بار خام) تولیدشده در دستگاه دیگر را بچسبانید. نیازی به دوربین نیست.';
+
+  @override
+  String get pasteFromClipboard => 'چسباندن از کلیپ‌بورد';
+
+  @override
+  String get invalidImportLink => 'پیوند بار معتبر LetsFLUTssh را شامل نیست';
+
+  @override
+  String get importAction => 'درون‌ریزی';
+
+  @override
   String get saveSessionToAssignTags =>
       'برای اختصاص برچسب، ابتدا نشست را ذخیره کنید';
 

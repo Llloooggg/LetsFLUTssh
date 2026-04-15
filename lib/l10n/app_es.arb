@@ -599,5 +599,12 @@
   "tagCreated": "Etiqueta creada",
   "tagDeleted": "Etiqueta «{name}» eliminada",
   "tagCount": "{count, plural, =0{Sin etiquetas} =1{1 etiqueta} other{{count} etiquetas}}",
-  "editTags": "Editar etiquetas"
+  "editTags": "Editar etiquetas",
+  "importFromLink": "Importar desde enlace QR",
+  "importFromLinkSubtitle": "Pega un deep-link letsflutssh:// copiado desde otro dispositivo",
+  "pasteImportLinkTitle": "Pegar enlace de importación",
+  "pasteImportLinkDescription": "Pega el enlace letsflutssh://import?d=… (o el payload en bruto) generado en otro dispositivo. No se necesita cámara.",
+  "pasteFromClipboard": "Pegar del portapapeles",
+  "invalidImportLink": "El enlace no contiene un payload LetsFLUTssh válido",
+  "importAction": "Importar"
 }

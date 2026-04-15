@@ -599,5 +599,12 @@
   "tagCreated": "タグを作成しました",
   "tagDeleted": "タグ「{name}」を削除しました",
   "tagCount": "{count, plural, =0{タグなし} other{{count} 件のタグ}}",
-  "editTags": "タグを編集"
+  "editTags": "タグを編集",
+  "importFromLink": "QR リンクからインポート",
+  "importFromLinkSubtitle": "別の端末からコピーした letsflutssh:// ディープリンクを貼り付け",
+  "pasteImportLinkTitle": "インポートリンクを貼り付け",
+  "pasteImportLinkDescription": "別の端末で生成された letsflutssh://import?d=… リンク（または生ペイロード）を貼り付けてください。カメラは不要です。",
+  "pasteFromClipboard": "クリップボードから貼り付け",
+  "invalidImportLink": "リンクに有効な LetsFLUTssh ペイロードが含まれていません",
+  "importAction": "インポート"
 }

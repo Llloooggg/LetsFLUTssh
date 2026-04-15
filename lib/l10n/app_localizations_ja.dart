@@ -1162,6 +1162,29 @@ class SJa extends S {
   String get progressWorking => '処理中…';
 
   @override
+  String get importFromLink => 'QR リンクからインポート';
+
+  @override
+  String get importFromLinkSubtitle =>
+      '別の端末からコピーした letsflutssh:// ディープリンクを貼り付け';
+
+  @override
+  String get pasteImportLinkTitle => 'インポートリンクを貼り付け';
+
+  @override
+  String get pasteImportLinkDescription =>
+      '別の端末で生成された letsflutssh://import?d=… リンク（または生ペイロード）を貼り付けてください。カメラは不要です。';
+
+  @override
+  String get pasteFromClipboard => 'クリップボードから貼り付け';
+
+  @override
+  String get invalidImportLink => 'リンクに有効な LetsFLUTssh ペイロードが含まれていません';
+
+  @override
+  String get importAction => 'インポート';
+
+  @override
   String get saveSessionToAssignTags => 'タグを割り当てるには、まずセッションを保存してください';
 
   @override

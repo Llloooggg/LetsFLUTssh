@@ -599,5 +599,12 @@
   "tagCreated": "Тег создан",
   "tagDeleted": "Тег «{name}» удалён",
   "tagCount": "{count, plural, =0{Нет тегов} =1{1 тег} few{{count} тега} many{{count} тегов} other{{count} тега}}",
-  "editTags": "Редактировать теги"
+  "editTags": "Редактировать теги",
+  "importFromLink": "Импорт из QR-ссылки",
+  "importFromLinkSubtitle": "Вставьте letsflutssh://-ссылку, скопированную с другого устройства",
+  "pasteImportLinkTitle": "Вставить ссылку импорта",
+  "pasteImportLinkDescription": "Вставьте ссылку letsflutssh://import?d=… (или сырой payload), сгенерированную на другом устройстве. Камера не нужна.",
+  "pasteFromClipboard": "Вставить из буфера",
+  "invalidImportLink": "Ссылка не содержит корректные данные LetsFLUTssh",
+  "importAction": "Импортировать"
 }

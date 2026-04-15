@@ -599,5 +599,12 @@
   "tagCreated": "标签已创建",
   "tagDeleted": "标签「{name}」已删除",
   "tagCount": "{count, plural, =0{无标签} other{{count} 个标签}}",
-  "editTags": "编辑标签"
+  "editTags": "编辑标签",
+  "importFromLink": "从 QR 链接导入",
+  "importFromLinkSubtitle": "粘贴从其他设备复制的 letsflutssh:// 深层链接",
+  "pasteImportLinkTitle": "粘贴导入链接",
+  "pasteImportLinkDescription": "粘贴在其他设备生成的 letsflutssh://import?d=… 链接（或原始负载）。无需摄像头。",
+  "pasteFromClipboard": "从剪贴板粘贴",
+  "invalidImportLink": "链接不包含有效的 LetsFLUTssh 数据",
+  "importAction": "导入"
 }

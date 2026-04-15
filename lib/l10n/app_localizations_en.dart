@@ -1181,6 +1181,30 @@ class SEn extends S {
   String get progressWorking => 'Working…';
 
   @override
+  String get importFromLink => 'Import from QR link';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Paste a letsflutssh:// deep link copied from another device';
+
+  @override
+  String get pasteImportLinkTitle => 'Paste import link';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Paste the letsflutssh://import?d=… link (or raw payload) generated on another device. No camera needed.';
+
+  @override
+  String get pasteFromClipboard => 'Paste from clipboard';
+
+  @override
+  String get invalidImportLink =>
+      'Link does not contain a valid LetsFLUTssh payload';
+
+  @override
+  String get importAction => 'Import';
+
+  @override
   String get saveSessionToAssignTags => 'Save the session first to assign tags';
 
   @override

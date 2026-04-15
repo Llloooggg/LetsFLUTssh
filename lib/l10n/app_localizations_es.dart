@@ -1190,6 +1190,30 @@ class SEs extends S {
   String get progressWorking => 'Procesando…';
 
   @override
+  String get importFromLink => 'Importar desde enlace QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Pega un deep-link letsflutssh:// copiado desde otro dispositivo';
+
+  @override
+  String get pasteImportLinkTitle => 'Pegar enlace de importación';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Pega el enlace letsflutssh://import?d=… (o el payload en bruto) generado en otro dispositivo. No se necesita cámara.';
+
+  @override
+  String get pasteFromClipboard => 'Pegar del portapapeles';
+
+  @override
+  String get invalidImportLink =>
+      'El enlace no contiene un payload LetsFLUTssh válido';
+
+  @override
+  String get importAction => 'Importar';
+
+  @override
   String get saveSessionToAssignTags =>
       'Guarda la sesión primero para asignar etiquetas';
 

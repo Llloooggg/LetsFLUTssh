@@ -1180,6 +1180,30 @@ class SVi extends S {
   String get progressWorking => 'Đang xử lý…';
 
   @override
+  String get importFromLink => 'Nhập từ liên kết QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Dán deep-link letsflutssh:// đã sao chép từ thiết bị khác';
+
+  @override
+  String get pasteImportLinkTitle => 'Dán liên kết nhập';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Dán liên kết letsflutssh://import?d=… (hoặc payload thô) được tạo trên thiết bị khác. Không cần camera.';
+
+  @override
+  String get pasteFromClipboard => 'Dán từ bộ nhớ tạm';
+
+  @override
+  String get invalidImportLink =>
+      'Liên kết không chứa payload LetsFLUTssh hợp lệ';
+
+  @override
+  String get importAction => 'Nhập';
+
+  @override
   String get saveSessionToAssignTags => 'Lưu phiên trước để gán thẻ';
 
   @override

@@ -1183,6 +1183,29 @@ class SHi extends S {
   String get progressWorking => 'प्रसंस्करण…';
 
   @override
+  String get importFromLink => 'QR लिंक से आयात करें';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'किसी अन्य डिवाइस से कॉपी किया गया letsflutssh:// डीप-लिंक पेस्ट करें';
+
+  @override
+  String get pasteImportLinkTitle => 'आयात लिंक पेस्ट करें';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'किसी अन्य डिवाइस पर जनरेट किया गया letsflutssh://import?d=… लिंक (या रॉ पेलोड) पेस्ट करें। कैमरे की आवश्यकता नहीं।';
+
+  @override
+  String get pasteFromClipboard => 'क्लिपबोर्ड से पेस्ट करें';
+
+  @override
+  String get invalidImportLink => 'लिंक में मान्य LetsFLUTssh पेलोड नहीं है';
+
+  @override
+  String get importAction => 'आयात करें';
+
+  @override
   String get saveSessionToAssignTags =>
       'टैग असाइन करने के लिए पहले सत्र सहेजें';
 

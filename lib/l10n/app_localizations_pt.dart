@@ -1188,6 +1188,30 @@ class SPt extends S {
   String get progressWorking => 'Processando…';
 
   @override
+  String get importFromLink => 'Importar de link QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Cole um deep-link letsflutssh:// copiado de outro dispositivo';
+
+  @override
+  String get pasteImportLinkTitle => 'Colar link de importação';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Cole o link letsflutssh://import?d=… (ou o payload bruto) gerado em outro dispositivo. Sem necessidade de câmera.';
+
+  @override
+  String get pasteFromClipboard => 'Colar da área de transferência';
+
+  @override
+  String get invalidImportLink =>
+      'O link não contém um payload válido do LetsFLUTssh';
+
+  @override
+  String get importAction => 'Importar';
+
+  @override
   String get saveSessionToAssignTags =>
       'Salve a sessão primeiro para atribuir tags';
 

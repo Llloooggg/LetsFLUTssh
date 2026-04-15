@@ -1188,6 +1188,30 @@ class SId extends S {
   String get progressWorking => 'Memproses…';
 
   @override
+  String get importFromLink => 'Impor dari tautan QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Tempel deep-link letsflutssh:// yang disalin dari perangkat lain';
+
+  @override
+  String get pasteImportLinkTitle => 'Tempel tautan impor';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Tempel tautan letsflutssh://import?d=… (atau payload mentah) yang dihasilkan pada perangkat lain. Tidak perlu kamera.';
+
+  @override
+  String get pasteFromClipboard => 'Tempel dari clipboard';
+
+  @override
+  String get invalidImportLink =>
+      'Tautan tidak berisi payload LetsFLUTssh yang valid';
+
+  @override
+  String get importAction => 'Impor';
+
+  @override
   String get saveSessionToAssignTags =>
       'Simpan sesi terlebih dahulu untuk menetapkan tag';
 

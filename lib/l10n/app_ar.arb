@@ -599,5 +599,12 @@
   "tagCreated": "تم إنشاء العلامة",
   "tagDeleted": "تم حذف العلامة \"{name}\"",
   "tagCount": "{count, plural, =0{لا توجد علامات} =1{علامة واحدة} two{علامتان} few{{count} علامات} many{{count} علامة} other{{count} علامة}}",
-  "editTags": "تحرير العلامات"
+  "editTags": "تحرير العلامات",
+  "importFromLink": "استيراد من رابط QR",
+  "importFromLinkSubtitle": "الصق رابط letsflutssh:// المنسوخ من جهاز آخر",
+  "pasteImportLinkTitle": "لصق رابط الاستيراد",
+  "pasteImportLinkDescription": "الصق رابط letsflutssh://import?d=… (أو الحمولة الخام) الذي تم إنشاؤه على جهاز آخر. لا حاجة للكاميرا.",
+  "pasteFromClipboard": "لصق من الحافظة",
+  "invalidImportLink": "الرابط لا يحتوي على حمولة LetsFLUTssh صالحة",
+  "importAction": "استيراد"
 }

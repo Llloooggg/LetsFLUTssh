@@ -1178,6 +1178,29 @@ class SAr extends S {
   String get progressWorking => 'قيد المعالجة…';
 
   @override
+  String get importFromLink => 'استيراد من رابط QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'الصق رابط letsflutssh:// المنسوخ من جهاز آخر';
+
+  @override
+  String get pasteImportLinkTitle => 'لصق رابط الاستيراد';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'الصق رابط letsflutssh://import?d=… (أو الحمولة الخام) الذي تم إنشاؤه على جهاز آخر. لا حاجة للكاميرا.';
+
+  @override
+  String get pasteFromClipboard => 'لصق من الحافظة';
+
+  @override
+  String get invalidImportLink => 'الرابط لا يحتوي على حمولة LetsFLUTssh صالحة';
+
+  @override
+  String get importAction => 'استيراد';
+
+  @override
   String get saveSessionToAssignTags => 'احفظ الجلسة أولاً لتعيين العلامات';
 
   @override

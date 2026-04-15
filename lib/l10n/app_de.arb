@@ -599,5 +599,12 @@
   "tagCreated": "Tag erstellt",
   "tagDeleted": "Tag „{name}“ gelöscht",
   "tagCount": "{count, plural, =0{Keine Tags} =1{1 Tag} other{{count} Tags}}",
-  "editTags": "Tags bearbeiten"
+  "editTags": "Tags bearbeiten",
+  "importFromLink": "Per QR-Link importieren",
+  "importFromLinkSubtitle": "Einen von einem anderen Gerät kopierten letsflutssh:// Deep-Link einfügen",
+  "pasteImportLinkTitle": "Import-Link einfügen",
+  "pasteImportLinkDescription": "Füge den auf einem anderen Gerät erzeugten letsflutssh://import?d=… Link (oder die rohe Payload) ein. Keine Kamera erforderlich.",
+  "pasteFromClipboard": "Aus Zwischenablage einfügen",
+  "invalidImportLink": "Der Link enthält keine gültige LetsFLUTssh-Payload",
+  "importAction": "Importieren"
 }

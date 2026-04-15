@@ -1161,6 +1161,28 @@ class SKo extends S {
   String get progressWorking => '처리 중…';
 
   @override
+  String get importFromLink => 'QR 링크에서 가져오기';
+
+  @override
+  String get importFromLinkSubtitle => '다른 기기에서 복사한 letsflutssh:// 딥링크를 붙여넣기';
+
+  @override
+  String get pasteImportLinkTitle => '가져오기 링크 붙여넣기';
+
+  @override
+  String get pasteImportLinkDescription =>
+      '다른 기기에서 생성된 letsflutssh://import?d=… 링크(또는 원시 페이로드)를 붙여넣으세요. 카메라 불필요.';
+
+  @override
+  String get pasteFromClipboard => '클립보드에서 붙여넣기';
+
+  @override
+  String get invalidImportLink => '링크에 유효한 LetsFLUTssh 페이로드가 없습니다';
+
+  @override
+  String get importAction => '가져오기';
+
+  @override
   String get saveSessionToAssignTags => '태그를 할당하려면 먼저 세션을 저장하세요';
 
   @override

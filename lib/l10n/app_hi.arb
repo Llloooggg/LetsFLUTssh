@@ -599,5 +599,12 @@
   "tagCreated": "टैग बनाया गया",
   "tagDeleted": "टैग \"{name}\" हटाया गया",
   "tagCount": "{count, plural, =0{कोई टैग नहीं} =1{1 टैग} other{{count} टैग}}",
-  "editTags": "टैग संपादित करें"
+  "editTags": "टैग संपादित करें",
+  "importFromLink": "QR लिंक से आयात करें",
+  "importFromLinkSubtitle": "किसी अन्य डिवाइस से कॉपी किया गया letsflutssh:// डीप-लिंक पेस्ट करें",
+  "pasteImportLinkTitle": "आयात लिंक पेस्ट करें",
+  "pasteImportLinkDescription": "किसी अन्य डिवाइस पर जनरेट किया गया letsflutssh://import?d=… लिंक (या रॉ पेलोड) पेस्ट करें। कैमरे की आवश्यकता नहीं।",
+  "pasteFromClipboard": "क्लिपबोर्ड से पेस्ट करें",
+  "invalidImportLink": "लिंक में मान्य LetsFLUTssh पेलोड नहीं है",
+  "importAction": "आयात करें"
 }

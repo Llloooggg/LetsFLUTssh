@@ -599,5 +599,12 @@
   "tagCreated": "Đã tạo thẻ",
   "tagDeleted": "Đã xóa thẻ \"{name}\"",
   "tagCount": "{count, plural, =0{Không có thẻ} =1{1 thẻ} other{{count} thẻ}}",
-  "editTags": "Chỉnh sửa thẻ"
+  "editTags": "Chỉnh sửa thẻ",
+  "importFromLink": "Nhập từ liên kết QR",
+  "importFromLinkSubtitle": "Dán deep-link letsflutssh:// đã sao chép từ thiết bị khác",
+  "pasteImportLinkTitle": "Dán liên kết nhập",
+  "pasteImportLinkDescription": "Dán liên kết letsflutssh://import?d=… (hoặc payload thô) được tạo trên thiết bị khác. Không cần camera.",
+  "pasteFromClipboard": "Dán từ bộ nhớ tạm",
+  "invalidImportLink": "Liên kết không chứa payload LetsFLUTssh hợp lệ",
+  "importAction": "Nhập"
 }

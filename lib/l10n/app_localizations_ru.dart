@@ -1184,6 +1184,30 @@ class SRu extends S {
   String get progressWorking => 'Обработка…';
 
   @override
+  String get importFromLink => 'Импорт из QR-ссылки';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Вставьте letsflutssh://-ссылку, скопированную с другого устройства';
+
+  @override
+  String get pasteImportLinkTitle => 'Вставить ссылку импорта';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Вставьте ссылку letsflutssh://import?d=… (или сырой payload), сгенерированную на другом устройстве. Камера не нужна.';
+
+  @override
+  String get pasteFromClipboard => 'Вставить из буфера';
+
+  @override
+  String get invalidImportLink =>
+      'Ссылка не содержит корректные данные LetsFLUTssh';
+
+  @override
+  String get importAction => 'Импортировать';
+
+  @override
   String get saveSessionToAssignTags =>
       'Сначала сохраните сессию, чтобы назначить теги';
 

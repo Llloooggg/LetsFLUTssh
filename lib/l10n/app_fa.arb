@@ -599,5 +599,12 @@
   "tagCreated": "برچسب ایجاد شد",
   "tagDeleted": "برچسب «{name}» حذف شد",
   "tagCount": "{count, plural, =0{بدون برچسب} =1{۱ برچسب} other{{count} برچسب}}",
-  "editTags": "ویرایش برچسب‌ها"
+  "editTags": "ویرایش برچسب‌ها",
+  "importFromLink": "درون‌ریزی از پیوند QR",
+  "importFromLinkSubtitle": "پیوند letsflutssh:// کپی‌شده از دستگاه دیگر را بچسبانید",
+  "pasteImportLinkTitle": "چسباندن پیوند درون‌ریزی",
+  "pasteImportLinkDescription": "پیوند letsflutssh://import?d=… (یا بار خام) تولیدشده در دستگاه دیگر را بچسبانید. نیازی به دوربین نیست.",
+  "pasteFromClipboard": "چسباندن از کلیپ‌بورد",
+  "invalidImportLink": "پیوند بار معتبر LetsFLUTssh را شامل نیست",
+  "importAction": "درون‌ریزی"
 }

@@ -599,5 +599,12 @@
   "tagCreated": "Etiket oluşturuldu",
   "tagDeleted": "\"{name}\" etiketi silindi",
   "tagCount": "{count, plural, =0{Etiket yok} =1{1 etiket} other{{count} etiket}}",
-  "editTags": "Etiketleri Düzenle"
+  "editTags": "Etiketleri Düzenle",
+  "importFromLink": "QR bağlantısından içe aktar",
+  "importFromLinkSubtitle": "Başka bir cihazdan kopyalanan letsflutssh:// derin bağlantısını yapıştırın",
+  "pasteImportLinkTitle": "İçe aktarma bağlantısını yapıştır",
+  "pasteImportLinkDescription": "Başka bir cihazda üretilen letsflutssh://import?d=… bağlantısını (veya ham yükü) yapıştırın. Kamera gerekmez.",
+  "pasteFromClipboard": "Panodan yapıştır",
+  "invalidImportLink": "Bağlantı geçerli bir LetsFLUTssh yükü içermiyor",
+  "importAction": "İçe aktar"
 }

@@ -1195,6 +1195,30 @@ class SFr extends S {
   String get progressWorking => 'Traitement…';
 
   @override
+  String get importFromLink => 'Importer depuis un lien QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Collez un deep-link letsflutssh:// copié depuis un autre appareil';
+
+  @override
+  String get pasteImportLinkTitle => 'Coller le lien d\'import';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Collez le lien letsflutssh://import?d=… (ou le payload brut) généré sur un autre appareil. Pas de caméra requise.';
+
+  @override
+  String get pasteFromClipboard => 'Coller depuis le presse-papiers';
+
+  @override
+  String get invalidImportLink =>
+      'Le lien ne contient pas de payload LetsFLUTssh valide';
+
+  @override
+  String get importAction => 'Importer';
+
+  @override
   String get saveSessionToAssignTags =>
       'Enregistrez d\'abord la session pour attribuer des étiquettes';
 

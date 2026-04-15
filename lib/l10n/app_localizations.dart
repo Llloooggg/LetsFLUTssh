@@ -2241,6 +2241,48 @@ abstract class S {
   /// **'Working…'**
   String get progressWorking;
 
+  /// No description provided for @importFromLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from QR link'**
+  String get importFromLink;
+
+  /// No description provided for @importFromLinkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a letsflutssh:// deep link copied from another device'**
+  String get importFromLinkSubtitle;
+
+  /// No description provided for @pasteImportLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste import link'**
+  String get pasteImportLinkTitle;
+
+  /// No description provided for @pasteImportLinkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the letsflutssh://import?d=… link (or raw payload) generated on another device. No camera needed.'**
+  String get pasteImportLinkDescription;
+
+  /// No description provided for @pasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from clipboard'**
+  String get pasteFromClipboard;
+
+  /// No description provided for @invalidImportLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link does not contain a valid LetsFLUTssh payload'**
+  String get invalidImportLink;
+
+  /// No description provided for @importAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importAction;
+
   /// No description provided for @saveSessionToAssignTags.
   ///
   /// In en, this message translates to:

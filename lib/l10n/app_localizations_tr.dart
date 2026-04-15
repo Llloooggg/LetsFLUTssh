@@ -1188,6 +1188,30 @@ class STr extends S {
   String get progressWorking => 'İşleniyor…';
 
   @override
+  String get importFromLink => 'QR bağlantısından içe aktar';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Başka bir cihazdan kopyalanan letsflutssh:// derin bağlantısını yapıştırın';
+
+  @override
+  String get pasteImportLinkTitle => 'İçe aktarma bağlantısını yapıştır';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Başka bir cihazda üretilen letsflutssh://import?d=… bağlantısını (veya ham yükü) yapıştırın. Kamera gerekmez.';
+
+  @override
+  String get pasteFromClipboard => 'Panodan yapıştır';
+
+  @override
+  String get invalidImportLink =>
+      'Bağlantı geçerli bir LetsFLUTssh yükü içermiyor';
+
+  @override
+  String get importAction => 'İçe aktar';
+
+  @override
   String get saveSessionToAssignTags =>
       'Etiket atamak için önce oturumu kaydedin';
 

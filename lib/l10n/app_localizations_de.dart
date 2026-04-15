@@ -1193,6 +1193,30 @@ class SDe extends S {
   String get progressWorking => 'Wird bearbeitet…';
 
   @override
+  String get importFromLink => 'Per QR-Link importieren';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Einen von einem anderen Gerät kopierten letsflutssh:// Deep-Link einfügen';
+
+  @override
+  String get pasteImportLinkTitle => 'Import-Link einfügen';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Füge den auf einem anderen Gerät erzeugten letsflutssh://import?d=… Link (oder die rohe Payload) ein. Keine Kamera erforderlich.';
+
+  @override
+  String get pasteFromClipboard => 'Aus Zwischenablage einfügen';
+
+  @override
+  String get invalidImportLink =>
+      'Der Link enthält keine gültige LetsFLUTssh-Payload';
+
+  @override
+  String get importAction => 'Importieren';
+
+  @override
   String get saveSessionToAssignTags =>
       'Sitzung zuerst speichern, um Tags zuzuweisen';
 

@@ -599,5 +599,12 @@
   "tagCreated": "Tag dibuat",
   "tagDeleted": "Tag \"{name}\" dihapus",
   "tagCount": "{count, plural, =0{Tidak ada tag} =1{1 tag} other{{count} tag}}",
-  "editTags": "Edit Tag"
+  "editTags": "Edit Tag",
+  "importFromLink": "Impor dari tautan QR",
+  "importFromLinkSubtitle": "Tempel deep-link letsflutssh:// yang disalin dari perangkat lain",
+  "pasteImportLinkTitle": "Tempel tautan impor",
+  "pasteImportLinkDescription": "Tempel tautan letsflutssh://import?d=… (atau payload mentah) yang dihasilkan pada perangkat lain. Tidak perlu kamera.",
+  "pasteFromClipboard": "Tempel dari clipboard",
+  "invalidImportLink": "Tautan tidak berisi payload LetsFLUTssh yang valid",
+  "importAction": "Impor"
 }
