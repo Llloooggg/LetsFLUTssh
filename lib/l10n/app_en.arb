@@ -686,6 +686,9 @@
   "progressWritingArchive": "Writing archive…",
   "progressReencrypting": "Re-encrypting stores…",
   "progressWorking": "Working…",
+  "saveSessionToAssignTags": "Save the session first to assign tags",
+  "noTagsAssigned": "No tags assigned",
+  "manageTags": "Manage tags",
   "errWithPath": "{error}: {path}",
   "@errWithPath": {
     "placeholders": {

@@ -583,12 +583,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           icon: Icons.copy,
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
-        ContextMenuItem(
-          label: S.of(context).editTags,
-          icon: Icons.label_outline,
-          onTap: () =>
-              TagAssignDialog.showForSession(context, sessionId: session.id),
-        ),
         const ContextMenuItem.divider(),
         ContextMenuItem(
           label: S.of(context).delete,

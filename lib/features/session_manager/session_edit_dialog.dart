@@ -9,7 +9,9 @@ import '../../core/security/key_store.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/ssh_config.dart';
+import '../../core/tags/tag.dart';
 import '../../providers/key_provider.dart';
+import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
@@ -17,6 +19,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
+import '../tags/tag_assign_dialog.dart';
 
 /// Result of the session edit dialog.
 sealed class SessionDialogResult {}
@@ -774,17 +777,41 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   Widget _buildOptionsTab() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
+      children: [const SizedBox(height: 12), _buildTagsSection()],
+    );
+  }
+
+  /// Inline tags section — displays current assignments and a button
+  /// opening [TagAssignDialog].  Tagging is only available after the
+  /// session has been saved once (we need its id to write links).
+  Widget _buildTagsSection() {
+    final s = S.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
         Text(
-          S.of(context).noAdditionalOptionsYet,
+          s.tags,
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: AppFonts.sm,
-            color: AppTheme.fgFaint,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.fg,
           ),
         ),
+        const SizedBox(height: 8),
+        if (!_isEditing)
+          Text(
+            s.saveSessionToAssignTags,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: AppFonts.xs,
+              color: AppTheme.fgFaint,
+            ),
+          )
+        else
+          _EditingSessionTags(sessionId: widget.session!.id),
       ],
     );
   }
@@ -808,4 +835,96 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   String? Function(String?) get _requiredValidator =>
       (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
+}
+
+/// Chip list of tags currently assigned to a session, with a "Manage"
+/// button that opens [TagAssignDialog]. Rebuilds when the provider
+/// invalidates after the dialog applies its changes.
+class _EditingSessionTags extends ConsumerWidget {
+  final String sessionId;
+
+  const _EditingSessionTags({required this.sessionId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = S.of(context);
+    final tagsAsync = ref.watch(sessionTagsProvider(sessionId));
+    return tagsAsync.when(
+      loading: () => const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (tags) => _buildContent(context, ref, s, tags),
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    WidgetRef ref,
+    S s,
+    List<Tag> tags,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (tags.isEmpty)
+          Text(
+            s.noTagsAssigned,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: AppFonts.xs,
+              color: AppTheme.fgFaint,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [for (final tag in tags) _tagChip(tag)],
+          ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.label_outline, size: 18),
+          label: Text(s.manageTags),
+          onPressed: () async {
+            await TagAssignDialog.showForSession(context, sessionId: sessionId);
+            // The dialog applies changes directly; invalidate to refresh.
+            ref.invalidate(sessionTagsProvider(sessionId));
+          },
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            alignment: Alignment.centerLeft,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tagChip(Tag tag) {
+    final color = tag.colorValue ?? AppTheme.fgDim;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            tag.name,
+            style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fg),
+          ),
+        ],
+      ),
+    );
+  }
 }

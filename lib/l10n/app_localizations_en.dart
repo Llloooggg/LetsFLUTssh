@@ -1181,6 +1181,15 @@ class SEn extends S {
   String get progressWorking => 'Working…';
 
   @override
+  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+
+  @override
+  String get noTagsAssigned => 'No tags assigned';
+
+  @override
+  String get manageTags => 'Manage Tags';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1815,9 +1824,6 @@ class SEn extends S {
     );
     return '$_temp0';
   }
-
-  @override
-  String get manageTags => 'Manage Tags';
 
   @override
   String get editTags => 'Edit Tags';

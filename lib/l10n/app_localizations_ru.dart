@@ -1184,6 +1184,16 @@ class SRu extends S {
   String get progressWorking => 'Обработка…';
 
   @override
+  String get saveSessionToAssignTags =>
+      'Сначала сохраните сессию, чтобы назначить теги';
+
+  @override
+  String get noTagsAssigned => 'Теги не назначены';
+
+  @override
+  String get manageTags => 'Управление тегами';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1829,9 +1839,6 @@ class SRu extends S {
     );
     return '$_temp0';
   }
-
-  @override
-  String get manageTags => 'Manage Tags';
 
   @override
   String get editTags => 'Edit Tags';
