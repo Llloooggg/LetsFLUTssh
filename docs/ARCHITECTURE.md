@@ -1558,6 +1558,26 @@ LfsImportDialog.show(context, {required String filePath})
   → Future<({String password, ImportMode mode})?>
 ```
 
+### PasteImportLinkDialog
+
+```dart
+PasteImportLinkDialog.show(context) → Future<ExportPayloadData?>
+```
+
+Camera-less QR-import flow: accepts either a full `letsflutssh://import?d=…` deep link or the raw base64url payload, decodes via `decodeImportUri` / `decodeExportPayload`, pops the parsed `ExportPayloadData` on success. Paste-from-clipboard button reads `Clipboard.getData('text/plain')`; on mobile an additional "Scan QR code" button launches the native scanner via [`scanQrCode()`](#qr-scanner-coreqr). Rejects invalid input with an inline error instead of closing.
+
+### LocalDirectoryPicker
+
+```dart
+LocalDirectoryPicker.show(
+  context, {
+  required String initialPath,
+  required String title,
+}) → Future<String?>
+```
+
+In-app directory browser that walks the filesystem via `dart:io` (no SAF, no `file_picker`). Used on Android when the app holds `MANAGE_EXTERNAL_STORAGE` — replaces SAF's `ACTION_OPEN_DOCUMENT_TREE`, which would otherwise prompt for per-folder consent on every export. Returns the selected directory's absolute path; callers append the filename.
+
 ### CrossMarqueeController
 
 ```dart
@@ -2322,15 +2342,19 @@ Stores keep domain model APIs unchanged; DAOs handle SQL. Mappers (`mappers.dart
 
 ### Android specifics
 
-- **Storage permission** — `MANAGE_EXTERNAL_STORAGE` for full file access. Requested via custom MethodChannel (`com.letsflutssh/permissions`) in `MainActivity.kt`. Android 11+ opens the system "All files access" settings page (`ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`); older versions use standard `READ_EXTERNAL_STORAGE`/`WRITE_EXTERNAL_STORAGE` runtime dialog. No external plugin (avoids permission_handler GPS side-effects). Dart side: `SFTPInitializer._requestStoragePermission()` — quick-checks `/storage/emulated/0` first, requests only if needed
+- **Storage permission** — `MANAGE_EXTERNAL_STORAGE` for full file access. Requested via the `com.letsflutssh/permissions` MethodChannel in `MainActivity.kt` — shared helper `utils/android_storage_permission.dart`. Android 11+ opens the system "All files access" settings page (`ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`); older versions use the standard `READ_EXTERNAL_STORAGE`/`WRITE_EXTERNAL_STORAGE` runtime dialog. No external plugin (avoids `permission_handler` GPS side-effects)
+- **Export folder picker** — once `MANAGE_EXTERNAL_STORAGE` is granted, `.lfs` exports use the in-app [`LocalDirectoryPicker`](#widgets---public-api-reference) (a `dart:io` directory browser) instead of SAF's `ACTION_OPEN_DOCUMENT_TREE`. SAF asks for per-folder consent on every export even when all-files access is already granted — that's the UX bug the picker sidesteps. Without `MANAGE_EXTERNAL_STORAGE` the flow still falls back to the SAF picker via `file_picker.getDirectoryPath`
+- **QR scanner** — native `QrScannerActivity.kt` using CameraX (AndroidX) for the preview pipeline and ZXing-core (Apache 2.0 jar) for decoding. Exposed through the `com.letsflutssh/qrscanner` MethodChannel, `method: scan`. **No Google Play Services / MLKit** — works offline on AOSP builds and degoogled devices
 - `flutter_foreground_task` for keep-alive on screen lock
 - APK split per ABI: arm64-v8a, armeabi-v7a, x86_64
 
 ### iOS specifics
 
 - `NSLocalNetworkUsageDescription` required for local TCP
+- `NSCameraUsageDescription` required for the QR scanner (scan-only)
 - No foreground service (iOS background modes)
 - **Local file browser** — starts in app's Documents directory (`getApplicationDocumentsDirectory()`), which is accessible via Files.app. Users can browse outside the sandbox via a "Pick Folder" button (iOS only, uses `file_picker` → `UIDocumentPickerViewController` in folder mode). Security-scoped access is granted for the session after the user picks a folder
+- **QR scanner** — `QrScannerController.swift` built on `AVCaptureSession` with `AVMetadataMachineReadableCodeObject` restricted to `.qr`. System framework only, zero external dependencies. Registered on the shared `com.letsflutssh/qrscanner` channel from `AppDelegate`
 
 ### Desktop window constraints
 
