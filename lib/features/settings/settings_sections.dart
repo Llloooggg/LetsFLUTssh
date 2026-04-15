@@ -1105,6 +1105,10 @@ class _ExportImportTile extends ConsumerWidget {
       );
     }
     if (Platform.isAndroid) {
+      // Ask the OS for MANAGE_EXTERNAL_STORAGE if we don't already hold
+      // it — without this the probe below will always fail on Android 11+
+      // and every export falls back to the SAF picker that Den hit.
+      await requestAndroidStoragePermission();
       final directPath = await _androidDirectDownloadsPath(defaultName);
       if (directPath != null) return directPath;
     }
@@ -1446,21 +1450,29 @@ class _UpdateSection extends ConsumerWidget {
         return _buildUpdateAvailable(context, ref, updateState);
 
       case UpdateStatus.downloading:
-        return ListTile(
-          leading: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              value: updateState.progress > 0 ? updateState.progress : null,
-              strokeWidth: 2,
-            ),
+        // Linear progress gives the user a much clearer sense of how far
+        // the download has gone than a 20-px spinner — pair it with a
+        // percent-annotated caption for screen readers.
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                S
+                    .of(context)
+                    .downloadingPercent((updateState.progress * 100).toInt()),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: AppTheme.radiusSm,
+                child: LinearProgressIndicator(
+                  value: updateState.progress > 0 ? updateState.progress : null,
+                  minHeight: 6,
+                ),
+              ),
+            ],
           ),
-          title: Text(
-            S
-                .of(context)
-                .downloadingPercent((updateState.progress * 100).toInt()),
-          ),
-          contentPadding: EdgeInsets.zero,
         );
 
       case UpdateStatus.downloaded:
