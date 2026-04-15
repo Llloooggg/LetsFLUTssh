@@ -1169,6 +1169,40 @@ class SHi extends S {
   String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
 
   @override
+  String get wrongPassword => 'गलत पासवर्ड';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh लॉक है';
+
+  @override
+  String get lockScreenSubtitle =>
+      'जारी रखने के लिए मास्टर पासवर्ड दर्ज करें या बायोमेट्रिक्स का उपयोग करें।';
+
+  @override
+  String get unlock => 'अनलॉक करें';
+
+  @override
+  String get autoLockTitle => 'निष्क्रियता के बाद ऑटो-लॉक';
+
+  @override
+  String get autoLockSubtitle =>
+      'इतनी देर निष्क्रिय रहने पर मेमोरी में कुंजी मिटा दें और UI को लॉक कर दें।';
+
+  @override
+  String get autoLockOff => 'बंद';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes मिनट',
+      one: '$minutes मिनट',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
 
   @override
@@ -1624,9 +1658,6 @@ class SHi extends S {
 
   @override
   String get rememberPassphrase => 'इस सत्र के लिए याद रखें';
-
-  @override
-  String get unlock => 'अनलॉक करें';
 
   @override
   String get masterPasswordSubtitle =>

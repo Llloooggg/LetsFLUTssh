@@ -1165,6 +1165,39 @@ class SVi extends S {
   String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';
 
   @override
+  String get wrongPassword => 'Mật khẩu không đúng';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh đã bị khóa';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Nhập mật khẩu chính hoặc dùng sinh trắc học để tiếp tục.';
+
+  @override
+  String get unlock => 'Mở khóa';
+
+  @override
+  String get autoLockTitle => 'Tự động khóa khi không hoạt động';
+
+  @override
+  String get autoLockSubtitle =>
+      'Xóa khóa trong bộ nhớ và khóa giao diện sau khoảng thời gian không hoạt động này.';
+
+  @override
+  String get autoLockOff => 'Tắt';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes phút',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
 
   @override
@@ -1613,9 +1646,6 @@ class SVi extends S {
 
   @override
   String get rememberPassphrase => 'Ghi nhớ cho phiên này';
-
-  @override
-  String get unlock => 'Mở khóa';
 
   @override
   String get masterPasswordSubtitle =>

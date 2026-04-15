@@ -1180,6 +1180,40 @@ class SFr extends S {
   String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';
 
   @override
+  String get wrongPassword => 'Mot de passe incorrect';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh est verrouillé';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Saisissez le mot de passe maître ou utilisez la biométrie pour continuer.';
+
+  @override
+  String get unlock => 'Déverrouiller';
+
+  @override
+  String get autoLockTitle => 'Verrouillage automatique après inactivité';
+
+  @override
+  String get autoLockSubtitle =>
+      'Effacer la clé en mémoire et verrouiller l’interface après cette durée d’inactivité.';
+
+  @override
+  String get autoLockOff => 'Désactivé';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Mot de passe maître incorrect ou archive .lfs corrompue';
 
@@ -1639,9 +1673,6 @@ class SFr extends S {
 
   @override
   String get rememberPassphrase => 'Retenir pour cette session';
-
-  @override
-  String get unlock => 'Déverrouiller';
 
   @override
   String get masterPasswordSubtitle =>

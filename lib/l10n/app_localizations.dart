@@ -2205,6 +2205,54 @@ abstract class S {
   /// **'Current password is incorrect'**
   String get currentPasswordIncorrect;
 
+  /// No description provided for @wrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password'**
+  String get wrongPassword;
+
+  /// No description provided for @lockScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LetsFLUTssh is locked'**
+  String get lockScreenTitle;
+
+  /// No description provided for @lockScreenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the master password or use biometrics to continue.'**
+  String get lockScreenSubtitle;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
+
+  /// No description provided for @autoLockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-lock after inactivity'**
+  String get autoLockTitle;
+
+  /// No description provided for @autoLockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Zero the in-memory key and block the UI when idle for this long.'**
+  String get autoLockSubtitle;
+
+  /// No description provided for @autoLockOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get autoLockOff;
+
+  /// No description provided for @autoLockMinutesValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}'**
+  String autoLockMinutesValue(int minutes);
+
   /// No description provided for @errLfsDecryptFailed.
   ///
   /// In en, this message translates to:
@@ -2924,12 +2972,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Remember for this session'**
   String get rememberPassphrase;
-
-  /// No description provided for @unlock.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock'**
-  String get unlock;
 
   /// No description provided for @masterPasswordSubtitle.
   ///

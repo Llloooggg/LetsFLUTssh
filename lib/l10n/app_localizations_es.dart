@@ -1175,6 +1175,40 @@ class SEs extends S {
   String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';
 
   @override
+  String get wrongPassword => 'Contraseña incorrecta';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Introduce la contraseña maestra o usa la biometría para continuar.';
+
+  @override
+  String get unlock => 'Desbloquear';
+
+  @override
+  String get autoLockTitle => 'Bloqueo automático por inactividad';
+
+  @override
+  String get autoLockSubtitle =>
+      'Borrar la clave en memoria y bloquear la interfaz tras este periodo de inactividad.';
+
+  @override
+  String get autoLockOff => 'Desactivado';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutos',
+      one: '$minutes minuto',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Contraseña maestra incorrecta o archivo .lfs dañado';
 
@@ -1633,9 +1667,6 @@ class SEs extends S {
 
   @override
   String get rememberPassphrase => 'Recordar para esta sesión';
-
-  @override
-  String get unlock => 'Desbloquear';
 
   @override
   String get masterPasswordSubtitle =>

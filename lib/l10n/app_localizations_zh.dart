@@ -1141,6 +1141,37 @@ class SZh extends S {
   String get currentPasswordIncorrect => '当前密码不正确';
 
   @override
+  String get wrongPassword => '密码错误';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh 已锁定';
+
+  @override
+  String get lockScreenSubtitle => '输入主密码或使用生物识别以继续。';
+
+  @override
+  String get unlock => '解锁';
+
+  @override
+  String get autoLockTitle => '闲置后自动锁定';
+
+  @override
+  String get autoLockSubtitle => '在闲置达到此时长后清除内存中的密钥并锁定界面。';
+
+  @override
+  String get autoLockOff => '关闭';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes 分钟',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
 
   @override
@@ -1582,9 +1613,6 @@ class SZh extends S {
 
   @override
   String get rememberPassphrase => '在此会话中记住';
-
-  @override
-  String get unlock => '解锁';
 
   @override
   String get masterPasswordSubtitle => '使用密码保护已保存的凭据';

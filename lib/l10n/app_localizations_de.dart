@@ -1178,6 +1178,40 @@ class SDe extends S {
   String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';
 
   @override
+  String get wrongPassword => 'Falsches Passwort';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh ist gesperrt';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.';
+
+  @override
+  String get unlock => 'Entsperren';
+
+  @override
+  String get autoLockTitle => 'Automatisch sperren bei Inaktivität';
+
+  @override
+  String get autoLockSubtitle =>
+      'Den Schlüssel im Speicher löschen und die Oberfläche sperren, wenn so lange inaktiv.';
+
+  @override
+  String get autoLockOff => 'Aus';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes Minuten',
+      one: '$minutes Minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
 
@@ -1637,9 +1671,6 @@ class SDe extends S {
 
   @override
   String get rememberPassphrase => 'Für diese Sitzung merken';
-
-  @override
-  String get unlock => 'Entsperren';
 
   @override
   String get masterPasswordSubtitle =>

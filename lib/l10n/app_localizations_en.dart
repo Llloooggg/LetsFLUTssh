@@ -1165,6 +1165,40 @@ class SEn extends S {
   String get currentPasswordIncorrect => 'Current password is incorrect';
 
   @override
+  String get wrongPassword => 'Wrong password';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh is locked';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Enter the master password or use biometrics to continue.';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get autoLockTitle => 'Auto-lock after inactivity';
+
+  @override
+  String get autoLockSubtitle =>
+      'Zero the in-memory key and block the UI when idle for this long.';
+
+  @override
+  String get autoLockOff => 'Off';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Wrong master password or corrupted .lfs archive';
 
@@ -1611,9 +1645,6 @@ class SEn extends S {
 
   @override
   String get rememberPassphrase => 'Remember for this session';
-
-  @override
-  String get unlock => 'Unlock';
 
   @override
   String get masterPasswordSubtitle =>

@@ -1173,6 +1173,39 @@ class STr extends S {
   String get currentPasswordIncorrect => 'Mevcut parola yanlış';
 
   @override
+  String get wrongPassword => 'Yanlış parola';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh kilitli';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Devam etmek için ana parolayı girin veya biyometriyi kullanın.';
+
+  @override
+  String get unlock => 'Kilidi aç';
+
+  @override
+  String get autoLockTitle => 'Hareketsizlik sonrası otomatik kilit';
+
+  @override
+  String get autoLockSubtitle =>
+      'Bu süre boyunca boşta kalındığında bellekteki anahtarı sıfırlayın ve arayüzü kilitleyin.';
+
+  @override
+  String get autoLockOff => 'Kapalı';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes dakika',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
 
@@ -1630,9 +1663,6 @@ class STr extends S {
 
   @override
   String get rememberPassphrase => 'Bu oturum için hatırla';
-
-  @override
-  String get unlock => 'Kilidi aç';
 
   @override
   String get masterPasswordSubtitle =>

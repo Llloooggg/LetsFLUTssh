@@ -1169,6 +1169,42 @@ class SRu extends S {
   String get currentPasswordIncorrect => 'Неверный текущий пароль';
 
   @override
+  String get wrongPassword => 'Неверный пароль';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh заблокирован';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Введите мастер-пароль или используйте биометрию, чтобы продолжить.';
+
+  @override
+  String get unlock => 'Разблокировать';
+
+  @override
+  String get autoLockTitle => 'Автоблокировка при бездействии';
+
+  @override
+  String get autoLockSubtitle =>
+      'Очищать ключ в памяти и блокировать интерфейс после указанного периода бездействия.';
+
+  @override
+  String get autoLockOff => 'Выкл.';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes минуты',
+      many: '$minutes минут',
+      few: '$minutes минуты',
+      one: '$minutes минута',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Неверный мастер-пароль или повреждённый архив .lfs';
 
@@ -1628,9 +1664,6 @@ class SRu extends S {
 
   @override
   String get rememberPassphrase => 'Запомнить для этой сессии';
-
-  @override
-  String get unlock => 'Разблокировать';
 
   @override
   String get masterPasswordSubtitle =>

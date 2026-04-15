@@ -1173,6 +1173,39 @@ class SId extends S {
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
 
   @override
+  String get wrongPassword => 'Kata sandi salah';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh terkunci';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Masukkan kata sandi utama atau gunakan biometrik untuk melanjutkan.';
+
+  @override
+  String get unlock => 'Buka kunci';
+
+  @override
+  String get autoLockTitle => 'Kunci otomatis setelah tidak aktif';
+
+  @override
+  String get autoLockSubtitle =>
+      'Hapus kunci di memori dan kunci UI setelah tidak aktif selama durasi ini.';
+
+  @override
+  String get autoLockOff => 'Mati';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes menit',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Kata sandi utama salah atau arsip .lfs rusak';
 
@@ -1624,9 +1657,6 @@ class SId extends S {
 
   @override
   String get rememberPassphrase => 'Ingat untuk sesi ini';
-
-  @override
-  String get unlock => 'Buka kunci';
 
   @override
   String get masterPasswordSubtitle =>

@@ -1144,6 +1144,37 @@ class SKo extends S {
   String get currentPasswordIncorrect => '현재 비밀번호가 올바르지 않습니다';
 
   @override
+  String get wrongPassword => '잘못된 비밀번호';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh이(가) 잠겨 있습니다';
+
+  @override
+  String get lockScreenSubtitle => '계속하려면 마스터 비밀번호를 입력하거나 생체 인식을 사용하세요.';
+
+  @override
+  String get unlock => '잠금 해제';
+
+  @override
+  String get autoLockTitle => '비활성 상태에서 자동 잠금';
+
+  @override
+  String get autoLockSubtitle => '이 시간 동안 활동이 없으면 메모리의 키를 지우고 UI를 잠급니다.';
+
+  @override
+  String get autoLockOff => '끔';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes분',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => '마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다';
 
   @override
@@ -1586,9 +1617,6 @@ class SKo extends S {
 
   @override
   String get rememberPassphrase => '이 세션에서 기억';
-
-  @override
-  String get unlock => '잠금 해제';
 
   @override
   String get masterPasswordSubtitle => '저장된 인증 정보를 비밀번호로 보호';

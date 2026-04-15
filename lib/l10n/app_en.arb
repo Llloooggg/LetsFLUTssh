@@ -680,6 +680,19 @@
   "biometricEnabled": "Biometric unlock enabled",
   "biometricDisabled": "Biometric unlock disabled",
   "currentPasswordIncorrect": "Current password is incorrect",
+  "wrongPassword": "Wrong password",
+  "lockScreenTitle": "LetsFLUTssh is locked",
+  "lockScreenSubtitle": "Enter the master password or use biometrics to continue.",
+  "unlock": "Unlock",
+  "autoLockTitle": "Auto-lock after inactivity",
+  "autoLockSubtitle": "Zero the in-memory key and block the UI when idle for this long.",
+  "autoLockOff": "Off",
+  "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
+  "@autoLockMinutesValue": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
   "errLfsDecryptFailed": "Wrong master password or corrupted .lfs archive",
   "errLfsArchiveTooLarge": "Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.",
   "@errLfsArchiveTooLarge": {

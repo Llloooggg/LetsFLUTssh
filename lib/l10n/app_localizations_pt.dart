@@ -1173,6 +1173,40 @@ class SPt extends S {
   String get currentPasswordIncorrect => 'A senha atual está incorreta';
 
   @override
+  String get wrongPassword => 'Senha incorreta';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Digite a senha mestra ou use a biometria para continuar.';
+
+  @override
+  String get unlock => 'Desbloquear';
+
+  @override
+  String get autoLockTitle => 'Bloquear automaticamente após inatividade';
+
+  @override
+  String get autoLockSubtitle =>
+      'Zerar a chave em memória e bloquear a interface após este período de inatividade.';
+
+  @override
+  String get autoLockOff => 'Desativado';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutos',
+      one: '$minutes minuto',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Senha mestra incorreta ou arquivo .lfs corrompido';
 
@@ -1632,9 +1666,6 @@ class SPt extends S {
 
   @override
   String get rememberPassphrase => 'Lembrar para esta sessão';
-
-  @override
-  String get unlock => 'Desbloquear';
 
   @override
   String get masterPasswordSubtitle => 'Proteger credenciais salvas com senha';

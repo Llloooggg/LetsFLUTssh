@@ -1166,6 +1166,40 @@ class SFa extends S {
   String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
 
   @override
+  String get wrongPassword => 'گذرواژهٔ نادرست';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh قفل است';
+
+  @override
+  String get lockScreenSubtitle =>
+      'برای ادامه، گذرواژهٔ اصلی را وارد کنید یا از زیست‌سنجی استفاده کنید.';
+
+  @override
+  String get unlock => 'باز کردن قفل';
+
+  @override
+  String get autoLockTitle => 'قفل خودکار پس از بی‌کاری';
+
+  @override
+  String get autoLockSubtitle =>
+      'پس از این مدت بی‌کاری، کلید موجود در حافظه را صفر کرده و رابط را قفل کنید.';
+
+  @override
+  String get autoLockOff => 'خاموش';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقیقه',
+      one: '$minutes دقیقه',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
 
   @override
@@ -1616,9 +1650,6 @@ class SFa extends S {
 
   @override
   String get rememberPassphrase => 'در این جلسه به خاطر بسپار';
-
-  @override
-  String get unlock => 'باز کردن قفل';
 
   @override
   String get masterPasswordSubtitle =>

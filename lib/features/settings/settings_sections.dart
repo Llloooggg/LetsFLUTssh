@@ -280,6 +280,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
                 ? (v) => _toggleBiometricUnlock(context, v)
                 : null,
           ),
+        // Auto-lock — only meaningful in masterPassword mode, since lock
+        // zeroes the DB key and relies on the MP prompt (or biometrics)
+        // to restore it. In plaintext/keychain there is no secret to
+        // re-prove, so the row is hidden.
+        if (secState.level == SecurityLevel.masterPassword) _AutoLockTile(),
       ],
     );
   }
@@ -2014,6 +2019,87 @@ class _DataPathTile extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Auto-lock timeout selector. Values are in minutes; 0 means disabled.
+///
+/// Keep the preset list short — power-of-something choices beat a numeric
+/// stepper for a security-sensitive setting where wrong values (too low,
+/// too high) damage UX or security. 5/15/30/60 + Off covers the common
+/// expectations ("step-away-for-a-coffee" up to "lunch break").
+class _AutoLockTile extends ConsumerWidget {
+  static const _presets = [0, 5, 15, 30, 60];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = S.of(context);
+    final current = ref.watch(
+      configProvider.select((c) => c.behavior.autoLockMinutes),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timer_outlined, size: 16, color: AppTheme.fgDim),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.autoLockTitle,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.sm,
+                        color: AppTheme.fg,
+                      ),
+                    ),
+                    Text(
+                      l10n.autoLockSubtitle,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.fgFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            children: _presets.map((m) {
+              final label = m == 0
+                  ? l10n.autoLockOff
+                  : l10n.autoLockMinutesValue(m);
+              final selected = m == current;
+              return ChoiceChip(
+                label: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: selected ? AppTheme.onAccent : AppTheme.fg,
+                  ),
+                ),
+                selected: selected,
+                selectedColor: AppTheme.accent,
+                onSelected: (_) => ref
+                    .read(configProvider.notifier)
+                    .update(
+                      (c) => c.copyWith(
+                        behavior: c.behavior.copyWith(autoLockMinutes: m),
+                      ),
+                    ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

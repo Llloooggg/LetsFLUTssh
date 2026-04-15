@@ -1162,6 +1162,44 @@ class SAr extends S {
   String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
 
   @override
+  String get wrongPassword => 'كلمة مرور خاطئة';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh مُقفل';
+
+  @override
+  String get lockScreenSubtitle =>
+      'أدخل كلمة المرور الرئيسية أو استخدم المقاييس الحيوية للمتابعة.';
+
+  @override
+  String get unlock => 'فتح القفل';
+
+  @override
+  String get autoLockTitle => 'القفل التلقائي بعد الخمول';
+
+  @override
+  String get autoLockSubtitle =>
+      'تصفير المفتاح من الذاكرة وقفل الواجهة بعد هذه المدة من الخمول.';
+
+  @override
+  String get autoLockOff => 'معطّل';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      many: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+      zero: '$minutes دقيقة',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
 
@@ -1614,9 +1652,6 @@ class SAr extends S {
 
   @override
   String get rememberPassphrase => 'تذكر لهذه الجلسة';
-
-  @override
-  String get unlock => 'فتح القفل';
 
   @override
   String get masterPasswordSubtitle =>

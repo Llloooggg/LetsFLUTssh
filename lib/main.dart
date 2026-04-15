@@ -15,6 +15,7 @@ import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
 import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
+import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
@@ -27,6 +28,8 @@ import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
+import 'widgets/auto_lock_detector.dart';
+import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
@@ -549,11 +552,22 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       themeAnimationDuration: Duration.zero,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
+        final locked = ref.watch(lockStateProvider);
         return Directionality(
           textDirection: TextDirection.ltr,
           child: MediaQuery(
             data: mediaQuery.copyWith(textScaler: TextScaler.linear(uiScale)),
-            child: child!,
+            // AutoLockDetector wraps the real UI so every pointer/key
+            // event resets the idle timer. LockScreen overlays on top
+            // with zero hit-test for the app beneath while locked.
+            child: AutoLockDetector(
+              child: Stack(
+                children: [
+                  child!,
+                  if (locked) const Positioned.fill(child: LockScreen()),
+                ],
+              ),
+            ),
           ),
         );
       },

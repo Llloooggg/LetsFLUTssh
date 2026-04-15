@@ -1145,6 +1145,37 @@ class SJa extends S {
   String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
 
   @override
+  String get wrongPassword => 'パスワードが間違っています';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh はロックされています';
+
+  @override
+  String get lockScreenSubtitle => '続行するにはマスターパスワードを入力するか、生体認証を使用してください。';
+
+  @override
+  String get unlock => 'ロック解除';
+
+  @override
+  String get autoLockTitle => '操作がないときに自動ロック';
+
+  @override
+  String get autoLockSubtitle => 'この時間操作がないと、メモリ内の鍵を消去して UI をロックします。';
+
+  @override
+  String get autoLockOff => 'オフ';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes 分',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
 
   @override
@@ -1590,9 +1621,6 @@ class SJa extends S {
 
   @override
   String get rememberPassphrase => 'このセッションで記憶';
-
-  @override
-  String get unlock => 'ロック解除';
 
   @override
   String get masterPasswordSubtitle => '保存された認証情報をパスワードで保護';
