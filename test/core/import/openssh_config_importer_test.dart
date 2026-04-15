@@ -302,5 +302,37 @@ Host withkey
       expect(OpenSshConfigImporter.expandHome('/absolute'), '/absolute');
       expect(OpenSshConfigImporter.expandHome('~/foo'), isNot(startsWith('~')));
     });
+
+    test('isSuspiciousPath flags traversal segments', () {
+      expect(OpenSshConfigImporter.isSuspiciousPath('~/.ssh/id_rsa'), isFalse);
+      expect(OpenSshConfigImporter.isSuspiciousPath('/etc/ssh/key'), isFalse);
+      expect(
+        OpenSshConfigImporter.isSuspiciousPath('~/.ssh/../../etc/shadow'),
+        isTrue,
+      );
+      expect(OpenSshConfigImporter.isSuspiciousPath('../../../etc'), isTrue);
+      expect(
+        OpenSshConfigImporter.isSuspiciousPath(r'C:\Users\..\..\Windows'),
+        isTrue,
+      );
+    });
+
+    test('IdentityFile with traversal is skipped, entry flagged missing', () {
+      // Even if the malicious path would be "readable", isSuspiciousPath
+      // rejects it before `readPem` runs. The host still imports as a
+      // session-without-key with missing-key flag set.
+      final preview = importerWith({'/etc/shadow': 'fake pem'}).buildPreview(
+        configContent: '''
+Host evil
+    HostName evil.example.com
+    User u
+    IdentityFile ~/.ssh/../../etc/shadow
+''',
+        folderLabel: 'f',
+      );
+      expect(preview.result.sessions.single.auth.keyId, isEmpty);
+      expect(preview.hostsWithMissingKeys, ['evil']);
+      expect(preview.result.managerKeys, isEmpty);
+    });
   });
 }
