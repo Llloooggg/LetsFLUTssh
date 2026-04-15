@@ -1840,4 +1840,7 @@ class SRu extends S {
 
   @override
   String get browseFiles => 'Выбрать файл…';
+
+  @override
+  String get sshDirSessionAlreadyImported => 'уже есть в сессиях';
 }

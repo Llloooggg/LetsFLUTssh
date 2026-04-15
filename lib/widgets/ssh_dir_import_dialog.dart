@@ -18,6 +18,11 @@ class SshDirImportSource {
   final OpenSshConfigImportPreview? hostsPreview;
   final List<ScannedKey> keys;
   final Set<String> existingKeyFingerprints;
+
+  /// `user@host:port` strings for every session already in the session store.
+  /// Lets the dialog flag a parsed host as "already in sessions" and default
+  /// it to unchecked so the user isn't invited to create duplicates.
+  final Set<String> existingSessionAddresses;
   final String folderLabel;
 
   const SshDirImportSource({
@@ -25,11 +30,16 @@ class SshDirImportSource {
     required this.keys,
     required this.folderLabel,
     this.existingKeyFingerprints = const {},
+    this.existingSessionAddresses = const {},
   });
 
   bool get hasHosts => (hostsPreview?.result.sessions.isNotEmpty ?? false);
   bool get hasKeys => keys.isNotEmpty;
 }
+
+/// Canonical "already in sessions?" key for a [Session]. The dialog and the
+/// settings handler use the same format so the dedup check lines up.
+String sshDirSessionAddress(Session s) => '${s.user}@${s.host}:${s.port}';
 
 /// Returned by the "Browse..." picker for the hosts section — a parsed
 /// config plus any keys the parser resolved from its IdentityFile lines.
@@ -100,6 +110,7 @@ class SshDirImportDialog extends StatefulWidget {
 
 class _SshDirImportDialogState extends State<SshDirImportDialog> {
   final List<Session> _hosts = [];
+  final List<bool> _hostAlreadyInSessions = [];
   final List<SshKeyEntry> _hostManagerKeys = [];
   final List<String> _hostsWithMissingKeys = [];
   final List<ScannedKey> _keys = [];
@@ -116,11 +127,23 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     super.initState();
     final preview = widget.source.hostsPreview;
     if (preview != null) {
-      _hosts.addAll(preview.result.sessions);
+      for (final s in preview.result.sessions) {
+        _hosts.add(s);
+        _hostAlreadyInSessions.add(
+          widget.source.existingSessionAddresses.contains(
+            sshDirSessionAddress(s),
+          ),
+        );
+      }
       _hostManagerKeys.addAll(preview.result.managerKeys);
       _hostsWithMissingKeys.addAll(preview.hostsWithMissingKeys);
     }
-    _selectedHostIds = _hosts.map((s) => s.id).toSet();
+    // Default-uncheck hosts whose user@host:port is already in the session
+    // store — importing them again would just create a duplicate row.
+    _selectedHostIds = {
+      for (var i = 0; i < _hosts.length; i++)
+        if (!_hostAlreadyInSessions[i]) _hosts[i].id,
+    };
     _keys.addAll(widget.source.keys);
     _keyAlreadyInStore = _keys
         .map(
@@ -166,12 +189,17 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       final picked = await cb();
       if (picked == null || !mounted) return;
       setState(() {
-        // Append, dedup by session id. Newly picked hosts default to checked.
+        // Append, dedup by session id. Newly picked hosts default to checked
+        // unless user@host:port already exists as a session.
         final existingIds = _hosts.map((s) => s.id).toSet();
         for (final s in picked.sessions) {
           if (existingIds.contains(s.id)) continue;
           _hosts.add(s);
-          _selectedHostIds.add(s.id);
+          final already = widget.source.existingSessionAddresses.contains(
+            sshDirSessionAddress(s),
+          );
+          _hostAlreadyInSessions.add(already);
+          if (!already) _selectedHostIds.add(s.id);
         }
         final existingKeyIds = _hostManagerKeys.map((k) => k.id).toSet();
         for (final k in picked.managerKeys) {
@@ -354,7 +382,8 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
           DataCheckboxRow(
             icon: Icons.done_all,
             label: s.sshConfigPreviewHostsFound(_hosts.length),
-            value: _hostsTristate ?? false,
+            value: _hostsTristate,
+            tristate: true,
             onTap: () => _toggleAllHosts(_hostsTristate != true),
             trailingLabel: '${_selectedHostIds.length} / ${_hosts.length}',
           ),
@@ -369,16 +398,22 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final session in _hosts)
+                    for (var i = 0; i < _hosts.length; i++)
                       DataCheckboxRow(
                         icon: Icons.computer,
-                        label: session.label,
-                        value: _selectedHostIds.contains(session.id),
-                        onTap: () => _toggleHost(session.id),
-                        trailingLabel:
-                            '${session.user.isEmpty ? '?' : session.user}'
-                            '@${session.host}:${session.port}'
-                            '${session.keyId.isNotEmpty ? '  (key)' : ''}',
+                        label: _hosts[i].label,
+                        value: _selectedHostIds.contains(_hosts[i].id),
+                        onTap: () => _toggleHost(_hosts[i].id),
+                        subtitle:
+                            '${_hosts[i].user.isEmpty ? '?' : _hosts[i].user}'
+                            '@${_hosts[i].host}:${_hosts[i].port}'
+                            '${_hosts[i].keyId.isNotEmpty ? '  (key)' : ''}',
+                        trailingLabel: _hostAlreadyInSessions[i]
+                            ? s.sshDirSessionAlreadyImported
+                            : null,
+                        labelColor: _hostAlreadyInSessions[i]
+                            ? AppTheme.fgDim
+                            : null,
                       ),
                   ],
                 ),
@@ -437,7 +472,8 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
           DataCheckboxRow(
             icon: Icons.done_all,
             label: s.importSshKeysFound(_keys.length),
-            value: _keysTristate ?? false,
+            value: _keysTristate,
+            tristate: true,
             onTap: () => _toggleAllKeys(_keysTristate != true),
             trailingLabel:
                 '${_selectedKeys.where((v) => v).length} / ${_keys.length}',
@@ -457,11 +493,12 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
                         label: _keys[i].suggestedLabel,
                         value: _selectedKeys[i],
                         onTap: () => _toggleKey(i),
+                        subtitle: _keys[i].path,
                         trailingLabel: _keyAlreadyInStore[i]
                             ? s.sshKeyAlreadyImported
                             : null,
-                        warningText: _keyAlreadyInStore[i]
-                            ? _keys[i].path
+                        labelColor: _keyAlreadyInStore[i]
+                            ? AppTheme.fgDim
                             : null,
                       ),
                   ],

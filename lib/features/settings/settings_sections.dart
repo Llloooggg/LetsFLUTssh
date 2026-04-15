@@ -742,6 +742,10 @@ class _ExportImportTile extends ConsumerWidget {
       final existingFingerprints = existing.values
           .map((e) => KeyStore.privateKeyFingerprint(e.privateKey))
           .toSet();
+      final existingSessionAddresses = ref
+          .read(sessionProvider)
+          .map(sshDirSessionAddress)
+          .toSet();
       if (!context.mounted) return;
 
       final filtered = await SshDirImportDialog.show(
@@ -750,6 +754,7 @@ class _ExportImportTile extends ConsumerWidget {
           hostsPreview: preview,
           keys: scannedKeys,
           existingKeyFingerprints: existingFingerprints,
+          existingSessionAddresses: existingSessionAddresses,
           folderLabel: folderLabel,
         ),
         onPickConfigFile: () => _pickConfigFile(sshDir, folderLabel, date),

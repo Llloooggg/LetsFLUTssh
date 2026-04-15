@@ -3278,6 +3278,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Browse files…'**
   String get browseFiles;
+
+  /// No description provided for @sshDirSessionAlreadyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'already in sessions'**
+  String get sshDirSessionAlreadyImported;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

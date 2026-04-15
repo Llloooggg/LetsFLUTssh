@@ -1831,4 +1831,7 @@ class SAr extends S {
 
   @override
   String get browseFiles => 'Browse files…';
+
+  @override
+  String get sshDirSessionAlreadyImported => 'already in sessions';
 }

@@ -75,23 +75,44 @@ class CollapsibleCheckboxesSection extends StatelessWidget {
   }
 }
 
-/// One row in a data-selection grid: icon + label + optional warning/subtitle
-/// below the label + trailing text (count or size).
+/// One row in a data-selection grid: icon + label + optional subtitle /
+/// warning text below the label + trailing text (count or size).
 ///
 /// Shared by the export and import preview dialogs. The whole row is
 /// tappable, so clicks anywhere toggle the checkbox.
+///
+/// Two subtitle slots on purpose: [subtitle] is a neutral dim caption (e.g.
+/// the file path under a key name), [warningText] flips the icon + label
+/// orange to flag the row as problematic. They're shown independently, so
+/// a row can carry both a neutral path and a warning.
 class DataCheckboxRow extends StatelessWidget {
   final IconData icon;
   final String label;
-  final bool value;
+
+  /// Nullable so callers can render a tristate "partially selected" state
+  /// for select-all rows (null = mixed). Treated as false when [tristate]
+  /// is false and value is null.
+  final bool? value;
+
+  /// When true, the underlying Checkbox is rendered as tristate — a null
+  /// [value] shows the "mixed" indeterminate square instead of an empty box.
+  final bool tristate;
   final VoidCallback onTap;
 
   /// Right-aligned status label (count, size, "Yes"/"No"). Null hides it.
   final String? trailingLabel;
 
-  /// Optional warning text rendered under the main label. When set, the icon
-  /// and label are tinted with [AppTheme.orange] to flag the row visually.
+  /// Optional warning text rendered under the label. When set, the icon and
+  /// label are tinted with [AppTheme.orange].
   final String? warningText;
+
+  /// Optional neutral subtitle rendered under the label in dim color.
+  /// Useful for metadata like a file path or a `user@host:port` summary.
+  final String? subtitle;
+
+  /// Optional explicit foreground color for the label. Overrides the
+  /// warning/fg auto-pick. Used to render already-imported rows dimmed out.
+  final Color? labelColor;
 
   const DataCheckboxRow({
     super.key,
@@ -101,19 +122,26 @@ class DataCheckboxRow extends StatelessWidget {
     required this.onTap,
     this.trailingLabel,
     this.warningText,
+    this.subtitle,
+    this.labelColor,
+    this.tristate = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasWarning = warningText != null;
-    final accent = hasWarning ? AppTheme.orange : AppTheme.fg;
+    final accent = labelColor ?? (hasWarning ? AppTheme.orange : AppTheme.fg);
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) => Container(
         color: hovered ? AppTheme.hover : null,
         child: Row(
           children: [
-            Checkbox(value: value, onChanged: (_) => onTap()),
+            Checkbox(
+              value: tristate ? value : (value ?? false),
+              tristate: tristate,
+              onChanged: (_) => onTap(),
+            ),
             Icon(icon, size: 16, color: accent),
             const SizedBox(width: 8),
             Expanded(
@@ -128,6 +156,15 @@ class DataCheckboxRow extends StatelessWidget {
                       color: accent,
                     ),
                   ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: AppFonts.mono(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.fgDim,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   if (hasWarning)
                     Text(
                       warningText!,

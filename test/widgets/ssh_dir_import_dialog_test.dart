@@ -258,6 +258,42 @@ void main() {
     );
 
     testWidgets(
+      'hosts whose user@host:port already exists start unchecked with the '
+      '"already in sessions" badge',
+      (tester) async {
+        // One of the parsed hosts (h0 → u@h0.example.com:22) matches a
+        // session already in the store. That row must default to unchecked
+        // so the user doesn't accidentally create a duplicate on import.
+        await tester.pumpWidget(
+          wrap(
+            SshDirImportDialog(
+              source: SshDirImportSource(
+                hostsPreview: makeHostsPreview(hosts: 2),
+                keys: const [],
+                folderLabel: '.ssh 2026-04-15',
+                existingSessionAddresses: {'u@h0.example.com:22'},
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('already in sessions'), findsOneWidget);
+
+        // Boxes: select-all (tristate, null because 1 of 2 checked) +
+        // h0 (off) + h1 (on).
+        final boxes = tester
+            .widgetList<Checkbox>(find.byType(Checkbox))
+            .toList();
+        expect(boxes[0].value, isNull, reason: 'mixed → tristate null');
+        // The two host rows — one off, one on.
+        final hostValues = boxes.sublist(1).map((c) => c.value).toList();
+        expect(hostValues.where((v) => v == true).length, 1);
+        expect(hostValues.where((v) => v == false).length, 1);
+      },
+    );
+
+    testWidgets(
       'already-imported keys start unchecked with the "already in store" badge',
       (tester) async {
         final key = makeKey(0);

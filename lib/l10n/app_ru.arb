@@ -525,5 +525,6 @@
   "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
   "sshDirImportHostsSection": "Hosts from config",
   "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "browseFiles": "Выбрать файл…"
+  "browseFiles": "Выбрать файл…",
+  "sshDirSessionAlreadyImported": "уже есть в сессиях"
 }

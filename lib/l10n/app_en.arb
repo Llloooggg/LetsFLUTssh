@@ -1159,5 +1159,6 @@
   "presetCustom": "Custom",
   "sessionSshKeys": "Session SSH keys",
   "allManagerKeys": "All manager keys",
-  "browseFiles": "Browse files…"
+  "browseFiles": "Browse files…",
+  "sshDirSessionAlreadyImported": "already in sessions"
 }
