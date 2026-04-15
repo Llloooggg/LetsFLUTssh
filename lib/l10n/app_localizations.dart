@@ -300,7 +300,7 @@ abstract class S {
   /// No description provided for @qrPasswordWarning.
   ///
   /// In en, this message translates to:
-  /// **'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.'**
+  /// **'SSH keys are disabled by default for export.'**
   String get qrPasswordWarning;
 
   /// No description provided for @sshKeysMayBeLarge.

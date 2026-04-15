@@ -98,7 +98,7 @@ class SRu extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Пароли будут незашифрованы в QR-коде. Любой, кто его отсканирует, сможет их увидеть.';
+      'SSH-ключи отключены по умолчанию для экспорта.';
 
   @override
   String get sshKeysMayBeLarge => 'Ключи могут превысить размер QR';

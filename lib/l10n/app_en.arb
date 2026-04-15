@@ -29,7 +29,7 @@
   "embeddedKeys": "Session keys",
   "managerKeys": "Keys from manager",
   "managerKeysMayBeLarge": "Manager keys may exceed QR size limit",
-  "qrPasswordWarning": "Passwords will be unencrypted in the QR code. Anyone who scans it can see them.",
+  "qrPasswordWarning": "SSH keys are disabled by default for export.",
   "sshKeysMayBeLarge": "Keys may exceed QR size limit",
   "exportTotalSize": "Total size: {size}",
   "@exportTotalSize": {

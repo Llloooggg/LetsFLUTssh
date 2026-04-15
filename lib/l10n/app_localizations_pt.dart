@@ -98,7 +98,7 @@ class SPt extends S {
 
   @override
   String get qrPasswordWarning =>
-      'As senhas ficarão descriptografadas no código QR. Qualquer pessoa que escanear poderá vê-las.';
+      'As chaves SSH estão desativadas por padrão na exportação.';
 
   @override
   String get sshKeysMayBeLarge => 'As chaves podem exceder o tamanho do QR';

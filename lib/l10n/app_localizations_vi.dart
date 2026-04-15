@@ -97,8 +97,7 @@ class SVi extends S {
       'Khóa trình quản lý có thể vượt quá kích thước QR';
 
   @override
-  String get qrPasswordWarning =>
-      'Mật khẩu sẽ không được mã hóa trong mã QR. Bất kỳ ai quét đều có thể nhìn thấy.';
+  String get qrPasswordWarning => 'Khóa SSH bị tắt theo mặc định khi xuất.';
 
   @override
   String get sshKeysMayBeLarge => 'Khóa có thể vượt quá kích thước QR';

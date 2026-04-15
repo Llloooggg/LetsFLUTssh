@@ -23,7 +23,7 @@
   "embeddedKeys": "Kunci tertanam",
   "managerKeys": "Kunci dari pengelola",
   "managerKeysMayBeLarge": "Kunci pengelola dapat melebihi ukuran QR",
-  "qrPasswordWarning": "Kata sandi akan tidak terenkripsi dalam kode QR. Siapa pun yang memindai dapat melihatnya.",
+  "qrPasswordWarning": "Kunci SSH dinonaktifkan secara default saat ekspor.",
   "includeCredentials": "Sertakan kata sandi dan kunci SSH",
   "exportTotalSize": "Ukuran total: {size}",
   "qrCredentialsTooLarge": "Kredensial membuat kode QR terlalu besar",

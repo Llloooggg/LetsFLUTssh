@@ -23,7 +23,7 @@
   "embeddedKeys": "内置密钥",
   "managerKeys": "管理器中的密钥",
   "managerKeysMayBeLarge": "管理器密钥可能超出 QR 大小限制",
-  "qrPasswordWarning": "密码在 QR 码中未加密。任何扫描的人都可以看到。",
+  "qrPasswordWarning": "导出时 SSH 密钥默认已禁用。",
   "includeCredentials": "包含密码和 SSH 密钥",
   "exportTotalSize": "总大小: {size}",
   "qrCredentialsTooLarge": "凭证使 QR 码过大",

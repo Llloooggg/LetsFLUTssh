@@ -98,7 +98,7 @@ class SId extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Kata sandi akan tidak terenkripsi dalam kode QR. Siapa pun yang memindai dapat melihatnya.';
+      'Kunci SSH dinonaktifkan secara default saat ekspor.';
 
   @override
   String get sshKeysMayBeLarge => 'Kunci dapat melebihi ukuran QR';

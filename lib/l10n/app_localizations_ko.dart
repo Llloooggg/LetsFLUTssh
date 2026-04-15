@@ -96,7 +96,7 @@ class SKo extends S {
   String get managerKeysMayBeLarge => '관리자 키는 QR 크기 제한을 초과할 수 있습니다';
 
   @override
-  String get qrPasswordWarning => '비밀번호가 QR 코드에서 암호화되지 않습니다. 스캔한 누구나 볼 수 있습니다.';
+  String get qrPasswordWarning => 'SSH 키는 내보내기 시 기본적으로 비활성화됩니다.';
 
   @override
   String get sshKeysMayBeLarge => '키가 QR 크기 제한을 초과할 수 있습니다';

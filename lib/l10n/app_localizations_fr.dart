@@ -98,7 +98,7 @@ class SFr extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Les mots de passe seront non chiffrés dans le code QR. Quiconque le scanne peut les voir.';
+      'Les clés SSH sont désactivées par défaut à l\'export.';
 
   @override
   String get sshKeysMayBeLarge => 'Les clés peuvent dépasser la taille QR';

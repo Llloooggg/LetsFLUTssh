@@ -23,7 +23,7 @@
   "embeddedKeys": "Claves integradas",
   "managerKeys": "Claves del gestor",
   "managerKeysMayBeLarge": "Las claves del gestor pueden exceder el tamaño QR",
-  "qrPasswordWarning": "Las contraseñas estarán sin cifrar en el código QR. Cualquiera que lo escanee podrá verlas.",
+  "qrPasswordWarning": "Las claves SSH están deshabilitadas por defecto al exportar.",
   "includeCredentials": "Incluir contraseñas y claves SSH",
   "exportTotalSize": "Tamaño total: {size}",
   "qrCredentialsTooLarge": "Las credenciales hacen el código QR demasiado grande",

@@ -96,8 +96,7 @@ class SAr extends S {
   String get managerKeysMayBeLarge => 'قد تتجاوز مفاتيح المدير حجم رمز QR';
 
   @override
-  String get qrPasswordWarning =>
-      'ستكون كلمات المرور غير مشفرة في رمز QR. يمكن لأي شخص مسحه رؤيتها.';
+  String get qrPasswordWarning => 'مفاتيح SSH معطلة افتراضيًا للتصدير.';
 
   @override
   String get sshKeysMayBeLarge => 'قد تتجاوز المفاتيح حجم رمز QR';

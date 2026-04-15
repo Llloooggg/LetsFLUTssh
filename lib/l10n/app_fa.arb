@@ -23,7 +23,7 @@
   "embeddedKeys": "کلیدهای جاسازی‌شده",
   "managerKeys": "کلیدها از مدیر",
   "managerKeysMayBeLarge": "کلیدهای مدیر ممکن است از اندازه QR فراتر رود",
-  "qrPasswordWarning": "رمزهای عبور در کد QR رمزگذاری نشده خواهند بود. هر کسی که اسکن کند می‌تواند آنها را ببیند.",
+  "qrPasswordWarning": "کلیدهای SSH به طور پیش‌فرض برای صدور غیرفعال هستند.",
   "includeCredentials": "شامل رمزهای عبور و کلیدهای SSH",
   "exportTotalSize": "حجم کل: {size}",
   "qrCredentialsTooLarge": "اعتبارنامه‌ها کد QR را خیلی بزرگ می‌کنند",

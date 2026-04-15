@@ -98,7 +98,7 @@ class STr extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Parolalar QR kodunda şifresiz olacaktır. Taranan herkes görebilir.';
+      'SSH anahtarları dışa aktarmada varsayılan olarak devre dışıdır.';
 
   @override
   String get sshKeysMayBeLarge => 'Anahtarlar QR boyutunu aşabilir';

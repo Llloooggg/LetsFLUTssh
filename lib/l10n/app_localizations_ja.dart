@@ -96,7 +96,7 @@ class SJa extends S {
   String get managerKeysMayBeLarge => 'マネージャーキーはQRサイズ制限を超える可能性があります';
 
   @override
-  String get qrPasswordWarning => 'パスワードはQRコード内で暗号化されません。スキャンした誰でも見ることができます。';
+  String get qrPasswordWarning => 'SSHキーはエクスポート時、既定で無効です。';
 
   @override
   String get sshKeysMayBeLarge => '鍵がQRサイズ制限を超える可能性があります';

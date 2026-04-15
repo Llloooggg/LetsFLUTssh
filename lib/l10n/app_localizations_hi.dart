@@ -98,7 +98,7 @@ class SHi extends S {
 
   @override
   String get qrPasswordWarning =>
-      'पासवर्ड QR कोड में बिना एन्क्रिप्शन के होंगे। इसे स्कैन करने वाला कोई भी देख सकता है।';
+      'निर्यात के लिए SSH कुंजियाँ डिफ़ॉल्ट रूप से अक्षम हैं।';
 
   @override
   String get sshKeysMayBeLarge => 'कुंजियां QR आकार से अधिक हो सकती हैं';

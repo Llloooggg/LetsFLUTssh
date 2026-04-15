@@ -23,7 +23,7 @@
   "embeddedKeys": "एम्बेडेड कुंजियाँ",
   "managerKeys": "मैनेजर से कुंजियाँ",
   "managerKeysMayBeLarge": "मैनेजर कुंजियाँ QR आकार सीमा से अधिक हो सकती हैं",
-  "qrPasswordWarning": "पासवर्ड QR कोड में बिना एन्क्रिप्शन के होंगे। इसे स्कैन करने वाला कोई भी देख सकता है।",
+  "qrPasswordWarning": "निर्यात के लिए SSH कुंजियाँ डिफ़ॉल्ट रूप से अक्षम हैं।",
   "includeCredentials": "पासवर्ड और SSH कुंजियां शामिल करें",
   "exportTotalSize": "कुल आकार: {size}",
   "qrCredentialsTooLarge": "क्रेडेंशियल QR कोड को बहुत बड़ा बनाते हैं",

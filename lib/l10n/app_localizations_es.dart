@@ -98,7 +98,7 @@ class SEs extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Las contraseñas estarán sin cifrar en el código QR. Cualquiera que lo escanee podrá verlas.';
+      'Las claves SSH están deshabilitadas por defecto al exportar.';
 
   @override
   String get sshKeysMayBeLarge => 'Las claves pueden exceder el tamaño QR';

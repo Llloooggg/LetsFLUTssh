@@ -23,7 +23,7 @@
   "embeddedKeys": "Khóa nhúng",
   "managerKeys": "Khóa từ trình quản lý",
   "managerKeysMayBeLarge": "Khóa trình quản lý có thể vượt quá kích thước QR",
-  "qrPasswordWarning": "Mật khẩu sẽ không được mã hóa trong mã QR. Bất kỳ ai quét đều có thể nhìn thấy.",
+  "qrPasswordWarning": "Khóa SSH bị tắt theo mặc định khi xuất.",
   "includeCredentials": "Bao gồm mật khẩu và khóa SSH",
   "exportTotalSize": "Tổng kích thước: {size}",
   "qrCredentialsTooLarge": "Thông tin xác thực làm mã QR quá lớn",

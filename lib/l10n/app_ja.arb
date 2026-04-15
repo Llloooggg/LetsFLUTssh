@@ -23,7 +23,7 @@
   "embeddedKeys": "埋め込みキー",
   "managerKeys": "マネージャーのキー",
   "managerKeysMayBeLarge": "マネージャーキーはQRサイズ制限を超える可能性があります",
-  "qrPasswordWarning": "パスワードはQRコード内で暗号化されません。スキャンした誰でも見ることができます。",
+  "qrPasswordWarning": "SSHキーはエクスポート時、既定で無効です。",
   "includeCredentials": "パスワードとSSH鍵を含む",
   "exportTotalSize": "合計サイズ: {size}",
   "qrCredentialsTooLarge": "認証情報でQRコードが大きすぎます",

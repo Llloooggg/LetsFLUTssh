@@ -23,7 +23,7 @@
   "embeddedKeys": "المفاتيح المضمنة",
   "managerKeys": "المفاتيح من المدير",
   "managerKeysMayBeLarge": "قد تتجاوز مفاتيح المدير حجم رمز QR",
-  "qrPasswordWarning": "ستكون كلمات المرور غير مشفرة في رمز QR. يمكن لأي شخص مسحه رؤيتها.",
+  "qrPasswordWarning": "مفاتيح SSH معطلة افتراضيًا للتصدير.",
   "includeCredentials": "تضمين كلمات المرور ومفاتيح SSH",
   "exportTotalSize": "الحجم الإجمالي: {size}",
   "qrCredentialsTooLarge": "بيانات الاعتماد تجعل رمز QR كبيرًا جدًا",

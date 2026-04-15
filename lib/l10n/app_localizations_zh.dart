@@ -96,7 +96,7 @@ class SZh extends S {
   String get managerKeysMayBeLarge => '管理器密钥可能超出 QR 大小限制';
 
   @override
-  String get qrPasswordWarning => '密码在 QR 码中未加密。任何扫描的人都可以看到。';
+  String get qrPasswordWarning => '导出时 SSH 密钥默认已禁用。';
 
   @override
   String get sshKeysMayBeLarge => '密钥可能超出 QR 大小';

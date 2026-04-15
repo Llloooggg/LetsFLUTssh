@@ -98,7 +98,7 @@ class SFa extends S {
 
   @override
   String get qrPasswordWarning =>
-      'رمزهای عبور در کد QR رمزگذاری نشده خواهند بود. هر کسی که اسکن کند می‌تواند آنها را ببیند.';
+      'کلیدهای SSH به طور پیش‌فرض برای صدور غیرفعال هستند.';
 
   @override
   String get sshKeysMayBeLarge => 'کلیدها ممکن است از اندازه QR فراتر رود';

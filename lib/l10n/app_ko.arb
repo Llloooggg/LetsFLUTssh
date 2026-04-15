@@ -23,7 +23,7 @@
   "embeddedKeys": "내장 키",
   "managerKeys": "관리자의 키",
   "managerKeysMayBeLarge": "관리자 키는 QR 크기 제한을 초과할 수 있습니다",
-  "qrPasswordWarning": "비밀번호가 QR 코드에서 암호화되지 않습니다. 스캔한 누구나 볼 수 있습니다.",
+  "qrPasswordWarning": "SSH 키는 내보내기 시 기본적으로 비활성화됩니다.",
   "includeCredentials": "비밀번호 및 SSH 키 포함",
   "exportTotalSize": "총 크기: {size}",
   "qrCredentialsTooLarge": "인증 정보로 QR 코드가 너무 큽니다",

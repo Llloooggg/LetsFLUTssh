@@ -23,7 +23,7 @@
   "embeddedKeys": "Eingebettete Schlüssel",
   "managerKeys": "Schlüssel aus dem Manager",
   "managerKeysMayBeLarge": "Manager-Schlüssel können die QR-Größe überschreiten",
-  "qrPasswordWarning": "Passwörter sind im QR-Code unverschlüsselt. Jeder, der ihn scannt, kann sie sehen.",
+  "qrPasswordWarning": "SSH-Schlüssel sind beim Export standardmäßig deaktiviert.",
   "includeCredentials": "Passwörter und SSH-Schlüssel einbeziehen",
   "exportTotalSize": "Gesamtgröße: {size}",
   "qrCredentialsTooLarge": "Anmeldedaten machen den QR-Code zu groß",

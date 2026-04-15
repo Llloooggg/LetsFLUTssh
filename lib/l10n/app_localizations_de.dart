@@ -98,7 +98,7 @@ class SDe extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Passwörter sind im QR-Code unverschlüsselt. Jeder, der ihn scannt, kann sie sehen.';
+      'SSH-Schlüssel sind beim Export standardmäßig deaktiviert.';
 
   @override
   String get sshKeysMayBeLarge => 'Schlüssel können die QR-Größe überschreiten';

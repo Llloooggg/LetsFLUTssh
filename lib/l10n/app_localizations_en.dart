@@ -97,7 +97,7 @@ class SEn extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.';
+      'SSH keys are disabled by default for export.';
 
   @override
   String get sshKeysMayBeLarge => 'Keys may exceed QR size limit';
