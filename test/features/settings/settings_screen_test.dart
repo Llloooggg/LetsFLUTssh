@@ -2436,7 +2436,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('downloading with zero progress shows indeterminate spinner', (
+    testWidgets('downloading with zero progress shows indeterminate bar', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -2452,9 +2452,9 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      // Zero progress → indeterminate spinner (value: null)
-      final indicator = tester.widget<CircularProgressIndicator>(
-        find.byType(CircularProgressIndicator),
+      // Zero progress → indeterminate linear bar (value: null).
+      final indicator = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
       );
       expect(indicator.value, isNull);
     });
