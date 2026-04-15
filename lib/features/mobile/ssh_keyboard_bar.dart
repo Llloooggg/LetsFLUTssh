@@ -16,6 +16,10 @@ class SshKeyboardBar extends StatefulWidget {
   /// Called when the user taps the paste button.
   final VoidCallback? onPaste;
 
+  /// Called when the user taps the snippets button.  When null the button
+  /// is hidden — desktop / read-only views can keep the bar minimal.
+  final VoidCallback? onSnippets;
+
   /// Called when text-select mode is toggled on/off.
   final ValueChanged<bool>? onSelectModeChanged;
 
@@ -23,6 +27,7 @@ class SshKeyboardBar extends StatefulWidget {
     super.key,
     required this.onInput,
     this.onPaste,
+    this.onSnippets,
     this.onSelectModeChanged,
   });
 
@@ -169,7 +174,12 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
                   ],
                 ),
               ),
-              // Paste + Select + Fn toggles — fixed at right edge, always visible
+              // Paste + Snippets + Select + Fn — fixed right edge
+              if (widget.onSnippets != null)
+                _KeyButton(
+                  icon: Icons.code,
+                  onTap: () => widget.onSnippets!.call(),
+                ),
               _KeyButton(
                 icon: Icons.paste,
                 onTap: () {
