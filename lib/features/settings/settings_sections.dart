@@ -647,11 +647,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  /// Re-encrypt the database and update global security state.
+  /// Re-encrypt the live database with a new key (or convert to plaintext
+  /// when [key] is null), then update global security state.
   ///
-  /// With drift, encryption is at the DB file level — no per-store re-encryption.
-  /// PRAGMA rekey for live re-encryption is planned for a future release.
+  /// Without the `rekeyDatabase` step the DB file pages stay encrypted under
+  /// the old key while `securityStateProvider` claims the new one — on the
+  /// next app start the DB fails to open. The order is deliberate: run the
+  /// `PRAGMA rekey` first; only flip the provider after it succeeded, so a
+  /// crypto/disk failure leaves the old (working) state intact.
   Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
+    final store = ref.read(sessionStoreProvider);
+    final db = store.database;
+    if (db != null) {
+      await rekeyDatabase(db, key);
+    }
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     } else {
