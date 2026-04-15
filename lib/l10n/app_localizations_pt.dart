@@ -1847,4 +1847,50 @@ class SPt extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'já está nas sessões';
+
+  @override
+  String get languageSubtitle => 'Idioma da interface';
+
+  @override
+  String get themeSubtitle => 'Escuro, claro ou seguir o sistema';
+
+  @override
+  String get uiScaleSubtitle => 'Escalar toda a interface';
+
+  @override
+  String get terminalFontSizeSubtitle =>
+      'Tamanho da fonte na saída do terminal';
+
+  @override
+  String get scrollbackLinesSubtitle =>
+      'Tamanho do buffer de histórico do terminal';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Segundos entre pacotes SSH keep-alive (0 = desligado)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Tempo limite de conexão em segundos';
+
+  @override
+  String get defaultPortSubtitle => 'Porta padrão para novas sessões';
+
+  @override
+  String get parallelWorkersSubtitle =>
+      'Trabalhadores de transferência SFTP paralelos';
+
+  @override
+  String get maxHistorySubtitle => 'Máximo de comandos salvos no histórico';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Mostrar tamanho total ao lado das pastas na barra lateral';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Consultar o GitHub por uma nova versão ao iniciar o app';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Gravar eventos do app em arquivo de log rotativo';
 }

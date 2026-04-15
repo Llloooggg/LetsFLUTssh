@@ -3284,6 +3284,84 @@ abstract class S {
   /// In en, this message translates to:
   /// **'already in sessions'**
   String get sshDirSessionAlreadyImported;
+
+  /// No description provided for @languageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface language'**
+  String get languageSubtitle;
+
+  /// No description provided for @themeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark, light, or follow the system'**
+  String get themeSubtitle;
+
+  /// No description provided for @uiScaleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale the whole interface'**
+  String get uiScaleSubtitle;
+
+  /// No description provided for @terminalFontSizeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Font size in terminal output'**
+  String get terminalFontSizeSubtitle;
+
+  /// No description provided for @scrollbackLinesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal history buffer size'**
+  String get scrollbackLinesSubtitle;
+
+  /// No description provided for @keepAliveIntervalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Seconds between SSH keep-alive packets (0 = off)'**
+  String get keepAliveIntervalSubtitle;
+
+  /// No description provided for @sshTimeoutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timeout in seconds'**
+  String get sshTimeoutSubtitle;
+
+  /// No description provided for @defaultPortSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default port for new sessions'**
+  String get defaultPortSubtitle;
+
+  /// No description provided for @parallelWorkersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Concurrent SFTP transfer workers'**
+  String get parallelWorkersSubtitle;
+
+  /// No description provided for @maxHistorySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum saved commands in history'**
+  String get maxHistorySubtitle;
+
+  /// No description provided for @calculateFolderSizesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show total size next to folders in the sidebar'**
+  String get calculateFolderSizesSubtitle;
+
+  /// No description provided for @checkForUpdatesOnStartupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Query GitHub for a new release when the app launches'**
+  String get checkForUpdatesOnStartupSubtitle;
+
+  /// No description provided for @enableLoggingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Write app events to a rotating log file'**
+  String get enableLoggingSubtitle;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

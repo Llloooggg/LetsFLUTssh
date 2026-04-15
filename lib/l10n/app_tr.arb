@@ -531,5 +531,18 @@
   "presetSelective": "Seçici",
   "presetCustom": "Özel",
   "sessionSshKeys": "Oturum SSH anahtarları",
-  "allManagerKeys": "Tüm yönetici anahtarları"
+  "allManagerKeys": "Tüm yönetici anahtarları",
+  "languageSubtitle": "Arayüz dili",
+  "themeSubtitle": "Koyu, açık veya sistemle uyumlu",
+  "uiScaleSubtitle": "Tüm arayüzü ölçekle",
+  "terminalFontSizeSubtitle": "Terminal çıktısındaki yazı tipi boyutu",
+  "scrollbackLinesSubtitle": "Terminal geçmiş arabelleği boyutu",
+  "keepAliveIntervalSubtitle": "SSH keep-alive paketleri arasındaki saniye (0 = kapalı)",
+  "sshTimeoutSubtitle": "Bağlantı zaman aşımı (saniye)",
+  "defaultPortSubtitle": "Yeni oturumlar için varsayılan bağlantı noktası",
+  "parallelWorkersSubtitle": "Paralel SFTP aktarım işçileri",
+  "maxHistorySubtitle": "Geçmişte saklanan maksimum komut sayısı",
+  "calculateFolderSizesSubtitle": "Kenar çubuğunda klasörlerin yanında toplam boyutu göster",
+  "checkForUpdatesOnStartupSubtitle": "Uygulama başlatıldığında GitHub'da yeni sürümü denetle",
+  "enableLoggingSubtitle": "Uygulama olaylarını döngüsel bir günlük dosyasına yaz"
 }

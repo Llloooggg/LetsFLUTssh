@@ -1834,4 +1834,46 @@ class SAr extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'موجودة في الجلسات بالفعل';
+
+  @override
+  String get languageSubtitle => 'لغة الواجهة';
+
+  @override
+  String get themeSubtitle => 'داكن أو فاتح أو اتباع النظام';
+
+  @override
+  String get uiScaleSubtitle => 'تغيير حجم الواجهة بالكامل';
+
+  @override
+  String get terminalFontSizeSubtitle => 'حجم الخط في خرج الطرفية';
+
+  @override
+  String get scrollbackLinesSubtitle => 'حجم ذاكرة السجل في الطرفية';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'الثواني بين حزم SSH keep-alive (0 = متوقف)';
+
+  @override
+  String get sshTimeoutSubtitle => 'مهلة الاتصال بالثواني';
+
+  @override
+  String get defaultPortSubtitle => 'المنفذ الافتراضي للجلسات الجديدة';
+
+  @override
+  String get parallelWorkersSubtitle => 'عدد عمال نقل SFTP المتزامنين';
+
+  @override
+  String get maxHistorySubtitle => 'الحد الأقصى للأوامر المحفوظة في السجل';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'إظهار الحجم الإجمالي بجانب المجلدات في الشريط الجانبي';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق';
+
+  @override
+  String get enableLoggingSubtitle => 'كتابة أحداث التطبيق في ملف سجل دوّار';
 }

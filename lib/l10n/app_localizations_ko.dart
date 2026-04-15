@@ -1802,4 +1802,43 @@ class SKo extends S {
 
   @override
   String get sshDirSessionAlreadyImported => '이미 세션에 있음';
+
+  @override
+  String get languageSubtitle => '인터페이스 언어';
+
+  @override
+  String get themeSubtitle => '다크, 라이트 또는 시스템 따라가기';
+
+  @override
+  String get uiScaleSubtitle => '전체 인터페이스 크기 조정';
+
+  @override
+  String get terminalFontSizeSubtitle => '터미널 출력의 글꼴 크기';
+
+  @override
+  String get scrollbackLinesSubtitle => '터미널 기록 버퍼 크기';
+
+  @override
+  String get keepAliveIntervalSubtitle => 'SSH keep-alive 패킷 사이 초 (0 = 끔)';
+
+  @override
+  String get sshTimeoutSubtitle => '연결 제한 시간(초)';
+
+  @override
+  String get defaultPortSubtitle => '새 세션의 기본 포트';
+
+  @override
+  String get parallelWorkersSubtitle => '동시 SFTP 전송 워커';
+
+  @override
+  String get maxHistorySubtitle => '기록에 저장되는 최대 명령 수';
+
+  @override
+  String get calculateFolderSizesSubtitle => '사이드바의 폴더 옆에 전체 크기 표시';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle => '앱 시작 시 GitHub에서 새 버전 확인';
+
+  @override
+  String get enableLoggingSubtitle => '앱 이벤트를 순환 로그 파일에 기록';
 }

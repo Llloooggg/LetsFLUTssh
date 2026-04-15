@@ -1852,4 +1852,51 @@ class SEs extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'ya está en las sesiones';
+
+  @override
+  String get languageSubtitle => 'Idioma de la interfaz';
+
+  @override
+  String get themeSubtitle => 'Oscuro, claro o seguir al sistema';
+
+  @override
+  String get uiScaleSubtitle => 'Escalar toda la interfaz';
+
+  @override
+  String get terminalFontSizeSubtitle =>
+      'Tamaño de fuente en la salida de la terminal';
+
+  @override
+  String get scrollbackLinesSubtitle =>
+      'Tamaño del búfer de historial de la terminal';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Segundos entre paquetes SSH keep-alive (0 = desactivado)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Tiempo de espera de conexión en segundos';
+
+  @override
+  String get defaultPortSubtitle =>
+      'Puerto predeterminado para nuevas sesiones';
+
+  @override
+  String get parallelWorkersSubtitle =>
+      'Trabajadores SFTP de transferencia en paralelo';
+
+  @override
+  String get maxHistorySubtitle => 'Comandos máximos guardados en el historial';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Mostrar tamaño total junto a las carpetas en la barra lateral';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Consultar GitHub por una nueva versión al iniciar la app';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Escribir los eventos de la app en un archivo de registro rotativo';
 }

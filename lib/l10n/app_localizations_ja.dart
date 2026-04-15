@@ -1804,4 +1804,43 @@ class SJa extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'すでにセッションにあります';
+
+  @override
+  String get languageSubtitle => 'インターフェースの言語';
+
+  @override
+  String get themeSubtitle => 'ダーク、ライト、またはシステムに従う';
+
+  @override
+  String get uiScaleSubtitle => 'インターフェース全体のスケール';
+
+  @override
+  String get terminalFontSizeSubtitle => 'ターミナル出力のフォントサイズ';
+
+  @override
+  String get scrollbackLinesSubtitle => 'ターミナル履歴バッファのサイズ';
+
+  @override
+  String get keepAliveIntervalSubtitle => 'SSH keep-alive パケット間の秒数 (0 = 無効)';
+
+  @override
+  String get sshTimeoutSubtitle => '接続タイムアウト (秒)';
+
+  @override
+  String get defaultPortSubtitle => '新しいセッションのデフォルトポート';
+
+  @override
+  String get parallelWorkersSubtitle => '並列 SFTP 転送ワーカー';
+
+  @override
+  String get maxHistorySubtitle => '履歴に保存される最大コマンド数';
+
+  @override
+  String get calculateFolderSizesSubtitle => 'サイドバーのフォルダー横に合計サイズを表示';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle => 'アプリ起動時に GitHub で新バージョンを確認';
+
+  @override
+  String get enableLoggingSubtitle => 'アプリのイベントをローテーションログファイルに記録';
 }

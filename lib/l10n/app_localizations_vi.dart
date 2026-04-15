@@ -1832,4 +1832,47 @@ class SVi extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'đã có trong các phiên';
+
+  @override
+  String get languageSubtitle => 'Ngôn ngữ giao diện';
+
+  @override
+  String get themeSubtitle => 'Tối, sáng hoặc theo hệ thống';
+
+  @override
+  String get uiScaleSubtitle => 'Tỷ lệ toàn bộ giao diện';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Cỡ chữ trong đầu ra terminal';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Kích thước bộ đệm lịch sử terminal';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Giây giữa các gói SSH keep-alive (0 = tắt)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Thời gian chờ kết nối (giây)';
+
+  @override
+  String get defaultPortSubtitle => 'Cổng mặc định cho phiên mới';
+
+  @override
+  String get parallelWorkersSubtitle => 'Số luồng truyền SFTP song song';
+
+  @override
+  String get maxHistorySubtitle => 'Số lệnh tối đa lưu trong lịch sử';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Hiển thị tổng dung lượng bên cạnh thư mục ở thanh bên';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Kiểm tra phiên bản mới trên GitHub khi khởi chạy ứng dụng';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Ghi các sự kiện ứng dụng vào tệp nhật ký xoay vòng';
 }

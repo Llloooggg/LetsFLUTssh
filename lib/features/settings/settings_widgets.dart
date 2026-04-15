@@ -116,12 +116,18 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
-/// Generic settings row: label + control, minHeight 36.
+/// Generic settings row: label (+ optional subtitle below) + control, minHeight 36.
+///
+/// The subtitle is a single-line caption in [AppTheme.fgDim] — same visual
+/// weight as the one on [_ActionTile] — so setting rows read consistently
+/// across the whole settings screen. Tiles that don't need extra context
+/// (a short "Theme"/"Language" label is self-explanatory) can omit it.
 class _SettingsRow extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final Widget child;
 
-  const _SettingsRow({required this.label, required this.child});
+  const _SettingsRow({required this.label, required this.child, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -132,12 +138,25 @@ class _SettingsRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fg,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppFonts.inter(
+                      fontSize: AppFonts.sm,
+                      color: AppTheme.fg,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.fgDim,
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 24),
@@ -152,6 +171,7 @@ class _SettingsRow extends StatelessWidget {
 /// Custom toggle pill: 32x18, borderRadius 9, accent/bg4 bg, white 14x14 thumb.
 class _Toggle extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -159,12 +179,14 @@ class _Toggle extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return _SettingsRow(
       label: label,
+      subtitle: subtitle,
       child: GestureDetector(
         onTap: () => onChanged(!value),
         child: Container(
@@ -385,6 +407,7 @@ class _ThemeTile extends StatelessWidget {
     final s = S.of(context);
     return _SettingsRow(
       label: s.theme,
+      subtitle: s.themeSubtitle,
       child: _SegmentControl(
         values: const ['dark', 'light', 'system'],
         labels: [s.themeDark, s.themeLight, s.themeSystem],
@@ -435,6 +458,7 @@ class _LanguageTile extends StatelessWidget {
 
     return _SettingsRow(
       label: s.language,
+      subtitle: s.languageSubtitle,
       child: PopupMenuButton<String>(
         onSelected: (v) => onChanged(v == _systemDefault ? null : v),
         tooltip: '',
@@ -510,6 +534,7 @@ class _LanguageTile extends StatelessWidget {
 
 class _SliderTile extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final double value;
   final double min;
   final double max;
@@ -525,12 +550,14 @@ class _SliderTile extends StatelessWidget {
     this.divisions,
     required this.format,
     required this.onChanged,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return _SettingsRow(
       label: title,
+      subtitle: subtitle,
       child: _SliderField(
         value: value,
         min: min,
@@ -545,6 +572,7 @@ class _SliderTile extends StatelessWidget {
 
 class _IntTile extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final int value;
   final int min;
   final int max;
@@ -556,12 +584,14 @@ class _IntTile extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return _SettingsRow(
       label: title,
+      subtitle: subtitle,
       child: _InputField(
         initialValue: value.toString(),
         keyboardType: TextInputType.number,

@@ -63,6 +63,7 @@ class _AppearanceSection extends ConsumerWidget {
         ),
         _SliderTile(
           title: S.of(context).uiScale,
+          subtitle: S.of(context).uiScaleSubtitle,
           value: uiScale,
           min: 0.5,
           max: 2.0,
@@ -74,6 +75,7 @@ class _AppearanceSection extends ConsumerWidget {
         ),
         _SliderTile(
           title: S.of(context).terminalFontSize,
+          subtitle: S.of(context).terminalFontSizeSubtitle,
           value: fontSize,
           min: 8,
           max: 24,
@@ -98,6 +100,7 @@ class _TerminalSection extends ConsumerWidget {
     final scrollback = ref.watch(configProvider.select((c) => c.scrollback));
     return _IntTile(
       title: S.of(context).scrollbackLines,
+      subtitle: S.of(context).scrollbackLinesSubtitle,
       value: scrollback,
       min: 100,
       max: 100000,
@@ -122,6 +125,7 @@ class _ConnectionSection extends ConsumerWidget {
       children: [
         _IntTile(
           title: S.of(context).keepAliveInterval,
+          subtitle: S.of(context).keepAliveIntervalSubtitle,
           value: keepAlive,
           min: 0,
           max: 300,
@@ -131,6 +135,7 @@ class _ConnectionSection extends ConsumerWidget {
         ),
         _IntTile(
           title: S.of(context).sshTimeout,
+          subtitle: S.of(context).sshTimeoutSubtitle,
           value: timeout,
           min: 1,
           max: 60,
@@ -140,6 +145,7 @@ class _ConnectionSection extends ConsumerWidget {
         ),
         _IntTile(
           title: S.of(context).defaultPort,
+          subtitle: S.of(context).defaultPortSubtitle,
           value: port,
           min: 1,
           max: 65535,
@@ -643,6 +649,7 @@ class _TransferSection extends ConsumerWidget {
       children: [
         _IntTile(
           title: S.of(context).parallelWorkers,
+          subtitle: S.of(context).parallelWorkersSubtitle,
           value: workers,
           min: 1,
           max: 10,
@@ -652,6 +659,7 @@ class _TransferSection extends ConsumerWidget {
         ),
         _IntTile(
           title: S.of(context).maxHistory,
+          subtitle: S.of(context).maxHistorySubtitle,
           value: maxHistory,
           min: 10,
           max: 5000,
@@ -661,6 +669,7 @@ class _TransferSection extends ConsumerWidget {
         ),
         _Toggle(
           label: S.of(context).calculateFolderSizes,
+          subtitle: S.of(context).calculateFolderSizesSubtitle,
           value: showFolderSizes,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -1237,6 +1246,7 @@ class _UpdateSection extends ConsumerWidget {
       children: [
         _Toggle(
           label: S.of(context).checkForUpdatesOnStartup,
+          subtitle: S.of(context).checkForUpdatesOnStartupSubtitle,
           value: checkOnStart,
           onChanged: (v) => ref
               .read(configProvider.notifier)

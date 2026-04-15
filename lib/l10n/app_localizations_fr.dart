@@ -1859,4 +1859,52 @@ class SFr extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'déjà dans les sessions';
+
+  @override
+  String get languageSubtitle => 'Langue de l\'interface';
+
+  @override
+  String get themeSubtitle => 'Sombre, clair ou suivre le système';
+
+  @override
+  String get uiScaleSubtitle => 'Mettre à l\'échelle toute l\'interface';
+
+  @override
+  String get terminalFontSizeSubtitle =>
+      'Taille de police dans la sortie du terminal';
+
+  @override
+  String get scrollbackLinesSubtitle =>
+      'Taille du tampon d\'historique du terminal';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Secondes entre les paquets SSH keep-alive (0 = désactivé)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Délai de connexion en secondes';
+
+  @override
+  String get defaultPortSubtitle =>
+      'Port par défaut pour les nouvelles sessions';
+
+  @override
+  String get parallelWorkersSubtitle =>
+      'Travailleurs SFTP de transfert parallèles';
+
+  @override
+  String get maxHistorySubtitle =>
+      'Nombre maximum de commandes enregistrées dans l\'historique';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Afficher la taille totale à côté des dossiers dans la barre latérale';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Interroger GitHub pour une nouvelle version au lancement de l\'application';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Écrire les événements de l\'application dans un fichier journal rotatif';
 }

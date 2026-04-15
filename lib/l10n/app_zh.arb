@@ -531,5 +531,18 @@
   "presetSelective": "选择性",
   "presetCustom": "自定义",
   "sessionSshKeys": "会话 SSH 密钥",
-  "allManagerKeys": "管理器中的所有密钥"
+  "allManagerKeys": "管理器中的所有密钥",
+  "languageSubtitle": "界面语言",
+  "themeSubtitle": "深色、浅色或跟随系统",
+  "uiScaleSubtitle": "缩放整个界面",
+  "terminalFontSizeSubtitle": "终端输出的字体大小",
+  "scrollbackLinesSubtitle": "终端历史缓冲区大小",
+  "keepAliveIntervalSubtitle": "SSH keep-alive 数据包间隔秒数 (0 = 关闭)",
+  "sshTimeoutSubtitle": "连接超时 (秒)",
+  "defaultPortSubtitle": "新会话的默认端口",
+  "parallelWorkersSubtitle": "并行 SFTP 传输工作线程数",
+  "maxHistorySubtitle": "历史中保留的最大命令数",
+  "calculateFolderSizesSubtitle": "在侧边栏文件夹旁显示总大小",
+  "checkForUpdatesOnStartupSubtitle": "应用启动时从 GitHub 检查新版本",
+  "enableLoggingSubtitle": "将应用事件写入循环日志文件"
 }

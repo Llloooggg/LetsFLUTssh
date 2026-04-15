@@ -1834,4 +1834,47 @@ class SFa extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'در جلسات موجود است';
+
+  @override
+  String get languageSubtitle => 'زبان رابط کاربری';
+
+  @override
+  String get themeSubtitle => 'تیره، روشن یا پیروی از سیستم';
+
+  @override
+  String get uiScaleSubtitle => 'مقیاس‌بندی کل رابط کاربری';
+
+  @override
+  String get terminalFontSizeSubtitle => 'اندازهٔ قلم در خروجی پایانه';
+
+  @override
+  String get scrollbackLinesSubtitle => 'اندازهٔ بافر تاریخچهٔ پایانه';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'ثانیه‌ها بین بسته‌های SSH keep-alive (۰ = خاموش)';
+
+  @override
+  String get sshTimeoutSubtitle => 'مهلت اتصال به ثانیه';
+
+  @override
+  String get defaultPortSubtitle => 'درگاه پیش‌فرض برای جلسات جدید';
+
+  @override
+  String get parallelWorkersSubtitle => 'کارگران انتقال SFTP هم‌زمان';
+
+  @override
+  String get maxHistorySubtitle => 'حداکثر فرمان‌های ذخیره‌شده در تاریخچه';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'نمایش حجم کل در کنار پوشه‌ها در نوار کناری';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'ثبت رویدادهای برنامه در یک فایل گزارش چرخشی';
 }

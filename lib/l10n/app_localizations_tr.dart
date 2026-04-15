@@ -1846,4 +1846,49 @@ class STr extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'zaten oturumlarda mevcut';
+
+  @override
+  String get languageSubtitle => 'Arayüz dili';
+
+  @override
+  String get themeSubtitle => 'Koyu, açık veya sistemle uyumlu';
+
+  @override
+  String get uiScaleSubtitle => 'Tüm arayüzü ölçekle';
+
+  @override
+  String get terminalFontSizeSubtitle =>
+      'Terminal çıktısındaki yazı tipi boyutu';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Terminal geçmiş arabelleği boyutu';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'SSH keep-alive paketleri arasındaki saniye (0 = kapalı)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Bağlantı zaman aşımı (saniye)';
+
+  @override
+  String get defaultPortSubtitle =>
+      'Yeni oturumlar için varsayılan bağlantı noktası';
+
+  @override
+  String get parallelWorkersSubtitle => 'Paralel SFTP aktarım işçileri';
+
+  @override
+  String get maxHistorySubtitle => 'Geçmişte saklanan maksimum komut sayısı';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Kenar çubuğunda klasörlerin yanında toplam boyutu göster';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Uygulama başlatıldığında GitHub\'da yeni sürümü denetle';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Uygulama olaylarını döngüsel bir günlük dosyasına yaz';
 }

@@ -531,5 +531,18 @@
   "presetSelective": "Selektif",
   "presetCustom": "Kustom",
   "sessionSshKeys": "Kunci SSH sesi",
-  "allManagerKeys": "Semua kunci di pengelola"
+  "allManagerKeys": "Semua kunci di pengelola",
+  "languageSubtitle": "Bahasa antarmuka",
+  "themeSubtitle": "Gelap, terang, atau mengikuti sistem",
+  "uiScaleSubtitle": "Skala seluruh antarmuka",
+  "terminalFontSizeSubtitle": "Ukuran font pada keluaran terminal",
+  "scrollbackLinesSubtitle": "Ukuran buffer riwayat terminal",
+  "keepAliveIntervalSubtitle": "Detik antara paket SSH keep-alive (0 = mati)",
+  "sshTimeoutSubtitle": "Batas waktu koneksi dalam detik",
+  "defaultPortSubtitle": "Port default untuk sesi baru",
+  "parallelWorkersSubtitle": "Pekerja transfer SFTP paralel",
+  "maxHistorySubtitle": "Maksimum perintah tersimpan di riwayat",
+  "calculateFolderSizesSubtitle": "Tampilkan ukuran total di samping folder di bilah sisi",
+  "checkForUpdatesOnStartupSubtitle": "Cek rilis baru di GitHub saat aplikasi dijalankan",
+  "enableLoggingSubtitle": "Tulis peristiwa aplikasi ke berkas log berotasi"
 }

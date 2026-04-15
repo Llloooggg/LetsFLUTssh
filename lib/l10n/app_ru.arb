@@ -531,5 +531,18 @@
   "presetSelective": "Выборочно",
   "presetCustom": "Настраиваемый",
   "sessionSshKeys": "SSH-ключи сессий",
-  "allManagerKeys": "Все ключи из менеджера"
+  "allManagerKeys": "Все ключи из менеджера",
+  "languageSubtitle": "Язык интерфейса",
+  "themeSubtitle": "Тёмная, светлая или следовать системе",
+  "uiScaleSubtitle": "Масштабирование всего интерфейса",
+  "terminalFontSizeSubtitle": "Размер шрифта в выводе терминала",
+  "scrollbackLinesSubtitle": "Размер буфера истории терминала",
+  "keepAliveIntervalSubtitle": "Секунды между SSH keep-alive пакетами (0 = выкл)",
+  "sshTimeoutSubtitle": "Таймаут подключения в секундах",
+  "defaultPortSubtitle": "Порт по умолчанию для новых сессий",
+  "parallelWorkersSubtitle": "Параллельных SFTP-воркеров",
+  "maxHistorySubtitle": "Максимум сохранённых команд в истории",
+  "calculateFolderSizesSubtitle": "Показывать суммарный размер рядом с папками в сайдбаре",
+  "checkForUpdatesOnStartupSubtitle": "Проверять новую версию на GitHub при запуске приложения",
+  "enableLoggingSubtitle": "Записывать события приложения в ротируемый лог-файл"
 }

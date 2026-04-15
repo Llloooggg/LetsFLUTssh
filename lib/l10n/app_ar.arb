@@ -531,5 +531,18 @@
   "presetSelective": "انتقائي",
   "presetCustom": "مخصص",
   "sessionSshKeys": "مفاتيح SSH للجلسة",
-  "allManagerKeys": "جميع المفاتيح في المدير"
+  "allManagerKeys": "جميع المفاتيح في المدير",
+  "languageSubtitle": "لغة الواجهة",
+  "themeSubtitle": "داكن أو فاتح أو اتباع النظام",
+  "uiScaleSubtitle": "تغيير حجم الواجهة بالكامل",
+  "terminalFontSizeSubtitle": "حجم الخط في خرج الطرفية",
+  "scrollbackLinesSubtitle": "حجم ذاكرة السجل في الطرفية",
+  "keepAliveIntervalSubtitle": "الثواني بين حزم SSH keep-alive (0 = متوقف)",
+  "sshTimeoutSubtitle": "مهلة الاتصال بالثواني",
+  "defaultPortSubtitle": "المنفذ الافتراضي للجلسات الجديدة",
+  "parallelWorkersSubtitle": "عدد عمال نقل SFTP المتزامنين",
+  "maxHistorySubtitle": "الحد الأقصى للأوامر المحفوظة في السجل",
+  "calculateFolderSizesSubtitle": "إظهار الحجم الإجمالي بجانب المجلدات في الشريط الجانبي",
+  "checkForUpdatesOnStartupSubtitle": "الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق",
+  "enableLoggingSubtitle": "كتابة أحداث التطبيق في ملف سجل دوّار"
 }

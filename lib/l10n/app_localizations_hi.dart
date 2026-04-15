@@ -1842,4 +1842,47 @@ class SHi extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'सत्रों में पहले से है';
+
+  @override
+  String get languageSubtitle => 'इंटरफ़ेस की भाषा';
+
+  @override
+  String get themeSubtitle => 'डार्क, लाइट या सिस्टम के अनुसार';
+
+  @override
+  String get uiScaleSubtitle => 'पूरे इंटरफ़ेस को स्केल करें';
+
+  @override
+  String get terminalFontSizeSubtitle => 'टर्मिनल आउटपुट में फ़ॉन्ट आकार';
+
+  @override
+  String get scrollbackLinesSubtitle => 'टर्मिनल इतिहास बफ़र का आकार';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'SSH keep-alive पैकेट के बीच सेकंड (0 = बंद)';
+
+  @override
+  String get sshTimeoutSubtitle => 'कनेक्शन टाइमआउट सेकंडों में';
+
+  @override
+  String get defaultPortSubtitle => 'नए सत्रों के लिए डिफ़ॉल्ट पोर्ट';
+
+  @override
+  String get parallelWorkersSubtitle => 'समानांतर SFTP ट्रांसफ़र वर्कर्स';
+
+  @override
+  String get maxHistorySubtitle => 'इतिहास में अधिकतम सहेजी गई कमांड्स';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'साइडबार में फ़ोल्डर के बगल में कुल आकार दिखाएँ';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'ऐप शुरू होने पर GitHub से नया संस्करण जाँचें';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'ऐप की घटनाओं को एक रोटेटिंग लॉग फ़ाइल में लिखें';
 }

@@ -16,6 +16,7 @@ class _LoggingSection extends ConsumerWidget {
       children: [
         _Toggle(
           label: S.of(context).enableLogging,
+          subtitle: S.of(context).enableLoggingSubtitle,
           value: enabled,
           onChanged: (v) => ref
               .read(configProvider.notifier)

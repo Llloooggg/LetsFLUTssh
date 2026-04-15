@@ -531,5 +531,18 @@
   "presetSelective": "選択的",
   "presetCustom": "カスタム",
   "sessionSshKeys": "セッションの SSH 鍵",
-  "allManagerKeys": "マネージャーのすべての鍵"
+  "allManagerKeys": "マネージャーのすべての鍵",
+  "languageSubtitle": "インターフェースの言語",
+  "themeSubtitle": "ダーク、ライト、またはシステムに従う",
+  "uiScaleSubtitle": "インターフェース全体のスケール",
+  "terminalFontSizeSubtitle": "ターミナル出力のフォントサイズ",
+  "scrollbackLinesSubtitle": "ターミナル履歴バッファのサイズ",
+  "keepAliveIntervalSubtitle": "SSH keep-alive パケット間の秒数 (0 = 無効)",
+  "sshTimeoutSubtitle": "接続タイムアウト (秒)",
+  "defaultPortSubtitle": "新しいセッションのデフォルトポート",
+  "parallelWorkersSubtitle": "並列 SFTP 転送ワーカー",
+  "maxHistorySubtitle": "履歴に保存される最大コマンド数",
+  "calculateFolderSizesSubtitle": "サイドバーのフォルダー横に合計サイズを表示",
+  "checkForUpdatesOnStartupSubtitle": "アプリ起動時に GitHub で新バージョンを確認",
+  "enableLoggingSubtitle": "アプリのイベントをローテーションログファイルに記録"
 }

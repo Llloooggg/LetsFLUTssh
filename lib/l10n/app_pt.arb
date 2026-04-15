@@ -531,5 +531,18 @@
   "presetSelective": "Seletivo",
   "presetCustom": "Personalizado",
   "sessionSshKeys": "Chaves SSH da sessão",
-  "allManagerKeys": "Todas as chaves do gerenciador"
+  "allManagerKeys": "Todas as chaves do gerenciador",
+  "languageSubtitle": "Idioma da interface",
+  "themeSubtitle": "Escuro, claro ou seguir o sistema",
+  "uiScaleSubtitle": "Escalar toda a interface",
+  "terminalFontSizeSubtitle": "Tamanho da fonte na saída do terminal",
+  "scrollbackLinesSubtitle": "Tamanho do buffer de histórico do terminal",
+  "keepAliveIntervalSubtitle": "Segundos entre pacotes SSH keep-alive (0 = desligado)",
+  "sshTimeoutSubtitle": "Tempo limite de conexão em segundos",
+  "defaultPortSubtitle": "Porta padrão para novas sessões",
+  "parallelWorkersSubtitle": "Trabalhadores de transferência SFTP paralelos",
+  "maxHistorySubtitle": "Máximo de comandos salvos no histórico",
+  "calculateFolderSizesSubtitle": "Mostrar tamanho total ao lado das pastas na barra lateral",
+  "checkForUpdatesOnStartupSubtitle": "Consultar o GitHub por uma nova versão ao iniciar o app",
+  "enableLoggingSubtitle": "Gravar eventos do app em arquivo de log rotativo"
 }

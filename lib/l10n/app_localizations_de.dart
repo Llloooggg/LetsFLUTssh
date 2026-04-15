@@ -1855,4 +1855,47 @@ class SDe extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'bereits in Sitzungen';
+
+  @override
+  String get languageSubtitle => 'Sprache der Benutzeroberfläche';
+
+  @override
+  String get themeSubtitle => 'Dunkel, hell oder dem System folgen';
+
+  @override
+  String get uiScaleSubtitle => 'Gesamte Benutzeroberfläche skalieren';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Schriftgröße in der Terminalausgabe';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Größe des Terminal-Verlaufspuffers';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Sekunden zwischen SSH-Keep-Alive-Paketen (0 = aus)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Verbindungs-Timeout in Sekunden';
+
+  @override
+  String get defaultPortSubtitle => 'Standardport für neue Sitzungen';
+
+  @override
+  String get parallelWorkersSubtitle => 'Parallele SFTP-Übertragungsarbeiter';
+
+  @override
+  String get maxHistorySubtitle => 'Maximal gespeicherte Befehle im Verlauf';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Gesamtgröße neben Ordnern in der Seitenleiste anzeigen';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Beim Start nach einer neuen Version auf GitHub suchen';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'App-Ereignisse in eine rotierende Logdatei schreiben';
 }

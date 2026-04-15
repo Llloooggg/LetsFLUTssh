@@ -1160,5 +1160,18 @@
   "sessionSshKeys": "Session SSH keys",
   "allManagerKeys": "All manager keys",
   "browseFiles": "Browse files…",
-  "sshDirSessionAlreadyImported": "already in sessions"
+  "sshDirSessionAlreadyImported": "already in sessions",
+  "languageSubtitle": "Interface language",
+  "themeSubtitle": "Dark, light, or follow the system",
+  "uiScaleSubtitle": "Scale the whole interface",
+  "terminalFontSizeSubtitle": "Font size in terminal output",
+  "scrollbackLinesSubtitle": "Terminal history buffer size",
+  "keepAliveIntervalSubtitle": "Seconds between SSH keep-alive packets (0 = off)",
+  "sshTimeoutSubtitle": "Connection timeout in seconds",
+  "defaultPortSubtitle": "Default port for new sessions",
+  "parallelWorkersSubtitle": "Concurrent SFTP transfer workers",
+  "maxHistorySubtitle": "Maximum saved commands in history",
+  "calculateFolderSizesSubtitle": "Show total size next to folders in the sidebar",
+  "checkForUpdatesOnStartupSubtitle": "Query GitHub for a new release when the app launches",
+  "enableLoggingSubtitle": "Write app events to a rotating log file"
 }

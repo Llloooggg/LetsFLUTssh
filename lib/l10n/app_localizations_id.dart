@@ -1839,4 +1839,47 @@ class SId extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'sudah ada di sesi';
+
+  @override
+  String get languageSubtitle => 'Bahasa antarmuka';
+
+  @override
+  String get themeSubtitle => 'Gelap, terang, atau mengikuti sistem';
+
+  @override
+  String get uiScaleSubtitle => 'Skala seluruh antarmuka';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Ukuran font pada keluaran terminal';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Ukuran buffer riwayat terminal';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Detik antara paket SSH keep-alive (0 = mati)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Batas waktu koneksi dalam detik';
+
+  @override
+  String get defaultPortSubtitle => 'Port default untuk sesi baru';
+
+  @override
+  String get parallelWorkersSubtitle => 'Pekerja transfer SFTP paralel';
+
+  @override
+  String get maxHistorySubtitle => 'Maksimum perintah tersimpan di riwayat';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Tampilkan ukuran total di samping folder di bilah sisi';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Cek rilis baru di GitHub saat aplikasi dijalankan';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Tulis peristiwa aplikasi ke berkas log berotasi';
 }

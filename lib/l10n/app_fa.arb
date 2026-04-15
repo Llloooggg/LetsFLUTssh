@@ -531,5 +531,18 @@
   "presetSelective": "انتخابی",
   "presetCustom": "سفارشی",
   "sessionSshKeys": "کلیدهای SSH جلسه",
-  "allManagerKeys": "همهٔ کلیدهای مدیر"
+  "allManagerKeys": "همهٔ کلیدهای مدیر",
+  "languageSubtitle": "زبان رابط کاربری",
+  "themeSubtitle": "تیره، روشن یا پیروی از سیستم",
+  "uiScaleSubtitle": "مقیاس‌بندی کل رابط کاربری",
+  "terminalFontSizeSubtitle": "اندازهٔ قلم در خروجی پایانه",
+  "scrollbackLinesSubtitle": "اندازهٔ بافر تاریخچهٔ پایانه",
+  "keepAliveIntervalSubtitle": "ثانیه‌ها بین بسته‌های SSH keep-alive (۰ = خاموش)",
+  "sshTimeoutSubtitle": "مهلت اتصال به ثانیه",
+  "defaultPortSubtitle": "درگاه پیش‌فرض برای جلسات جدید",
+  "parallelWorkersSubtitle": "کارگران انتقال SFTP هم‌زمان",
+  "maxHistorySubtitle": "حداکثر فرمان‌های ذخیره‌شده در تاریخچه",
+  "calculateFolderSizesSubtitle": "نمایش حجم کل در کنار پوشه‌ها در نوار کناری",
+  "checkForUpdatesOnStartupSubtitle": "هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن",
+  "enableLoggingSubtitle": "ثبت رویدادهای برنامه در یک فایل گزارش چرخشی"
 }

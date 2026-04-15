@@ -1829,4 +1829,46 @@ class SEn extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'already in sessions';
+
+  @override
+  String get languageSubtitle => 'Interface language';
+
+  @override
+  String get themeSubtitle => 'Dark, light, or follow the system';
+
+  @override
+  String get uiScaleSubtitle => 'Scale the whole interface';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Font size in terminal output';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Terminal history buffer size';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Seconds between SSH keep-alive packets (0 = off)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Connection timeout in seconds';
+
+  @override
+  String get defaultPortSubtitle => 'Default port for new sessions';
+
+  @override
+  String get parallelWorkersSubtitle => 'Concurrent SFTP transfer workers';
+
+  @override
+  String get maxHistorySubtitle => 'Maximum saved commands in history';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Show total size next to folders in the sidebar';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Query GitHub for a new release when the app launches';
+
+  @override
+  String get enableLoggingSubtitle => 'Write app events to a rotating log file';
 }

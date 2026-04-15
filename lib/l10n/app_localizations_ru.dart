@@ -1843,4 +1843,47 @@ class SRu extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'уже есть в сессиях';
+
+  @override
+  String get languageSubtitle => 'Язык интерфейса';
+
+  @override
+  String get themeSubtitle => 'Тёмная, светлая или следовать системе';
+
+  @override
+  String get uiScaleSubtitle => 'Масштабирование всего интерфейса';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Размер шрифта в выводе терминала';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Размер буфера истории терминала';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Секунды между SSH keep-alive пакетами (0 = выкл)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Таймаут подключения в секундах';
+
+  @override
+  String get defaultPortSubtitle => 'Порт по умолчанию для новых сессий';
+
+  @override
+  String get parallelWorkersSubtitle => 'Параллельных SFTP-воркеров';
+
+  @override
+  String get maxHistorySubtitle => 'Максимум сохранённых команд в истории';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Показывать суммарный размер рядом с папками в сайдбаре';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Проверять новую версию на GitHub при запуске приложения';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Записывать события приложения в ротируемый лог-файл';
 }

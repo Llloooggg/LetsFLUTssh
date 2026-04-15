@@ -1795,4 +1795,43 @@ class SZh extends S {
 
   @override
   String get sshDirSessionAlreadyImported => '已在会话中';
+
+  @override
+  String get languageSubtitle => '界面语言';
+
+  @override
+  String get themeSubtitle => '深色、浅色或跟随系统';
+
+  @override
+  String get uiScaleSubtitle => '缩放整个界面';
+
+  @override
+  String get terminalFontSizeSubtitle => '终端输出的字体大小';
+
+  @override
+  String get scrollbackLinesSubtitle => '终端历史缓冲区大小';
+
+  @override
+  String get keepAliveIntervalSubtitle => 'SSH keep-alive 数据包间隔秒数 (0 = 关闭)';
+
+  @override
+  String get sshTimeoutSubtitle => '连接超时 (秒)';
+
+  @override
+  String get defaultPortSubtitle => '新会话的默认端口';
+
+  @override
+  String get parallelWorkersSubtitle => '并行 SFTP 传输工作线程数';
+
+  @override
+  String get maxHistorySubtitle => '历史中保留的最大命令数';
+
+  @override
+  String get calculateFolderSizesSubtitle => '在侧边栏文件夹旁显示总大小';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle => '应用启动时从 GitHub 检查新版本';
+
+  @override
+  String get enableLoggingSubtitle => '将应用事件写入循环日志文件';
 }
