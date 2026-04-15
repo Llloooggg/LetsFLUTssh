@@ -590,6 +590,36 @@ Stores (SessionStore, KeyStore, KnownHostsManager, SnippetStore, TagStore) recei
 
 First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no database file).
 
+#### In-memory DB key (page-locked)
+
+The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the PBKDF2-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
+
+#### Switching modes on the fly
+
+`_reEncryptAll()` in `settings_sections.dart` runs `PRAGMA rekey` through `rekeyDatabase()` in `lib/core/db/database_opener.dart` to re-encrypt every DB page under the new key *before* flipping `securityStateProvider`. A crypto / disk failure leaves the old working state intact instead of a half-migrated file. Removing master password or changing it wipes `BiometricKeyVault` since the cached key becomes stale.
+
+#### Biometric unlock
+
+Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) wraps `local_auth` for the availability probe + prompt; [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key in `flutter_secure_storage` under a platform keychain slot (iOS/macOS Keychain, Windows Credential Manager, Android EncryptedSharedPreferences). At startup, `_tryBiometricUnlock()` in `main.dart` runs the biometric prompt first and skips the master-password dialog on success; fall back is the normal `UnlockDialog`.
+
+Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
+
+#### Auto-lock
+
+Opt-in, off by default. `BehaviorConfig.autoLockMinutes` (0 = off; presets 5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). Only visible in master-password mode — plaintext/keychain has no secret to re-prove.
+
+**Known scope**: the drift database handle is *not* closed on lock. SQLite3MultipleCiphers keeps its cipher key in internal page-cipher state, so DB reads continue to work after lock. Closing + reopening the DB would require disconnecting every live SSH/SFTP session. The auto-lock zeroes the explicit public handle used by rekey / export / config code paths and blocks UI input; it does not fully purge the SQLCipher runtime state.
+
+#### Process hardening
+
+[`ProcessHardening.applyOnStartup()`](../lib/core/security/process_hardening.dart) is called from `main.dart` before any secrets touch RAM:
+
+* Linux / Android — `prctl(PR_SET_DUMPABLE, 0)`: kernel skips core-dump generation on SIGSEGV and another process under the same UID can no longer `gdb -p` to read our memory without `CAP_SYS_PTRACE`.
+* macOS — `ptrace(PT_DENY_ATTACH, 0, NULL, 0)`: refuses subsequent debugger attach.
+* Windows / iOS — no-op; platform-specific hardening out of scope.
+
+All calls are wrapped in try/catch; a failed hardening call never blocks startup.
+
 #### AesGcm
 
 Shared AES-256-GCM utility used by all encrypted stores.
