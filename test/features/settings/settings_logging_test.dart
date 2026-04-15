@@ -5,13 +5,18 @@ import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
+import 'package:letsflutssh/core/security/biometric_auth.dart';
+import 'package:letsflutssh/core/security/biometric_key_vault.dart';
+import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
+import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/logger.dart';
@@ -20,6 +25,105 @@ import 'package:letsflutssh/widgets/toast.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import '../../helpers/test_notifiers.dart';
+
+/// _SecuritySection.build() reads secureKeyStorageProvider, biometricAuth-
+/// Provider and biometricKeyVaultProvider during its initState probe. The
+/// real implementations call `plugins.it_nomads.com/flutter_secure_storage`
+/// and `dev.fluttercommunity.plus.local_auth`, neither of which have mock
+/// handlers in this test file. Without replacement those calls block
+/// forever in the fake-async zone and the final disposing-the-viewer test
+/// eventually looks like a hang. The fakes below short-circuit every path
+/// to an unavailable state so _checkState resolves immediately.
+class _FakeFlutterSecureStorage implements FlutterSecureStorage {
+  final Map<String, String> _store = {};
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (value == null) {
+      _store.remove(key);
+    } else {
+      _store[key] = value;
+    }
+  }
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _store[key];
+
+  @override
+  Future<bool> containsKey({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _store.containsKey(key);
+
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _store.remove(key);
+  }
+
+  @override
+  Future<Map<String, String>> readAll({
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => Map.of(_store);
+
+  @override
+  Future<void> deleteAll({
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _store.clear();
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeBiometricAuth implements BiometricAuth {
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  @override
+  Future<bool> isAvailable() async => false;
+  @override
+  Future<bool> authenticate(String reason) async => false;
+}
 
 class _MockMasterPasswordManager extends MasterPasswordManager {
   bool _enabled = false;
@@ -140,12 +244,23 @@ void main() {
 
   Widget buildApp({AppConfig? initialConfig}) {
     final config = initialConfig ?? AppConfig.defaults;
+    final fakeStorage = _FakeFlutterSecureStorage();
     return ProviderScope(
       overrides: [
         configProvider.overrideWith(() => PrePopulatedConfigNotifier(config)),
         appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
         masterPasswordProvider.overrideWithValue(
           _MockMasterPasswordManager(basePath: tempDir.path),
+        ),
+        // _SecuritySection probes these on initState — let them resolve
+        // instantly to "not available" instead of hanging on unmocked
+        // platform channels that this test file doesn't install.
+        secureKeyStorageProvider.overrideWithValue(
+          SecureKeyStorage(storage: fakeStorage),
+        ),
+        biometricAuthProvider.overrideWithValue(_FakeBiometricAuth()),
+        biometricKeyVaultProvider.overrideWithValue(
+          BiometricKeyVault(storage: fakeStorage),
         ),
       ],
       child: MaterialApp(
@@ -405,39 +520,53 @@ void main() {
       expect(find.text('Live Log'), findsOneWidget);
     });
 
-    testWidgets('disposing the viewer cancels its periodic timer', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'disposing the viewer cancels its periodic timer',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
-      );
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 200)),
-      );
-      await tester.pump();
+        final config = AppConfig.defaults.copyWith(
+          behavior: const BehaviorConfig(enableLogging: true),
+        );
+        await tester.pumpWidget(buildApp(initialConfig: config));
+        await tester.scrollUntilVisible(
+          find.text('Live Log'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        // Settle any in-flight real-time work (initial _refresh of the log
+        // viewer, FlutterSecureStorage probe from the Security section) so
+        // the next pumpWidget's dispose pass isn't racing an open async
+        // operation on a platform channel that's unmocked in this test file.
+        await tester.runAsync(
+          () => Future.delayed(const Duration(milliseconds: 200)),
+        );
+        await tester.pump();
 
-      // Replace the widget tree with something that does NOT contain
-      // _LiveLogViewer — this triggers dispose() and must cancel the timer.
-      // If the timer wasn't cancelled, the test framework would flag a
-      // pending timer after the test finishes.
-      await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: Text('empty'))),
-      );
-      await tester.pump();
+        // Replace the widget tree with something that does NOT contain
+        // _LiveLogViewer — this triggers dispose() and must cancel the timer.
+        // If the timer wasn't cancelled, the test framework would flag a
+        // pending timer after the test finishes.
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: Text('empty'))),
+        );
+        // Drain whatever disposal-triggered microtasks remain (the Security
+        // section's _checkState may still be awaiting an unmocked platform
+        // channel — without this flush those awaits keep the test binding
+        // stuck in pending-async-work and the --timeout 30s guard trips
+        // indirectly instead of the test completing cleanly).
+        await tester.runAsync(
+          () => Future.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
 
-      expect(find.text('empty'), findsOneWidget);
-      expect(find.text('Live Log'), findsNothing);
-    });
+        expect(find.text('empty'), findsOneWidget);
+        expect(find.text('Live Log'), findsNothing);
+      },
+      timeout: const Timeout(Duration(seconds: 15)),
+    );
   });
 }
