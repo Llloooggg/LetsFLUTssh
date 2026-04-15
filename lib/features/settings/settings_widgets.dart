@@ -115,6 +115,7 @@ class _InfoTile extends StatelessWidget {
         border: Border.all(color: AppTheme.borderLight),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 16, color: AppTheme.fgDim),
           const SizedBox(width: 10),
@@ -127,9 +128,14 @@ class _InfoTile extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            value,
-            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              softWrap: true,
+              style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
+            ),
           ),
         ],
       ),
