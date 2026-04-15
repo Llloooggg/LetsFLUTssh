@@ -13,11 +13,14 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val permissionChannel = "com.letsflutssh/permissions"
+    private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private var pendingResult: MethodChannel.Result? = null
+    private var pendingScanResult: MethodChannel.Result? = null
 
     companion object {
         private const val MANAGE_STORAGE_REQUEST = 1001
         private const val LEGACY_STORAGE_REQUEST = 1002
+        private const val QR_SCAN_REQUEST = 1003
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -30,6 +33,24 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, qrScannerChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "scan" -> launchQrScanner(result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun launchQrScanner(result: MethodChannel.Result) {
+        if (pendingScanResult != null) {
+            result.error("BUSY", "A scan is already in progress", null)
+            return
+        }
+        pendingScanResult = result
+        val intent = Intent(this, QrScannerActivity::class.java)
+        startActivityForResult(intent, QR_SCAN_REQUEST)
     }
 
     private fun requestStoragePermission(result: MethodChannel.Result) {
@@ -72,6 +93,10 @@ class MainActivity : FlutterActivity() {
                 Environment.isExternalStorageManager()
             pendingResult?.success(granted)
             pendingResult = null
+        } else if (requestCode == QR_SCAN_REQUEST) {
+            val payload = data?.getStringExtra(QrScannerActivity.EXTRA_RESULT)
+            pendingScanResult?.success(if (resultCode == RESULT_OK) payload else null)
+            pendingScanResult = null
         }
     }
 
