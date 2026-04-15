@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/import/import_service.dart';
+import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart'
     show ExportLink, ExportFolderTagLink;
 import 'package:letsflutssh/core/session/session.dart';
@@ -608,12 +609,101 @@ void main() {
         expect(savedTags[1].name, 'Also Good');
 
         // Session-tag links: 'good' and 'also-good' are remapped,
-        // 'bad' falls back to original ID (not in remap map)
-        expect(taggedSessions, hasLength(3));
+        // 'bad' is skipped — it isn't in the remap, so inserting it would
+        // FK-fail (no such tag in DB).
+        expect(taggedSessions, hasLength(2));
         expect(taggedSessions[0].tagId, 'new-good');
-        expect(taggedSessions[1].tagId, 'bad'); // fallback — not remapped
-        expect(taggedSessions[2].tagId, 'new-also-good');
+        expect(taggedSessions[1].tagId, 'new-also-good');
       });
+
+      test('skips session-tag link when tag was not imported', () async {
+        final tag = Tag(id: 'imported', name: 'Imported');
+        final svc = buildTagSnippetService(
+          onSaveTag: (t) async {
+            savedTags.add(t);
+            return 'new-${t.id}';
+          },
+          onTagSession: (sessionId, tagId) async {
+            taggedSessions.add((sessionId: sessionId, tagId: tagId));
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag],
+            sessionTags: const [
+              ExportLink(sessionId: 's1', targetId: 'imported'),
+              ExportLink(sessionId: 's1', targetId: 'missing'),
+            ],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        // Only the link to the imported tag is applied; the link to 'missing'
+        // is silently skipped — it would FK-fail otherwise.
+        expect(taggedSessions, hasLength(1));
+        expect(taggedSessions.single.tagId, 'new-imported');
+      });
+
+      test('skips folder-tag link when tag was not imported', () async {
+        final tag = Tag(id: 'imported', name: 'Imported');
+        final svc = buildTagSnippetService(
+          onSaveTag: (t) async {
+            savedTags.add(t);
+            return 'new-${t.id}';
+          },
+          onTagFolder: (folderId, tagId) async {
+            taggedFolders.add((folderId: folderId, tagId: tagId));
+          },
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [],
+            tags: [tag],
+            folderTags: const [
+              ExportFolderTagLink(folderPath: '/a', tagId: 'imported'),
+              ExportFolderTagLink(folderPath: '/b', tagId: 'missing'),
+            ],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(taggedFolders, hasLength(1));
+        expect(taggedFolders.single.folderId, '/a');
+      });
+
+      test(
+        'skips session-snippet link when snippet was not imported',
+        () async {
+          final snippet = Snippet(id: 'imported', title: 'ls', command: 'ls');
+          final svc = buildTagSnippetService(
+            onSaveSnippet: (s) async {
+              savedSnippets.add(s);
+              return 'new-${s.id}';
+            },
+            onLinkSnippet: (snippetId, sessionId) async {
+              linkedSnippets.add((snippetId: snippetId, sessionId: sessionId));
+            },
+          );
+
+          await svc.applyResult(
+            ImportResult(
+              sessions: [],
+              snippets: [snippet],
+              sessionSnippets: const [
+                ExportLink(sessionId: 's1', targetId: 'imported'),
+                ExportLink(sessionId: 's1', targetId: 'missing'),
+              ],
+              mode: ImportMode.merge,
+            ),
+          );
+
+          expect(linkedSnippets, hasLength(1));
+          expect(linkedSnippets.single.snippetId, 'new-imported');
+        },
+      );
     });
 
     test('applyConfig failure does not abort import', () async {
@@ -839,6 +929,89 @@ void main() {
         expect(newId, isNot('s1'));
         expect(taggedSessions.single.sessionId, newId);
         expect(linkedSnippets.single.sessionId, newId);
+      });
+    });
+
+    group('manager key FK safety', () {
+      Session sessionWithKey(String id, String keyId) => Session(
+        id: id,
+        label: 'S',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: SessionAuth(keyId: keyId),
+      );
+
+      SshKeyEntry makeKey(String id) => SshKeyEntry(
+        id: id,
+        label: 'k-$id',
+        privateKey: 'pk-$id',
+        publicKey: 'pub-$id',
+        keyType: 'ed25519',
+        createdAt: DateTime(2026),
+      );
+
+      test('nulls out keyId when referenced key was not imported', () async {
+        // Session refers to 'key-missing', but that key isn't in the archive.
+        // Without nulling, the session insert would hit a FK constraint on
+        // Sessions.keyId → SshKeys.id. The session must still be imported.
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (c) => appliedConfig = c,
+          saveManagerKey: (e) async => 'new-${e.id}',
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [sessionWithKey('s1', 'key-missing')],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(store, hasLength(1));
+        expect(store.single.keyId, '');
+      });
+
+      test('remaps keyId to newly-saved key id when imported', () async {
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (c) => appliedConfig = c,
+          saveManagerKey: (e) async => 'new-${e.id}',
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [sessionWithKey('s1', 'k1')],
+            managerKeys: [makeKey('k1')],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(store.single.keyId, 'new-k1');
+      });
+
+      test('leaves empty keyId untouched', () async {
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => store.add(s),
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => store,
+          applyConfig: (c) => appliedConfig = c,
+          saveManagerKey: (e) async => 'new-${e.id}',
+        );
+
+        await svc.applyResult(
+          ImportResult(
+            sessions: [sessionWithKey('s1', '')],
+            mode: ImportMode.merge,
+          ),
+        );
+
+        expect(store.single.keyId, '');
       });
     });
 

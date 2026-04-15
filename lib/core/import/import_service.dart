@@ -152,16 +152,24 @@ class ImportService {
     );
   }
 
-  /// Rewrite session `keyId` fields using the manager-key id map. Returns
-  /// the original list unchanged when the map is empty.
+  /// Rewrite session `keyId` fields using the manager-key id map.
+  ///
+  /// Sessions referencing a keyId that is not in [keyIdMap] get their keyId
+  /// nulled out — the referenced key was not imported (either not included
+  /// in the archive or filtered out by the user), so keeping the id would
+  /// cause a `FOREIGN KEY constraint failed` on insert. The session is still
+  /// imported; the user can re-associate a key afterwards.
   List<Session> _remapSessionKeyIds(
     List<Session> sessions,
     Map<String, String> keyIdMap,
   ) {
-    if (keyIdMap.isEmpty) return sessions;
     return sessions.map((s) {
-      final newKeyId = keyIdMap[s.keyId];
-      if (newKeyId == null) return s;
+      final oldKeyId = s.keyId;
+      if (oldKeyId.isEmpty) return s;
+      final newKeyId = keyIdMap[oldKeyId];
+      if (newKeyId == null) {
+        return s.copyWith(auth: s.auth.copyWith(keyId: ''));
+      }
       return s.copyWith(auth: s.auth.copyWith(keyId: newKeyId));
     }).toList();
   }
@@ -296,7 +304,8 @@ class ImportService {
   ) async {
     if (tagSession != null) {
       for (final link in sessionLinks) {
-        final newTagId = tagIdMap[link.targetId] ?? link.targetId;
+        final newTagId = tagIdMap[link.targetId];
+        if (newTagId == null) continue; // tag not imported — would FK-fail
         final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
         try {
           await tagSession!(newSessionId, newTagId);
@@ -310,7 +319,8 @@ class ImportService {
     }
     if (tagFolder != null) {
       for (final link in folderLinks) {
-        final newTagId = tagIdMap[link.tagId] ?? link.tagId;
+        final newTagId = tagIdMap[link.tagId];
+        if (newTagId == null) continue;
         try {
           await tagFolder!(link.folderPath, newTagId);
         } catch (e) {
@@ -363,7 +373,9 @@ class ImportService {
   ) async {
     if (linkSnippetToSession == null) return;
     for (final link in links) {
-      final newSnippetId = snippetIdMap[link.targetId] ?? link.targetId;
+      final newSnippetId = snippetIdMap[link.targetId];
+      // snippet not imported — would FK-fail
+      if (newSnippetId == null) continue;
       final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
       try {
         await linkSnippetToSession!(newSnippetId, newSessionId);

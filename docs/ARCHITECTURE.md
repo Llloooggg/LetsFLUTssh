@@ -778,11 +778,11 @@ end-to-end, so no separate content hash is stored in the manifest.
 #### Import service
 
 `ImportService` applies import results with:
-- Manager key import first — builds oldId→newId map, remaps session `keyId` fields
+- Manager key import first — builds oldId→newId map, remaps session `keyId` fields. Sessions pointing to a key that wasn't imported get `keyId` nulled out so the session still inserts without hitting `FOREIGN KEY constraint failed` on `Sessions.keyId → SshKeys.id`
 - Session import with graceful skip on failure
 - Empty folder restoration
-- Tag import with ID remapping, then session→tag and folder→tag link creation
-- Snippet import with ID remapping, then session→snippet link creation
+- Tag import with ID remapping, then session→tag and folder→tag link creation. Links referencing a tag that wasn't imported are silently skipped (otherwise the FK on `SessionTags.tagId` / `FolderTags.tagId` would fail)
+- Snippet import with ID remapping, then session→snippet link creation. Links referencing a snippet that wasn't imported are silently skipped
 - Config application via typed `AppConfig` callback
 - Known hosts import via `KnownHostsManager.importFromString()`
 - Rollback support in replace mode via `restoreSnapshot` callback — snapshot includes sessions, empty folders, and (when `getCurrentConfig` is provided) the pre-import `AppConfig`, so a failed import restores atomically
