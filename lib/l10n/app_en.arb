@@ -670,6 +670,22 @@
     }
   },
   "errDecryptionFailed": "Failed to decrypt credentials. Key file may be corrupted.",
+  "errLfsDecryptFailed": "Wrong master password or corrupted .lfs archive",
+  "progressReadingArchive": "Reading archive…",
+  "progressDecrypting": "Decrypting…",
+  "progressParsingArchive": "Parsing archive…",
+  "progressImportingSessions": "Importing sessions",
+  "progressImportingFolders": "Importing folders",
+  "progressImportingManagerKeys": "Importing SSH keys",
+  "progressImportingTags": "Importing tags",
+  "progressImportingSnippets": "Importing snippets",
+  "progressApplyingConfig": "Applying configuration…",
+  "progressImportingKnownHosts": "Importing known_hosts…",
+  "progressCollectingData": "Collecting data…",
+  "progressEncrypting": "Encrypting…",
+  "progressWritingArchive": "Writing archive…",
+  "progressReencrypting": "Re-encrypting stores…",
+  "progressWorking": "Working…",
   "errWithPath": "{error}: {path}",
   "@errWithPath": {
     "placeholders": {

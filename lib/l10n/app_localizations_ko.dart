@@ -1113,6 +1113,55 @@ class SKo extends S {
   String get errDecryptionFailed => '자격 증명 복호화에 실패했습니다. 키 파일이 손상되었을 수 있습니다.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'Wrong master password or corrupted .lfs archive';
+
+  @override
+  String get progressReadingArchive => 'Reading archive…';
+
+  @override
+  String get progressDecrypting => 'Decrypting…';
+
+  @override
+  String get progressParsingArchive => 'Parsing archive…';
+
+  @override
+  String get progressImportingSessions => 'Importing sessions';
+
+  @override
+  String get progressImportingFolders => 'Importing folders';
+
+  @override
+  String get progressImportingManagerKeys => 'Importing SSH keys';
+
+  @override
+  String get progressImportingTags => 'Importing tags';
+
+  @override
+  String get progressImportingSnippets => 'Importing snippets';
+
+  @override
+  String get progressApplyingConfig => 'Applying configuration…';
+
+  @override
+  String get progressImportingKnownHosts => 'Importing known_hosts…';
+
+  @override
+  String get progressCollectingData => 'Collecting data…';
+
+  @override
+  String get progressEncrypting => 'Encrypting…';
+
+  @override
+  String get progressWritingArchive => 'Writing archive…';
+
+  @override
+  String get progressReencrypting => 'Re-encrypting stores…';
+
+  @override
+  String get progressWorking => 'Working…';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }

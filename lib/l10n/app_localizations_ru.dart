@@ -1135,6 +1135,55 @@ class SRu extends S {
       'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'Неверный мастер-пароль или повреждённый архив .lfs';
+
+  @override
+  String get progressReadingArchive => 'Чтение архива…';
+
+  @override
+  String get progressDecrypting => 'Расшифровка…';
+
+  @override
+  String get progressParsingArchive => 'Разбор архива…';
+
+  @override
+  String get progressImportingSessions => 'Импорт сессий';
+
+  @override
+  String get progressImportingFolders => 'Импорт папок';
+
+  @override
+  String get progressImportingManagerKeys => 'Импорт SSH-ключей';
+
+  @override
+  String get progressImportingTags => 'Импорт тегов';
+
+  @override
+  String get progressImportingSnippets => 'Импорт сниппетов';
+
+  @override
+  String get progressApplyingConfig => 'Применение конфигурации…';
+
+  @override
+  String get progressImportingKnownHosts => 'Импорт known_hosts…';
+
+  @override
+  String get progressCollectingData => 'Сбор данных…';
+
+  @override
+  String get progressEncrypting => 'Шифрование…';
+
+  @override
+  String get progressWritingArchive => 'Запись архива…';
+
+  @override
+  String get progressReencrypting => 'Повторное шифрование…';
+
+  @override
+  String get progressWorking => 'Обработка…';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }

@@ -274,7 +274,32 @@ void main() {
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),
         ),
-        throwsA(anything),
+        throwsA(isA<LfsDecryptionFailedException>()),
+      );
+    });
+
+    test('corrupted archive throws LfsDecryptionFailedException', () async {
+      final outputPath = '${tempDir.path}/corrupt.lfs';
+      await ExportImport.export(
+        masterPassword: 'pw',
+        outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+      );
+      // Flip a byte in the ciphertext body to trigger GCM auth-tag failure.
+      final file = File(outputPath);
+      final bytes = await file.readAsBytes();
+      final mutated = Uint8List.fromList(bytes);
+      mutated[mutated.length - 1] ^= 0xFF;
+      await file.writeAsBytes(mutated);
+
+      expect(
+        () => ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeConfig: true),
+        ),
+        throwsA(isA<LfsDecryptionFailedException>()),
       );
     });
   });

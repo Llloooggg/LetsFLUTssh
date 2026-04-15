@@ -2145,6 +2145,102 @@ abstract class S {
   /// **'Failed to decrypt credentials. Key file may be corrupted.'**
   String get errDecryptionFailed;
 
+  /// No description provided for @errLfsDecryptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong master password or corrupted .lfs archive'**
+  String get errLfsDecryptFailed;
+
+  /// No description provided for @progressReadingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading archive…'**
+  String get progressReadingArchive;
+
+  /// No description provided for @progressDecrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypting…'**
+  String get progressDecrypting;
+
+  /// No description provided for @progressParsingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Parsing archive…'**
+  String get progressParsingArchive;
+
+  /// No description provided for @progressImportingSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing sessions'**
+  String get progressImportingSessions;
+
+  /// No description provided for @progressImportingFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing folders'**
+  String get progressImportingFolders;
+
+  /// No description provided for @progressImportingManagerKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing SSH keys'**
+  String get progressImportingManagerKeys;
+
+  /// No description provided for @progressImportingTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing tags'**
+  String get progressImportingTags;
+
+  /// No description provided for @progressImportingSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing snippets'**
+  String get progressImportingSnippets;
+
+  /// No description provided for @progressApplyingConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying configuration…'**
+  String get progressApplyingConfig;
+
+  /// No description provided for @progressImportingKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing known_hosts…'**
+  String get progressImportingKnownHosts;
+
+  /// No description provided for @progressCollectingData.
+  ///
+  /// In en, this message translates to:
+  /// **'Collecting data…'**
+  String get progressCollectingData;
+
+  /// No description provided for @progressEncrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypting…'**
+  String get progressEncrypting;
+
+  /// No description provided for @progressWritingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing archive…'**
+  String get progressWritingArchive;
+
+  /// No description provided for @progressReencrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypting stores…'**
+  String get progressReencrypting;
+
+  /// No description provided for @progressWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get progressWorking;
+
   /// No description provided for @errWithPath.
   ///
   /// In en, this message translates to:

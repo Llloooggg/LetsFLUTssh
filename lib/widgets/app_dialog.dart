@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/progress/progress_reporter.dart';
 import '../core/shortcut_registry.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -348,31 +349,100 @@ class _DestructiveAction extends AppDialogAction {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  AppProgressDialog — non-dismissible loading spinner
+//  AppProgressBarDialog — non-dismissible progress bar with label/%
 // ════════════════════════════════════════════════════════════════════
 
-/// Full-screen loading overlay with a centered spinner.
+/// Modal progress bar with a phase label and percentage / step counter.
 ///
-/// Non-dismissible — caller must pop it explicitly.
-class AppProgressDialog extends StatelessWidget {
-  const AppProgressDialog({super.key});
+/// The caller owns a [ProgressReporter] and pushes phase and step
+/// updates — the dialog subscribes via [ValueListenableBuilder] and
+/// rebuilds only the progress panel.  Non-dismissible: the surrounding
+/// operation is responsible for popping the dialog in a `finally`.
+class AppProgressBarDialog extends StatelessWidget {
+  final ProgressReporter reporter;
+  const AppProgressBarDialog({super.key, required this.reporter});
 
-  /// Show a non-dismissible progress dialog and return its context
-  /// so the caller can pop it later.
-  static void show(BuildContext context) {
+  /// Show a non-dismissible progress bar.  The caller must pop it after
+  /// the operation completes (success or failure) — typically in a
+  /// `try/finally` pair with a `mounted` check.
+  static void show(BuildContext context, ProgressReporter reporter) {
     showDialog(
       context: context,
       barrierDismissible: false,
       animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => const AppProgressDialog(),
+      builder: (_) => AppProgressBarDialog(reporter: reporter),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return const PopScope(
+    return PopScope(
       canPop: false,
-      child: Center(child: CircularProgressIndicator()),
+      child: Center(
+        child: Material(
+          color: AppTheme.bg2,
+          elevation: 4,
+          borderRadius: AppTheme.radiusLg,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: ValueListenableBuilder<ProgressState>(
+              valueListenable: reporter.state,
+              builder: (_, s, _) => _ProgressPanel(state: s),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressPanel extends StatelessWidget {
+  final ProgressState state;
+  const _ProgressPanel({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSteps = state.current != null && state.total != null;
+    final stepText = hasSteps ? '${state.current} / ${state.total}' : '';
+    final pctText = state.percent != null
+        ? '${(state.percent! * 100).round()}%'
+        : '…';
+    return SizedBox(
+      width: 320,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            state.label,
+            style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.md),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: AppTheme.radiusSm,
+            child: LinearProgressIndicator(
+              value: state.percent,
+              minHeight: 6,
+              backgroundColor: AppTheme.bg3,
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                stepText,
+                style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
+              ),
+              Text(
+                pctText,
+                style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

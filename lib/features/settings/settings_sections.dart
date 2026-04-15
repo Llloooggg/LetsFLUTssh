@@ -330,11 +330,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
       if (password == null || !context.mounted) return;
 
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _enableMasterPassword(password);
         if (context.mounted) {
-          Navigator.of(context).pop(); // close progress
+          Navigator.of(context).pop();
           Toast.show(
             context,
             message: l10n.masterPasswordSet,
@@ -345,6 +346,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -406,7 +409,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
       if (result == null || !context.mounted) return;
 
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _doChangePassword(result.current, result.newPw);
         if (context.mounted) {
@@ -420,6 +424,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } on MasterPasswordException catch (e) {
       if (context.mounted) {
@@ -468,7 +474,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
       if (password == null || !context.mounted) return;
 
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _doRemoveMasterPassword(password);
         if (context.mounted) {
@@ -483,6 +490,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } on MasterPasswordException catch (e) {
       if (context.mounted) {
@@ -547,7 +556,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       }
 
       if (!context.mounted) return;
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _reEncryptAll(key, SecurityLevel.keychain);
         if (context.mounted) {
@@ -562,6 +572,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -599,7 +611,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final keyStorage = ref.read(secureKeyStorageProvider);
     try {
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await keyStorage.deleteKey();
         await _reEncryptAll(null, SecurityLevel.plaintext);
@@ -615,6 +628,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -956,8 +971,10 @@ class _ExportImportTile extends ConsumerWidget {
 
     if (!context.mounted) return;
 
-    // Show progress indicator while PBKDF2 + encryption runs in isolate
-    AppProgressDialog.show(context);
+    // Progress bar covers the collection, PBKDF2+encryption, and write steps.
+    final l10n = S.of(context);
+    final reporter = ProgressReporter(l10n.progressCollectingData);
+    AppProgressBarDialog.show(context, reporter);
     try {
       final managerKeyEntries = await _collectManagerKeys(ref, exportResult);
       final (tags, sessionTags) = await _collectTags(ref, exportResult);
@@ -969,6 +986,8 @@ class _ExportImportTile extends ConsumerWidget {
       await ExportImport.export(
         masterPassword: password,
         outputPath: outputPath,
+        progress: reporter,
+        l10n: l10n,
         input: LfsExportInput(
           sessions: resolvedSessions,
           config: ref.read(configProvider),
@@ -997,6 +1016,8 @@ class _ExportImportTile extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
       rethrow;
+    } finally {
+      reporter.dispose();
     }
   }
 
@@ -1115,22 +1136,35 @@ class _ExportImportTile extends ConsumerWidget {
 
       // Decrypt once — reuse for both preview and import to avoid running
       // the expensive PBKDF2 key derivation (600k iterations) twice.
-      AppProgressDialog.show(context);
-      final fullImport = await ExportImport.import_(
-        filePath: path,
-        masterPassword: password,
-        mode: ImportMode.merge, // placeholder — user picks mode in preview
-        options: const ExportOptions(
-          includeSessions: true,
-          includeConfig: true,
-          includeKnownHosts: true,
-          includeAllManagerKeys: true,
-          includeTags: true,
-          includeSnippets: true,
-        ),
-      );
+      final l10n = S.of(context);
+      final reporter = ProgressReporter(l10n.progressReadingArchive);
+      AppProgressBarDialog.show(context, reporter);
+      var progressShown = true;
+      final ImportResult fullImport;
+      try {
+        fullImport = await ExportImport.import_(
+          filePath: path,
+          masterPassword: password,
+          mode: ImportMode.merge, // placeholder — user picks mode in preview
+          options: const ExportOptions(
+            includeSessions: true,
+            includeConfig: true,
+            includeKnownHosts: true,
+            includeAllManagerKeys: true,
+            includeTags: true,
+            includeSnippets: true,
+          ),
+          progress: reporter,
+          l10n: l10n,
+        );
+      } finally {
+        if (progressShown && context.mounted) {
+          Navigator.of(context).pop();
+          progressShown = false;
+        }
+        reporter.dispose();
+      }
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // close progress
 
       final preview = LfsPreview(
         sessions: fullImport.sessions,
@@ -1179,6 +1213,10 @@ class _ExportImportTile extends ConsumerWidget {
     WidgetRef ref,
     ImportResult importResult,
   ) async {
+    final l10n = S.of(context);
+    final reporter = ProgressReporter(l10n.progressWorking);
+    AppProgressBarDialog.show(context, reporter);
+    var progressShown = true;
     try {
       final store = ref.read(sessionStoreProvider);
       final keyStore = ref.read(keyStoreProvider);
@@ -1223,9 +1261,15 @@ class _ExportImportTile extends ConsumerWidget {
           await knownHostsMgr.importFromString(content);
         },
       );
-      final summary = await importService.applyResult(importResult);
+      final summary = await importService.applyResult(
+        importResult,
+        progress: reporter,
+        l10n: l10n,
+      );
 
       if (context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
         Toast.show(
           context,
           message: formatImportSummary(S.of(context), summary),
@@ -1234,6 +1278,10 @@ class _ExportImportTile extends ConsumerWidget {
       }
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
+      }
       if (context.mounted) {
         Toast.show(
           context,
@@ -1241,6 +1289,11 @@ class _ExportImportTile extends ConsumerWidget {
           level: ToastLevel.error,
         );
       }
+    } finally {
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+      }
+      reporter.dispose();
     }
   }
 }
