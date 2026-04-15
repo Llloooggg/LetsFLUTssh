@@ -26,61 +26,78 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Tappable tile for data actions (export, import, QR) — styled to match
-/// _SettingsRow but with icon, subtitle, and tap handler.
+/// Tappable tile for data actions (export, import, QR) — icon + title +
+/// subtitle + trailing chevron. The chevron is the visual cue that the
+/// whole row is clickable; [_InfoTile] omits it.
+///
+/// Set [enabled] to false to render the tile in a disabled state — the
+/// hover affordance and onTap are both suppressed and the icon / label /
+/// chevron are tinted [AppTheme.fgFaint]. Useful for keeping the row in
+/// place when the action is contextually unavailable, instead of yanking
+/// it out of the layout entirely.
 class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final bool enabled;
 
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = enabled ? AppTheme.fgDim : AppTheme.fgFaint;
+    final titleColor = enabled ? AppTheme.fg : AppTheme.fgFaint;
+    final body = Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.sm,
+                    color: titleColor,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, size: 18, color: AppTheme.fgFaint),
+        ],
+      ),
+    );
+
+    if (!enabled) return body;
     return HoverRegion(
       onTap: onTap,
-      builder: (hovered) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        color: hovered ? AppTheme.hover : null,
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: AppTheme.fgDim),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.sm,
-                      color: AppTheme.fg,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgDim,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (hovered) =>
+          Container(color: hovered ? AppTheme.hover : null, child: body),
     );
   }
 }
 
-/// Read-only info tile: icon + title + value (no tap handler).
+/// Read-only info tile: icon + title + value. Visually distinct from
+/// [_ActionTile] — no hover highlight, no chevron, a subtle bg3 tint, and
+/// the value rendered in mono so it reads as "output" rather than "tap me".
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -95,7 +112,13 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.bg3,
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.borderLight),
+      ),
       child: Row(
         children: [
           Icon(icon, size: 16, color: AppTheme.fgDim),
@@ -103,12 +126,15 @@ class _InfoTile extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fgDim,
+              ),
             ),
           ),
           Text(
             value,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
         ],
       ),
@@ -125,9 +151,15 @@ class _InfoTile extends StatelessWidget {
 class _SettingsRow extends StatelessWidget {
   final String label;
   final String? subtitle;
+  final IconData? icon;
   final Widget child;
 
-  const _SettingsRow({required this.label, required this.child, this.subtitle});
+  const _SettingsRow({
+    required this.label,
+    required this.child,
+    this.subtitle,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +169,10 @@ class _SettingsRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: AppTheme.fgDim),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,6 +208,7 @@ class _SettingsRow extends StatelessWidget {
 class _Toggle extends StatelessWidget {
   final String label;
   final String? subtitle;
+  final IconData? icon;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -180,6 +217,7 @@ class _Toggle extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.subtitle,
+    this.icon,
   });
 
   @override
@@ -187,6 +225,7 @@ class _Toggle extends StatelessWidget {
     return _SettingsRow(
       label: label,
       subtitle: subtitle,
+      icon: icon,
       child: GestureDetector(
         onTap: () => onChanged(!value),
         child: Container(
@@ -408,6 +447,7 @@ class _ThemeTile extends StatelessWidget {
     return _SettingsRow(
       label: s.theme,
       subtitle: s.themeSubtitle,
+      icon: Icons.brightness_6,
       child: _SegmentControl(
         values: const ['dark', 'light', 'system'],
         labels: [s.themeDark, s.themeLight, s.themeSystem],
@@ -459,6 +499,7 @@ class _LanguageTile extends StatelessWidget {
     return _SettingsRow(
       label: s.language,
       subtitle: s.languageSubtitle,
+      icon: Icons.language,
       child: PopupMenuButton<String>(
         onSelected: (v) => onChanged(v == _systemDefault ? null : v),
         tooltip: '',
@@ -535,6 +576,7 @@ class _LanguageTile extends StatelessWidget {
 class _SliderTile extends StatelessWidget {
   final String title;
   final String? subtitle;
+  final IconData? icon;
   final double value;
   final double min;
   final double max;
@@ -551,6 +593,7 @@ class _SliderTile extends StatelessWidget {
     required this.format,
     required this.onChanged,
     this.subtitle,
+    this.icon,
   });
 
   @override
@@ -558,6 +601,7 @@ class _SliderTile extends StatelessWidget {
     return _SettingsRow(
       label: title,
       subtitle: subtitle,
+      icon: icon,
       child: _SliderField(
         value: value,
         min: min,
@@ -573,6 +617,7 @@ class _SliderTile extends StatelessWidget {
 class _IntTile extends StatelessWidget {
   final String title;
   final String? subtitle;
+  final IconData? icon;
   final int value;
   final int min;
   final int max;
@@ -585,6 +630,7 @@ class _IntTile extends StatelessWidget {
     required this.max,
     required this.onChanged,
     this.subtitle,
+    this.icon,
   });
 
   @override
@@ -592,6 +638,7 @@ class _IntTile extends StatelessWidget {
     return _SettingsRow(
       label: title,
       subtitle: subtitle,
+      icon: icon,
       child: _InputField(
         initialValue: value.toString(),
         keyboardType: TextInputType.number,

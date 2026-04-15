@@ -64,6 +64,7 @@ class _AppearanceSection extends ConsumerWidget {
         _SliderTile(
           title: S.of(context).uiScale,
           subtitle: S.of(context).uiScaleSubtitle,
+          icon: Icons.aspect_ratio,
           value: uiScale,
           min: 0.5,
           max: 2.0,
@@ -76,6 +77,7 @@ class _AppearanceSection extends ConsumerWidget {
         _SliderTile(
           title: S.of(context).terminalFontSize,
           subtitle: S.of(context).terminalFontSizeSubtitle,
+          icon: Icons.format_size,
           value: fontSize,
           min: 8,
           max: 24,
@@ -101,6 +103,7 @@ class _TerminalSection extends ConsumerWidget {
     return _IntTile(
       title: S.of(context).scrollbackLines,
       subtitle: S.of(context).scrollbackLinesSubtitle,
+      icon: Icons.history,
       value: scrollback,
       min: 100,
       max: 100000,
@@ -126,6 +129,7 @@ class _ConnectionSection extends ConsumerWidget {
         _IntTile(
           title: S.of(context).keepAliveInterval,
           subtitle: S.of(context).keepAliveIntervalSubtitle,
+          icon: Icons.wifi_tethering,
           value: keepAlive,
           min: 0,
           max: 300,
@@ -136,6 +140,7 @@ class _ConnectionSection extends ConsumerWidget {
         _IntTile(
           title: S.of(context).sshTimeout,
           subtitle: S.of(context).sshTimeoutSubtitle,
+          icon: Icons.timer_outlined,
           value: timeout,
           min: 1,
           max: 60,
@@ -146,6 +151,7 @@ class _ConnectionSection extends ConsumerWidget {
         _IntTile(
           title: S.of(context).defaultPort,
           subtitle: S.of(context).defaultPortSubtitle,
+          icon: Icons.settings_ethernet,
           value: port,
           min: 1,
           max: 65535,
@@ -216,21 +222,25 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           subtitle: l10n.manageMasterPasswordSubtitle,
           onTap: () => _manageMasterPassword(context),
         ),
-        if (_keychainAvailable == true &&
-            secState.level == SecurityLevel.plaintext)
-          _ActionTile(
-            icon: Icons.enhanced_encryption,
-            title: l10n.enableKeychain,
-            subtitle: l10n.enableKeychainSubtitle,
-            onTap: () => _enableKeychain(context),
-          ),
-        if (secState.level == SecurityLevel.keychain)
-          _ActionTile(
-            icon: Icons.no_encryption_gmailerrorred,
-            title: l10n.disableKeychain,
-            subtitle: l10n.disableKeychainSubtitle,
-            onTap: () => _disableKeychain(context),
-          ),
+        // Both keychain rows are always rendered so the layout stays stable
+        // — disabled grey when the action doesn't apply (no platform support
+        // or wrong current security level).
+        _ActionTile(
+          icon: Icons.enhanced_encryption,
+          title: l10n.enableKeychain,
+          subtitle: l10n.enableKeychainSubtitle,
+          enabled:
+              _keychainAvailable == true &&
+              secState.level == SecurityLevel.plaintext,
+          onTap: () => _enableKeychain(context),
+        ),
+        _ActionTile(
+          icon: Icons.no_encryption_gmailerrorred,
+          title: l10n.disableKeychain,
+          subtitle: l10n.disableKeychainSubtitle,
+          enabled: secState.level == SecurityLevel.keychain,
+          onTap: () => _disableKeychain(context),
+        ),
       ],
     );
   }
@@ -650,6 +660,7 @@ class _TransferSection extends ConsumerWidget {
         _IntTile(
           title: S.of(context).parallelWorkers,
           subtitle: S.of(context).parallelWorkersSubtitle,
+          icon: Icons.multiple_stop,
           value: workers,
           min: 1,
           max: 10,
@@ -660,6 +671,7 @@ class _TransferSection extends ConsumerWidget {
         _IntTile(
           title: S.of(context).maxHistory,
           subtitle: S.of(context).maxHistorySubtitle,
+          icon: Icons.manage_history,
           value: maxHistory,
           min: 10,
           max: 5000,
@@ -670,6 +682,7 @@ class _TransferSection extends ConsumerWidget {
         _Toggle(
           label: S.of(context).calculateFolderSizes,
           subtitle: S.of(context).calculateFolderSizesSubtitle,
+          icon: Icons.folder_open,
           value: showFolderSizes,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -1247,6 +1260,7 @@ class _UpdateSection extends ConsumerWidget {
         _Toggle(
           label: S.of(context).checkForUpdatesOnStartup,
           subtitle: S.of(context).checkForUpdatesOnStartupSubtitle,
+          icon: Icons.system_update_alt,
           value: checkOnStart,
           onChanged: (v) => ref
               .read(configProvider.notifier)

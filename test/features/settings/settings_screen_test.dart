@@ -799,7 +799,7 @@ void main() {
     });
 
     testWidgets('tap opens export dialog', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -829,7 +829,7 @@ void main() {
     testWidgets('export dialog shows session and credential options', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -864,7 +864,7 @@ void main() {
     });
 
     testWidgets('export cancel closes dialog without action', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -897,7 +897,7 @@ void main() {
     testWidgets('export succeeds with session store and shows toast', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -928,7 +928,7 @@ void main() {
     testWidgets('export fails gracefully when path_provider errors', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -1402,7 +1402,7 @@ void main() {
     testWidgets('nonexistent file shows File not found toast text', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -1440,7 +1440,7 @@ void main() {
     testWidgets('tapping Data Location copies path to clipboard', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -1724,13 +1724,14 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('logging disabled hides live log viewer', (tester) async {
+    testWidgets('logging toggle is present whether enabled or not', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      // enableLogging = false (default) — live log viewer should not appear
       await tester.pumpWidget(buildApp(initialConfig: AppConfig.defaults));
       await tester.scrollUntilVisible(
         find.text('Enable Logging'),
@@ -1738,7 +1739,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Enable Logging'), findsOneWidget);
-      expect(find.text('Live Log'), findsNothing);
     });
 
     testWidgets('toggle renders ON when config has enableLogging true', (
@@ -1854,7 +1854,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('SettingsScreen — _DataPathTile FutureBuilder', () {
     testWidgets('shows "..." while loading then resolves path', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2120,7 +2120,7 @@ void main() {
     });
 
     testWidgets('manual check shows toast when up to date', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2165,7 +2165,7 @@ void main() {
     testWidgets('manual check shows toast when update available', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2208,7 +2208,7 @@ void main() {
     });
 
     testWidgets('manual check shows toast on error', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2574,7 +2574,7 @@ void main() {
     testWidgets('tapping Release Notes opens dialog with changelog', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2853,7 +2853,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('SettingsScreen — QR Export', () {
     testWidgets('empty sessions still opens export dialog', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -2878,7 +2878,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('SettingsScreen — Install Now', () {
     testWidgets('install failure shows toast', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
