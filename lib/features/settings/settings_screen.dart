@@ -50,6 +50,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
+import '../../widgets/link_import_preview_dialog.dart';
 import '../../widgets/local_directory_picker.dart';
 import '../../widgets/paste_import_link_dialog.dart';
 import '../../widgets/ssh_dir_import_dialog.dart';

@@ -872,25 +872,25 @@ class _ExportImportTile extends ConsumerWidget {
   Future<void> _showPasteImportLink(BuildContext context, WidgetRef ref) async {
     final data = await PasteImportLinkDialog.show(context);
     if (data == null || !context.mounted) return;
+    final choice = await LinkImportPreviewDialog.show(context, payload: data);
+    if (choice == null || !context.mounted) return;
+    final fullImport = ImportResult(
+      sessions: data.sessions,
+      emptyFolders: data.emptyFolders,
+      managerKeys: data.managerKeys,
+      tags: data.tags,
+      sessionTags: data.sessionTags,
+      folderTags: data.folderTags,
+      snippets: data.snippets,
+      sessionSnippets: data.sessionSnippets,
+      config: data.config,
+      mode: choice.mode,
+      knownHostsContent: data.knownHostsContent,
+    );
     await _applyFilteredImport(
       context,
       ref,
-      ImportResult(
-        sessions: data.sessions,
-        emptyFolders: data.emptyFolders,
-        managerKeys: data.managerKeys,
-        tags: data.tags,
-        sessionTags: data.sessionTags,
-        folderTags: data.folderTags,
-        snippets: data.snippets,
-        sessionSnippets: data.sessionSnippets,
-        config: data.config,
-        mode: ImportMode.merge,
-        knownHostsContent: data.knownHostsContent,
-        includeTags: data.tags.isNotEmpty,
-        includeSnippets: data.snippets.isNotEmpty,
-        includeKnownHosts: data.knownHostsContent != null,
-      ),
+      fullImport.filtered(choice.options, choice.mode),
     );
   }
 
