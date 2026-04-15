@@ -337,7 +337,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     } finally {
       passwordCtrl.dispose();
@@ -412,7 +416,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     } finally {
       currentCtrl.dispose();
@@ -471,7 +479,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     } finally {
       passwordCtrl.dispose();
@@ -542,7 +554,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     }
   }
@@ -591,7 +607,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         error: e,
       );
       if (context.mounted) {
-        Toast.show(context, message: e.toString(), level: ToastLevel.error);
+        Toast.show(
+          context,
+          message: localizeError(S.of(context), e),
+          level: ToastLevel.error,
+        );
       }
     }
   }
@@ -882,7 +902,7 @@ class _ExportImportTile extends ConsumerWidget {
       if (context.mounted) {
         Toast.show(
           context,
-          message: S.of(context).exportFailed(e.toString()),
+          message: S.of(context).exportFailed(localizeError(S.of(context), e)),
           level: ToastLevel.error,
         );
       }
