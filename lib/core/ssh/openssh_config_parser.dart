@@ -37,32 +37,63 @@ class OpenSshConfigEntry {
 /// non-matching for safety. Unknown directives are ignored silently.
 List<OpenSshConfigEntry> parseOpenSshConfig(String content) {
   final blocks = _parseBlocks(content);
-  final entries = <OpenSshConfigEntry>[];
 
+  // Resolution walks only two lists per concrete host: its own block plus the
+  // wildcard "default" blocks that appear in the file. Without this split the
+  // resolver is O(N²) over total blocks — a 2000-host config would compile a
+  // regex per (block, concrete-pattern) pair, which is what made the stress
+  // fuzz test take minutes.
+  final wildcardBlocks = <_RawBlock>[];
+  final concretePatterns = <(int blockIndex, String pattern)>[];
   for (var i = 0; i < blocks.length; i++) {
     final block = blocks[i];
+    var anyConcrete = false;
     for (final pattern in block.patterns) {
       if (_isWildcardPattern(pattern)) continue;
-      entries.add(_resolveEntry(pattern, blocks));
+      anyConcrete = true;
+      concretePatterns.add((i, pattern));
+    }
+    // A block is a wildcard "defaults" block if at least one of its patterns
+    // is a wildcard. Such blocks cascade onto other concrete hosts.
+    if (!anyConcrete || block.patterns.any(_isWildcardPattern)) {
+      wildcardBlocks.add(block);
     }
   }
-  return entries;
+
+  return [
+    for (final (blockIndex, pattern) in concretePatterns)
+      _resolveEntry(pattern, blocks[blockIndex], wildcardBlocks),
+  ];
 }
 
-/// Walk blocks top-to-bottom; for each directive take the first value
-/// from a block that matches [host] and sets that directive.
-OpenSshConfigEntry _resolveEntry(String host, List<_RawBlock> blocks) {
+/// Merge [ownBlock] with every [wildcardBlocks] block that matches [host],
+/// walking top-to-bottom in file order. First-value-wins for scalar
+/// directives; `IdentityFile` accumulates across every matching block.
+OpenSshConfigEntry _resolveEntry(
+  String host,
+  _RawBlock ownBlock,
+  List<_RawBlock> wildcardBlocks,
+) {
   String? hostName;
   String? user;
   int? port;
   final identityFiles = <String>[];
 
-  for (final block in blocks) {
-    if (!block.matches(host)) continue;
+  // Walk wildcard defaults in file order — the own block's position is
+  // preserved via [ownBlock.orderIndex] so "Host * first" still wins over a
+  // later concrete block per OpenSSH semantics. For simplicity we always
+  // treat the own block as last-in-order (i.e. its directives only fill
+  // fields the wildcards didn't), then merge again with the own block's
+  // index as a tie-break.
+  final ordered = [...wildcardBlocks];
+  if (!ordered.contains(ownBlock)) ordered.add(ownBlock);
+  ordered.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
+  for (final block in ordered) {
+    if (block != ownBlock && !block.matches(host)) continue;
     hostName ??= block.hostName;
     user ??= block.user;
     port ??= block.port;
-    // IdentityFile is additive in OpenSSH (multiple files tried in order).
     identityFiles.addAll(block.identityFiles);
   }
 
@@ -91,6 +122,7 @@ List<_RawBlock> _parseBlocks(String content) {
     if (p == null) return;
     blocks.add(
       _RawBlock(
+        orderIndex: blocks.length,
         patterns: p,
         hostName: hostName,
         user: user,
@@ -138,6 +170,7 @@ List<_RawBlock> _parseBlocks(String content) {
 /// of its non-negated patterns matches AND no negation pattern matches — the
 /// same rule OpenSSH applies.
 class _RawBlock {
+  final int orderIndex;
   final List<String> patterns;
   final String? hostName;
   final String? user;
@@ -145,6 +178,7 @@ class _RawBlock {
   final List<String> identityFiles;
 
   const _RawBlock({
+    required this.orderIndex,
     required this.patterns,
     required this.hostName,
     required this.user,
