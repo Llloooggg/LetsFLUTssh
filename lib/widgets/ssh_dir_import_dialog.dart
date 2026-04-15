@@ -188,29 +188,32 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     try {
       final picked = await cb();
       if (picked == null || !mounted) return;
-      setState(() {
-        // Append, dedup by session id. Newly picked hosts default to checked
-        // unless user@host:port already exists as a session.
-        final existingIds = _hosts.map((s) => s.id).toSet();
-        for (final s in picked.sessions) {
-          if (existingIds.contains(s.id)) continue;
-          _hosts.add(s);
-          final already = widget.source.existingSessionAddresses.contains(
-            sshDirSessionAddress(s),
-          );
-          _hostAlreadyInSessions.add(already);
-          if (!already) _selectedHostIds.add(s.id);
-        }
-        final existingKeyIds = _hostManagerKeys.map((k) => k.id).toSet();
-        for (final k in picked.managerKeys) {
-          if (existingKeyIds.contains(k.id)) continue;
-          _hostManagerKeys.add(k);
-        }
-        _hostsWithMissingKeys.addAll(picked.hostsWithMissingKeys);
-      });
+      setState(() => _mergePickedConfig(picked));
     } finally {
       if (mounted) setState(() => _pickingHosts = false);
     }
+  }
+
+  /// Append hosts + manager keys from a freshly-picked config file into the
+  /// in-dialog state. Newly picked hosts default to checked unless
+  /// `user@host:port` already matches an existing session.
+  void _mergePickedConfig(PickedConfigResult picked) {
+    final existingIds = _hosts.map((s) => s.id).toSet();
+    for (final s in picked.sessions) {
+      if (existingIds.contains(s.id)) continue;
+      _hosts.add(s);
+      final already = widget.source.existingSessionAddresses.contains(
+        sshDirSessionAddress(s),
+      );
+      _hostAlreadyInSessions.add(already);
+      if (!already) _selectedHostIds.add(s.id);
+    }
+    final existingKeyIds = _hostManagerKeys.map((k) => k.id).toSet();
+    for (final k in picked.managerKeys) {
+      if (existingKeyIds.contains(k.id)) continue;
+      _hostManagerKeys.add(k);
+    }
+    _hostsWithMissingKeys.addAll(picked.hostsWithMissingKeys);
   }
 
   // --- Keys section ---
@@ -368,75 +371,81 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_hosts.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
-            child: Text(
-              s.sshConfigPreviewNoHosts,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgDim,
-              ),
-            ),
-          )
-        else ...[
-          DataCheckboxRow(
-            icon: Icons.done_all,
-            label: s.sshConfigPreviewHostsFound(_hosts.length),
-            value: _hostsTristate,
-            tristate: true,
-            onTap: () => _toggleAllHosts(_hostsTristate != true),
-            trailingLabel: '${_selectedHostIds.length} / ${_hosts.length}',
-          ),
-          const AppDivider(),
-          // Indented list keeps the per-host rows visually distinct from the
-          // section-wide "select all" row above.
-          Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < _hosts.length; i++)
-                      DataCheckboxRow(
-                        icon: Icons.computer,
-                        label: _hosts[i].label,
-                        value: _selectedHostIds.contains(_hosts[i].id),
-                        onTap: () => _toggleHost(_hosts[i].id),
-                        subtitle:
-                            '${_hosts[i].user.isEmpty ? '?' : _hosts[i].user}'
-                            '@${_hosts[i].host}:${_hosts[i].port}'
-                            '${_hosts[i].keyId.isNotEmpty ? '  (key)' : ''}',
-                        trailingLabel: _hostAlreadyInSessions[i]
-                            ? s.sshDirSessionAlreadyImported
-                            : null,
-                        labelColor: _hostAlreadyInSessions[i]
-                            ? AppTheme.fgDim
-                            : null,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+          _emptyStatePlaceholder(s.sshConfigPreviewNoHosts)
+        else
+          _buildHostsList(s),
         if (_hostsWithMissingKeys.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8, left: 4),
-            child: Text(
-              s.sshConfigPreviewMissingKeys(_hostsWithMissingKeys.join(', ')),
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.yellow,
-              ),
-            ),
-          ),
+          _missingKeysWarning(s, _hostsWithMissingKeys),
         if (widget.onPickConfigFile != null)
           _buildBrowseButton(s, forKeys: false),
       ],
     );
   }
+
+  Widget _buildHostsList(S s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DataCheckboxRow(
+          icon: Icons.done_all,
+          label: s.sshConfigPreviewHostsFound(_hosts.length),
+          value: _hostsTristate,
+          tristate: true,
+          onTap: () => _toggleAllHosts(_hostsTristate != true),
+          trailingLabel: '${_selectedHostIds.length} / ${_hosts.length}',
+        ),
+        const AppDivider(),
+        // Indented list keeps the per-host rows visually distinct from the
+        // section-wide "select all" row above.
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < _hosts.length; i++) _buildHostRow(s, i),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHostRow(S s, int i) {
+    final session = _hosts[i];
+    final already = _hostAlreadyInSessions[i];
+    final user = session.user.isEmpty ? '?' : session.user;
+    final keySuffix = session.keyId.isNotEmpty ? '  (key)' : '';
+    return DataCheckboxRow(
+      icon: Icons.computer,
+      label: session.label,
+      value: _selectedHostIds.contains(session.id),
+      onTap: () => _toggleHost(session.id),
+      subtitle: '$user@${session.host}:${session.port}$keySuffix',
+      trailingLabel: already ? s.sshDirSessionAlreadyImported : null,
+      labelColor: already ? AppTheme.fgDim : null,
+    );
+  }
+
+  Widget _emptyStatePlaceholder(String text) => Padding(
+    padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
+    child: Text(
+      text,
+      style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+    ),
+  );
+
+  Widget _missingKeysWarning(S s, List<String> hosts) => Padding(
+    padding: const EdgeInsets.only(top: 8, left: 4),
+    child: Text(
+      s.sshConfigPreviewMissingKeys(hosts.join(', ')),
+      style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.yellow),
+    ),
+  );
 
   Widget _buildKeysSection(S s) {
     final keyCount = _keys.length;
@@ -458,68 +467,77 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_keys.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
-            child: Text(
-              s.importSshKeysNoneFound,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgDim,
-              ),
-            ),
-          )
-        else ...[
-          DataCheckboxRow(
-            icon: Icons.done_all,
-            label: s.importSshKeysFound(_keys.length),
-            value: _keysTristate,
-            tristate: true,
-            onTap: () => _toggleAllKeys(_keysTristate != true),
-            trailingLabel:
-                '${_selectedKeys.where((v) => v).length} / ${_keys.length}',
-          ),
-          const AppDivider(),
-          Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < _keys.length; i++)
-                      DataCheckboxRow(
-                        icon: Icons.vpn_key,
-                        label: _keys[i].suggestedLabel,
-                        value: _selectedKeys[i],
-                        onTap: () => _toggleKey(i),
-                        subtitle: _keys[i].path,
-                        trailingLabel: _keyAlreadyInStore[i]
-                            ? s.sshKeyAlreadyImported
-                            : null,
-                        labelColor: _keyAlreadyInStore[i]
-                            ? AppTheme.fgDim
-                            : null,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+          _emptyStatePlaceholder(s.importSshKeysNoneFound)
+        else
+          _buildKeysList(s),
         if (widget.onPickKeyFiles != null) _buildBrowseButton(s, forKeys: true),
       ],
     );
   }
 
+  Widget _buildKeysList(S s) {
+    final selectedCount = _selectedKeys.where((v) => v).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DataCheckboxRow(
+          icon: Icons.done_all,
+          label: s.importSshKeysFound(_keys.length),
+          value: _keysTristate,
+          tristate: true,
+          onTap: () => _toggleAllKeys(_keysTristate != true),
+          trailingLabel: '$selectedCount / ${_keys.length}',
+        ),
+        const AppDivider(),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < _keys.length; i++) _buildKeyRow(s, i),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKeyRow(S s, int i) {
+    final already = _keyAlreadyInStore[i];
+    return DataCheckboxRow(
+      icon: Icons.vpn_key,
+      label: _keys[i].suggestedLabel,
+      value: _selectedKeys[i],
+      onTap: () => _toggleKey(i),
+      subtitle: _keys[i].path,
+      trailingLabel: already ? s.sshKeyAlreadyImported : null,
+      labelColor: already ? AppTheme.fgDim : null,
+    );
+  }
+
   Widget _buildBrowseButton(S s, {required bool forKeys}) {
     final busy = forKeys ? _pickingKeys : _pickingHosts;
+    // Nested ternary would be one-liner but trips Sonar S3358; the explicit
+    // if/else stays readable and still inlines to the same tree.
+    final VoidCallback? onPressed;
+    if (busy) {
+      onPressed = null;
+    } else if (forKeys) {
+      onPressed = _browseKeys;
+    } else {
+      onPressed = _browseConfig;
+    }
     return Padding(
       padding: const EdgeInsets.only(top: 6, left: 4),
       child: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
-          onPressed: busy ? null : (forKeys ? _browseKeys : _browseConfig),
+          onPressed: onPressed,
           icon: const Icon(Icons.folder_open, size: 16),
           label: Text(s.browseFiles),
         ),

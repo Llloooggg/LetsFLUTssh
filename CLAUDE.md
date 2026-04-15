@@ -64,9 +64,23 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 
 ## Code Quality Rules
 
-All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit.
+All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden, always fix the root cause.
 
-- **Cognitive complexity** ≤ 15 per method (SonarCloud S3776). Extract helper methods to reduce
-- **No nested ternaries** (SonarCloud S3358). Extract to local variables or use `if`/`else`
-- **No `print()`/`debugPrint()`** — use `AppLogger.instance.log(message, name: 'Tag')`. **Never log sensitive data**
-- **No generated file edits** — `*.g.dart` and `*.freezed.dart` are excluded from analysis
+### SonarCloud rules that bite most often
+
+Write code that already obeys these on first draft — don't write it, wait for the scanner to complain, and then refactor.
+
+- **S3776 — cognitive complexity ≤ 15.** Each `if` / `for` / `while` / `switch case` / `&&` / `||` adds to the score, and nesting multiplies. A single widget `build()` with a tall `children: [ if … else ... if … for (…) widget(a ? b : c) ]` blows the budget fast. When in doubt:
+  - Extract each conditional child into a `Widget _buildFoo(…)` helper (empty state, header row, list, footer → one helper each).
+  - Pull repeated inline computations (`X ? s.foo : null`, `X ? fgDim : null`) into a local `final already = …;` before the `return DataCheckboxRow(…)`.
+  - Any `for (var i = 0; i < list.length; i++) ComplexWidget(a: list[i].x, b: … ? … : …, c: … ? … : null)` → extract a `_buildRow(i)` helper.
+- **S3358 — no nested ternaries.** Patterns like `busy ? null : (forKeys ? _a : _b)` or `value == true ? doX() : value == false ? doY() : doZ()` must be rewritten as `if` / `else if` / `else` assigning to a local, or a `switch` expression. A single non-nested ternary is fine.
+- **S1854 — dead / unused values.** Don't `final x = ...;` then overwrite `x` unconditionally before use. In Dart `late final x; if (…) x = …; else x = …;` or an `if`/`else`-assigned local is the idiomatic fix.
+- **S1192 — string literals duplicated ≥ 3 times.** Pull them into a `static const _kFoo = '…'` or an existing localization key.
+- **S1481 — unused local vars / S1172 — unused parameters.** Either delete or prefix with `_`. Don't leave them around "just in case".
+- **No `print()` / `debugPrint()`** — use `AppLogger.instance.log(message, name: 'Tag')`. **Never log sensitive data** (keys, passwords, raw PEM). Errors surfacing to the UI go through `localizeError()` so PEM / base64 are redacted.
+- **No generated file edits** — `*.g.dart` and `*.freezed.dart` are excluded from analysis; change the source instead.
+
+### Shape before scanner
+
+If a method's body is more than ~30 lines or has three nested conditional blocks, split it up before committing. Widget `build()` methods over that threshold should already have named `_buildFoo` helpers for each section.

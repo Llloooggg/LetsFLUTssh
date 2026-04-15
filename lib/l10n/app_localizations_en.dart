@@ -97,7 +97,7 @@ class SEn extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.';
+      'SSH keys are disabled by default for export.';
 
   @override
   String get sshKeysMayBeLarge => 'Keys may exceed QR size limit';
@@ -1132,6 +1132,85 @@ class SEn extends S {
       'Failed to decrypt credentials. Key file may be corrupted.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'Wrong master password or corrupted .lfs archive';
+
+  @override
+  String get progressReadingArchive => 'Reading archive…';
+
+  @override
+  String get progressDecrypting => 'Decrypting…';
+
+  @override
+  String get progressParsingArchive => 'Parsing archive…';
+
+  @override
+  String get progressImportingSessions => 'Importing sessions';
+
+  @override
+  String get progressImportingFolders => 'Importing folders';
+
+  @override
+  String get progressImportingManagerKeys => 'Importing SSH keys';
+
+  @override
+  String get progressImportingTags => 'Importing tags';
+
+  @override
+  String get progressImportingSnippets => 'Importing snippets';
+
+  @override
+  String get progressApplyingConfig => 'Applying configuration…';
+
+  @override
+  String get progressImportingKnownHosts => 'Importing known_hosts…';
+
+  @override
+  String get progressCollectingData => 'Collecting data…';
+
+  @override
+  String get progressEncrypting => 'Encrypting…';
+
+  @override
+  String get progressWritingArchive => 'Writing archive…';
+
+  @override
+  String get progressReencrypting => 'Re-encrypting stores…';
+
+  @override
+  String get progressWorking => 'Working…';
+
+  @override
+  String get importFromLink => 'Import from QR link';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Paste a letsflutssh:// deep link copied from another device';
+
+  @override
+  String get pasteImportLinkTitle => 'Paste import link';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Paste the letsflutssh://import?d=… link (or raw payload) generated on another device. No camera needed.';
+
+  @override
+  String get pasteFromClipboard => 'Paste from clipboard';
+
+  @override
+  String get invalidImportLink =>
+      'Link does not contain a valid LetsFLUTssh payload';
+
+  @override
+  String get importAction => 'Import';
+
+  @override
+  String get saveSessionToAssignTags => 'Save the session first to assign tags';
+
+  @override
+  String get noTagsAssigned => 'No tags assigned';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1829,4 +1908,46 @@ class SEn extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'already in sessions';
+
+  @override
+  String get languageSubtitle => 'Interface language';
+
+  @override
+  String get themeSubtitle => 'Dark, light, or follow the system';
+
+  @override
+  String get uiScaleSubtitle => 'Scale the whole interface';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Font size in terminal output';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Terminal history buffer size';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Seconds between SSH keep-alive packets (0 = off)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Connection timeout in seconds';
+
+  @override
+  String get defaultPortSubtitle => 'Default port for new sessions';
+
+  @override
+  String get parallelWorkersSubtitle => 'Concurrent SFTP transfer workers';
+
+  @override
+  String get maxHistorySubtitle => 'Maximum saved commands in history';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Show total size next to folders in the sidebar';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Query GitHub for a new release when the app launches';
+
+  @override
+  String get enableLoggingSubtitle => 'Write app events to a rotating log file';
 }

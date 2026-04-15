@@ -83,12 +83,23 @@ jobs:
       - name: Validate commit messages
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|style|revert)(\([a-z0-9-]+\))?: \S.+'
+          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|style|revert)(\([a-z0-9-]+\))?!?: \S.+'
 
-          # Get all commits in the PR
-          COMMITS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[].messageHeadline')
+          # Read commit subjects straight from git so we get the full header —
+          # `gh pr view --json commits.messageHeadline` truncates to ~72 chars
+          # with an ellipsis, which breaks the revert-match below.
+          git fetch --no-tags origin "$PR_BASE_REF" --depth=100
+          COMMITS=$(git log --format='%s' "origin/$PR_BASE_REF..HEAD")
+
+          # Extract subjects that later revert commits cancel out, so a
+          # mistaken commit whose content has already been reverted in the
+          # same PR does not block the merge. Accepts both git's default
+          # `Revert "…"` and our conventional `revert: "…"` header forms.
+          REVERTED=$(printf '%s\n' "$COMMITS" | \
+            sed -nE 's/^(Revert |revert: )"([^"]+)".*/\2/p')
 
           while IFS= read -r MSG; do
             [ -z "$MSG" ] && continue
@@ -98,6 +109,10 @@ jobs:
             echo "$MSG" | grep -qE '^Bump ' && continue
             # Skip revert commits (e.g. 'Revert "feat: something"')
             echo "$MSG" | grep -qE '^Revert "' && continue
+            # Skip commits that a later revert in this PR cancels out.
+            if [ -n "$REVERTED" ] && printf '%s\n' "$REVERTED" | grep -qxF "$MSG"; then
+              continue
+            fi
             if ! echo "$MSG" | grep -qE "$PATTERN"; then
               ERRORS="$ERRORS  ✗ $MSG\n"
             fi

@@ -5,6 +5,8 @@ import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 import '../core/import/import_service.dart';
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
+import '../features/settings/export_import.dart'
+    show LfsDecryptionFailedException;
 import '../l10n/app_localizations.dart';
 import 'sanitize.dart';
 
@@ -117,6 +119,10 @@ String? _sanitizeErrnoMessage(String msg) {
 /// Use this in UI code where [BuildContext] is available.
 /// Falls back to [sanitizeError] for unknown error types.
 String localizeError(S l10n, Object error) {
+  if (error is LfsDecryptionFailedException) {
+    return l10n.errLfsDecryptFailed;
+  }
+
   // SFTPError: map status codes to localized messages.
   if (error is SFTPError) {
     final localized = _localizeSftpError(l10n, error);

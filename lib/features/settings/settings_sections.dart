@@ -63,6 +63,8 @@ class _AppearanceSection extends ConsumerWidget {
         ),
         _SliderTile(
           title: S.of(context).uiScale,
+          subtitle: S.of(context).uiScaleSubtitle,
+          icon: Icons.aspect_ratio,
           value: uiScale,
           min: 0.5,
           max: 2.0,
@@ -74,6 +76,8 @@ class _AppearanceSection extends ConsumerWidget {
         ),
         _SliderTile(
           title: S.of(context).terminalFontSize,
+          subtitle: S.of(context).terminalFontSizeSubtitle,
+          icon: Icons.format_size,
           value: fontSize,
           min: 8,
           max: 24,
@@ -98,6 +102,8 @@ class _TerminalSection extends ConsumerWidget {
     final scrollback = ref.watch(configProvider.select((c) => c.scrollback));
     return _IntTile(
       title: S.of(context).scrollbackLines,
+      subtitle: S.of(context).scrollbackLinesSubtitle,
+      icon: Icons.history,
       value: scrollback,
       min: 100,
       max: 100000,
@@ -122,6 +128,8 @@ class _ConnectionSection extends ConsumerWidget {
       children: [
         _IntTile(
           title: S.of(context).keepAliveInterval,
+          subtitle: S.of(context).keepAliveIntervalSubtitle,
+          icon: Icons.wifi_tethering,
           value: keepAlive,
           min: 0,
           max: 300,
@@ -131,6 +139,8 @@ class _ConnectionSection extends ConsumerWidget {
         ),
         _IntTile(
           title: S.of(context).sshTimeout,
+          subtitle: S.of(context).sshTimeoutSubtitle,
+          icon: Icons.timer_outlined,
           value: timeout,
           min: 1,
           max: 60,
@@ -140,6 +150,8 @@ class _ConnectionSection extends ConsumerWidget {
         ),
         _IntTile(
           title: S.of(context).defaultPort,
+          subtitle: S.of(context).defaultPortSubtitle,
+          icon: Icons.settings_ethernet,
           value: port,
           min: 1,
           max: 65535,
@@ -210,21 +222,25 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           subtitle: l10n.manageMasterPasswordSubtitle,
           onTap: () => _manageMasterPassword(context),
         ),
-        if (_keychainAvailable == true &&
-            secState.level == SecurityLevel.plaintext)
-          _ActionTile(
-            icon: Icons.enhanced_encryption,
-            title: l10n.enableKeychain,
-            subtitle: l10n.enableKeychainSubtitle,
-            onTap: () => _enableKeychain(context),
-          ),
-        if (secState.level == SecurityLevel.keychain)
-          _ActionTile(
-            icon: Icons.no_encryption_gmailerrorred,
-            title: l10n.disableKeychain,
-            subtitle: l10n.disableKeychainSubtitle,
-            onTap: () => _disableKeychain(context),
-          ),
+        // Both keychain rows are always rendered so the layout stays stable
+        // — disabled grey when the action doesn't apply (no platform support
+        // or wrong current security level).
+        _ActionTile(
+          icon: Icons.enhanced_encryption,
+          title: l10n.enableKeychain,
+          subtitle: l10n.enableKeychainSubtitle,
+          enabled:
+              _keychainAvailable == true &&
+              secState.level == SecurityLevel.plaintext,
+          onTap: () => _enableKeychain(context),
+        ),
+        _ActionTile(
+          icon: Icons.no_encryption_gmailerrorred,
+          title: l10n.disableKeychain,
+          subtitle: l10n.disableKeychainSubtitle,
+          enabled: secState.level == SecurityLevel.keychain,
+          onTap: () => _disableKeychain(context),
+        ),
       ],
     );
   }
@@ -314,11 +330,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
       if (password == null || !context.mounted) return;
 
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _enableMasterPassword(password);
         if (context.mounted) {
-          Navigator.of(context).pop(); // close progress
+          Navigator.of(context).pop();
           Toast.show(
             context,
             message: l10n.masterPasswordSet,
@@ -329,6 +346,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -390,7 +409,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
       if (result == null || !context.mounted) return;
 
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _doChangePassword(result.current, result.newPw);
         if (context.mounted) {
@@ -404,6 +424,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } on MasterPasswordException catch (e) {
       if (context.mounted) {
@@ -452,7 +474,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
       if (password == null || !context.mounted) return;
 
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _doRemoveMasterPassword(password);
         if (context.mounted) {
@@ -467,6 +490,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } on MasterPasswordException catch (e) {
       if (context.mounted) {
@@ -531,7 +556,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       }
 
       if (!context.mounted) return;
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await _reEncryptAll(key, SecurityLevel.keychain);
         if (context.mounted) {
@@ -546,6 +572,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -583,7 +611,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final keyStorage = ref.read(secureKeyStorageProvider);
     try {
-      AppProgressDialog.show(context);
+      final reporter = ProgressReporter(l10n.progressReencrypting);
+      AppProgressBarDialog.show(context, reporter);
       try {
         await keyStorage.deleteKey();
         await _reEncryptAll(null, SecurityLevel.plaintext);
@@ -599,6 +628,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       } catch (e) {
         if (context.mounted) Navigator.of(context).pop();
         rethrow;
+      } finally {
+        reporter.dispose();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -643,6 +674,8 @@ class _TransferSection extends ConsumerWidget {
       children: [
         _IntTile(
           title: S.of(context).parallelWorkers,
+          subtitle: S.of(context).parallelWorkersSubtitle,
+          icon: Icons.multiple_stop,
           value: workers,
           min: 1,
           max: 10,
@@ -652,6 +685,8 @@ class _TransferSection extends ConsumerWidget {
         ),
         _IntTile(
           title: S.of(context).maxHistory,
+          subtitle: S.of(context).maxHistorySubtitle,
+          icon: Icons.manage_history,
           value: maxHistory,
           min: 10,
           max: 5000,
@@ -661,6 +696,8 @@ class _TransferSection extends ConsumerWidget {
         ),
         _Toggle(
           label: S.of(context).calculateFolderSizes,
+          subtitle: S.of(context).calculateFolderSizesSubtitle,
+          icon: Icons.folder_open,
           value: showFolderSizes,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -690,12 +727,43 @@ class _ExportImportTile extends ConsumerWidget {
           onTap: () => _showImportDialog(context, ref),
         ),
         _ActionTile(
+          icon: Icons.link,
+          title: S.of(context).importFromLink,
+          subtitle: S.of(context).importFromLinkSubtitle,
+          onTap: () => _showPasteImportLink(context, ref),
+        ),
+        _ActionTile(
           icon: Icons.folder_shared_outlined,
           title: S.of(context).importFromSshDir,
           subtitle: S.of(context).importFromSshDirSubtitle,
           onTap: () => _showSshDirImportDialog(context, ref),
         ),
       ],
+    );
+  }
+
+  Future<void> _showPasteImportLink(BuildContext context, WidgetRef ref) async {
+    final data = await PasteImportLinkDialog.show(context);
+    if (data == null || !context.mounted) return;
+    await _applyFilteredImport(
+      context,
+      ref,
+      ImportResult(
+        sessions: data.sessions,
+        emptyFolders: data.emptyFolders,
+        managerKeys: data.managerKeys,
+        tags: data.tags,
+        sessionTags: data.sessionTags,
+        folderTags: data.folderTags,
+        snippets: data.snippets,
+        sessionSnippets: data.sessionSnippets,
+        config: data.config,
+        mode: ImportMode.merge,
+        knownHostsContent: data.knownHostsContent,
+        includeTags: data.tags.isNotEmpty,
+        includeSnippets: data.snippets.isNotEmpty,
+        includeKnownHosts: data.knownHostsContent != null,
+      ),
     );
   }
 
@@ -934,8 +1002,10 @@ class _ExportImportTile extends ConsumerWidget {
 
     if (!context.mounted) return;
 
-    // Show progress indicator while PBKDF2 + encryption runs in isolate
-    AppProgressDialog.show(context);
+    // Progress bar covers the collection, PBKDF2+encryption, and write steps.
+    final l10n = S.of(context);
+    final reporter = ProgressReporter(l10n.progressCollectingData);
+    AppProgressBarDialog.show(context, reporter);
     try {
       final managerKeyEntries = await _collectManagerKeys(ref, exportResult);
       final (tags, sessionTags) = await _collectTags(ref, exportResult);
@@ -947,6 +1017,8 @@ class _ExportImportTile extends ConsumerWidget {
       await ExportImport.export(
         masterPassword: password,
         outputPath: outputPath,
+        progress: reporter,
+        l10n: l10n,
         input: LfsExportInput(
           sessions: resolvedSessions,
           config: ref.read(configProvider),
@@ -975,6 +1047,8 @@ class _ExportImportTile extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
       rethrow;
+    } finally {
+      reporter.dispose();
     }
   }
 
@@ -1040,8 +1114,11 @@ class _ExportImportTile extends ConsumerWidget {
     return (snippets, sessionSnippets);
   }
 
-  /// Opens a save-file picker. Desktop uses native save dialog,
-  /// mobile uses directory picker + default filename.
+  /// Opens a save-file picker.  Desktop uses the native save dialog,
+  /// mobile writes straight to shared Downloads when the app has
+  /// MANAGE_EXTERNAL_STORAGE (the SAF folder picker is skipped because
+  /// it would demand a per-export consent dialog even though we already
+  /// have full storage access — see Android SAF vs all-files access).
   Future<String?> _pickSavePath(
     BuildContext context,
     String defaultName,
@@ -1058,13 +1135,49 @@ class _ExportImportTile extends ConsumerWidget {
         allowedExtensions: [extension],
       );
     }
-    // Mobile: pick directory, append default filename
+    if (Platform.isAndroid) {
+      // Ask the OS for MANAGE_EXTERNAL_STORAGE if we don't already hold
+      // it — without this the probe below will always fail on Android 11+
+      // and every export falls back to the SAF picker that Den hit.
+      await requestAndroidStoragePermission();
+      final directPath = await _androidDirectDownloadsPath(defaultName);
+      if (directPath != null) return directPath;
+    }
+    // iOS or Android without all-files access — fall back to SAF picker.
     final dir = await FilePicker.getDirectoryPath(
       dialogTitle: title,
       initialDirectory: initDir,
     );
     if (dir == null) return null;
     return p.join(dir, defaultName);
+  }
+
+  /// Returns `/storage/emulated/0/Download/<fileName>` when Downloads is
+  /// writable via dart:io (MANAGE_EXTERNAL_STORAGE / legacy storage),
+  /// or null when we must go through SAF.
+  Future<String?> _androidDirectDownloadsPath(String fileName) async {
+    const downloadsPath = '/storage/emulated/0/Download';
+    final downloads = Directory(downloadsPath);
+    try {
+      if (!await downloads.exists()) return null;
+      // Probe write access by opening a uniquely-named sentinel file —
+      // listing alone succeeds on scoped storage without real write access.
+      final probe = File(
+        p.join(
+          downloadsPath,
+          '.lfs_write_probe_${DateTime.now().microsecondsSinceEpoch}',
+        ),
+      );
+      await probe.writeAsString('');
+      await probe.delete();
+      return p.join(downloadsPath, fileName);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Downloads not writable directly, falling back to SAF: $e',
+        name: 'Export',
+      );
+      return null;
+    }
   }
 
   Future<String?> _pickLfsFile(BuildContext context) async {
@@ -1093,22 +1206,35 @@ class _ExportImportTile extends ConsumerWidget {
 
       // Decrypt once — reuse for both preview and import to avoid running
       // the expensive PBKDF2 key derivation (600k iterations) twice.
-      AppProgressDialog.show(context);
-      final fullImport = await ExportImport.import_(
-        filePath: path,
-        masterPassword: password,
-        mode: ImportMode.merge, // placeholder — user picks mode in preview
-        options: const ExportOptions(
-          includeSessions: true,
-          includeConfig: true,
-          includeKnownHosts: true,
-          includeAllManagerKeys: true,
-          includeTags: true,
-          includeSnippets: true,
-        ),
-      );
+      final l10n = S.of(context);
+      final reporter = ProgressReporter(l10n.progressReadingArchive);
+      AppProgressBarDialog.show(context, reporter);
+      var progressShown = true;
+      final ImportResult fullImport;
+      try {
+        fullImport = await ExportImport.import_(
+          filePath: path,
+          masterPassword: password,
+          mode: ImportMode.merge, // placeholder — user picks mode in preview
+          options: const ExportOptions(
+            includeSessions: true,
+            includeConfig: true,
+            includeKnownHosts: true,
+            includeAllManagerKeys: true,
+            includeTags: true,
+            includeSnippets: true,
+          ),
+          progress: reporter,
+          l10n: l10n,
+        );
+      } finally {
+        if (progressShown && context.mounted) {
+          Navigator.of(context).pop();
+          progressShown = false;
+        }
+        reporter.dispose();
+      }
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // close progress
 
       final preview = LfsPreview(
         sessions: fullImport.sessions,
@@ -1157,6 +1283,10 @@ class _ExportImportTile extends ConsumerWidget {
     WidgetRef ref,
     ImportResult importResult,
   ) async {
+    final l10n = S.of(context);
+    final reporter = ProgressReporter(l10n.progressWorking);
+    AppProgressBarDialog.show(context, reporter);
+    var progressShown = true;
     try {
       final store = ref.read(sessionStoreProvider);
       final keyStore = ref.read(keyStoreProvider);
@@ -1201,9 +1331,15 @@ class _ExportImportTile extends ConsumerWidget {
           await knownHostsMgr.importFromString(content);
         },
       );
-      final summary = await importService.applyResult(importResult);
+      final summary = await importService.applyResult(
+        importResult,
+        progress: reporter,
+        l10n: l10n,
+      );
 
       if (context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
         Toast.show(
           context,
           message: formatImportSummary(S.of(context), summary),
@@ -1212,6 +1348,10 @@ class _ExportImportTile extends ConsumerWidget {
       }
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
+      }
       if (context.mounted) {
         Toast.show(
           context,
@@ -1219,6 +1359,11 @@ class _ExportImportTile extends ConsumerWidget {
           level: ToastLevel.error,
         );
       }
+    } finally {
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+      }
+      reporter.dispose();
     }
   }
 }
@@ -1237,6 +1382,8 @@ class _UpdateSection extends ConsumerWidget {
       children: [
         _Toggle(
           label: S.of(context).checkForUpdatesOnStartup,
+          subtitle: S.of(context).checkForUpdatesOnStartupSubtitle,
+          icon: Icons.system_update_alt,
           value: checkOnStart,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -1334,21 +1481,29 @@ class _UpdateSection extends ConsumerWidget {
         return _buildUpdateAvailable(context, ref, updateState);
 
       case UpdateStatus.downloading:
-        return ListTile(
-          leading: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              value: updateState.progress > 0 ? updateState.progress : null,
-              strokeWidth: 2,
-            ),
+        // Linear progress gives the user a much clearer sense of how far
+        // the download has gone than a 20-px spinner — pair it with a
+        // percent-annotated caption for screen readers.
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                S
+                    .of(context)
+                    .downloadingPercent((updateState.progress * 100).toInt()),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: AppTheme.radiusSm,
+                child: LinearProgressIndicator(
+                  value: updateState.progress > 0 ? updateState.progress : null,
+                  minHeight: 6,
+                ),
+              ),
+            ],
           ),
-          title: Text(
-            S
-                .of(context)
-                .downloadingPercent((updateState.progress * 100).toInt()),
-          ),
-          contentPadding: EdgeInsets.zero,
         );
 
       case UpdateStatus.downloaded:

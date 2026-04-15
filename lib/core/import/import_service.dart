@@ -2,10 +2,12 @@ import 'package:uuid/uuid.dart';
 
 import '../../utils/logger.dart';
 import '../config/app_config.dart';
+import '../progress/progress_reporter.dart';
 import '../security/key_store.dart';
 import '../snippets/snippet.dart';
 import '../tags/tag.dart';
 import '../../features/settings/export_import.dart';
+import '../../l10n/app_localizations.dart';
 import '../session/qr_codec.dart' show ExportLink, ExportFolderTagLink;
 import '../session/session.dart';
 
@@ -99,7 +101,11 @@ class ImportService {
   /// In merge mode, id collisions with existing items (sessions/tags/snippets)
   /// are resolved by minting a fresh UUID and suffixing the label/name with
   /// `(copy)` — mirrors session duplication UX.
-  Future<ImportSummary> applyResult(ImportResult result) async {
+  Future<ImportSummary> applyResult(
+    ImportResult result, {
+    ProgressReporter? progress,
+    S? l10n,
+  }) async {
     AppLogger.instance.log(
       'Applying import: mode=${result.mode.name}, '
       'sessions=${result.sessions.length}, '
@@ -113,7 +119,7 @@ class ImportService {
         : null;
 
     try {
-      return await _applyCore(result, snapshot);
+      return await _applyCore(result, snapshot, progress, l10n);
     } catch (_) {
       if (result.mode == ImportMode.replace) {
         await _tryRestore(snapshot);
@@ -125,11 +131,17 @@ class ImportService {
   Future<ImportSummary> _applyCore(
     ImportResult result,
     _Snapshot? snapshot,
+    ProgressReporter? progress,
+    S? l10n,
   ) async {
     // Import manager keys first — the saveManagerKey callback dedups by
     // fingerprint (see KeyStore), so the returned map resolves incoming keys
     // to either a brand-new or an existing stored key id.
-    final keyIdMap = await _importManagerKeys(result.managerKeys);
+    final keyIdMap = await _importManagerKeys(
+      result.managerKeys,
+      progress,
+      l10n,
+    );
     final rekeyedSessions = _remapSessionKeyIds(result.sessions, keyIdMap);
 
     // Merge mode: remap colliding session ids to fresh UUIDs + "(copy)" label.
@@ -145,14 +157,23 @@ class ImportService {
         mode: result.mode,
       ),
       snapshot,
+      progress,
+      l10n,
     );
 
     final foldersImported = await _importEmptyFolders(
       result.emptyFolders,
       result.mode,
+      progress,
+      l10n,
     );
 
-    final tagIdMap = await _importTags(result.tags, result.mode);
+    final tagIdMap = await _importTags(
+      result.tags,
+      result.mode,
+      progress,
+      l10n,
+    );
     await _importTagLinks(
       result.sessionTags,
       result.folderTags,
@@ -160,14 +181,26 @@ class ImportService {
       sessionIdMap,
     );
 
-    final snippetIdMap = await _importSnippets(result.snippets, result.mode);
+    final snippetIdMap = await _importSnippets(
+      result.snippets,
+      result.mode,
+      progress,
+      l10n,
+    );
     await _importSnippetLinks(
       result.sessionSnippets,
       snippetIdMap,
       sessionIdMap,
     );
 
+    progress?.phase(l10n?.progressApplyingConfig ?? 'Applying configuration…');
     _applyImportedConfig(result);
+    if (result.knownHostsContent != null &&
+        result.knownHostsContent!.isNotEmpty) {
+      progress?.phase(
+        l10n?.progressImportingKnownHosts ?? 'Importing known_hosts…',
+      );
+    }
     await _applyImportedKnownHosts(result);
 
     AppLogger.instance.log(
@@ -241,8 +274,17 @@ class ImportService {
   /// Import the empty-folder set, counting successes. In replace mode a
   /// single failure aborts the import so the outer catch can roll back;
   /// merge mode logs and continues.
-  Future<int> _importEmptyFolders(Set<String> folders, ImportMode mode) async {
+  Future<int> _importEmptyFolders(
+    Set<String> folders,
+    ImportMode mode,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
+    final total = folders.length;
+    final label = l10n?.progressImportingFolders ?? 'Importing folders';
+    if (total > 0) progress?.step(label, 0, total);
     var imported = 0;
+    var index = 0;
     for (final folder in folders) {
       try {
         await addEmptyFolder(folder);
@@ -251,6 +293,8 @@ class ImportService {
         if (mode == ImportMode.replace) rethrow;
         AppLogger.instance.log('Skipped empty folder: $e', name: 'Import');
       }
+      index++;
+      progress?.step(label, index, total);
     }
     return imported;
   }
@@ -297,16 +341,25 @@ class ImportService {
 
   /// Import manager keys into KeyStore. Returns a map of oldId→newId
   /// for remapping session keyIds.
-  Future<Map<String, String>> _importManagerKeys(List<SshKeyEntry> keys) async {
+  Future<Map<String, String>> _importManagerKeys(
+    List<SshKeyEntry> keys,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
     if (keys.isEmpty || saveManagerKey == null) return {};
+    final total = keys.length;
+    final label = l10n?.progressImportingManagerKeys ?? 'Importing SSH keys';
+    progress?.step(label, 0, total);
     final idMap = <String, String>{};
-    for (final key in keys) {
+    for (var i = 0; i < keys.length; i++) {
+      final key = keys[i];
       try {
         final newId = await saveManagerKey!(key);
         idMap[key.id] = newId;
       } catch (e) {
         AppLogger.instance.log('Skipped manager key: $e', name: 'Import');
       }
+      progress?.step(label, i + 1, total);
     }
     AppLogger.instance.log(
       'Imported ${idMap.length}/${keys.length} manager keys',
@@ -321,13 +374,19 @@ class ImportService {
   Future<Map<String, String>> _importTags(
     List<Tag> tags,
     ImportMode mode,
+    ProgressReporter? progress,
+    S? l10n,
   ) async {
     if (tags.isEmpty || saveTag == null) return {};
     final existing = mode == ImportMode.merge && existingTagIds != null
         ? await existingTagIds!()
         : const <String>{};
+    final total = tags.length;
+    final label = l10n?.progressImportingTags ?? 'Importing tags';
+    progress?.step(label, 0, total);
     final idMap = <String, String>{};
-    for (final tag in tags) {
+    for (var i = 0; i < tags.length; i++) {
+      final tag = tags[i];
       try {
         final Tag effective;
         if (existing.contains(tag.id)) {
@@ -345,6 +404,7 @@ class ImportService {
       } catch (e) {
         AppLogger.instance.log('Skipped tag: $e', name: 'Import');
       }
+      progress?.step(label, i + 1, total);
     }
     return idMap;
   }
@@ -361,30 +421,40 @@ class ImportService {
     Map<String, String> tagIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    if (tagSession != null) {
-      for (final link in sessionLinks) {
-        final newTagId = tagIdMap[link.targetId];
-        if (newTagId == null) continue; // tag not imported — would FK-fail
-        final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
-        try {
-          await tagSession!(newSessionId, newTagId);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Skipped session-tag link: $e',
-            name: 'Import',
-          );
-        }
+    await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
+    await _applyFolderTagLinks(folderLinks, tagIdMap);
+  }
+
+  Future<void> _applySessionTagLinks(
+    List<ExportLink> links,
+    Map<String, String> tagIdMap,
+    Map<String, String> sessionIdMap,
+  ) async {
+    if (tagSession == null) return;
+    for (final link in links) {
+      final newTagId = tagIdMap[link.targetId];
+      if (newTagId == null) continue; // tag not imported — would FK-fail
+      final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
+      try {
+        await tagSession!(newSessionId, newTagId);
+      } catch (e) {
+        AppLogger.instance.log('Skipped session-tag link: $e', name: 'Import');
       }
     }
-    if (tagFolder != null) {
-      for (final link in folderLinks) {
-        final newTagId = tagIdMap[link.tagId];
-        if (newTagId == null) continue;
-        try {
-          await tagFolder!(link.folderPath, newTagId);
-        } catch (e) {
-          AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
-        }
+  }
+
+  Future<void> _applyFolderTagLinks(
+    List<ExportFolderTagLink> links,
+    Map<String, String> tagIdMap,
+  ) async {
+    if (tagFolder == null) return;
+    for (final link in links) {
+      final newTagId = tagIdMap[link.tagId];
+      if (newTagId == null) continue;
+      try {
+        await tagFolder!(link.folderPath, newTagId);
+      } catch (e) {
+        AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
       }
     }
   }
@@ -394,13 +464,19 @@ class ImportService {
   Future<Map<String, String>> _importSnippets(
     List<Snippet> snippets,
     ImportMode mode,
+    ProgressReporter? progress,
+    S? l10n,
   ) async {
     if (snippets.isEmpty || saveSnippet == null) return {};
     final existing = mode == ImportMode.merge && existingSnippetIds != null
         ? await existingSnippetIds!()
         : const <String>{};
+    final total = snippets.length;
+    final label = l10n?.progressImportingSnippets ?? 'Importing snippets';
+    progress?.step(label, 0, total);
     final idMap = <String, String>{};
-    for (final snippet in snippets) {
+    for (var i = 0; i < snippets.length; i++) {
+      final snippet = snippets[i];
       try {
         final Snippet effective;
         if (existing.contains(snippet.id)) {
@@ -420,6 +496,7 @@ class ImportService {
       } catch (e) {
         AppLogger.instance.log('Skipped snippet: $e', name: 'Import');
       }
+      progress?.step(label, i + 1, total);
     }
     return idMap;
   }
@@ -455,33 +532,28 @@ class ImportService {
   /// corresponding `includeX` flag on [result] is set — an unchecked type
   /// stays untouched.
   Future<_Snapshot?> _snapshotAndDeleteExisting(ImportResult result) async {
-    final existing = List<Session>.of(getSessions());
+    final snapshot = await _captureSnapshot(result);
+    await _clearExisting(result, snapshot);
+    return snapshot;
+  }
 
+  /// Capture the current state of every store the replace will touch, so a
+  /// later [_tryRestore] can rebuild it on failure.
+  Future<_Snapshot> _captureSnapshot(ImportResult result) async {
+    final existing = List<Session>.of(getSessions());
     final folders = getEmptyFolders != null
         ? Set.of(getEmptyFolders!())
         : <String>{};
     final config = getCurrentConfig?.call();
-
-    final List<Tag> tagsBackup = result.includeTags && loadAllTags != null
-        ? await loadAllTags!()
-        : const [];
-    final List<Snippet> snippetsBackup =
-        result.includeSnippets && loadAllSnippets != null
-        ? await loadAllSnippets!()
-        : const [];
-    final String? knownHostsBackup =
+    final tagsBackup = await _loadBackup(result.includeTags, loadAllTags);
+    final snippetsBackup = await _loadBackup(
+      result.includeSnippets,
+      loadAllSnippets,
+    );
+    final knownHostsBackup =
         result.includeKnownHosts && exportKnownHosts != null
         ? await exportKnownHosts!()
         : null;
-
-    final snapshot = _Snapshot(
-      sessions: existing,
-      folders: folders,
-      config: config,
-      tags: tagsBackup,
-      snippets: snippetsBackup,
-      knownHosts: knownHostsBackup,
-    );
 
     AppLogger.instance.log(
       'Replace mode: clearing sessions=${existing.length}, '
@@ -491,7 +563,21 @@ class ImportService {
       name: 'Import',
     );
 
-    for (final s in existing) {
+    return _Snapshot(
+      sessions: existing,
+      folders: folders,
+      config: config,
+      tags: tagsBackup,
+      snippets: snippetsBackup,
+      knownHosts: knownHostsBackup,
+    );
+  }
+
+  /// Delete rows from every store the replace is authoritative over. The
+  /// [snapshot] is the result of [_captureSnapshot] — we walk its sessions
+  /// list so external deletes done between snapshot and here don't matter.
+  Future<void> _clearExisting(ImportResult result, _Snapshot snapshot) async {
+    for (final s in snapshot.sessions) {
       await deleteSession(s.id);
     }
     if (result.includeTags && deleteAllTags != null) {
@@ -503,16 +589,33 @@ class ImportService {
     if (result.includeKnownHosts && clearKnownHosts != null) {
       await clearKnownHosts!();
     }
+  }
 
-    return snapshot;
+  /// Await an async backup loader only when [enabled] is true and the loader
+  /// is wired up. Keeps `_captureSnapshot` free of nested ternaries.
+  Future<List<T>> _loadBackup<T>(
+    bool enabled,
+    Future<List<T>> Function()? loader,
+  ) async {
+    if (!enabled || loader == null) return const [];
+    return loader();
   }
 
   /// Imports sessions from the result. On failure in replace mode, rethrows
   /// so the outer applyResult can roll back the full snapshot (sessions +
   /// folders + config).
-  Future<int> _importSessions(ImportResult result, _Snapshot? snapshot) async {
+  Future<int> _importSessions(
+    ImportResult result,
+    _Snapshot? snapshot,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
+    final total = result.sessions.length;
+    final label = l10n?.progressImportingSessions ?? 'Importing sessions';
+    if (total > 0) progress?.step(label, 0, total);
     var imported = 0;
-    for (final s in result.sessions) {
+    for (var i = 0; i < result.sessions.length; i++) {
+      final s = result.sessions[i];
       try {
         await addSession(s);
         imported++;
@@ -520,6 +623,7 @@ class ImportService {
         if (result.mode == ImportMode.replace) rethrow;
         AppLogger.instance.log('Skipped session: $e', name: 'Import');
       }
+      progress?.step(label, i + 1, total);
     }
     return imported;
   }

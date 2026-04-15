@@ -102,14 +102,21 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
   @override
   void initState() {
     super.initState();
-    // QR mode: passwords ON, keys OFF (keys can be huge for QR).
+    // QR mode: mirror the "Sessions only" preset without keys — sessions,
+    // passwords, tags, snippets ON; keys and app-wide config OFF. Keys are
+    // the main driver of QR payload growth, so they are opt-in for QR.
     // .lfs mode: all credentials ON (encrypted archive, user expects full backup).
     _options = widget.isQrMode
         ? const ExportOptions(
+            includeSessions: true,
             includeConfig: false,
+            includeKnownHosts: false,
             includePasswords: true,
             includeEmbeddedKeys: false,
             includeManagerKeys: false,
+            includeAllManagerKeys: false,
+            includeTags: true,
+            includeSnippets: true,
           )
         : const ExportOptions(
             includeConfig: true,
@@ -609,27 +616,34 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                 Flexible(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildPresets(),
-                        _buildCheckboxesSection(),
-                        if (widget.isQrMode && _options.includePasswords)
-                          _buildQrSecurityWarning(),
-                        const AppDivider(),
-                        const SizedBox(height: 4),
-                        _buildSelectAll(),
-                        const AppDivider(),
-                        Flexible(
-                          child: ListView(
+                    // Single scrollable region. Previously the inner tree
+                    // ListView was wrapped in Flexible, which forced the
+                    // outer Column to try to fit the rest on-screen; when
+                    // the collapsible checkboxes section was expanded on a
+                    // short viewport, the size indicator at the bottom got
+                    // clipped with a "BOTTOM OVERFLOWED" banner. Letting
+                    // the whole body scroll keeps every widget rendered.
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPresets(),
+                          _buildCheckboxesSection(),
+                          if (widget.isQrMode) _buildQrSecurityWarning(),
+                          const AppDivider(),
+                          const SizedBox(height: 4),
+                          _buildSelectAll(),
+                          const AppDivider(),
+                          ListView(
                             shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
                             children: _buildTreeItems(tree, 0),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildSizeIndicator(sizePercent, sizeColor),
-                      ],
+                          const SizedBox(height: 12),
+                          _buildSizeIndicator(sizePercent, sizeColor),
+                        ],
+                      ),
                     ),
                   ),
                 ),

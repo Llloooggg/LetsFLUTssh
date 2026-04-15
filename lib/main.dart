@@ -19,6 +19,7 @@ import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
 import 'core/security/security_level.dart';
 import 'core/import/import_service.dart';
+import 'core/progress/progress_reporter.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
 import 'features/settings/export_import.dart';
@@ -969,8 +970,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final result = await LfsImportDialog.show(context, filePath: filePath);
     if (result == null || !context.mounted) return;
 
-    // Show progress while PBKDF2 + decryption runs in isolate
-    AppProgressDialog.show(context);
+    // Show progress bar while PBKDF2 + decryption run in isolate and the
+    // subsequent per-store writes stream step counts back to the UI.
+    final l10n = S.of(context);
+    final progress = ProgressReporter(l10n.progressReadingArchive);
+    AppProgressBarDialog.show(context, progress);
+    var progressShown = true;
 
     try {
       final importResult = await ExportImport.import_(
@@ -985,16 +990,23 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           includeTags: true,
           includeSnippets: true,
         ),
+        progress: progress,
+        l10n: l10n,
       );
 
-      final summary = await _buildImportService().applyResult(importResult);
+      final summary = await _buildImportService().applyResult(
+        importResult,
+        progress: progress,
+        l10n: l10n,
+      );
 
       AppLogger.instance.log(
         'LFS import success: ${summary.sessions} session(s)',
         name: 'App',
       );
       if (context.mounted) {
-        Navigator.of(context).pop(); // close progress
+        Navigator.of(context).pop();
+        progressShown = false;
         Toast.show(
           context,
           message: formatImportSummary(S.of(context), summary),
@@ -1003,14 +1015,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       }
     } catch (e) {
       AppLogger.instance.log('LFS import failed: $e', name: 'App', error: e);
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
+      }
       if (context.mounted) {
-        Navigator.of(context).pop(); // close progress
         Toast.show(
           context,
           message: S.of(context).importFailed(localizeError(S.of(context), e)),
           level: ToastLevel.error,
         );
       }
+    } finally {
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+      }
+      progress.dispose();
     }
   }
 

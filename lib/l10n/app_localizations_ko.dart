@@ -96,7 +96,7 @@ class SKo extends S {
   String get managerKeysMayBeLarge => '관리자 키는 QR 크기 제한을 초과할 수 있습니다';
 
   @override
-  String get qrPasswordWarning => '비밀번호가 QR 코드에서 암호화되지 않습니다. 스캔한 누구나 볼 수 있습니다.';
+  String get qrPasswordWarning => 'SSH 키는 내보내기 시 기본적으로 비활성화됩니다.';
 
   @override
   String get sshKeysMayBeLarge => '키가 QR 크기 제한을 초과할 수 있습니다';
@@ -1113,6 +1113,82 @@ class SKo extends S {
   String get errDecryptionFailed => '자격 증명 복호화에 실패했습니다. 키 파일이 손상되었을 수 있습니다.';
 
   @override
+  String get errLfsDecryptFailed => '마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다';
+
+  @override
+  String get progressReadingArchive => '아카이브 읽는 중…';
+
+  @override
+  String get progressDecrypting => '복호화 중…';
+
+  @override
+  String get progressParsingArchive => '아카이브 파싱 중…';
+
+  @override
+  String get progressImportingSessions => '세션 가져오는 중';
+
+  @override
+  String get progressImportingFolders => '폴더 가져오는 중';
+
+  @override
+  String get progressImportingManagerKeys => 'SSH 키 가져오는 중';
+
+  @override
+  String get progressImportingTags => '태그 가져오는 중';
+
+  @override
+  String get progressImportingSnippets => '스니펫 가져오는 중';
+
+  @override
+  String get progressApplyingConfig => '구성 적용 중…';
+
+  @override
+  String get progressImportingKnownHosts => 'known_hosts 가져오는 중…';
+
+  @override
+  String get progressCollectingData => '데이터 수집 중…';
+
+  @override
+  String get progressEncrypting => '암호화 중…';
+
+  @override
+  String get progressWritingArchive => '아카이브 쓰는 중…';
+
+  @override
+  String get progressReencrypting => '저장소 재암호화 중…';
+
+  @override
+  String get progressWorking => '처리 중…';
+
+  @override
+  String get importFromLink => 'QR 링크에서 가져오기';
+
+  @override
+  String get importFromLinkSubtitle => '다른 기기에서 복사한 letsflutssh:// 딥링크를 붙여넣기';
+
+  @override
+  String get pasteImportLinkTitle => '가져오기 링크 붙여넣기';
+
+  @override
+  String get pasteImportLinkDescription =>
+      '다른 기기에서 생성된 letsflutssh://import?d=… 링크(또는 원시 페이로드)를 붙여넣으세요. 카메라 불필요.';
+
+  @override
+  String get pasteFromClipboard => '클립보드에서 붙여넣기';
+
+  @override
+  String get invalidImportLink => '링크에 유효한 LetsFLUTssh 페이로드가 없습니다';
+
+  @override
+  String get importAction => '가져오기';
+
+  @override
+  String get saveSessionToAssignTags => '태그를 할당하려면 먼저 세션을 저장하세요';
+
+  @override
+  String get noTagsAssigned => '할당된 태그 없음';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1611,52 +1687,52 @@ class SKo extends S {
   String get manageMasterPasswordSubtitle => '마스터 비밀번호 설정, 변경 또는 제거';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => '스니펫';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => '재사용 가능한 명령 스니펫을 관리합니다';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => '아직 스니펫이 없습니다';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => '스니펫 추가';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => '스니펫 편집';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => '스니펫 삭제';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return '스니펫 \"$title\"을(를) 삭제하시겠습니까?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => '제목';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => '예: 배포, 서비스 재시작';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => '명령';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => '예: sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => '설명(선택)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => '이 명령은 무엇을 하나요?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => '스니펫이 저장되었습니다';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return '스니펫 \"$title\"이(가) 삭제되었습니다';
   }
 
   @override
@@ -1664,69 +1740,68 @@ class SKo extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '스니펫 $count개',
+      zero: '스니펫 없음',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => '실행';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => '이 세션에 고정';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => '이 세션에서 고정 해제';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => '고정됨';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => '전체';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => '터미널로 전송';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => '명령이 클립보드에 복사되었습니다';
 
   @override
-  String get tags => 'Tags';
+  String get tags => '태그';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => '세션과 폴더를 컬러 태그로 정리';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => '아직 태그가 없습니다';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => '태그 추가';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => '태그 삭제';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return '태그 \"$name\"을(를) 삭제하시겠습니까? 모든 세션과 폴더에서 제거됩니다.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => '태그 이름';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => '예: Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => '색상';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => '태그가 생성되었습니다';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return '태그 \"$name\"이(가) 삭제되었습니다';
   }
 
   @override
@@ -1734,18 +1809,17 @@ class SKo extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '태그 $count개',
+      zero: '태그 없음',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => '태그 관리';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => '태그 편집';
 
   @override
   String get fullBackup => '전체 백업';
@@ -1802,4 +1876,43 @@ class SKo extends S {
 
   @override
   String get sshDirSessionAlreadyImported => '이미 세션에 있음';
+
+  @override
+  String get languageSubtitle => '인터페이스 언어';
+
+  @override
+  String get themeSubtitle => '다크, 라이트 또는 시스템 따라가기';
+
+  @override
+  String get uiScaleSubtitle => '전체 인터페이스 크기 조정';
+
+  @override
+  String get terminalFontSizeSubtitle => '터미널 출력의 글꼴 크기';
+
+  @override
+  String get scrollbackLinesSubtitle => '터미널 기록 버퍼 크기';
+
+  @override
+  String get keepAliveIntervalSubtitle => 'SSH keep-alive 패킷 사이 초 (0 = 끔)';
+
+  @override
+  String get sshTimeoutSubtitle => '연결 제한 시간(초)';
+
+  @override
+  String get defaultPortSubtitle => '새 세션의 기본 포트';
+
+  @override
+  String get parallelWorkersSubtitle => '동시 SFTP 전송 워커';
+
+  @override
+  String get maxHistorySubtitle => '기록에 저장되는 최대 명령 수';
+
+  @override
+  String get calculateFolderSizesSubtitle => '사이드바의 폴더 옆에 전체 크기 표시';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle => '앱 시작 시 GitHub에서 새 버전 확인';
+
+  @override
+  String get enableLoggingSubtitle => '앱 이벤트를 순환 로그 파일에 기록';
 }

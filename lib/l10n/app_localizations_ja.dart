@@ -96,7 +96,7 @@ class SJa extends S {
   String get managerKeysMayBeLarge => 'マネージャーキーはQRサイズ制限を超える可能性があります';
 
   @override
-  String get qrPasswordWarning => 'パスワードはQRコード内で暗号化されません。スキャンした誰でも見ることができます。';
+  String get qrPasswordWarning => 'SSHキーはエクスポート時、既定で無効です。';
 
   @override
   String get sshKeysMayBeLarge => '鍵がQRサイズ制限を超える可能性があります';
@@ -1114,6 +1114,83 @@ class SJa extends S {
   String get errDecryptionFailed => '認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。';
 
   @override
+  String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
+
+  @override
+  String get progressReadingArchive => 'アーカイブを読み込み中…';
+
+  @override
+  String get progressDecrypting => '復号中…';
+
+  @override
+  String get progressParsingArchive => 'アーカイブを解析中…';
+
+  @override
+  String get progressImportingSessions => 'セッションをインポート中';
+
+  @override
+  String get progressImportingFolders => 'フォルダをインポート中';
+
+  @override
+  String get progressImportingManagerKeys => 'SSH キーをインポート中';
+
+  @override
+  String get progressImportingTags => 'タグをインポート中';
+
+  @override
+  String get progressImportingSnippets => 'スニペットをインポート中';
+
+  @override
+  String get progressApplyingConfig => '設定を適用中…';
+
+  @override
+  String get progressImportingKnownHosts => 'known_hosts をインポート中…';
+
+  @override
+  String get progressCollectingData => 'データを収集中…';
+
+  @override
+  String get progressEncrypting => '暗号化中…';
+
+  @override
+  String get progressWritingArchive => 'アーカイブを書き込み中…';
+
+  @override
+  String get progressReencrypting => 'ストアを再暗号化中…';
+
+  @override
+  String get progressWorking => '処理中…';
+
+  @override
+  String get importFromLink => 'QR リンクからインポート';
+
+  @override
+  String get importFromLinkSubtitle =>
+      '別の端末からコピーした letsflutssh:// ディープリンクを貼り付け';
+
+  @override
+  String get pasteImportLinkTitle => 'インポートリンクを貼り付け';
+
+  @override
+  String get pasteImportLinkDescription =>
+      '別の端末で生成された letsflutssh://import?d=… リンク（または生ペイロード）を貼り付けてください。カメラは不要です。';
+
+  @override
+  String get pasteFromClipboard => 'クリップボードから貼り付け';
+
+  @override
+  String get invalidImportLink => 'リンクに有効な LetsFLUTssh ペイロードが含まれていません';
+
+  @override
+  String get importAction => 'インポート';
+
+  @override
+  String get saveSessionToAssignTags => 'タグを割り当てるには、まずセッションを保存してください';
+
+  @override
+  String get noTagsAssigned => 'タグが割り当てられていません';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1613,52 +1690,52 @@ class SJa extends S {
   String get manageMasterPasswordSubtitle => 'マスターパスワードの設定、変更、削除';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'スニペット';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => '再利用可能なコマンドスニペットを管理';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'スニペットはまだありません';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'スニペットを追加';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'スニペットを編集';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'スニペットを削除';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'スニペット「$title」を削除しますか？';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'タイトル';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => '例: デプロイ、サービス再起動';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'コマンド';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => '例: sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => '説明（任意）';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'このコマンドの動作は？';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'スニペットを保存しました';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'スニペット「$title」を削除しました';
   }
 
   @override
@@ -1666,69 +1743,68 @@ class SJa extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count 件のスニペット',
+      zero: 'スニペットなし',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => '実行';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'このセッションに固定';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'このセッションから外す';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => '固定済み';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'すべて';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'ターミナルへ送信';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'コマンドをコピーしました';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'タグ';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'セッションとフォルダをカラータグで整理';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'タグはまだありません';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'タグを追加';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'タグを削除';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'タグ「$name」を削除しますか？すべてのセッションとフォルダから削除されます。';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'タグ名';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => '例: Production、Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => '色';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'タグを作成しました';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'タグ「$name」を削除しました';
   }
 
   @override
@@ -1736,18 +1812,17 @@ class SJa extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count 件のタグ',
+      zero: 'タグなし',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => 'タグを管理';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => 'タグを編集';
 
   @override
   String get fullBackup => 'フルバックアップ';
@@ -1804,4 +1879,43 @@ class SJa extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'すでにセッションにあります';
+
+  @override
+  String get languageSubtitle => 'インターフェースの言語';
+
+  @override
+  String get themeSubtitle => 'ダーク、ライト、またはシステムに従う';
+
+  @override
+  String get uiScaleSubtitle => 'インターフェース全体のスケール';
+
+  @override
+  String get terminalFontSizeSubtitle => 'ターミナル出力のフォントサイズ';
+
+  @override
+  String get scrollbackLinesSubtitle => 'ターミナル履歴バッファのサイズ';
+
+  @override
+  String get keepAliveIntervalSubtitle => 'SSH keep-alive パケット間の秒数 (0 = 無効)';
+
+  @override
+  String get sshTimeoutSubtitle => '接続タイムアウト (秒)';
+
+  @override
+  String get defaultPortSubtitle => '新しいセッションのデフォルトポート';
+
+  @override
+  String get parallelWorkersSubtitle => '並列 SFTP 転送ワーカー';
+
+  @override
+  String get maxHistorySubtitle => '履歴に保存される最大コマンド数';
+
+  @override
+  String get calculateFolderSizesSubtitle => 'サイドバーのフォルダー横に合計サイズを表示';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle => 'アプリ起動時に GitHub で新バージョンを確認';
+
+  @override
+  String get enableLoggingSubtitle => 'アプリのイベントをローテーションログファイルに記録';
 }

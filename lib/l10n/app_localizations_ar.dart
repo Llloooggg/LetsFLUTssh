@@ -96,8 +96,7 @@ class SAr extends S {
   String get managerKeysMayBeLarge => 'قد تتجاوز مفاتيح المدير حجم رمز QR';
 
   @override
-  String get qrPasswordWarning =>
-      'ستكون كلمات المرور غير مشفرة في رمز QR. يمكن لأي شخص مسحه رؤيتها.';
+  String get qrPasswordWarning => 'مفاتيح SSH معطلة افتراضيًا للتصدير.';
 
   @override
   String get sshKeysMayBeLarge => 'قد تتجاوز المفاتيح حجم رمز QR';
@@ -1130,6 +1129,84 @@ class SAr extends S {
       'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
+
+  @override
+  String get progressReadingArchive => 'قراءة الأرشيف…';
+
+  @override
+  String get progressDecrypting => 'فك التشفير…';
+
+  @override
+  String get progressParsingArchive => 'تحليل الأرشيف…';
+
+  @override
+  String get progressImportingSessions => 'استيراد الجلسات';
+
+  @override
+  String get progressImportingFolders => 'استيراد المجلدات';
+
+  @override
+  String get progressImportingManagerKeys => 'استيراد مفاتيح SSH';
+
+  @override
+  String get progressImportingTags => 'استيراد العلامات';
+
+  @override
+  String get progressImportingSnippets => 'استيراد المقتطفات';
+
+  @override
+  String get progressApplyingConfig => 'تطبيق الإعدادات…';
+
+  @override
+  String get progressImportingKnownHosts => 'استيراد known_hosts…';
+
+  @override
+  String get progressCollectingData => 'جمع البيانات…';
+
+  @override
+  String get progressEncrypting => 'تشفير…';
+
+  @override
+  String get progressWritingArchive => 'كتابة الأرشيف…';
+
+  @override
+  String get progressReencrypting => 'إعادة تشفير المخازن…';
+
+  @override
+  String get progressWorking => 'قيد المعالجة…';
+
+  @override
+  String get importFromLink => 'استيراد من رابط QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'الصق رابط letsflutssh:// المنسوخ من جهاز آخر';
+
+  @override
+  String get pasteImportLinkTitle => 'لصق رابط الاستيراد';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'الصق رابط letsflutssh://import?d=… (أو الحمولة الخام) الذي تم إنشاؤه على جهاز آخر. لا حاجة للكاميرا.';
+
+  @override
+  String get pasteFromClipboard => 'لصق من الحافظة';
+
+  @override
+  String get invalidImportLink => 'الرابط لا يحتوي على حمولة LetsFLUTssh صالحة';
+
+  @override
+  String get importAction => 'استيراد';
+
+  @override
+  String get saveSessionToAssignTags => 'احفظ الجلسة أولاً لتعيين العلامات';
+
+  @override
+  String get noTagsAssigned => 'لم يتم تعيين علامات';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1642,52 +1719,52 @@ class SAr extends S {
       'تعيين أو تغيير أو إزالة كلمة المرور الرئيسية';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'المقتطفات';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => 'إدارة مقتطفات أوامر قابلة لإعادة الاستخدام';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'لا توجد مقتطفات بعد';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'إضافة مقتطف';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'تحرير المقتطف';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'حذف المقتطف';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'حذف المقتطف \"$title\"؟';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'العنوان';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'مثال: نشر، إعادة تشغيل الخدمة';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'الأمر';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'مثال: sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'الوصف (اختياري)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'ما الذي يفعله هذا الأمر؟';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'تم حفظ المقتطف';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'تم حذف المقتطف \"$title\"';
   }
 
   @override
@@ -1695,69 +1772,72 @@ class SAr extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count مقتطف',
+      many: '$count مقتطفاً',
+      few: '$count مقتطفات',
+      two: 'مقتطفان',
+      one: 'مقتطف واحد',
+      zero: 'لا توجد مقتطفات',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'تشغيل';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'تثبيت في هذه الجلسة';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'إلغاء التثبيت من هذه الجلسة';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'المثبتة';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'الكل';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'إرسال إلى الطرفية';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'تم نسخ الأمر';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'العلامات';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'نظّم الجلسات والمجلدات بعلامات ملوّنة';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'لا توجد علامات بعد';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'إضافة علامة';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'حذف العلامة';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'حذف العلامة \"$name\"؟ ستُزال من جميع الجلسات والمجلدات.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'اسم العلامة';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'مثال: Production، Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'اللون';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'تم إنشاء العلامة';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'تم حذف العلامة \"$name\"';
   }
 
   @override
@@ -1765,18 +1845,21 @@ class SAr extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count علامة',
+      many: '$count علامة',
+      few: '$count علامات',
+      two: 'علامتان',
+      one: 'علامة واحدة',
+      zero: 'لا توجد علامات',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => 'إدارة العلامات';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => 'تحرير العلامات';
 
   @override
   String get fullBackup => 'نسخة احتياطية كاملة';
@@ -1834,4 +1917,46 @@ class SAr extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'موجودة في الجلسات بالفعل';
+
+  @override
+  String get languageSubtitle => 'لغة الواجهة';
+
+  @override
+  String get themeSubtitle => 'داكن أو فاتح أو اتباع النظام';
+
+  @override
+  String get uiScaleSubtitle => 'تغيير حجم الواجهة بالكامل';
+
+  @override
+  String get terminalFontSizeSubtitle => 'حجم الخط في خرج الطرفية';
+
+  @override
+  String get scrollbackLinesSubtitle => 'حجم ذاكرة السجل في الطرفية';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'الثواني بين حزم SSH keep-alive (0 = متوقف)';
+
+  @override
+  String get sshTimeoutSubtitle => 'مهلة الاتصال بالثواني';
+
+  @override
+  String get defaultPortSubtitle => 'المنفذ الافتراضي للجلسات الجديدة';
+
+  @override
+  String get parallelWorkersSubtitle => 'عدد عمال نقل SFTP المتزامنين';
+
+  @override
+  String get maxHistorySubtitle => 'الحد الأقصى للأوامر المحفوظة في السجل';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'إظهار الحجم الإجمالي بجانب المجلدات في الشريط الجانبي';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق';
+
+  @override
+  String get enableLoggingSubtitle => 'كتابة أحداث التطبيق في ملف سجل دوّار';
 }

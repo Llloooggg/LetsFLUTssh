@@ -130,7 +130,7 @@ void main() {
       expect(find.textContaining('KB'), findsOneWidget);
     });
 
-    testWidgets('shows warning for passwords in QR mode by default', (
+    testWidgets('shows keys-disabled disclaimer in QR mode by default', (
       tester,
     ) async {
       final sessions = [makeSession('1', 'Test', password: 'secret')];
@@ -138,8 +138,8 @@ void main() {
       await tester.pumpWidget(buildDialog(sessions: sessions, isQrMode: true));
       await tester.pump();
 
-      // Passwords are ON by default in QR mode, warning box is visible
-      expect(find.textContaining('unencrypted'), findsOneWidget);
+      // The QR export disclaimer explains that SSH keys are off by default.
+      expect(find.textContaining('disabled by default'), findsOneWidget);
     });
 
     testWidgets('shows warning when embedded keys enabled in QR mode', (
@@ -170,6 +170,52 @@ void main() {
       expect(find.textContaining('exceed QR size'), findsOneWidget);
     });
 
+    testWidgets(
+      'QR-mode checkbox defaults mirror the "Sessions only" preset sans keys',
+      (tester) async {
+        // Regression guard: the QR export defaults must match the live
+        // "Sessions only" preset (sessions + passwords + tags + snippets),
+        // but with every key-bearing option OFF to keep the payload small.
+        final sessions = [makeSession('1', 'Test', password: 'secret')];
+        const config = AppConfig.defaults;
+
+        await tester.pumpWidget(
+          buildDialog(
+            sessions: sessions,
+            config: config,
+            knownHostsContent: 'github.com ssh-rsa AAA',
+            isQrMode: true,
+          ),
+        );
+        await tester.pump();
+
+        // Expand the collapsible section so we can read checkbox states.
+        await tester.tap(find.text('What to import:'));
+        await tester.pumpAndSettle();
+
+        // Map visible checkboxes by the label rendered to the right of them.
+        // Row layout: Checkbox → Icon → Expanded(Column(label...)). Looking
+        // up the ancestor Row of each label gives us the matching Checkbox.
+        Checkbox checkboxFor(String label) {
+          final row = find
+              .ancestor(of: find.text(label), matching: find.byType(Row))
+              .first;
+          return tester.widget<Checkbox>(
+            find.descendant(of: row, matching: find.byType(Checkbox)),
+          );
+        }
+
+        expect(checkboxFor('App Settings').value, isFalse);
+        expect(checkboxFor('Session passwords').value, isTrue);
+        expect(checkboxFor('Session keys').value, isFalse);
+        expect(checkboxFor('Session keys from manager').value, isFalse);
+        expect(checkboxFor('All keys from manager').value, isFalse);
+        expect(checkboxFor('Known Hosts').value, isFalse);
+        expect(checkboxFor('Tags').value, isTrue);
+        expect(checkboxFor('Snippets').value, isTrue);
+      },
+    );
+
     testWidgets('no warnings in LFS mode even with credentials enabled', (
       tester,
     ) async {
@@ -186,8 +232,8 @@ void main() {
       await tester.pumpWidget(buildDialog(sessions: sessions, isQrMode: false));
       await tester.pump();
 
-      // LFS mode has credentials ON by default, but no warnings
-      expect(find.textContaining('unencrypted'), findsNothing);
+      // LFS mode has credentials ON by default, but no QR-only disclaimers.
+      expect(find.textContaining('disabled by default'), findsNothing);
       expect(find.textContaining('exceed QR size'), findsNothing);
     });
   });

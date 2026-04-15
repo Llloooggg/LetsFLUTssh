@@ -98,7 +98,7 @@ class SFa extends S {
 
   @override
   String get qrPasswordWarning =>
-      'رمزهای عبور در کد QR رمزگذاری نشده خواهند بود. هر کسی که اسکن کند می‌تواند آنها را ببیند.';
+      'کلیدهای SSH به طور پیش‌فرض برای صدور غیرفعال هستند.';
 
   @override
   String get sshKeysMayBeLarge => 'کلیدها ممکن است از اندازه QR فراتر رود';
@@ -1132,6 +1132,84 @@ class SFa extends S {
       'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
 
   @override
+  String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
+
+  @override
+  String get progressReadingArchive => 'خواندن بایگانی…';
+
+  @override
+  String get progressDecrypting => 'در حال رمزگشایی…';
+
+  @override
+  String get progressParsingArchive => 'تحلیل بایگانی…';
+
+  @override
+  String get progressImportingSessions => 'در حال وارد کردن نشست‌ها';
+
+  @override
+  String get progressImportingFolders => 'در حال وارد کردن پوشه‌ها';
+
+  @override
+  String get progressImportingManagerKeys => 'در حال وارد کردن کلیدهای SSH';
+
+  @override
+  String get progressImportingTags => 'در حال وارد کردن برچسب‌ها';
+
+  @override
+  String get progressImportingSnippets => 'در حال وارد کردن قطعه‌ها';
+
+  @override
+  String get progressApplyingConfig => 'در حال اعمال پیکربندی…';
+
+  @override
+  String get progressImportingKnownHosts => 'در حال وارد کردن known_hosts…';
+
+  @override
+  String get progressCollectingData => 'در حال جمع‌آوری داده‌ها…';
+
+  @override
+  String get progressEncrypting => 'در حال رمزگذاری…';
+
+  @override
+  String get progressWritingArchive => 'در حال نوشتن بایگانی…';
+
+  @override
+  String get progressReencrypting => 'در حال رمزگذاری مجدد مخازن…';
+
+  @override
+  String get progressWorking => 'در حال پردازش…';
+
+  @override
+  String get importFromLink => 'درون‌ریزی از پیوند QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'پیوند letsflutssh:// کپی‌شده از دستگاه دیگر را بچسبانید';
+
+  @override
+  String get pasteImportLinkTitle => 'چسباندن پیوند درون‌ریزی';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'پیوند letsflutssh://import?d=… (یا بار خام) تولیدشده در دستگاه دیگر را بچسبانید. نیازی به دوربین نیست.';
+
+  @override
+  String get pasteFromClipboard => 'چسباندن از کلیپ‌بورد';
+
+  @override
+  String get invalidImportLink => 'پیوند بار معتبر LetsFLUTssh را شامل نیست';
+
+  @override
+  String get importAction => 'درون‌ریزی';
+
+  @override
+  String get saveSessionToAssignTags =>
+      'برای اختصاص برچسب، ابتدا نشست را ذخیره کنید';
+
+  @override
+  String get noTagsAssigned => 'برچسبی اختصاص داده نشده';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1642,52 +1720,53 @@ class SFa extends S {
       'تنظیم، تغییر یا حذف رمز عبور اصلی';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'قطعه‌ها';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle =>
+      'قطعه‌های دستوری قابل استفاده مجدد را مدیریت کنید';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'هنوز قطعه‌ای وجود ندارد';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'افزودن قطعه';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'ویرایش قطعه';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'حذف قطعه';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'قطعه «$title» حذف شود؟';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'عنوان';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'مثلاً Deploy، راه‌اندازی مجدد سرویس';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'دستور';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'مثلاً sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'توضیح (اختیاری)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'این دستور چه می‌کند؟';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'قطعه ذخیره شد';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'قطعه «$title» حذف شد';
   }
 
   @override
@@ -1695,69 +1774,70 @@ class SFa extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count قطعه',
+      one: '۱ قطعه',
+      zero: 'بدون قطعه',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'اجرا';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'سنجاق کردن به این نشست';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'برداشتن سنجاق از این نشست';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'سنجاق‌شده‌ها';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'همه';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'ارسال به پایانه';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'دستور کپی شد';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'برچسب‌ها';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle =>
+      'نشست‌ها و پوشه‌ها را با برچسب‌های رنگی سازماندهی کنید';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'هنوز برچسبی وجود ندارد';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'افزودن برچسب';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'حذف برچسب';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'برچسب «$name» حذف شود؟ از تمام نشست‌ها و پوشه‌ها حذف خواهد شد.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'نام برچسب';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'مثلاً Production، Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'رنگ';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'برچسب ایجاد شد';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'برچسب «$name» حذف شد';
   }
 
   @override
@@ -1765,18 +1845,18 @@ class SFa extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count برچسب',
+      one: '۱ برچسب',
+      zero: 'بدون برچسب',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => 'مدیریت برچسب‌ها';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => 'ویرایش برچسب‌ها';
 
   @override
   String get fullBackup => 'پشتیبان‌گیری کامل';
@@ -1834,4 +1914,47 @@ class SFa extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'در جلسات موجود است';
+
+  @override
+  String get languageSubtitle => 'زبان رابط کاربری';
+
+  @override
+  String get themeSubtitle => 'تیره، روشن یا پیروی از سیستم';
+
+  @override
+  String get uiScaleSubtitle => 'مقیاس‌بندی کل رابط کاربری';
+
+  @override
+  String get terminalFontSizeSubtitle => 'اندازهٔ قلم در خروجی پایانه';
+
+  @override
+  String get scrollbackLinesSubtitle => 'اندازهٔ بافر تاریخچهٔ پایانه';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'ثانیه‌ها بین بسته‌های SSH keep-alive (۰ = خاموش)';
+
+  @override
+  String get sshTimeoutSubtitle => 'مهلت اتصال به ثانیه';
+
+  @override
+  String get defaultPortSubtitle => 'درگاه پیش‌فرض برای جلسات جدید';
+
+  @override
+  String get parallelWorkersSubtitle => 'کارگران انتقال SFTP هم‌زمان';
+
+  @override
+  String get maxHistorySubtitle => 'حداکثر فرمان‌های ذخیره‌شده در تاریخچه';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'نمایش حجم کل در کنار پوشه‌ها در نوار کناری';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'ثبت رویدادهای برنامه در یک فایل گزارش چرخشی';
 }

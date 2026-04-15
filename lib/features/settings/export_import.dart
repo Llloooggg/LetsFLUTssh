@@ -8,11 +8,13 @@ import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/progress/progress_reporter.dart';
 import '../../core/security/key_store.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
 
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM.
@@ -174,7 +176,10 @@ class ExportImport {
     required String masterPassword,
     required LfsExportInput input,
     required String outputPath,
+    ProgressReporter? progress,
+    S? l10n,
   }) async {
+    progress?.phase(l10n?.progressCollectingData ?? 'Collecting data…');
     final archive = _buildArchive(input);
 
     // Encode ZIP
@@ -189,6 +194,7 @@ class ExportImport {
     );
 
     // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
+    progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
     final encrypted = await Isolate.run(
       () => _encryptWithPassword(zipBytes, masterPassword),
     );
@@ -198,6 +204,7 @@ class ExportImport {
     );
 
     // Write to file
+    progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
     final file = File(outputPath);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(encrypted);
@@ -372,15 +379,35 @@ class ExportImport {
   static Future<_ParsedArchive> _decryptAndParseArchive({
     required String filePath,
     required String masterPassword,
+    ProgressReporter? progress,
+    S? l10n,
   }) async {
+    progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
     final file = File(filePath);
     final encData = await file.readAsBytes();
 
-    // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy
-    final zipBytes = await Isolate.run(
-      () => _decryptWithPassword(encData, masterPassword),
-    );
-    final archive = ZipDecoder().decodeBytes(zipBytes);
+    progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
+    // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy.
+    // GCM auth-tag failure (wrong password or tampered archive) surfaces as
+    // InvalidCipherTextException from pointycastle. ZipDecoder will also
+    // throw on successfully-decrypted-but-non-ZIP bytes (truncated file).
+    // Both cases collapse to LfsDecryptionFailedException so the UI can show
+    // a single localized message.
+    final Uint8List zipBytes;
+    try {
+      zipBytes = await Isolate.run(
+        () => _decryptWithPassword(encData, masterPassword),
+      );
+    } catch (e) {
+      throw LfsDecryptionFailedException(cause: e);
+    }
+    progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
+    final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBytes(zipBytes);
+    } catch (e) {
+      throw LfsDecryptionFailedException(cause: e);
+    }
 
     final manifest = _parseManifest(archive);
     if (manifest.schemaVersion > currentSchemaVersion) {
@@ -515,10 +542,14 @@ class ExportImport {
     required String masterPassword,
     required ImportMode mode,
     ExportOptions options = const ExportOptions(),
+    ProgressReporter? progress,
+    S? l10n,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
+      progress: progress,
+      l10n: l10n,
     );
 
     // Parse config (only if requested and present)
@@ -670,6 +701,18 @@ class UnsupportedLfsVersionException implements Exception {
   String toString() =>
       'UnsupportedLfsVersionException: archive schema v$found is newer '
       'than supported v$supported. Update the app to import this file.';
+}
+
+/// Thrown when decrypting/unpacking an .lfs archive fails — either because
+/// the master password is wrong (GCM auth-tag mismatch) or the archive was
+/// truncated/corrupted after encryption. Callers should show a generic
+/// "wrong password or corrupted file" message and let the user retry.
+class LfsDecryptionFailedException implements Exception {
+  final Object? cause;
+  const LfsDecryptionFailedException({this.cause});
+
+  @override
+  String toString() => 'LfsDecryptionFailedException';
 }
 
 /// Preview of .lfs archive contents.

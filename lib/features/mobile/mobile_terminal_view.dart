@@ -18,6 +18,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
+import '../snippets/snippet_picker.dart';
 import '../terminal/cursor_overlay.dart';
 import 'ssh_keyboard_bar.dart';
 
@@ -161,6 +162,21 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     TerminalClipboard.paste(_terminal);
   }
 
+  /// Open the snippet picker and, if the user picks a snippet, send the
+  /// command to the shell with a trailing newline — matching the desktop
+  /// terminal pane behaviour.
+  Future<void> _showSnippets() async {
+    final shell = _shellConn?.shell;
+    if (shell == null) return;
+    final command = await SnippetPicker.show(
+      context,
+      sessionId: widget.connection.sessionId,
+    );
+    if (command == null) return;
+    final payload = command.endsWith('\n') ? command : '$command\n';
+    shell.write(Uint8List.fromList(utf8.encode(payload)));
+  }
+
   void _onPointerUp() {
     _pointerCount = (_pointerCount - 1).clamp(0, 99);
     if (_pointerCount < 2 && _baseScaleFontSize != null) {
@@ -208,6 +224,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 key: _keyboardKey,
                 onInput: _onKeyboardInput,
                 onPaste: _paste,
+                onSnippets: _showSnippets,
                 onSelectModeChanged: (active) {
                   setState(() => _selectMode = active);
                   _terminalController.setSuspendPointerInput(active);

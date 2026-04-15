@@ -98,7 +98,7 @@ class SPt extends S {
 
   @override
   String get qrPasswordWarning =>
-      'As senhas ficarão descriptografadas no código QR. Qualquer pessoa que escanear poderá vê-las.';
+      'As chaves SSH estão desativadas por padrão na exportação.';
 
   @override
   String get sshKeysMayBeLarge => 'As chaves podem exceder o tamanho do QR';
@@ -1139,6 +1139,86 @@ class SPt extends S {
       'Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'Senha mestra incorreta ou arquivo .lfs corrompido';
+
+  @override
+  String get progressReadingArchive => 'Lendo arquivo…';
+
+  @override
+  String get progressDecrypting => 'Descriptografando…';
+
+  @override
+  String get progressParsingArchive => 'Analisando arquivo…';
+
+  @override
+  String get progressImportingSessions => 'Importando sessões';
+
+  @override
+  String get progressImportingFolders => 'Importando pastas';
+
+  @override
+  String get progressImportingManagerKeys => 'Importando chaves SSH';
+
+  @override
+  String get progressImportingTags => 'Importando tags';
+
+  @override
+  String get progressImportingSnippets => 'Importando snippets';
+
+  @override
+  String get progressApplyingConfig => 'Aplicando configuração…';
+
+  @override
+  String get progressImportingKnownHosts => 'Importando known_hosts…';
+
+  @override
+  String get progressCollectingData => 'Coletando dados…';
+
+  @override
+  String get progressEncrypting => 'Criptografando…';
+
+  @override
+  String get progressWritingArchive => 'Gravando arquivo…';
+
+  @override
+  String get progressReencrypting => 'Recriptografando armazenamentos…';
+
+  @override
+  String get progressWorking => 'Processando…';
+
+  @override
+  String get importFromLink => 'Importar de link QR';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Cole um deep-link letsflutssh:// copiado de outro dispositivo';
+
+  @override
+  String get pasteImportLinkTitle => 'Colar link de importação';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Cole o link letsflutssh://import?d=… (ou o payload bruto) gerado em outro dispositivo. Sem necessidade de câmera.';
+
+  @override
+  String get pasteFromClipboard => 'Colar da área de transferência';
+
+  @override
+  String get invalidImportLink =>
+      'O link não contém um payload válido do LetsFLUTssh';
+
+  @override
+  String get importAction => 'Importar';
+
+  @override
+  String get saveSessionToAssignTags =>
+      'Salve a sessão primeiro para atribuir tags';
+
+  @override
+  String get noTagsAssigned => 'Nenhuma tag atribuída';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1658,49 +1738,49 @@ class SPt extends S {
   String get snippets => 'Snippets';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => 'Gerencie snippets de comandos reutilizáveis';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Ainda não há snippets';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Adicionar snippet';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Editar snippet';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Excluir snippet';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Excluir o snippet \"$title\"?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Título';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'ex.: Deploy, Reiniciar serviço';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Comando';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'ex.: sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Descrição (opcional)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'O que este comando faz?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Snippet salvo';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Snippet \"$title\" excluído';
   }
 
   @override
@@ -1710,67 +1790,67 @@ class SPt extends S {
       locale: localeName,
       other: '$count snippets',
       one: '1 snippet',
-      zero: 'No snippets',
+      zero: 'Sem snippets',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Executar';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Fixar nesta sessão';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Desafixar desta sessão';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Fixados';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Todos';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Enviar ao terminal';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Comando copiado';
 
   @override
   String get tags => 'Tags';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'Organize sessões e pastas com tags coloridas';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Ainda não há tags';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Adicionar tag';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Excluir tag';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Excluir a tag \"$name\"? Ela será removida de todas as sessões e pastas.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Nome da tag';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'ex.: Produção, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Cor';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Tag criada';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Tag \"$name\" excluída';
   }
 
   @override
@@ -1780,16 +1860,16 @@ class SPt extends S {
       locale: localeName,
       other: '$count tags',
       one: '1 tag',
-      zero: 'No tags',
+      zero: 'Sem tags',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => 'Gerenciar tags';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => 'Editar tags';
 
   @override
   String get fullBackup => 'Backup completo';
@@ -1847,4 +1927,50 @@ class SPt extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'já está nas sessões';
+
+  @override
+  String get languageSubtitle => 'Idioma da interface';
+
+  @override
+  String get themeSubtitle => 'Escuro, claro ou seguir o sistema';
+
+  @override
+  String get uiScaleSubtitle => 'Escalar toda a interface';
+
+  @override
+  String get terminalFontSizeSubtitle =>
+      'Tamanho da fonte na saída do terminal';
+
+  @override
+  String get scrollbackLinesSubtitle =>
+      'Tamanho do buffer de histórico do terminal';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Segundos entre pacotes SSH keep-alive (0 = desligado)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Tempo limite de conexão em segundos';
+
+  @override
+  String get defaultPortSubtitle => 'Porta padrão para novas sessões';
+
+  @override
+  String get parallelWorkersSubtitle =>
+      'Trabalhadores de transferência SFTP paralelos';
+
+  @override
+  String get maxHistorySubtitle => 'Máximo de comandos salvos no histórico';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Mostrar tamanho total ao lado das pastas na barra lateral';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Consultar o GitHub por uma nova versão ao iniciar o app';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Gravar eventos do app em arquivo de log rotativo';
 }

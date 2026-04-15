@@ -98,7 +98,7 @@ class STr extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Parolalar QR kodunda şifresiz olacaktır. Taranan herkes görebilir.';
+      'SSH anahtarları dışa aktarmada varsayılan olarak devre dışıdır.';
 
   @override
   String get sshKeysMayBeLarge => 'Anahtarlar QR boyutunu aşabilir';
@@ -1139,6 +1139,86 @@ class STr extends S {
       'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'Yanlış ana parola veya bozulmuş .lfs arşivi';
+
+  @override
+  String get progressReadingArchive => 'Arşiv okunuyor…';
+
+  @override
+  String get progressDecrypting => 'Şifre çözülüyor…';
+
+  @override
+  String get progressParsingArchive => 'Arşiv ayrıştırılıyor…';
+
+  @override
+  String get progressImportingSessions => 'Oturumlar içe aktarılıyor';
+
+  @override
+  String get progressImportingFolders => 'Klasörler içe aktarılıyor';
+
+  @override
+  String get progressImportingManagerKeys => 'SSH anahtarları içe aktarılıyor';
+
+  @override
+  String get progressImportingTags => 'Etiketler içe aktarılıyor';
+
+  @override
+  String get progressImportingSnippets => 'Snippet\'ler içe aktarılıyor';
+
+  @override
+  String get progressApplyingConfig => 'Yapılandırma uygulanıyor…';
+
+  @override
+  String get progressImportingKnownHosts => 'known_hosts içe aktarılıyor…';
+
+  @override
+  String get progressCollectingData => 'Veriler toplanıyor…';
+
+  @override
+  String get progressEncrypting => 'Şifreleniyor…';
+
+  @override
+  String get progressWritingArchive => 'Arşiv yazılıyor…';
+
+  @override
+  String get progressReencrypting => 'Depolar yeniden şifreleniyor…';
+
+  @override
+  String get progressWorking => 'İşleniyor…';
+
+  @override
+  String get importFromLink => 'QR bağlantısından içe aktar';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Başka bir cihazdan kopyalanan letsflutssh:// derin bağlantısını yapıştırın';
+
+  @override
+  String get pasteImportLinkTitle => 'İçe aktarma bağlantısını yapıştır';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Başka bir cihazda üretilen letsflutssh://import?d=… bağlantısını (veya ham yükü) yapıştırın. Kamera gerekmez.';
+
+  @override
+  String get pasteFromClipboard => 'Panodan yapıştır';
+
+  @override
+  String get invalidImportLink =>
+      'Bağlantı geçerli bir LetsFLUTssh yükü içermiyor';
+
+  @override
+  String get importAction => 'İçe aktar';
+
+  @override
+  String get saveSessionToAssignTags =>
+      'Etiket atamak için önce oturumu kaydedin';
+
+  @override
+  String get noTagsAssigned => 'Atanmış etiket yok';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1653,52 +1733,53 @@ class STr extends S {
       'Ana şifreyi belirle, değiştir veya kaldır';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'Snippet\'ler';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle =>
+      'Yeniden kullanılabilir komut snippet\'lerini yönetin';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Henüz snippet yok';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Snippet Ekle';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Snippet\'i Düzenle';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Snippet\'i Sil';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return '\"$title\" snippet\'i silinsin mi?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Başlık';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'örn. Dağıt, Servisi Yeniden Başlat';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Komut';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'örn. sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Açıklama (isteğe bağlı)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'Bu komut ne yapar?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Snippet kaydedildi';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return '\"$title\" snippet\'i silindi';
   }
 
   @override
@@ -1706,69 +1787,70 @@ class STr extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
+      other: '$count snippet',
       one: '1 snippet',
-      zero: 'No snippets',
+      zero: 'Snippet yok',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Çalıştır';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Bu oturuma sabitle';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Bu oturumdan kaldır';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Sabitlenmiş';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Tümü';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Terminale gönder';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Komut panoya kopyalandı';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'Etiketler';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle =>
+      'Oturumları ve klasörleri renkli etiketlerle düzenleyin';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Henüz etiket yok';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Etiket Ekle';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Etiketi Sil';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return '\"$name\" etiketi silinsin mi? Tüm oturum ve klasörlerden kaldırılacak.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Etiket Adı';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'örn. Üretim, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Renk';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Etiket oluşturuldu';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return '\"$name\" etiketi silindi';
   }
 
   @override
@@ -1776,18 +1858,18 @@ class STr extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count etiket',
+      one: '1 etiket',
+      zero: 'Etiket yok',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => 'Etiketleri yönet';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => 'Etiketleri Düzenle';
 
   @override
   String get fullBackup => 'Tam yedekleme';
@@ -1846,4 +1928,49 @@ class STr extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'zaten oturumlarda mevcut';
+
+  @override
+  String get languageSubtitle => 'Arayüz dili';
+
+  @override
+  String get themeSubtitle => 'Koyu, açık veya sistemle uyumlu';
+
+  @override
+  String get uiScaleSubtitle => 'Tüm arayüzü ölçekle';
+
+  @override
+  String get terminalFontSizeSubtitle =>
+      'Terminal çıktısındaki yazı tipi boyutu';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Terminal geçmiş arabelleği boyutu';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'SSH keep-alive paketleri arasındaki saniye (0 = kapalı)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Bağlantı zaman aşımı (saniye)';
+
+  @override
+  String get defaultPortSubtitle =>
+      'Yeni oturumlar için varsayılan bağlantı noktası';
+
+  @override
+  String get parallelWorkersSubtitle => 'Paralel SFTP aktarım işçileri';
+
+  @override
+  String get maxHistorySubtitle => 'Geçmişte saklanan maksimum komut sayısı';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Kenar çubuğunda klasörlerin yanında toplam boyutu göster';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Uygulama başlatıldığında GitHub\'da yeni sürümü denetle';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Uygulama olaylarını döngüsel bir günlük dosyasına yaz';
 }

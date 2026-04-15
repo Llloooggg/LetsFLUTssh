@@ -98,7 +98,7 @@ class SRu extends S {
 
   @override
   String get qrPasswordWarning =>
-      'Пароли будут незашифрованы в QR-коде. Любой, кто его отсканирует, сможет их увидеть.';
+      'SSH-ключи отключены по умолчанию для экспорта.';
 
   @override
   String get sshKeysMayBeLarge => 'Ключи могут превысить размер QR';
@@ -1135,6 +1135,86 @@ class SRu extends S {
       'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
 
   @override
+  String get errLfsDecryptFailed =>
+      'Неверный мастер-пароль или повреждённый архив .lfs';
+
+  @override
+  String get progressReadingArchive => 'Чтение архива…';
+
+  @override
+  String get progressDecrypting => 'Расшифровка…';
+
+  @override
+  String get progressParsingArchive => 'Разбор архива…';
+
+  @override
+  String get progressImportingSessions => 'Импорт сессий';
+
+  @override
+  String get progressImportingFolders => 'Импорт папок';
+
+  @override
+  String get progressImportingManagerKeys => 'Импорт SSH-ключей';
+
+  @override
+  String get progressImportingTags => 'Импорт тегов';
+
+  @override
+  String get progressImportingSnippets => 'Импорт сниппетов';
+
+  @override
+  String get progressApplyingConfig => 'Применение конфигурации…';
+
+  @override
+  String get progressImportingKnownHosts => 'Импорт known_hosts…';
+
+  @override
+  String get progressCollectingData => 'Сбор данных…';
+
+  @override
+  String get progressEncrypting => 'Шифрование…';
+
+  @override
+  String get progressWritingArchive => 'Запись архива…';
+
+  @override
+  String get progressReencrypting => 'Повторное шифрование…';
+
+  @override
+  String get progressWorking => 'Обработка…';
+
+  @override
+  String get importFromLink => 'Импорт из QR-ссылки';
+
+  @override
+  String get importFromLinkSubtitle =>
+      'Вставьте letsflutssh://-ссылку, скопированную с другого устройства';
+
+  @override
+  String get pasteImportLinkTitle => 'Вставить ссылку импорта';
+
+  @override
+  String get pasteImportLinkDescription =>
+      'Вставьте ссылку letsflutssh://import?d=… (или сырой payload), сгенерированную на другом устройстве. Камера не нужна.';
+
+  @override
+  String get pasteFromClipboard => 'Вставить из буфера';
+
+  @override
+  String get invalidImportLink =>
+      'Ссылка не содержит корректные данные LetsFLUTssh';
+
+  @override
+  String get importAction => 'Импортировать';
+
+  @override
+  String get saveSessionToAssignTags =>
+      'Сначала сохраните сессию, чтобы назначить теги';
+
+  @override
+  String get noTagsAssigned => 'Теги не назначены';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error: $path';
   }
@@ -1651,52 +1731,53 @@ class SRu extends S {
       'Установить, изменить или удалить мастер-пароль';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => 'Сниппеты';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle =>
+      'Управление переиспользуемыми командными сниппетами';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => 'Сниппетов пока нет';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => 'Добавить сниппет';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => 'Редактировать сниппет';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => 'Удалить сниппет';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return 'Удалить сниппет «$title»?';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => 'Название';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => 'например, Деплой, Перезапуск';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => 'Команда';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => 'например, sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => 'Описание (необязательно)';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => 'Что делает эта команда?';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => 'Сниппет сохранён';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return 'Сниппет «$title» удалён';
   }
 
   @override
@@ -1704,69 +1785,71 @@ class SRu extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count сниппета',
+      many: '$count сниппетов',
+      few: '$count сниппета',
+      one: '1 сниппет',
+      zero: 'Нет сниппетов',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => 'Запустить';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => 'Закрепить за этой сессией';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => 'Открепить от этой сессии';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => 'Закреплённые';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => 'Все';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => 'Отправить в терминал';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => 'Команда скопирована';
 
   @override
-  String get tags => 'Tags';
+  String get tags => 'Теги';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => 'Организуйте сессии и папки цветными тегами';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => 'Тегов пока нет';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => 'Добавить тег';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => 'Удалить тег';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return 'Удалить тег «$name»? Он будет снят со всех сессий и папок.';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => 'Имя тега';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => 'например, Production, Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => 'Цвет';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => 'Тег создан';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return 'Тег «$name» удалён';
   }
 
   @override
@@ -1774,18 +1857,20 @@ class SRu extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count тега',
+      many: '$count тегов',
+      few: '$count тега',
+      one: '1 тег',
+      zero: 'Нет тегов',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => 'Управление тегами';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => 'Редактировать теги';
 
   @override
   String get fullBackup => 'Полная резервная копия';
@@ -1843,4 +1928,47 @@ class SRu extends S {
 
   @override
   String get sshDirSessionAlreadyImported => 'уже есть в сессиях';
+
+  @override
+  String get languageSubtitle => 'Язык интерфейса';
+
+  @override
+  String get themeSubtitle => 'Тёмная, светлая или следовать системе';
+
+  @override
+  String get uiScaleSubtitle => 'Масштабирование всего интерфейса';
+
+  @override
+  String get terminalFontSizeSubtitle => 'Размер шрифта в выводе терминала';
+
+  @override
+  String get scrollbackLinesSubtitle => 'Размер буфера истории терминала';
+
+  @override
+  String get keepAliveIntervalSubtitle =>
+      'Секунды между SSH keep-alive пакетами (0 = выкл)';
+
+  @override
+  String get sshTimeoutSubtitle => 'Таймаут подключения в секундах';
+
+  @override
+  String get defaultPortSubtitle => 'Порт по умолчанию для новых сессий';
+
+  @override
+  String get parallelWorkersSubtitle => 'Параллельных SFTP-воркеров';
+
+  @override
+  String get maxHistorySubtitle => 'Максимум сохранённых команд в истории';
+
+  @override
+  String get calculateFolderSizesSubtitle =>
+      'Показывать суммарный размер рядом с папками в сайдбаре';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle =>
+      'Проверять новую версию на GitHub при запуске приложения';
+
+  @override
+  String get enableLoggingSubtitle =>
+      'Записывать события приложения в ротируемый лог-файл';
 }

@@ -478,6 +478,10 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputFill,
+        // Global opt-out of Material's floating label animation — the label
+        // stays in place instead of sliding up to the top border on focus.
+        // Our dialogs treat labels as field titles, so the movement is noisy.
+        floatingLabelBehavior: FloatingLabelBehavior.never,
         border: OutlineInputBorder(
           borderRadius: radiusSm,
           borderSide: BorderSide(color: borderColor),
@@ -706,6 +710,11 @@ abstract final class AppTheme {
       hintText: hintText,
       labelStyle: TextStyle(color: fgFaint),
       hintStyle: hintStyle ?? TextStyle(color: fgFaint),
+      // Keep the label where the user placed it — don't animate it up into
+      // the top border when the field gets focus or text. Material's float
+      // is noisy here since labels double as field titles and sit outside
+      // the box in most of our dialogs.
+      floatingLabelBehavior: FloatingLabelBehavior.never,
       filled: true,
       fillColor: bg3,
       isDense: true,

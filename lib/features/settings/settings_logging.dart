@@ -16,6 +16,8 @@ class _LoggingSection extends ConsumerWidget {
       children: [
         _Toggle(
           label: S.of(context).enableLogging,
+          subtitle: S.of(context).enableLoggingSubtitle,
+          icon: Icons.article_outlined,
           value: enabled,
           onChanged: (v) => ref
               .read(configProvider.notifier)
@@ -24,13 +26,17 @@ class _LoggingSection extends ConsumerWidget {
                     c.copyWith(behavior: c.behavior.copyWith(enableLogging: v)),
               ),
         ),
-        if (enabled && logPath != null) ...[
-          const SizedBox(height: 8),
-          _LiveLogViewer(
+        // Show the viewer when logging is active OR when a previous session
+        // left log content on disk — disabling the toggle stops new writes
+        // but captured entries need to stay reachable (read / export / clear).
+        // If the toggle is off AND the file is empty, hide the viewer to
+        // keep the settings screen short.
+        if (logPath != null)
+          _LogViewerHost(
+            enabled: enabled,
             onExport: () => _exportLog(context),
             onClear: () => _clearLogs(context),
           ),
-        ],
       ],
     );
   }
@@ -115,8 +121,52 @@ class _LoggingSection extends ConsumerWidget {
   }
 }
 
+/// Wrapper that resolves whether there's anything worth showing: if logging
+/// is disabled and the log file is empty, render nothing so the settings
+/// screen stays compact; otherwise mount the live viewer.
+///
+/// Probe is a sync `File.lengthSync()` check on the log path. Async
+/// `readLog()` would deadlock against the inner viewer's 1s polling timer
+/// in widget tests that pump discrete frames.
+class _LogViewerHost extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onExport;
+  final VoidCallback onClear;
+
+  const _LogViewerHost({
+    required this.enabled,
+    required this.onExport,
+    required this.onClear,
+  });
+
+  bool _logFileHasContent() {
+    final path = AppLogger.instance.logPath;
+    if (path == null) return false;
+    try {
+      final file = File(path);
+      return file.existsSync() && file.lengthSync() > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled && !_logFileHasContent()) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: _LiveLogViewer(onExport: onExport, onClear: onClear),
+    );
+  }
+}
+
 /// Inline live log viewer — polls the log file every second and displays the
 /// content in a dark terminal-style panel with Copy and Clear action buttons.
+///
+/// Polling is lifecycle-aware: the timer is paused when the app goes to the
+/// background (paused/inactive/hidden/detached) so it doesn't keep the CPU
+/// awake and drain battery when the user isn't looking. It resumes on
+/// AppLifecycleState.resumed.
 class _LiveLogViewer extends StatefulWidget {
   final VoidCallback onExport;
   final VoidCallback onClear;
@@ -127,7 +177,8 @@ class _LiveLogViewer extends StatefulWidget {
   State<_LiveLogViewer> createState() => _LiveLogViewerState();
 }
 
-class _LiveLogViewerState extends State<_LiveLogViewer> {
+class _LiveLogViewerState extends State<_LiveLogViewer>
+    with WidgetsBindingObserver {
   final _scrollController = ScrollController();
   String _content = '';
   Timer? _timer;
@@ -135,15 +186,38 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+    _startTimer();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopTimer();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_timer == null) {
+        _refresh();
+        _startTimer();
+      }
+    } else {
+      _stopTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   Future<void> _refresh() async {
@@ -215,14 +289,15 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
             ),
           ],
         ),
-        // Log content — fill remaining vertical space
+        // Log content — sized to fit in the settings column without pushing
+        // other sections off-screen. A capped window is enough to skim the
+        // tail and reach the export / clear buttons.
         LayoutBuilder(
           builder: (context, constraints) {
-            // Use available height minus toolbar (~40px), clamped to reasonable min
             final availableHeight = MediaQuery.of(context).size.height - 200;
             return Container(
               width: double.infinity,
-              height: availableHeight.clamp(200.0, double.infinity),
+              height: availableHeight.clamp(200.0, 360.0),
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: AppTheme.radiusLg,

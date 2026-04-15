@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/core/progress/progress_reporter.dart';
 import 'package:letsflutssh/widgets/app_dialog.dart';
 
 void main() {
@@ -203,13 +204,15 @@ void main() {
     });
   });
 
-  group('AppProgressDialog', () {
-    testWidgets('shows spinner', (tester) async {
+  group('AppProgressBarDialog', () {
+    testWidgets('shows label and indeterminate bar initially', (tester) async {
+      final reporter = ProgressReporter('Loading…');
+      addTearDown(reporter.dispose);
       await tester.pumpWidget(
         wrap(
           Builder(
             builder: (ctx) => ElevatedButton(
-              onPressed: () => AppProgressDialog.show(ctx),
+              onPressed: () => AppProgressBarDialog.show(ctx, reporter),
               child: const Text('Load'),
             ),
           ),
@@ -219,7 +222,68 @@ void main() {
       await tester.tap(find.text('Load'));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Loading…'), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.value, isNull, reason: 'initial phase is indeterminate');
+      expect(find.text('…'), findsOneWidget);
+    });
+
+    testWidgets('step() renders percent and count', (tester) async {
+      final reporter = ProgressReporter('Phase');
+      addTearDown(reporter.dispose);
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => AppProgressBarDialog.show(ctx, reporter),
+              child: const Text('Load'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Load'));
+      await tester.pump();
+
+      reporter.step('Importing', 3, 10);
+      await tester.pump();
+
+      expect(find.text('Importing'), findsOneWidget);
+      expect(find.text('3 / 10'), findsOneWidget);
+      expect(find.text('30%'), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.value, closeTo(0.3, 1e-6));
+    });
+
+    testWidgets('phase() flips back to indeterminate', (tester) async {
+      final reporter = ProgressReporter('Start');
+      addTearDown(reporter.dispose);
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => AppProgressBarDialog.show(ctx, reporter),
+              child: const Text('Load'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Load'));
+      await tester.pump();
+
+      reporter.step('Step', 1, 4);
+      await tester.pump();
+      reporter.phase('Finalising…');
+      await tester.pump();
+
+      expect(find.text('Finalising…'), findsOneWidget);
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.value, isNull);
     });
   });
 

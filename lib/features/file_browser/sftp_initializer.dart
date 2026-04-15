@@ -1,11 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart';
-
 import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
-import '../../utils/logger.dart';
+import '../../utils/android_storage_permission.dart';
 import 'file_browser_controller.dart';
 
 /// Result of SFTP initialization — controllers + service.
@@ -35,41 +33,6 @@ class SFTPInitResult {
 class SFTPInitializer {
   SFTPInitializer._();
 
-  /// Request storage permission on Android via platform channel.
-  /// No external plugin needed — avoids GPS/location side-effects from permission_handler.
-  ///
-  /// Returns `true` if permission was granted, `false` otherwise.
-  /// On Android 11+ this opens the "All files access" system settings page.
-  /// On older versions it shows the standard runtime permission dialog.
-  static Future<bool> _requestStoragePermission() async {
-    try {
-      // Always go through the platform channel — the native side checks
-      // Environment.isExternalStorageManager() which is the only reliable
-      // way to verify MANAGE_EXTERNAL_STORAGE on Android 11+.
-      // A Dart-side Directory.list() check is unreliable: scoped storage
-      // lets apps see folder names at the root without full access to
-      // their contents (the bug that made Downloads appear empty).
-      const channel = MethodChannel('com.letsflutssh/permissions');
-      final granted = await channel.invokeMethod<bool>(
-        'requestStoragePermission',
-      );
-      if (granted != true) {
-        AppLogger.instance.log(
-          'Storage permission denied by user',
-          name: 'Permission',
-        );
-        return false;
-      }
-      return true;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Storage permission request failed: $e',
-        name: 'Permission',
-      );
-      return false;
-    }
-  }
-
   /// Initialize SFTP service and file pane controllers from a [Connection].
   ///
   /// [sftpServiceFactory] can be provided for testing to avoid real SSH.
@@ -91,7 +54,7 @@ class SFTPInitializer {
 
       // On Android, request storage permission for local file browser
       if (Platform.isAndroid) {
-        final granted = await _requestStoragePermission();
+        final granted = await requestAndroidStoragePermission();
         permissionDenied = !granted;
       }
 

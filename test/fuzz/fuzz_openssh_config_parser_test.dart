@@ -104,8 +104,11 @@ void main() {
     });
 
     test('large input does not crash (stress)', () {
+      // 500 hosts is enough to catch obvious quadratic regressions without
+      // making the suite drag on for minutes on CI.
+      const n = 500;
       final buf = StringBuffer();
-      for (var i = 0; i < 2000; i++) {
+      for (var i = 0; i < n; i++) {
         buf
           ..writeln('Host host$i')
           ..writeln('    HostName $i.example.com')
@@ -113,7 +116,7 @@ void main() {
           ..writeln('    Port ${i % 65535}');
       }
       final entries = parseOpenSshConfig(buf.toString());
-      expect(entries, hasLength(2000));
+      expect(entries, hasLength(n));
     });
 
     test('truncated input (prefix of valid config) does not crash', () {

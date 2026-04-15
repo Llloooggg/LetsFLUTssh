@@ -96,7 +96,7 @@ class SZh extends S {
   String get managerKeysMayBeLarge => '管理器密钥可能超出 QR 大小限制';
 
   @override
-  String get qrPasswordWarning => '密码在 QR 码中未加密。任何扫描的人都可以看到。';
+  String get qrPasswordWarning => '导出时 SSH 密钥默认已禁用。';
 
   @override
   String get sshKeysMayBeLarge => '密钥可能超出 QR 大小';
@@ -1111,6 +1111,82 @@ class SZh extends S {
   String get errDecryptionFailed => '凭据解密失败。密钥文件可能已损坏。';
 
   @override
+  String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
+
+  @override
+  String get progressReadingArchive => '正在读取归档…';
+
+  @override
+  String get progressDecrypting => '正在解密…';
+
+  @override
+  String get progressParsingArchive => '正在解析归档…';
+
+  @override
+  String get progressImportingSessions => '正在导入会话';
+
+  @override
+  String get progressImportingFolders => '正在导入文件夹';
+
+  @override
+  String get progressImportingManagerKeys => '正在导入 SSH 密钥';
+
+  @override
+  String get progressImportingTags => '正在导入标签';
+
+  @override
+  String get progressImportingSnippets => '正在导入代码片段';
+
+  @override
+  String get progressApplyingConfig => '正在应用配置…';
+
+  @override
+  String get progressImportingKnownHosts => '正在导入 known_hosts…';
+
+  @override
+  String get progressCollectingData => '正在收集数据…';
+
+  @override
+  String get progressEncrypting => '正在加密…';
+
+  @override
+  String get progressWritingArchive => '正在写入归档…';
+
+  @override
+  String get progressReencrypting => '正在重新加密存储…';
+
+  @override
+  String get progressWorking => '处理中…';
+
+  @override
+  String get importFromLink => '从 QR 链接导入';
+
+  @override
+  String get importFromLinkSubtitle => '粘贴从其他设备复制的 letsflutssh:// 深层链接';
+
+  @override
+  String get pasteImportLinkTitle => '粘贴导入链接';
+
+  @override
+  String get pasteImportLinkDescription =>
+      '粘贴在其他设备生成的 letsflutssh://import?d=… 链接（或原始负载）。无需摄像头。';
+
+  @override
+  String get pasteFromClipboard => '从剪贴板粘贴';
+
+  @override
+  String get invalidImportLink => '链接不包含有效的 LetsFLUTssh 数据';
+
+  @override
+  String get importAction => '导入';
+
+  @override
+  String get saveSessionToAssignTags => '先保存会话才能分配标签';
+
+  @override
+  String get noTagsAssigned => '未分配标签';
+
+  @override
   String errWithPath(String error, String path) {
     return '$error：$path';
   }
@@ -1604,52 +1680,52 @@ class SZh extends S {
   String get manageMasterPasswordSubtitle => '设置、更改或移除主密码';
 
   @override
-  String get snippets => 'Snippets';
+  String get snippets => '代码片段';
 
   @override
-  String get snippetsSubtitle => 'Manage reusable command snippets';
+  String get snippetsSubtitle => '管理可重用的命令片段';
 
   @override
-  String get noSnippets => 'No snippets yet';
+  String get noSnippets => '暂无代码片段';
 
   @override
-  String get addSnippet => 'Add Snippet';
+  String get addSnippet => '添加代码片段';
 
   @override
-  String get editSnippet => 'Edit Snippet';
+  String get editSnippet => '编辑代码片段';
 
   @override
-  String get deleteSnippet => 'Delete Snippet';
+  String get deleteSnippet => '删除代码片段';
 
   @override
   String deleteSnippetConfirm(String title) {
-    return 'Delete snippet \"$title\"?';
+    return '删除代码片段「$title」？';
   }
 
   @override
-  String get snippetTitle => 'Title';
+  String get snippetTitle => '标题';
 
   @override
-  String get snippetTitleHint => 'e.g. Deploy, Restart Service';
+  String get snippetTitleHint => '例如：部署、重启服务';
 
   @override
-  String get snippetCommand => 'Command';
+  String get snippetCommand => '命令';
 
   @override
-  String get snippetCommandHint => 'e.g. sudo systemctl restart nginx';
+  String get snippetCommandHint => '例如：sudo systemctl restart nginx';
 
   @override
-  String get snippetDescription => 'Description (optional)';
+  String get snippetDescription => '描述（可选）';
 
   @override
-  String get snippetDescriptionHint => 'What does this command do?';
+  String get snippetDescriptionHint => '此命令的作用是什么？';
 
   @override
-  String get snippetSaved => 'Snippet saved';
+  String get snippetSaved => '代码片段已保存';
 
   @override
   String snippetDeleted(String title) {
-    return 'Snippet \"$title\" deleted';
+    return '代码片段「$title」已删除';
   }
 
   @override
@@ -1657,69 +1733,68 @@ class SZh extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count snippets',
-      one: '1 snippet',
-      zero: 'No snippets',
+      other: '$count 个代码片段',
+      zero: '无代码片段',
     );
     return '$_temp0';
   }
 
   @override
-  String get runSnippet => 'Run';
+  String get runSnippet => '运行';
 
   @override
-  String get pinToSession => 'Pin to this session';
+  String get pinToSession => '固定到此会话';
 
   @override
-  String get unpinFromSession => 'Unpin from this session';
+  String get unpinFromSession => '从此会话取消固定';
 
   @override
-  String get pinnedSnippets => 'Pinned';
+  String get pinnedSnippets => '已固定';
 
   @override
-  String get allSnippets => 'All';
+  String get allSnippets => '全部';
 
   @override
-  String get sendToTerminal => 'Send to terminal';
+  String get sendToTerminal => '发送到终端';
 
   @override
-  String get commandCopied => 'Command copied to clipboard';
+  String get commandCopied => '命令已复制到剪贴板';
 
   @override
-  String get tags => 'Tags';
+  String get tags => '标签';
 
   @override
-  String get tagsSubtitle => 'Organize sessions and folders with color tags';
+  String get tagsSubtitle => '使用彩色标签整理会话和文件夹';
 
   @override
-  String get noTags => 'No tags yet';
+  String get noTags => '暂无标签';
 
   @override
-  String get addTag => 'Add Tag';
+  String get addTag => '添加标签';
 
   @override
-  String get deleteTag => 'Delete Tag';
+  String get deleteTag => '删除标签';
 
   @override
   String deleteTagConfirm(String name) {
-    return 'Delete tag \"$name\"? It will be removed from all sessions and folders.';
+    return '删除标签「$name」？将从所有会话和文件夹中移除。';
   }
 
   @override
-  String get tagName => 'Tag Name';
+  String get tagName => '标签名称';
 
   @override
-  String get tagNameHint => 'e.g. Production, Staging';
+  String get tagNameHint => '例如：Production、Staging';
 
   @override
-  String get tagColor => 'Color';
+  String get tagColor => '颜色';
 
   @override
-  String get tagCreated => 'Tag created';
+  String get tagCreated => '标签已创建';
 
   @override
   String tagDeleted(String name) {
-    return 'Tag \"$name\" deleted';
+    return '标签「$name」已删除';
   }
 
   @override
@@ -1727,18 +1802,17 @@ class SZh extends S {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
-      zero: 'No tags',
+      other: '$count 个标签',
+      zero: '无标签',
     );
     return '$_temp0';
   }
 
   @override
-  String get manageTags => 'Manage Tags';
+  String get manageTags => '管理标签';
 
   @override
-  String get editTags => 'Edit Tags';
+  String get editTags => '编辑标签';
 
   @override
   String get fullBackup => '完整备份';
@@ -1795,4 +1869,43 @@ class SZh extends S {
 
   @override
   String get sshDirSessionAlreadyImported => '已在会话中';
+
+  @override
+  String get languageSubtitle => '界面语言';
+
+  @override
+  String get themeSubtitle => '深色、浅色或跟随系统';
+
+  @override
+  String get uiScaleSubtitle => '缩放整个界面';
+
+  @override
+  String get terminalFontSizeSubtitle => '终端输出的字体大小';
+
+  @override
+  String get scrollbackLinesSubtitle => '终端历史缓冲区大小';
+
+  @override
+  String get keepAliveIntervalSubtitle => 'SSH keep-alive 数据包间隔秒数 (0 = 关闭)';
+
+  @override
+  String get sshTimeoutSubtitle => '连接超时 (秒)';
+
+  @override
+  String get defaultPortSubtitle => '新会话的默认端口';
+
+  @override
+  String get parallelWorkersSubtitle => '并行 SFTP 传输工作线程数';
+
+  @override
+  String get maxHistorySubtitle => '历史中保留的最大命令数';
+
+  @override
+  String get calculateFolderSizesSubtitle => '在侧边栏文件夹旁显示总大小';
+
+  @override
+  String get checkForUpdatesOnStartupSubtitle => '应用启动时从 GitHub 检查新版本';
+
+  @override
+  String get enableLoggingSubtitle => '将应用事件写入循环日志文件';
 }

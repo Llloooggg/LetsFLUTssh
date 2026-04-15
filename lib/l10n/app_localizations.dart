@@ -300,7 +300,7 @@ abstract class S {
   /// No description provided for @qrPasswordWarning.
   ///
   /// In en, this message translates to:
-  /// **'Passwords will be unencrypted in the QR code. Anyone who scans it can see them.'**
+  /// **'SSH keys are disabled by default for export.'**
   String get qrPasswordWarning;
 
   /// No description provided for @sshKeysMayBeLarge.
@@ -2145,6 +2145,156 @@ abstract class S {
   /// **'Failed to decrypt credentials. Key file may be corrupted.'**
   String get errDecryptionFailed;
 
+  /// No description provided for @errLfsDecryptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong master password or corrupted .lfs archive'**
+  String get errLfsDecryptFailed;
+
+  /// No description provided for @progressReadingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading archive…'**
+  String get progressReadingArchive;
+
+  /// No description provided for @progressDecrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypting…'**
+  String get progressDecrypting;
+
+  /// No description provided for @progressParsingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Parsing archive…'**
+  String get progressParsingArchive;
+
+  /// No description provided for @progressImportingSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing sessions'**
+  String get progressImportingSessions;
+
+  /// No description provided for @progressImportingFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing folders'**
+  String get progressImportingFolders;
+
+  /// No description provided for @progressImportingManagerKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing SSH keys'**
+  String get progressImportingManagerKeys;
+
+  /// No description provided for @progressImportingTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing tags'**
+  String get progressImportingTags;
+
+  /// No description provided for @progressImportingSnippets.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing snippets'**
+  String get progressImportingSnippets;
+
+  /// No description provided for @progressApplyingConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying configuration…'**
+  String get progressApplyingConfig;
+
+  /// No description provided for @progressImportingKnownHosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing known_hosts…'**
+  String get progressImportingKnownHosts;
+
+  /// No description provided for @progressCollectingData.
+  ///
+  /// In en, this message translates to:
+  /// **'Collecting data…'**
+  String get progressCollectingData;
+
+  /// No description provided for @progressEncrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypting…'**
+  String get progressEncrypting;
+
+  /// No description provided for @progressWritingArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing archive…'**
+  String get progressWritingArchive;
+
+  /// No description provided for @progressReencrypting.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypting stores…'**
+  String get progressReencrypting;
+
+  /// No description provided for @progressWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get progressWorking;
+
+  /// No description provided for @importFromLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from QR link'**
+  String get importFromLink;
+
+  /// No description provided for @importFromLinkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a letsflutssh:// deep link copied from another device'**
+  String get importFromLinkSubtitle;
+
+  /// No description provided for @pasteImportLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste import link'**
+  String get pasteImportLinkTitle;
+
+  /// No description provided for @pasteImportLinkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the letsflutssh://import?d=… link (or raw payload) generated on another device. No camera needed.'**
+  String get pasteImportLinkDescription;
+
+  /// No description provided for @pasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from clipboard'**
+  String get pasteFromClipboard;
+
+  /// No description provided for @invalidImportLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link does not contain a valid LetsFLUTssh payload'**
+  String get invalidImportLink;
+
+  /// No description provided for @importAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importAction;
+
+  /// No description provided for @saveSessionToAssignTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Save the session first to assign tags'**
+  String get saveSessionToAssignTags;
+
+  /// No description provided for @noTagsAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags assigned'**
+  String get noTagsAssigned;
+
   /// No description provided for @errWithPath.
   ///
   /// In en, this message translates to:
@@ -3284,6 +3434,84 @@ abstract class S {
   /// In en, this message translates to:
   /// **'already in sessions'**
   String get sshDirSessionAlreadyImported;
+
+  /// No description provided for @languageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface language'**
+  String get languageSubtitle;
+
+  /// No description provided for @themeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark, light, or follow the system'**
+  String get themeSubtitle;
+
+  /// No description provided for @uiScaleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale the whole interface'**
+  String get uiScaleSubtitle;
+
+  /// No description provided for @terminalFontSizeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Font size in terminal output'**
+  String get terminalFontSizeSubtitle;
+
+  /// No description provided for @scrollbackLinesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal history buffer size'**
+  String get scrollbackLinesSubtitle;
+
+  /// No description provided for @keepAliveIntervalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Seconds between SSH keep-alive packets (0 = off)'**
+  String get keepAliveIntervalSubtitle;
+
+  /// No description provided for @sshTimeoutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timeout in seconds'**
+  String get sshTimeoutSubtitle;
+
+  /// No description provided for @defaultPortSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default port for new sessions'**
+  String get defaultPortSubtitle;
+
+  /// No description provided for @parallelWorkersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Concurrent SFTP transfer workers'**
+  String get parallelWorkersSubtitle;
+
+  /// No description provided for @maxHistorySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum saved commands in history'**
+  String get maxHistorySubtitle;
+
+  /// No description provided for @calculateFolderSizesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show total size next to folders in the sidebar'**
+  String get calculateFolderSizesSubtitle;
+
+  /// No description provided for @checkForUpdatesOnStartupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Query GitHub for a new release when the app launches'**
+  String get checkForUpdatesOnStartupSubtitle;
+
+  /// No description provided for @enableLoggingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Write app events to a rotating log file'**
+  String get enableLoggingSubtitle;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {
