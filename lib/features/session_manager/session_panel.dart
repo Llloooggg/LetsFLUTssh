@@ -765,7 +765,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     WidgetRef ref,
     Session session,
   ) async {
-    final result = await SessionEditDialog.show(context, session: session);
+    // In-memory cached [session] has no credentials (lazy-load). Reload
+    // from DB so the edit form pre-fills password/keyData/passphrase
+    // correctly; fall back to the bare cache entry if the row vanished.
+    final store = ref.read(sessionStoreProvider);
+    final full = await store.loadWithCredentials(session.id) ?? session;
+    if (!context.mounted) return;
+    final result = await SessionEditDialog.show(context, session: full);
     if (result == null) return;
     if (result is SaveResult) {
       await ref.read(sessionProvider.notifier).update(result.session);

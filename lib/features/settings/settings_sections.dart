@@ -5,15 +5,22 @@ part of 'settings_screen.dart';
 // transfer, data (export/import/QR), updates, about
 // ═══════════════════════════════════════════════════════════════════
 
-/// Resolve keyId → keyData for sessions that reference the key store.
-/// Returns new list with resolved sessions (original list unchanged).
+/// Hydrate [sessions] with on-disk credentials and resolve keyId → keyData.
+///
+/// The incoming list comes from the in-memory session cache, which strips
+/// password / keyData / passphrase to minimize their RAM footprint. Export
+/// needs the full credential set, so we reload each session from the DB
+/// through [SessionStore.loadWithCredentials] before composing the archive.
+/// Key-ID references are then expanded to embedded `keyData` as before.
 Future<List<Session>> _resolveSessionKeys(
   WidgetRef ref,
   List<Session> sessions,
 ) async {
+  final store = ref.read(sessionStoreProvider);
   final keyStore = ref.read(keyStoreProvider);
   final resolved = <Session>[];
-  for (final s in sessions) {
+  for (final cached in sessions) {
+    final s = await store.loadWithCredentials(cached.id) ?? cached;
     if (s.keyId.isNotEmpty) {
       final entry = await keyStore.get(s.keyId);
       if (entry != null && entry.privateKey.isNotEmpty) {

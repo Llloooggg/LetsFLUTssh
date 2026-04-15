@@ -63,7 +63,10 @@ class SessionStore {
       final folders = await db.folderDao.getAll();
       _folderMap = buildFolderMap(folders);
 
-      // Load sessions, convert to domain model
+      // Load sessions, convert to domain model WITHOUT credentials. The
+      // cached list in memory must not carry plaintext passwords / keyData /
+      // passphrases — callers that need them (connect, edit dialog, export)
+      // fetch on demand via [loadWithCredentials].
       final dbSessions = await db.sessionDao.getAll();
       _sessions
         ..clear()
@@ -104,6 +107,21 @@ class SessionStore {
       );
     }
     return List.of(_sessions);
+  }
+
+  /// Fetch a single session with credentials populated (password/keyData/
+  /// passphrase). Returns null if the session no longer exists in the DB.
+  ///
+  /// The in-memory cache stores credential-free copies to shrink the window
+  /// in which plaintext secrets live on the Dart heap. Connect/edit/export
+  /// flows call this right before they need the secrets and drop the
+  /// reference as soon as the consumer is done with it.
+  Future<Session?> loadWithCredentials(String id) async {
+    final db = _db;
+    if (db == null) return null;
+    final row = await db.sessionDao.getById(id);
+    if (row == null) return null;
+    return dbSessionToSession(row, _folderMap, withCredentials: true);
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────
@@ -179,7 +197,11 @@ class SessionStore {
   }
 
   Future<Session> duplicateSession(String id) async {
-    final original = get(id);
+    // The in-memory [get] result has no credentials; fetch the full row so
+    // the duplicate inherits the password / keyData / passphrase. Fall back
+    // to the cached entry when the DB isn't wired (e.g. early test setup).
+    final full = await loadWithCredentials(id);
+    final original = full ?? get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
     final copy = original.duplicate();
     await add(copy);

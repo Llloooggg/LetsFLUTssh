@@ -7,6 +7,7 @@ import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/key_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
 import '../workspace/workspace_controller.dart';
@@ -45,26 +46,33 @@ class SessionConnect {
   }
 
   /// Validate session and create a background connection, or return null on failure.
+  ///
+  /// The [session] passed in comes from the in-memory cache and carries no
+  /// credentials — we reload it from the DB here so the plaintext password/
+  /// keyData/passphrase are only on the Dart heap for the duration of the
+  /// connect handshake, not for the whole app lifetime.
   static Future<Connection?> _createConnection(
     BuildContext context,
     WidgetRef ref,
     Session session,
     String logLabel,
   ) async {
-    if (!session.isValid) {
-      _showIncompleteMessage(context);
+    final store = ref.read(sessionStoreProvider);
+    final fresh = await store.loadWithCredentials(session.id) ?? session;
+    if (!fresh.isValid) {
+      if (context.mounted) _showIncompleteMessage(context);
       return null;
     }
     AppLogger.instance.log(
-      'Opening $logLabel for ${session.label}',
+      'Opening $logLabel for ${fresh.label}',
       name: 'Session',
     );
-    final config = await _resolveConfig(ref, session);
+    final config = await _resolveConfig(ref, fresh);
     final manager = ref.read(connectionManagerProvider);
     return manager.connectAsync(
       config,
-      label: session.label.isNotEmpty ? session.label : session.displayName,
-      sessionId: session.id,
+      label: fresh.label.isNotEmpty ? fresh.label : fresh.displayName,
+      sessionId: fresh.id,
     );
   }
 

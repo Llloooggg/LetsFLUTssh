@@ -10,8 +10,20 @@ import 'database.dart';
 // Session ↔ DB mapping
 // ---------------------------------------------------------------------------
 
-/// Convert [DbSession] to domain [Session] using a folder map for path resolution.
-Session dbSessionToSession(DbSession db, Map<String, DbFolder> folderMap) {
+/// Convert [DbSession] to domain [Session] using a folder map for path
+/// resolution.
+///
+/// When [withCredentials] is false (default), the returned `SessionAuth`
+/// carries empty `password`/`keyData`/`passphrase` strings — the DB row's
+/// plaintext secrets are never copied into the in-memory cache. Callers
+/// that genuinely need credentials (connect, edit, export) must pass
+/// `withCredentials: true` at the moment of use, so secrets spend as
+/// little time on the Dart heap as possible.
+Session dbSessionToSession(
+  DbSession db,
+  Map<String, DbFolder> folderMap, {
+  bool withCredentials = false,
+}) {
   return Session(
     id: db.id,
     label: db.label,
@@ -23,10 +35,10 @@ Session dbSessionToSession(DbSession db, Map<String, DbFolder> folderMap) {
         orElse: () => AuthType.password,
       ),
       keyId: db.keyId ?? '',
-      password: db.password,
+      password: withCredentials ? db.password : '',
       keyPath: db.keyPath,
-      keyData: db.keyData,
-      passphrase: db.passphrase,
+      keyData: withCredentials ? db.keyData : '',
+      passphrase: withCredentials ? db.passphrase : '',
     ),
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,

@@ -117,7 +117,10 @@ void main() {
   });
 
   group('SessionStore — credentials roundtrip', () {
-    test('credentials persist through add/load', () async {
+    test('credentials persist in DB but not in bulk-loaded cache', () async {
+      // Lazy-load contract: [load] strips credentials from cached Sessions
+      // to minimize their RAM footprint. A separate [loadWithCredentials]
+      // call re-hydrates them from the DB row.
       await store.load();
       await store.add(
         makeSession(
@@ -130,9 +133,14 @@ void main() {
 
       final store2 = SessionStore()..setDatabase(db);
       final loaded = await store2.load();
-      expect(loaded.first.password, 'secret');
-      expect(loaded.first.keyData, 'PEM-DATA');
-      expect(loaded.first.passphrase, 'pass');
+      expect(loaded.first.password, '');
+      expect(loaded.first.keyData, '');
+      expect(loaded.first.passphrase, '');
+
+      final full = await store2.loadWithCredentials('s1');
+      expect(full!.password, 'secret');
+      expect(full.keyData, 'PEM-DATA');
+      expect(full.passphrase, 'pass');
     });
   });
 
