@@ -765,7 +765,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     WidgetRef ref,
     Session session,
   ) async {
-    final result = await SessionEditDialog.show(context, session: session);
+    // In-memory cached [session] has no credentials (lazy-load). Reload
+    // from DB so the edit form pre-fills password/keyData/passphrase
+    // correctly; fall back to the bare cache entry if the row vanished.
+    final store = ref.read(sessionStoreProvider);
+    final full = await store.loadWithCredentials(session.id) ?? session;
+    if (!context.mounted) return;
+    final result = await SessionEditDialog.show(context, session: full);
     if (result == null) return;
     if (result is SaveResult) {
       await ref.read(sessionProvider.notifier).update(result.session);
@@ -1197,12 +1203,27 @@ class _PanelHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Mobile touchscreens need a bigger hit target and a visible affordance
+    // — the 24px transparent icon buttons we use on desktop don't read as
+    // tappable on a phone. Grow the hit target, add a filled background and
+    // a light border so both actions look like buttons.
+    final mobile = isMobilePlatform;
+    final boxSize = mobile ? 40.0 : 24.0;
+    final iconSize = mobile ? 22.0 : 16.0;
+    final folderIconSize = mobile ? 20.0 : 14.0;
+    const borderRadius = AppTheme.radiusSm;
+    final buttonBg = mobile ? AppTheme.bg3 : null;
     return Semantics(
       header: true,
       label: S.of(context).sessionsHeader,
       child: Container(
-        height: AppTheme.barHeightSm,
-        padding: const EdgeInsets.only(left: 12, right: 2),
+        height: mobile ? 52.0 : AppTheme.barHeightSm,
+        padding: EdgeInsets.only(
+          left: 12,
+          right: mobile ? 8 : 2,
+          top: mobile ? 6 : 0,
+          bottom: mobile ? 6 : 0,
+        ),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: theme.dividerColor)),
         ),
@@ -1225,15 +1246,20 @@ class _PanelHeader extends StatelessWidget {
               icon: Icons.create_new_folder,
               onTap: onAddFolder,
               tooltip: S.of(context).newFolder,
-              size: 14,
-              boxSize: 24,
+              size: folderIconSize,
+              boxSize: boxSize,
+              backgroundColor: buttonBg,
+              borderRadius: borderRadius,
             ),
+            if (mobile) const SizedBox(width: 8),
             AppIconButton(
               icon: Icons.add,
               onTap: onAddSession,
               tooltip: S.of(context).newConnection,
-              size: 16,
-              boxSize: 24,
+              size: iconSize,
+              boxSize: boxSize,
+              backgroundColor: buttonBg,
+              borderRadius: borderRadius,
             ),
           ],
         ),

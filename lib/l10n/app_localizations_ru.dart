@@ -1138,8 +1138,92 @@ class SRu extends S {
       'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Системный выбор папки недоступен. Попробуйте другое расположение или проверьте разрешения на доступ к хранилищу.';
+
+  @override
+  String get biometricUnlockPrompt => 'Разблокировать LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Разблокировка по биометрии';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Не вводить мастер-пароль при запуске приложения.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Биометрическая разблокировка недоступна на этом устройстве.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Не удалось включить биометрическую разблокировку.';
+
+  @override
+  String get biometricEnabled => 'Биометрическая разблокировка включена';
+
+  @override
+  String get biometricDisabled => 'Биометрическая разблокировка отключена';
+
+  @override
+  String get currentPasswordIncorrect => 'Неверный текущий пароль';
+
+  @override
+  String get wrongPassword => 'Неверный пароль';
+
+  @override
+  String get useKeychain => 'Шифровать ключом ОС';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Хранить ключ базы данных в системном хранилище учётных данных. Выкл. = база данных без шифрования.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh заблокирован';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Введите мастер-пароль или используйте биометрию, чтобы продолжить.';
+
+  @override
+  String get unlock => 'Разблокировать';
+
+  @override
+  String get autoLockTitle => 'Автоблокировка при бездействии';
+
+  @override
+  String get autoLockSubtitle =>
+      'Очищать ключ в памяти и блокировать интерфейс после указанного периода бездействия.';
+
+  @override
+  String get autoLockOff => 'Выкл.';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes минуты',
+      many: '$minutes минут',
+      few: '$minutes минуты',
+      one: '$minutes минута',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Неверный мастер-пароль или повреждённый архив .lfs';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Архив слишком большой ($sizeMb МБ). Лимит — $limitMb МБ — прерывание до расшифровки для защиты памяти.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Архив использует схему v$found, а эта сборка поддерживает только до v$supported. Обновите приложение для импорта.';
+  }
 
   @override
   String get progressReadingArchive => 'Чтение архива…';
@@ -1587,9 +1671,6 @@ class SRu extends S {
 
   @override
   String get rememberPassphrase => 'Запомнить для этой сессии';
-
-  @override
-  String get unlock => 'Разблокировать';
 
   @override
   String get masterPasswordSubtitle =>

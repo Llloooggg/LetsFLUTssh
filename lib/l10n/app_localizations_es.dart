@@ -1144,8 +1144,90 @@ class SEs extends S {
       'Error al descifrar las credenciales. El archivo de clave puede estar dañado.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'El selector de carpetas del sistema no está disponible. Pruebe otra ubicación o verifique los permisos de almacenamiento de la aplicación.';
+
+  @override
+  String get biometricUnlockPrompt => 'Desbloquear LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Desbloquear con biometría';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Evita escribir la contraseña maestra al iniciar la aplicación.';
+
+  @override
+  String get biometricNotAvailable =>
+      'El desbloqueo biométrico no está disponible en este dispositivo.';
+
+  @override
+  String get biometricEnableFailed =>
+      'No se pudo activar el desbloqueo biométrico.';
+
+  @override
+  String get biometricEnabled => 'Desbloqueo biométrico activado';
+
+  @override
+  String get biometricDisabled => 'Desbloqueo biométrico desactivado';
+
+  @override
+  String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';
+
+  @override
+  String get wrongPassword => 'Contraseña incorrecta';
+
+  @override
+  String get useKeychain => 'Cifrar con el llavero del sistema';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Guardar la clave de la base de datos en el almacén de credenciales del sistema. Desactivado = base de datos sin cifrar.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Introduce la contraseña maestra o usa la biometría para continuar.';
+
+  @override
+  String get unlock => 'Desbloquear';
+
+  @override
+  String get autoLockTitle => 'Bloqueo automático por inactividad';
+
+  @override
+  String get autoLockSubtitle =>
+      'Borrar la clave en memoria y bloquear la interfaz tras este periodo de inactividad.';
+
+  @override
+  String get autoLockOff => 'Desactivado';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutos',
+      one: '$minutes minuto',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Contraseña maestra incorrecta o archivo .lfs dañado';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'El archivo es demasiado grande ($sizeMb MB). El límite es de $limitMb MB: cancelado antes del descifrado para proteger la memoria.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'El archivo usa el esquema v$found, pero esta versión solo admite hasta v$supported. Actualiza la aplicación para importarlo.';
+  }
 
   @override
   String get progressReadingArchive => 'Leyendo archivo…';
@@ -1592,9 +1674,6 @@ class SEs extends S {
 
   @override
   String get rememberPassphrase => 'Recordar para esta sesión';
-
-  @override
-  String get unlock => 'Desbloquear';
 
   @override
   String get masterPasswordSubtitle =>

@@ -55,6 +55,20 @@ class OpenSshConfigImporter {
     return path;
   }
 
+  /// Reject paths that contain `..` segments — a maliciously crafted
+  /// `~/.ssh/config` could point `IdentityFile` at `~/../../etc/shadow` or
+  /// similar, coercing the importer into reading sensitive files under the
+  /// current user. Absolute paths the user wrote intentionally are still
+  /// allowed (the user is trusted to pick their own key locations), but
+  /// traversal segments inside a path are never legitimate for a keyfile.
+  static bool isSuspiciousPath(String path) {
+    final normalized = path.replaceAll('\\', '/');
+    for (final segment in normalized.split('/')) {
+      if (segment == '..') return true;
+    }
+    return false;
+  }
+
   /// Build an import preview from raw config content.
   ///
   /// [folderLabel] is where imported sessions land — recommended to include
@@ -126,6 +140,13 @@ class OpenSshConfigImporter {
   ) {
     if (entry.identityFiles.isEmpty) return ('', false);
     for (final rawPath in entry.identityFiles) {
+      if (isSuspiciousPath(rawPath)) {
+        AppLogger.instance.log(
+          'Rejected IdentityFile with traversal segments: $rawPath',
+          name: 'SshConfigImport',
+        );
+        continue;
+      }
       final path = expandHome(rawPath);
       final pem = readPem(path);
       if (pem == null) continue;

@@ -1132,8 +1132,93 @@ class SAr extends S {
       'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'منتقي المجلدات في النظام غير متاح. جرّب موقعاً آخر أو تحقق من أذونات تخزين التطبيق.';
+
+  @override
+  String get biometricUnlockPrompt => 'فتح قفل LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'الفتح بالمقاييس الحيوية';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'تجنّب كتابة كلمة المرور الرئيسية عند تشغيل التطبيق.';
+
+  @override
+  String get biometricNotAvailable =>
+      'الفتح بالمقاييس الحيوية غير متاح على هذا الجهاز.';
+
+  @override
+  String get biometricEnableFailed => 'تعذّر تفعيل الفتح بالمقاييس الحيوية.';
+
+  @override
+  String get biometricEnabled => 'تم تفعيل الفتح بالمقاييس الحيوية';
+
+  @override
+  String get biometricDisabled => 'تم تعطيل الفتح بالمقاييس الحيوية';
+
+  @override
+  String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
+
+  @override
+  String get wrongPassword => 'كلمة مرور خاطئة';
+
+  @override
+  String get useKeychain => 'التشفير باستخدام سلسلة مفاتيح النظام';
+
+  @override
+  String get useKeychainSubtitle =>
+      'تخزين مفتاح قاعدة البيانات في مخزن بيانات الاعتماد بالنظام. إيقاف = قاعدة بيانات بنص صريح.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh مُقفل';
+
+  @override
+  String get lockScreenSubtitle =>
+      'أدخل كلمة المرور الرئيسية أو استخدم المقاييس الحيوية للمتابعة.';
+
+  @override
+  String get unlock => 'فتح القفل';
+
+  @override
+  String get autoLockTitle => 'القفل التلقائي بعد الخمول';
+
+  @override
+  String get autoLockSubtitle =>
+      'تصفير المفتاح من الذاكرة وقفل الواجهة بعد هذه المدة من الخمول.';
+
+  @override
+  String get autoLockOff => 'معطّل';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      many: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+      zero: '$minutes دقيقة',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'الأرشيف كبير جدًا ($sizeMb ميجابايت). الحد الأقصى هو $limitMb ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'يستخدم الأرشيف المخطط v$found، لكن هذا الإصدار يدعم فقط حتى v$supported. قم بتحديث التطبيق لاستيراده.';
+  }
 
   @override
   String get progressReadingArchive => 'قراءة الأرشيف…';
@@ -1574,9 +1659,6 @@ class SAr extends S {
 
   @override
   String get rememberPassphrase => 'تذكر لهذه الجلسة';
-
-  @override
-  String get unlock => 'فتح القفل';
 
   @override
   String get masterPasswordSubtitle =>

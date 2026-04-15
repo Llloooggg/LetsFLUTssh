@@ -1147,8 +1147,90 @@ class SDe extends S {
       'Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Die System-Ordnerauswahl ist nicht verfügbar. Versuchen Sie einen anderen Speicherort oder überprüfen Sie die Speicherberechtigungen der App.';
+
+  @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh entsperren';
+
+  @override
+  String get biometricUnlockTitle => 'Mit Biometrie entsperren';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Master-Passwort beim Start der App nicht eingeben müssen.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Biometrische Entsperrung ist auf diesem Gerät nicht verfügbar.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Biometrische Entsperrung konnte nicht aktiviert werden.';
+
+  @override
+  String get biometricEnabled => 'Biometrische Entsperrung aktiviert';
+
+  @override
+  String get biometricDisabled => 'Biometrische Entsperrung deaktiviert';
+
+  @override
+  String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';
+
+  @override
+  String get wrongPassword => 'Falsches Passwort';
+
+  @override
+  String get useKeychain => 'Mit Betriebssystem-Schlüsselbund verschlüsseln';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Den Datenbankschlüssel im Anmeldeinformationsspeicher des Systems ablegen. Aus = Klartext-Datenbank.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh ist gesperrt';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.';
+
+  @override
+  String get unlock => 'Entsperren';
+
+  @override
+  String get autoLockTitle => 'Automatisch sperren bei Inaktivität';
+
+  @override
+  String get autoLockSubtitle =>
+      'Den Schlüssel im Speicher löschen und die Oberfläche sperren, wenn so lange inaktiv.';
+
+  @override
+  String get autoLockOff => 'Aus';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes Minuten',
+      one: '$minutes Minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Archiv ist zu groß ($sizeMb MB). Das Limit beträgt $limitMb MB – Abbruch vor der Entschlüsselung zum Schutz des Speichers.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Archiv verwendet Schema v$found, aber dieser Build unterstützt nur bis v$supported. Aktualisieren Sie die App, um es zu importieren.';
+  }
 
   @override
   String get progressReadingArchive => 'Archiv wird gelesen…';
@@ -1596,9 +1678,6 @@ class SDe extends S {
 
   @override
   String get rememberPassphrase => 'Für diese Sitzung merken';
-
-  @override
-  String get unlock => 'Entsperren';
 
   @override
   String get masterPasswordSubtitle =>

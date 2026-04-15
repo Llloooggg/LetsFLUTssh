@@ -1149,8 +1149,90 @@ class SFr extends S {
       'Impossible de déchiffrer les identifiants. Le fichier de clé est peut-être corrompu.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Le sélecteur de dossier système n\'est pas disponible. Essayez un autre emplacement ou vérifiez les autorisations de stockage de l\'application.';
+
+  @override
+  String get biometricUnlockPrompt => 'Déverrouiller LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Déverrouiller par biométrie';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Évitez de saisir le mot de passe maître au lancement de l\'application.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Le déverrouillage biométrique n\'est pas disponible sur cet appareil.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Impossible d\'activer le déverrouillage biométrique.';
+
+  @override
+  String get biometricEnabled => 'Déverrouillage biométrique activé';
+
+  @override
+  String get biometricDisabled => 'Déverrouillage biométrique désactivé';
+
+  @override
+  String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';
+
+  @override
+  String get wrongPassword => 'Mot de passe incorrect';
+
+  @override
+  String get useKeychain => 'Chiffrer avec le trousseau du système';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Stocker la clé de la base de données dans le coffre d\'identifiants du système. Désactivé = base de données en clair.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh est verrouillé';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Saisissez le mot de passe maître ou utilisez la biométrie pour continuer.';
+
+  @override
+  String get unlock => 'Déverrouiller';
+
+  @override
+  String get autoLockTitle => 'Verrouillage automatique après inactivité';
+
+  @override
+  String get autoLockSubtitle =>
+      'Effacer la clé en mémoire et verrouiller l’interface après cette durée d’inactivité.';
+
+  @override
+  String get autoLockOff => 'Désactivé';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Mot de passe maître incorrect ou archive .lfs corrompue';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'L\'archive est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu avant le déchiffrement pour protéger la mémoire.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'L\'archive utilise le schéma v$found, mais cette version ne prend en charge que jusqu\'à v$supported. Mettez à jour l\'application pour l\'importer.';
+  }
 
   @override
   String get progressReadingArchive => 'Lecture de l\'archive…';
@@ -1598,9 +1680,6 @@ class SFr extends S {
 
   @override
   String get rememberPassphrase => 'Retenir pour cette session';
-
-  @override
-  String get unlock => 'Déverrouiller';
 
   @override
   String get masterPasswordSubtitle =>

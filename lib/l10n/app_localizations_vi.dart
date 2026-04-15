@@ -1135,7 +1135,87 @@ class SVi extends S {
       'Không thể giải mã thông tin xác thực. Tệp khóa có thể bị hỏng.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Bộ chọn thư mục của hệ thống không khả dụng. Hãy thử vị trí khác hoặc kiểm tra quyền lưu trữ của ứng dụng.';
+
+  @override
+  String get biometricUnlockPrompt => 'Mở khóa LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Mở khóa bằng sinh trắc học';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Không cần nhập mật khẩu chính khi khởi động ứng dụng.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Mở khóa sinh trắc học không khả dụng trên thiết bị này.';
+
+  @override
+  String get biometricEnableFailed => 'Không thể bật mở khóa sinh trắc học.';
+
+  @override
+  String get biometricEnabled => 'Đã bật mở khóa sinh trắc học';
+
+  @override
+  String get biometricDisabled => 'Đã tắt mở khóa sinh trắc học';
+
+  @override
+  String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';
+
+  @override
+  String get wrongPassword => 'Mật khẩu không đúng';
+
+  @override
+  String get useKeychain => 'Mã hoá bằng keychain của hệ điều hành';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Lưu khoá cơ sở dữ liệu trong kho thông tin đăng nhập của hệ thống. Tắt = cơ sở dữ liệu ở dạng văn bản thuần.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh đã bị khóa';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Nhập mật khẩu chính hoặc dùng sinh trắc học để tiếp tục.';
+
+  @override
+  String get unlock => 'Mở khóa';
+
+  @override
+  String get autoLockTitle => 'Tự động khóa khi không hoạt động';
+
+  @override
+  String get autoLockSubtitle =>
+      'Xóa khóa trong bộ nhớ và khóa giao diện sau khoảng thời gian không hoạt động này.';
+
+  @override
+  String get autoLockOff => 'Tắt';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes phút',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Tệp lưu trữ quá lớn ($sizeMb MB). Giới hạn là $limitMb MB — đã hủy trước khi giải mã để bảo vệ bộ nhớ.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Tệp lưu trữ sử dụng lược đồ v$found, nhưng bản dựng này chỉ hỗ trợ đến v$supported. Hãy cập nhật ứng dụng để nhập nó.';
+  }
 
   @override
   String get progressReadingArchive => 'Đang đọc kho lưu trữ…';
@@ -1573,9 +1653,6 @@ class SVi extends S {
 
   @override
   String get rememberPassphrase => 'Ghi nhớ cho phiên này';
-
-  @override
-  String get unlock => 'Mở khóa';
 
   @override
   String get masterPasswordSubtitle =>

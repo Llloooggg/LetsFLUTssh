@@ -1114,7 +1114,81 @@ class SZh extends S {
   String get errDecryptionFailed => '凭据解密失败。密钥文件可能已损坏。';
 
   @override
+  String get errExportPickerUnavailable => '系统文件夹选择器不可用。请尝试其他位置或检查应用的存储权限。';
+
+  @override
+  String get biometricUnlockPrompt => '解锁 LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => '使用生物识别解锁';
+
+  @override
+  String get biometricUnlockSubtitle => '启动应用时无需输入主密码。';
+
+  @override
+  String get biometricNotAvailable => '此设备不支持生物识别解锁。';
+
+  @override
+  String get biometricEnableFailed => '无法启用生物识别解锁。';
+
+  @override
+  String get biometricEnabled => '已启用生物识别解锁';
+
+  @override
+  String get biometricDisabled => '已停用生物识别解锁';
+
+  @override
+  String get currentPasswordIncorrect => '当前密码不正确';
+
+  @override
+  String get wrongPassword => '密码错误';
+
+  @override
+  String get useKeychain => '使用操作系统钥匙串加密';
+
+  @override
+  String get useKeychainSubtitle => '将数据库密钥保存在系统凭据存储中。关闭 = 明文数据库。';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh 已锁定';
+
+  @override
+  String get lockScreenSubtitle => '输入主密码或使用生物识别以继续。';
+
+  @override
+  String get unlock => '解锁';
+
+  @override
+  String get autoLockTitle => '闲置后自动锁定';
+
+  @override
+  String get autoLockSubtitle => '在闲置达到此时长后清除内存中的密钥并锁定界面。';
+
+  @override
+  String get autoLockOff => '关闭';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes 分钟',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return '归档过大（$sizeMb MB）。上限为 $limitMb MB — 已在解密前中止以保护内存。';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return '归档使用架构 v$found，但此版本仅支持到 v$supported。请更新应用以导入它。';
+  }
 
   @override
   String get progressReadingArchive => '正在读取归档…';
@@ -1545,9 +1619,6 @@ class SZh extends S {
 
   @override
   String get rememberPassphrase => '在此会话中记住';
-
-  @override
-  String get unlock => '解锁';
 
   @override
   String get masterPasswordSubtitle => '使用密码保护已保存的凭据';

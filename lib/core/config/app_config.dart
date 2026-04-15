@@ -233,10 +233,18 @@ class BehaviorConfig {
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
 
+  /// Auto-lock timeout in minutes. `0` disables auto-lock. Any positive
+  /// value schedules a lock after that many minutes of user inactivity —
+  /// the in-memory DB key is zeroed and a lock screen blocks the UI until
+  /// the user re-authenticates. Only meaningful in master-password mode;
+  /// settings UI hides the control otherwise.
+  final int autoLockMinutes;
+
   const BehaviorConfig({
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
+    this.autoLockMinutes = 0,
   });
 
   static const defaults = BehaviorConfig();
@@ -248,12 +256,14 @@ class BehaviorConfig {
     bool? enableLogging,
     bool? checkUpdatesOnStart,
     Object? skippedVersion = _unset,
+    int? autoLockMinutes,
   }) => BehaviorConfig(
     enableLogging: enableLogging ?? this.enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
     skippedVersion: identical(skippedVersion, _unset)
         ? this.skippedVersion
         : skippedVersion as String?,
+    autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
   );
 
   @override
@@ -262,16 +272,22 @@ class BehaviorConfig {
       other is BehaviorConfig &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion;
+          skippedVersion == other.skippedVersion &&
+          autoLockMinutes == other.autoLockMinutes;
 
   @override
-  int get hashCode =>
-      Object.hash(enableLogging, checkUpdatesOnStart, skippedVersion);
+  int get hashCode => Object.hash(
+    enableLogging,
+    checkUpdatesOnStart,
+    skippedVersion,
+    autoLockMinutes,
+  );
 
   Map<String, dynamic> toJson() => {
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
+    'auto_lock_minutes': autoLockMinutes,
   };
 
   factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
@@ -281,6 +297,8 @@ class BehaviorConfig {
       checkUpdatesOnStart:
           json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
+      autoLockMinutes:
+          (json['auto_lock_minutes'] as num?)?.toInt() ?? d.autoLockMinutes,
     );
   }
 }

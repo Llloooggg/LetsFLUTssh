@@ -15,6 +15,8 @@ import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
 import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
+import 'core/security/lock_state.dart';
+import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
 import 'core/security/security_level.dart';
@@ -26,6 +28,8 @@ import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
+import 'widgets/auto_lock_detector.dart';
+import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
@@ -126,6 +130,10 @@ Future<void> main() async {
   };
 
   AppLogger.instance.log('App starting', name: 'App');
+
+  // Disable core dumps and ptrace attach as early as possible — before any
+  // secrets touch RAM. Best-effort, swallowed on failure.
+  ProcessHardening.applyOnStartup();
 
   if (plat.isDesktopPlatform) {
     singleInstanceLock = SingleInstance();
@@ -338,8 +346,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (dbExists) {
       // Existing v4 install — unlock with stored credentials.
 
-      // 1. Master password — show unlock dialog.
+      // 1. Master password — try biometric unlock first, fall back to dialog.
       if (await manager.isEnabled()) {
+        final bioKey = await _tryBiometricUnlock();
+        if (bioKey != null) {
+          _injectDatabase(key: bioKey, level: SecurityLevel.masterPassword);
+          AppLogger.instance.log(
+            'Master password unlocked via biometrics',
+            name: 'App',
+          );
+          return;
+        }
         if (!mounted) return;
         final derivedKey = await _showUnlockDialog(manager);
         if (derivedKey != null) {
@@ -434,6 +451,29 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
   }
 
+  /// Attempt to unlock with biometrics. Returns the cached DB key on
+  /// success, null when biometric unlock isn't configured / device doesn't
+  /// support it / user cancelled — in which case the caller falls back to
+  /// the normal master-password dialog.
+  Future<Uint8List?> _tryBiometricUnlock() async {
+    final vault = ref.read(biometricKeyVaultProvider);
+    if (!await vault.isStored()) return null;
+    final bio = ref.read(biometricAuthProvider);
+    if (!await bio.isAvailable()) return null;
+    final reason = _localizedBiometricReason();
+    final ok = await bio.authenticate(reason);
+    if (!ok) return null;
+    return vault.read();
+  }
+
+  /// Resolve the biometric prompt reason string synchronously. Kept
+  /// separate so the `BuildContext` never escapes across an await.
+  String _localizedBiometricReason() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return 'Unlock LetsFLUTssh';
+    return S.of(ctx).biometricUnlockPrompt;
+  }
+
   /// Show unlock dialog using the navigator key context.
   ///
   /// Separated to avoid the `use_build_context_synchronously` lint — the
@@ -512,11 +552,22 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       themeAnimationDuration: Duration.zero,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
+        final locked = ref.watch(lockStateProvider);
         return Directionality(
           textDirection: TextDirection.ltr,
           child: MediaQuery(
             data: mediaQuery.copyWith(textScaler: TextScaler.linear(uiScale)),
-            child: child!,
+            // AutoLockDetector wraps the real UI so every pointer/key
+            // event resets the idle timer. LockScreen overlays on top
+            // with zero hit-test for the app beneath while locked.
+            child: AutoLockDetector(
+              child: Stack(
+                children: [
+                  child!,
+                  if (locked) const Positioned.fill(child: LockScreen()),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -1076,6 +1127,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       importKnownHosts: (content) async {
         await knownHostsMgr.importFromString(content);
       },
+      runInTransaction: store.database == null
+          ? null
+          : <T>(body) => store.database!.transaction(body),
     );
   }
 }

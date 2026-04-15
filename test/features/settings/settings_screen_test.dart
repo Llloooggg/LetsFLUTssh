@@ -560,7 +560,22 @@ void main() {
   // Connection section
   // ---------------------------------------------------------------------------
   group('SettingsScreen — Connection section', () {
+    // Expand the per-test viewport so every Connection-section row fits
+    // on screen. The default 800×600 is too short now that Appearance +
+    // Security sections above Connection eat the initial viewport, and
+    // tap() on an offscreen widget emits a "hit test would not land"
+    // warning even when the finder matches. Setting this from setUp()
+    // is a no-op (tester.view is a per-test handle), so a helper called
+    // from each test body does the job + auto-resets via addTearDown.
+    void useTallViewport(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1600, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
     testWidgets('renders Connection section with defaults', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       expect(find.text('Connection'), findsOneWidget);
       expect(find.text('Keep-Alive Interval (sec)'), findsOneWidget);
@@ -572,6 +587,7 @@ void main() {
     });
 
     testWidgets('custom connection values display correctly', (tester) async {
+      useTallViewport(tester);
       final config = AppConfig.defaults.copyWith(
         ssh: AppConfig.defaults.ssh.copyWith(
           keepAliveSec: 60,
@@ -586,8 +602,10 @@ void main() {
     });
 
     testWidgets('keepalive field accepts valid value', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '30');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '60');
@@ -597,8 +615,10 @@ void main() {
     });
 
     testWidgets('keepalive accepts 0 (min boundary)', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '30');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '0');
@@ -608,8 +628,10 @@ void main() {
     });
 
     testWidgets('timeout field accepts valid value', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '20');
@@ -619,8 +641,10 @@ void main() {
     });
 
     testWidgets('timeout min boundary 1', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '1');
@@ -630,8 +654,10 @@ void main() {
     });
 
     testWidgets('timeout above max rejected', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '10');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '999');
@@ -642,11 +668,13 @@ void main() {
     testWidgets('SSH timeout with custom config accepts valid value', (
       tester,
     ) async {
+      useTallViewport(tester);
       final config = AppConfig.defaults.copyWith(
         ssh: AppConfig.defaults.ssh.copyWith(sshTimeoutSec: 15),
       );
       await tester.pumpWidget(buildFullApp(initialConfig: config));
       final field = find.widgetWithText(TextFormField, '15');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '30');
@@ -656,8 +684,10 @@ void main() {
     });
 
     testWidgets('port field accepts valid value', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '22');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '2222');
@@ -667,8 +697,10 @@ void main() {
     });
 
     testWidgets('port max boundary 65535', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildApp());
       final field = find.widgetWithText(TextFormField, '22');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '65535');
@@ -678,8 +710,10 @@ void main() {
     });
 
     testWidgets('port custom value 8022', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(buildFullApp());
       final field = find.widgetWithText(TextFormField, '22');
+      await tester.ensureVisible(field);
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '8022');

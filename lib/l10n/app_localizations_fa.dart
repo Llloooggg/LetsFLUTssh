@@ -1135,7 +1135,89 @@ class SFa extends S {
       'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'انتخابگر پوشهٔ سیستم در دسترس نیست. مکان دیگری را امتحان کنید یا مجوزهای ذخیره‌سازی برنامه را بررسی کنید.';
+
+  @override
+  String get biometricUnlockPrompt => 'باز کردن قفل LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'باز کردن قفل با زیست‌سنجی';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'هنگام اجرای برنامه نیازی به تایپ گذرواژهٔ اصلی نباشد.';
+
+  @override
+  String get biometricNotAvailable =>
+      'باز کردن قفل زیست‌سنجی روی این دستگاه در دسترس نیست.';
+
+  @override
+  String get biometricEnableFailed =>
+      'فعال‌سازی باز کردن قفل زیست‌سنجی ممکن نشد.';
+
+  @override
+  String get biometricEnabled => 'باز کردن قفل زیست‌سنجی فعال شد';
+
+  @override
+  String get biometricDisabled => 'باز کردن قفل زیست‌سنجی غیرفعال شد';
+
+  @override
+  String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
+
+  @override
+  String get wrongPassword => 'گذرواژهٔ نادرست';
+
+  @override
+  String get useKeychain => 'رمزگذاری با کی‌چین سیستم‌عامل';
+
+  @override
+  String get useKeychainSubtitle =>
+      'کلید پایگاه داده در مخزن اعتبارنامهٔ سیستم ذخیره می‌شود. خاموش = پایگاه داده به‌صورت متن ساده.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh قفل است';
+
+  @override
+  String get lockScreenSubtitle =>
+      'برای ادامه، گذرواژهٔ اصلی را وارد کنید یا از زیست‌سنجی استفاده کنید.';
+
+  @override
+  String get unlock => 'باز کردن قفل';
+
+  @override
+  String get autoLockTitle => 'قفل خودکار پس از بی‌کاری';
+
+  @override
+  String get autoLockSubtitle =>
+      'پس از این مدت بی‌کاری، کلید موجود در حافظه را صفر کرده و رابط را قفل کنید.';
+
+  @override
+  String get autoLockOff => 'خاموش';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقیقه',
+      one: '$minutes دقیقه',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'بایگانی بسیار بزرگ است ($sizeMb مگابایت). محدودیت $limitMb مگابایت است — برای محافظت از حافظه، پیش از رمزگشایی لغو شد.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'بایگانی از طرح v$found استفاده می‌کند، اما این نسخه فقط تا v$supported را پشتیبانی می‌کند. برای وارد کردن آن، برنامه را به‌روزرسانی کنید.';
+  }
 
   @override
   String get progressReadingArchive => 'خواندن بایگانی…';
@@ -1575,9 +1657,6 @@ class SFa extends S {
 
   @override
   String get rememberPassphrase => 'در این جلسه به خاطر بسپار';
-
-  @override
-  String get unlock => 'باز کردن قفل';
 
   @override
   String get masterPasswordSubtitle =>

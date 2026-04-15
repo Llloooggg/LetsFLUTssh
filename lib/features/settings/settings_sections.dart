@@ -5,15 +5,22 @@ part of 'settings_screen.dart';
 // transfer, data (export/import/QR), updates, about
 // ═══════════════════════════════════════════════════════════════════
 
-/// Resolve keyId → keyData for sessions that reference the key store.
-/// Returns new list with resolved sessions (original list unchanged).
+/// Hydrate [sessions] with on-disk credentials and resolve keyId → keyData.
+///
+/// The incoming list comes from the in-memory session cache, which strips
+/// password / keyData / passphrase to minimize their RAM footprint. Export
+/// needs the full credential set, so we reload each session from the DB
+/// through [SessionStore.loadWithCredentials] before composing the archive.
+/// Key-ID references are then expanded to embedded `keyData` as before.
 Future<List<Session>> _resolveSessionKeys(
   WidgetRef ref,
   List<Session> sessions,
 ) async {
+  final store = ref.read(sessionStoreProvider);
   final keyStore = ref.read(keyStoreProvider);
   final resolved = <Session>[];
-  for (final s in sessions) {
+  for (final cached in sessions) {
+    final s = await store.loadWithCredentials(cached.id) ?? cached;
     if (s.keyId.isNotEmpty) {
       final entry = await keyStore.get(s.keyId);
       if (entry != null && entry.privateKey.isNotEmpty) {
@@ -174,6 +181,8 @@ class _SecuritySection extends ConsumerStatefulWidget {
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   bool? _masterPasswordEnabled;
   bool? _keychainAvailable;
+  bool? _biometricAvailable;
+  bool? _biometricEnabled;
 
   @override
   void initState() {
@@ -182,18 +191,34 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _checkState() async {
+    // Master password + keychain probes first — _manageMasterPassword()
+    // branches on _masterPasswordEnabled and the wrong branch opens the
+    // "Set password" dialog instead of "Manage options". Biometric probes
+    // (slower, platform-dependent) are kept off this critical path and
+    // published in a second setState below.
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final results = await Future.wait([
+    final coreResults = await Future.wait([
       manager.isEnabled(),
       keyStorage.isAvailable(),
     ]);
-    if (mounted) {
-      setState(() {
-        _masterPasswordEnabled = results[0];
-        _keychainAvailable = results[1];
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _masterPasswordEnabled = coreResults[0];
+      _keychainAvailable = coreResults[1];
+    });
+
+    final bio = ref.read(biometricAuthProvider);
+    final bioVault = ref.read(biometricKeyVaultProvider);
+    final bioResults = await Future.wait([
+      bio.isAvailable(),
+      bioVault.isStored(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = bioResults[0];
+      _biometricEnabled = bioResults[1];
+    });
   }
 
   @override
@@ -222,27 +247,107 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           subtitle: l10n.manageMasterPasswordSubtitle,
           onTap: () => _manageMasterPassword(context),
         ),
-        // Both keychain rows are always rendered so the layout stays stable
-        // — disabled grey when the action doesn't apply (no platform support
-        // or wrong current security level).
-        _ActionTile(
+        // Single keychain toggle — its label and behaviour flip with the
+        // current security level instead of two separate enable/disable
+        // rows. Greyed out when the platform has no keychain available or
+        // when the current mode is masterPassword (in which case the user
+        // changes mode through the master-password manager instead).
+        _Toggle(
+          label: l10n.useKeychain,
+          subtitle: l10n.useKeychainSubtitle,
           icon: Icons.enhanced_encryption,
-          title: l10n.enableKeychain,
-          subtitle: l10n.enableKeychainSubtitle,
-          enabled:
+          value: secState.level == SecurityLevel.keychain,
+          onChanged:
               _keychainAvailable == true &&
-              secState.level == SecurityLevel.plaintext,
-          onTap: () => _enableKeychain(context),
+                  secState.level != SecurityLevel.masterPassword
+              ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
+              : null,
         ),
-        _ActionTile(
-          icon: Icons.no_encryption_gmailerrorred,
-          title: l10n.disableKeychain,
-          subtitle: l10n.disableKeychainSubtitle,
-          enabled: secState.level == SecurityLevel.keychain,
-          onTap: () => _disableKeychain(context),
-        ),
+        // Biometric unlock — only rendered when the device actually has
+        // biometric hardware. Hidden on headless/Linux so the settings
+        // layout stays compact (and so our existing tests that tap by
+        // absolute offset still land on the right widgets).
+        if (_biometricAvailable == true)
+          _Toggle(
+            label: l10n.biometricUnlockTitle,
+            subtitle: l10n.biometricUnlockSubtitle,
+            icon: Icons.fingerprint,
+            value: _biometricEnabled == true,
+            onChanged: secState.level == SecurityLevel.masterPassword
+                ? (v) => _toggleBiometricUnlock(context, v)
+                : null,
+          ),
+        // Auto-lock — only meaningful in masterPassword mode, since lock
+        // zeroes the DB key and relies on the MP prompt (or biometrics)
+        // to restore it. In plaintext/keychain there is no secret to
+        // re-prove, so the row is hidden.
+        if (secState.level == SecurityLevel.masterPassword) _AutoLockTile(),
       ],
     );
+  }
+
+  Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
+    final l10n = S.of(context);
+    if (enable) {
+      // Enabling: ask the user for their master password so we can cache the
+      // DB key in the biometric-gated vault. Without a fresh prompt there's
+      // nothing to cache — the live key in SecurityState is the same bytes,
+      // but requiring the password here matches user expectation and rejects
+      // accidental taps.
+      final currentCtrl = TextEditingController();
+      final password = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+      );
+      if (password == null || !context.mounted) return;
+      final manager = ref.read(masterPasswordProvider);
+      if (!await manager.verify(password)) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: S.of(context).currentPasswordIncorrect,
+            level: ToastLevel.error,
+          );
+        }
+        return;
+      }
+      final bio = ref.read(biometricAuthProvider);
+      final ok = await bio.authenticate(l10n.biometricUnlockPrompt);
+      if (!ok) return;
+      final key = await manager.deriveKey(password);
+      final vault = ref.read(biometricKeyVaultProvider);
+      final stored = await vault.store(key);
+      if (!mounted) return;
+      if (!stored) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: l10n.biometricEnableFailed,
+            level: ToastLevel.error,
+          );
+        }
+        return;
+      }
+      setState(() => _biometricEnabled = true);
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricEnabled,
+          level: ToastLevel.success,
+        );
+      }
+    } else {
+      await ref.read(biometricKeyVaultProvider).clear();
+      if (!mounted) return;
+      setState(() => _biometricEnabled = false);
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricDisabled,
+          level: ToastLevel.success,
+        );
+      }
+    }
   }
 
   String _keychainStatusLabel(S l10n) {
@@ -459,6 +564,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     // Re-encrypt all stores with new key.
     await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+
+    // The cached biometric key (if any) was derived from the OLD password
+    // — it's now stale. Wipe it; user can re-enable biometric unlock from
+    // the toggle afterwards.
+    await ref.read(biometricKeyVaultProvider).clear();
+    if (mounted) setState(() => _biometricEnabled = false);
   }
 
   Future<void> _removeMasterPassword(BuildContext context) async {
@@ -523,6 +634,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (!isValid) {
       throw const MasterPasswordException('Current password is incorrect');
     }
+
+    // Leaving MP mode — any biometric-cached key belongs to a secret that
+    // is about to stop existing. Drop it unconditionally so the user
+    // cannot silently fall back to biometrics that wrap a now-invalid
+    // credential.
+    await ref.read(biometricKeyVaultProvider).clear();
+    if (mounted) setState(() => _biometricEnabled = false);
 
     // Try keychain first, fall back to plaintext.
     final keyStorage = ref.read(secureKeyStorageProvider);
@@ -647,11 +765,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  /// Re-encrypt the database and update global security state.
+  /// Re-encrypt the live database with a new key (or convert to plaintext
+  /// when [key] is null), then update global security state.
   ///
-  /// With drift, encryption is at the DB file level — no per-store re-encryption.
-  /// PRAGMA rekey for live re-encryption is planned for a future release.
+  /// Without the `rekeyDatabase` step the DB file pages stay encrypted under
+  /// the old key while `securityStateProvider` claims the new one — on the
+  /// next app start the DB fails to open. The order is deliberate: run the
+  /// `PRAGMA rekey` first; only flip the provider after it succeeded, so a
+  /// crypto/disk failure leaves the old (working) state intact.
   Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
+    final store = ref.read(sessionStoreProvider);
+    final db = store.database;
+    if (db != null) {
+      await rekeyDatabase(db, key);
+    }
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     } else {
@@ -714,17 +841,16 @@ class _ExportImportTile extends ConsumerWidget {
     return Column(
       children: [
         _ActionTile(
-          icon: Icons.upload_file,
-          title: S.of(context).exportArchive,
-          subtitle: S.of(context).exportArchiveSubtitle,
-          onTap: () => _showExportDialog(context, ref),
-        ),
-        const _QrExportTile(),
-        _ActionTile(
           icon: Icons.download,
           title: S.of(context).importArchive,
           subtitle: S.of(context).importArchiveSubtitle,
           onTap: () => _showImportDialog(context, ref),
+        ),
+        _ActionTile(
+          icon: Icons.upload_file,
+          title: S.of(context).exportArchive,
+          subtitle: S.of(context).exportArchiveSubtitle,
+          onTap: () => _showExportDialog(context, ref),
         ),
         _ActionTile(
           icon: Icons.link,
@@ -732,6 +858,7 @@ class _ExportImportTile extends ConsumerWidget {
           subtitle: S.of(context).importFromLinkSubtitle,
           onTap: () => _showPasteImportLink(context, ref),
         ),
+        const _QrExportTile(),
         _ActionTile(
           icon: Icons.folder_shared_outlined,
           title: S.of(context).importFromSshDir,
@@ -745,25 +872,25 @@ class _ExportImportTile extends ConsumerWidget {
   Future<void> _showPasteImportLink(BuildContext context, WidgetRef ref) async {
     final data = await PasteImportLinkDialog.show(context);
     if (data == null || !context.mounted) return;
+    final choice = await LinkImportPreviewDialog.show(context, payload: data);
+    if (choice == null || !context.mounted) return;
+    final fullImport = ImportResult(
+      sessions: data.sessions,
+      emptyFolders: data.emptyFolders,
+      managerKeys: data.managerKeys,
+      tags: data.tags,
+      sessionTags: data.sessionTags,
+      folderTags: data.folderTags,
+      snippets: data.snippets,
+      sessionSnippets: data.sessionSnippets,
+      config: data.config,
+      mode: choice.mode,
+      knownHostsContent: data.knownHostsContent,
+    );
     await _applyFilteredImport(
       context,
       ref,
-      ImportResult(
-        sessions: data.sessions,
-        emptyFolders: data.emptyFolders,
-        managerKeys: data.managerKeys,
-        tags: data.tags,
-        sessionTags: data.sessionTags,
-        folderTags: data.folderTags,
-        snippets: data.snippets,
-        sessionSnippets: data.sessionSnippets,
-        config: data.config,
-        mode: ImportMode.merge,
-        knownHostsContent: data.knownHostsContent,
-        includeTags: data.tags.isNotEmpty,
-        includeSnippets: data.snippets.isNotEmpty,
-        includeKnownHosts: data.knownHostsContent != null,
-      ),
+      fullImport.filtered(choice.options, choice.mode),
     );
   }
 
@@ -1155,10 +1282,31 @@ class _ExportImportTile extends ConsumerWidget {
       }
     }
     // iOS or Android without all-files access — fall back to SAF picker.
-    final dir = await FilePicker.getDirectoryPath(
-      dialogTitle: title,
-      initialDirectory: initDir,
-    );
+    // SAF can throw (e.g. the system picker crashes or the OEM skin blocks it
+    // entirely). Surface a localized toast instead of bubbling up a raw
+    // `PlatformException`, and log so we have diagnostics on OEMs that ship
+    // broken pickers.
+    String? dir;
+    try {
+      dir = await FilePicker.getDirectoryPath(
+        dialogTitle: title,
+        initialDirectory: initDir,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'SAF getDirectoryPath failed: $e',
+        name: 'Export',
+        error: e,
+      );
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).errExportPickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return null;
+    }
     if (dir == null) return null;
     return p.join(dir, defaultName);
   }
@@ -1313,6 +1461,9 @@ class _ExportImportTile extends ConsumerWidget {
         importKnownHosts: (content) async {
           await knownHostsMgr.importFromString(content);
         },
+        runInTransaction: store.database == null
+            ? null
+            : <T>(body) => store.database!.transaction(body),
       );
       final summary = await importService.applyResult(
         importResult,
@@ -1865,6 +2016,87 @@ class _DataPathTile extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Auto-lock timeout selector. Values are in minutes; 0 means disabled.
+///
+/// Keep the preset list short — power-of-something choices beat a numeric
+/// stepper for a security-sensitive setting where wrong values (too low,
+/// too high) damage UX or security. 5/15/30/60 + Off covers the common
+/// expectations ("step-away-for-a-coffee" up to "lunch break").
+class _AutoLockTile extends ConsumerWidget {
+  static const _presets = [0, 5, 15, 30, 60];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = S.of(context);
+    final current = ref.watch(
+      configProvider.select((c) => c.behavior.autoLockMinutes),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timer_outlined, size: 16, color: AppTheme.fgDim),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.autoLockTitle,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.sm,
+                        color: AppTheme.fg,
+                      ),
+                    ),
+                    Text(
+                      l10n.autoLockSubtitle,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.fgFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            children: _presets.map((m) {
+              final label = m == 0
+                  ? l10n.autoLockOff
+                  : l10n.autoLockMinutesValue(m);
+              final selected = m == current;
+              return ChoiceChip(
+                label: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: selected ? AppTheme.onAccent : AppTheme.fg,
+                  ),
+                ),
+                selected: selected,
+                selectedColor: AppTheme.accent,
+                onSelected: (_) => ref
+                    .read(configProvider.notifier)
+                    .update(
+                      (c) => c.copyWith(
+                        behavior: c.behavior.copyWith(autoLockMinutes: m),
+                      ),
+                    ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

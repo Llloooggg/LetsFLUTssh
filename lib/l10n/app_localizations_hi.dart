@@ -1138,7 +1138,89 @@ class SHi extends S {
       'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
 
   @override
+  String get errExportPickerUnavailable =>
+      'सिस्टम फ़ोल्डर पिकर उपलब्ध नहीं है। कोई अन्य स्थान आज़माएँ या ऐप संग्रहण अनुमतियाँ जाँचें।';
+
+  @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh अनलॉक करें';
+
+  @override
+  String get biometricUnlockTitle => 'बायोमेट्रिक से अनलॉक करें';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'ऐप शुरू करते समय मास्टर पासवर्ड टाइप करने से बचें।';
+
+  @override
+  String get biometricNotAvailable =>
+      'इस डिवाइस पर बायोमेट्रिक अनलॉक उपलब्ध नहीं है।';
+
+  @override
+  String get biometricEnableFailed =>
+      'बायोमेट्रिक अनलॉक चालू नहीं किया जा सका।';
+
+  @override
+  String get biometricEnabled => 'बायोमेट्रिक अनलॉक सक्षम';
+
+  @override
+  String get biometricDisabled => 'बायोमेट्रिक अनलॉक अक्षम';
+
+  @override
+  String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
+
+  @override
+  String get wrongPassword => 'गलत पासवर्ड';
+
+  @override
+  String get useKeychain => 'OS कीचेन से एन्क्रिप्ट करें';
+
+  @override
+  String get useKeychainSubtitle =>
+      'डेटाबेस कुंजी को सिस्टम क्रेडेंशियल स्टोर में रखें। बंद = सादा-पाठ डेटाबेस।';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh लॉक है';
+
+  @override
+  String get lockScreenSubtitle =>
+      'जारी रखने के लिए मास्टर पासवर्ड दर्ज करें या बायोमेट्रिक्स का उपयोग करें।';
+
+  @override
+  String get unlock => 'अनलॉक करें';
+
+  @override
+  String get autoLockTitle => 'निष्क्रियता के बाद ऑटो-लॉक';
+
+  @override
+  String get autoLockSubtitle =>
+      'इतनी देर निष्क्रिय रहने पर मेमोरी में कुंजी मिटा दें और UI को लॉक कर दें।';
+
+  @override
+  String get autoLockOff => 'बंद';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes मिनट',
+      one: '$minutes मिनट',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'संग्रह बहुत बड़ा है ($sizeMb MB). सीमा $limitMb MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'संग्रह स्कीमा v$found का उपयोग करता है, लेकिन यह बिल्ड केवल v$supported तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.';
+  }
 
   @override
   String get progressReadingArchive => 'संग्रह पढ़ा जा रहा है…';
@@ -1583,9 +1665,6 @@ class SHi extends S {
 
   @override
   String get rememberPassphrase => 'इस सत्र के लिए याद रखें';
-
-  @override
-  String get unlock => 'अनलॉक करें';
 
   @override
   String get masterPasswordSubtitle =>

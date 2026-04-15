@@ -1142,8 +1142,89 @@ class STr extends S {
       'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Sistem klasör seçici kullanılamıyor. Başka bir konum deneyin veya uygulamanın depolama izinlerini kontrol edin.';
+
+  @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh kilidini aç';
+
+  @override
+  String get biometricUnlockTitle => 'Biyometri ile kilidi aç';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Uygulamayı başlatırken ana parolayı yazmaktan kaçının.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Bu cihazda biyometrik kilit açma kullanılamıyor.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Biyometrik kilit açma etkinleştirilemedi.';
+
+  @override
+  String get biometricEnabled => 'Biyometrik kilit açma etkinleştirildi';
+
+  @override
+  String get biometricDisabled => 'Biyometrik kilit açma devre dışı';
+
+  @override
+  String get currentPasswordIncorrect => 'Mevcut parola yanlış';
+
+  @override
+  String get wrongPassword => 'Yanlış parola';
+
+  @override
+  String get useKeychain => 'İşletim sistemi anahtarlığıyla şifrele';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Veritabanı anahtarını sistemin kimlik bilgisi deposunda sakla. Kapalı = düz metin veritabanı.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh kilitli';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Devam etmek için ana parolayı girin veya biyometriyi kullanın.';
+
+  @override
+  String get unlock => 'Kilidi aç';
+
+  @override
+  String get autoLockTitle => 'Hareketsizlik sonrası otomatik kilit';
+
+  @override
+  String get autoLockSubtitle =>
+      'Bu süre boyunca boşta kalındığında bellekteki anahtarı sıfırlayın ve arayüzü kilitleyin.';
+
+  @override
+  String get autoLockOff => 'Kapalı';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes dakika',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Arşiv çok büyük ($sizeMb MB). Sınır $limitMb MB — belleği korumak için şifre çözme öncesi iptal edildi.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Arşiv v$found şemasını kullanıyor, ancak bu sürüm yalnızca v$supported sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.';
+  }
 
   @override
   String get progressReadingArchive => 'Arşiv okunuyor…';
@@ -1589,9 +1670,6 @@ class STr extends S {
 
   @override
   String get rememberPassphrase => 'Bu oturum için hatırla';
-
-  @override
-  String get unlock => 'Kilidi aç';
 
   @override
   String get masterPasswordSubtitle =>

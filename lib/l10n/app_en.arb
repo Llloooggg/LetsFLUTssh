@@ -671,7 +671,45 @@
     }
   },
   "errDecryptionFailed": "Failed to decrypt credentials. Key file may be corrupted.",
+  "errExportPickerUnavailable": "The system folder picker is unavailable. Try another location or check app storage permissions.",
+  "biometricUnlockPrompt": "Unlock LetsFLUTssh",
+  "biometricUnlockTitle": "Unlock with biometrics",
+  "biometricUnlockSubtitle": "Skip typing the master password when launching the app.",
+  "biometricNotAvailable": "Biometric unlock is not available on this device.",
+  "biometricEnableFailed": "Could not enable biometric unlock.",
+  "biometricEnabled": "Biometric unlock enabled",
+  "biometricDisabled": "Biometric unlock disabled",
+  "currentPasswordIncorrect": "Current password is incorrect",
+  "wrongPassword": "Wrong password",
+  "useKeychain": "Encrypt with OS keychain",
+  "useKeychainSubtitle": "Store the database key in the system credential store. Off = plaintext database.",
+  "lockScreenTitle": "LetsFLUTssh is locked",
+  "lockScreenSubtitle": "Enter the master password or use biometrics to continue.",
+  "unlock": "Unlock",
+  "autoLockTitle": "Auto-lock after inactivity",
+  "autoLockSubtitle": "Zero the in-memory key and block the UI when idle for this long.",
+  "autoLockOff": "Off",
+  "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
+  "@autoLockMinutesValue": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
   "errLfsDecryptFailed": "Wrong master password or corrupted .lfs archive",
+  "errLfsArchiveTooLarge": "Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.",
+  "@errLfsArchiveTooLarge": {
+    "placeholders": {
+      "sizeMb": { "type": "String" },
+      "limitMb": { "type": "String" }
+    }
+  },
+  "errLfsUnsupportedVersion": "Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.",
+  "@errLfsUnsupportedVersion": {
+    "placeholders": {
+      "found": { "type": "int" },
+      "supported": { "type": "int" }
+    }
+  },
   "progressReadingArchive": "Reading archive…",
   "progressDecrypting": "Decrypting…",
   "progressParsingArchive": "Parsing archive…",

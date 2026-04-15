@@ -302,6 +302,14 @@ void main() {
     });
 
     testWidgets('Import with no selection stays open', (tester) async {
+      // Dialog is taller than the default 800×600 viewport — size it up so
+      // the bottom action row actually sits inside the viewport and tap()
+      // doesn't emit a hit-test-miss warning.
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       const preview = LfsPreview(
         sessions: [],
         hasConfig: false,

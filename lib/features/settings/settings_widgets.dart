@@ -40,25 +40,21 @@ class _ActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final bool enabled;
 
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = enabled ? AppTheme.fgDim : AppTheme.fgFaint;
-    final titleColor = enabled ? AppTheme.fg : AppTheme.fgFaint;
     final body = Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: iconColor),
+          Icon(icon, size: 16, color: AppTheme.fgDim),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -68,7 +64,7 @@ class _ActionTile extends StatelessWidget {
                   title,
                   style: AppFonts.inter(
                     fontSize: AppFonts.sm,
-                    color: titleColor,
+                    color: AppTheme.fg,
                   ),
                 ),
                 Text(
@@ -86,7 +82,6 @@ class _ActionTile extends StatelessWidget {
       ),
     );
 
-    if (!enabled) return body;
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) =>
@@ -120,6 +115,7 @@ class _InfoTile extends StatelessWidget {
         border: Border.all(color: AppTheme.borderLight),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 16, color: AppTheme.fgDim),
           const SizedBox(width: 10),
@@ -132,9 +128,14 @@ class _InfoTile extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            value,
-            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              softWrap: true,
+              style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
+            ),
           ),
         ],
       ),
@@ -210,7 +211,7 @@ class _Toggle extends StatelessWidget {
   final String? subtitle;
   final IconData? icon;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   const _Toggle({
     required this.label,
@@ -222,29 +223,34 @@ class _Toggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onChanged != null;
+    final accent = enabled ? AppTheme.accent : AppTheme.bg4;
     return _SettingsRow(
       label: label,
       subtitle: subtitle,
       icon: icon,
       child: GestureDetector(
-        onTap: () => onChanged(!value),
-        child: Container(
-          width: 32,
-          height: 18,
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: value ? AppTheme.accent : AppTheme.bg4,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 120),
-            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: AppTheme.onAccent,
-                shape: BoxShape.circle,
+        onTap: enabled ? () => onChanged!(!value) : null,
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.5,
+          child: Container(
+            width: 32,
+            height: 18,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: value ? accent : AppTheme.bg4,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: AnimatedAlign(
+              duration: const Duration(milliseconds: 120),
+              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: AppTheme.onAccent,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ),

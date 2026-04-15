@@ -10,6 +10,7 @@ import 'package:pointycastle/export.dart';
 import '../../core/config/app_config.dart';
 import '../../core/progress/progress_reporter.dart';
 import '../../core/security/key_store.dart';
+import '../../core/security/secret_buffer.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/snippets/snippet.dart';
@@ -38,7 +39,27 @@ class ExportImport {
 
   static const _saltLen = 32;
   static const _ivLen = 12;
-  static const _pbkdf2Iterations = 600000;
+  static const _pbkdf2IterationsProd = 600000;
+
+  /// PBKDF2 iteration count. Constant in production — tests may lower it
+  /// via [debugSetPbkdf2Iterations] so roundtrips don't spend 500 ms per
+  /// derive, which would stretch the full suite into minutes.
+  static int _pbkdf2Iterations = _pbkdf2IterationsProd;
+
+  /// Lower PBKDF2 iterations for tests. Restores to production value when
+  /// called with null. NEVER call from production code.
+  @visibleForTesting
+  static void debugSetPbkdf2Iterations(int? iterations) {
+    _pbkdf2Iterations = iterations ?? _pbkdf2IterationsProd;
+  }
+
+  /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
+  /// decryption or decompression so a pathologically large file can't OOM
+  /// the process — PBKDF2 + AES-GCM both hold the full plaintext in memory
+  /// on mobile. Legitimate exports are dominated by session credentials and
+  /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
+  /// is generous for normal use but catches zip-bomb-scale inputs.
+  static const int maxArchiveBytes = 50 * 1024 * 1024;
   static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
@@ -195,19 +216,40 @@ class ExportImport {
 
     // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
     progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
+    // Capture iteration count in the main isolate so debugSetPbkdf2Iterations
+    // (used only by tests) actually takes effect across the isolate boundary.
+    final iterations = _pbkdf2Iterations;
     final encrypted = await Isolate.run(
-      () => _encryptWithPassword(zipBytes, masterPassword),
+      () => _encryptWithPassword(zipBytes, masterPassword, iterations),
     );
     AppLogger.instance.log(
       'Export: encrypted ${encrypted.length} bytes',
       name: 'ExportImport',
     );
 
-    // Write to file
+    // Write atomically: flush to "<outputPath>.tmp", then rename. If the write
+    // fails mid-way (I/O error, out of space, process killed), we don't leave
+    // a half-formed .lfs next to a usable old one — users could pick it up,
+    // type the master password, and get a decrypt error. rename(2) is atomic
+    // on a single filesystem; on mobile/SAF the temp sits in the same dir so
+    // this holds.
     progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
     final file = File(outputPath);
     await file.parent.create(recursive: true);
-    await file.writeAsBytes(encrypted);
+    final tmp = File('$outputPath.tmp');
+    try {
+      await tmp.writeAsBytes(encrypted, flush: true);
+      await tmp.rename(outputPath);
+    } catch (e) {
+      if (await tmp.exists()) {
+        try {
+          await tmp.delete();
+        } catch (_) {
+          // Best-effort cleanup; original error is what the user needs.
+        }
+      }
+      rethrow;
+    }
 
     return outputPath;
   }
@@ -234,29 +276,18 @@ class ExportImport {
     if (appVersion != null && appVersion.isNotEmpty) {
       manifest['app_version'] = appVersion;
     }
-    final json = const JsonEncoder.withIndent('  ').convert(manifest);
-    final bytes = utf8.encode(json);
-    archive.addFile(ArchiveFile(_manifestFile, bytes.length, bytes));
+    _addRawJson(archive, _manifestFile, manifest);
   }
 
   static void _addSessions(Archive archive, LfsExportInput input) {
     if (!input.options.includeSessions) return;
-    final sessionsJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(input.sessions.map((s) => s.toJsonWithCredentials()).toList());
-    final sessionsBytes = utf8.encode(sessionsJson);
-    archive.addFile(
-      ArchiveFile(_sessionsFile, sessionsBytes.length, sessionsBytes),
+    _addJsonFile(
+      archive,
+      _sessionsFile,
+      input.sessions.map((s) => s.toJsonWithCredentials()).toList(),
     );
-
     if (input.emptyFolders.isNotEmpty) {
-      final foldersJson = const JsonEncoder.withIndent(
-        '  ',
-      ).convert(input.emptyFolders.toList());
-      final foldersBytes = utf8.encode(foldersJson);
-      archive.addFile(
-        ArchiveFile(_emptyFoldersFile, foldersBytes.length, foldersBytes),
-      );
+      _addJsonFile(archive, _emptyFoldersFile, input.emptyFolders.toList());
     }
   }
 
@@ -264,7 +295,9 @@ class ExportImport {
     if (!input.options.hasManagerKeys || input.managerKeyEntries.isEmpty) {
       return;
     }
-    final keysJson = const JsonEncoder.withIndent('  ').convert(
+    _addJsonFile(
+      archive,
+      _keysFile,
       input.managerKeyEntries
           .map(
             (e) => {
@@ -279,24 +312,17 @@ class ExportImport {
           )
           .toList(),
     );
-    final keysBytes = utf8.encode(keysJson);
-    archive.addFile(ArchiveFile(_keysFile, keysBytes.length, keysBytes));
   }
 
   static void _addConfig(Archive archive, LfsExportInput input) {
     if (!input.options.includeConfig) return;
-    final configJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(input.config.toJson());
-    final configBytes = utf8.encode(configJson);
-    archive.addFile(ArchiveFile(_configFile, configBytes.length, configBytes));
+    _addRawJson(archive, _configFile, input.config.toJson());
   }
 
   static void _addKnownHosts(Archive archive, LfsExportInput input) {
     final kh = input.knownHostsContent;
     if (!input.options.includeKnownHosts || kh == null || kh.isEmpty) return;
-    final khBytes = utf8.encode(kh);
-    archive.addFile(ArchiveFile(_knownHostsFile, khBytes.length, khBytes));
+    _addTextFile(archive, _knownHostsFile, kh);
   }
 
   static void _addTags(Archive archive, LfsExportInput input) {
@@ -384,6 +410,10 @@ class ExportImport {
   }) async {
     progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
     final file = File(filePath);
+    final fileSize = await file.length();
+    if (fileSize > maxArchiveBytes) {
+      throw LfsArchiveTooLargeException(size: fileSize, limit: maxArchiveBytes);
+    }
     final encData = await file.readAsBytes();
 
     progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
@@ -394,9 +424,10 @@ class ExportImport {
     // Both cases collapse to LfsDecryptionFailedException so the UI can show
     // a single localized message.
     final Uint8List zipBytes;
+    final iterations = _pbkdf2Iterations;
     try {
       zipBytes = await Isolate.run(
-        () => _decryptWithPassword(encData, masterPassword),
+        () => _decryptWithPassword(encData, masterPassword, iterations),
       );
     } catch (e) {
       throw LfsDecryptionFailedException(cause: e);
@@ -592,14 +623,31 @@ class ExportImport {
   // --- Crypto helpers ---
 
   static void _addJsonFile(Archive archive, String name, List<dynamic> data) {
+    _addRawJson(archive, name, data);
+  }
+
+  /// Encode any JSON-serializable value to pretty-printed UTF-8 bytes and
+  /// attach it as an archive entry. Single entry point for every JSON entry
+  /// in the archive so padding/indentation stays consistent.
+  static void _addRawJson(Archive archive, String name, Object? data) {
     final json = const JsonEncoder.withIndent('  ').convert(data);
-    final bytes = utf8.encode(json);
+    _addTextFile(archive, name, json);
+  }
+
+  /// Attach a UTF-8 text blob as an archive entry (known_hosts is raw text,
+  /// not JSON — this is the one place that path matters).
+  static void _addTextFile(Archive archive, String name, String text) {
+    final bytes = utf8.encode(text);
     archive.addFile(ArchiveFile(name, bytes.length, bytes));
   }
 
   /// Encrypt bytes with password-derived key (PBKDF2 + AES-256-GCM).
   /// Format: [salt (32)] [iv (12)] [ciphertext + GCM tag]
-  static Uint8List _encryptWithPassword(Uint8List data, String password) {
+  static Uint8List _encryptWithPassword(
+    Uint8List data,
+    String password,
+    int iterations,
+  ) {
     final random = Random.secure();
     final salt = Uint8List.fromList(
       List.generate(_saltLen, (_) => random.nextInt(256)),
@@ -608,35 +656,70 @@ class ExportImport {
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
 
-    final key = _deriveKey(password, salt);
-
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-
-    final output = cipher.process(data);
-    return Uint8List.fromList([...salt, ...iv, ...output]);
+    final keyBuf = _deriveKeyLocked(password, salt, iterations);
+    try {
+      final cipher = GCMBlockCipher(AESEngine())
+        ..init(
+          true,
+          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
+        );
+      final output = cipher.process(data);
+      return Uint8List.fromList([...salt, ...iv, ...output]);
+    } finally {
+      keyBuf.dispose();
+    }
   }
 
   /// Decrypt bytes with password-derived key.
-  static Uint8List _decryptWithPassword(Uint8List data, String password) {
+  static Uint8List _decryptWithPassword(
+    Uint8List data,
+    String password,
+    int iterations,
+  ) {
     final salt = data.sublist(0, _saltLen);
     final iv = data.sublist(_saltLen, _saltLen + _ivLen);
     final ciphertext = data.sublist(_saltLen + _ivLen);
 
-    final key = _deriveKey(password, salt);
-
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-
-    return cipher.process(ciphertext);
+    final keyBuf = _deriveKeyLocked(password, salt, iterations);
+    try {
+      final cipher = GCMBlockCipher(AESEngine())
+        ..init(
+          false,
+          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
+        );
+      return cipher.process(ciphertext);
+    } finally {
+      keyBuf.dispose();
+    }
   }
 
-  /// Derive 256-bit key from password using PBKDF2-SHA256.
-  static Uint8List _deriveKey(String password, Uint8List salt) {
+  /// Derive a 256-bit key from password using PBKDF2-SHA256, copy it into a
+  /// page-locked [SecretBuffer], and zero the intermediate Dart buffers.
+  ///
+  /// pointycastle's PBKDF2 returns a regular `Uint8List` on the Dart heap —
+  /// impossible to fully erase (immutable String reuse, GC relocation), but
+  /// we can at least wipe the bytes we control before dropping the ref. The
+  /// caller then holds the key only via the native locked buffer, which the
+  /// OS guarantees not to page out and we guarantee to zero on dispose.
+  static SecretBuffer _deriveKeyLocked(
+    String password,
+    Uint8List salt,
+    int iterations,
+  ) {
+    final passwordBytes = Uint8List.fromList(utf8.encode(password));
     final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, _pbkdf2Iterations, 32));
-
-    return pbkdf2.process(Uint8List.fromList(utf8.encode(password)));
+      ..init(Pbkdf2Parameters(salt, iterations, 32));
+    final derived = pbkdf2.process(passwordBytes);
+    try {
+      return SecretBuffer.fromBytes(derived);
+    } finally {
+      for (var i = 0; i < derived.length; i++) {
+        derived[i] = 0;
+      }
+      for (var i = 0; i < passwordBytes.length; i++) {
+        passwordBytes[i] = 0;
+      }
+    }
   }
 }
 
@@ -701,6 +784,19 @@ class UnsupportedLfsVersionException implements Exception {
   String toString() =>
       'UnsupportedLfsVersionException: archive schema v$found is newer '
       'than supported v$supported. Update the app to import this file.';
+}
+
+/// Thrown before decryption when the on-disk archive is larger than
+/// [ExportImport.maxArchiveBytes]. The UI should show a localized message
+/// telling the user the archive was rejected without attempting to decrypt.
+class LfsArchiveTooLargeException implements Exception {
+  final int size;
+  final int limit;
+  const LfsArchiveTooLargeException({required this.size, required this.limit});
+
+  @override
+  String toString() =>
+      'LfsArchiveTooLargeException: archive is $size bytes, limit is $limit';
 }
 
 /// Thrown when decrypting/unpacking an .lfs archive fails — either because

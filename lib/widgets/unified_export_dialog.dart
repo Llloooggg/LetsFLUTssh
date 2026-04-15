@@ -615,14 +615,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                 ),
                 Flexible(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    // Single scrollable region. Previously the inner tree
-                    // ListView was wrapped in Flexible, which forced the
-                    // outer Column to try to fit the rest on-screen; when
-                    // the collapsible checkboxes section was expanded on a
-                    // short viewport, the size indicator at the bottom got
-                    // clipped with a "BOTTOM OVERFLOWED" banner. Letting
-                    // the whole body scroll keeps every widget rendered.
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -640,12 +633,23 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                             physics: const NeverScrollableScrollPhysics(),
                             children: _buildTreeItems(tree, 0),
                           ),
-                          const SizedBox(height: 12),
-                          _buildSizeIndicator(sizePercent, sizeColor),
                         ],
                       ),
                     ),
                   ),
+                ),
+                // Size indicator pinned below the scroll region so it stays
+                // visible regardless of how much content is above — content
+                // scrolls under it instead of pushing it out of view.
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bg1,
+                    border: Border(
+                      top: BorderSide(color: AppTheme.borderLight),
+                    ),
+                  ),
+                  child: _buildSizeIndicator(sizePercent, sizeColor),
                 ),
                 AppDialogFooter(
                   actions: [

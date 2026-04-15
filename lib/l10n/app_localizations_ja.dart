@@ -1117,7 +1117,83 @@ class SJa extends S {
   String get errDecryptionFailed => '認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。';
 
   @override
+  String get errExportPickerUnavailable =>
+      'システムのフォルダピッカーを利用できません。別の場所を試すか、アプリのストレージ権限を確認してください。';
+
+  @override
+  String get biometricUnlockPrompt => 'LetsFLUTssh のロックを解除';
+
+  @override
+  String get biometricUnlockTitle => '生体認証でロック解除';
+
+  @override
+  String get biometricUnlockSubtitle => 'アプリ起動時にマスターパスワードの入力を省略できます。';
+
+  @override
+  String get biometricNotAvailable => 'このデバイスでは生体認証によるロック解除を利用できません。';
+
+  @override
+  String get biometricEnableFailed => '生体認証によるロック解除を有効にできませんでした。';
+
+  @override
+  String get biometricEnabled => '生体認証によるロック解除を有効にしました';
+
+  @override
+  String get biometricDisabled => '生体認証によるロック解除を無効にしました';
+
+  @override
+  String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
+
+  @override
+  String get wrongPassword => 'パスワードが間違っています';
+
+  @override
+  String get useKeychain => 'OS のキーチェーンで暗号化';
+
+  @override
+  String get useKeychainSubtitle =>
+      'データベースキーをシステムの認証情報ストアに保存します。オフ = 平文のデータベース。';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh はロックされています';
+
+  @override
+  String get lockScreenSubtitle => '続行するにはマスターパスワードを入力するか、生体認証を使用してください。';
+
+  @override
+  String get unlock => 'ロック解除';
+
+  @override
+  String get autoLockTitle => '操作がないときに自動ロック';
+
+  @override
+  String get autoLockSubtitle => 'この時間操作がないと、メモリ内の鍵を消去して UI をロックします。';
+
+  @override
+  String get autoLockOff => 'オフ';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes 分',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'アーカイブが大きすぎます ($sizeMb MB)。上限は $limitMb MB です。メモリ保護のため、復号前に中止しました。';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'アーカイブはスキーマ v$found を使用していますが、このビルドは v$supported までしか対応していません。インポートするにはアプリを更新してください。';
+  }
 
   @override
   String get progressReadingArchive => 'アーカイブを読み込み中…';
@@ -1552,9 +1628,6 @@ class SJa extends S {
 
   @override
   String get rememberPassphrase => 'このセッションで記憶';
-
-  @override
-  String get unlock => 'ロック解除';
 
   @override
   String get masterPasswordSubtitle => '保存された認証情報をパスワードで保護';

@@ -1142,8 +1142,89 @@ class SId extends S {
       'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'Pemilih folder sistem tidak tersedia. Coba lokasi lain atau periksa izin penyimpanan aplikasi.';
+
+  @override
+  String get biometricUnlockPrompt => 'Buka kunci LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Buka kunci dengan biometrik';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Hindari mengetik kata sandi utama saat membuka aplikasi.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Buka kunci biometrik tidak tersedia di perangkat ini.';
+
+  @override
+  String get biometricEnableFailed =>
+      'Tidak dapat mengaktifkan buka kunci biometrik.';
+
+  @override
+  String get biometricEnabled => 'Buka kunci biometrik diaktifkan';
+
+  @override
+  String get biometricDisabled => 'Buka kunci biometrik dinonaktifkan';
+
+  @override
+  String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
+
+  @override
+  String get wrongPassword => 'Kata sandi salah';
+
+  @override
+  String get useKeychain => 'Enkripsi dengan keychain OS';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Simpan kunci basis data di penyimpanan kredensial sistem. Mati = basis data teks biasa.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh terkunci';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Masukkan kata sandi utama atau gunakan biometrik untuk melanjutkan.';
+
+  @override
+  String get unlock => 'Buka kunci';
+
+  @override
+  String get autoLockTitle => 'Kunci otomatis setelah tidak aktif';
+
+  @override
+  String get autoLockSubtitle =>
+      'Hapus kunci di memori dan kunci UI setelah tidak aktif selama durasi ini.';
+
+  @override
+  String get autoLockOff => 'Mati';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes menit',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Kata sandi utama salah atau arsip .lfs rusak';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Arsip terlalu besar ($sizeMb MB). Batasnya adalah $limitMb MB — dibatalkan sebelum dekripsi untuk melindungi memori.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Arsip menggunakan skema v$found, tetapi build ini hanya mendukung hingga v$supported. Perbarui aplikasi untuk mengimpornya.';
+  }
 
   @override
   String get progressReadingArchive => 'Membaca arsip…';
@@ -1583,9 +1664,6 @@ class SId extends S {
 
   @override
   String get rememberPassphrase => 'Ingat untuk sesi ini';
-
-  @override
-  String get unlock => 'Buka kunci';
 
   @override
   String get masterPasswordSubtitle =>

@@ -1135,8 +1135,89 @@ class SEn extends S {
       'Failed to decrypt credentials. Key file may be corrupted.';
 
   @override
+  String get errExportPickerUnavailable =>
+      'The system folder picker is unavailable. Try another location or check app storage permissions.';
+
+  @override
+  String get biometricUnlockPrompt => 'Unlock LetsFLUTssh';
+
+  @override
+  String get biometricUnlockTitle => 'Unlock with biometrics';
+
+  @override
+  String get biometricUnlockSubtitle =>
+      'Skip typing the master password when launching the app.';
+
+  @override
+  String get biometricNotAvailable =>
+      'Biometric unlock is not available on this device.';
+
+  @override
+  String get biometricEnableFailed => 'Could not enable biometric unlock.';
+
+  @override
+  String get biometricEnabled => 'Biometric unlock enabled';
+
+  @override
+  String get biometricDisabled => 'Biometric unlock disabled';
+
+  @override
+  String get currentPasswordIncorrect => 'Current password is incorrect';
+
+  @override
+  String get wrongPassword => 'Wrong password';
+
+  @override
+  String get useKeychain => 'Encrypt with OS keychain';
+
+  @override
+  String get useKeychainSubtitle =>
+      'Store the database key in the system credential store. Off = plaintext database.';
+
+  @override
+  String get lockScreenTitle => 'LetsFLUTssh is locked';
+
+  @override
+  String get lockScreenSubtitle =>
+      'Enter the master password or use biometrics to continue.';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get autoLockTitle => 'Auto-lock after inactivity';
+
+  @override
+  String get autoLockSubtitle =>
+      'Zero the in-memory key and block the UI when idle for this long.';
+
+  @override
+  String get autoLockOff => 'Off';
+
+  @override
+  String autoLockMinutesValue(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get errLfsDecryptFailed =>
       'Wrong master password or corrupted .lfs archive';
+
+  @override
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
+    return 'Archive is too large ($sizeMb MB). The limit is $limitMb MB — aborted before decryption to protect memory.';
+  }
+
+  @override
+  String errLfsUnsupportedVersion(int found, int supported) {
+    return 'Archive uses schema v$found, but this build only understands up to v$supported. Update the app to import it.';
+  }
 
   @override
   String get progressReadingArchive => 'Reading archive…';
@@ -1571,9 +1652,6 @@ class SEn extends S {
 
   @override
   String get rememberPassphrase => 'Remember for this session';
-
-  @override
-  String get unlock => 'Unlock';
 
   @override
   String get masterPasswordSubtitle =>

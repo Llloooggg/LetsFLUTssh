@@ -2151,11 +2151,137 @@ abstract class S {
   /// **'Failed to decrypt credentials. Key file may be corrupted.'**
   String get errDecryptionFailed;
 
+  /// No description provided for @errExportPickerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The system folder picker is unavailable. Try another location or check app storage permissions.'**
+  String get errExportPickerUnavailable;
+
+  /// No description provided for @biometricUnlockPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock LetsFLUTssh'**
+  String get biometricUnlockPrompt;
+
+  /// No description provided for @biometricUnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock with biometrics'**
+  String get biometricUnlockTitle;
+
+  /// No description provided for @biometricUnlockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip typing the master password when launching the app.'**
+  String get biometricUnlockSubtitle;
+
+  /// No description provided for @biometricNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock is not available on this device.'**
+  String get biometricNotAvailable;
+
+  /// No description provided for @biometricEnableFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not enable biometric unlock.'**
+  String get biometricEnableFailed;
+
+  /// No description provided for @biometricEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock enabled'**
+  String get biometricEnabled;
+
+  /// No description provided for @biometricDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock disabled'**
+  String get biometricDisabled;
+
+  /// No description provided for @currentPasswordIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password is incorrect'**
+  String get currentPasswordIncorrect;
+
+  /// No description provided for @wrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password'**
+  String get wrongPassword;
+
+  /// No description provided for @useKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypt with OS keychain'**
+  String get useKeychain;
+
+  /// No description provided for @useKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Store the database key in the system credential store. Off = plaintext database.'**
+  String get useKeychainSubtitle;
+
+  /// No description provided for @lockScreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LetsFLUTssh is locked'**
+  String get lockScreenTitle;
+
+  /// No description provided for @lockScreenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the master password or use biometrics to continue.'**
+  String get lockScreenSubtitle;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
+
+  /// No description provided for @autoLockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-lock after inactivity'**
+  String get autoLockTitle;
+
+  /// No description provided for @autoLockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Zero the in-memory key and block the UI when idle for this long.'**
+  String get autoLockSubtitle;
+
+  /// No description provided for @autoLockOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get autoLockOff;
+
+  /// No description provided for @autoLockMinutesValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}'**
+  String autoLockMinutesValue(int minutes);
+
   /// No description provided for @errLfsDecryptFailed.
   ///
   /// In en, this message translates to:
   /// **'Wrong master password or corrupted .lfs archive'**
   String get errLfsDecryptFailed;
+
+  /// No description provided for @errLfsArchiveTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.'**
+  String errLfsArchiveTooLarge(String sizeMb, String limitMb);
+
+  /// No description provided for @errLfsUnsupportedVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.'**
+  String errLfsUnsupportedVersion(int found, int supported);
 
   /// No description provided for @progressReadingArchive.
   ///
@@ -2858,12 +2984,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Remember for this session'**
   String get rememberPassphrase;
-
-  /// No description provided for @unlock.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock'**
-  String get unlock;
 
   /// No description provided for @masterPasswordSubtitle.
   ///

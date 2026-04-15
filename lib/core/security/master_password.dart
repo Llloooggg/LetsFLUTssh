@@ -26,7 +26,18 @@ class MasterPasswordManager {
   static const _saltLength = 32;
   static const _keyLength = 32;
   static const _ivLength = 12;
-  static const _pbkdf2Iterations = 600000;
+  static const _pbkdf2IterationsProd = 600000;
+
+  /// PBKDF2 iteration count. Constant in production — tests may lower it
+  /// via [debugSetPbkdf2Iterations] so enable/verify cycles don't spend
+  /// 500 ms each, stretching the full suite into minutes.
+  static int _pbkdf2Iterations = _pbkdf2IterationsProd;
+
+  /// Lower PBKDF2 iterations for tests. Restores to production value when
+  /// called with null. NEVER call from production code.
+  static void debugSetPbkdf2Iterations(int? iterations) {
+    _pbkdf2Iterations = iterations ?? _pbkdf2IterationsProd;
+  }
 
   /// Known plaintext encrypted in the verifier file.
   static const _verifierPlaintext = 'LetsFLUTssh-verify';
@@ -59,7 +70,10 @@ class MasterPasswordManager {
       throw const MasterPasswordException('Master password is not enabled');
     }
     final salt = await saltFile.readAsBytes();
-    return Isolate.run(() => _deriveKeySync(password, salt));
+    // Capture the current iteration count in the main isolate so
+    // debugSetPbkdf2Iterations (tests only) crosses the isolate boundary.
+    final iterations = _pbkdf2Iterations;
+    return Isolate.run(() => _deriveKeySync(password, salt, iterations));
   }
 
   /// Verify a password against the stored verifier.
@@ -76,9 +90,10 @@ class MasterPasswordManager {
 
     final salt = await saltFile.readAsBytes();
     final verifierData = await verifierFile.readAsBytes();
+    final iterations = _pbkdf2Iterations;
 
     return Isolate.run(() {
-      final key = _deriveKeySync(password, salt);
+      final key = _deriveKeySync(password, salt, iterations);
       return _verifySync(key, verifierData);
     });
   }
@@ -100,7 +115,10 @@ class MasterPasswordManager {
       List.generate(_saltLength, (_) => random.nextInt(256)),
     );
 
-    final key = await Isolate.run(() => _deriveKeySync(password, salt));
+    final iterations = _pbkdf2Iterations;
+    final key = await Isolate.run(
+      () => _deriveKeySync(password, salt, iterations),
+    );
 
     // Create verifier: encrypt known plaintext
     final verifierData = _encryptVerifier(key);
@@ -134,8 +152,9 @@ class MasterPasswordManager {
       List.generate(_saltLength, (_) => random.nextInt(256)),
     );
 
+    final iterations = _pbkdf2Iterations;
     final newKey = await Isolate.run(
-      () => _deriveKeySync(newPassword, newSalt),
+      () => _deriveKeySync(newPassword, newSalt, iterations),
     );
 
     final verifierData = _encryptVerifier(newKey);
@@ -189,9 +208,13 @@ class MasterPasswordManager {
 
   // ── Static helpers (run in isolate) ──────────────────────────────
 
-  static Uint8List _deriveKeySync(String password, Uint8List salt) {
+  static Uint8List _deriveKeySync(
+    String password,
+    Uint8List salt,
+    int iterations,
+  ) {
     final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, _pbkdf2Iterations, _keyLength));
+      ..init(Pbkdf2Parameters(salt, iterations, _keyLength));
     return pbkdf2.process(Uint8List.fromList(utf8.encode(password)));
   }
 

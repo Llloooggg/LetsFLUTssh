@@ -2,12 +2,26 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/security/biometric_auth.dart';
+import '../core/security/biometric_key_vault.dart';
+import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
 import '../core/security/security_level.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
   (_) => SecureKeyStorage(),
+);
+
+/// Biometric authentication probe + prompt. Used by the optional
+/// "unlock with biometrics" flow in master-password mode.
+final biometricAuthProvider = Provider<BiometricAuth>((_) => BiometricAuth());
+
+/// Biometric-scoped secure storage of the DB key — only populated when
+/// the user opts in to biometric unlock; read at startup before the
+/// master-password dialog.
+final biometricKeyVaultProvider = Provider<BiometricKeyVault>(
+  (_) => BiometricKeyVault(),
 );
 
 /// Current data protection level, detected at startup.
@@ -19,33 +33,70 @@ final securityStateProvider =
       SecurityStateNotifier.new,
     );
 
-/// Immutable snapshot of security state: level + optional encryption key.
+/// Immutable snapshot of security state: level + optional encryption key
+/// held in a page-locked native buffer.
+///
+/// [_buffer] owns a [SecretBuffer] with the 32-byte DB key; [encryptionKey]
+/// exposes it as a `Uint8List` alias for compatibility with the existing
+/// drift/SQLite3MC call sites. The alias stays valid as long as the buffer
+/// lives — i.e. until the next `set(...)`/`clearEncryption()` replaces the
+/// state, at which point the old buffer is disposed (zeroed + munlock +
+/// freed) by [SecurityStateNotifier].
 class SecurityState {
   final SecurityLevel level;
-  final Uint8List? encryptionKey;
+  final SecretBuffer? _buffer;
 
-  const SecurityState({
-    this.level = SecurityLevel.plaintext,
-    this.encryptionKey,
-  });
+  SecurityState({this.level = SecurityLevel.plaintext, SecretBuffer? buffer})
+    : _buffer = buffer;
+
+  /// Live `Uint8List` view into the locked buffer, or null in plaintext mode.
+  Uint8List? get encryptionKey => _buffer?.bytes;
+
+  /// Internal handle — needed by [SecurityStateNotifier] to dispose on
+  /// transitions. Not part of the public surface.
+  SecretBuffer? get buffer => _buffer;
 
   /// Whether data stores should encrypt their contents.
   bool get isEncrypted => level != SecurityLevel.plaintext;
 }
 
 /// Notifier for security state — set once at startup, updated on
-/// master password enable/disable/change.
+/// master password enable/disable/change. Owns the [SecretBuffer] lifecycle:
+/// any transition disposes the previous buffer so the plaintext key is
+/// zeroed + unlocked + freed before a new one takes its place.
 class SecurityStateNotifier extends Notifier<SecurityState> {
-  @override
-  SecurityState build() => const SecurityState();
+  SecretBuffer? _owned;
 
-  /// Set the security level and encryption key.
-  void set(SecurityLevel level, [Uint8List? key]) {
-    state = SecurityState(level: level, encryptionKey: key);
+  @override
+  SecurityState build() {
+    // Dispose the currently-owned buffer when the provider itself is torn
+    // down. Reading `state` inside onDispose isn't allowed (Riverpod
+    // forbids ref access from lifecycle callbacks), so we keep a plain
+    // field that mirrors the buffer the state holds.
+    ref.onDispose(() {
+      _owned?.dispose();
+      _owned = null;
+    });
+    return SecurityState();
   }
 
-  /// Clear encryption (revert to plaintext).
+  /// Set the security level and encryption key. Copies [key] into a fresh
+  /// page-locked buffer and disposes the previous one. The caller is
+  /// responsible for zeroing its own `Uint8List` copy afterwards.
+  void set(SecurityLevel level, [Uint8List? key]) {
+    final previous = _owned;
+    final buffer = key == null ? null : SecretBuffer.fromBytes(key);
+    _owned = buffer;
+    state = SecurityState(level: level, buffer: buffer);
+    previous?.dispose();
+  }
+
+  /// Clear encryption (revert to plaintext). Zeroes and releases the
+  /// in-memory key.
   void clearEncryption() {
-    state = const SecurityState();
+    final previous = _owned;
+    _owned = null;
+    state = SecurityState();
+    previous?.dispose();
   }
 }

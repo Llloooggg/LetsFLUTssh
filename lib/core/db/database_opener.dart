@@ -27,6 +27,33 @@ AppDatabase openDatabase({Uint8List? encryptionKey}) {
   return AppDatabase(_openConnection(encryptionKey: encryptionKey));
 }
 
+/// Convert a 32-byte key to the hex-blob literal SQLite3MultipleCiphers
+/// expects in `PRAGMA key` / `PRAGMA rekey` statements (`x'...'`).
+String encryptionKeyToSqlLiteral(Uint8List key) {
+  final hex = key.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return "x'$hex'";
+}
+
+/// Re-encrypt the already-open database [db] with a new [newKey], or convert
+/// it to plaintext when [newKey] is null. Uses SQLite3MultipleCiphers
+/// `PRAGMA rekey` — rewrites every page under a single transaction at the
+/// storage layer, so the only visible failure modes are disk-full or a
+/// cipher implementation error (both reported by drift as an execute error).
+///
+/// Caller is responsible for updating `securityStateProvider` and moving the
+/// key in/out of the relevant storage backend (file / keychain / master
+/// password wrapper); this function only touches the DB pages.
+Future<void> rekeyDatabase(AppDatabase db, Uint8List? newKey) async {
+  final literal = newKey == null
+      ? "''"
+      : '"${encryptionKeyToSqlLiteral(newKey)}"';
+  await db.customStatement('PRAGMA rekey = $literal');
+  AppLogger.instance.log(
+    'Database rekeyed (newKey=${newKey == null ? "plaintext" : "encrypted"})',
+    name: 'DatabaseOpener',
+  );
+}
+
 /// Open an in-memory database for tests (no encryption, no file I/O).
 AppDatabase openTestDatabase() {
   return AppDatabase(
