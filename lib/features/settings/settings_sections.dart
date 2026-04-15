@@ -1083,8 +1083,11 @@ class _ExportImportTile extends ConsumerWidget {
     return (snippets, sessionSnippets);
   }
 
-  /// Opens a save-file picker. Desktop uses native save dialog,
-  /// mobile uses directory picker + default filename.
+  /// Opens a save-file picker.  Desktop uses the native save dialog,
+  /// mobile writes straight to shared Downloads when the app has
+  /// MANAGE_EXTERNAL_STORAGE (the SAF folder picker is skipped because
+  /// it would demand a per-export consent dialog even though we already
+  /// have full storage access — see Android SAF vs all-files access).
   Future<String?> _pickSavePath(
     BuildContext context,
     String defaultName,
@@ -1101,13 +1104,45 @@ class _ExportImportTile extends ConsumerWidget {
         allowedExtensions: [extension],
       );
     }
-    // Mobile: pick directory, append default filename
+    if (Platform.isAndroid) {
+      final directPath = await _androidDirectDownloadsPath(defaultName);
+      if (directPath != null) return directPath;
+    }
+    // iOS or Android without all-files access — fall back to SAF picker.
     final dir = await FilePicker.getDirectoryPath(
       dialogTitle: title,
       initialDirectory: initDir,
     );
     if (dir == null) return null;
     return p.join(dir, defaultName);
+  }
+
+  /// Returns `/storage/emulated/0/Download/<fileName>` when Downloads is
+  /// writable via dart:io (MANAGE_EXTERNAL_STORAGE / legacy storage),
+  /// or null when we must go through SAF.
+  Future<String?> _androidDirectDownloadsPath(String fileName) async {
+    const downloadsPath = '/storage/emulated/0/Download';
+    final downloads = Directory(downloadsPath);
+    try {
+      if (!await downloads.exists()) return null;
+      // Probe write access by opening a uniquely-named sentinel file —
+      // listing alone succeeds on scoped storage without real write access.
+      final probe = File(
+        p.join(
+          downloadsPath,
+          '.lfs_write_probe_${DateTime.now().microsecondsSinceEpoch}',
+        ),
+      );
+      await probe.writeAsString('');
+      await probe.delete();
+      return p.join(downloadsPath, fileName);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Downloads not writable directly, falling back to SAF: $e',
+        name: 'Export',
+      );
+      return null;
+    }
   }
 
   Future<String?> _pickLfsFile(BuildContext context) async {
