@@ -1366,8 +1366,9 @@ AppIconButton({
   required IconData icon,
   VoidCallback? onTap,         // null → disabled (30% opacity)
   String? tooltip,
-  double size = 14,
-  double boxSize = 26,
+  double? size,                // null → AppTheme.iconBtnIcon / iconBtnIconDense
+  double? boxSize,             // null → AppTheme.iconBtnBox / iconBtnBoxDense
+  bool dense = false,          // true → pick the tighter AppTheme defaults
   Color? color,
   Color? hoverColor,
   Color? backgroundColor,      // permanent bg (e.g. mobile buttons)
@@ -1376,6 +1377,7 @@ AppIconButton({
 })
 ```
 Rectangular hover, no splash/ripple. **Replaces Material `IconButton` everywhere.**
+When `size`/`boxSize` are left unset the widget resolves them from responsive getters on `AppTheme`: `iconBtnBox`/`iconBtnIcon` return **40/20 on mobile, 26/14 on desktop**, and the dense pair (`iconBtnBoxDense`/`iconBtnIconDense`) drops to **36/18 on mobile, 22/14 on desktop** — use `dense: true` in tight toolbars (dialog header close, toast close, file-browser breadcrumbs, transfer panel).
 When `tooltip` is set, `Tooltip` provides semantics. When absent, `Semantics(button: true)` is added for screen readers.
 
 ### HoverRegion
