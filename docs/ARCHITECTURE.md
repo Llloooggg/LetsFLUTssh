@@ -1389,7 +1389,7 @@ For complex dialogs (e.g. with tabs between header and content), compose from th
 - `AppDialogHeader({title, onClose})` — header bar
 - `AppDialogFooter({actions})` — footer bar (uses `Wrap` layout — actions flow to the next line on narrow mobile screens)
 - `AppDialogAction` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`)
-- `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
+- `AppProgressDialog.show(context)` — non-dismissible loading spinner
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
 
@@ -1739,30 +1739,6 @@ String sanitizeError(Object error);   // strips OS-locale text, handles SSHError
 String localizeError(S l10n, Object error); // maps errno/SSHError to localized strings via S — for UI display
 ```
 
-<a id="progressreporter"></a>
-### ProgressReporter (`core/progress/`)
-
-```dart
-final reporter = ProgressReporter(l10n.progressReadingArchive);
-AppProgressBarDialog.show(context, reporter);
-try {
-  reporter.phase(l10n.progressDecrypting);      // indeterminate phase
-  reporter.step(l10n.progressImportingSessions, 3, 12);  // 3 of 12, 25 %
-} finally {
-  if (context.mounted) Navigator.of(context).pop();
-  reporter.dispose();
-}
-```
-
-Long-running operations own a `ProgressReporter` and push updates as they work; `AppProgressBarDialog` subscribes via `ValueListenableBuilder` and rebuilds only the progress panel. Two update shapes:
-
-- `phase(label)` — **indeterminate** bar with a caption. Use when the current step is an atomic call (PBKDF2 inside an isolate, ZIP decode) where no percent is observable.
-- `step(label, current, total)` — **determinate** bar with `N / M` counter and percent. Use for per-row loops (importing sessions, tags, snippets).
-
-All long operations surface progress through this type — `ExportImport.export/import_` and `ImportService.applyResult` take optional `ProgressReporter? progress, S? l10n` parameters. **Never** put a bare `CircularProgressIndicator` inside a modal dialog for long work; use `AppProgressBarDialog` so the user always sees a labelled phase and a percentage when it is available. Small in-list spinners (≤ 100 ms loads) are fine.
-
-`LfsDecryptionFailedException` (from `ExportImport`) wraps GCM auth-tag failures and ZIP decoder failures so the UI can render a single localized "wrong master password or corrupted archive" message without leaking `InvalidCipherTextException` stack traces.
-
 ---
 
 ## 8. Theme System
@@ -1953,7 +1929,7 @@ Text(S.of(context).nSessions(count))  // parameterized
 ### Adding a new string
 
 1. Add the key + value to `lib/l10n/app_en.arb` (with `@key` metadata for placeholders)
-2. Add the translated key to **ALL** `app_XX.arb` files — no locale may rely on English fallback
+2. Add the translated key to ALL `app_XX.arb` files
 3. Run `flutter gen-l10n`
 4. Use `S.of(context).newKey` in the widget
 

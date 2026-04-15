@@ -5,9 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
-import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/features/session_manager/session_edit_dialog.dart';
-import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
@@ -1852,74 +1850,6 @@ void main() {
       final result = dialogResult as SaveResult;
       expect(result.session.keyData, contains('PRIVATE KEY'));
       expect(result.connect, isTrue);
-    });
-  });
-
-  group('SessionEditDialog — Options tab tags section', () {
-    testWidgets('new session shows "save first" hint instead of tag chips', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Options'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Save the session first to assign tags'),
-        findsOneWidget,
-      );
-      expect(find.text('Manage tags'), findsNothing);
-    });
-
-    testWidgets('editing session renders Manage tags button', (tester) async {
-      final existing = Session(
-        id: 'sess-1',
-        label: 'srv',
-        folder: '',
-        server: const ServerAddress(host: 'h', port: 22, user: 'u'),
-        auth: const SessionAuth(
-          authType: AuthType.password,
-          keyId: '',
-          password: 'p',
-        ),
-      );
-      // Override the tag-link provider so the widget resolves without a
-      // real drift database — the dialog only needs to know "no tags".
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionTagsProvider(
-              existing.id,
-            ).overrideWith((_) => Future<List<Tag>>.value(<Tag>[])),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            home: Scaffold(
-              body: Builder(
-                builder: (context) => ElevatedButton(
-                  onPressed: () =>
-                      SessionEditDialog.show(context, session: existing),
-                  child: const Text('Open'),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Options'));
-      await tester.pumpAndSettle();
-      // Extra microtask-flush frames: sessionTagsProvider returns a Future
-      // that resolves after pumpAndSettle's initial frame.
-      await tester.pump();
-      await tester.pump();
-
-      expect(find.text('Manage Tags'), findsOneWidget);
-      expect(find.text('No tags assigned'), findsOneWidget);
-      expect(find.text('Save the session first to assign tags'), findsNothing);
     });
   });
 
