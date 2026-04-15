@@ -202,9 +202,6 @@
   "exportData": "डेटा निर्यात करें",
   "exportDataSubtitle": "सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें",
   "importDataSubtitle": ".lfs फ़ाइल से डेटा लोड करें",
-  "importFromSshConfig": "OpenSSH कॉन्फ़िग से आयात करें",
-  "importFromSshConfigSubtitle": "~/.ssh/config से होस्ट का एक-बार आयात",
-  "sshConfigPreviewTitle": "SSH कॉन्फ़िग आयात",
   "sshConfigPreviewHostsFound": "{count} होस्ट मिले",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "चयनित सत्र और कुंजियाँ QR कोड के माध्यम से साझा करें",
   "importArchive": "आर्काइव आयात करें",
   "importArchiveSubtitle": ".lfs फ़ाइल से डेटा लोड करें",
-  "importOpensshConfig": "OpenSSH कॉन्फ़िग आयात करें",
-  "importOpensshConfigSubtitle": "~/.ssh/config से होस्ट का एक-बार आयात",
-  "importSshKeys": "~/.ssh से SSH कुंजियाँ आयात करें",
-  "importSshKeysSubtitle": "~/.ssh में निजी कुंजियों के लिए स्कैन करें और चयनित को कुंजी प्रबंधक में जोड़ें",
-  "importSshKeysTitle": "SSH कुंजियाँ आयात करें",
   "importSshKeysFound": "{count} कुंजी मिली — चुनें कौन-सी आयात करनी हैं",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "~/.ssh में कोई निजी कुंजी नहीं मिली।",
-  "importedSshKeys": "{count} कुंजी आयात की गईं",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} नई कुंजी आयात की गईं, {skipped} पहले से संग्रह में हैं",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "पहले से संग्रह में है",
   "setMasterPasswordHint": "आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।",
   "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते",
@@ -547,5 +520,9 @@
   "disableKeychain": "कीचेन एन्क्रिप्शन अक्षम करें",
   "disableKeychainSubtitle": "सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)",
   "disableKeychainConfirm": "डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?",
-  "keychainDisabled": "कीचेन एन्क्रिप्शन अक्षम किया गया"
+  "keychainDisabled": "कीचेन एन्क्रिप्शन अक्षम किया गया",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

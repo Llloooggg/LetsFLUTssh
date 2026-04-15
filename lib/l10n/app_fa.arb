@@ -202,9 +202,6 @@
   "exportData": "خروجی گرفتن از داده",
   "exportDataSubtitle": "ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs",
   "importDataSubtitle": "بارگذاری داده از فایل .lfs",
-  "importFromSshConfig": "وارد کردن از پیکربندی OpenSSH",
-  "importFromSshConfigSubtitle": "وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config",
-  "sshConfigPreviewTitle": "وارد کردن پیکربندی SSH",
   "sshConfigPreviewHostsFound": "{count} میزبان یافت شد",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "اشتراک‌گذاری جلسات و کلیدهای انتخاب‌شده از طریق کد QR",
   "importArchive": "وارد کردن آرشیو",
   "importArchiveSubtitle": "بارگذاری داده از فایل .lfs",
-  "importOpensshConfig": "وارد کردن پیکربندی OpenSSH",
-  "importOpensshConfigSubtitle": "وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config",
-  "importSshKeys": "وارد کردن کلیدهای SSH از ~/.ssh",
-  "importSshKeysSubtitle": "اسکن ~/.ssh برای یافتن کلیدهای خصوصی و افزودن موارد انتخاب‌شده به مدیر کلید",
-  "importSshKeysTitle": "وارد کردن کلیدهای SSH",
   "importSshKeysFound": "{count} کلید یافت شد — انتخاب کنید کدام‌ها وارد شوند",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "هیچ کلید خصوصی در ~/.ssh یافت نشد.",
-  "importedSshKeys": "{count} کلید وارد شد",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} کلید جدید وارد شد، {skipped} از قبل در مخزن موجود است",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "از قبل در مخزن موجود است",
   "setMasterPasswordHint": "یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.",
   "passwordsDoNotMatch": "رمزهای عبور مطابقت ندارند",
@@ -547,5 +520,9 @@
   "disableKeychain": "غیرفعال‌سازی رمزنگاری کلیدستان",
   "disableKeychainSubtitle": "تغییر به ذخیره‌سازی متن ساده (توصیه نمی‌شود)",
   "disableKeychainConfirm": "پایگاه داده بدون کلید دوباره رمزنگاری می‌شود. نشست‌ها و کلیدها به‌صورت متن ساده روی دیسک ذخیره خواهند شد. ادامه می‌دهید؟",
-  "keychainDisabled": "رمزنگاری کلیدستان غیرفعال شد"
+  "keychainDisabled": "رمزنگاری کلیدستان غیرفعال شد",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

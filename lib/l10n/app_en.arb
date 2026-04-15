@@ -379,9 +379,6 @@
   "exportData": "Export Data",
   "exportDataSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
   "importDataSubtitle": "Load data from .lfs file",
-  "importFromSshConfig": "Import from OpenSSH config",
-  "importFromSshConfigSubtitle": "One-time import of hosts from ~/.ssh/config",
-  "sshConfigPreviewTitle": "SSH config import",
   "sshConfigPreviewHostsFound": "{count} host(s) found",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -414,11 +411,10 @@
   "exportQrCodeSubtitle": "Share selected sessions and keys via QR code",
   "importArchive": "Import archive",
   "importArchiveSubtitle": "Load data from .lfs file",
-  "importOpensshConfig": "Import OpenSSH config",
-  "importOpensshConfigSubtitle": "One-time import of hosts from ~/.ssh/config",
-  "importSshKeys": "Import SSH keys from ~/.ssh",
-  "importSshKeysSubtitle": "Scan ~/.ssh for private keys and add selected ones to the key manager",
-  "importSshKeysTitle": "Import SSH keys",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh",
   "importSshKeysFound": "{count} key(s) found — pick which to import",
   "@importSshKeysFound": {
     "placeholders": {
@@ -428,25 +424,6 @@
     }
   },
   "importSshKeysNoneFound": "No private keys found in ~/.ssh.",
-  "importedSshKeys": "Imported {count} key(s)",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "Imported {imported} new key(s), {skipped} already in store",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "already in store",
   "@sshConfigImportFolderName": {
     "placeholders": {

@@ -673,15 +673,6 @@ class SZh extends S {
   String get importDataSubtitle => '从 .lfs 文件加载数据';
 
   @override
-  String get importFromSshConfig => '从 OpenSSH 配置导入';
-
-  @override
-  String get importFromSshConfigSubtitle => '从 ~/.ssh/config 一次性导入主机';
-
-  @override
-  String get sshConfigPreviewTitle => 'SSH 配置导入';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '找到 $count 个主机';
   }
@@ -723,19 +714,17 @@ class SZh extends S {
   String get importArchiveSubtitle => '从 .lfs 文件加载数据';
 
   @override
-  String get importOpensshConfig => '导入 OpenSSH 配置';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle => '从 ~/.ssh/config 一次性导入主机';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => '从 ~/.ssh 导入 SSH 密钥';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle => '扫描 ~/.ssh 中的私钥，并将选中的密钥添加到密钥管理器';
-
-  @override
-  String get importSshKeysTitle => '导入 SSH 密钥';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -744,16 +733,6 @@ class SZh extends S {
 
   @override
   String get importSshKeysNoneFound => '在 ~/.ssh 中未找到私钥。';
-
-  @override
-  String importedSshKeys(int count) {
-    return '已导入 $count 个密钥';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '已导入 $imported 个新密钥，$skipped 个已在存储中';
-  }
 
   @override
   String get sshKeyAlreadyImported => '已在存储中';

@@ -690,136 +690,76 @@ class _ExportImportTile extends ConsumerWidget {
           onTap: () => _showImportDialog(context, ref),
         ),
         _ActionTile(
-          icon: Icons.settings_ethernet,
-          title: S.of(context).importOpensshConfig,
-          subtitle: S.of(context).importOpensshConfigSubtitle,
-          onTap: () => _showSshConfigImportDialog(context, ref),
-        ),
-        _ActionTile(
-          icon: Icons.vpn_key,
-          title: S.of(context).importSshKeys,
-          subtitle: S.of(context).importSshKeysSubtitle,
-          onTap: () => _showSshKeysImportDialog(context, ref),
+          icon: Icons.folder_shared_outlined,
+          title: S.of(context).importFromSshDir,
+          subtitle: S.of(context).importFromSshDirSubtitle,
+          onTap: () => _showSshDirImportDialog(context, ref),
         ),
       ],
     );
   }
 
-  Future<void> _showSshKeysImportDialog(
+  Future<void> _showSshDirImportDialog(
     BuildContext context,
     WidgetRef ref,
   ) async {
     try {
       final sshDir = p.join(plat.homeDirectory, '.ssh');
-      final candidates = SshDirKeyScanner().scan(sshDir);
+      final configPath = p.join(sshDir, 'config');
+      final keyStore = ref.read(keyStoreProvider);
+
+      // Scan keys regardless of config presence — user may want to import
+      // just the standalone keys.
+      final scannedKeys = SshDirKeyScanner().scan(sshDir);
+
+      // Parse config if present. Missing file = no hosts, dialog still shows
+      // the keys section.
+      OpenSshConfigImportPreview? preview;
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final folderLabel = S.of(context).sshConfigImportFolderName(date);
+      final configFile = File(configPath);
+      if (await configFile.exists()) {
+        final content = await configFile.readAsString();
+        preview = OpenSshConfigImporter().buildPreview(
+          configContent: content,
+          folderLabel: folderLabel,
+          keyLabelSuffix: date,
+        );
+      }
       if (!context.mounted) return;
 
-      final keyStore = ref.read(keyStoreProvider);
+      // Nothing to show at all — surface a warning and bail.
+      if (scannedKeys.isEmpty && (preview?.result.sessions.isEmpty ?? true)) {
+        Toast.show(
+          context,
+          message: S.of(context).fileNotFound(sshDir),
+          level: ToastLevel.warning,
+        );
+        return;
+      }
+
       final existing = await keyStore.loadAll();
       final existingFingerprints = existing.values
           .map((e) => KeyStore.privateKeyFingerprint(e.privateKey))
           .toSet();
       if (!context.mounted) return;
 
-      final selected = await SshKeysImportDialog.show(
+      final filtered = await SshDirImportDialog.show(
         context,
-        candidates: candidates,
-        existingFingerprints: existingFingerprints,
-      );
-      if (selected == null || selected.isEmpty || !context.mounted) return;
-
-      final date = DateTime.now().toIso8601String().split('T').first;
-      var imported = 0;
-      var skipped = 0;
-      for (final k in selected) {
-        if (existingFingerprints.contains(
-          KeyStore.privateKeyFingerprint(k.pem),
-        )) {
-          skipped++;
-          continue;
-        }
-        try {
-          final entry = keyStore.importKey(k.pem, '${k.suggestedLabel} $date');
-          await keyStore.importForMerge(entry);
-          imported++;
-        } catch (e) {
-          AppLogger.instance.log(
-            'Skipped ${k.path}: $e',
-            name: 'Settings',
-            error: e,
-          );
-        }
-      }
-      if (!context.mounted) return;
-      final message = skipped == 0
-          ? S.of(context).importedSshKeys(imported)
-          : S.of(context).importedSshKeysWithSkipped(imported, skipped);
-      Toast.show(
-        context,
-        message: message,
-        level: imported > 0 ? ToastLevel.success : ToastLevel.warning,
-      );
-    } catch (e) {
-      AppLogger.instance.log(
-        'SSH keys import failed: $e',
-        name: 'Settings',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).importFailed(localizeError(S.of(context), e)),
-          level: ToastLevel.error,
-        );
-      }
-    }
-  }
-
-  Future<void> _showSshConfigImportDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    try {
-      // Auto-load ~/.ssh/config — matches the SSH keys import flow (also
-      // scans ~/.ssh without asking), and the menu subtitle already says
-      // "from ~/.ssh/config", so a file picker on top would be surprising.
-      final path = p.join(plat.homeDirectory, '.ssh', 'config');
-      final file = File(path);
-      if (!await file.exists()) {
-        if (context.mounted) {
-          Toast.show(
-            context,
-            message: S.of(context).fileNotFound(path),
-            level: ToastLevel.warning,
-          );
-        }
-        return;
-      }
-      final content = await file.readAsString();
-      if (!context.mounted) return;
-
-      final date = DateTime.now().toIso8601String().split('T').first;
-      final folderLabel = S.of(context).sshConfigImportFolderName(date);
-      final preview = OpenSshConfigImporter().buildPreview(
-        configContent: content,
-        folderLabel: folderLabel,
-        keyLabelSuffix: date,
-      );
-      final filtered = await SshConfigImportPreviewDialog.show(
-        context,
-        preview: preview,
-        folderLabel: folderLabel,
+        source: SshDirImportSource(
+          hostsPreview: preview,
+          keys: scannedKeys,
+          existingKeyFingerprints: existingFingerprints,
+          folderLabel: folderLabel,
+        ),
       );
       if (filtered == null || !context.mounted) return;
-      if (filtered.sessions.isEmpty) return;
+      if (filtered.sessions.isEmpty && filtered.managerKeys.isEmpty) return;
 
-      // _applyFilteredImport already shows a summary toast via
-      // formatImportSummary. A separate "imported N hosts" toast would be
-      // the same count under a different name, so we skip it here.
       await _applyFilteredImport(context, ref, filtered);
     } catch (e) {
       AppLogger.instance.log(
-        'SSH config import failed: $e',
+        'SSH dir import failed: $e',
         name: 'Settings',
         error: e,
       );

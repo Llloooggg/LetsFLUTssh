@@ -682,16 +682,6 @@ class SVi extends S {
   String get importDataSubtitle => 'Tải dữ liệu từ tệp .lfs';
 
   @override
-  String get importFromSshConfig => 'Nhập từ cấu hình OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'Nhập một lần các host từ ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'Nhập cấu hình SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'Đã tìm thấy $count host';
   }
@@ -735,21 +725,17 @@ class SVi extends S {
   String get importArchiveSubtitle => 'Tải dữ liệu từ tệp .lfs';
 
   @override
-  String get importOpensshConfig => 'Nhập cấu hình OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'Nhập một lần các host từ ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'Nhập khóa SSH từ ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Quét ~/.ssh để tìm khóa riêng tư và thêm những khóa đã chọn vào trình quản lý khóa';
-
-  @override
-  String get importSshKeysTitle => 'Nhập khóa SSH';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -759,16 +745,6 @@ class SVi extends S {
   @override
   String get importSshKeysNoneFound =>
       'Không tìm thấy khóa riêng tư nào trong ~/.ssh.';
-
-  @override
-  String importedSshKeys(int count) {
-    return 'Đã nhập $count khóa';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return 'Đã nhập $imported khóa mới, $skipped đã có trong kho';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'đã có trong kho';

@@ -686,16 +686,6 @@ class SId extends S {
   String get importDataSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get importFromSshConfig => 'Impor dari konfigurasi OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'Impor sekali saja host dari ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'Impor konfigurasi SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host ditemukan';
   }
@@ -740,21 +730,17 @@ class SId extends S {
   String get importArchiveSubtitle => 'Muat data dari file .lfs';
 
   @override
-  String get importOpensshConfig => 'Impor konfigurasi OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'Impor sekali saja host dari ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'Impor kunci SSH dari ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Pindai ~/.ssh untuk kunci privat dan tambahkan yang dipilih ke pengelola kunci';
-
-  @override
-  String get importSshKeysTitle => 'Impor kunci SSH';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -764,16 +750,6 @@ class SId extends S {
   @override
   String get importSshKeysNoneFound =>
       'Tidak ada kunci privat yang ditemukan di ~/.ssh.';
-
-  @override
-  String importedSshKeys(int count) {
-    return 'Berhasil mengimpor $count kunci';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return 'Berhasil mengimpor $imported kunci baru, $skipped sudah ada di penyimpanan';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'sudah ada di penyimpanan';

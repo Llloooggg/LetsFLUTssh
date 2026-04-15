@@ -1353,24 +1353,6 @@ abstract class S {
   /// **'Load data from .lfs file'**
   String get importDataSubtitle;
 
-  /// No description provided for @importFromSshConfig.
-  ///
-  /// In en, this message translates to:
-  /// **'Import from OpenSSH config'**
-  String get importFromSshConfig;
-
-  /// No description provided for @importFromSshConfigSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'One-time import of hosts from ~/.ssh/config'**
-  String get importFromSshConfigSubtitle;
-
-  /// No description provided for @sshConfigPreviewTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'SSH config import'**
-  String get sshConfigPreviewTitle;
-
   /// No description provided for @sshConfigPreviewHostsFound.
   ///
   /// In en, this message translates to:
@@ -1437,35 +1419,29 @@ abstract class S {
   /// **'Load data from .lfs file'**
   String get importArchiveSubtitle;
 
-  /// No description provided for @importOpensshConfig.
+  /// No description provided for @importFromSshDir.
   ///
   /// In en, this message translates to:
-  /// **'Import OpenSSH config'**
-  String get importOpensshConfig;
+  /// **'Import from ~/.ssh'**
+  String get importFromSshDir;
 
-  /// No description provided for @importOpensshConfigSubtitle.
+  /// No description provided for @importFromSshDirSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'One-time import of hosts from ~/.ssh/config'**
-  String get importOpensshConfigSubtitle;
+  /// **'Pick hosts from config and/or private keys from ~/.ssh'**
+  String get importFromSshDirSubtitle;
 
-  /// No description provided for @importSshKeys.
+  /// No description provided for @sshDirImportHostsSection.
   ///
   /// In en, this message translates to:
-  /// **'Import SSH keys from ~/.ssh'**
-  String get importSshKeys;
+  /// **'Hosts from config'**
+  String get sshDirImportHostsSection;
 
-  /// No description provided for @importSshKeysSubtitle.
+  /// No description provided for @sshDirImportKeysSection.
   ///
   /// In en, this message translates to:
-  /// **'Scan ~/.ssh for private keys and add selected ones to the key manager'**
-  String get importSshKeysSubtitle;
-
-  /// No description provided for @importSshKeysTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Import SSH keys'**
-  String get importSshKeysTitle;
+  /// **'Keys in ~/.ssh'**
+  String get sshDirImportKeysSection;
 
   /// No description provided for @importSshKeysFound.
   ///
@@ -1478,18 +1454,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'No private keys found in ~/.ssh.'**
   String get importSshKeysNoneFound;
-
-  /// No description provided for @importedSshKeys.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported {count} key(s)'**
-  String importedSshKeys(int count);
-
-  /// No description provided for @importedSshKeysWithSkipped.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported {imported} new key(s), {skipped} already in store'**
-  String importedSshKeysWithSkipped(int imported, int skipped);
 
   /// No description provided for @sshKeyAlreadyImported.
   ///

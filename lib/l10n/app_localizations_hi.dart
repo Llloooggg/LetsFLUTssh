@@ -682,16 +682,6 @@ class SHi extends S {
   String get importDataSubtitle => '.lfs फ़ाइल से डेटा लोड करें';
 
   @override
-  String get importFromSshConfig => 'OpenSSH कॉन्फ़िग से आयात करें';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      '~/.ssh/config से होस्ट का एक-बार आयात';
-
-  @override
-  String get sshConfigPreviewTitle => 'SSH कॉन्फ़िग आयात';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count होस्ट मिले';
   }
@@ -736,21 +726,17 @@ class SHi extends S {
   String get importArchiveSubtitle => '.lfs फ़ाइल से डेटा लोड करें';
 
   @override
-  String get importOpensshConfig => 'OpenSSH कॉन्फ़िग आयात करें';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      '~/.ssh/config से होस्ट का एक-बार आयात';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => '~/.ssh से SSH कुंजियाँ आयात करें';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      '~/.ssh में निजी कुंजियों के लिए स्कैन करें और चयनित को कुंजी प्रबंधक में जोड़ें';
-
-  @override
-  String get importSshKeysTitle => 'SSH कुंजियाँ आयात करें';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -759,16 +745,6 @@ class SHi extends S {
 
   @override
   String get importSshKeysNoneFound => '~/.ssh में कोई निजी कुंजी नहीं मिली।';
-
-  @override
-  String importedSshKeys(int count) {
-    return '$count कुंजी आयात की गईं';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '$imported नई कुंजी आयात की गईं, $skipped पहले से संग्रह में हैं';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'पहले से संग्रह में है';

@@ -674,15 +674,6 @@ class SJa extends S {
   String get importDataSubtitle => '.lfs ファイルからデータを読み込み';
 
   @override
-  String get importFromSshConfig => 'OpenSSH 設定からインポート';
-
-  @override
-  String get importFromSshConfigSubtitle => '~/.ssh/config からホストを一度だけインポート';
-
-  @override
-  String get sshConfigPreviewTitle => 'SSH 設定のインポート';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count 件のホストが見つかりました';
   }
@@ -724,19 +715,17 @@ class SJa extends S {
   String get importArchiveSubtitle => '.lfs ファイルからデータを読み込み';
 
   @override
-  String get importOpensshConfig => 'OpenSSH 設定をインポート';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle => '~/.ssh/config からホストを一度だけインポート';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => '~/.ssh から SSH 鍵をインポート';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle => '~/.ssh から秘密鍵をスキャンし、選択したものを鍵マネージャーに追加';
-
-  @override
-  String get importSshKeysTitle => 'SSH 鍵をインポート';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -745,16 +734,6 @@ class SJa extends S {
 
   @override
   String get importSshKeysNoneFound => '~/.ssh に秘密鍵が見つかりません。';
-
-  @override
-  String importedSshKeys(int count) {
-    return '$count 件の鍵をインポートしました';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '$imported 件の新しい鍵をインポートしました。$skipped 件は既にストアにあります';
-  }
 
   @override
   String get sshKeyAlreadyImported => '既にストアにあります';

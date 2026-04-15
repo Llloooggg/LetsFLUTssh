@@ -202,9 +202,6 @@
   "exportData": "Exporter les données",
   "exportDataSubtitle": "Enregistrer les sessions, la configuration et les clés dans un fichier .lfs chiffré",
   "importDataSubtitle": "Charger les données depuis un fichier .lfs",
-  "importFromSshConfig": "Importer depuis la configuration OpenSSH",
-  "importFromSshConfigSubtitle": "Import ponctuel des hôtes depuis ~/.ssh/config",
-  "sshConfigPreviewTitle": "Import de configuration SSH",
   "sshConfigPreviewHostsFound": "{count} hôte(s) trouvé(s)",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "Partager les sessions et clés sélectionnées via un code QR",
   "importArchive": "Importer une archive",
   "importArchiveSubtitle": "Charger les données depuis un fichier .lfs",
-  "importOpensshConfig": "Importer la configuration OpenSSH",
-  "importOpensshConfigSubtitle": "Import ponctuel des hôtes depuis ~/.ssh/config",
-  "importSshKeys": "Importer les clés SSH depuis ~/.ssh",
-  "importSshKeysSubtitle": "Analyser ~/.ssh à la recherche de clés privées et ajouter celles sélectionnées au gestionnaire de clés",
-  "importSshKeysTitle": "Importer les clés SSH",
   "importSshKeysFound": "{count} clé(s) trouvée(s) — choisissez lesquelles importer",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "Aucune clé privée trouvée dans ~/.ssh.",
-  "importedSshKeys": "{count} clé(s) importée(s)",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} nouvelle(s) clé(s) importée(s), {skipped} déjà dans le magasin",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "déjà dans le magasin",
   "setMasterPasswordHint": "Définissez un mot de passe principal pour chiffrer l'archive.",
   "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
@@ -547,5 +520,9 @@
   "disableKeychain": "Désactiver le chiffrement du trousseau",
   "disableKeychainSubtitle": "Passer au stockage en texte clair (non recommandé)",
   "disableKeychainConfirm": "La base de données sera rechiffrée sans clé. Les sessions et les clés seront stockées en texte clair sur le disque. Continuer ?",
-  "keychainDisabled": "Chiffrement du trousseau désactivé"
+  "keychainDisabled": "Chiffrement du trousseau désactivé",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

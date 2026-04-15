@@ -202,9 +202,6 @@
   "exportData": "データをエクスポート",
   "exportDataSubtitle": "セッション、設定、鍵を暗号化された .lfs ファイルに保存",
   "importDataSubtitle": ".lfs ファイルからデータを読み込み",
-  "importFromSshConfig": "OpenSSH 設定からインポート",
-  "importFromSshConfigSubtitle": "~/.ssh/config からホストを一度だけインポート",
-  "sshConfigPreviewTitle": "SSH 設定のインポート",
   "sshConfigPreviewHostsFound": "{count} 件のホストが見つかりました",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "選択したセッションと鍵を QR コードで共有",
   "importArchive": "アーカイブをインポート",
   "importArchiveSubtitle": ".lfs ファイルからデータを読み込み",
-  "importOpensshConfig": "OpenSSH 設定をインポート",
-  "importOpensshConfigSubtitle": "~/.ssh/config からホストを一度だけインポート",
-  "importSshKeys": "~/.ssh から SSH 鍵をインポート",
-  "importSshKeysSubtitle": "~/.ssh から秘密鍵をスキャンし、選択したものを鍵マネージャーに追加",
-  "importSshKeysTitle": "SSH 鍵をインポート",
   "importSshKeysFound": "{count} 件の鍵が見つかりました — インポートするものを選択",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "~/.ssh に秘密鍵が見つかりません。",
-  "importedSshKeys": "{count} 件の鍵をインポートしました",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} 件の新しい鍵をインポートしました。{skipped} 件は既にストアにあります",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "既にストアにあります",
   "setMasterPasswordHint": "アーカイブを暗号化するためのマスターパスワードを設定してください。",
   "passwordsDoNotMatch": "パスワードが一致しません",
@@ -547,5 +520,9 @@
   "disableKeychain": "キーチェーン暗号化を無効にする",
   "disableKeychainSubtitle": "平文保存に切り替える（非推奨）",
   "disableKeychainConfirm": "データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？",
-  "keychainDisabled": "キーチェーン暗号化が無効になりました"
+  "keychainDisabled": "キーチェーン暗号化が無効になりました",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

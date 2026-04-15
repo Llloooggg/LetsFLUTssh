@@ -673,15 +673,6 @@ class SKo extends S {
   String get importDataSubtitle => '.lfs 파일에서 데이터 불러오기';
 
   @override
-  String get importFromSshConfig => 'OpenSSH 설정에서 가져오기';
-
-  @override
-  String get importFromSshConfigSubtitle => '~/.ssh/config에서 호스트를 한 번만 가져오기';
-
-  @override
-  String get sshConfigPreviewTitle => 'SSH 설정 가져오기';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '호스트 $count개를 찾았습니다';
   }
@@ -723,19 +714,17 @@ class SKo extends S {
   String get importArchiveSubtitle => '.lfs 파일에서 데이터 불러오기';
 
   @override
-  String get importOpensshConfig => 'OpenSSH 설정 가져오기';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle => '~/.ssh/config에서 호스트를 한 번만 가져오기';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => '~/.ssh에서 SSH 키 가져오기';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle => '~/.ssh를 스캔하여 개인 키를 찾아 선택한 키를 키 관리자에 추가';
-
-  @override
-  String get importSshKeysTitle => 'SSH 키 가져오기';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -744,16 +733,6 @@ class SKo extends S {
 
   @override
   String get importSshKeysNoneFound => '~/.ssh에서 개인 키를 찾을 수 없습니다.';
-
-  @override
-  String importedSshKeys(int count) {
-    return '키 $count개를 가져왔습니다';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '새 키 $imported개를 가져왔으며, $skipped개는 이미 저장소에 있습니다';
-  }
 
   @override
   String get sshKeyAlreadyImported => '이미 저장소에 있음';

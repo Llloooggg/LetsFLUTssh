@@ -686,16 +686,6 @@ class STr extends S {
   String get importDataSubtitle => '.lfs dosyasından veri yükle';
 
   @override
-  String get importFromSshConfig => 'OpenSSH yapılandırmasından içe aktar';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      '~/.ssh/config dosyasından tek seferlik host içe aktarma';
-
-  @override
-  String get sshConfigPreviewTitle => 'SSH yapılandırma içe aktarma';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host bulundu';
   }
@@ -740,21 +730,17 @@ class STr extends S {
   String get importArchiveSubtitle => '.lfs dosyasından veri yükle';
 
   @override
-  String get importOpensshConfig => 'OpenSSH yapılandırmasını içe aktar';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      '~/.ssh/config dosyasından tek seferlik host içe aktarma';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => '~/.ssh dizininden SSH anahtarlarını içe aktar';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      '~/.ssh dizinini özel anahtarlar için tara ve seçilenleri anahtar yöneticisine ekle';
-
-  @override
-  String get importSshKeysTitle => 'SSH anahtarlarını içe aktar';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -764,16 +750,6 @@ class STr extends S {
   @override
   String get importSshKeysNoneFound =>
       '~/.ssh dizininde özel anahtar bulunamadı.';
-
-  @override
-  String importedSshKeys(int count) {
-    return '$count anahtar içe aktarıldı';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '$imported yeni anahtar içe aktarıldı, $skipped tanesi zaten depoda';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'zaten depoda';

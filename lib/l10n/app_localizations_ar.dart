@@ -681,16 +681,6 @@ class SAr extends S {
   String get importDataSubtitle => 'تحميل البيانات من ملف .lfs';
 
   @override
-  String get importFromSshConfig => 'استيراد من إعدادات OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'استيراد لمرة واحدة للمضيفين من ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'استيراد إعدادات SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'تم العثور على $count مضيف';
   }
@@ -735,21 +725,17 @@ class SAr extends S {
   String get importArchiveSubtitle => 'تحميل البيانات من ملف .lfs';
 
   @override
-  String get importOpensshConfig => 'استيراد إعدادات OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'استيراد لمرة واحدة للمضيفين من ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'استيراد مفاتيح SSH من ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'فحص ~/.ssh بحثًا عن المفاتيح الخاصة وإضافة المحدد منها إلى مدير المفاتيح';
-
-  @override
-  String get importSshKeysTitle => 'استيراد مفاتيح SSH';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -759,16 +745,6 @@ class SAr extends S {
   @override
   String get importSshKeysNoneFound =>
       'لم يتم العثور على مفاتيح خاصة في ~/.ssh.';
-
-  @override
-  String importedSshKeys(int count) {
-    return 'تم استيراد $count مفتاح';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return 'تم استيراد $imported مفتاح جديد، $skipped موجود بالفعل في المخزن';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'موجود بالفعل في المخزن';

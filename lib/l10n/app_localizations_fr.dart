@@ -688,16 +688,6 @@ class SFr extends S {
   String get importDataSubtitle => 'Charger les données depuis un fichier .lfs';
 
   @override
-  String get importFromSshConfig => 'Importer depuis la configuration OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'Import ponctuel des hôtes depuis ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'Import de configuration SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count hôte(s) trouvé(s)';
   }
@@ -743,21 +733,17 @@ class SFr extends S {
       'Charger les données depuis un fichier .lfs';
 
   @override
-  String get importOpensshConfig => 'Importer la configuration OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'Import ponctuel des hôtes depuis ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'Importer les clés SSH depuis ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Analyser ~/.ssh à la recherche de clés privées et ajouter celles sélectionnées au gestionnaire de clés';
-
-  @override
-  String get importSshKeysTitle => 'Importer les clés SSH';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -766,16 +752,6 @@ class SFr extends S {
 
   @override
   String get importSshKeysNoneFound => 'Aucune clé privée trouvée dans ~/.ssh.';
-
-  @override
-  String importedSshKeys(int count) {
-    return '$count clé(s) importée(s)';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '$imported nouvelle(s) clé(s) importée(s), $skipped déjà dans le magasin';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'déjà dans le magasin';

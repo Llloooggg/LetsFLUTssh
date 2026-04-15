@@ -54,11 +54,14 @@ class CollapsibleCheckboxesSection extends StatelessWidget {
                 ),
                 if (trailingLabel != null) ...[
                   const SizedBox(width: 8),
-                  Text(
-                    trailingLabel!,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgDim,
+                  Expanded(
+                    child: Text(
+                      trailingLabel!,
+                      style: AppFonts.inter(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.fgDim,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

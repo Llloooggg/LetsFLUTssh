@@ -202,9 +202,6 @@
   "exportData": "Xuất dữ liệu",
   "exportDataSubtitle": "Lưu phiên, cấu hình và khóa vào tệp .lfs được mã hóa",
   "importDataSubtitle": "Tải dữ liệu từ tệp .lfs",
-  "importFromSshConfig": "Nhập từ cấu hình OpenSSH",
-  "importFromSshConfigSubtitle": "Nhập một lần các host từ ~/.ssh/config",
-  "sshConfigPreviewTitle": "Nhập cấu hình SSH",
   "sshConfigPreviewHostsFound": "Đã tìm thấy {count} host",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "Chia sẻ phiên và khóa đã chọn qua mã QR",
   "importArchive": "Nhập kho lưu trữ",
   "importArchiveSubtitle": "Tải dữ liệu từ tệp .lfs",
-  "importOpensshConfig": "Nhập cấu hình OpenSSH",
-  "importOpensshConfigSubtitle": "Nhập một lần các host từ ~/.ssh/config",
-  "importSshKeys": "Nhập khóa SSH từ ~/.ssh",
-  "importSshKeysSubtitle": "Quét ~/.ssh để tìm khóa riêng tư và thêm những khóa đã chọn vào trình quản lý khóa",
-  "importSshKeysTitle": "Nhập khóa SSH",
   "importSshKeysFound": "Đã tìm thấy {count} khóa — chọn khóa nào để nhập",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "Không tìm thấy khóa riêng tư nào trong ~/.ssh.",
-  "importedSshKeys": "Đã nhập {count} khóa",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "Đã nhập {imported} khóa mới, {skipped} đã có trong kho",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "đã có trong kho",
   "setMasterPasswordHint": "Đặt mật khẩu chính để mã hóa kho lưu trữ.",
   "passwordsDoNotMatch": "Mật khẩu không khớp",
@@ -547,5 +520,9 @@
   "disableKeychain": "Tắt mã hóa keychain",
   "disableKeychainSubtitle": "Chuyển sang lưu trữ văn bản thuần (không khuyến nghị)",
   "disableKeychainConfirm": "Cơ sở dữ liệu sẽ được mã hóa lại mà không có khóa. Các phiên và khóa sẽ được lưu trữ dưới dạng văn bản thuần trên đĩa. Tiếp tục?",
-  "keychainDisabled": "Đã tắt mã hóa keychain"
+  "keychainDisabled": "Đã tắt mã hóa keychain",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

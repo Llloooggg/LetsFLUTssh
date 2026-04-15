@@ -46,8 +46,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
-import '../../widgets/ssh_config_import_preview_dialog.dart';
-import '../../widgets/ssh_keys_import_dialog.dart';
+import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
 

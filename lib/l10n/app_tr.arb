@@ -202,9 +202,6 @@
   "exportData": "Veriyi Dışa Aktar",
   "exportDataSubtitle": "Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet",
   "importDataSubtitle": ".lfs dosyasından veri yükle",
-  "importFromSshConfig": "OpenSSH yapılandırmasından içe aktar",
-  "importFromSshConfigSubtitle": "~/.ssh/config dosyasından tek seferlik host içe aktarma",
-  "sshConfigPreviewTitle": "SSH yapılandırma içe aktarma",
   "sshConfigPreviewHostsFound": "{count} host bulundu",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "Seçilen oturumları ve anahtarları QR kodu ile paylaş",
   "importArchive": "Arşivi içe aktar",
   "importArchiveSubtitle": ".lfs dosyasından veri yükle",
-  "importOpensshConfig": "OpenSSH yapılandırmasını içe aktar",
-  "importOpensshConfigSubtitle": "~/.ssh/config dosyasından tek seferlik host içe aktarma",
-  "importSshKeys": "~/.ssh dizininden SSH anahtarlarını içe aktar",
-  "importSshKeysSubtitle": "~/.ssh dizinini özel anahtarlar için tara ve seçilenleri anahtar yöneticisine ekle",
-  "importSshKeysTitle": "SSH anahtarlarını içe aktar",
   "importSshKeysFound": "{count} anahtar bulundu — hangilerini içe aktaracağınızı seçin",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "~/.ssh dizininde özel anahtar bulunamadı.",
-  "importedSshKeys": "{count} anahtar içe aktarıldı",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} yeni anahtar içe aktarıldı, {skipped} tanesi zaten depoda",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "zaten depoda",
   "setMasterPasswordHint": "Arşivi şifrelemek için bir ana şifre belirleyin.",
   "passwordsDoNotMatch": "Şifreler eşleşmiyor",
@@ -547,5 +520,9 @@
   "disableKeychain": "Anahtar zinciri şifrelemesini devre dışı bırak",
   "disableKeychainSubtitle": "Düz metin depolamaya geç (önerilmez)",
   "disableKeychainConfirm": "Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?",
-  "keychainDisabled": "Anahtar zinciri şifrelemesi devre dışı bırakıldı"
+  "keychainDisabled": "Anahtar zinciri şifrelemesi devre dışı bırakıldı",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

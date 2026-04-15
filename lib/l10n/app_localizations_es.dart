@@ -686,16 +686,6 @@ class SEs extends S {
   String get importDataSubtitle => 'Cargar datos desde un archivo .lfs';
 
   @override
-  String get importFromSshConfig => 'Importar desde configuración OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'Importación única de hosts desde ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'Importar configuración SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host(s) encontrado(s)';
   }
@@ -740,21 +730,17 @@ class SEs extends S {
   String get importArchiveSubtitle => 'Cargar datos desde archivo .lfs';
 
   @override
-  String get importOpensshConfig => 'Importar configuración OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'Importación única de hosts desde ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'Importar claves SSH desde ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Escanear ~/.ssh en busca de claves privadas y añadir las seleccionadas al administrador de claves';
-
-  @override
-  String get importSshKeysTitle => 'Importar claves SSH';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -764,16 +750,6 @@ class SEs extends S {
   @override
   String get importSshKeysNoneFound =>
       'No se encontraron claves privadas en ~/.ssh.';
-
-  @override
-  String importedSshKeys(int count) {
-    return 'Se importaron $count clave(s)';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return 'Se importaron $imported clave(s) nueva(s), $skipped ya en el almacén';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'ya en el almacén';

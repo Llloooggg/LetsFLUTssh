@@ -202,9 +202,6 @@
   "exportData": "Daten exportieren",
   "exportDataSubtitle": "Sitzungen, Konfiguration und Schlüssel in verschlüsselter .lfs-Datei speichern",
   "importDataSubtitle": "Daten aus .lfs-Datei laden",
-  "importFromSshConfig": "Aus OpenSSH-Konfiguration importieren",
-  "importFromSshConfigSubtitle": "Einmaliger Import von Hosts aus ~/.ssh/config",
-  "sshConfigPreviewTitle": "SSH-Konfig-Import",
   "sshConfigPreviewHostsFound": "{count} Host(s) gefunden",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "Ausgewählte Sitzungen und Schlüssel per QR-Code teilen",
   "importArchive": "Archiv importieren",
   "importArchiveSubtitle": "Daten aus .lfs-Datei laden",
-  "importOpensshConfig": "OpenSSH-Konfiguration importieren",
-  "importOpensshConfigSubtitle": "Einmaliger Import von Hosts aus ~/.ssh/config",
-  "importSshKeys": "SSH-Schlüssel aus ~/.ssh importieren",
-  "importSshKeysSubtitle": "~/.ssh nach privaten Schlüsseln durchsuchen und ausgewählte zum Schlüsselmanager hinzufügen",
-  "importSshKeysTitle": "SSH-Schlüssel importieren",
   "importSshKeysFound": "{count} Schlüssel gefunden — auswählen, welche importiert werden sollen",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "Keine privaten Schlüssel in ~/.ssh gefunden.",
-  "importedSshKeys": "{count} Schlüssel importiert",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} neue(r) Schlüssel importiert, {skipped} bereits im Speicher",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "bereits im Speicher",
   "setMasterPasswordHint": "Legen Sie ein Master-Passwort zum Verschlüsseln des Archivs fest.",
   "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
@@ -547,5 +520,9 @@
   "disableKeychain": "Schlüsselbund-Verschlüsselung deaktivieren",
   "disableKeychainSubtitle": "Auf Klartextspeicherung umstellen (nicht empfohlen)",
   "disableKeychainConfirm": "Die Datenbank wird ohne Schlüssel neu verschlüsselt. Sitzungen und Schlüssel werden im Klartext auf der Festplatte gespeichert. Fortfahren?",
-  "keychainDisabled": "Schlüsselbund-Verschlüsselung deaktiviert"
+  "keychainDisabled": "Schlüsselbund-Verschlüsselung deaktiviert",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

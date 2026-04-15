@@ -682,16 +682,6 @@ class SFa extends S {
   String get importDataSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get importFromSshConfig => 'وارد کردن از پیکربندی OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'وارد کردن پیکربندی SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count میزبان یافت شد';
   }
@@ -736,21 +726,17 @@ class SFa extends S {
   String get importArchiveSubtitle => 'بارگذاری داده از فایل .lfs';
 
   @override
-  String get importOpensshConfig => 'وارد کردن پیکربندی OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'وارد کردن یک‌باره میزبان‌ها از ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'وارد کردن کلیدهای SSH از ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'اسکن ~/.ssh برای یافتن کلیدهای خصوصی و افزودن موارد انتخاب‌شده به مدیر کلید';
-
-  @override
-  String get importSshKeysTitle => 'وارد کردن کلیدهای SSH';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -759,16 +745,6 @@ class SFa extends S {
 
   @override
   String get importSshKeysNoneFound => 'هیچ کلید خصوصی در ~/.ssh یافت نشد.';
-
-  @override
-  String importedSshKeys(int count) {
-    return '$count کلید وارد شد';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return '$imported کلید جدید وارد شد، $skipped از قبل در مخزن موجود است';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'از قبل در مخزن موجود است';

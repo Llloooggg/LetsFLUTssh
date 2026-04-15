@@ -682,16 +682,6 @@ class SEn extends S {
   String get importDataSubtitle => 'Load data from .lfs file';
 
   @override
-  String get importFromSshConfig => 'Import from OpenSSH config';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'SSH config import';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host(s) found';
   }
@@ -736,21 +726,17 @@ class SEn extends S {
   String get importArchiveSubtitle => 'Load data from .lfs file';
 
   @override
-  String get importOpensshConfig => 'Import OpenSSH config';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'One-time import of hosts from ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'Import SSH keys from ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Scan ~/.ssh for private keys and add selected ones to the key manager';
-
-  @override
-  String get importSshKeysTitle => 'Import SSH keys';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -759,16 +745,6 @@ class SEn extends S {
 
   @override
   String get importSshKeysNoneFound => 'No private keys found in ~/.ssh.';
-
-  @override
-  String importedSshKeys(int count) {
-    return 'Imported $count key(s)';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return 'Imported $imported new key(s), $skipped already in store';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'already in store';

@@ -683,16 +683,6 @@ class SRu extends S {
   String get importDataSubtitle => 'Загрузить данные из файла .lfs';
 
   @override
-  String get importFromSshConfig => 'Импорт из конфигурации OpenSSH';
-
-  @override
-  String get importFromSshConfigSubtitle =>
-      'Разовый импорт хостов из ~/.ssh/config';
-
-  @override
-  String get sshConfigPreviewTitle => 'Импорт конфигурации SSH';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'Найдено хостов: $count';
   }
@@ -737,21 +727,17 @@ class SRu extends S {
   String get importArchiveSubtitle => 'Загрузить данные из файла .lfs';
 
   @override
-  String get importOpensshConfig => 'Импорт конфигурации OpenSSH';
+  String get importFromSshDir => 'Import from ~/.ssh';
 
   @override
-  String get importOpensshConfigSubtitle =>
-      'Разовый импорт хостов из ~/.ssh/config';
+  String get importFromSshDirSubtitle =>
+      'Pick hosts from config and/or private keys from ~/.ssh';
 
   @override
-  String get importSshKeys => 'Импорт SSH-ключей из ~/.ssh';
+  String get sshDirImportHostsSection => 'Hosts from config';
 
   @override
-  String get importSshKeysSubtitle =>
-      'Сканировать ~/.ssh на наличие приватных ключей и добавить выбранные в менеджер ключей';
-
-  @override
-  String get importSshKeysTitle => 'Импорт SSH-ключей';
+  String get sshDirImportKeysSection => 'Keys in ~/.ssh';
 
   @override
   String importSshKeysFound(int count) {
@@ -760,16 +746,6 @@ class SRu extends S {
 
   @override
   String get importSshKeysNoneFound => 'В ~/.ssh не найдено приватных ключей.';
-
-  @override
-  String importedSshKeys(int count) {
-    return 'Импортировано ключей: $count';
-  }
-
-  @override
-  String importedSshKeysWithSkipped(int imported, int skipped) {
-    return 'Импортировано новых ключей: $imported, уже в хранилище: $skipped';
-  }
 
   @override
   String get sshKeyAlreadyImported => 'уже в хранилище';

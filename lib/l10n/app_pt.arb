@@ -202,9 +202,6 @@
   "exportData": "Exportar Dados",
   "exportDataSubtitle": "Salvar sessões, configurações e chaves em arquivo .lfs criptografado",
   "importDataSubtitle": "Carregar dados de arquivo .lfs",
-  "importFromSshConfig": "Importar da configuração OpenSSH",
-  "importFromSshConfigSubtitle": "Importação única de hosts de ~/.ssh/config",
-  "sshConfigPreviewTitle": "Importação de configuração SSH",
   "sshConfigPreviewHostsFound": "{count} host(s) encontrado(s)",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "Compartilhar sessões e chaves selecionadas via código QR",
   "importArchive": "Importar arquivo",
   "importArchiveSubtitle": "Carregar dados de arquivo .lfs",
-  "importOpensshConfig": "Importar configuração OpenSSH",
-  "importOpensshConfigSubtitle": "Importação única de hosts de ~/.ssh/config",
-  "importSshKeys": "Importar chaves SSH de ~/.ssh",
-  "importSshKeysSubtitle": "Escanear ~/.ssh por chaves privadas e adicionar as selecionadas ao gerenciador de chaves",
-  "importSshKeysTitle": "Importar chaves SSH",
   "importSshKeysFound": "{count} chave(s) encontrada(s) — escolha quais importar",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "Nenhuma chave privada encontrada em ~/.ssh.",
-  "importedSshKeys": "{count} chave(s) importada(s)",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "{imported} nova(s) chave(s) importada(s), {skipped} já no armazenamento",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "já no armazenamento",
   "setMasterPasswordHint": "Defina uma senha mestra para criptografar o arquivo.",
   "passwordsDoNotMatch": "As senhas não coincidem",
@@ -547,5 +520,9 @@
   "disableKeychain": "Desativar criptografia do chaveiro",
   "disableKeychainSubtitle": "Mudar para armazenamento em texto simples (não recomendado)",
   "disableKeychainConfirm": "O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?",
-  "keychainDisabled": "Criptografia do chaveiro desativada"
+  "keychainDisabled": "Criptografia do chaveiro desativada",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }

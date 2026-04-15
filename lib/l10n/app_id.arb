@@ -202,9 +202,6 @@
   "exportData": "Ekspor Data",
   "exportDataSubtitle": "Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi",
   "importDataSubtitle": "Muat data dari file .lfs",
-  "importFromSshConfig": "Impor dari konfigurasi OpenSSH",
-  "importFromSshConfigSubtitle": "Impor sekali saja host dari ~/.ssh/config",
-  "sshConfigPreviewTitle": "Impor konfigurasi SSH",
   "sshConfigPreviewHostsFound": "{count} host ditemukan",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -244,11 +241,6 @@
   "exportQrCodeSubtitle": "Bagikan sesi dan kunci terpilih melalui kode QR",
   "importArchive": "Impor arsip",
   "importArchiveSubtitle": "Muat data dari file .lfs",
-  "importOpensshConfig": "Impor konfigurasi OpenSSH",
-  "importOpensshConfigSubtitle": "Impor sekali saja host dari ~/.ssh/config",
-  "importSshKeys": "Impor kunci SSH dari ~/.ssh",
-  "importSshKeysSubtitle": "Pindai ~/.ssh untuk kunci privat dan tambahkan yang dipilih ke pengelola kunci",
-  "importSshKeysTitle": "Impor kunci SSH",
   "importSshKeysFound": "{count} kunci ditemukan — pilih mana yang akan diimpor",
   "@importSshKeysFound": {
     "placeholders": {
@@ -258,25 +250,6 @@
     }
   },
   "importSshKeysNoneFound": "Tidak ada kunci privat yang ditemukan di ~/.ssh.",
-  "importedSshKeys": "Berhasil mengimpor {count} kunci",
-  "@importedSshKeys": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "importedSshKeysWithSkipped": "Berhasil mengimpor {imported} kunci baru, {skipped} sudah ada di penyimpanan",
-  "@importedSshKeysWithSkipped": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
   "sshKeyAlreadyImported": "sudah ada di penyimpanan",
   "setMasterPasswordHint": "Atur kata sandi utama untuk mengenkripsi arsip.",
   "passwordsDoNotMatch": "Kata sandi tidak cocok",
@@ -547,5 +520,9 @@
   "disableKeychain": "Nonaktifkan enkripsi keychain",
   "disableKeychainSubtitle": "Beralih ke penyimpanan teks biasa (tidak disarankan)",
   "disableKeychainConfirm": "Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?",
-  "keychainDisabled": "Enkripsi keychain dinonaktifkan"
+  "keychainDisabled": "Enkripsi keychain dinonaktifkan",
+  "importFromSshDir": "Import from ~/.ssh",
+  "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
+  "sshDirImportHostsSection": "Hosts from config",
+  "sshDirImportKeysSection": "Keys in ~/.ssh"
 }
