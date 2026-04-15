@@ -15,6 +15,7 @@ import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
 import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
+import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
 import 'core/security/security_level.dart';
@@ -126,6 +127,10 @@ Future<void> main() async {
   };
 
   AppLogger.instance.log('App starting', name: 'App');
+
+  // Disable core dumps and ptrace attach as early as possible — before any
+  // secrets touch RAM. Best-effort, swallowed on failure.
+  ProcessHardening.applyOnStartup();
 
   if (plat.isDesktopPlatform) {
     singleInstanceLock = SingleInstance();
