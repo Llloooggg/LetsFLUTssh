@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -92,6 +93,62 @@ void main() {
 
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Import'), findsOneWidget);
+    });
+
+    testWidgets('tapping Replace switches description text', (tester) async {
+      tester.view.physicalSize = const Size(900, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildDialog(makePayload()));
+      await tester.pump();
+
+      expect(find.text('Add new sessions, keep existing'), findsOneWidget);
+      await tester.tap(find.text('Replace'));
+      await tester.pump();
+      expect(find.text('Replace all sessions with imported'), findsOneWidget);
+    });
+
+    testWidgets('Import result carries selected mode + options', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(900, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      LinkImportPreviewResult? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () async {
+                  result = await LinkImportPreviewDialog.show(
+                    ctx,
+                    payload: makePayload(),
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Replace'));
+      await tester.pump();
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      expect(result, isNotNull);
+      expect(result!.mode, ImportMode.replace);
+      expect(result!.options.includeSessions, isTrue);
     });
   });
 }
