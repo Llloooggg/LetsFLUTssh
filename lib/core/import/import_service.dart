@@ -361,30 +361,40 @@ class ImportService {
     Map<String, String> tagIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    if (tagSession != null) {
-      for (final link in sessionLinks) {
-        final newTagId = tagIdMap[link.targetId];
-        if (newTagId == null) continue; // tag not imported — would FK-fail
-        final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
-        try {
-          await tagSession!(newSessionId, newTagId);
-        } catch (e) {
-          AppLogger.instance.log(
-            'Skipped session-tag link: $e',
-            name: 'Import',
-          );
-        }
+    await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
+    await _applyFolderTagLinks(folderLinks, tagIdMap);
+  }
+
+  Future<void> _applySessionTagLinks(
+    List<ExportLink> links,
+    Map<String, String> tagIdMap,
+    Map<String, String> sessionIdMap,
+  ) async {
+    if (tagSession == null) return;
+    for (final link in links) {
+      final newTagId = tagIdMap[link.targetId];
+      if (newTagId == null) continue; // tag not imported — would FK-fail
+      final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
+      try {
+        await tagSession!(newSessionId, newTagId);
+      } catch (e) {
+        AppLogger.instance.log('Skipped session-tag link: $e', name: 'Import');
       }
     }
-    if (tagFolder != null) {
-      for (final link in folderLinks) {
-        final newTagId = tagIdMap[link.tagId];
-        if (newTagId == null) continue;
-        try {
-          await tagFolder!(link.folderPath, newTagId);
-        } catch (e) {
-          AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
-        }
+  }
+
+  Future<void> _applyFolderTagLinks(
+    List<ExportFolderTagLink> links,
+    Map<String, String> tagIdMap,
+  ) async {
+    if (tagFolder == null) return;
+    for (final link in links) {
+      final newTagId = tagIdMap[link.tagId];
+      if (newTagId == null) continue;
+      try {
+        await tagFolder!(link.folderPath, newTagId);
+      } catch (e) {
+        AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
       }
     }
   }
@@ -455,33 +465,28 @@ class ImportService {
   /// corresponding `includeX` flag on [result] is set — an unchecked type
   /// stays untouched.
   Future<_Snapshot?> _snapshotAndDeleteExisting(ImportResult result) async {
-    final existing = List<Session>.of(getSessions());
+    final snapshot = await _captureSnapshot(result);
+    await _clearExisting(result, snapshot);
+    return snapshot;
+  }
 
+  /// Capture the current state of every store the replace will touch, so a
+  /// later [_tryRestore] can rebuild it on failure.
+  Future<_Snapshot> _captureSnapshot(ImportResult result) async {
+    final existing = List<Session>.of(getSessions());
     final folders = getEmptyFolders != null
         ? Set.of(getEmptyFolders!())
         : <String>{};
     final config = getCurrentConfig?.call();
-
-    final List<Tag> tagsBackup = result.includeTags && loadAllTags != null
-        ? await loadAllTags!()
-        : const [];
-    final List<Snippet> snippetsBackup =
-        result.includeSnippets && loadAllSnippets != null
-        ? await loadAllSnippets!()
-        : const [];
-    final String? knownHostsBackup =
+    final tagsBackup = await _loadBackup(result.includeTags, loadAllTags);
+    final snippetsBackup = await _loadBackup(
+      result.includeSnippets,
+      loadAllSnippets,
+    );
+    final knownHostsBackup =
         result.includeKnownHosts && exportKnownHosts != null
         ? await exportKnownHosts!()
         : null;
-
-    final snapshot = _Snapshot(
-      sessions: existing,
-      folders: folders,
-      config: config,
-      tags: tagsBackup,
-      snippets: snippetsBackup,
-      knownHosts: knownHostsBackup,
-    );
 
     AppLogger.instance.log(
       'Replace mode: clearing sessions=${existing.length}, '
@@ -491,7 +496,21 @@ class ImportService {
       name: 'Import',
     );
 
-    for (final s in existing) {
+    return _Snapshot(
+      sessions: existing,
+      folders: folders,
+      config: config,
+      tags: tagsBackup,
+      snippets: snippetsBackup,
+      knownHosts: knownHostsBackup,
+    );
+  }
+
+  /// Delete rows from every store the replace is authoritative over. The
+  /// [snapshot] is the result of [_captureSnapshot] — we walk its sessions
+  /// list so external deletes done between snapshot and here don't matter.
+  Future<void> _clearExisting(ImportResult result, _Snapshot snapshot) async {
+    for (final s in snapshot.sessions) {
       await deleteSession(s.id);
     }
     if (result.includeTags && deleteAllTags != null) {
@@ -503,8 +522,16 @@ class ImportService {
     if (result.includeKnownHosts && clearKnownHosts != null) {
       await clearKnownHosts!();
     }
+  }
 
-    return snapshot;
+  /// Await an async backup loader only when [enabled] is true and the loader
+  /// is wired up. Keeps `_captureSnapshot` free of nested ternaries.
+  Future<List<T>> _loadBackup<T>(
+    bool enabled,
+    Future<List<T>> Function()? loader,
+  ) async {
+    if (!enabled || loader == null) return const [];
+    return loader();
   }
 
   /// Imports sessions from the result. On failure in replace mode, rethrows
