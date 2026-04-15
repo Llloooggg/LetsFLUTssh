@@ -162,6 +162,11 @@ class _LogViewerHost extends StatelessWidget {
 
 /// Inline live log viewer — polls the log file every second and displays the
 /// content in a dark terminal-style panel with Copy and Clear action buttons.
+///
+/// Polling is lifecycle-aware: the timer is paused when the app goes to the
+/// background (paused/inactive/hidden/detached) so it doesn't keep the CPU
+/// awake and drain battery when the user isn't looking. It resumes on
+/// AppLifecycleState.resumed.
 class _LiveLogViewer extends StatefulWidget {
   final VoidCallback onExport;
   final VoidCallback onClear;
@@ -172,7 +177,8 @@ class _LiveLogViewer extends StatefulWidget {
   State<_LiveLogViewer> createState() => _LiveLogViewerState();
 }
 
-class _LiveLogViewerState extends State<_LiveLogViewer> {
+class _LiveLogViewerState extends State<_LiveLogViewer>
+    with WidgetsBindingObserver {
   final _scrollController = ScrollController();
   String _content = '';
   Timer? _timer;
@@ -180,15 +186,38 @@ class _LiveLogViewerState extends State<_LiveLogViewer> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+    _startTimer();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopTimer();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_timer == null) {
+        _refresh();
+        _startTimer();
+      }
+    } else {
+      _stopTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   Future<void> _refresh() async {
