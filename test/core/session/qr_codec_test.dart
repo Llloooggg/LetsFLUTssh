@@ -269,6 +269,27 @@ void main() {
     test('returns null for invalid data', () {
       expect(decodeImportUri(Uri.parse('letsflutssh://import?d=!!!')), isNull);
     });
+
+    test('sessions field of wrong shape is dropped without crashing', () {
+      // Build a payload where `s` is a Map instead of the expected List.
+      // Previously this hit `as List` and threw a TypeError (caught by the
+      // outer guard, but only by accident). After the explicit `is List`
+      // check, the malformed entry is silently skipped and the rest of the
+      // payload survives — sessions just come out empty.
+      final payload = base64Url.encode(utf8.encode('{"s": {"oops": true}}'));
+      final result = decodeExportPayload(payload);
+      expect(result, isNotNull);
+      expect(result!.sessions, isEmpty);
+    });
+
+    test('non-string entries in eg list are filtered out', () {
+      final payload = base64Url.encode(
+        utf8.encode('{"s": [], "eg": ["folderA", 42, null, "folderB"]}'),
+      );
+      final result = decodeExportPayload(payload);
+      expect(result, isNotNull);
+      expect(result!.emptyFolders, {'folderA', 'folderB'});
+    });
   });
 
   group('calculateExportPayloadSize', () {
