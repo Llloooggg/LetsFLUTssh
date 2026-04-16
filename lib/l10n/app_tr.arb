@@ -129,6 +129,7 @@
   "qrGenerationFailed": "QR oluşturma başarısız",
   "scanWithCameraApp": "LetsFLUTssh yüklü bir cihazda\nherhangi bir kamera uygulamasıyla tarayın.",
   "noPasswordsInQr": "Bu QR kodunda şifre veya anahtar yok",
+  "qrContainsCredentialsWarning": "Bu QR kodu kimlik bilgilerini içerir. Ekranı gizli tutun.",
   "copyLink": "Bağlantıyı Kopyala",
   "linkCopied": "Bağlantı panoya kopyalandı",
   "hostKeyChanged": "Ana Bilgisayar Anahtarı Değişti!",

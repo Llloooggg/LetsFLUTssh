@@ -467,6 +467,10 @@ class SAr extends S {
   String get noPasswordsInQr => 'لا توجد كلمات مرور أو مفاتيح في رمز QR هذا';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'يحتوي رمز QR هذا على بيانات اعتماد. احتفظ بخصوصية الشاشة.';
+
+  @override
   String get copyLink => 'نسخ الرابط';
 
   @override

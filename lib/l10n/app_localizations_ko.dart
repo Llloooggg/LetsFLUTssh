@@ -454,6 +454,10 @@ class SKo extends S {
   String get noPasswordsInQr => '이 QR 코드에는 비밀번호나 키가 포함되어 있지 않습니다';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      '이 QR 코드에는 자격 증명이 포함되어 있습니다. 화면을 비공개로 유지하세요.';
+
+  @override
   String get copyLink => '링크 복사';
 
   @override

@@ -465,6 +465,10 @@ class SRu extends S {
   String get noPasswordsInQr => 'В этом QR-коде нет паролей и ключей';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'QR-код содержит учётные данные. Не показывайте экран посторонним.';
+
+  @override
   String get copyLink => 'Копировать ссылку';
 
   @override

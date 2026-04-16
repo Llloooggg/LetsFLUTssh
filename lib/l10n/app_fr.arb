@@ -129,6 +129,7 @@
   "qrGenerationFailed": "Échec de la génération du QR code",
   "scanWithCameraApp": "Scannez avec n'importe quelle application appareil photo\nsur un appareil où LetsFLUTssh est installé.",
   "noPasswordsInQr": "Aucun mot de passe ni clé dans ce QR code",
+  "qrContainsCredentialsWarning": "Ce code QR contient des identifiants. Gardez l'écran privé.",
   "copyLink": "Copier le lien",
   "linkCopied": "Lien copié dans le presse-papiers",
   "hostKeyChanged": "Clé de l'hôte modifiée !",

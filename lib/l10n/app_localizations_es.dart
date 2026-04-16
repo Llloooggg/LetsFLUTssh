@@ -464,6 +464,10 @@ class SEs extends S {
       'Este código QR no contiene contraseñas ni claves';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Este código QR contiene credenciales. Mantén la pantalla privada.';
+
+  @override
   String get copyLink => 'Copiar enlace';
 
   @override

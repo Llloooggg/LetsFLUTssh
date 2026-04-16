@@ -129,6 +129,7 @@
   "qrGenerationFailed": "فشل إنشاء رمز QR",
   "scanWithCameraApp": "امسح باستخدام أي تطبيق كاميرا على جهاز\nمثبّت عليه LetsFLUTssh.",
   "noPasswordsInQr": "لا توجد كلمات مرور أو مفاتيح في رمز QR هذا",
+  "qrContainsCredentialsWarning": "يحتوي رمز QR هذا على بيانات اعتماد. احتفظ بخصوصية الشاشة.",
   "copyLink": "نسخ الرابط",
   "linkCopied": "تم نسخ الرابط إلى الحافظة",
   "hostKeyChanged": "تغيّر مفتاح المضيف!",

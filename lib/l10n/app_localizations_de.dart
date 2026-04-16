@@ -465,6 +465,10 @@ class SDe extends S {
       'Keine Passwörter oder Schlüssel in diesem QR-Code';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Dieser QR-Code enthält Zugangsdaten. Halten Sie den Bildschirm privat.';
+
+  @override
   String get copyLink => 'Link kopieren';
 
   @override

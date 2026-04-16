@@ -129,6 +129,7 @@
   "qrGenerationFailed": "QRコード生成に失敗しました",
   "scanWithCameraApp": "LetsFLUTsshがインストールされている\nデバイスのカメラアプリでスキャンしてください。",
   "noPasswordsInQr": "このQRコードにパスワードや鍵は含まれていません",
+  "qrContainsCredentialsWarning": "このQRコードには認証情報が含まれています。画面を他人に見せないでください。",
   "copyLink": "リンクをコピー",
   "linkCopied": "リンクをクリップボードにコピーしました",
   "hostKeyChanged": "ホスト鍵が変更されました！",

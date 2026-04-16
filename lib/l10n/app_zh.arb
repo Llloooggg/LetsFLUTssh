@@ -129,6 +129,7 @@
   "qrGenerationFailed": "QR 码生成失败",
   "scanWithCameraApp": "使用已安装 LetsFLUTssh 的设备上的\n相机应用扫描。",
   "noPasswordsInQr": "此 QR 码中不包含密码或密钥",
+  "qrContainsCredentialsWarning": "此二维码包含凭据。请保持屏幕隐私。",
   "copyLink": "复制链接",
   "linkCopied": "链接已复制到剪贴板",
   "hostKeyChanged": "主机密钥已更改！",

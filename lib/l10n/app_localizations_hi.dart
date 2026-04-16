@@ -463,6 +463,10 @@ class SHi extends S {
   String get noPasswordsInQr => 'इस QR कोड में कोई पासवर्ड या कुंजी नहीं है';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'इस QR कोड में क्रेडेंशियल हैं। स्क्रीन को निजी रखें।';
+
+  @override
   String get copyLink => 'लिंक कॉपी करें';
 
   @override

@@ -462,6 +462,10 @@ class SId extends S {
       'Tidak ada kata sandi atau kunci dalam kode QR ini';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Kode QR ini berisi kredensial. Jaga privasi layar.';
+
+  @override
   String get copyLink => 'Salin Tautan';
 
   @override

@@ -129,6 +129,7 @@
   "qrGenerationFailed": "Pembuatan QR gagal",
   "scanWithCameraApp": "Pindai dengan aplikasi kamera di perangkat\nyang telah memasang LetsFLUTssh.",
   "noPasswordsInQr": "Tidak ada kata sandi atau kunci dalam kode QR ini",
+  "qrContainsCredentialsWarning": "Kode QR ini berisi kredensial. Jaga privasi layar.",
   "copyLink": "Salin Tautan",
   "linkCopied": "Tautan disalin ke clipboard",
   "hostKeyChanged": "Kunci Host Berubah!",

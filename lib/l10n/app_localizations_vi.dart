@@ -458,6 +458,10 @@ class SVi extends S {
   String get noPasswordsInQr => 'Không có mật khẩu hoặc khóa trong mã QR này';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Mã QR này chứa thông tin xác thực. Giữ màn hình riêng tư.';
+
+  @override
   String get copyLink => 'Sao chép liên kết';
 
   @override

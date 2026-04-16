@@ -461,6 +461,10 @@ class SEn extends S {
   String get noPasswordsInQr => 'No passwords or keys are in this QR code';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'This QR code contains session credentials. Keep the screen private.';
+
+  @override
   String get copyLink => 'Copy Link';
 
   @override

@@ -684,8 +684,9 @@ void main() {
 
     test('rejects payload with future version beyond current schema', () {
       // Future versions may carry unknown fields that this build cannot
-      // interpret — parsing them would silently drop data, so rejection is
-      // the safer contract.
+      // interpret — parsing them would silently drop data. The decoder
+      // throws [QrPayloadVersionTooNewException] so the UI can route the
+      // user to "update the app" instead of showing a generic "invalid QR".
       final payload = jsonEncode({
         'v': 99,
         's': [
@@ -694,7 +695,10 @@ void main() {
       });
       final compressed = Deflate(utf8.encode(payload)).getBytes();
       final encoded = base64Url.encode(compressed);
-      expect(decodeExportPayload(encoded), isNull);
+      expect(
+        () => decodeExportPayload(encoded),
+        throwsA(isA<QrPayloadVersionTooNewException>()),
+      );
     });
 
     test('decodes v1 old format without version field', () {
