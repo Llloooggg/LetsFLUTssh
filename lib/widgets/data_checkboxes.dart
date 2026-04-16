@@ -114,6 +114,12 @@ class DataCheckboxRow extends StatelessWidget {
   /// warning/fg auto-pick. Used to render already-imported rows dimmed out.
   final Color? labelColor;
 
+  /// Optional explicit color for the leading icon. When omitted the icon
+  /// follows [labelColor] / warning styling, preserving the old behaviour.
+  /// Used by the tag picker to render a tag-coloured dot as the leading
+  /// glyph without tinting the label text itself.
+  final Color? iconColor;
+
   const DataCheckboxRow({
     super.key,
     required this.icon,
@@ -124,6 +130,7 @@ class DataCheckboxRow extends StatelessWidget {
     this.warningText,
     this.subtitle,
     this.labelColor,
+    this.iconColor,
     this.tristate = false,
   });
 
@@ -131,6 +138,7 @@ class DataCheckboxRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasWarning = warningText != null;
     final accent = labelColor ?? (hasWarning ? AppTheme.orange : AppTheme.fg);
+    final iconTint = iconColor ?? accent;
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) => Container(
@@ -142,7 +150,7 @@ class DataCheckboxRow extends StatelessWidget {
               tristate: tristate,
               onChanged: (_) => onTap(),
             ),
-            Icon(icon, size: 16, color: accent),
+            Icon(icon, size: 16, color: iconTint),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
