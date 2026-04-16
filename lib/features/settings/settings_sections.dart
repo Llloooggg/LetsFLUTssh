@@ -1054,13 +1054,18 @@ class _ExportImportTile extends ConsumerWidget {
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
     );
 
+    final knownHostsContent = await ref
+        .read(knownHostsProvider)
+        .exportToString();
+    if (!context.mounted) return;
+
     final exportResult = await UnifiedExportDialog.show(
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
         emptyFolders: store.emptyFolders,
         config: ref.read(configProvider),
-        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        knownHostsContent: knownHostsContent,
         managerKeys: managerKeys,
         managerKeyEntries: allKeys,
         tags: allTags,
@@ -1140,6 +1145,9 @@ class _ExportImportTile extends ConsumerWidget {
         ref,
         exportResult,
       );
+      final knownHostsContent = exportResult.options.includeKnownHosts
+          ? await ref.read(knownHostsProvider).exportToString()
+          : null;
 
       await ExportImport.export(
         masterPassword: password,
@@ -1153,9 +1161,7 @@ class _ExportImportTile extends ConsumerWidget {
           emptyFolders: exportResult.options.includeSessions
               ? exportResult.selectedEmptyFolders
               : {},
-          knownHostsContent: exportResult.options.includeKnownHosts
-              ? ref.read(knownHostsProvider).exportToString()
-              : null,
+          knownHostsContent: knownHostsContent,
           managerKeyEntries: managerKeyEntries,
           tags: tags,
           sessionTags: sessionTags,
@@ -1465,7 +1471,7 @@ class _ExportImportTile extends ConsumerWidget {
         deleteAllTags: () => tagStore.deleteAll(),
         loadAllSnippets: () => snippetStore.loadAll(),
         deleteAllSnippets: () => snippetStore.deleteAll(),
-        exportKnownHosts: () async => knownHostsMgr.exportToString(),
+        exportKnownHosts: () => knownHostsMgr.exportToString(),
         clearKnownHosts: () => knownHostsMgr.clearAll(),
         importKnownHosts: (content) async {
           await knownHostsMgr.importFromString(content);
@@ -1904,13 +1910,18 @@ class _QrExportTile extends ConsumerWidget {
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
     );
 
+    final knownHostsContent = await ref
+        .read(knownHostsProvider)
+        .exportToString();
+    if (!context.mounted) return;
+
     final exportResult = await UnifiedExportDialog.show(
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
         emptyFolders: store.emptyFolders,
         config: ref.read(configProvider),
-        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        knownHostsContent: knownHostsContent,
         managerKeys: managerKeys,
         managerKeyEntries: allKeys,
         tags: allTags,
@@ -1953,7 +1964,7 @@ class _QrExportTile extends ConsumerWidget {
             ? ref.read(configProvider)
             : null,
         knownHostsContent: exportResult.options.includeKnownHosts
-            ? ref.read(knownHostsProvider).exportToString()
+            ? knownHostsContent
             : null,
         managerKeyEntries: allKeys,
         tags: tags,

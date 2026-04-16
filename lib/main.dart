@@ -1147,7 +1147,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       deleteAllTags: () => tagStore.deleteAll(),
       loadAllSnippets: () => snippetStore.loadAll(),
       deleteAllSnippets: () => snippetStore.deleteAll(),
-      exportKnownHosts: () async => knownHostsMgr.exportToString(),
+      exportKnownHosts: () => knownHostsMgr.exportToString(),
       clearKnownHosts: () => knownHostsMgr.clearAll(),
       importKnownHosts: (content) async {
         await knownHostsMgr.importFromString(content);
