@@ -39,19 +39,19 @@ class ExportImport {
 
   static const _saltLen = 32;
   static const _ivLen = 12;
-  static const _pbkdf2IterationsProd = 600000;
 
-  /// PBKDF2 iteration count. Constant in production — tests may lower it
-  /// via [debugSetPbkdf2Iterations] so roundtrips don't spend 500 ms per
-  /// derive, which would stretch the full suite into minutes.
-  static int _pbkdf2Iterations = _pbkdf2IterationsProd;
+  /// Production PBKDF2-SHA256 iteration count. Public so tests that need a
+  /// roundtrip with the real cost can reference it explicitly. Most tests
+  /// pass a much lower value via the per-call [iterations] parameter.
+  static const int productionPbkdf2Iterations = 600000;
 
-  /// Lower PBKDF2 iterations for tests. Restores to production value when
-  /// called with null. NEVER call from production code.
+  /// Default PBKDF2 iteration count when [export], [import_] or [preview]
+  /// callers do not provide an explicit `iterations` parameter. Mutable so
+  /// the test bootstrap (`flutter_test_config.dart`) can globally lower it
+  /// for the whole suite without every test having to thread the value
+  /// through. Production code never writes this field.
   @visibleForTesting
-  static void debugSetPbkdf2Iterations(int? iterations) {
-    _pbkdf2Iterations = iterations ?? _pbkdf2IterationsProd;
-  }
+  static int defaultPbkdf2Iterations = productionPbkdf2Iterations;
 
   /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
   /// decryption or decompression so a pathologically large file can't OOM
@@ -247,6 +247,7 @@ class ExportImport {
     required String outputPath,
     ProgressReporter? progress,
     S? l10n,
+    int? iterations,
   }) async {
     progress?.phase(l10n?.progressCollectingData ?? 'Collecting data…');
     final archive = _buildArchive(input);
@@ -264,11 +265,12 @@ class ExportImport {
 
     // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
     progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
-    // Capture iteration count in the main isolate so debugSetPbkdf2Iterations
-    // (used only by tests) actually takes effect across the isolate boundary.
-    final iterations = _pbkdf2Iterations;
+    // Capture iteration count in the main isolate so the value crosses the
+    // Isolate boundary as a const, not via the global default that would
+    // otherwise be re-read on the worker side.
+    final iters = iterations ?? defaultPbkdf2Iterations;
     final encrypted = await Isolate.run(
-      () => _encryptWithPassword(zipBytes, masterPassword, iterations),
+      () => _encryptWithPassword(zipBytes, masterPassword, iters),
     );
     AppLogger.instance.log(
       'Export: encrypted ${encrypted.length} bytes',
@@ -455,6 +457,7 @@ class ExportImport {
     required String masterPassword,
     ProgressReporter? progress,
     S? l10n,
+    int? iterations,
   }) async {
     progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
     final file = File(filePath);
@@ -472,10 +475,10 @@ class ExportImport {
     // Both cases collapse to LfsDecryptionFailedException so the UI can show
     // a single localized message.
     final Uint8List zipBytes;
-    final iterations = _pbkdf2Iterations;
+    final iters = iterations ?? defaultPbkdf2Iterations;
     try {
       zipBytes = await Isolate.run(
-        () => _decryptWithPassword(encData, masterPassword, iterations),
+        () => _decryptWithPassword(encData, masterPassword, iters),
       );
     } catch (e) {
       throw LfsDecryptionFailedException(cause: e);
@@ -580,10 +583,12 @@ class ExportImport {
   static Future<LfsPreview> preview({
     required String filePath,
     required String masterPassword,
+    int? iterations,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
+      iterations: iterations,
     );
 
     final hasConfig = parsed.archive.findFile(_configFile) != null;
@@ -615,12 +620,14 @@ class ExportImport {
     ExportOptions options = const ExportOptions(),
     ProgressReporter? progress,
     S? l10n,
+    int? iterations,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
       progress: progress,
       l10n: l10n,
+      iterations: iterations,
     );
 
     // Parse config (only if requested and present)

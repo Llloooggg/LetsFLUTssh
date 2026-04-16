@@ -706,9 +706,8 @@ void main() {
     test(
       'rejects archive whose decompressed known_hosts exceeds the cap',
       () async {
-        ExportImport.debugSetPbkdf2Iterations(1);
-        addTearDown(() => ExportImport.debugSetPbkdf2Iterations(null));
-
+        // Use the per-call iterations override so the global default
+        // (already lowered by flutter_test_config.dart) is irrelevant.
         // Build a known_hosts string just over the cap. Use a printable byte so
         // utf8.decode wouldn't even be attempted (the size guard runs first).
         final big = String.fromCharCodes(
@@ -718,6 +717,7 @@ void main() {
         await ExportImport.export(
           masterPassword: 'pw',
           outputPath: outputPath,
+          iterations: 1,
           input: LfsExportInput(
             sessions: const [],
             config: AppConfig.defaults,
@@ -732,6 +732,7 @@ void main() {
             masterPassword: 'pw',
             mode: ImportMode.merge,
             options: const ExportOptions(includeKnownHosts: true),
+            iterations: 1,
           ),
           throwsA(isA<LfsKnownHostsTooLargeException>()),
         );
