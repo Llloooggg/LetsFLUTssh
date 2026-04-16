@@ -24,6 +24,14 @@ Session dbSessionToSession(
   Map<String, DbFolder> folderMap, {
   bool withCredentials = false,
 }) {
+  // Record whether the row actually carries a secret even when we strip
+  // it from the in-memory copy — the tree view needs this to decide
+  // whether to flag the session as incomplete (yellow warning). Without
+  // it, every embedded-key session would look broken after a restart.
+  final hasStoredSecret =
+      db.password.isNotEmpty ||
+      db.keyData.isNotEmpty ||
+      db.passphrase.isNotEmpty;
   return Session(
     id: db.id,
     label: db.label,
@@ -35,6 +43,7 @@ Session dbSessionToSession(
         orElse: () => AuthType.password,
       ),
       keyId: db.keyId ?? '',
+      hasStoredSecret: hasStoredSecret,
       password: withCredentials ? db.password : '',
       keyPath: db.keyPath,
       keyData: withCredentials ? db.keyData : '',

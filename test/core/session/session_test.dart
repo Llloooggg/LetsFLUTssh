@@ -428,6 +428,18 @@ void main() {
       );
       expect(s.hasCredentials, isFalse);
     });
+
+    test('true when in-memory fields are empty but hasStoredSecret signals '
+        'that the DB holds the secret — covers the startup path where the '
+        'session cache is loaded without plaintext credentials', () {
+      final s = Session(
+        label: 'test',
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(authType: AuthType.key, hasStoredSecret: true),
+      );
+      expect(s.hasCredentials, isTrue);
+      expect(s.isValid, isTrue);
+    });
   });
 
   group('Session isValid', () {

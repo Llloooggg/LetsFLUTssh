@@ -142,6 +142,28 @@ void main() {
       expect(full.keyData, 'PEM-DATA');
       expect(full.passphrase, 'pass');
     });
+
+    test(
+      'bulk-loaded cache carries hasStoredSecret so the tree view does '
+      'not flag embedded-key sessions as incomplete after a restart',
+      () async {
+        await store.load();
+        await store.add(makeSession(id: 'with', keyData: 'PEM', password: ''));
+        await store.add(makeSession(id: 'without', password: '', keyData: ''));
+
+        final store2 = SessionStore()..setDatabase(db);
+        final loaded = await store2.load();
+        final withSecret = loaded.firstWhere((s) => s.id == 'with');
+        final withoutSecret = loaded.firstWhere((s) => s.id == 'without');
+
+        expect(withSecret.auth.hasStoredSecret, isTrue);
+        expect(withSecret.hasCredentials, isTrue);
+        expect(withSecret.isValid, isTrue);
+
+        expect(withoutSecret.auth.hasStoredSecret, isFalse);
+        expect(withoutSecret.hasCredentials, isFalse);
+      },
+    );
   });
 
   group('SessionStore — folders', () {
