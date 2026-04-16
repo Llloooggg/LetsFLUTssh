@@ -1,4 +1,4 @@
-/* OneDark color palette — matches the app theme */
+/* OneDark color palette — matches the root site and app theme */
 :root {
   --bg0: #1B1D23;
   --bg1: #21252B;
@@ -316,22 +316,16 @@ body {
   padding-bottom: 6px;
 }
 
-.markdown-body h3 {
-  font-size: 20px;
-}
+.markdown-body h3 { font-size: 20px; }
 
-.markdown-body p {
-  margin-bottom: 16px;
-}
+.markdown-body p { margin-bottom: 16px; }
 
 .markdown-body a {
   color: var(--blue);
   text-decoration: none;
 }
 
-.markdown-body a:hover {
-  text-decoration: underline;
-}
+.markdown-body a:hover { text-decoration: underline; }
 
 .markdown-body ul,
 .markdown-body ol {
@@ -339,9 +333,7 @@ body {
   padding-left: 28px;
 }
 
-.markdown-body li {
-  margin-bottom: 4px;
-}
+.markdown-body li { margin-bottom: 4px; }
 
 .markdown-body code {
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
@@ -399,14 +391,8 @@ body {
   font-weight: 600;
 }
 
-.markdown-body tr:nth-child(even) td {
-  background: var(--bg2);
-}
-
-.markdown-body img {
-  max-width: 100%;
-  border-radius: 6px;
-}
+.markdown-body tr:nth-child(even) td { background: var(--bg2); }
+.markdown-body img { max-width: 100%; border-radius: 6px; }
 
 .markdown-body hr {
   border: none;
@@ -429,9 +415,7 @@ footer a {
   text-decoration: none;
 }
 
-footer a:hover {
-  text-decoration: underline;
-}
+footer a:hover { text-decoration: underline; }
 
 footer .sep {
   margin: 0 8px;
@@ -446,13 +430,7 @@ footer .muted {
 
 /* ── Responsive ─────────────────────────────────────── */
 @media (max-width: 600px) {
-  .hero h1 {
-    font-size: 40px;
-  }
-  .tagline {
-    font-size: 18px;
-  }
-  .hero {
-    padding: 48px 0 40px;
-  }
+  .hero h1 { font-size: 40px; }
+  .tagline { font-size: 18px; }
+  .hero { padding: 48px 0 40px; }
 }
