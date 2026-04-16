@@ -217,16 +217,22 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
   @override
   bool isMarqueeItemSelected(int index) {
+    // Report both multi-selected (checked) and single-focused rows as
+    // "selected" so [handleMarqueePointerDown] skips the marquee anchor
+    // for any visibly highlighted row. The row is then free for the
+    // Draggable wrapper to claim the pointer sequence.
     final flatNodes = _cachedFlatNodes;
     if (flatNodes == null || index < 0 || index >= flatNodes.length) {
       return false;
     }
     final node = flatNodes[index].$1;
     if (node.session != null) {
-      return widget.selectedIds.contains(node.session!.id);
+      final id = node.session!.id;
+      return widget.selectedIds.contains(id) || widget.focusedSessionId == id;
     }
     if (node.isGroup) {
-      return widget.selectedFolderPaths.contains(node.fullPath);
+      return widget.selectedFolderPaths.contains(node.fullPath) ||
+          widget.focusedFolderPath == node.fullPath;
     }
     return false;
   }
@@ -705,7 +711,13 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     }
 
     final theme = Theme.of(context);
-    final isFolderSelected = widget.selectedFolderPaths.contains(node.fullPath);
+    // Draggable wraps a folder if it is either multi-selected (checked)
+    // or single-click focused. An unhighlighted folder must stay plain
+    // so the pointer-down there starts a marquee instead of a drag —
+    // matching the UX rule "drag from highlighted, marquee from empty".
+    final isFolderChecked = widget.selectedFolderPaths.contains(node.fullPath);
+    final isFolderFocused = widget.focusedFolderPath == node.fullPath;
+    final isFolderHighlighted = isFolderChecked || isFolderFocused;
 
     // DragTarget is always present so items can be dropped onto folders.
     final Widget target = DragTarget<SessionDragData>(
@@ -734,9 +746,10 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       },
     );
 
-    // Only wrap in Draggable when selected — unselected folders
-    // must stay unwrapped so marquee can start from them.
-    if (!isFolderSelected) return target;
+    // Only wrap in Draggable when the folder is highlighted (checked
+    // or single-focused) — unhighlighted folders must stay unwrapped
+    // so marquee can start from them.
+    if (!isFolderHighlighted) return target;
 
     final isBulk = _hasBulkSelection;
     final SessionDragData dragData = isBulk
@@ -909,9 +922,12 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     // Select mode or mobile: no drag&drop
     if (_mobile || widget.selectMode) return content;
 
-    // Desktop: only wrap in Draggable when the row is selected (checked) —
-    // unselected rows must stay unwrapped so marquee can start from them.
-    if (!isChecked) return content;
+    // Desktop: wrap in Draggable when the row is highlighted — either
+    // multi-selected (checked) or single-click focused. Plain rows stay
+    // unwrapped so a pointer-down on them starts a marquee instead of a
+    // drag, matching the UX rule "drag from highlighted, marquee from
+    // empty".
+    if (!isChecked && !isSelected) return content;
 
     final isBulk = _hasBulkSelection;
     final SessionDragData dragData = isBulk
