@@ -2948,6 +2948,54 @@ void main() {
 
       expect(find.text('Appearance'), findsNothing);
     });
+
+    testWidgets(
+      'Security section info rows pin the value text to the right edge',
+      (tester) async {
+        tester.view.physicalSize = const Size(1600, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(buildDesktopApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Security'));
+        await tester.pumpAndSettle();
+
+        // Allow the async keychain / master-password probes in
+        // _SecuritySection._checkState to settle so the info-tile value
+        // text flips from the "..." placeholder to the real label.
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump();
+
+        final valueFinder = find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              (w.data == 'Master Password' ||
+                  w.data == 'OS Keychain' ||
+                  w.data == 'None'),
+        );
+        expect(valueFinder, findsOneWidget);
+        final valueRect = tester.getRect(valueFinder);
+
+        // The info row spans the full content area. Assert the value's
+        // right edge sits close to the containing Row's right edge — the
+        // previous `Flexible(value)` layout parked short values in the
+        // middle of the row, leaving a large gap on the right.
+        final rowRect = tester.getRect(
+          find.ancestor(of: valueFinder, matching: find.byType(Row)).first,
+        );
+        expect(
+          rowRect.right - valueRect.right,
+          lessThan(8),
+          reason:
+              'value text must sit at the right edge of the info row, not '
+              'drift into the middle (gap below 8px = right-aligned)',
+        );
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

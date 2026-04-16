@@ -119,9 +119,16 @@ class _InfoTile extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: AppTheme.fgDim),
           const SizedBox(width: 10),
+          // `Expanded` on the title absorbs every bit of extra row width, so
+          // the value — rendered after the gap without its own flex wrapper —
+          // is pinned against the right edge regardless of how wide the tile
+          // stretches on desktop. The earlier `Flexible` on the value split
+          // the remaining space 50/50 with the title, leaving short values
+          // drifting somewhere in the middle of wide rows.
           Expanded(
             child: Text(
               title,
+              overflow: TextOverflow.ellipsis,
               style: AppFonts.inter(
                 fontSize: AppFonts.sm,
                 color: AppTheme.fgDim,
@@ -129,13 +136,10 @@ class _InfoTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              softWrap: true,
-              style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-            ),
+          Text(
+            value,
+            textAlign: TextAlign.end,
+            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
         ],
       ),
