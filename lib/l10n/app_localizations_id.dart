@@ -1236,6 +1236,9 @@ class SId extends S {
   }
 
   @override
+  String get errLfsNotArchive => 'Berkas yang dipilih bukan arsip LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Kata sandi utama salah atau arsip .lfs rusak';
 

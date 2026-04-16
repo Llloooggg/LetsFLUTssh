@@ -387,6 +387,7 @@
   "autoLockSubtitle": "इतनी देर निष्क्रिय रहने पर UI लॉक होता है। एन्क्रिप्टेड डेटाबेस तभी पुनः लॉक होता है जब कोई सक्रिय SSH सत्र न हो, ताकि लंबी प्रक्रियाएँ बाधित न हों।",
   "autoLockOff": "बंद",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} मिनट} other{{minutes} मिनट}}",
+  "errLfsNotArchive": "चयनित फ़ाइल LetsFLUTssh संग्रह नहीं है।",
   "errLfsDecryptFailed": "गलत मास्टर पासवर्ड या दूषित .lfs संग्रह",
   "errLfsArchiveTooLarge": "संग्रह बहुत बड़ा है ({sizeMb} MB). सीमा {limitMb} MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.",
   "errLfsImportRolledBack": "आयात विफल — आपका डेटा आयात से पहले की स्थिति में पुनर्स्थापित कर दिया गया है। ({cause})",

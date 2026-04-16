@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -1325,6 +1326,81 @@ void main() {
     test('LfsDecryptionFailedException toString is stable', () {
       const e = LfsDecryptionFailedException(cause: 'boom');
       expect(e.toString(), 'LfsDecryptionFailedException');
+    });
+  });
+
+  group('ExportImport.probeArchive', () {
+    Uint8List zipWith(Map<String, String> entries) {
+      final archive = Archive();
+      entries.forEach((name, contents) {
+        final bytes = utf8.encode(contents);
+        archive.addFile(ArchiveFile(name, bytes.length, bytes));
+      });
+      return Uint8List.fromList(ZipEncoder().encode(archive));
+    }
+
+    test('rejects a random non-ZIP payload as encryptedLfs', () {
+      // Non-ZIP header must not be classified as notLfs pre-decrypt — an
+      // AES-GCM ciphertext is indistinguishable from noise here, so the
+      // import flow still needs a password prompt for it.
+      final enc = File('${tempDir.path}/enc.lfs');
+      enc.writeAsBytesSync([0x13, 0x37, 0x00, 0x42, 0xAB, 0xCD]);
+      expect(ExportImport.probeArchive(enc.path), LfsArchiveKind.encryptedLfs);
+    });
+
+    test('classifies a plain ZIP with a marker entry as unencryptedLfs', () {
+      final f = File('${tempDir.path}/plain.lfs');
+      f.writeAsBytesSync(zipWith({'manifest.json': '{"schema_version":1}'}));
+      expect(ExportImport.probeArchive(f.path), LfsArchiveKind.unencryptedLfs);
+    });
+
+    test(
+      'accepts any one of {sessions.json, config.json, keys.json} as a marker',
+      () {
+        for (final marker in ['sessions.json', 'config.json', 'keys.json']) {
+          final f = File('${tempDir.path}/${marker.replaceAll('.', '_')}.lfs');
+          f.writeAsBytesSync(zipWith({marker: '[]'}));
+          expect(
+            ExportImport.probeArchive(f.path),
+            LfsArchiveKind.unencryptedLfs,
+            reason: 'marker=$marker',
+          );
+        }
+      },
+    );
+
+    test('rejects a ZIP without any LFS marker entry as notLfs '
+        '(defends against APK picked by mistake on Android SAF)', () {
+      // Shape mimics what an APK might look like — ZIP structure with
+      // entries none of which are in our allowlist.
+      final f = File('${tempDir.path}/apk-like.lfs');
+      f.writeAsBytesSync(
+        zipWith({'AndroidManifest.xml': '<manifest />', 'classes.dex': 'dex'}),
+      );
+      expect(ExportImport.probeArchive(f.path), LfsArchiveKind.notLfs);
+    });
+
+    test(
+      'rejects a ZIP-magic file that is not actually a valid ZIP as notLfs',
+      () {
+        // Header looks like a ZIP but the rest is garbage — ZipDecoder throws.
+        final f = File('${tempDir.path}/bad.lfs');
+        f.writeAsBytesSync([0x50, 0x4B, 0x03, 0x04, 0xFF, 0xFF, 0xFF, 0xFF]);
+        expect(ExportImport.probeArchive(f.path), LfsArchiveKind.notLfs);
+      },
+    );
+
+    test('rejects a file shorter than 4 bytes as notLfs', () {
+      final f = File('${tempDir.path}/tiny.lfs');
+      f.writeAsBytesSync([0x50, 0x4B]);
+      expect(ExportImport.probeArchive(f.path), LfsArchiveKind.notLfs);
+    });
+
+    test('rejects a missing file as notLfs', () {
+      expect(
+        ExportImport.probeArchive('${tempDir.path}/missing.lfs'),
+        LfsArchiveKind.notLfs,
+      );
     });
   });
 }

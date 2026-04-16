@@ -714,6 +714,7 @@
       "minutes": { "type": "int" }
     }
   },
+  "errLfsNotArchive": "Selected file is not a LetsFLUTssh archive.",
   "errLfsDecryptFailed": "Wrong master password or corrupted .lfs archive",
   "errLfsArchiveTooLarge": "Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.",
   "@errLfsArchiveTooLarge": {

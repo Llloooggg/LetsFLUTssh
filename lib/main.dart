@@ -1027,13 +1027,23 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       'LFS import started: ${filePath.split('/').last}',
       name: 'App',
     );
-    // Peek at the archive header so the password prompt can be skipped for
+    // Classify the file before any prompt. Rejects non-LFS content
+    // (e.g. an .apk picked by mistake — Android SAF ignores the .lfs
+    // extension filter) and lets us skip the password prompt for
     // unencrypted (plain-ZIP) exports.
-    final isEncrypted = LfsImportDialog.probeEncrypted(filePath);
+    final kind = ExportImport.probeArchive(filePath);
+    if (kind == LfsArchiveKind.notLfs) {
+      Toast.show(
+        context,
+        message: S.of(context).errLfsNotArchive,
+        level: ToastLevel.error,
+      );
+      return;
+    }
     final result = await LfsImportDialog.show(
       context,
       filePath: filePath,
-      isEncrypted: isEncrypted,
+      isEncrypted: kind == LfsArchiveKind.encryptedLfs,
     );
     if (result == null || !context.mounted) return;
 

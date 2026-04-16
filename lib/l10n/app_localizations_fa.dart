@@ -1230,6 +1230,9 @@ class SFa extends S {
   }
 
   @override
+  String get errLfsNotArchive => 'فایل انتخاب‌شده یک بایگانی LetsFLUTssh نیست.';
+
+  @override
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
 
   @override

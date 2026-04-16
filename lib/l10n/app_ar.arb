@@ -387,6 +387,7 @@
   "autoLockSubtitle": "قفل الواجهة بعد هذه المدة من الخمول. لا يُعاد قفل قاعدة البيانات المشفّرة إلا عند عدم وجود جلسات SSH نشطة، حتى تستمر العمليات الطويلة دون انقطاع.",
   "autoLockOff": "معطّل",
   "autoLockMinutesValue": "{minutes, plural, zero{{minutes} دقيقة} one{دقيقة واحدة} two{دقيقتان} few{{minutes} دقائق} many{{minutes} دقيقة} other{{minutes} دقيقة}}",
+  "errLfsNotArchive": "الملف المحدد ليس أرشيف LetsFLUTssh.",
   "errLfsDecryptFailed": "كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف",
   "errLfsArchiveTooLarge": "الأرشيف كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.",
   "errLfsImportRolledBack": "فشل الاستيراد — تمت استعادة بياناتك إلى الحالة السابقة. ({cause})",

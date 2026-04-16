@@ -1236,6 +1236,9 @@ class STr extends S {
   }
 
   @override
+  String get errLfsNotArchive => 'Seçilen dosya bir LetsFLUTssh arşivi değil.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
 

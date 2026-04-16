@@ -798,10 +798,20 @@ Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
 bytes (the `PK\x03\x04` local-file-header magic) instead of the
-salt + IV + ciphertext + tag layout. Import side detects the format by
-checking the first 4 bytes via ExportImport.isUnencryptedArchive() /
-LfsImportDialog.probeEncrypted() and skips the PBKDF2 / AES-GCM path,
-so the user never sees a password prompt for a plain-ZIP archive.
+salt + IV + ciphertext + tag layout.
+
+Import-side validation: `ExportImport.probeArchive(path)` classifies the
+picked file into `{unencryptedLfs, encryptedLfs, notLfs}` before any
+password prompt:
+  * ZIP magic + at least one marker entry (`manifest.json`,
+    `sessions.json`, `config.json`, `keys.json`) → `unencryptedLfs`,
+    password prompt skipped.
+  * ZIP magic but no marker → `notLfs`, rejected with a localized
+    `errLfsNotArchive` toast. This catches e.g. an `.apk` picked by
+    mistake on Android SAF, which ignores the `allowedExtensions: ['lfs']`
+    filter for unregistered MIME types and lets the user select any file.
+  * Non-ZIP header → `encryptedLfs`; password prompt runs and the manifest
+    check inside `_decryptAndParseArchive` is the final arbiter.
 ```
 
 Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**). The

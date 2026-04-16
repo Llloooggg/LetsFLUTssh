@@ -1244,6 +1244,10 @@ class SDe extends S {
   }
 
   @override
+  String get errLfsNotArchive =>
+      'Die ausgewählte Datei ist kein LetsFLUTssh-Archiv.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
 

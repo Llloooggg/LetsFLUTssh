@@ -2283,6 +2283,12 @@ abstract class S {
   /// **'{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}'**
   String autoLockMinutesValue(int minutes);
 
+  /// No description provided for @errLfsNotArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected file is not a LetsFLUTssh archive.'**
+  String get errLfsNotArchive;
+
   /// No description provided for @errLfsDecryptFailed.
   ///
   /// In en, this message translates to:

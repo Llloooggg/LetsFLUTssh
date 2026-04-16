@@ -387,6 +387,7 @@
   "autoLockSubtitle": "Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.",
   "autoLockOff": "Desativado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
+  "errLfsNotArchive": "O arquivo selecionado não é um arquivo do LetsFLUTssh.",
   "errLfsDecryptFailed": "Senha mestra incorreta ou arquivo .lfs corrompido",
   "errLfsArchiveTooLarge": "Arquivo muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido antes da descriptografia para proteger a memória.",
   "errLfsImportRolledBack": "Falha na importação — seus dados foram restaurados ao estado anterior. ({cause})",

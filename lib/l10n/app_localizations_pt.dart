@@ -1239,6 +1239,10 @@ class SPt extends S {
   }
 
   @override
+  String get errLfsNotArchive =>
+      'O arquivo selecionado não é um arquivo do LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Senha mestra incorreta ou arquivo .lfs corrompido';
 

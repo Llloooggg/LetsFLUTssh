@@ -387,6 +387,7 @@
   "autoLockSubtitle": "Блокировать интерфейс после указанного периода бездействия. Зашифрованная база перезакрывается только когда нет активных SSH-сессий — длительные операции не прерываются.",
   "autoLockOff": "Выкл.",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} минута} few{{minutes} минуты} many{{minutes} минут} other{{minutes} минуты}}",
+  "errLfsNotArchive": "Выбранный файл не является архивом LetsFLUTssh.",
   "errLfsDecryptFailed": "Неверный мастер-пароль или повреждённый архив .lfs",
   "errLfsArchiveTooLarge": "Архив слишком большой ({sizeMb} МБ). Лимит — {limitMb} МБ — прерывание до расшифровки для защиты памяти.",
   "errLfsImportRolledBack": "Импорт не удался — данные восстановлены до состояния перед импортом. ({cause})",

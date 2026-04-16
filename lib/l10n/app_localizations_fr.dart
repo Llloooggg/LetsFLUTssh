@@ -1246,6 +1246,10 @@ class SFr extends S {
   }
 
   @override
+  String get errLfsNotArchive =>
+      'Le fichier sélectionné n\'est pas une archive LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Mot de passe maître incorrect ou archive .lfs corrompue';
 
