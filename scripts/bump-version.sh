@@ -15,6 +15,15 @@ set -euo pipefail
 DRY_RUN=false
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=true
 
+# Pull latest tags from origin so LAST_TAG reflects what was actually
+# released, not just what happens to be in the local store. Without this
+# fetch, a local clone that doesn't track remote tags computes the commit
+# range against a stale LAST_TAG, which replays the previous release's
+# fix/refactor/feat commits into the next bump and publishes empty
+# "Maintenance release." notes for patches whose real diff is test/doc
+# only. Silent on offline / no remote.
+git fetch --tags --quiet origin 2>/dev/null || true
+
 # Find the latest version tag
 LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
 if [ -z "$LAST_TAG" ]; then
