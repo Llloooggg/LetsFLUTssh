@@ -1255,6 +1255,11 @@ class SDe extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Import fehlgeschlagen – Ihre Daten wurden auf den Stand vor dem Import zurückgesetzt. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Archiv verwendet Schema v$found, aber dieser Build unterstützt nur bis v$supported. Aktualisieren Sie die App, um es zu importieren.';
   }

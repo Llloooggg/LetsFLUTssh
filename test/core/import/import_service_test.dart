@@ -136,6 +136,61 @@ void main() {
       );
     });
 
+    test(
+      'replace mode wraps failure in LfsImportRolledBackException',
+      () async {
+        final cause = Exception('save failed');
+        final errorService = ImportService(
+          addEmptyFolder: (f) async => importedFolders.add(f),
+          addSession: (s) async => throw cause,
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => [],
+          applyConfig: (config) => appliedConfig = config,
+        );
+
+        try {
+          await errorService.applyResult(
+            ImportResult(
+              sessions: [makeSession('1', 'A')],
+              mode: ImportMode.replace,
+            ),
+          );
+          fail('expected LfsImportRolledBackException');
+        } on LfsImportRolledBackException catch (e) {
+          expect(e.cause, cause);
+        }
+      },
+    );
+
+    test('merge mode does NOT wrap failures (no rollback ran)', () async {
+      final cause = Exception('save failed');
+      final errorService = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
+        addSession: (s) async => throw cause,
+        deleteSession: (id) async => deletedIds.add(id),
+        getSessions: () => [],
+        applyConfig: (config) => appliedConfig = config,
+      );
+
+      // Merge mode propagates the original error verbatim — there is no
+      // pre-import snapshot to restore, so the rolled-back wrapper would
+      // be misleading. (Note: by default, merge mode logs and continues
+      // on per-session failures; here we use replace-style logic to
+      // confirm the wrapper specifically only fires for replace.)
+      // To force a throw in merge, use a callback that always rethrows.
+      try {
+        await errorService.applyResult(
+          ImportResult(
+            sessions: [makeSession('1', 'A')],
+            mode: ImportMode.merge,
+          ),
+        );
+        // Merge mode swallowed the per-session error — that's fine.
+      } on LfsImportRolledBackException {
+        fail('merge mode must not wrap as rolled-back');
+      }
+    });
+
     test('applies config when not null', () async {
       const config = AppConfig(terminal: TerminalConfig(fontSize: 18.0));
 

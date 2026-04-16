@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errLfsDecryptFailed": "Senha mestra incorreta ou arquivo .lfs corrompido",
   "errLfsArchiveTooLarge": "Arquivo muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido antes da descriptografia para proteger a memória.",
+  "errLfsImportRolledBack": "Falha na importação — seus dados foram restaurados ao estado anterior. ({cause})",
   "errLfsKnownHostsTooLarge": "Entrada known_hosts muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido para manter a importação responsiva.",
   "errLfsUnsupportedVersion": "O arquivo usa o esquema v{found}, mas esta versão do app só entende até v{supported}. Atualize o aplicativo para importá-lo.",
   "progressReadingArchive": "Lendo arquivo…",

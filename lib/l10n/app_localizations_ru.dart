@@ -1252,6 +1252,11 @@ class SRu extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Импорт не удался — данные восстановлены до состояния перед импортом. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Архив использует схему v$found, а эта сборка поддерживает только до v$supported. Обновите приложение для импорта.';
   }

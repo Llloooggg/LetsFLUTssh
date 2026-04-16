@@ -1240,6 +1240,11 @@ class SFa extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'وارد کردن ناموفق بود — داده‌های شما به وضعیت پیش از وارد کردن بازگردانده شد. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'بایگانی از طرح v$found استفاده می‌کند، اما این نسخه فقط تا v$supported را پشتیبانی می‌کند. برای وارد کردن آن، برنامه را به‌روزرسانی کنید.';
   }

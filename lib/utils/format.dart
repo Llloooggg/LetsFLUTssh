@@ -143,6 +143,9 @@ String localizeError(S l10n, Object error) {
       (error.limit / (1024 * 1024)).toStringAsFixed(0),
     );
   }
+  if (error is LfsImportRolledBackException) {
+    return l10n.errLfsImportRolledBack(localizeError(l10n, error.cause));
+  }
   if (error is UnsupportedLfsVersionException) {
     return l10n.errLfsUnsupportedVersion(error.found, error.supported);
   }

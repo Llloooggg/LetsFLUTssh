@@ -1247,6 +1247,11 @@ class SId extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Impor gagal — data Anda telah dipulihkan ke kondisi sebelum impor. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Arsip menggunakan skema v$found, tetapi build ini hanya mendukung hingga v$supported. Perbarui aplikasi untuk mengimpornya.';
   }

@@ -1245,6 +1245,11 @@ class SHi extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'आयात विफल — आपका डेटा आयात से पहले की स्थिति में पुनर्स्थापित कर दिया गया है। ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'संग्रह स्कीमा v$found का उपयोग करता है, लेकिन यह बिल्ड केवल v$supported तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.';
   }

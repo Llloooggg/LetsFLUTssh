@@ -135,9 +135,13 @@ class ImportService {
         return await runInTransaction!<ImportSummary>(body);
       }
       return await body();
-    } catch (_) {
+    } catch (e) {
       if (result.mode == ImportMode.replace) {
         await _tryRestore(snapshot);
+        // Rewrap so the UI can show "data restored" instead of a bare
+        // "import failed" — the user otherwise can't tell whether the DB
+        // is in a half-imported state or back to the pre-import snapshot.
+        throw LfsImportRolledBackException(cause: e);
       }
       rethrow;
     }
@@ -795,6 +799,21 @@ class ImportSummary {
     this.skippedSessions = 0,
     this.skippedLinks = 0,
   });
+}
+
+/// Thrown by [ImportService.applyResult] in replace mode when the import body
+/// fails and the pre-import snapshot has been replayed back into the stores.
+/// The UI surfaces this with a dedicated localized message ("Import failed —
+/// your data has been restored") so the user knows the database is back to
+/// the prior state, not in a half-imported limbo.
+///
+/// [cause] is the original failure (FK-violation, callback exception, etc.).
+class LfsImportRolledBackException implements Exception {
+  final Object cause;
+  const LfsImportRolledBackException({required this.cause});
+
+  @override
+  String toString() => 'LfsImportRolledBackException: $cause';
 }
 
 class _Snapshot {

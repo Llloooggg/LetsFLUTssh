@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errLfsDecryptFailed": "Contraseña maestra incorrecta o archivo .lfs dañado",
   "errLfsArchiveTooLarge": "El archivo es demasiado grande ({sizeMb} MB). El límite es de {limitMb} MB: cancelado antes del descifrado para proteger la memoria.",
+  "errLfsImportRolledBack": "Error al importar — sus datos se han restaurado al estado anterior a la importación. ({cause})",
   "errLfsKnownHostsTooLarge": "La entrada known_hosts es demasiado grande ({sizeMb} MB). El límite es de {limitMb} MB: cancelado para mantener la importación responsiva.",
   "errLfsUnsupportedVersion": "El archivo usa el esquema v{found}, pero esta versión solo admite hasta v{supported}. Actualiza la aplicación para importarlo.",
   "progressReadingArchive": "Leyendo archivo…",

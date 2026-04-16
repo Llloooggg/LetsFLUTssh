@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分}}",
   "errLfsDecryptFailed": "マスターパスワードが間違っているか、.lfs アーカイブが破損しています",
   "errLfsArchiveTooLarge": "アーカイブが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。メモリ保護のため、復号前に中止しました。",
+  "errLfsImportRolledBack": "インポート失敗 — データはインポート前の状態に復元されました。({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts エントリが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。インポートの応答性を保つため中止しました。",
   "errLfsUnsupportedVersion": "アーカイブはスキーマ v{found} を使用していますが、このビルドは v{supported} までしか対応していません。インポートするにはアプリを更新してください。",
   "progressReadingArchive": "アーカイブを読み込み中…",

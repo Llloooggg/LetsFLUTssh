@@ -1247,6 +1247,11 @@ class STr extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'İçe aktarma başarısız — verileriniz içe aktarma öncesi duruma geri yüklendi. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Arşiv v$found şemasını kullanıyor, ancak bu sürüm yalnızca v$supported sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.';
   }

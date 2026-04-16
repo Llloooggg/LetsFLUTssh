@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, other{{minutes}분}}",
   "errLfsDecryptFailed": "마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다",
   "errLfsArchiveTooLarge": "아카이브가 너무 큽니다 ({sizeMb} MB). 제한은 {limitMb} MB이며, 메모리 보호를 위해 복호화 전에 중단되었습니다.",
+  "errLfsImportRolledBack": "가져오기 실패 — 데이터를 가져오기 전 상태로 복원했습니다. ({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts 항목이 너무 큽니다 ({sizeMb} MB). 제한은 {limitMb} MB이며, 가져오기 응답성을 유지하기 위해 중단되었습니다.",
   "errLfsUnsupportedVersion": "아카이브는 스키마 v{found}을(를) 사용하지만, 이 빌드는 v{supported}까지만 지원합니다. 가져오려면 앱을 업데이트하세요.",
   "progressReadingArchive": "아카이브 읽는 중…",

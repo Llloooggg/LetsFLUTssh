@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} dakika}}",
   "errLfsDecryptFailed": "Yanlış ana parola veya bozulmuş .lfs arşivi",
   "errLfsArchiveTooLarge": "Arşiv çok büyük ({sizeMb} MB). Sınır {limitMb} MB — belleği korumak için şifre çözme öncesi iptal edildi.",
+  "errLfsImportRolledBack": "İçe aktarma başarısız — verileriniz içe aktarma öncesi duruma geri yüklendi. ({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts girdisi çok büyük ({sizeMb} MB). Sınır {limitMb} MB — içe aktarma yanıt verir kalsın diye iptal edildi.",
   "errLfsUnsupportedVersion": "Arşiv v{found} şemasını kullanıyor, ancak bu sürüm yalnızca v{supported} sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.",
   "progressReadingArchive": "Arşiv okunuyor…",

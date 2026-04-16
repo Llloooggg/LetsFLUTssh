@@ -1257,6 +1257,11 @@ class SFr extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Échec de l\'import — vos données ont été restaurées à l\'état antérieur. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'L\'archive utilise le schéma v$found, mais cette version ne prend en charge que jusqu\'à v$supported. Mettez à jour l\'application pour l\'importer.';
   }

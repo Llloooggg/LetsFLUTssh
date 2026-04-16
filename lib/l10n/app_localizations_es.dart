@@ -1252,6 +1252,11 @@ class SEs extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Error al importar — sus datos se han restaurado al estado anterior a la importación. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'El archivo usa el esquema v$found, pero esta versión solo admite hasta v$supported. Actualiza la aplicación para importarlo.';
   }

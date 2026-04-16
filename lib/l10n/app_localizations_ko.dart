@@ -1215,6 +1215,11 @@ class SKo extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return '가져오기 실패 — 데이터를 가져오기 전 상태로 복원했습니다. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return '아카이브는 스키마 v$found을(를) 사용하지만, 이 빌드는 v$supported까지만 지원합니다. 가져오려면 앱을 업데이트하세요.';
   }

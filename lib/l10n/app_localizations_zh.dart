@@ -1211,6 +1211,11 @@ class SZh extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return '导入失败 — 您的数据已恢复到导入前的状态。($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return '归档使用架构 v$found，但此版本仅支持到 v$supported。请更新应用以导入它。';
   }

@@ -1242,6 +1242,11 @@ class SEn extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Import failed — your data has been restored to the state before the import. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Archive uses schema v$found, but this build only understands up to v$supported. Update the app to import it.';
   }

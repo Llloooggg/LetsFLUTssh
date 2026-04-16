@@ -2295,6 +2295,12 @@ abstract class S {
   /// **'known_hosts entry is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted to keep the import responsive.'**
   String errLfsKnownHostsTooLarge(String sizeMb, String limitMb);
 
+  /// Shown after a replace-mode import fails and the pre-import snapshot has been replayed. {cause} is the underlying failure (already localized).
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed — your data has been restored to the state before the import. ({cause})'**
+  String errLfsImportRolledBack(String cause);
+
   /// No description provided for @errLfsUnsupportedVersion.
   ///
   /// In en, this message translates to:

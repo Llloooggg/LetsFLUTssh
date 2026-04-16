@@ -729,6 +729,13 @@
       "limitMb": { "type": "String" }
     }
   },
+  "errLfsImportRolledBack": "Import failed — your data has been restored to the state before the import. ({cause})",
+  "@errLfsImportRolledBack": {
+    "description": "Shown after a replace-mode import fails and the pre-import snapshot has been replayed. {cause} is the underlying failure (already localized).",
+    "placeholders": {
+      "cause": { "type": "String" }
+    }
+  },
   "errLfsUnsupportedVersion": "Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.",
   "@errLfsUnsupportedVersion": {
     "placeholders": {

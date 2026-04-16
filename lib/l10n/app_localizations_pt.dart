@@ -1250,6 +1250,11 @@ class SPt extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Falha na importação — seus dados foram restaurados ao estado anterior. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'O arquivo usa o esquema v$found, mas esta versão do app só entende até v$supported. Atualize o aplicativo para importá-lo.';
   }

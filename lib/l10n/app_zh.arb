@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分钟}}",
   "errLfsDecryptFailed": "主密码错误或 .lfs 归档已损坏",
   "errLfsArchiveTooLarge": "归档过大（{sizeMb} MB）。上限为 {limitMb} MB — 已在解密前中止以保护内存。",
+  "errLfsImportRolledBack": "导入失败 — 您的数据已恢复到导入前的状态。({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts 条目过大（{sizeMb} MB）。上限为 {limitMb} MB — 为保持导入响应性已中止。",
   "errLfsUnsupportedVersion": "归档使用架构 v{found}，但此版本仅支持到 v{supported}。请更新应用以导入它。",
   "progressReadingArchive": "正在读取归档…",

@@ -1216,6 +1216,11 @@ class SJa extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'インポート失敗 — データはインポート前の状態に復元されました。($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'アーカイブはスキーマ v$found を使用していますが、このビルドは v$supported までしか対応していません。インポートするにはアプリを更新してください。';
   }

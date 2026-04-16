@@ -388,6 +388,7 @@
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} मिनट} other{{minutes} मिनट}}",
   "errLfsDecryptFailed": "गलत मास्टर पासवर्ड या दूषित .lfs संग्रह",
   "errLfsArchiveTooLarge": "संग्रह बहुत बड़ा है ({sizeMb} MB). सीमा {limitMb} MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.",
+  "errLfsImportRolledBack": "आयात विफल — आपका डेटा आयात से पहले की स्थिति में पुनर्स्थापित कर दिया गया है। ({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts प्रविष्टि बहुत बड़ी है ({sizeMb} MB). सीमा {limitMb} MB है — आयात को उत्तरदायी बनाए रखने के लिए रोका गया.",
   "errLfsUnsupportedVersion": "संग्रह स्कीमा v{found} का उपयोग करता है, लेकिन यह बिल्ड केवल v{supported} तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.",
   "progressReadingArchive": "संग्रह पढ़ा जा रहा है…",

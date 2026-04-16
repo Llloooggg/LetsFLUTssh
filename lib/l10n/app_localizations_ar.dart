@@ -1251,6 +1251,11 @@ class SAr extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'فشل الاستيراد — تمت استعادة بياناتك إلى الحالة السابقة. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'يستخدم الأرشيف المخطط v$found، لكن هذا الإصدار يدعم فقط حتى v$supported. قم بتحديث التطبيق لاستيراده.';
   }

@@ -1238,6 +1238,11 @@ class SVi extends S {
   }
 
   @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Nhập thất bại — dữ liệu của bạn đã được khôi phục về trạng thái trước khi nhập. ($cause)';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Tệp lưu trữ sử dụng lược đồ v$found, nhưng bản dựng này chỉ hỗ trợ đến v$supported. Hãy cập nhật ứng dụng để nhập nó.';
   }
