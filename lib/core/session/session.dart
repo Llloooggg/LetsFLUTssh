@@ -13,9 +13,18 @@ class SessionAuth extends SshAuth {
   /// Reference to a key in the central key store. Empty = not set.
   final String keyId;
 
+  /// Credentials exist in persistent storage even when the in-memory
+  /// [password] / [keyData] / [passphrase] fields are empty. Set by the
+  /// DB loader when the cache is populated without decrypted secrets
+  /// (so plaintext secrets don't sit on the Dart heap) — the list UI
+  /// still needs to know whether a session has credentials to decide
+  /// whether to flag it as incomplete.
+  final bool hasStoredSecret;
+
   const SessionAuth({
     this.authType = AuthType.password,
     this.keyId = '',
+    this.hasStoredSecret = false,
     super.password,
     super.keyPath,
     super.keyData,
@@ -26,6 +35,7 @@ class SessionAuth extends SshAuth {
   SessionAuth copyWith({
     AuthType? authType,
     String? keyId,
+    bool? hasStoredSecret,
     String? password,
     String? keyPath,
     String? keyData,
@@ -33,6 +43,7 @@ class SessionAuth extends SshAuth {
   }) => SessionAuth(
     authType: authType ?? this.authType,
     keyId: keyId ?? this.keyId,
+    hasStoredSecret: hasStoredSecret ?? this.hasStoredSecret,
     password: password ?? this.password,
     keyPath: keyPath ?? this.keyPath,
     keyData: keyData ?? this.keyData,
@@ -45,14 +56,22 @@ class SessionAuth extends SshAuth {
       other is SessionAuth &&
           authType == other.authType &&
           keyId == other.keyId &&
+          hasStoredSecret == other.hasStoredSecret &&
           password == other.password &&
           keyPath == other.keyPath &&
           keyData == other.keyData &&
           passphrase == other.passphrase;
 
   @override
-  int get hashCode =>
-      Object.hash(authType, keyId, password, keyPath, keyData, passphrase);
+  int get hashCode => Object.hash(
+    authType,
+    keyId,
+    hasStoredSecret,
+    password,
+    keyPath,
+    keyData,
+    passphrase,
+  );
 }
 
 /// SSH session model — stored as JSON, credentials in encrypted storage.
@@ -88,12 +107,18 @@ class Session {
   String get keyData => auth.keyData;
   String get passphrase => auth.passphrase;
 
-  /// True if session has credentials (password, keyData, keyPath, or keyId).
+  /// True if session has credentials — either carried in this instance
+  /// (password/keyData/keyPath/keyId) or known to exist in persistent
+  /// storage ([SessionAuth.hasStoredSecret]). The store's cached list
+  /// strips plaintext secrets on load; without the stored-secret flag
+  /// this getter would mistakenly mark every embedded-key session as
+  /// incomplete after an app restart.
   bool get hasCredentials =>
       password.isNotEmpty ||
       keyData.isNotEmpty ||
       keyId.isNotEmpty ||
-      keyPath.isNotEmpty;
+      keyPath.isNotEmpty ||
+      auth.hasStoredSecret;
 
   /// True if session has all required fields (host, port, user, and credentials).
   bool get isValid =>
