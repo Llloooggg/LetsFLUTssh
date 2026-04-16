@@ -230,6 +230,21 @@ class SAr extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم إسقاط $count ارتباط (الأهداف مفقودة)',
+      many: 'تم إسقاط $count ارتباطًا (الأهداف مفقودة)',
+      few: 'تم إسقاط $count ارتباطات (الأهداف مفقودة)',
+      two: 'تم إسقاط ارتباطين (الأهداف مفقودة)',
+      one: 'تم إسقاط ارتباط واحد (الهدف مفقود)',
+      zero: 'لا توجد ارتباطات مفقودة',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importSkippedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

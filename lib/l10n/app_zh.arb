@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "通过 QR 导入了 {count} 个会话",
   "importedSessions": "已导入 {count} 个会话",
   "importFailed": "导入失败：{error}",
+  "importSkippedLinks": "{count, plural, other{已丢弃 {count} 个关联（目标缺失）}}",
   "importSkippedSessions": "{count, plural, other{已跳过 {count} 个损坏的会话}}",
   "sessions": "会话",
   "sessionsHeader": "会话",

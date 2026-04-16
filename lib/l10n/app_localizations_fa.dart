@@ -232,6 +232,16 @@ class SFa extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count پیوند کنار گذاشته شد (هدف وجود ندارد)',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importSkippedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

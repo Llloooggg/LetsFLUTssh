@@ -189,7 +189,7 @@ class ImportService {
       progress,
       l10n,
     );
-    await _importTagLinks(
+    final skippedTagLinks = await _importTagLinks(
       result.sessionTags,
       result.folderTags,
       tagIdMap,
@@ -202,7 +202,7 @@ class ImportService {
       progress,
       l10n,
     );
-    await _importSnippetLinks(
+    final skippedSnippetLinks = await _importSnippetLinks(
       result.sessionSnippets,
       snippetIdMap,
       sessionIdMap,
@@ -238,6 +238,7 @@ class ImportService {
           result.knownHostsContent != null &&
           result.knownHostsContent!.isNotEmpty,
       skippedSessions: result.skippedSessions,
+      skippedLinks: skippedTagLinks + skippedSnippetLinks,
     );
   }
 
@@ -430,49 +431,66 @@ class ImportService {
   static String _withCopySuffix(String label) =>
       label.isEmpty ? label : '$label (copy)';
 
-  /// Apply session→tag and folder→tag links with remapped IDs.
-  Future<void> _importTagLinks(
+  /// Apply session→tag and folder→tag links with remapped IDs. Returns the
+  /// total number of links that were dropped — either because the referenced
+  /// tag was not imported (would have failed an FK insert) or because the
+  /// underlying save callback threw. Surfaced in [ImportSummary.skippedLinks]
+  /// so the user can tell when partial-import metadata is missing.
+  Future<int> _importTagLinks(
     List<ExportLink> sessionLinks,
     List<ExportFolderTagLink> folderLinks,
     Map<String, String> tagIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
-    await _applyFolderTagLinks(folderLinks, tagIdMap);
+    final s = await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
+    final f = await _applyFolderTagLinks(folderLinks, tagIdMap);
+    return s + f;
   }
 
-  Future<void> _applySessionTagLinks(
+  Future<int> _applySessionTagLinks(
     List<ExportLink> links,
     Map<String, String> tagIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    if (tagSession == null) return;
+    if (tagSession == null) return 0;
+    var skipped = 0;
     for (final link in links) {
       final newTagId = tagIdMap[link.targetId];
-      if (newTagId == null) continue; // tag not imported — would FK-fail
+      if (newTagId == null) {
+        skipped++; // tag not imported — would FK-fail
+        continue;
+      }
       final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
       try {
         await tagSession!(newSessionId, newTagId);
       } catch (e) {
+        skipped++;
         AppLogger.instance.log('Skipped session-tag link: $e', name: 'Import');
       }
     }
+    return skipped;
   }
 
-  Future<void> _applyFolderTagLinks(
+  Future<int> _applyFolderTagLinks(
     List<ExportFolderTagLink> links,
     Map<String, String> tagIdMap,
   ) async {
-    if (tagFolder == null) return;
+    if (tagFolder == null) return 0;
+    var skipped = 0;
     for (final link in links) {
       final newTagId = tagIdMap[link.tagId];
-      if (newTagId == null) continue;
+      if (newTagId == null) {
+        skipped++;
+        continue;
+      }
       try {
         await tagFolder!(link.folderPath, newTagId);
       } catch (e) {
+        skipped++;
         AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
       }
     }
+    return skipped;
   }
 
   /// Import snippets. Returns oldId→newId map. Same id-collision handling
@@ -517,27 +535,34 @@ class ImportService {
     return idMap;
   }
 
-  /// Apply session→snippet links with remapped IDs.
-  Future<void> _importSnippetLinks(
+  /// Apply session→snippet links with remapped IDs. Returns the count of
+  /// links dropped (snippet missing from the import set or save callback
+  /// threw); aggregated into [ImportSummary.skippedLinks].
+  Future<int> _importSnippetLinks(
     List<ExportLink> links,
     Map<String, String> snippetIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    if (linkSnippetToSession == null) return;
+    if (linkSnippetToSession == null) return 0;
+    var skipped = 0;
     for (final link in links) {
       final newSnippetId = snippetIdMap[link.targetId];
-      // snippet not imported — would FK-fail
-      if (newSnippetId == null) continue;
+      if (newSnippetId == null) {
+        skipped++; // snippet not imported — would FK-fail
+        continue;
+      }
       final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
       try {
         await linkSnippetToSession!(newSnippetId, newSessionId);
       } catch (e) {
+        skipped++;
         AppLogger.instance.log(
           'Skipped session-snippet link: $e',
           name: 'Import',
         );
       }
     }
+    return skipped;
   }
 
   /// Takes a snapshot of existing data and clears the stores that the user
@@ -752,6 +777,13 @@ class ImportSummary {
   /// corrupt records.
   final int skippedSessions;
 
+  /// Total number of session→tag, folder→tag, and session→snippet links that
+  /// were dropped because their target was not part of the import set (would
+  /// FK-fail on insert) or because the underlying save callback threw.
+  /// Surfaced in the success toast so the user knows some metadata
+  /// associations did not survive the import.
+  final int skippedLinks;
+
   const ImportSummary({
     this.sessions = 0,
     this.folders = 0,
@@ -761,6 +793,7 @@ class ImportSummary {
     this.configApplied = false,
     this.knownHostsApplied = false,
     this.skippedSessions = 0,
+    this.skippedLinks = 0,
   });
 }
 

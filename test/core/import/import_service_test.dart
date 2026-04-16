@@ -628,7 +628,7 @@ void main() {
           },
         );
 
-        await svc.applyResult(
+        final summary = await svc.applyResult(
           ImportResult(
             sessions: [],
             tags: [tag],
@@ -641,10 +641,65 @@ void main() {
         );
 
         // Only the link to the imported tag is applied; the link to 'missing'
-        // is silently skipped — it would FK-fail otherwise.
+        // is dropped — it would FK-fail otherwise — and the drop is counted
+        // in summary.skippedLinks so the toast can surface it.
         expect(taggedSessions, hasLength(1));
         expect(taggedSessions.single.tagId, 'new-imported');
+        expect(summary.skippedLinks, 1);
       });
+
+      test(
+        'skippedLinks aggregates session-tag, folder-tag, and snippet drops',
+        () async {
+          final tag = Tag(id: 'tag-ok', name: 'OK');
+          final snippet = Snippet(id: 'sn-ok', title: 'ok', command: 'echo');
+          final svc = buildTagSnippetService(
+            onSaveTag: (t) async {
+              savedTags.add(t);
+              return 'new-${t.id}';
+            },
+            onSaveSnippet: (s) async {
+              savedSnippets.add(s);
+              return 'new-${s.id}';
+            },
+            onTagSession: (sessionId, tagId) async {
+              taggedSessions.add((sessionId: sessionId, tagId: tagId));
+            },
+            onLinkSnippet: (snippetId, sessionId) async {
+              linkedSnippets.add((snippetId: snippetId, sessionId: sessionId));
+            },
+            onTagFolder: (folderId, tagId) async {
+              taggedFolders.add((folderId: folderId, tagId: tagId));
+            },
+          );
+
+          final summary = await svc.applyResult(
+            ImportResult(
+              sessions: [],
+              tags: [tag],
+              snippets: [snippet],
+              sessionTags: const [
+                ExportLink(sessionId: 's1', targetId: 'tag-ok'),
+                ExportLink(sessionId: 's1', targetId: 'tag-missing'),
+              ],
+              folderTags: const [
+                ExportFolderTagLink(folderPath: '/f', tagId: 'tag-missing'),
+              ],
+              sessionSnippets: const [
+                ExportLink(sessionId: 's1', targetId: 'sn-ok'),
+                ExportLink(sessionId: 's1', targetId: 'sn-missing'),
+                ExportLink(sessionId: 's1', targetId: 'sn-missing-2'),
+              ],
+              mode: ImportMode.merge,
+            ),
+          );
+
+          // 1 session-tag + 1 folder-tag + 2 session-snippet = 4 drops.
+          expect(summary.skippedLinks, 4);
+          expect(taggedSessions, hasLength(1));
+          expect(linkedSnippets, hasLength(1));
+        },
+      );
 
       test('skips folder-tag link when tag was not imported', () async {
         final tag = Tag(id: 'imported', name: 'Imported');

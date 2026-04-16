@@ -525,6 +525,12 @@ abstract class S {
   /// **'Import failed: {error}'**
   String importFailed(String error);
 
+  /// Trailing note for the import-success toast when one or more session/folder→tag or session→snippet links were dropped because the referenced tag/snippet was not part of the import (would have failed an FK insert).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} association dropped (target missing)} other{{count} associations dropped (targets missing)}}'**
+  String importSkippedLinks(int count);
+
   /// Trailing note appended to the import-success toast when one or more session entries in the .lfs archive failed to parse and were dropped.
   ///
   /// In en, this message translates to:

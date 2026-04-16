@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "{count} session(s) importée(s) via QR",
   "importedSessions": "{count} session(s) importée(s)",
   "importFailed": "Échec de l'import : {error}",
+  "importSkippedLinks": "{count, plural, one{{count} association ignorée (cible manquante)} other{{count} associations ignorées (cibles manquantes)}}",
   "importSkippedSessions": "{count, plural, one{{count} session corrompue ignorée} other{{count} sessions corrompues ignorées}}",
   "sessions": "Sessions",
   "sessionsHeader": "SESSIONS",

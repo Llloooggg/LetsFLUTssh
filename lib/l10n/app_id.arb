@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "{count} sesi diimpor via QR",
   "importedSessions": "{count} sesi diimpor",
   "importFailed": "Impor gagal: {error}",
+  "importSkippedLinks": "{count, plural, other{{count} asosiasi dilewati (target hilang)}}",
   "importSkippedSessions": "{count, plural, other{{count} sesi rusak dilewati}}",
   "sessions": "Sesi",
   "sessionsHeader": "SESI",

@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "QR से {count} सत्र आयात किए गए",
   "importedSessions": "{count} सत्र आयात किए गए",
   "importFailed": "आयात विफल: {error}",
+  "importSkippedLinks": "{count, plural, one{{count} संबद्धता छोड़ी गई (लक्ष्य अनुपस्थित)} other{{count} संबद्धताएँ छोड़ी गईं (लक्ष्य अनुपस्थित)}}",
   "importSkippedSessions": "{count, plural, one{{count} खराब सत्र छोड़ा गया} other{{count} खराब सत्र छोड़े गए}}",
   "sessions": "सत्र",
   "sessionsHeader": "सत्र",

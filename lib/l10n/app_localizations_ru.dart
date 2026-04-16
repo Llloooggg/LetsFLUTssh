@@ -232,6 +232,19 @@ class SRu extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'отброшено $count связей (цели отсутствуют)',
+      many: 'отброшено $count связей (цели отсутствуют)',
+      few: 'отброшено $count связи (цели отсутствуют)',
+      one: 'отброшена $count связь (цель отсутствует)',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importSkippedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

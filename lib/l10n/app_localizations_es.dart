@@ -233,6 +233,17 @@ class SEs extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count asociaciones descartadas (destinos faltantes)',
+      one: '$count asociación descartada (destino faltante)',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importSkippedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

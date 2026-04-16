@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "QR을 통해 {count}개 세션 가져옴",
   "importedSessions": "{count}개 세션 가져옴",
   "importFailed": "가져오기 실패: {error}",
+  "importSkippedLinks": "{count, plural, other{연결 {count}개를 삭제했습니다(대상 없음)}}",
   "importSkippedSessions": "{count, plural, other{손상된 세션 {count}개를 건너뛰었습니다}}",
   "sessions": "세션",
   "sessionsHeader": "세션",

@@ -228,6 +228,16 @@ class SKo extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '연결 $count개를 삭제했습니다(대상 없음)',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importSkippedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

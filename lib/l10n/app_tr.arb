@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "QR ile {count} oturum içe aktarıldı",
   "importedSessions": "{count} oturum içe aktarıldı",
   "importFailed": "İçe aktarma başarısız: {error}",
+  "importSkippedLinks": "{count, plural, other{{count} ilişki düşürüldü (hedef eksik)}}",
   "importSkippedSessions": "{count, plural, other{{count} bozuk oturum atlandı}}",
   "sessions": "Oturumlar",
   "sessionsHeader": "OTURUMLAR",

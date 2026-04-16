@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "Đã nhập {count} phiên qua QR",
   "importedSessions": "Đã nhập {count} phiên",
   "importFailed": "Nhập thất bại: {error}",
+  "importSkippedLinks": "{count, plural, other{Đã bỏ qua {count} liên kết (mục tiêu không tồn tại)}}",
   "importSkippedSessions": "{count, plural, other{Đã bỏ qua {count} phiên bị hỏng}}",
   "sessions": "Phiên",
   "sessionsHeader": "PHIÊN",

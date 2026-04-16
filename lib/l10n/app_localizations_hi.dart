@@ -233,6 +233,17 @@ class SHi extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count संबद्धताएँ छोड़ी गईं (लक्ष्य अनुपस्थित)',
+      one: '$count संबद्धता छोड़ी गई (लक्ष्य अनुपस्थित)',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String importSkippedSessions(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

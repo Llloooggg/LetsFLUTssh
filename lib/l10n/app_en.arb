@@ -133,6 +133,15 @@
       }
     }
   },
+  "importSkippedLinks": "{count, plural, one{{count} association dropped (target missing)} other{{count} associations dropped (targets missing)}}",
+  "@importSkippedLinks": {
+    "description": "Trailing note for the import-success toast when one or more session/folder→tag or session→snippet links were dropped because the referenced tag/snippet was not part of the import (would have failed an FK insert).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "importSkippedSessions": "{count, plural, one{{count} corrupt session skipped} other{{count} corrupt sessions skipped}}",
   "@importSkippedSessions": {
     "description": "Trailing note appended to the import-success toast when one or more session entries in the .lfs archive failed to parse and were dropped.",
