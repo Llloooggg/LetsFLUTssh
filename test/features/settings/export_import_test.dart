@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/progress/progress_reporter.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
@@ -885,5 +887,461 @@ void main() {
       expect(await File(outputPath).exists(), isTrue);
       expect(await File('$outputPath.tmp').exists(), isFalse);
     });
+
+    test(
+      'export cleans up .tmp when rename to outputPath fails',
+      // Spec (export_import.dart L316-328): the atomic-write invariant is
+      // "either outputPath becomes the fresh archive or nothing changed".
+      // If rename fails mid-way (here: target path is an existing directory
+      // so EISDIR fires), the catch branch must delete the stranded .tmp so
+      // a subsequent re-run doesn't find a half-written artifact next to
+      // the good old archive and lift it by mistake.
+      () async {
+        // Pre-create outputPath as a *directory* → rename(src=file, dst=dir)
+        // fails on POSIX, triggering the catch branch.
+        final outputPath = '${tempDir.path}/collides.lfs';
+        await Directory(outputPath).create();
+
+        await expectLater(
+          ExportImport.export(
+            masterPassword: 'pw',
+            outputPath: outputPath,
+            input: const LfsExportInput(
+              sessions: [],
+              config: AppConfig.defaults,
+            ),
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+
+        expect(
+          await File('$outputPath.tmp').exists(),
+          isFalse,
+          reason: '.tmp must be cleaned up after rename failure',
+        );
+      },
+    );
   });
+
+  group('ExportImport — progress reporter phases', () {
+    test(
+      'export with password reports Collecting → Encrypting → Writing',
+      // Spec (L265, 292, 312): a password-protected export runs through
+      // three distinct phases: build the archive, encrypt, write to disk.
+      // Each is surfaced to the UI so the progress bar's label changes and
+      // the user isn't staring at a stuck "Encrypting…" when we've moved
+      // on to file I/O.
+      () async {
+        final reporter = _RecordingProgress('initial');
+        addTearDown(reporter.dispose);
+
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: '${tempDir.path}/phases.lfs',
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+          progress: reporter,
+          iterations: 100,
+        );
+
+        expect(
+          reporter.phases,
+          containsAllInOrder([
+            'Collecting data…',
+            'Encrypting…',
+            'Writing archive…',
+          ]),
+        );
+      },
+    );
+
+    test(
+      'export without password reports Collecting → Writing (no Encrypting)',
+      // Spec (L283-304): empty master password skips encryption entirely.
+      // The Encrypting phase must NOT be reported — otherwise a user who
+      // deliberately exported in the clear would see "Encrypting…" flash by
+      // and be misled into thinking the file is protected.
+      () async {
+        final reporter = _RecordingProgress('initial');
+        addTearDown(reporter.dispose);
+
+        await ExportImport.export(
+          masterPassword: '',
+          outputPath: '${tempDir.path}/plain.lfs',
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+          progress: reporter,
+        );
+
+        expect(reporter.phases, contains('Collecting data…'));
+        expect(reporter.phases, contains('Writing archive…'));
+        expect(reporter.phases, isNot(contains('Encrypting…')));
+      },
+    );
+
+    test(
+      'import_ reports Reading → Decrypting → Parsing for encrypted archive',
+      () async {
+        final outputPath = '${tempDir.path}/import-phases.lfs';
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+          iterations: 100,
+        );
+
+        final reporter = _RecordingProgress('initial');
+        addTearDown(reporter.dispose);
+
+        await ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(),
+          progress: reporter,
+          iterations: 100,
+        );
+
+        expect(
+          reporter.phases,
+          containsAllInOrder([
+            'Reading archive…',
+            'Decrypting…',
+            'Parsing archive…',
+          ]),
+        );
+      },
+    );
+
+    test(
+      'import_ skips Decrypting phase for an unencrypted archive',
+      // Spec (L501-503): if the bytes start with the ZIP magic, we know
+      // the archive was written in the clear. Reading + Parsing are the
+      // only phases the user should see; Decrypting would be a lie.
+      () async {
+        final outputPath = '${tempDir.path}/plain-import.lfs';
+        await ExportImport.export(
+          masterPassword: '',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        );
+
+        final reporter = _RecordingProgress('initial');
+        addTearDown(reporter.dispose);
+
+        await ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: '',
+          mode: ImportMode.merge,
+          options: const ExportOptions(),
+          progress: reporter,
+        );
+
+        expect(reporter.phases, contains('Reading archive…'));
+        expect(reporter.phases, contains('Parsing archive…'));
+        expect(reporter.phases, isNot(contains('Decrypting…')));
+      },
+    );
+  });
+
+  group('ExportImport — archive content (keys / tags / snippets)', () {
+    test(
+      'manager keys roundtrip through the archive',
+      // Spec (L370-391): when includeAllManagerKeys is on and
+      // managerKeyEntries is non-empty, the archive carries a keys.json
+      // with every field the importer needs to rehydrate an SshKeyEntry
+      // (id, label, private/public key, key_type, is_generated,
+      // created_at). Anything less would force the user to regenerate
+      // keys after a full-app transfer.
+      () async {
+        final keys = [
+          SshKeyEntry(
+            id: 'k1',
+            label: 'prod',
+            privateKey: 'PRIV1',
+            publicKey: 'PUB1',
+            keyType: 'ed25519',
+            createdAt: DateTime.utc(2025, 1, 1),
+            isGenerated: true,
+          ),
+          SshKeyEntry(
+            id: 'k2',
+            label: 'ci',
+            privateKey: 'PRIV2',
+            publicKey: 'PUB2',
+            keyType: 'rsa',
+            createdAt: DateTime.utc(2025, 2, 2),
+          ),
+        ];
+        final outputPath = '${tempDir.path}/keys.lfs';
+        await ExportImport.export(
+          masterPassword: '',
+          outputPath: outputPath,
+          input: LfsExportInput(
+            sessions: const [],
+            config: AppConfig.defaults,
+            managerKeyEntries: keys,
+            options: const ExportOptions(includeAllManagerKeys: true),
+          ),
+        );
+
+        final result = await ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: '',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeAllManagerKeys: true),
+        );
+
+        expect(result.managerKeys.map((k) => k.id), ['k1', 'k2']);
+        final byId = {for (final k in result.managerKeys) k.id: k};
+        expect(byId['k1']!.label, 'prod');
+        expect(byId['k1']!.privateKey, 'PRIV1');
+        expect(byId['k1']!.publicKey, 'PUB1');
+        expect(byId['k1']!.keyType, 'ed25519');
+        expect(byId['k1']!.isGenerated, isTrue);
+        expect(byId['k2']!.isGenerated, isFalse);
+      },
+    );
+
+    test(
+      'tags, session-tag links and folder-tag links roundtrip through the archive',
+      // Spec (L404-440): the tags export writes three entries — tags.json
+      // (tag defs), session_tags.json (session→tag assignments), and
+      // folder_tags.json (folder→tag assignments). Links are only written
+      // when non-empty so the archive stays small for tag-free users, but
+      // when present they must round-trip intact so neither side of the
+      // relation goes missing on import.
+      () async {
+        final tags = [
+          Tag(
+            id: 't1',
+            name: 'prod',
+            color: '#ff0000',
+            createdAt: DateTime.utc(2025, 1, 1),
+          ),
+          Tag(
+            id: 't2',
+            name: 'staging',
+            color: '#00ff00',
+            createdAt: DateTime.utc(2025, 1, 2),
+          ),
+        ];
+        final sessionTags = [
+          const ExportLink(sessionId: 's1', targetId: 't1'),
+          const ExportLink(sessionId: 's2', targetId: 't2'),
+        ];
+        final folderTags = [
+          const ExportFolderTagLink(folderPath: 'Prod/Web', tagId: 't1'),
+        ];
+
+        final outputPath = '${tempDir.path}/tags.lfs';
+        await ExportImport.export(
+          masterPassword: '',
+          outputPath: outputPath,
+          input: LfsExportInput(
+            sessions: const [],
+            config: AppConfig.defaults,
+            tags: tags,
+            sessionTags: sessionTags,
+            folderTags: folderTags,
+            options: const ExportOptions(includeTags: true),
+          ),
+        );
+
+        final result = await ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: '',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeTags: true),
+        );
+
+        expect(result.tags.map((t) => t.id), ['t1', 't2']);
+        expect(result.tags.firstWhere((t) => t.id == 't1').color, '#ff0000');
+        expect(result.sessionTags.map((l) => (l.sessionId, l.targetId)), [
+          ('s1', 't1'),
+          ('s2', 't2'),
+        ]);
+        expect(result.folderTags.map((l) => (l.folderPath, l.tagId)), [
+          ('Prod/Web', 't1'),
+        ]);
+      },
+    );
+
+    test(
+      'snippets and session-snippet links roundtrip through the archive',
+      // Spec (L442-465): snippets export writes snippets.json (definitions)
+      // plus session_snippets.json (per-session pin list). Both must
+      // survive a round-trip; otherwise pinned snippets detach from their
+      // sessions on import and the user has to re-pin.
+      () async {
+        final snippets = [
+          Snippet(
+            id: 'sn1',
+            title: 'restart',
+            command: 'systemctl restart foo',
+            description: 'desc',
+            createdAt: DateTime.utc(2025, 1, 1),
+            updatedAt: DateTime.utc(2025, 1, 2),
+          ),
+          Snippet(
+            id: 'sn2',
+            title: 'logs',
+            command: 'journalctl -u foo',
+            createdAt: DateTime.utc(2025, 1, 3),
+            updatedAt: DateTime.utc(2025, 1, 3),
+          ),
+        ];
+        final sessionSnippets = [
+          const ExportLink(sessionId: 's1', targetId: 'sn1'),
+          const ExportLink(sessionId: 's1', targetId: 'sn2'),
+        ];
+
+        final outputPath = '${tempDir.path}/snippets.lfs';
+        await ExportImport.export(
+          masterPassword: '',
+          outputPath: outputPath,
+          input: LfsExportInput(
+            sessions: const [],
+            config: AppConfig.defaults,
+            snippets: snippets,
+            sessionSnippets: sessionSnippets,
+            options: const ExportOptions(includeSnippets: true),
+          ),
+        );
+
+        final result = await ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: '',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeSnippets: true),
+        );
+
+        expect(result.snippets.map((s) => s.id), ['sn1', 'sn2']);
+        expect(
+          result.snippets.firstWhere((s) => s.id == 'sn1').description,
+          'desc',
+        );
+        expect(result.sessionSnippets.map((l) => (l.sessionId, l.targetId)), [
+          ('s1', 'sn1'),
+          ('s1', 'sn2'),
+        ]);
+      },
+    );
+  });
+
+  group('ExportImport — manifest & archive error paths', () {
+    /// Build an unencrypted .lfs at [path] holding just a manifest with the
+    /// given raw JSON body. Everything else (sessions, tags, …) is omitted —
+    /// these tests only care about the manifest-validation edges.
+    Future<void> writeManifestOnlyArchive(
+      String path,
+      String manifestJson,
+    ) async {
+      final archive = Archive()
+        ..addFile(ArchiveFile.string('manifest.json', manifestJson));
+      final zipBytes = ZipEncoder().encode(archive);
+      await File(path).writeAsBytes(zipBytes);
+    }
+
+    test(
+      'decrypt+parse raises UnsupportedLfsVersionException when schema is newer',
+      // Spec (L530-535): the manifest carries schema_version so we can
+      // refuse gracefully if a file written by a future version lands in
+      // the hands of an older build. Continuing would risk silently
+      // dropping fields the importer doesn't know about.
+      () async {
+        final path = '${tempDir.path}/future.lfs';
+        await writeManifestOnlyArchive(path, '{"schema_version": 9999}');
+
+        await expectLater(
+          ExportImport.preview(filePath: path, masterPassword: ''),
+          throwsA(
+            isA<UnsupportedLfsVersionException>()
+                .having((e) => e.found, 'found', 9999)
+                .having(
+                  (e) => e.supported,
+                  'supported',
+                  greaterThanOrEqualTo(1),
+                ),
+          ),
+        );
+      },
+    );
+
+    // NOTE: _decryptAndParseArchive wraps ZipDecoder failures in
+    // LfsDecryptionFailedException (export_import.dart L522-527). That
+    // catch branch is defensive but not reachable in this codebase:
+    //   - the `archive` package's ZipDecoder never throws on malformed
+    //     bytes — it silently returns an empty Archive (probed across
+    //     bare magic, truncated valid zips, and hand-crafted bad local
+    //     headers);
+    //   - AES-GCM authenticates ciphertext, so a successful decrypt can
+    //     only produce bytes that were encrypted as a ZIP in the first
+    //     place. There is no realistic input that gets past decryption
+    //     and then fails ZipDecoder.
+    // We keep the catch in the source as belt-and-braces — if the
+    // archive package ever tightens up, the UI will still surface a
+    // single decrypt-failed error — but we don't manufacture a fake
+    // test for a branch we can't drive.
+
+    test(
+      'manifest parser accepts schema_version encoded as a JSON number',
+      // Spec (L595-602): some JSON encoders emit integers as doubles
+      // (e.g. `2.0`). The manifest parser must coerce via toInt() so the
+      // archive still loads instead of defaulting to legacy v1 and then
+      // mis-parsing fields that changed between versions.
+      () async {
+        final path = '${tempDir.path}/float-schema.lfs';
+        await writeManifestOnlyArchive(path, '{"schema_version": 1.0}');
+
+        // Should NOT throw — 1.0 → 1, which is <= current schema, parsing
+        // continues and returns an empty preview.
+        final preview = await ExportImport.preview(
+          filePath: path,
+          masterPassword: '',
+        );
+        expect(preview.sessions, isEmpty);
+      },
+    );
+  });
+
+  group('ExportImport — exception toString messages', () {
+    test('UnsupportedLfsVersionException surfaces found and supported', () {
+      const e = UnsupportedLfsVersionException(found: 9, supported: 3);
+      expect(e.toString(), contains('v9'));
+      expect(e.toString(), contains('v3'));
+    });
+
+    test('LfsArchiveTooLargeException surfaces size and limit', () {
+      const e = LfsArchiveTooLargeException(size: 2048, limit: 1024);
+      expect(e.toString(), contains('2048'));
+      expect(e.toString(), contains('1024'));
+    });
+
+    test('LfsKnownHostsTooLargeException surfaces size and limit', () {
+      const e = LfsKnownHostsTooLargeException(size: 50, limit: 10);
+      expect(e.toString(), contains('50'));
+      expect(e.toString(), contains('10'));
+    });
+
+    test('LfsDecryptionFailedException toString is stable', () {
+      const e = LfsDecryptionFailedException(cause: 'boom');
+      expect(e.toString(), 'LfsDecryptionFailedException');
+    });
+  });
+}
+
+/// Minimal [ProgressReporter] subclass that records every label passed to
+/// [phase] so tests can assert that the right phases ran in the right order.
+///
+/// Does NOT override [step] — export/import only use phase-level updates,
+/// and recording every byte-level tick would drown the signal.
+class _RecordingProgress extends ProgressReporter {
+  final List<String> phases = [];
+
+  _RecordingProgress(super.initialLabel);
+
+  @override
+  void phase(String label) {
+    phases.add(label);
+    super.phase(label);
+  }
 }
