@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -533,6 +535,8 @@ void main() {
         AppConfig? config,
         String? knownHostsContent,
         Map<String, String> managerKeys = const {},
+        List<Tag> tags = const [],
+        List<Snippet> snippets = const [],
         required ValueChanged<UnifiedExportResult?> onResult,
       }) {
         return MaterialApp(
@@ -551,6 +555,8 @@ void main() {
                       config: config,
                       knownHostsContent: knownHostsContent,
                       managerKeys: managerKeys,
+                      tags: tags,
+                      snippets: snippets,
                     ),
                     isQrMode: false,
                   );
@@ -751,6 +757,126 @@ void main() {
           expect(result!.options.includeManagerKeys, isFalse);
         },
       );
+
+      testWidgets(
+        'Session SSH keys row flips includeManagerKeys and clears all-keys',
+        // Spec (L807-811, mirror of "All manager keys"): toggling
+        // includeManagerKeys must also set includeAllManagerKeys=false —
+        // the two flags are mutually exclusive (exporting both would
+        // double-encode the subset).
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          await tester.pumpWidget(
+            openerFor(
+              sessions: [makeSession('1', 'A')],
+              managerKeys: {'k1': 'PRIVKEYPEM'},
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Default is Full backup (includeAllManagerKeys=true). Tap Session
+          // SSH keys → flips includeManagerKeys to true, clears all-keys.
+          await tester.tap(find.text('What to export:'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Session SSH keys'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeManagerKeys, isTrue);
+          expect(result!.options.includeAllManagerKeys, isFalse);
+        },
+      );
+
+      testWidgets(
+        'Tags row toggle flips includeTags on the result',
+        // Spec (L842-851): Tags row is independent of the session
+        // selection — pure flag on ExportOptions that determines whether
+        // the archive carries `tags.json` + the session/folder-tag links.
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          final someTags = [
+            Tag(
+              id: 't1',
+              name: 'prod',
+              color: '#ff0000',
+              createdAt: DateTime(2025),
+            ),
+          ];
+          await tester.pumpWidget(
+            openerFor(
+              sessions: [makeSession('1', 'A')],
+              tags: someTags,
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Default Full backup → includeTags=true. Tap Tags → flips to off.
+          await tester.tap(find.text('What to export:'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Tags'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeTags, isFalse);
+        },
+      );
+
+      testWidgets('Snippets row toggle flips includeSnippets on the result', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(900, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        UnifiedExportResult? result;
+        final someSnippets = [
+          Snippet(
+            id: 'sn1',
+            title: 'restart',
+            command: 'systemctl restart foo',
+            createdAt: DateTime(2025),
+            updatedAt: DateTime(2025),
+          ),
+        ];
+        await tester.pumpWidget(
+          openerFor(
+            sessions: [makeSession('1', 'A')],
+            snippets: someSnippets,
+            onResult: (r) => result = r,
+          ),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('What to export:'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Snippets'));
+        await tester.pump();
+        await tester.tap(find.text('Export'));
+        await tester.pumpAndSettle();
+
+        expect(result, isNotNull);
+        expect(result!.options.includeSnippets, isFalse);
+      });
     },
   );
 }

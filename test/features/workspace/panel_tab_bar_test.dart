@@ -662,4 +662,255 @@ void main() {
       expect(find.byKey(const ValueKey('drop_t2')), findsOneWidget);
     });
   });
+
+  // ===========================================================================
+  // Drop-accept callbacks on DragTarget<TabDragData>.
+  //
+  // We invoke onAcceptWithDetails directly rather than simulating a drag
+  // gesture — the goal is to pin the "what does this drop mean?" contract,
+  // not to exercise flutter's gesture arena. The callbacks live on internal
+  // DragTarget widgets, so we find them by type (and key for the per-tab
+  // variant) and call them with a hand-built DragTargetDetails.
+  //
+  // Specs (derived from lib/features/workspace/panel_tab_bar.dart):
+  //
+  //  * Trailing drop zone (L108-132):
+  //    - Same-panel source + dragged tab is not already the last tab →
+  //      onReorder(oldIdx, tabs.length). Dropping the last tab onto its
+  //      own trailing zone is a no-op (nothing moves).
+  //    - Cross-panel source → onAcceptCrossPanel(data, tabs.length).
+  //  * Per-tab drop zone (L135-173):
+  //    - Same-panel source + oldIdx != targetIndex →
+  //      onReorder(oldIdx, targetIndex).
+  //    - Cross-panel source → onAcceptCrossPanel(data, targetIndex).
+  //    - onWillAcceptWithDetails returns false for the dragged tab's own
+  //      zone (can't drop a tab onto itself) — tested via widget
+  //      callback, not a full gesture.
+  // ===========================================================================
+  group('PanelTabBar — drop callbacks', () {
+    TabDragData dragFromPanel(String panelId, TabEntry tab) =>
+        TabDragData(tab: tab, sourcePanelId: panelId);
+
+    testWidgets('trailing drop zone reorders a same-panel tab to the end', (
+      tester,
+    ) async {
+      int? reorderedFrom;
+      int? reorderedTo;
+      final tabs = [
+        makeTab(id: 't1', label: 'A'),
+        makeTab(id: 't2', label: 'B'),
+        makeTab(id: 't3', label: 'C'),
+      ];
+      await tester.pumpWidget(
+        buildBar(
+          tabs: tabs,
+          onReorder: (from, to) {
+            reorderedFrom = from;
+            reorderedTo = to;
+          },
+        ),
+      );
+
+      // DragTargets: three per-tab ones + one trailing. The trailing zone
+      // is the last in build order.
+      final dragTargets = tester
+          .widgetList<DragTarget<TabDragData>>(
+            find.byType(DragTarget<TabDragData>),
+          )
+          .toList();
+      final trailing = dragTargets.last;
+
+      trailing.onAcceptWithDetails!(
+        DragTargetDetails<TabDragData>(
+          data: dragFromPanel('panel-0', tabs[0]),
+          offset: Offset.zero,
+        ),
+      );
+
+      expect(reorderedFrom, 0);
+      expect(reorderedTo, 3);
+    });
+
+    testWidgets(
+      'trailing drop zone is a no-op when dragging the already-last tab',
+      (tester) async {
+        var reorderCalled = false;
+        var crossPanelCalled = false;
+        final tabs = [
+          makeTab(id: 't1', label: 'A'),
+          makeTab(id: 't2', label: 'B'),
+        ];
+        await tester.pumpWidget(
+          buildBar(
+            tabs: tabs,
+            onReorder: (_, _) => reorderCalled = true,
+            onAcceptCrossPanel: (_, _) => crossPanelCalled = true,
+          ),
+        );
+
+        final trailing = tester
+            .widgetList<DragTarget<TabDragData>>(
+              find.byType(DragTarget<TabDragData>),
+            )
+            .last;
+        // Drag the LAST tab (index 1) onto the trailing zone.
+        trailing.onAcceptWithDetails!(
+          DragTargetDetails<TabDragData>(
+            data: dragFromPanel('panel-0', tabs[1]),
+            offset: Offset.zero,
+          ),
+        );
+
+        expect(
+          reorderCalled,
+          isFalse,
+          reason: 'dropping last tab onto trailing zone must not reorder',
+        );
+        expect(crossPanelCalled, isFalse);
+      },
+    );
+
+    testWidgets(
+      'trailing drop zone forwards a cross-panel drag to onAcceptCrossPanel',
+      (tester) async {
+        TabDragData? received;
+        int? receivedIndex;
+        final tabs = [makeTab(id: 't1', label: 'A')];
+        await tester.pumpWidget(
+          buildBar(
+            tabs: tabs,
+            onAcceptCrossPanel: (data, idx) {
+              received = data;
+              receivedIndex = idx;
+            },
+          ),
+        );
+
+        final trailing = tester
+            .widgetList<DragTarget<TabDragData>>(
+              find.byType(DragTarget<TabDragData>),
+            )
+            .last;
+        final otherPanelTab = makeTab(id: 'other', label: 'Other');
+        trailing.onAcceptWithDetails!(
+          DragTargetDetails<TabDragData>(
+            data: dragFromPanel('panel-7', otherPanelTab),
+            offset: Offset.zero,
+          ),
+        );
+
+        expect(received?.tab.id, 'other');
+        // Cross-panel drop on trailing zone → index = tabs.length (== 1).
+        expect(receivedIndex, 1);
+      },
+    );
+
+    testWidgets(
+      'per-tab drop zone reorders a same-panel tab to the target index',
+      (tester) async {
+        int? reorderedFrom;
+        int? reorderedTo;
+        final tabs = [
+          makeTab(id: 't1', label: 'A'),
+          makeTab(id: 't2', label: 'B'),
+          makeTab(id: 't3', label: 'C'),
+        ];
+        await tester.pumpWidget(
+          buildBar(
+            tabs: tabs,
+            onReorder: (from, to) {
+              reorderedFrom = from;
+              reorderedTo = to;
+            },
+          ),
+        );
+
+        // Drop tab t1 onto t3's zone → reorder 0 → 2.
+        final t3Target = tester.widget<DragTarget<TabDragData>>(
+          find.byKey(const ValueKey('drop_t3')),
+        );
+        t3Target.onAcceptWithDetails!(
+          DragTargetDetails<TabDragData>(
+            data: dragFromPanel('panel-0', tabs[0]),
+            offset: Offset.zero,
+          ),
+        );
+
+        expect(reorderedFrom, 0);
+        expect(reorderedTo, 2);
+      },
+    );
+
+    testWidgets(
+      'per-tab drop zone forwards a cross-panel drag to onAcceptCrossPanel',
+      (tester) async {
+        TabDragData? received;
+        int? receivedIndex;
+        final tabs = [
+          makeTab(id: 't1', label: 'A'),
+          makeTab(id: 't2', label: 'B'),
+        ];
+        await tester.pumpWidget(
+          buildBar(
+            tabs: tabs,
+            onAcceptCrossPanel: (data, idx) {
+              received = data;
+              receivedIndex = idx;
+            },
+          ),
+        );
+
+        final t2Target = tester.widget<DragTarget<TabDragData>>(
+          find.byKey(const ValueKey('drop_t2')),
+        );
+        final otherPanelTab = makeTab(id: 'other', label: 'Other');
+        t2Target.onAcceptWithDetails!(
+          DragTargetDetails<TabDragData>(
+            data: dragFromPanel('panel-7', otherPanelTab),
+            offset: Offset.zero,
+          ),
+        );
+
+        expect(received?.tab.id, 'other');
+        expect(receivedIndex, 1, reason: 'drop on t2 → target index 1');
+      },
+    );
+
+    testWidgets(
+      'per-tab drop zone onWillAcceptWithDetails rejects the tab itself',
+      // Spec (L141): a tab cannot be dropped onto its own slot. Guards
+      // against a no-op flash of the accept border.
+      (tester) async {
+        final tabs = [
+          makeTab(id: 't1', label: 'A'),
+          makeTab(id: 't2', label: 'B'),
+        ];
+        await tester.pumpWidget(buildBar(tabs: tabs));
+
+        final t1Target = tester.widget<DragTarget<TabDragData>>(
+          find.byKey(const ValueKey('drop_t1')),
+        );
+        // Dragging t1 over its own zone — must reject.
+        expect(
+          t1Target.onWillAcceptWithDetails!(
+            DragTargetDetails<TabDragData>(
+              data: dragFromPanel('panel-0', tabs[0]),
+              offset: Offset.zero,
+            ),
+          ),
+          isFalse,
+        );
+        // Dragging t2 over t1's zone — accept.
+        expect(
+          t1Target.onWillAcceptWithDetails!(
+            DragTargetDetails<TabDragData>(
+              data: dragFromPanel('panel-0', tabs[1]),
+              offset: Offset.zero,
+            ),
+          ),
+          isTrue,
+        );
+      },
+    );
+  });
 }
