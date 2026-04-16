@@ -95,9 +95,25 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
 
     setState(() {
       _mStart = _mAnchor;
-      _mCurrent = e.localPosition;
+      _mCurrent = _clampToBounds(e.localPosition);
     });
     _updateSelection();
+  }
+
+  /// Clamp [position] to the host widget's own render bounds so the
+  /// marquee rectangle never spills into adjacent panels when the
+  /// pointer drifts outside. The Stack overlay only clips its own
+  /// painter's canvas, not the underlying anchor coordinates used by
+  /// [_updateSelection], so clamping happens at the source to keep
+  /// both the visual and the selection honest.
+  Offset _clampToBounds(Offset position) {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return position;
+    final size = box.size;
+    return Offset(
+      position.dx.clamp(0.0, size.width),
+      position.dy.clamp(0.0, size.height),
+    );
   }
 
   void handleMarqueePointerUp(PointerUpEvent _) {

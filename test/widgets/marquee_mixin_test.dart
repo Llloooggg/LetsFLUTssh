@@ -192,6 +192,39 @@ void main() {
       expect(state.marqueeAnchor, isNull);
       expect(state.marqueeDragActive, isFalse);
     });
+
+    testWidgets('handleMarqueePointerMove clamps the current position to the '
+        'host widget bounds so the marquee rectangle never spills past '
+        'the panel that owns it', (tester) async {
+      late _TestMarqueeState state;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: _TestMarqueeWidget(onStateCreated: (s) => state = s),
+          ),
+        ),
+      );
+
+      // Widget is 200x300 per _TestMarqueeWidget.build. Anchor at (5, 5).
+      state.handleMarqueePointerDown(
+        const PointerDownEvent(position: Offset(5, 5), buttons: 1),
+      );
+      // Drag way outside the widget's right/bottom edge.
+      state.handleMarqueePointerMove(
+        const PointerMoveEvent(position: Offset(5000, 5000)),
+      );
+
+      expect(state.marqueeCurrent, isNotNull);
+      expect(state.marqueeCurrent!.dx, lessThanOrEqualTo(200));
+      expect(state.marqueeCurrent!.dy, lessThanOrEqualTo(300));
+
+      // And negative (past the left/top edge) clamps to zero.
+      state.handleMarqueePointerMove(
+        const PointerMoveEvent(position: Offset(-500, -500)),
+      );
+      expect(state.marqueeCurrent!.dx, greaterThanOrEqualTo(0));
+      expect(state.marqueeCurrent!.dy, greaterThanOrEqualTo(0));
+    });
   });
 }
 

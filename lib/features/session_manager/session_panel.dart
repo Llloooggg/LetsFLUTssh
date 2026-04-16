@@ -354,9 +354,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
     final scheme = Theme.of(context).colorScheme;
     return Listener(
-      onPointerDown: widget.onActivated != null
-          ? (_) => widget.onActivated!()
-          : null,
+      // Claim focus on any pointer-down inside the sidebar so a marquee
+      // drag (which never calls onSessionSelected) still flips the panel
+      // into its "focused" colour scheme. Without this, rows switched
+      // between the dimmed onSurface highlight and the accent-coloured
+      // one depending on whether the user had previously tapped a row —
+      // the "selection sometimes grey, sometimes blue" flicker.
+      onPointerDown: (_) {
+        if (!isMobilePlatform) _focusNode.requestFocus();
+        widget.onActivated?.call();
+      },
       child: Focus(
         focusNode: _focusNode,
         autofocus: false,
