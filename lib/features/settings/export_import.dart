@@ -108,6 +108,45 @@ class ExportImport {
 
   static String _asString(Object? raw) => raw is String ? raw : '';
 
+  /// Parse the sessions JSON entry. Each session is decoded inside an
+  /// individual try/catch so a single malformed record (wrong type for
+  /// `port`, missing required field, etc.) skips that one entry and logs
+  /// the count instead of aborting the entire import.
+  ///
+  /// Returns `(parsedSessions, skippedCount)`.
+  @visibleForTesting
+  static (List<Session>, int) parseSessionsJson(String? json) {
+    final maps = _decodeList(json);
+    final out = <Session>[];
+    var skipped = 0;
+    for (final m in maps) {
+      try {
+        out.add(Session.fromJson(m));
+      } catch (e) {
+        skipped++;
+        AppLogger.instance.log(
+          'Skipped malformed session during import: $e',
+          name: 'ExportImport',
+        );
+      }
+    }
+    return (out, skipped);
+  }
+
+  /// Parse the empty-folders JSON entry. Non-string entries are dropped
+  /// rather than crashing the cast.
+  @visibleForTesting
+  static Set<String> parseEmptyFoldersJson(String? json) {
+    if (json == null || json.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const {};
+      return decoded.whereType<String>().toSet();
+    } catch (_) {
+      return const {};
+    }
+  }
+
   @visibleForTesting
   static List<SshKeyEntry> parseKeysJson(String? json) {
     return _decodeList(json)
@@ -448,23 +487,12 @@ class ExportImport {
       );
     }
 
-    List<Session> sessions = [];
-    final sessionsFile = archive.findFile(_sessionsFile);
-    if (sessionsFile != null) {
-      final json = utf8.decode(sessionsFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      sessions = list
-          .map((e) => Session.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-
-    Set<String> emptyFolders = {};
-    final foldersFile = archive.findFile(_emptyFoldersFile);
-    if (foldersFile != null) {
-      final json = utf8.decode(foldersFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      emptyFolders = list.cast<String>().toSet();
-    }
+    final (sessions, skippedSessions) = parseSessionsJson(
+      _entryJson(archive.findFile(_sessionsFile)),
+    );
+    final emptyFolders = parseEmptyFoldersJson(
+      _entryJson(archive.findFile(_emptyFoldersFile)),
+    );
 
     final managerKeys = parseKeysJson(_entryJson(archive.findFile(_keysFile)));
     final tags = parseTagsJson(_entryJson(archive.findFile(_tagsFile)));
@@ -485,7 +513,8 @@ class ExportImport {
 
     AppLogger.instance.log(
       'Import: decrypted ${encData.length} bytes, '
-      '${sessions.length} sessions, ${managerKeys.length} keys, '
+      '${sessions.length} sessions (skipped $skippedSessions), '
+      '${managerKeys.length} keys, '
       '${tags.length} tags, ${snippetList.length} snippets, '
       '${emptyFolders.length} empty folders',
       name: 'ExportImport',
@@ -494,6 +523,7 @@ class ExportImport {
       archive: archive,
       manifest: manifest,
       sessions: sessions,
+      skippedSessions: skippedSessions,
       emptyFolders: emptyFolders,
       managerKeys: managerKeys,
       tags: tags,
@@ -559,6 +589,7 @@ class ExportImport {
       tagCount: parsed.tags.length,
       snippetCount: parsed.snippets.length,
       manifest: parsed.manifest,
+      skippedSessions: parsed.skippedSessions,
     );
   }
 
@@ -617,6 +648,7 @@ class ExportImport {
       includeTags: options.includeTags,
       includeSnippets: options.includeSnippets,
       includeKnownHosts: options.includeKnownHosts,
+      skippedSessions: options.includeSessions ? parsed.skippedSessions : 0,
     );
   }
 
@@ -728,6 +760,7 @@ class _ParsedArchive {
   final Archive archive;
   final LfsManifest manifest;
   final List<Session> sessions;
+  final int skippedSessions;
   final Set<String> emptyFolders;
   final List<SshKeyEntry> managerKeys;
   final List<Tag> tags;
@@ -740,6 +773,7 @@ class _ParsedArchive {
     required this.archive,
     required this.manifest,
     required this.sessions,
+    this.skippedSessions = 0,
     required this.emptyFolders,
     required this.managerKeys,
     this.tags = const [],
@@ -822,6 +856,11 @@ class LfsPreview {
   final int snippetCount;
   final LfsManifest manifest;
 
+  /// Number of session entries that failed to parse (malformed JSON, type
+  /// mismatch). Surfaced in the preview dialog and in the post-import toast
+  /// so the user knows the archive contained corrupt records.
+  final int skippedSessions;
+
   const LfsPreview({
     required this.sessions,
     this.hasConfig = false,
@@ -831,6 +870,7 @@ class LfsPreview {
     this.tagCount = 0,
     this.snippetCount = 0,
     this.manifest = const LfsManifest.legacy(),
+    this.skippedSessions = 0,
   });
 
   bool get hasSessions => sessions.isNotEmpty;
@@ -863,6 +903,11 @@ class ImportResult {
   final bool includeSnippets;
   final bool includeKnownHosts;
 
+  /// Count of session JSON entries that failed to parse and were skipped
+  /// during archive decoding. Propagated into [ImportSummary.skippedSessions]
+  /// so the success toast can surface partial-recovery cases.
+  final int skippedSessions;
+
   const ImportResult({
     required this.sessions,
     this.emptyFolders = const {},
@@ -878,6 +923,7 @@ class ImportResult {
     this.includeTags = false,
     this.includeSnippets = false,
     this.includeKnownHosts = false,
+    this.skippedSessions = 0,
   });
 
   /// Returns a copy of this result filtered by [options], with the given
@@ -909,6 +955,7 @@ class ImportResult {
       includeTags: options.includeTags,
       includeSnippets: options.includeSnippets,
       includeKnownHosts: options.includeKnownHosts,
+      skippedSessions: skippedSessions,
     );
   }
 }

@@ -233,6 +233,17 @@ class SHi extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count खराब सत्र छोड़े गए',
+      one: '$count खराब सत्र छोड़ा गया',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'सत्र';
 
   @override

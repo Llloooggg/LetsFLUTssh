@@ -52,8 +52,9 @@ String formatImportSummary(S l10n, ImportSummary s) {
   if (s.knownHostsApplied) extras.add(l10n.knownHosts);
   if (s.configApplied) extras.add(l10n.appSettings);
   final head = l10n.importedSessions(s.sessions);
-  if (extras.isEmpty) return head;
-  return '$head, ${extras.join(', ')}';
+  final body = extras.isEmpty ? head : '$head, ${extras.join(', ')}';
+  if (s.skippedSessions <= 0) return body;
+  return '$body — ${l10n.importSkippedSessions(s.skippedSessions)}';
 }
 
 /// Sanitize error messages to English — strips OS-locale text from

@@ -232,6 +232,16 @@ class SFa extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count نشست خراب نادیده گرفته شد',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'جلسات';
 
   @override

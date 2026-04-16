@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "QR経由で {count} 件のセッションをインポートしました",
   "importedSessions": "{count} 件のセッションをインポートしました",
   "importFailed": "インポート失敗: {error}",
+  "importSkippedSessions": "{count, plural, other{破損したセッション{count}件をスキップしました}}",
   "sessions": "セッション",
   "sessionsHeader": "セッション",
   "savedSessions": "保存済みセッション",

@@ -133,6 +133,15 @@
       }
     }
   },
+  "importSkippedSessions": "{count, plural, one{{count} corrupt session skipped} other{{count} corrupt sessions skipped}}",
+  "@importSkippedSessions": {
+    "description": "Trailing note appended to the import-success toast when one or more session entries in the .lfs archive failed to parse and were dropped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sessions": "Sessions",
   "emptyFolders": "Empty Folders",
   "sessionsHeader": "SESSIONS",

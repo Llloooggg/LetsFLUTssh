@@ -233,6 +233,17 @@ class SDe extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count beschädigte Sitzungen übersprungen',
+      one: '$count beschädigte Sitzung übersprungen',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sitzungen';
 
   @override

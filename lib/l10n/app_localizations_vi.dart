@@ -231,6 +231,16 @@ class SVi extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Đã bỏ qua $count phiên bị hỏng',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Phiên';
 
   @override

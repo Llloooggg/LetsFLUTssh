@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "تم استيراد {count} جلسة عبر QR",
   "importedSessions": "تم استيراد {count} جلسة",
   "importFailed": "فشل الاستيراد: {error}",
+  "importSkippedSessions": "{count, plural, zero{لا توجد جلسات تالفة} one{تم تخطي جلسة تالفة واحدة} two{تم تخطي جلستين تالفتين} few{تم تخطي {count} جلسات تالفة} many{تم تخطي {count} جلسة تالفة} other{تم تخطي {count} جلسة تالفة}}",
   "sessions": "الجلسات",
   "sessionsHeader": "الجلسات",
   "savedSessions": "الجلسات المحفوظة",

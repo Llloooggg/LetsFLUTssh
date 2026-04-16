@@ -228,6 +228,16 @@ class SZh extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已跳过 $count 个损坏的会话',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => '会话';
 
   @override

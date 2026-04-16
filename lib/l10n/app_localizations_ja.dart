@@ -228,6 +228,16 @@ class SJa extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '破損したセッション$count件をスキップしました',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'セッション';
 
   @override

@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "{count} جلسه از طریق QR وارد شد",
   "importedSessions": "{count} جلسه وارد شد",
   "importFailed": "وارد کردن ناموفق بود: {error}",
+  "importSkippedSessions": "{count, plural, other{{count} نشست خراب نادیده گرفته شد}}",
   "sessions": "جلسات",
   "sessionsHeader": "جلسات",
   "savedSessions": "جلسات ذخیره‌شده",

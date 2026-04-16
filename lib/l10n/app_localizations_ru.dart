@@ -232,6 +232,19 @@ class SRu extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'пропущено $count повреждённых сессий',
+      many: 'пропущено $count повреждённых сессий',
+      few: 'пропущено $count повреждённых сессии',
+      one: 'пропущена $count повреждённая сессия',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Сессии';
 
   @override

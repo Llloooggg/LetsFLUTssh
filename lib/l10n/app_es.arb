@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "{count} sesión/sesiones importadas vía QR",
   "importedSessions": "{count} sesión/sesiones importadas",
   "importFailed": "Error al importar: {error}",
+  "importSkippedSessions": "{count, plural, one{{count} sesión corrupta omitida} other{{count} sesiones corruptas omitidas}}",
   "sessions": "Sesiones",
   "sessionsHeader": "SESIONES",
   "savedSessions": "Sesiones guardadas",

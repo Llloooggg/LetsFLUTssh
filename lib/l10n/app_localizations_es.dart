@@ -233,6 +233,17 @@ class SEs extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sesiones corruptas omitidas',
+      one: '$count sesión corrupta omitida',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sesiones';
 
   @override

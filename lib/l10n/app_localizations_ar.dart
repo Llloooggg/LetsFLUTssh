@@ -230,6 +230,21 @@ class SAr extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم تخطي $count جلسة تالفة',
+      many: 'تم تخطي $count جلسة تالفة',
+      few: 'تم تخطي $count جلسات تالفة',
+      two: 'تم تخطي جلستين تالفتين',
+      one: 'تم تخطي جلسة تالفة واحدة',
+      zero: 'لا توجد جلسات تالفة',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'الجلسات';
 
   @override

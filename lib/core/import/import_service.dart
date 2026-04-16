@@ -237,6 +237,7 @@ class ImportService {
       knownHostsApplied:
           result.knownHostsContent != null &&
           result.knownHostsContent!.isNotEmpty,
+      skippedSessions: result.skippedSessions,
     );
   }
 
@@ -745,6 +746,12 @@ class ImportSummary {
   final bool configApplied;
   final bool knownHostsApplied;
 
+  /// Number of session JSON entries in the archive that failed to parse and
+  /// were dropped during decoding (e.g. wrong type for `port`, missing keys).
+  /// Surfaced in the success toast so the user knows the archive contained
+  /// corrupt records.
+  final int skippedSessions;
+
   const ImportSummary({
     this.sessions = 0,
     this.folders = 0,
@@ -753,6 +760,7 @@ class ImportSummary {
     this.snippets = 0,
     this.configApplied = false,
     this.knownHostsApplied = false,
+    this.skippedSessions = 0,
   });
 }
 

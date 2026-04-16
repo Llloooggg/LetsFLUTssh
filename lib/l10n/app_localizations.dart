@@ -525,6 +525,12 @@ abstract class S {
   /// **'Import failed: {error}'**
   String importFailed(String error);
 
+  /// Trailing note appended to the import-success toast when one or more session entries in the .lfs archive failed to parse and were dropped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} corrupt session skipped} other{{count} corrupt sessions skipped}}'**
+  String importSkippedSessions(int count);
+
   /// No description provided for @sessions.
   ///
   /// In en, this message translates to:

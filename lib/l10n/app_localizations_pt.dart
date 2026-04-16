@@ -233,6 +233,17 @@ class SPt extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessões corrompidas ignoradas',
+      one: '$count sessão corrompida ignorada',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sessões';
 
   @override

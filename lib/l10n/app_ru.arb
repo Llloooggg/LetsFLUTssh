@@ -65,6 +65,7 @@
   "importedSessionsViaQr": "Импортировано сессий через QR: {count}",
   "importedSessions": "Импортировано сессий: {count}",
   "importFailed": "Ошибка импорта: {error}",
+  "importSkippedSessions": "{count, plural, =1{пропущена {count} повреждённая сессия} few{пропущено {count} повреждённых сессии} many{пропущено {count} повреждённых сессий} other{пропущено {count} повреждённых сессий}}",
   "sessions": "Сессии",
   "sessionsHeader": "СЕССИИ",
   "savedSessions": "Сохранённые сессии",

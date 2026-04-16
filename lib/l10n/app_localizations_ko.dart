@@ -228,6 +228,16 @@ class SKo extends S {
   }
 
   @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '손상된 세션 $count개를 건너뛰었습니다',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => '세션';
 
   @override

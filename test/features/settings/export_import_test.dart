@@ -702,6 +702,48 @@ void main() {
     });
   });
 
+  group('ExportImport — robust session parsing', () {
+    test('skips malformed session entries and counts them', () {
+      const json = '''
+[
+  {"id": "valid-1", "label": "ok", "host": "h1", "port": 22, "user": "u",
+   "auth_method": "password", "password": "p", "key_id": "", "key_passphrase": "",
+   "passphrase_storage": "memory", "use_jump_host": false,
+   "created_at": "2026-01-01T00:00:00.000Z"},
+  {"id": "bad-port", "label": "bad", "host": "h2", "port": "not-a-number",
+   "user": "u", "auth_method": "password", "password": "p", "key_id": "",
+   "key_passphrase": "", "passphrase_storage": "memory", "use_jump_host": false,
+   "created_at": "2026-01-01T00:00:00.000Z"},
+  "not-an-object",
+  {"id": "valid-2", "label": "ok2", "host": "h3", "port": 22, "user": "u",
+   "auth_method": "password", "password": "p", "key_id": "", "key_passphrase": "",
+   "passphrase_storage": "memory", "use_jump_host": false,
+   "created_at": "2026-01-01T00:00:00.000Z"}
+]
+''';
+      final (sessions, skipped) = ExportImport.parseSessionsJson(json);
+      expect(sessions.map((s) => s.id).toList(), ['valid-1', 'valid-2']);
+      // Bad-port entry throws on cast; "not-an-object" is filtered by
+      // _decodeList earlier, so only 1 entry counts as skipped here.
+      expect(skipped, 1);
+    });
+
+    test('returns empty list and zero skipped for null/empty input', () {
+      expect(ExportImport.parseSessionsJson(null).$1, isEmpty);
+      expect(ExportImport.parseSessionsJson(null).$2, 0);
+      expect(ExportImport.parseSessionsJson('').$1, isEmpty);
+    });
+
+    test('parseEmptyFoldersJson tolerates non-string entries', () {
+      expect(ExportImport.parseEmptyFoldersJson('["a", 42, "b", null]'), {
+        'a',
+        'b',
+      });
+      expect(ExportImport.parseEmptyFoldersJson('not json'), isEmpty);
+      expect(ExportImport.parseEmptyFoldersJson('{}'), isEmpty);
+    });
+  });
+
   group('ExportImport — atomic write', () {
     test('successful export leaves no .tmp on disk', () async {
       final outputPath = '${tempDir.path}/atomic.lfs';
