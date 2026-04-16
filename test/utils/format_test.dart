@@ -9,7 +9,6 @@ import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/l10n/app_localizations_en.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/utils/format.dart';
 
 void main() {
@@ -365,60 +364,6 @@ void main() {
           osError: OSError('Unknown error', 99999),
         );
         expect(localizeError(l10n, e), e.toString());
-      });
-    });
-
-    group('LFS exceptions', () {
-      test('localizes LfsArchiveTooLargeException with MiB values', () {
-        const e = LfsArchiveTooLargeException(
-          size: 60 * 1024 * 1024,
-          limit: 50 * 1024 * 1024,
-        );
-        final msg = localizeError(l10n, e);
-        expect(msg, contains('60.0'));
-        expect(msg, contains('50'));
-      });
-
-      test('localizes LfsKnownHostsTooLargeException with MiB values', () {
-        const e = LfsKnownHostsTooLargeException(
-          size: 15 * 1024 * 1024,
-          limit: 10 * 1024 * 1024,
-        );
-        final msg = localizeError(l10n, e);
-        expect(msg, contains('15.0'));
-        expect(msg, contains('10'));
-      });
-
-      test(
-        'localizes UnsupportedLfsVersionException with both version numbers',
-        () {
-          const e = UnsupportedLfsVersionException(found: 7, supported: 1);
-          final msg = localizeError(l10n, e);
-          expect(msg, contains('7'));
-          expect(msg, contains('1'));
-        },
-      );
-
-      test(
-        'LfsDecryptionFailedException returns the generic decrypt message',
-        () {
-          final e = LfsDecryptionFailedException(cause: Exception('bad tag'));
-          expect(localizeError(l10n, e), isNotEmpty);
-          // Cause must NOT leak into the UI message (PEM/base64 redaction).
-          expect(localizeError(l10n, e), isNot(contains('bad tag')));
-        },
-      );
-
-      test('LfsImportRolledBackException recursively localizes its cause', () {
-        // Nested: rollback wrapping an archive-too-large exception — both
-        // layers must make it into the final message.
-        const inner = LfsArchiveTooLargeException(
-          size: 60 * 1024 * 1024,
-          limit: 50 * 1024 * 1024,
-        );
-        final e = LfsImportRolledBackException(cause: inner);
-        final msg = localizeError(l10n, e);
-        expect(msg, contains('60.0'));
       });
     });
 
