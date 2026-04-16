@@ -67,27 +67,25 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 
     if (!ws.hasTabs) return const WelcomeScreen();
 
-    // When a panel is maximized, render only that panel full-screen.
-    // The workspace tree is preserved — only rendering changes.
-    final Widget content;
+    // Always render the full workspace tree — even when a panel is
+    // maximized — so every TerminalTab stays mounted and its live SSH
+    // shell plus on-screen buffer survive the layout change. Maximize
+    // is implemented by collapsing the sibling-side of each split on
+    // the path to the maximized panel to 0 px (see [_buildSplitLayout]),
+    // which hides them without disposing their state.
+    final maxId = ws.isMaximized ? ws.maximizedPanelId : null;
+    Widget content = _buildNode(ws.root, ws.focusedPanelId, maxId);
     if (ws.isMaximized) {
-      final panel = findPanel(ws.root, ws.maximizedPanelId!);
-      if (panel != null) {
-        content = DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: AppTheme.accent.withValues(alpha: 0.5),
-              width: 1.5,
-            ),
+      content = DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: AppTheme.accent.withValues(alpha: 0.5),
+            width: 1.5,
           ),
-          child: _buildPanel(panel, ws.focusedPanelId),
-        );
-      } else {
-        content = _buildNode(ws.root, ws.focusedPanelId);
-      }
-    } else {
-      content = _buildNode(ws.root, ws.focusedPanelId);
+        ),
+        child: content,
+      );
     }
 
     // When maximized, disable edge drop targets (splits don't apply).
@@ -101,10 +99,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     );
   }
 
-  Widget _buildNode(WorkspaceNode node, String focusedPanelId) {
+  Widget _buildNode(
+    WorkspaceNode node,
+    String focusedPanelId,
+    String? maximizedPanelId,
+  ) {
     return switch (node) {
       PanelLeaf() => _buildPanel(node, focusedPanelId),
-      WorkspaceBranch() => _buildBranch(node, focusedPanelId),
+      WorkspaceBranch() => _buildBranch(node, focusedPanelId, maximizedPanelId),
     };
   }
 
@@ -112,7 +114,11 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   // Branch rendering
   // ---------------------------------------------------------------------------
 
-  Widget _buildBranch(WorkspaceBranch node, String focusedPanelId) {
+  Widget _buildBranch(
+    WorkspaceBranch node,
+    String focusedPanelId,
+    String? maximizedPanelId,
+  ) {
     final isHorizontal = node.direction == Axis.horizontal;
 
     return LayoutBuilder(
@@ -120,7 +126,13 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         final totalSize = isHorizontal
             ? constraints.maxWidth
             : constraints.maxHeight;
-        return _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
+        return _buildSplitLayout(
+          node,
+          isHorizontal,
+          totalSize,
+          focusedPanelId,
+          maximizedPanelId,
+        );
       },
     );
   }
@@ -130,19 +142,33 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     bool isHorizontal,
     double totalSize,
     String focusedPanelId,
+    String? maximizedPanelId,
   ) {
-    final firstSize = totalSize * node.ratio;
-    final secondSize = totalSize * (1 - node.ratio);
+    // Default to the stored ratio. When a descendant is being maximized,
+    // give the winning side 100% and zero out the losing side so all
+    // panels stay mounted but only the maximized one is visible.
+    double firstRatio = node.ratio;
+    if (maximizedPanelId != null) {
+      final inFirst = subtreeContainsPanel(node.first, maximizedPanelId);
+      final inSecond = subtreeContainsPanel(node.second, maximizedPanelId);
+      if (inFirst && !inSecond) {
+        firstRatio = 1.0;
+      } else if (inSecond && !inFirst) {
+        firstRatio = 0.0;
+      }
+    }
+    final firstSize = totalSize * firstRatio;
+    final secondSize = totalSize * (1 - firstRatio);
 
     final firstChild = SizedBox(
       width: isHorizontal ? firstSize : null,
       height: isHorizontal ? null : firstSize,
-      child: _buildNode(node.first, focusedPanelId),
+      child: _buildNode(node.first, focusedPanelId, maximizedPanelId),
     );
     final secondChild = SizedBox(
       width: isHorizontal ? secondSize : null,
       height: isHorizontal ? null : secondSize,
-      child: _buildNode(node.second, focusedPanelId),
+      child: _buildNode(node.second, focusedPanelId, maximizedPanelId),
     );
 
     final layout = ClipRect(
@@ -150,6 +176,12 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
           ? Row(children: [firstChild, secondChild])
           : Column(children: [firstChild, secondChild]),
     );
+
+    // Hide the divider while a descendant is maximized — the usual
+    // resize affordance is meaningless when one side is 0 px.
+    if (maximizedPanelId != null && (firstRatio == 0.0 || firstRatio == 1.0)) {
+      return layout;
+    }
 
     return _WorkspaceDividerLayout(
       node: node,

@@ -660,7 +660,10 @@ void main() {
   });
 
   group('WorkspaceView — maximized panel', () {
-    testWidgets('maximized panel renders only that panel', (tester) async {
+    testWidgets('maximized panel covers the viewport while the sibling is kept '
+        'mounted at zero size — so its state (live terminals) survives', (
+      tester,
+    ) async {
       final conn1 = _conn('c1');
       final conn2 = _conn('c2');
       final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
@@ -679,10 +682,26 @@ void main() {
       await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
       await tester.pump();
 
-      // Only the maximized panel tab should be visible.
+      // Both tab labels remain mounted — the sibling's state (including
+      // any live SSH shell in a real terminal tab) must NOT be disposed
+      // when maximizing.
       expect(find.text('Left'), findsOneWidget);
-      // Right tab should NOT be visible since p1 is maximized.
-      expect(find.text('Right'), findsNothing);
+      expect(find.text('Right'), findsOneWidget);
+      // Both panels' PanelTabBars are in the tree — the earlier
+      // implementation removed the sibling's subtree and only rendered
+      // one, which killed every terminal in it.
+      expect(find.byType(PanelTabBar), findsNWidgets(2));
+
+      // The sibling's PanelTabBar is constrained to zero width by the
+      // split layout; the maximized panel's fills the viewport.
+      final widths =
+          tester
+              .widgetList<PanelTabBar>(find.byType(PanelTabBar))
+              .map((b) => tester.getRect(find.byWidget(b)).width)
+              .toList()
+            ..sort();
+      expect(widths.first, 0);
+      expect(widths.last, greaterThan(100));
     });
   });
 
@@ -880,11 +899,12 @@ void main() {
       await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
       await tester.pump();
 
-      // Maximized panel shows "Restore" tooltip
+      // The maximized panel exposes a Restore tooltip; the sibling
+      // still exposes Maximize because it remains mounted (just
+      // zero-sized) so its state survives.
       expect(find.byTooltip('Restore'), findsOneWidget);
-      // Only the maximized panel tab is visible
       expect(find.text('Left'), findsOneWidget);
-      expect(find.text('Right'), findsNothing);
+      expect(find.text('Right'), findsOneWidget);
     });
   });
 
