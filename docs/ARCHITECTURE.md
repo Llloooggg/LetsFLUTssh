@@ -617,7 +617,8 @@ Opt-in, off by default. `BehaviorConfig.autoLockMinutes` (0 = off; presets 5/15/
 
 * Linux / Android — `prctl(PR_SET_DUMPABLE, 0)`: kernel skips core-dump generation on SIGSEGV and another process under the same UID can no longer `gdb -p` to read our memory without `CAP_SYS_PTRACE`.
 * macOS — `ptrace(PT_DENY_ATTACH, 0, NULL, 0)`: refuses subsequent debugger attach.
-* Windows / iOS — no-op; platform-specific hardening out of scope.
+* Windows — `SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)`: suppresses the "stopped working" dialog and tells Windows Error Reporting (WER) not to capture a crash dump for our process. Without this, WER can write a heap snapshot (and optionally upload it to Microsoft) that contains the live SQLite cipher key and decrypted credentials.
+* iOS — no-op; sandboxing already covers the relevant attacks.
 
 All calls are wrapped in try/catch; a failed hardening call never blocks startup.
 

@@ -17,9 +17,15 @@ import '../../utils/logger.dart';
 ///   refuse any future `ptrace(PT_ATTACH)`. An attached debugger is still
 ///   allowed if it was there before this call (dev builds running under
 ///   Xcode), but from release-start onward `lldb -p <pid>` returns EPERM.
-/// * **Windows/iOS** — no userspace equivalent worth adding from Dart.
-///   iOS already sandboxes heavily; Windows would need a kernel driver.
-///   The call is a no-op on those platforms.
+/// * **Windows** — `SetErrorMode(SEM_FAILCRITICALERRORS |
+///   SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)`. Stops Windows from
+///   popping the "this app stopped working" dialog and disables Windows
+///   Error Reporting (WER) crash dumps for our process — those dumps would
+///   otherwise contain the live SQLite cipher key and decrypted session
+///   credentials. WER also uploads dumps to Microsoft if the user opted in,
+///   which is exactly what we don't want.
+/// * **iOS** — no userspace equivalent worth adding from Dart. iOS already
+///   sandboxes heavily.
 ///
 /// Failures are logged and swallowed — a hardened process that crashed on
 /// startup is worse than an unhardened one that works.
@@ -31,6 +37,8 @@ class ProcessHardening {
         _prctlNoDumpable();
       } else if (Platform.isMacOS) {
         _ptraceDenyAttach();
+      } else if (Platform.isWindows) {
+        _windowsSuppressErrorDialogs();
       }
     } catch (e) {
       // Defensive: never let hardening break app startup.
@@ -80,7 +88,30 @@ class ProcessHardening {
       name: 'ProcessHardening',
     );
   }
+
+  /// Windows: `SetErrorMode(...)` — suppresses the "stopped working" dialog
+  /// and tells WER not to capture a crash dump for our process. Returns the
+  /// previous error mode (we ignore it).
+  static void _windowsSuppressErrorDialogs() {
+    final kernel = DynamicLibrary.open('kernel32.dll');
+    final setErrorMode = kernel
+        .lookup<NativeFunction<_SetErrorModeC>>('SetErrorMode')
+        .asFunction<_SetErrorModeDart>();
+    // Bit values from winbase.h:
+    //   SEM_FAILCRITICALERRORS     = 0x0001
+    //   SEM_NOGPFAULTERRORBOX      = 0x0002
+    //   SEM_NOOPENFILEERRORBOX     = 0x8000
+    const flags = 0x0001 | 0x0002 | 0x8000;
+    final prev = setErrorMode(flags);
+    AppLogger.instance.log(
+      'SetErrorMode($flags) applied (previous=$prev)',
+      name: 'ProcessHardening',
+    );
+  }
 }
+
+typedef _SetErrorModeC = Uint32 Function(Uint32);
+typedef _SetErrorModeDart = int Function(int);
 
 typedef _PrctlC =
     Int32 Function(
