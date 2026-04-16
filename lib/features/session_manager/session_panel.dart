@@ -16,7 +16,6 @@ import '../../widgets/context_menu.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../widgets/confirm_dialog.dart';
-import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/mobile_selection_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../workspace/workspace_controller.dart';
@@ -29,10 +28,6 @@ import 'session_tree_view.dart';
 class SessionPanel extends ConsumerStatefulWidget {
   final void Function(Session session) onConnect;
   final void Function(Session session)? onSftpConnect;
-  final CrossMarqueeController? crossMarquee;
-
-  /// Reverse cross-marquee: file pane → session panel.
-  final CrossMarqueeController? reverseCrossMarquee;
 
   /// Called when the user interacts with the sidebar (pointer down).
   /// Used to clear selection in other panels (e.g. file browser).
@@ -42,8 +37,6 @@ class SessionPanel extends ConsumerStatefulWidget {
     super.key,
     required this.onConnect,
     this.onSftpConnect,
-    this.crossMarquee,
-    this.reverseCrossMarquee,
     this.onActivated,
   });
 
@@ -465,8 +458,6 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       onToggleSelected: _toggleSelected,
       selectedFolderPaths: _selectedFolderPaths,
       onToggleFolderSelected: _toggleFolderSelected,
-      crossMarquee: widget.crossMarquee,
-      reverseCrossMarquee: widget.reverseCrossMarquee,
       focusedSessionId: _focusedSessionId,
       focusedFolderPath: _focusedFolderPath,
       panelHasFocus: _focusNode.hasFocus,

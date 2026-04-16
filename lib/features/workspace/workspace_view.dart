@@ -6,7 +6,6 @@ import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/context_menu.dart';
-import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/hover_region.dart';
 import '../file_browser/file_browser_tab.dart';
 import '../tabs/tab_model.dart';
@@ -20,26 +19,15 @@ import 'workspace_node.dart';
 /// Recursively renders the [WorkspaceNode] tree as tiled panels,
 /// each with its own tab bar and content.
 class WorkspaceView extends ConsumerStatefulWidget {
-  final CrossMarqueeController? crossMarquee;
-
   /// Called when any workspace panel receives a pointer down.
   /// Used to clear sidebar selection.
   final VoidCallback? onActivated;
-
-  /// Reverse cross-marquee: file pane → session panel.
-  final CrossMarqueeController? reverseCrossMarquee;
 
   /// Notifier incremented when the sidebar is activated — file browser
   /// tabs listen and clear their selection.
   final ValueNotifier<int>? sidebarActivated;
 
-  const WorkspaceView({
-    super.key,
-    this.crossMarquee,
-    this.reverseCrossMarquee,
-    this.onActivated,
-    this.sidebarActivated,
-  });
+  const WorkspaceView({super.key, this.onActivated, this.sidebarActivated});
 
   @override
   ConsumerState<WorkspaceView> createState() => WorkspaceViewState();
@@ -244,8 +232,6 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
                           TabKind.sftp => FileBrowserTab(
                             key: _keyForFileBrowser(tab.id),
                             connection: tab.connection,
-                            crossMarquee: widget.crossMarquee,
-                            reverseCrossMarquee: widget.reverseCrossMarquee,
                             sidebarActivated: widget.sidebarActivated,
                           ),
                         };
