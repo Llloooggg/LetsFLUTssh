@@ -310,6 +310,47 @@ void main() {
         expect(restoredFolders, contains('FolderA'));
       });
 
+      test(
+        'rollback that itself throws still surfaces the original error',
+        () async {
+          // Simulate a doomsday scenario: import fails AND the snapshot
+          // restore callback also throws (e.g. DB went offline). The
+          // ImportService must NOT crash the caller — it should swallow the
+          // restore error (only logs it) and still surface the original
+          // failure wrapped in LfsImportRolledBackException so the UI can
+          // report what happened.
+          final existing = makeSession('old1', 'Old1');
+          store.add(existing);
+
+          final originalCause = Exception('disk full');
+          final svc = ImportService(
+            addEmptyFolder: (f) async => importedFolders.add(f),
+            addSession: (s) async => throw originalCause,
+            deleteSession: (id) async => deletedIds.add(id),
+            getSessions: () => store,
+            applyConfig: (config) => appliedConfig = config,
+            getEmptyFolders: () => emptyFolders,
+            restoreSnapshot: (sessions, folders) async {
+              throw Exception('restore also failed');
+            },
+          );
+
+          try {
+            await svc.applyResult(
+              ImportResult(
+                sessions: [makeSession('new1', 'New1')],
+                mode: ImportMode.replace,
+              ),
+            );
+            fail('expected LfsImportRolledBackException');
+          } on LfsImportRolledBackException catch (e) {
+            // Must surface the *original* cause, not the restore error —
+            // the restore failure is a side effect, not the headline.
+            expect(e.cause, originalCause);
+          }
+        },
+      );
+
       test('successful replace does not trigger restore', () async {
         final existing = makeSession('old1', 'Old1');
         store.add(existing);
