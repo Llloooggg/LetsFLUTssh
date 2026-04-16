@@ -255,8 +255,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
     // No border on panes — the 4px divider in TilingView separates them.
-    return GestureDetector(
-      onTap: widget.onFocused,
+    //
+    // Route onFocused through a raw Listener.onPointerDown rather than
+    // GestureDetector.onTap: onTap only fires when the gesture arena
+    // resolves as a clean tap, and any drift during the click (or the
+    // xterm TerminalView's own pan/select gesture claiming the arena)
+    // swallows the event, so the focused pane would stop switching
+    // "every other click" when jumping between split panes.
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => widget.onFocused?.call(),
       child: CallbackShortcuts(
         bindings: AppShortcutRegistry.instance.buildCallbackMap({
           AppShortcut.terminalSearch: toggleSearch,

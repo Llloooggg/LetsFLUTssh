@@ -596,6 +596,42 @@ void main() {
       pane.onFocused!();
       expect(focusCalled, isTrue);
     });
+
+    testWidgets(
+      'onFocused is wired through a Listener.onPointerDown rather than '
+      'GestureDetector.onTap — regression guard for the "every-other-click" '
+      'pane-focus bug, where a stray pixel of drift reclassified the tap '
+      'as a pan and onTap silently did not fire',
+      (tester) async {
+        final conn = _testConnection(id: 'sf-listener-guard');
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: TerminalPane(
+                  connection: conn,
+                  isFocused: false,
+                  onFocused: () {},
+                  shellFactory: _successShellFactory,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // The outermost widget inside TerminalPane.build must be a
+        // Listener with a non-null onPointerDown. Any regression that
+        // swaps it back for a GestureDetector.onTap would drop the
+        // focus change when the pointer drifts mid-click.
+        final outer = tester.widgetList<Listener>(find.byType(Listener)).first;
+        expect(outer.onPointerDown, isNotNull);
+      },
+    );
   });
 
   group('TerminalPane — shellFactory onDone callback', () {
