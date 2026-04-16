@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "Devam etmek için ana parolayı girin veya biyometriyi kullanın.",
   "unlock": "Kilidi aç",
   "autoLockTitle": "Hareketsizlik sonrası otomatik kilit",
-  "autoLockSubtitle": "Bu süre boyunca boşta kalındığında bellekteki anahtarı sıfırlayın ve arayüzü kilitleyin.",
+  "autoLockSubtitle": "Bu süre boyunca boşta kalındığında arayüzü kilitler. Şifrelenmiş veritabanı yalnızca aktif SSH oturumu yokken yeniden kilitlenir, uzun süreli işlemler bağlı kalır.",
   "autoLockOff": "Kapalı",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} dakika}}",
   "errLfsDecryptFailed": "Yanlış ana parola veya bozulmuş .lfs arşivi",

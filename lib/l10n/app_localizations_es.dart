@@ -1221,7 +1221,7 @@ class SEs extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Borrar la clave en memoria y bloquear la interfaz tras este periodo de inactividad.';
+      'Bloquea la interfaz tras este periodo de inactividad. La base de datos cifrada solo se vuelve a bloquear cuando no hay sesiones SSH activas, para no interrumpir operaciones largas.';
 
   @override
   String get autoLockOff => 'Desactivado';

@@ -1219,7 +1219,7 @@ class SPt extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Zerar a chave em memória e bloquear a interface após este período de inatividade.';
+      'Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.';
 
   @override
   String get autoLockOff => 'Desativado';

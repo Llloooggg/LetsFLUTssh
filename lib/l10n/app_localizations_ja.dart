@@ -1187,7 +1187,8 @@ class SJa extends S {
   String get autoLockTitle => '操作がないときに自動ロック';
 
   @override
-  String get autoLockSubtitle => 'この時間操作がないと、メモリ内の鍵を消去して UI をロックします。';
+  String get autoLockSubtitle =>
+      'この時間操作がないと UI をロックします。暗号化データベースはアクティブな SSH セッションがない場合のみ再ロックされ、長時間の処理は接続を維持します。';
 
   @override
   String get autoLockOff => 'オフ';

@@ -1211,7 +1211,7 @@ class SEn extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Zero the in-memory key and block the UI when idle for this long.';
+      'Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.';
 
   @override
   String get autoLockOff => 'Off';

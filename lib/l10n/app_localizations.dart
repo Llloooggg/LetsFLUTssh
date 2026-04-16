@@ -2262,7 +2262,7 @@ abstract class S {
   /// No description provided for @autoLockSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Zero the in-memory key and block the UI when idle for this long.'**
+  /// **'Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.'**
   String get autoLockSubtitle;
 
   /// No description provided for @autoLockOff.

@@ -1209,7 +1209,7 @@ class SVi extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Xóa khóa trong bộ nhớ và khóa giao diện sau khoảng thời gian không hoạt động này.';
+      'Khóa giao diện sau khoảng thời gian không hoạt động này. Cơ sở dữ liệu mã hóa chỉ bị khóa lại khi không còn phiên SSH nào hoạt động, để các thao tác dài không bị ngắt.';
 
   @override
   String get autoLockOff => 'Tắt';

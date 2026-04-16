@@ -1217,7 +1217,7 @@ class SId extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Hapus kunci di memori dan kunci UI setelah tidak aktif selama durasi ini.';
+      'Mengunci UI setelah tidak aktif selama durasi ini. Basis data terenkripsi hanya dikunci ulang ketika tidak ada sesi SSH aktif, agar operasi panjang tetap berjalan.';
 
   @override
   String get autoLockOff => 'Mati';

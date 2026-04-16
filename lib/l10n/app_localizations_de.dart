@@ -1224,7 +1224,7 @@ class SDe extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Den Schlüssel im Speicher löschen und die Oberfläche sperren, wenn so lange inaktiv.';
+      'Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Die verschlüsselte Datenbank wird nur dann erneut gesperrt, wenn keine SSH-Sitzungen aktiv sind – laufende Operationen bleiben verbunden.';
 
   @override
   String get autoLockOff => 'Aus';

@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "Masukkan kata sandi utama atau gunakan biometrik untuk melanjutkan.",
   "unlock": "Buka kunci",
   "autoLockTitle": "Kunci otomatis setelah tidak aktif",
-  "autoLockSubtitle": "Hapus kunci di memori dan kunci UI setelah tidak aktif selama durasi ini.",
+  "autoLockSubtitle": "Mengunci UI setelah tidak aktif selama durasi ini. Basis data terenkripsi hanya dikunci ulang ketika tidak ada sesi SSH aktif, agar operasi panjang tetap berjalan.",
   "autoLockOff": "Mati",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} menit}}",
   "errLfsDecryptFailed": "Kata sandi utama salah atau arsip .lfs rusak",

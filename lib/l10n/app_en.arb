@@ -705,7 +705,7 @@
   "lockScreenSubtitle": "Enter the master password or use biometrics to continue.",
   "unlock": "Unlock",
   "autoLockTitle": "Auto-lock after inactivity",
-  "autoLockSubtitle": "Zero the in-memory key and block the UI when idle for this long.",
+  "autoLockSubtitle": "Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.",
   "autoLockOff": "Off",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
   "@autoLockMinutesValue": {

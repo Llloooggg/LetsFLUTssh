@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "أدخل كلمة المرور الرئيسية أو استخدم المقاييس الحيوية للمتابعة.",
   "unlock": "إلغاء القفل",
   "autoLockTitle": "القفل التلقائي بعد الخمول",
-  "autoLockSubtitle": "تصفير المفتاح من الذاكرة وقفل الواجهة بعد هذه المدة من الخمول.",
+  "autoLockSubtitle": "قفل الواجهة بعد هذه المدة من الخمول. لا يُعاد قفل قاعدة البيانات المشفّرة إلا عند عدم وجود جلسات SSH نشطة، حتى تستمر العمليات الطويلة دون انقطاع.",
   "autoLockOff": "معطّل",
   "autoLockMinutesValue": "{minutes, plural, zero{{minutes} دقيقة} one{دقيقة واحدة} two{دقيقتان} few{{minutes} دقائق} many{{minutes} دقيقة} other{{minutes} دقيقة}}",
   "errLfsDecryptFailed": "كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف",

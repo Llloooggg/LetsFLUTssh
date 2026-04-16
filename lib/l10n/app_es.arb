@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "Introduce la contraseña maestra o usa la biometría para continuar.",
   "unlock": "Desbloquear",
   "autoLockTitle": "Bloqueo automático por inactividad",
-  "autoLockSubtitle": "Borrar la clave en memoria y bloquear la interfaz tras este periodo de inactividad.",
+  "autoLockSubtitle": "Bloquea la interfaz tras este periodo de inactividad. La base de datos cifrada solo se vuelve a bloquear cuando no hay sesiones SSH activas, para no interrumpir operaciones largas.",
   "autoLockOff": "Desactivado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errLfsDecryptFailed": "Contraseña maestra incorrecta o archivo .lfs dañado",

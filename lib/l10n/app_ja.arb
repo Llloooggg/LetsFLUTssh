@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "続行するにはマスターパスワードを入力するか、生体認証を使用してください。",
   "unlock": "ロック解除",
   "autoLockTitle": "操作がないときに自動ロック",
-  "autoLockSubtitle": "この時間操作がないと、メモリ内の鍵を消去して UI をロックします。",
+  "autoLockSubtitle": "この時間操作がないと UI をロックします。暗号化データベースはアクティブな SSH セッションがない場合のみ再ロックされ、長時間の処理は接続を維持します。",
   "autoLockOff": "オフ",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分}}",
   "errLfsDecryptFailed": "マスターパスワードが間違っているか、.lfs アーカイブが破損しています",

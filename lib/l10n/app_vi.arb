@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "Nhập mật khẩu chính hoặc dùng sinh trắc học để tiếp tục.",
   "unlock": "Mở khóa",
   "autoLockTitle": "Tự động khóa khi không hoạt động",
-  "autoLockSubtitle": "Xóa khóa trong bộ nhớ và khóa giao diện sau khoảng thời gian không hoạt động này.",
+  "autoLockSubtitle": "Khóa giao diện sau khoảng thời gian không hoạt động này. Cơ sở dữ liệu mã hóa chỉ bị khóa lại khi không còn phiên SSH nào hoạt động, để các thao tác dài không bị ngắt.",
   "autoLockOff": "Tắt",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} phút}}",
   "errLfsDecryptFailed": "Mật khẩu chính sai hoặc tệp .lfs bị hỏng",

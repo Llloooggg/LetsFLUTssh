@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "계속하려면 마스터 비밀번호를 입력하거나 생체 인식을 사용하세요.",
   "unlock": "잠금 해제",
   "autoLockTitle": "비활성 상태에서 자동 잠금",
-  "autoLockSubtitle": "이 시간 동안 활동이 없으면 메모리의 키를 지우고 UI를 잠급니다.",
+  "autoLockSubtitle": "이 시간 동안 활동이 없으면 UI를 잠급니다. 활성 SSH 세션이 없을 때에만 암호화된 데이터베이스가 다시 잠겨, 장시간 작업은 끊기지 않습니다.",
   "autoLockOff": "끔",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes}분}}",
   "errLfsDecryptFailed": "마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다",

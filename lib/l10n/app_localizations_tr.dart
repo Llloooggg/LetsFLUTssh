@@ -1217,7 +1217,7 @@ class STr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Bu süre boyunca boşta kalındığında bellekteki anahtarı sıfırlayın ve arayüzü kilitleyin.';
+      'Bu süre boyunca boşta kalındığında arayüzü kilitler. Şifrelenmiş veritabanı yalnızca aktif SSH oturumu yokken yeniden kilitlenir, uzun süreli işlemler bağlı kalır.';
 
   @override
   String get autoLockOff => 'Kapalı';

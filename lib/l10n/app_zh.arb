@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "输入主密码或使用生物识别以继续。",
   "unlock": "解锁",
   "autoLockTitle": "闲置后自动锁定",
-  "autoLockSubtitle": "在闲置达到此时长后清除内存中的密钥并锁定界面。",
+  "autoLockSubtitle": "在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。",
   "autoLockOff": "关闭",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分钟}}",
   "errLfsDecryptFailed": "主密码错误或 .lfs 归档已损坏",

@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.",
   "unlock": "Entsperren",
   "autoLockTitle": "Automatisch sperren bei Inaktivität",
-  "autoLockSubtitle": "Den Schlüssel im Speicher löschen und die Oberfläche sperren, wenn so lange inaktiv.",
+  "autoLockSubtitle": "Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Die verschlüsselte Datenbank wird nur dann erneut gesperrt, wenn keine SSH-Sitzungen aktiv sind – laufende Operationen bleiben verbunden.",
   "autoLockOff": "Aus",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} Minute} other{{minutes} Minuten}}",
   "errLfsDecryptFailed": "Falsches Master-Passwort oder beschädigtes .lfs-Archiv",

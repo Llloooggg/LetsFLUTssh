@@ -1186,7 +1186,8 @@ class SKo extends S {
   String get autoLockTitle => '비활성 상태에서 자동 잠금';
 
   @override
-  String get autoLockSubtitle => '이 시간 동안 활동이 없으면 메모리의 키를 지우고 UI를 잠급니다.';
+  String get autoLockSubtitle =>
+      '이 시간 동안 활동이 없으면 UI를 잠급니다. 활성 SSH 세션이 없을 때에만 암호화된 데이터베이스가 다시 잠겨, 장시간 작업은 끊기지 않습니다.';
 
   @override
   String get autoLockOff => '끔';

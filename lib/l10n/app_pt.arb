@@ -383,7 +383,7 @@
   "lockScreenSubtitle": "Digite a senha mestra ou use a biometria para continuar.",
   "unlock": "Desbloquear",
   "autoLockTitle": "Bloquear automaticamente após inatividade",
-  "autoLockSubtitle": "Zerar a chave em memória e bloquear a interface após este período de inatividade.",
+  "autoLockSubtitle": "Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.",
   "autoLockOff": "Desativado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errLfsDecryptFailed": "Senha mestra incorreta ou arquivo .lfs corrompido",
