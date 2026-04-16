@@ -1768,7 +1768,7 @@ class SJa extends S {
   String get securityLevel => 'セキュリティレベル';
 
   @override
-  String get securityLevelPlaintext => 'なし（平文）';
+  String get securityLevelPlaintext => 'なし';
 
   @override
   String get securityLevelKeychain => 'OS キーチェーン';
@@ -1780,9 +1780,7 @@ class SJa extends S {
   String get keychainStatus => 'キーチェーン';
 
   @override
-  String keychainAvailable(String name) {
-    return '利用可能 ($name)';
-  }
+  String get keychainAvailable => '利用可能';
 
   @override
   String get keychainNotAvailable => '利用不可';

@@ -879,4 +879,103 @@ void main() {
       });
     },
   );
+
+  group('UnifiedExportDialog — preset chips', () {
+    testWidgets('preset ChoiceChips hide the default checkmark overlay so the '
+        'avatar icon stays visible when selected', (tester) async {
+      await tester.pumpWidget(buildDialog(sessions: [makeSession('1', 'A')]));
+      await tester.pump();
+      final chips = tester
+          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+          .toList();
+      expect(
+        chips,
+        isNotEmpty,
+        reason: 'dialog should render at least one preset chip',
+      );
+      for (final chip in chips) {
+        expect(
+          chip.showCheckmark,
+          isFalse,
+          reason:
+              'checkmark overlay must be disabled — the avatar icon is the '
+              'only indicator, selection is signalled by background colour',
+        );
+      }
+    });
+
+    ChoiceChip chipWithLabel(WidgetTester tester, String label) {
+      return tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
+    }
+
+    testWidgets(
+      'deselecting a session drops "Full backup" from active to custom',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final sessions = [makeSession('1', 'A'), makeSession('2', 'B')];
+        await tester.pumpWidget(
+          buildDialog(sessions: sessions, config: AppConfig.defaults),
+        );
+        await tester.pump();
+
+        expect(chipWithLabel(tester, 'Full backup').selected, isTrue);
+
+        // Deselect session A (index 1: select-all, then per-session).
+        await tester.tap(find.byType(Checkbox).at(1));
+        await tester.pump();
+
+        expect(
+          chipWithLabel(tester, 'Full backup').selected,
+          isFalse,
+          reason:
+              'a partial session selection cannot still be called a '
+              '"full backup"',
+        );
+        expect(
+          find.text('Custom'),
+          findsOneWidget,
+          reason: 'the "What to export" trailing label should now read Custom',
+        );
+      },
+    );
+
+    testWidgets('clicking "Sessions only" re-selects every session so the chip '
+        'activates even when the user had deselected some beforehand', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final sessions = [makeSession('1', 'A'), makeSession('2', 'B')];
+      await tester.pumpWidget(
+        buildDialog(sessions: sessions, config: AppConfig.defaults),
+      );
+      await tester.pump();
+
+      // Deselect session A so the session set is partial.
+      await tester.tap(find.byType(Checkbox).at(1));
+      await tester.pump();
+
+      // Tap the Sessions chip — it must re-select every session so
+      // the chip itself can register as active. Otherwise the tap
+      // would visibly do nothing because `_isPresetActive` still
+      // returns false on a partial selection.
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
+      await tester.pump();
+
+      expect(chipWithLabel(tester, 'Sessions').selected, isTrue);
+
+      // Select-all checkbox should now report fully-selected (true).
+      final selectAll = tester
+          .widgetList<Checkbox>(find.byType(Checkbox))
+          .first;
+      expect(selectAll.value, isTrue);
+    });
+  });
 }

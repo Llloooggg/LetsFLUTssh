@@ -2948,6 +2948,95 @@ void main() {
 
       expect(find.text('Appearance'), findsNothing);
     });
+
+    testWidgets(
+      'desktop dialog leaves a ~7.5% gutter on each side so the modal is '
+      '~15% narrower than the viewport',
+      (tester) async {
+        tester.view.physicalSize = const Size(1600, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(buildDesktopApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // The outer Dialog widget covers the whole Navigator route; the
+        // actual modal surface is the Material child that sits inside
+        // the animated inset padding.
+        final dialogRect = tester.getRect(
+          find
+              .descendant(
+                of: find.byType(Dialog),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        // Expected width: 1600 - 2 * 120 (= 7.5% of 1600) = 1360.
+        expect(
+          dialogRect.width,
+          inInclusiveRange(1350, 1370),
+          reason:
+              'desktop modal must sit 7.5% off each side of a 1600-wide '
+              'viewport — the fixed 32px inset was too wide and wasted '
+              'space on large monitors',
+        );
+        expect(
+          dialogRect.left,
+          inInclusiveRange(115, 125),
+          reason: 'left inset should be ~7.5% of the viewport width',
+        );
+      },
+    );
+
+    testWidgets(
+      'Security section info rows pin the value text to the right edge',
+      (tester) async {
+        tester.view.physicalSize = const Size(1600, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(buildDesktopApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Security'));
+        await tester.pumpAndSettle();
+
+        // Allow the async keychain / master-password probes in
+        // _SecuritySection._checkState to settle so the info-tile value
+        // text flips from the "..." placeholder to the real label.
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump();
+
+        final valueFinder = find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              (w.data == 'Master Password' ||
+                  w.data == 'OS Keychain' ||
+                  w.data == 'None'),
+        );
+        expect(valueFinder, findsOneWidget);
+        final valueRect = tester.getRect(valueFinder);
+
+        // The info row spans the full content area. Assert the value's
+        // right edge sits close to the containing Row's right edge — the
+        // previous `Flexible(value)` layout parked short values in the
+        // middle of the row, leaving a large gap on the right.
+        final rowRect = tester.getRect(
+          find.ancestor(of: valueFinder, matching: find.byType(Row)).first,
+        );
+        expect(
+          rowRect.right - valueRect.right,
+          lessThan(8),
+          reason:
+              'value text must sit at the right edge of the info row, not '
+              'drift into the middle (gap below 8px = right-aligned)',
+        );
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

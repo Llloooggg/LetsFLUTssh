@@ -1824,7 +1824,7 @@ class SEs extends S {
   String get securityLevel => 'Nivel de seguridad';
 
   @override
-  String get securityLevelPlaintext => 'Ninguno (texto plano)';
+  String get securityLevelPlaintext => 'Ninguno';
 
   @override
   String get securityLevelKeychain => 'Llavero del sistema';
@@ -1836,9 +1836,7 @@ class SEs extends S {
   String get keychainStatus => 'Llavero';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Disponible ($name)';
-  }
+  String get keychainAvailable => 'Disponible';
 
   @override
   String get keychainNotAvailable => 'No disponible';

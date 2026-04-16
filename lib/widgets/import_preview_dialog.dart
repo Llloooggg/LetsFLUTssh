@@ -153,6 +153,7 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
             label: Text(S.of(context).presetFullImport),
             selected: _isPresetActive(_fullPreset),
             selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+            showCheckmark: false,
             onSelected: (_) => setState(() => _options = _fullPreset),
           ),
           ChoiceChip(
@@ -160,6 +161,7 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
             label: Text(S.of(context).presetSelective),
             selected: _isPresetActive(_selectivePreset),
             selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+            showCheckmark: false,
             onSelected: (_) => setState(() => _options = _selectivePreset),
           ),
         ],

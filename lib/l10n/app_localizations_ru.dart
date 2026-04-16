@@ -1821,7 +1821,7 @@ class SRu extends S {
   String get securityLevel => 'Уровень безопасности';
 
   @override
-  String get securityLevelPlaintext => 'Нет (открытый текст)';
+  String get securityLevelPlaintext => 'Нет';
 
   @override
   String get securityLevelKeychain => 'Связка ключей ОС';
@@ -1833,9 +1833,7 @@ class SRu extends S {
   String get keychainStatus => 'Связка ключей';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Доступна ($name)';
-  }
+  String get keychainAvailable => 'Доступна';
 
   @override
   String get keychainNotAvailable => 'Недоступна';

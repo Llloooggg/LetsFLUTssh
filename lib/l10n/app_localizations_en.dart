@@ -1798,7 +1798,7 @@ class SEn extends S {
   String get securityLevel => 'Security Level';
 
   @override
-  String get securityLevelPlaintext => 'None (plaintext)';
+  String get securityLevelPlaintext => 'None';
 
   @override
   String get securityLevelKeychain => 'OS Keychain';
@@ -1810,9 +1810,7 @@ class SEn extends S {
   String get keychainStatus => 'Keychain';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Available ($name)';
-  }
+  String get keychainAvailable => 'Available';
 
   @override
   String get keychainNotAvailable => 'Not available';

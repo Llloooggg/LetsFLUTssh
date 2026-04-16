@@ -1756,7 +1756,7 @@ class SZh extends S {
   String get securityLevel => '安全级别';
 
   @override
-  String get securityLevelPlaintext => '无（明文）';
+  String get securityLevelPlaintext => '无';
 
   @override
   String get securityLevelKeychain => '系统钥匙串';
@@ -1768,9 +1768,7 @@ class SZh extends S {
   String get keychainStatus => '钥匙串';
 
   @override
-  String keychainAvailable(String name) {
-    return '可用 ($name)';
-  }
+  String get keychainAvailable => '可用';
 
   @override
   String get keychainNotAvailable => '不可用';

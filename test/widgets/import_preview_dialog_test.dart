@@ -354,6 +354,25 @@ void main() {
         expect(result!.options.includeAllManagerKeys, isFalse);
       },
     );
+
+    testWidgets('preset ChoiceChips hide the default checkmark overlay so the '
+        'avatar icon stays visible when selected', (tester) async {
+      await tester.pumpWidget(buildDialog());
+      await tester.pump();
+      final chips = tester
+          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+          .toList();
+      expect(chips, isNotEmpty);
+      for (final chip in chips) {
+        expect(
+          chip.showCheckmark,
+          isFalse,
+          reason:
+              'checkmark overlay must be disabled — the avatar icon is the '
+              'only indicator, selection is signalled by background colour',
+        );
+      }
+    });
   });
 }
 

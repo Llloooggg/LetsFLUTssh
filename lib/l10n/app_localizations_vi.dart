@@ -1798,7 +1798,7 @@ class SVi extends S {
   String get securityLevel => 'Mức bảo mật';
 
   @override
-  String get securityLevelPlaintext => 'Không (văn bản thuần)';
+  String get securityLevelPlaintext => 'Không';
 
   @override
   String get securityLevelKeychain => 'Chuỗi khóa hệ thống';
@@ -1810,9 +1810,7 @@ class SVi extends S {
   String get keychainStatus => 'Chuỗi khóa';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Khả dụng ($name)';
-  }
+  String get keychainAvailable => 'Khả dụng';
 
   @override
   String get keychainNotAvailable => 'Không khả dụng';

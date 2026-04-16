@@ -1807,7 +1807,7 @@ class SId extends S {
   String get securityLevel => 'Tingkat keamanan';
 
   @override
-  String get securityLevelPlaintext => 'Tidak ada (teks biasa)';
+  String get securityLevelPlaintext => 'Tidak ada';
 
   @override
   String get securityLevelKeychain => 'Rantai kunci sistem';
@@ -1819,9 +1819,7 @@ class SId extends S {
   String get keychainStatus => 'Rantai kunci';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Tersedia ($name)';
-  }
+  String get keychainAvailable => 'Tersedia';
 
   @override
   String get keychainNotAvailable => 'Tidak tersedia';

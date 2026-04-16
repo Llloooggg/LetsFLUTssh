@@ -1132,18 +1132,11 @@
   "continueWithKeychain": "Continue with Keychain",
   "continueWithoutEncryption": "Continue without Encryption",
   "securityLevel": "Security Level",
-  "securityLevelPlaintext": "None (plaintext)",
+  "securityLevelPlaintext": "None",
   "securityLevelKeychain": "OS Keychain",
   "securityLevelMasterPassword": "Master Password",
   "keychainStatus": "Keychain",
-  "keychainAvailable": "Available ({name})",
-  "@keychainAvailable": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
+  "keychainAvailable": "Available",
   "keychainNotAvailable": "Not available",
   "enableKeychain": "Enable Keychain Encryption",
   "enableKeychainSubtitle": "Re-encrypt stored data using OS keychain",
