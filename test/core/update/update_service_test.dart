@@ -1089,38 +1089,55 @@ void main() {
       }
     });
 
-    test('SHA256 mismatch logs error when file deletion also fails', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        // Create a read-only directory to prevent file deletion
-        // Actually, we just need the file to exist but be undeletable.
-        // Instead, test that the error is about SHA256 mismatch even when
-        // the file path does not exist (delete throws, but we still get
-        // the SHA256 mismatch error).
-        final service = UpdateService(
-          download: (uri, savePath, onProgress) async {
-            await File(savePath).writeAsString('content');
-          },
-        );
+    test(
+      'SHA256 mismatch still surfaces when cleanup delete also fails',
+      // Spec (update_service.downloadAsset L237-252): on digest mismatch we
+      // attempt to delete the downloaded file so a partial/tampered artifact
+      // cannot be mistaken for a good install. If delete itself fails (file
+      // already gone, read-only dir, etc.) we must still throw the SHA256
+      // mismatch StateError — cleanup is best-effort and must not mask the
+      // primary security failure. The delete failure is logged, not
+      // re-thrown.
+      () async {
+        // Trick to make File.delete throw: downloader writes the file, then
+        // strips write permission from the parent dir so the delete call
+        // raises EACCES. POSIX-only; Windows ACLs work differently, skip it
+        // there since this project's CI is Linux.
+        if (!Platform.isLinux && !Platform.isMacOS) {
+          markTestSkipped('requires POSIX chmod to block directory writes');
+          return;
+        }
 
-        await expectLater(
-          service.downloadAsset(
-            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-            tempDir.path,
-            expectedDigest: 'definitely_not_the_right_hash',
-          ),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('SHA256 mismatch'),
+        final tempDir = await Directory.systemTemp.createTemp('update_test_');
+        try {
+          final service = UpdateService(
+            download: (_, savePath, _) async {
+              await File(savePath).writeAsString('content');
+              await Process.run('chmod', ['a-w', tempDir.path]);
+            },
+          );
+
+          await expectLater(
+            service.downloadAsset(
+              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+              tempDir.path,
+              expectedDigest: 'unreachable_digest',
             ),
-          ),
-        );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('SHA256 mismatch'),
+              ),
+            ),
+          );
+        } finally {
+          // Restore perms so the tempDir can be deleted on teardown.
+          await Process.run('chmod', ['u+w', tempDir.path]);
+          await tempDir.delete(recursive: true);
+        }
+      },
+    );
   });
 
   // ===========================================================================
@@ -1160,13 +1177,21 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.openFile (with injected ProcessRunner)
+  // UpdateService.openFile (platform injected via constructor)
   // ===========================================================================
+  //
+  // Spec (derived from update_service.openFile source): pick a host-specific
+  // "open this file" command from the platform string, pass the path, and
+  // return whether the process exited cleanly. Windows additionally refuses
+  // paths carrying shell metacharacters because cmd /c start would interpret
+  // them. Unsupported platforms (e.g. 'android', 'unknown') must refuse
+  // without spawning a process.
   group('UpdateService.openFile', () {
-    test('returns true when process exits with 0', () async {
+    test('linux opens via xdg-open and returns true on exit 0', () async {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
+        platform: 'linux',
         runProcess: (exe, args) async {
           capturedExe = exe;
           capturedArgs = args;
@@ -1174,96 +1199,143 @@ void main() {
         },
       );
 
-      final result = await service.openFile('/tmp/test.AppImage');
-      expect(result, isTrue);
-      // On Linux the exe should be xdg-open.
-      if (Platform.isLinux) {
-        expect(capturedExe, 'xdg-open');
-        expect(capturedArgs, ['/tmp/test.AppImage']);
-      } else if (Platform.isMacOS) {
-        expect(capturedExe, 'open');
-      } else if (Platform.isWindows) {
-        expect(capturedExe, 'cmd');
-      }
+      final ok = await service.openFile('/tmp/test.AppImage');
+
+      expect(ok, isTrue);
+      expect(capturedExe, 'xdg-open');
+      expect(capturedArgs, ['/tmp/test.AppImage']);
     });
 
-    test('returns false when process exits with non-zero', () async {
+    test('macos opens via /usr/bin/open and returns true on exit 0', () async {
+      String? capturedExe;
+      List<String>? capturedArgs;
       final service = UpdateService(
+        platform: 'macos',
         runProcess: (exe, args) async {
-          return ProcessResult(0, 1, '', 'error');
+          capturedExe = exe;
+          capturedArgs = args;
+          return ProcessResult(0, 0, '', '');
         },
       );
 
-      // On unsupported platforms (not linux/mac/win) this returns false
-      // before calling the runner. On Linux it calls the runner.
-      final result = await service.openFile('/tmp/test.AppImage');
-      if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
-        expect(result, isFalse);
+      final ok = await service.openFile('/Applications/App.dmg');
+
+      expect(ok, isTrue);
+      expect(capturedExe, 'open');
+      expect(capturedArgs, ['/Applications/App.dmg']);
+    });
+
+    test('windows opens via cmd /c start with empty title slot', () async {
+      // The empty string between `start` and `path` is the window title
+      // placeholder — mandatory when the path is quoted, and a common source
+      // of bugs when people omit it. Test asserts the exact arg vector.
+      String? capturedExe;
+      List<String>? capturedArgs;
+      final service = UpdateService(
+        platform: 'windows',
+        runProcess: (exe, args) async {
+          capturedExe = exe;
+          capturedArgs = args;
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+
+      final ok = await service.openFile(r'C:\Users\me\setup.exe');
+
+      expect(ok, isTrue);
+      expect(capturedExe, 'cmd');
+      expect(capturedArgs, ['/c', 'start', '', r'C:\Users\me\setup.exe']);
+    });
+
+    test('non-zero exit propagates as false on each host platform', () async {
+      for (final platform in ['linux', 'macos', 'windows']) {
+        final service = UpdateService(
+          platform: platform,
+          runProcess: (_, _) async => ProcessResult(0, 1, '', 'err'),
+        );
+
+        expect(
+          await service.openFile('/tmp/x.bin'),
+          isFalse,
+          reason: '$platform should surface non-zero exit as false',
+        );
       }
     });
 
     test(
-      'returns false for unsupported platform path with unsafe chars on Windows',
+      'unsupported platform refuses without calling the process runner',
+      // Spec: on platforms we don't ship self-update for (iOS, fuchsia,
+      // anything not in _selfUpdatablePlatforms) openFile must short-circuit
+      // to false — spawning `xdg-open` on an iPhone would be pure crash bait.
       () async {
-        // This test only applies on Windows, but we can test the regex logic.
+        var processCalled = false;
         final service = UpdateService(
-          runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
+          platform: 'ios',
+          runProcess: (_, _) async {
+            processCalled = true;
+            return ProcessResult(0, 0, '', '');
+          },
         );
 
-        if (Platform.isWindows) {
-          // Unsafe characters should be rejected.
-          final result = await service.openFile('/tmp/file&name.exe');
-          expect(result, isFalse);
-        }
+        final ok = await service.openFile('/tmp/anything');
+
+        expect(ok, isFalse);
+        expect(processCalled, isFalse);
       },
     );
 
-    test('rejects paths with pipe character on Windows', () async {
-      if (!Platform.isWindows) return;
-      final service = UpdateService(
-        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
-      );
-      expect(await service.openFile('/tmp/file|name.exe'), isFalse);
-    });
-
-    test('rejects paths with angle brackets on Windows', () async {
-      if (!Platform.isWindows) return;
-      final service = UpdateService(
-        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
-      );
-      expect(await service.openFile('/tmp/file<name>.exe'), isFalse);
-    });
-
-    test('rejects paths with caret on Windows', () async {
-      if (!Platform.isWindows) return;
-      final service = UpdateService(
-        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
-      );
-      expect(await service.openFile('/tmp/file^name.exe'), isFalse);
-    });
-
-    test('rejects paths with percent on Windows', () async {
-      if (!Platform.isWindows) return;
-      final service = UpdateService(
-        runProcess: (exe, args) async => ProcessResult(0, 0, '', ''),
-      );
-      expect(await service.openFile('/tmp/file%name.exe'), isFalse);
-    });
-
-    test('_unsafePathChars regex matches expected characters', () {
-      // Test the static regex directly — it's internal but accessible via
-      // behavior: paths with unsafe chars should be rejected on Windows.
-      const unsafe = r'&|<>^%';
-      for (final c in unsafe.split('')) {
-        final path = '/tmp/file${c}name.exe';
-        // Just verify the regex would match.
-        expect(
-          RegExp(r'[&|<>^%]').hasMatch(path),
-          isTrue,
-          reason: 'Should match $c',
+    test(
+      'windows refuses path with shell metacharacter before spawning cmd',
+      // Spec: `cmd /c start` parses `&`, `|`, `<`, `>`, `^`, `%` as shell
+      // metacharacters, so a path containing any of them would either fail
+      // loudly or — worse — execute something unintended. openFile must
+      // reject such paths up front and never spawn cmd.
+      () async {
+        var processCalled = false;
+        final service = UpdateService(
+          platform: 'windows',
+          runProcess: (_, _) async {
+            processCalled = true;
+            return ProcessResult(0, 0, '', '');
+          },
         );
-      }
-      expect(RegExp(r'[&|<>^%]').hasMatch('/tmp/safe_file.exe'), isFalse);
-    });
+
+        for (final ch in const ['&', '|', '<', '>', '^', '%']) {
+          final ok = await service.openFile('C:\\tmp\\bad${ch}name.exe');
+          expect(
+            ok,
+            isFalse,
+            reason: 'path with "$ch" should be refused without spawning cmd',
+          );
+        }
+        expect(processCalled, isFalse);
+      },
+    );
+
+    test(
+      'windows with safe path still spawns cmd (regression guard)',
+      () async {
+        // Paranoid check that the metacharacter filter isn't over-matching and
+        // blocking paths that contain hyphens, dots, underscores, or spaces —
+        // real Windows paths routinely carry these.
+        var processCalled = false;
+        final service = UpdateService(
+          platform: 'windows',
+          runProcess: (_, _) async {
+            processCalled = true;
+            return ProcessResult(0, 0, '', '');
+          },
+        );
+
+        for (final path in const [
+          r'C:\Program Files\App\setup.exe',
+          r'D:\files\letsflutssh-5.3.1-windows-x64-setup.exe',
+          r'E:\nested_folder.name\bin.exe',
+        ]) {
+          expect(await service.openFile(path), isTrue);
+        }
+        expect(processCalled, isTrue);
+      },
+    );
   });
 }
