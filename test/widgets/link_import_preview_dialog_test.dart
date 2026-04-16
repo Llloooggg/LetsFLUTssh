@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
@@ -49,7 +50,7 @@ void main() {
         snippets,
         (i) => Snippet(id: 'sn$i', title: 'sn$i', command: 'echo $i'),
       ),
-      config: config ? null : null,
+      config: config ? const AppConfig() : null,
       knownHostsContent: knownHosts ? 'host ssh-rsa AAA' : null,
     );
   }
@@ -108,6 +109,27 @@ void main() {
       await tester.tap(find.text('Replace'));
       await tester.pump();
       expect(find.text('Replace all sessions with imported'), findsOneWidget);
+    });
+
+    testWidgets('config:true shows "Yes" next to App Settings', (tester) async {
+      await tester.pumpWidget(buildDialog(makePayload(config: true)));
+      await tester.pump();
+
+      // App Settings + Known Hosts rows each render "Yes" trailing label.
+      expect(find.text('App Settings'), findsOneWidget);
+      expect(find.text('Yes'), findsNWidgets(2));
+    });
+
+    testWidgets('config:false shows "No" next to App Settings', (tester) async {
+      await tester.pumpWidget(
+        buildDialog(makePayload(config: false, knownHosts: false)),
+      );
+      await tester.pump();
+
+      // Both config and known_hosts absent → both rows render "No".
+      expect(find.text('App Settings'), findsOneWidget);
+      expect(find.text('No'), findsNWidgets(2));
+      expect(find.text('Yes'), findsNothing);
     });
 
     testWidgets('Import result carries selected mode + options', (
