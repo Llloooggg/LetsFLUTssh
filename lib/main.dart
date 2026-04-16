@@ -997,6 +997,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       includeKnownHosts: data.knownHostsContent != null,
     );
     final summary = await _buildImportService().applyResult(importResult);
+    _invalidateImportProviders();
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -1058,6 +1059,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         progress: progress,
         l10n: l10n,
       );
+      _invalidateImportProviders();
 
       AppLogger.instance.log(
         'LFS import success: ${summary.sessions} session(s)',
@@ -1091,6 +1093,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       }
       progress.dispose();
     }
+  }
+
+  /// Refresh all cached FutureProviders after a QR or LFS import so the UI
+  /// picks up newly imported keys, tags and snippets without an app restart.
+  void _invalidateImportProviders() {
+    ref.invalidate(sshKeysProvider);
+    ref.invalidate(tagsProvider);
+    ref.invalidate(snippetsProvider);
   }
 
   ImportService _buildImportService() {
