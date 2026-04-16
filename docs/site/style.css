@@ -55,26 +55,21 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.hero-home-link {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-decoration: none;
-  color: inherit;
-}
-
-.hero-home-link:hover h1 {
-  color: var(--accent);
-  transition: color 0.15s ease;
-}
-
 .logo {
+  display: block;
   width: 96px;
   height: 96px;
   border-radius: 20px;
-  margin-bottom: 24px;
+  margin: 0 auto 24px;
   background: var(--bg3);
   padding: 8px;
+}
+
+/* Unobtrusive placeholder for the hero title while the repo name
+ * is being fetched — mimics the final line height without any text. */
+.hero-title-skeleton {
+  color: transparent;
+  user-select: none;
 }
 
 .hero h1 {
@@ -266,6 +261,15 @@ body {
   width: 100%;
   height: auto;
   display: block;
+}
+
+/* Hide the alt/caption text while the image is still loading
+ * so the area stays empty instead of showing a broken-image
+ * icon + caption. No visible placeholder block. */
+.screenshot-grid img:not(.loaded),
+.badges img:not(.loaded) {
+  color: transparent;
+  font-size: 0;
 }
 
 .screenshot-grid figcaption {
