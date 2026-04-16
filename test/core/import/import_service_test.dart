@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/import/import_service.dart';
+import 'package:letsflutssh/core/progress/progress_reporter.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart'
     show ExportLink, ExportFolderTagLink;
@@ -1403,6 +1404,234 @@ void main() {
       );
     });
 
+    // ===========================================================================
+    // Progress reporting + per-phase error handling.
+    //
+    // Specs (derived from lib/core/import/import_service.dart):
+    //
+    //  * _phaseConfigAndKnownHosts always reports the "Applying configuration…"
+    //    phase (L294), regardless of whether a config is present — the user
+    //    should see the operation advance predictably.
+    //  * When the archive carries known_hosts content (non-null, non-empty),
+    //    the reporter also sees the "Importing known_hosts…" phase (L300-301).
+    //    Absent content must NOT emit this phase — seeing it with no data
+    //    would be misleading.
+    //  * Long loops (empty folders, manager keys, tags) emit `step(label, i,
+    //    total)` for every iteration so the progress bar advances smoothly.
+    //  * In replace mode, a known_hosts import failure rethrows so the outer
+    //    rollback fires (L412). In merge mode the same failure is logged and
+    //    swallowed — the rest of the import proceeds.
+    //  * One failing manager-key save does not abort the loop (L438-440) —
+    //    the remaining keys still import.
+    // ===========================================================================
+    group('progress reporting and per-phase error handling', () {
+      test(
+        'applyResult reports "Applying configuration…" phase once per import',
+        () async {
+          final reporter = _RecordingProgress('init');
+          addTearDown(reporter.dispose);
+
+          await service.applyResult(
+            ImportResult(
+              sessions: [makeSession('1', 'A')],
+              mode: ImportMode.merge,
+            ),
+            progress: reporter,
+          );
+
+          expect(
+            reporter.phases.where((p) => p == 'Applying configuration…'),
+            hasLength(1),
+          );
+        },
+      );
+
+      test(
+        'known_hosts content triggers the "Importing known_hosts…" phase',
+        () async {
+          final reporter = _RecordingProgress('init');
+          addTearDown(reporter.dispose);
+
+          final svc = ImportService(
+            addSession: (s) async => store.add(s),
+            addEmptyFolder: (_) async {},
+            deleteSession: (_) async {},
+            getSessions: () => store,
+            applyConfig: (_) {},
+            importKnownHosts: (_) async {},
+          );
+
+          await svc.applyResult(
+            const ImportResult(
+              sessions: [],
+              mode: ImportMode.merge,
+              knownHostsContent: 'example.com ssh-rsa AAA',
+            ),
+            progress: reporter,
+          );
+
+          expect(reporter.phases, contains('Importing known_hosts…'));
+        },
+      );
+
+      test(
+        'empty/absent known_hosts does NOT emit the known_hosts phase',
+        () async {
+          final reporter = _RecordingProgress('init');
+          addTearDown(reporter.dispose);
+
+          await service.applyResult(
+            const ImportResult(
+              sessions: [],
+              mode: ImportMode.merge,
+              // knownHostsContent stays null.
+            ),
+            progress: reporter,
+          );
+
+          expect(reporter.phases, isNot(contains('Importing known_hosts…')));
+        },
+      );
+
+      test(
+        'empty-folder import emits a step per folder with monotonic counter',
+        () async {
+          final reporter = _RecordingProgress('init');
+          addTearDown(reporter.dispose);
+
+          await service.applyResult(
+            const ImportResult(
+              sessions: [],
+              emptyFolders: {'F1', 'F2', 'F3'},
+              mode: ImportMode.merge,
+            ),
+            progress: reporter,
+          );
+
+          final folderSteps = reporter.steps
+              .where((s) => s.label == 'Importing folders')
+              .toList();
+          // First call is (0, 3); then (1, 3), (2, 3), (3, 3).
+          expect(folderSteps.first, (
+            label: 'Importing folders',
+            current: 0,
+            total: 3,
+          ));
+          expect(folderSteps.last, (
+            label: 'Importing folders',
+            current: 3,
+            total: 3,
+          ));
+          // Monotonically non-decreasing current counter.
+          for (var i = 1; i < folderSteps.length; i++) {
+            expect(
+              folderSteps[i].current,
+              greaterThanOrEqualTo(folderSteps[i - 1].current),
+            );
+          }
+        },
+      );
+
+      test(
+        'manager-key loop reports per-key progress and survives one failure',
+        // Spec (L438-440): saveManagerKey can throw per key (e.g. duplicate
+        // fingerprint) — we log and skip that key, the remaining ones still
+        // import. Progress must reach (total, total) so the UI's bar fills.
+        () async {
+          final reporter = _RecordingProgress('init');
+          addTearDown(reporter.dispose);
+          final saved = <String>[];
+
+          final svc = ImportService(
+            addSession: (s) async => store.add(s),
+            addEmptyFolder: (_) async {},
+            deleteSession: (_) async {},
+            getSessions: () => store,
+            applyConfig: (_) {},
+            saveManagerKey: (k) async {
+              if (k.id == 'bad') throw Exception('duplicate');
+              saved.add(k.id);
+              return k.id;
+            },
+          );
+
+          final keys = [_makeKey('k1'), _makeKey('bad'), _makeKey('k3')];
+
+          await svc.applyResult(
+            ImportResult(
+              sessions: const [],
+              managerKeys: keys,
+              mode: ImportMode.merge,
+            ),
+            progress: reporter,
+          );
+
+          expect(saved, ['k1', 'k3']);
+          final keySteps = reporter.steps
+              .where((s) => s.label == 'Importing SSH keys')
+              .toList();
+          expect(keySteps.last.current, 3);
+          expect(keySteps.last.total, 3);
+        },
+      );
+
+      test(
+        'known_hosts failure rethrows in replace mode so rollback fires',
+        // Spec (L412): an import failure on known_hosts in replace mode must
+        // bubble up to the outer catch so the replace-mode rollback restores
+        // the previous state. Swallowing here would leave the user with a
+        // wiped store and no known_hosts — worse than aborting.
+        () async {
+          final svc = ImportService(
+            addSession: (s) async => store.add(s),
+            addEmptyFolder: (_) async {},
+            deleteSession: (_) async {},
+            getSessions: () => store,
+            applyConfig: (_) {},
+            importKnownHosts: (_) async => throw Exception('boom'),
+          );
+
+          await expectLater(
+            svc.applyResult(
+              const ImportResult(
+                sessions: [],
+                mode: ImportMode.replace,
+                knownHostsContent: 'example.com ssh-rsa AAA',
+              ),
+            ),
+            throwsA(isA<Exception>()),
+          );
+        },
+      );
+
+      test(
+        'known_hosts failure is swallowed in merge mode (import continues)',
+        () async {
+          final svc = ImportService(
+            addSession: (s) async => store.add(s),
+            addEmptyFolder: (_) async {},
+            deleteSession: (_) async {},
+            getSessions: () => store,
+            applyConfig: (_) {},
+            importKnownHosts: (_) async => throw Exception('boom'),
+          );
+
+          // Should complete without throwing.
+          await svc.applyResult(
+            ImportResult(
+              sessions: [makeSession('1', 'A')],
+              mode: ImportMode.merge,
+              knownHostsContent: 'example.com ssh-rsa AAA',
+            ),
+          );
+
+          // Session still imported — merge mode kept going after the
+          // known_hosts failure.
+          expect(store.map((s) => s.id), contains('1'));
+        },
+      );
+    });
+
     test('runInTransaction wraps the body exactly once', () async {
       var txOpen = 0;
       var txClose = 0;
@@ -1436,3 +1665,35 @@ void main() {
     });
   });
 }
+
+typedef _StepCall = ({String label, int current, int total});
+
+/// [ProgressReporter] that records every phase label and step tuple so tests
+/// can assert the expected sequence without subscribing to `state` directly.
+class _RecordingProgress extends ProgressReporter {
+  final List<String> phases = [];
+  final List<_StepCall> steps = [];
+
+  _RecordingProgress(super.initialLabel);
+
+  @override
+  void phase(String label) {
+    phases.add(label);
+    super.phase(label);
+  }
+
+  @override
+  void step(String label, int current, int total) {
+    steps.add((label: label, current: current, total: total));
+    super.step(label, current, total);
+  }
+}
+
+SshKeyEntry _makeKey(String id) => SshKeyEntry(
+  id: id,
+  label: 'key-$id',
+  privateKey: 'PRIV-$id',
+  publicKey: 'PUB-$id',
+  keyType: 'ed25519',
+  createdAt: DateTime.utc(2025, 1, 1),
+);
