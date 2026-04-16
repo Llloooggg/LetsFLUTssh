@@ -466,6 +466,10 @@ class SFr extends S {
   String get noPasswordsInQr => 'Aucun mot de passe ni clé dans ce QR code';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Ce code QR contient des identifiants. Gardez l\'écran privé.';
+
+  @override
   String get copyLink => 'Copier le lien';
 
   @override

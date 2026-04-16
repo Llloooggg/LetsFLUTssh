@@ -129,6 +129,7 @@
   "qrGenerationFailed": "Не удалось создать QR-код",
   "scanWithCameraApp": "Сканируйте любым приложением камеры на устройстве,\nгде установлен LetsFLUTssh.",
   "noPasswordsInQr": "В этом QR-коде нет паролей и ключей",
+  "qrContainsCredentialsWarning": "QR-код содержит учётные данные. Не показывайте экран посторонним.",
   "copyLink": "Копировать ссылку",
   "linkCopied": "Ссылка скопирована в буфер обмена",
   "hostKeyChanged": "Ключ хоста изменился!",

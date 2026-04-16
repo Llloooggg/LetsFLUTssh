@@ -4,6 +4,41 @@ part of 'settings_screen.dart';
 // Settings dialogs — export password, import data
 // ═══════════════════════════════════════════════════════════════════
 
+/// Shared obscured text field used by every password dialog in this file.
+///
+/// Extracted so the export (with mismatch-error border), import, set, change
+/// and remove flows don't re-spell the same [TextField] + [AppTheme]
+/// decoration five times.
+Widget _passwordTextField(
+  TextEditingController ctrl,
+  String label, {
+  bool error = false,
+  bool autofocus = false,
+  ValueChanged<String>? onSubmitted,
+}) {
+  return TextField(
+    controller: ctrl,
+    obscureText: true,
+    autofocus: autofocus,
+    style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+    onSubmitted: onSubmitted,
+    decoration: AppTheme.inputDecoration(labelText: label).copyWith(
+      enabledBorder: error
+          ? OutlineInputBorder(
+              borderRadius: AppTheme.radiusSm,
+              borderSide: BorderSide(color: AppTheme.red, width: 1),
+            )
+          : null,
+      focusedBorder: error
+          ? OutlineInputBorder(
+              borderRadius: AppTheme.radiusSm,
+              borderSide: BorderSide(color: AppTheme.red, width: 1.5),
+            )
+          : null,
+    ),
+  );
+}
+
 // ── Export password dialog ──
 
 /// Password dialog for archive export.
@@ -83,13 +118,13 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           ),
           const SizedBox(height: 16),
-          _styledPasswordField(
+          _passwordTextField(
             widget.passwordCtrl,
             l10n.masterPassword,
             error: _mismatch,
           ),
           const SizedBox(height: 8),
-          _styledPasswordField(
+          _passwordTextField(
             widget.confirmCtrl,
             l10n.confirmPassword,
             error: _mismatch,
@@ -113,32 +148,6 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
         AppDialogAction.primary(label: l10n.export_, onTap: _submit),
       ],
-    );
-  }
-
-  static Widget _styledPasswordField(
-    TextEditingController ctrl,
-    String label, {
-    bool error = false,
-  }) {
-    return TextField(
-      controller: ctrl,
-      obscureText: true,
-      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-      decoration: AppTheme.inputDecoration(labelText: label).copyWith(
-        enabledBorder: error
-            ? OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.red, width: 1),
-              )
-            : null,
-        focusedBorder: error
-            ? OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.red, width: 1.5),
-              )
-            : null,
-      ),
     );
   }
 }
@@ -213,14 +222,10 @@ class _ImportPasswordDialogState extends State<_ImportPasswordDialog> {
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: widget.passwordCtrl,
-            obscureText: true,
+          _passwordTextField(
+            widget.passwordCtrl,
+            S.of(context).masterPassword,
             autofocus: true,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            decoration: AppTheme.inputDecoration(
-              labelText: S.of(context).masterPassword,
-            ),
             onSubmitted: (v) {
               if (v.isNotEmpty) {
                 Navigator.pop(context, v);
@@ -271,9 +276,9 @@ class _SetMasterPasswordDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _passwordField(passwordCtrl, l10n.newPassword),
+          _passwordTextField(passwordCtrl, l10n.newPassword),
           const SizedBox(height: 8),
-          _passwordField(confirmCtrl, l10n.confirmPassword),
+          _passwordTextField(confirmCtrl, l10n.confirmPassword),
         ],
       ),
       actions: [
@@ -304,15 +309,6 @@ class _SetMasterPasswordDialog extends StatelessWidget {
       ],
     );
   }
-
-  static Widget _passwordField(TextEditingController ctrl, String label) {
-    return TextField(
-      controller: ctrl,
-      obscureText: true,
-      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-      decoration: AppTheme.inputDecoration(labelText: label),
-    );
-  }
 }
 
 class _ChangeMasterPasswordDialog extends StatelessWidget {
@@ -334,11 +330,11 @@ class _ChangeMasterPasswordDialog extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _passwordField(currentCtrl, l10n.currentPassword),
+          _passwordTextField(currentCtrl, l10n.currentPassword),
           const SizedBox(height: 8),
-          _passwordField(newCtrl, l10n.newPassword),
+          _passwordTextField(newCtrl, l10n.newPassword),
           const SizedBox(height: 8),
-          _passwordField(confirmCtrl, l10n.confirmPassword),
+          _passwordTextField(confirmCtrl, l10n.confirmPassword),
         ],
       ),
       actions: [
@@ -370,15 +366,6 @@ class _ChangeMasterPasswordDialog extends StatelessWidget {
       ],
     );
   }
-
-  static Widget _passwordField(TextEditingController ctrl, String label) {
-    return TextField(
-      controller: ctrl,
-      obscureText: true,
-      style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-      decoration: AppTheme.inputDecoration(labelText: label),
-    );
-  }
 }
 
 class _EnableBiometricDialog extends StatelessWidget {
@@ -399,14 +386,10 @@ class _EnableBiometricDialog extends StatelessWidget {
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: currentCtrl,
-            obscureText: true,
+          _passwordTextField(
+            currentCtrl,
+            l10n.currentPassword,
             autofocus: true,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            decoration: AppTheme.inputDecoration(
-              labelText: l10n.currentPassword,
-            ),
           ),
         ],
       ),
@@ -442,14 +425,7 @@ class _RemoveMasterPasswordDialog extends StatelessWidget {
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: passwordCtrl,
-            obscureText: true,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            decoration: AppTheme.inputDecoration(
-              labelText: l10n.currentPassword,
-            ),
-          ),
+          _passwordTextField(passwordCtrl, l10n.currentPassword),
         ],
       ),
       actions: [

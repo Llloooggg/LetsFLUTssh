@@ -463,6 +463,10 @@ class SPt extends S {
   String get noPasswordsInQr => 'Nenhuma senha ou chave está neste código QR';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Este código QR contém credenciais. Mantenha a tela privada.';
+
+  @override
   String get copyLink => 'Copiar Link';
 
   @override

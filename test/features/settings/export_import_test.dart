@@ -307,6 +307,85 @@ void main() {
     });
   });
 
+  group('ExportImport — encryption header (v2 LFSE)', () {
+    test('new archives start with LFSE magic', () async {
+      final outputPath = '${tempDir.path}/lfse.lfs';
+      await ExportImport.export(
+        masterPassword: 'pw',
+        outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+      );
+      final bytes = await File(outputPath).readAsBytes();
+      // 'L','F','S','E' ASCII — the version marker the v2 writer emits.
+      expect(
+        [bytes[0], bytes[1], bytes[2], bytes[3]],
+        [0x4C, 0x46, 0x53, 0x45],
+      );
+      // version byte == 1
+      expect(bytes[4], 1);
+    });
+
+    test('roundtrip uses the iteration count stored in the header', () async {
+      // Export with a non-default iteration count and decrypt without
+      // supplying it — the reader must pick the value out of the header
+      // instead of falling back to the global default.
+      final outputPath = '${tempDir.path}/iters.lfs';
+      await ExportImport.export(
+        masterPassword: 'pw',
+        outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        iterations: 4321,
+      );
+      // Header iteration big-endian u32 at offset 5..9.
+      final bytes = await File(outputPath).readAsBytes();
+      final iters =
+          (bytes[5] << 24) | (bytes[6] << 16) | (bytes[7] << 8) | bytes[8];
+      expect(iters, 4321);
+
+      // Decrypt without passing `iterations` — the reader must honour
+      // the header value (which is the lower test count), not fall back
+      // to defaultPbkdf2Iterations (which in tests is typically lower
+      // too but unrelated).
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+        options: const ExportOptions(includeConfig: true),
+      );
+      expect(result.config, isNotNull);
+    });
+
+    test(
+      'legacy headerless archive still decrypts with default iterations',
+      () async {
+        // Strip the 9-byte header off a freshly written archive; the reader
+        // must fall back to the caller-supplied iteration count.
+        final outputPath = '${tempDir.path}/legacy.lfs';
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        );
+        final bytes = await File(outputPath).readAsBytes();
+        // Drop the LFSE + version + u32 iterations prefix (9 bytes).
+        final stripped = bytes.sublist(9);
+        final legacyPath = '${tempDir.path}/legacy-stripped.lfs';
+        await File(legacyPath).writeAsBytes(stripped);
+
+        final result = await ExportImport.import_(
+          filePath: legacyPath,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeConfig: true),
+          // Use the same iteration count the export wrote so the legacy
+          // fallback path has something meaningful to derive the key with.
+          iterations: ExportImport.defaultPbkdf2Iterations,
+        );
+        expect(result.config, isNotNull);
+      },
+    );
+  });
+
   group('ExportImport — empty folders roundtrip', () {
     test('export and import preserves empty folders', () async {
       final sessions = [makeSession(id: 's1', label: 'srv')];

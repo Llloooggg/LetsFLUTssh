@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 
 import '../core/import/import_service.dart';
+import '../core/session/qr_codec.dart' show QrPayloadVersionTooNewException;
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../features/settings/export_import.dart'
@@ -162,6 +163,12 @@ String? _tryLocalizeLfsError(S l10n, Object error) {
     return l10n.errLfsImportRolledBack(localizeError(l10n, error.cause));
   }
   if (error is UnsupportedLfsVersionException) {
+    return l10n.errLfsUnsupportedVersion(error.found, error.supported);
+  }
+  if (error is QrPayloadVersionTooNewException) {
+    // Reuses errLfsUnsupportedVersion — the "archive" wording is imperfect
+    // for QR payloads but the action ("update the app") is identical, and
+    // routing both through one string keeps the translation burden flat.
     return l10n.errLfsUnsupportedVersion(error.found, error.supported);
   }
   if (error is LfsDecryptionFailedException) {

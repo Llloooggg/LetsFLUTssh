@@ -129,6 +129,7 @@
   "qrGenerationFailed": "تولید QR ناموفق بود",
   "scanWithCameraApp": "با هر برنامه دوربینی روی دستگاهی که LetsFLUTssh نصب است اسکن کنید.",
   "noPasswordsInQr": "رمز عبور یا کلیدی در این کد QR وجود ندارد",
+  "qrContainsCredentialsWarning": "این کد QR حاوی اعتبارنامه‌ها است. صفحه را خصوصی نگه دارید.",
   "copyLink": "کپی لینک",
   "linkCopied": "لینک در کلیپ‌بورد کپی شد",
   "hostKeyChanged": "کلید میزبان تغییر کرده است!",

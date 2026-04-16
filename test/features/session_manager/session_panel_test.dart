@@ -3270,4 +3270,37 @@ void main() {
       expect(panelState.focusedSessionId, '3');
     });
   });
+
+  group('SessionPanel — focus on pointer-down', () {
+    testWidgets(
+      'pointer-down anywhere in the sidebar claims focus so a marquee '
+      'drag renders rows in the accent (focused) colour consistently, '
+      'not the dimmed unfocused fallback',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final panelState = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        expect(panelState.focusNode.hasFocus, isFalse);
+
+        // Simulate a pointer-down on the background of the panel (not
+        // on a row) — this is what happens when a marquee drag starts
+        // on empty space.
+        final panelRect = tester.getRect(find.byType(SessionPanel));
+        await tester.tapAt(Offset(panelRect.left + 20, panelRect.bottom - 20));
+        await tester.pump();
+
+        expect(
+          panelState.focusNode.hasFocus,
+          isTrue,
+          reason:
+              'the panel must own focus after any pointer-down so the '
+              'SessionTreeView sees panelHasFocus=true and picks the '
+              'accent row highlight, eliminating the grey/blue flicker',
+        );
+      },
+    );
+  });
 }

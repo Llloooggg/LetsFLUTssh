@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/session/session.dart' show AuthType;
 import 'package:letsflutssh/core/ssh/openssh_config_parser.dart';
 
 void main() {
@@ -324,6 +325,141 @@ Host runner.ci
         for (final e in entries) {
           expect(e.user, 'ci-bot', reason: 'both hosts match one pattern');
         }
+      });
+    });
+
+    group('PreferredAuthentications directive', () {
+      test('maps publickey / password to AuthType list in order', () {
+        const input = '''
+Host keyfirst
+    HostName k.example.com
+    PreferredAuthentications publickey,password
+
+Host pwfirst
+    HostName p.example.com
+    PreferredAuthentications password,publickey
+''';
+        final entries = parseOpenSshConfig(input);
+        final keyFirst = entries.firstWhere((e) => e.host == 'keyfirst');
+        final pwFirst = entries.firstWhere((e) => e.host == 'pwfirst');
+        expect(keyFirst.preferredAuthTypes, [AuthType.key, AuthType.password]);
+        expect(pwFirst.preferredAuthTypes, [AuthType.password, AuthType.key]);
+      });
+
+      test('unsupported methods are filtered out, not rejected', () {
+        // gssapi-with-mic / hostbased are ignored — the remaining methods
+        // keep their relative order so the importer still gets a usable
+        // preference list.
+        const input = '''
+Host demo
+    HostName d.example.com
+    PreferredAuthentications gssapi-with-mic,hostbased,password
+''';
+        final e = parseOpenSshConfig(input).single;
+        expect(e.preferredAuthTypes, [AuthType.password]);
+      });
+
+      test('all-unknown PreferredAuthentications degrades to null', () {
+        const input = '''
+Host demo
+    HostName d.example.com
+    PreferredAuthentications gssapi-with-mic,hostbased
+''';
+        final e = parseOpenSshConfig(input).single;
+        expect(
+          e.preferredAuthTypes,
+          isNull,
+          reason: 'null tells the importer to fall back to the default rule',
+        );
+      });
+
+      test('keyboard-interactive folds into password without duplicating', () {
+        const input = '''
+Host demo
+    HostName d.example.com
+    PreferredAuthentications keyboard-interactive,password
+''';
+        final e = parseOpenSshConfig(input).single;
+        expect(e.preferredAuthTypes, [AuthType.password]);
+      });
+
+      test('absence leaves preferredAuthTypes null', () {
+        const input = '''
+Host demo
+    HostName d.example.com
+    User admin
+''';
+        final e = parseOpenSshConfig(input).single;
+        expect(e.preferredAuthTypes, isNull);
+      });
+    });
+
+    group('Include directive', () {
+      test('expands Include against the supplied reader', () {
+        // Supplies a canned file for `extra.conf` via [includeReader] so the
+        // test doesn't need to touch the real filesystem.
+        const main = '''
+Host local
+    HostName local.example.com
+
+Include extra.conf
+''';
+        const extra = '''
+Host remote
+    HostName remote.example.com
+    User admin
+''';
+        final entries = parseOpenSshConfig(
+          main,
+          baseDir: '/cfg',
+          includeReader: (path) {
+            expect(path, '/cfg/extra.conf');
+            return extra;
+          },
+        );
+        expect(entries.map((e) => e.host), containsAll(['local', 'remote']));
+        final remote = entries.firstWhere((e) => e.host == 'remote');
+        expect(remote.user, 'admin');
+      });
+
+      test('handles nested includes up to the depth limit', () {
+        final files = {
+          '/cfg/a.conf': 'Host a\n    HostName a\nInclude b.conf\n',
+          '/cfg/b.conf': 'Host b\n    HostName b\nInclude c.conf\n',
+          '/cfg/c.conf': 'Host c\n    HostName c\n',
+        };
+        final entries = parseOpenSshConfig(
+          'Include a.conf\n',
+          baseDir: '/cfg',
+          includeReader: (p) => files[p],
+        );
+        expect(entries.map((e) => e.host).toSet(), {'a', 'b', 'c'});
+      });
+
+      test('self-referencing include does not loop forever', () {
+        // `loop.conf` includes itself; the visited-set in the expander
+        // skips the second visit so parsing terminates with just the one
+        // block that was inside the file.
+        final files = {
+          '/cfg/loop.conf': 'Host looped\n    HostName l\nInclude loop.conf\n',
+        };
+        final entries = parseOpenSshConfig(
+          'Include loop.conf\n',
+          baseDir: '/cfg',
+          includeReader: (p) => files[p],
+        );
+        expect(entries.map((e) => e.host), ['looped']);
+      });
+
+      test('missing Include target is silently skipped', () {
+        // An include that can't be read is a warning, not a hard error —
+        // otherwise a deleted helper file would break the whole import.
+        final entries = parseOpenSshConfig(
+          'Host a\n    HostName a\nInclude missing.conf\n',
+          baseDir: '/cfg',
+          includeReader: (_) => null,
+        );
+        expect(entries.map((e) => e.host), ['a']);
       });
     });
   });

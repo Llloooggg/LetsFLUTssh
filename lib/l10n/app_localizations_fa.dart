@@ -459,6 +459,10 @@ class SFa extends S {
   String get noPasswordsInQr => 'رمز عبور یا کلیدی در این کد QR وجود ندارد';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'این کد QR حاوی اعتبارنامه‌ها است. صفحه را خصوصی نگه دارید.';
+
+  @override
   String get copyLink => 'کپی لینک';
 
   @override

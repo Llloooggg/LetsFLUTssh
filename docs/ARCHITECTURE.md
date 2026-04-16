@@ -749,6 +749,16 @@ class DeepLinkHandler {
   // Callbacks:
   //   onConnect(ConnectUri data) — host, port, user from connect URI
   //   onQrImport(ExportPayloadData data) — sessions, config, known_hosts, tags, snippets from QR
+  //   onQrImportVersionTooNew(found, supported) — QR was valid but carries
+  //     a payload schema newer than this build understands; surfaced as an
+  //     "update the app" toast instead of a generic "invalid QR" error.
+
+  // QR import UX: the main screen handler shows LinkImportPreviewDialog
+  // before calling ImportService.applyResult, giving the user the same
+  // merge/replace + per-type opt-in/out picker as the .lfs and paste-link
+  // flows. Skipping the preview would silently commit whatever the QR
+  // author chose to include (including, potentially, session passwords —
+  // see `includePasswords` in ExportOptions, which QR mode defaults ON).
 
   // Deduplication: time-limited (2 s) to cover the cold-start race
   // (getInitialLink + uriLinkStream). After the window, the same URI
@@ -769,7 +779,7 @@ class DeepLinkHandler {
 | File | Purpose |
 |------|---------|
 | `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
-| `key_file_helper.dart` | SSH key file parsing (PEM, OpenSSH formats) |
+| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
 
@@ -794,10 +804,22 @@ payload = ZIP archive:
 Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
 
+Wire format for v2 encrypted archives:
+  [ 'LFSE' (4) | version u8 | iterations u32 BE | salt (32) | iv (12) |
+    ciphertext + GCM tag ]
+
+The 9-byte header lets the reader pick up the exact PBKDF2 cost that was
+used to write the archive — so a future release can raise iterations
+without having to break or re-encrypt existing files. Archives written
+before the header existed start straight with the 32-byte salt (no
+detectable magic) and are still decrypted via the legacy fall-back path
+using `ExportImport.defaultPbkdf2Iterations`. Unencrypted ZIP archives
+keep their `PK\x03\x04` magic and are handled separately.
+
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
 bytes (the `PK\x03\x04` local-file-header magic) instead of the
-salt + IV + ciphertext + tag layout.
+header + salt + IV + ciphertext + tag layout.
 
 Import-side validation: `ExportImport.probeArchive(path)` classifies the
 picked file into `{unencryptedLfs, encryptedLfs, notLfs}` before any
@@ -840,10 +862,17 @@ end-to-end, so no separate content hash is stored in the manifest.
 
 The OpenSSH config parser honours wildcard defaults. `Host *` / `Host *.internal` blocks emit no entries of their own, but their directives cascade onto every concrete host matching the pattern using OpenSSH's first-value-wins rule — so the common idiom "put `Host *` at the end of ~/.ssh/config for defaults that concrete hosts override" works as expected. Negation patterns (`!pattern`) block a wildcard block from applying to a matching host. `IdentityFile` entries accumulate across every matching block in file order (OpenSSH tries them sequentially at connect time).
 
+`Include` directives are expanded against an injectable `IncludeReader`, with relative paths anchored at `~/.ssh` and glob patterns (`config.d/*`) resolved against the real filesystem. Nested includes are honoured up to a depth limit (default 8) and a visited-set guards against self-referencing loops. Missing includes are logged and skipped, not fatal — a deleted helper file does not break the whole import.
+
+`PreferredAuthentications` is parsed into an ordered list of `AuthType` values (publickey ↔ `AuthType.key`, password / keyboard-interactive ↔ `AuthType.password`, gssapi/hostbased ignored). The importer consults this list first — an entry that explicitly prefers password auth keeps `AuthType.password` even when an `IdentityFile` is readable, matching OpenSSH's runtime choice instead of forcing key auth on hosts where it would be rejected.
+
+Encrypted `IdentityFile` keys are detected by `KeyFileHelper.isEncryptedPem` (decoding the OpenSSH v1 binary frame for the KDF-name field, or sniffing PKCS#1 / PKCS#8 armor headers) and surfaced via `hostsWithEncryptedKeys` — a subset of the existing `hostsWithMissingKeys` list, so the old UI warning still fires but callers who care can tell "needs passphrase" from "truly missing" without re-reading the file.
+
 Both `applyResult()` paths return an `ImportSummary` with per-type row counts and `configApplied` / `knownHostsApplied` flags. `formatImportSummary()` in `utils/format.dart` renders it as the success toast (`Imported N sessions, K SSH keys, T tags, S snippets, …`) so users see what was actually persisted instead of only the session count. `SqliteException`s that carry a PEM private key in their bound parameters are run through `redactSecrets()` in `utils/sanitize.dart` before reaching the toast or the log file
 - Config application via typed `AppConfig` callback
 - Known hosts import via `KnownHostsManager.importFromString()`
 - Rollback support in replace mode via `restoreSnapshot` callback — snapshot includes sessions, empty folders, and (when `getCurrentConfig` is provided) the pre-import `AppConfig`, so a failed import restores atomically
+- Manager-key rollback — replace mode never wipes the key store (keys are deduped by fingerprint on merge), so instead the snapshot captures `existingManagerKeyIds()` before the import runs. If the import fails, the rollback path enumerates the store again and deletes any id that wasn't in the pre-import set. Pre-existing keys stay untouched. Tests without a wired `KeyStore` leave the callbacks null and this step is skipped
 
 ---
 
@@ -1193,7 +1222,7 @@ class FilePaneController extends ChangeNotifier {
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab: password, key file/PEM, or key from central store (via `keyId`). Key store selector shown when keys exist |
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionManager. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
-| `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link) |
+| `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link). The bottom badge switches between a neutral "No passwords in QR" info and an orange warning (`qrContainsCredentialsWarning`) depending on the `containsCredentials` flag the caller passes — so the screen doesn't claim there are no passwords when the user enabled `includePasswords` / `includeManagerKeys` in the preceding export dialog |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
 | `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Preset chips ("Full backup" / "Sessions"), session tree with checkboxes, data type selection (passwords, embedded keys, session-bound manager keys, all manager keys, config, known_hosts, tags, snippets), QR size indicator |
 | `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Filename header, preset chips (Full / Selective), collapsible checkbox grid with per-type counts on the right, merge/replace mode selector. Every checkbox is always clickable so replace mode can express "wipe this type" via a checked row even when the archive carries zero entries |

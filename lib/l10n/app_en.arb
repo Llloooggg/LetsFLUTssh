@@ -264,6 +264,7 @@
   "qrGenerationFailed": "QR generation failed",
   "scanWithCameraApp": "Scan with any camera app on a device\nthat has LetsFLUTssh installed.",
   "noPasswordsInQr": "No passwords or keys are in this QR code",
+  "qrContainsCredentialsWarning": "This QR code contains session credentials. Keep the screen private.",
   "copyLink": "Copy Link",
   "linkCopied": "Link copied to clipboard",
   "hostKeyChanged": "Host Key Changed!",

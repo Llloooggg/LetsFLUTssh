@@ -50,6 +50,8 @@ void main() {
     void Function(Session)? onSessionDoubleTap,
     Set<String> selectedIds = const {},
     Set<String> selectedFolderPaths = const {},
+    String? focusedSessionId,
+    String? focusedFolderPath,
   }) {
     return ProviderScope(
       child: MaterialApp(
@@ -66,6 +68,8 @@ void main() {
               onSessionDoubleTap: onSessionDoubleTap,
               selectedIds: selectedIds,
               selectedFolderPaths: selectedFolderPaths,
+              focusedSessionId: focusedSessionId,
+              focusedFolderPath: focusedFolderPath,
             ),
           ),
         ),
@@ -361,6 +365,19 @@ void main() {
 
         // No selection → no Draggable → marquee can start from any row
         expect(find.byType(ThresholdDraggable<SessionDragData>), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'ThresholdDraggable wraps a single-click focused session so the '
+      'row can be dragged without first ctrl-adding it to the checked '
+      'selection set',
+      (tester) async {
+        await tester.pumpWidget(buildApp(focusedSessionId: '1'));
+
+        // The highlighted (focused) row must be draggable too, not just
+        // multi-selected rows.
+        expect(find.byType(ThresholdDraggable<SessionDragData>), findsWidgets);
       },
     );
 

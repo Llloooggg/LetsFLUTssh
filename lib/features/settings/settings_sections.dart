@@ -1510,6 +1510,9 @@ class _ExportImportTile extends ConsumerWidget {
         importKnownHosts: (content) async {
           await knownHostsMgr.importFromString(content);
         },
+        existingManagerKeyIds: () async =>
+            (await keyStore.loadAll()).keys.toSet(),
+        deleteManagerKey: keyStore.delete,
         runInTransaction: store.database == null
             ? null
             : <T>(body) => store.database!.transaction(body),
@@ -2011,11 +2014,19 @@ class _QrExportTile extends ConsumerWidget {
     final deepLink = wrapInDeepLink(payload);
     final data = decodeImportUri(Uri.parse(deepLink));
     final sessionCount = data?.sessions.length ?? 0;
+    // Reflect the *actual* export choice on the display screen. The QR
+    // mode default is `includePasswords: true`, so a blanket reassurance
+    // that the code carries no credentials would be misleading.
+    final containsCredentials =
+        exportResult.options.includePasswords ||
+        exportResult.options.includeEmbeddedKeys ||
+        exportResult.options.hasManagerKeys;
     if (!context.mounted) return;
     await QrDisplayScreen.show(
       context,
       data: deepLink,
       sessionCount: sessionCount,
+      containsCredentials: containsCredentials,
     );
   }
 

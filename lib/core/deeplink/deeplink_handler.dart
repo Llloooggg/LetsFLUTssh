@@ -33,6 +33,11 @@ class DeepLinkHandler {
   /// Callback invoked when a QR import link is received.
   void Function(ExportPayloadData data)? onQrImport;
 
+  /// Callback invoked when a QR import link carries a payload schema version
+  /// newer than this build understands. The UI should surface an "update
+  /// the app" prompt instead of silently dropping the import.
+  void Function(int found, int supported)? onQrImportVersionTooNew;
+
   /// Callback invoked when an SSH key file is opened (.pem, .key).
   void Function(String filePath)? onKeyFileOpened;
 
@@ -113,15 +118,23 @@ class DeepLinkHandler {
         );
       }
     } else if (uri.host == 'import') {
-      final data = decodeImportUri(uri);
-      if (data != null) {
+      try {
+        final data = decodeImportUri(uri);
+        if (data != null) {
+          AppLogger.instance.log(
+            'QR import: ${data.sessions.length} session(s)',
+            name: 'DeepLink',
+          );
+          onQrImport?.call(data);
+        } else {
+          AppLogger.instance.log('Invalid import data', name: 'DeepLink');
+        }
+      } on QrPayloadVersionTooNewException catch (e) {
         AppLogger.instance.log(
-          'QR import: ${data.sessions.length} session(s)',
+          'QR import rejected: payload v${e.found} > supported v${e.supported}',
           name: 'DeepLink',
         );
-        onQrImport?.call(data);
-      } else {
-        AppLogger.instance.log('Invalid import data', name: 'DeepLink');
+        onQrImportVersionTooNew?.call(e.found, e.supported);
       }
     } else {
       AppLogger.instance.log('Unknown action "${uri.host}"', name: 'DeepLink');

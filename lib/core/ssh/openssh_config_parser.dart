@@ -1,9 +1,14 @@
 import 'dart:convert' show LineSplitter;
+import 'dart:io';
+
+import '../../utils/logger.dart';
+import '../../utils/platform.dart';
+import '../session/session.dart' show AuthType;
 
 /// Parsed entry from an OpenSSH `~/.ssh/config` file.
 ///
 /// Represents a single `Host` block with resolved directives we care about
-/// for import: HostName, User, Port, IdentityFile.
+/// for import: HostName, User, Port, IdentityFile, PreferredAuthentications.
 class OpenSshConfigEntry {
   final String host;
   final String? hostName;
@@ -11,32 +16,54 @@ class OpenSshConfigEntry {
   final int? port;
   final List<String> identityFiles;
 
+  /// Resolved `PreferredAuthentications` list, mapped to the enum values we
+  /// understand (`password`, `key`). Null means the user didn't set the
+  /// directive — importer can fall back to "key if IdentityFile, password
+  /// otherwise". An empty list means every listed method was unknown and
+  /// was filtered out; treat identical to null.
+  final List<AuthType>? preferredAuthTypes;
+
   const OpenSshConfigEntry({
     required this.host,
     this.hostName,
     this.user,
     this.port,
     this.identityFiles = const [],
+    this.preferredAuthTypes,
   });
 
   /// Effective hostname — HostName if set, otherwise the Host alias.
   String get effectiveHost => hostName ?? host;
 }
 
+/// Reader that returns the contents of a file referenced by an `Include`
+/// directive, or null when the file does not exist / cannot be read. Injected
+/// for test isolation — tests pass a canned in-memory map instead of hitting
+/// the real filesystem.
+typedef IncludeReader = String? Function(String path);
+
 /// Parse OpenSSH config file contents into a list of concrete host entries.
 ///
 /// Wildcard blocks (`Host *`, `Host *.internal`, …) are NOT emitted as their
 /// own entries, but their directives do cascade onto every concrete host
-/// whose alias matches the pattern, using OpenSSH's first-value-wins rule:
-/// blocks are walked top-to-bottom, and each directive is taken from the
-/// first matching block that sets it. So a leading `Host *` with a default
-/// `User` / `IdentityFile` fills in those fields on every concrete host
-/// that doesn't already specify them.
+/// whose alias matches the pattern, using OpenSSH's first-value-wins rule.
 ///
-/// Includes are not expanded. Negation patterns (`!`) are treated as
-/// non-matching for safety. Unknown directives are ignored silently.
-List<OpenSshConfigEntry> parseOpenSshConfig(String content) {
-  final blocks = _parseBlocks(content);
+/// `Include` directives are expanded against [includeReader] (defaults to the
+/// real filesystem). The `baseDir` argument anchors relative paths — defaults
+/// to `~/.ssh`, matching `ssh_config(5)` semantics. Recursion is bounded by
+/// [maxIncludeDepth] to stop pathological configs (`Include ./config`) from
+/// stack-overflowing. Negation patterns (`!`) are treated as non-matching.
+/// Unknown directives are ignored silently.
+List<OpenSshConfigEntry> parseOpenSshConfig(
+  String content, {
+  IncludeReader? includeReader,
+  String? baseDir,
+  int maxIncludeDepth = 8,
+}) {
+  final reader = includeReader ?? _defaultIncludeReader;
+  final base = baseDir ?? _defaultSshDir();
+  final expanded = _expandIncludes(content, reader, base, maxIncludeDepth, {});
+  final blocks = _parseBlocks(expanded);
 
   // Resolution walks only two lists per concrete host: its own block plus the
   // wildcard "default" blocks that appear in the file. Without this split the
@@ -77,6 +104,7 @@ OpenSshConfigEntry _resolveEntry(
   String? hostName;
   String? user;
   int? port;
+  List<AuthType>? preferred;
   final identityFiles = <String>[];
 
   // Walk wildcard defaults in file order — the own block's position is
@@ -94,6 +122,7 @@ OpenSshConfigEntry _resolveEntry(
     hostName ??= block.hostName;
     user ??= block.user;
     port ??= block.port;
+    preferred ??= block.preferredAuthTypes;
     identityFiles.addAll(block.identityFiles);
   }
 
@@ -103,6 +132,7 @@ OpenSshConfigEntry _resolveEntry(
     user: user,
     port: port,
     identityFiles: List.unmodifiable(identityFiles),
+    preferredAuthTypes: preferred,
   );
 }
 
@@ -115,6 +145,7 @@ List<_RawBlock> _parseBlocks(String content) {
   String? hostName;
   String? user;
   int? port;
+  List<AuthType>? preferred;
   var identityFiles = <String>[];
 
   void flush() {
@@ -128,6 +159,7 @@ List<_RawBlock> _parseBlocks(String content) {
         user: user,
         port: port,
         identityFiles: List.unmodifiable(identityFiles),
+        preferredAuthTypes: preferred,
       ),
     );
   }
@@ -145,6 +177,7 @@ List<_RawBlock> _parseBlocks(String content) {
       hostName = null;
       user = null;
       port = null;
+      preferred = null;
       identityFiles = <String>[];
       continue;
     }
@@ -160,10 +193,154 @@ List<_RawBlock> _parseBlocks(String content) {
         port ??= int.tryParse(value);
       case 'identityfile':
         identityFiles.add(value);
+      case 'preferredauthentications':
+        preferred ??= _parsePreferredAuths(value);
     }
   }
   flush();
   return blocks;
+}
+
+/// Translate OpenSSH's `PreferredAuthentications` comma-list into our
+/// internal [AuthType] ordering. Methods we don't support (hostbased,
+/// gssapi-*) are dropped so an entry like
+/// `gssapi-with-mic,publickey,password` still resolves cleanly to
+/// `[AuthType.key, AuthType.password]`.
+List<AuthType>? _parsePreferredAuths(String raw) {
+  final parts = raw.split(',').map((p) => p.trim().toLowerCase());
+  final seen = <AuthType>{};
+  final out = <AuthType>[];
+  for (final p in parts) {
+    final mapped = switch (p) {
+      'publickey' => AuthType.key,
+      'password' => AuthType.password,
+      'keyboard-interactive' => AuthType.password,
+      _ => null,
+    };
+    if (mapped != null && seen.add(mapped)) out.add(mapped);
+  }
+  if (out.isEmpty) return null;
+  return List.unmodifiable(out);
+}
+
+/// Expand `Include` directives into a single config string. Matches OpenSSH
+/// behaviour: relative paths resolve against [baseDir] (typically `~/.ssh`);
+/// absolute paths pass through; glob patterns (`*`, `?`) expand to matching
+/// files. Nested includes are honoured up to [remainingDepth] levels.
+String _expandIncludes(
+  String content,
+  IncludeReader reader,
+  String baseDir,
+  int remainingDepth,
+  Set<String> visited,
+) {
+  if (remainingDepth <= 0) {
+    AppLogger.instance.log(
+      'Include depth limit reached — further includes ignored',
+      name: 'SshConfigParser',
+    );
+    return content;
+  }
+  final buffer = StringBuffer();
+  for (final rawLine in const LineSplitter().convert(content)) {
+    final line = _stripComment(rawLine).trim();
+    if (line.isEmpty) {
+      buffer.writeln(rawLine);
+      continue;
+    }
+    final (keyword, value) = _splitKeywordValue(line);
+    if (keyword == null ||
+        value == null ||
+        keyword.toLowerCase() != 'include') {
+      buffer.writeln(rawLine);
+      continue;
+    }
+    // Each whitespace-separated token is a pattern — e.g.
+    // `Include config.d/* extra`. The whole line is replaced with the
+    // concatenated contents of every matched file so host blocks from the
+    // included config read as if they were inline.
+    for (final token in _splitHostPatterns(value)) {
+      for (final resolved in _resolveIncludePaths(token, baseDir)) {
+        if (!visited.add(resolved)) continue;
+        final included = reader(resolved);
+        if (included == null) continue;
+        buffer.writeln(
+          _expandIncludes(
+            included,
+            reader,
+            baseDir,
+            remainingDepth - 1,
+            visited,
+          ),
+        );
+      }
+    }
+  }
+  return buffer.toString();
+}
+
+/// Resolve one include pattern to the concrete files it matches.
+///
+/// `~` expands to the user home. Relative paths are anchored at [baseDir].
+/// Globs use [_globMatches] on the basename so nested globs like `**` are
+/// NOT supported — same limitation as OpenSSH 7.x.
+List<String> _resolveIncludePaths(String pattern, String baseDir) {
+  var resolved = pattern;
+  if (resolved == '~') resolved = homeDirectory;
+  if (resolved.startsWith('~/')) {
+    resolved = '$homeDirectory${resolved.substring(1)}';
+  } else if (!_isAbsolutePath(resolved)) {
+    resolved = '$baseDir${Platform.pathSeparator}$resolved';
+  }
+  if (!resolved.contains('*') && !resolved.contains('?')) return [resolved];
+  return _globFiles(resolved);
+}
+
+bool _isAbsolutePath(String path) {
+  if (path.startsWith('/')) return true;
+  // Windows drive letter (`C:\...`) or UNC path.
+  if (path.length >= 2 && path[1] == ':') return true;
+  if (path.startsWith(r'\\')) return true;
+  return false;
+}
+
+/// List every real file that matches a glob like `~/.ssh/config.d/*`.
+/// Only the basename portion is globbed; the parent directory must exist.
+List<String> _globFiles(String pattern) {
+  final normalized = pattern.replaceAll('\\', '/');
+  final idx = normalized.lastIndexOf('/');
+  if (idx < 0) return const [];
+  final dirPath = pattern.substring(0, idx);
+  final basePattern = normalized.substring(idx + 1);
+  try {
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) return const [];
+    final matches = <String>[];
+    for (final entry in dir.listSync(followLinks: false)) {
+      if (entry is! File) continue;
+      final name = entry.path.split(Platform.pathSeparator).last;
+      if (_globMatches(basePattern, name)) matches.add(entry.path);
+    }
+    matches.sort();
+    return matches;
+  } catch (_) {
+    return const [];
+  }
+}
+
+String _defaultSshDir() => '$homeDirectory${Platform.pathSeparator}.ssh';
+
+String? _defaultIncludeReader(String path) {
+  try {
+    final file = File(path);
+    if (!file.existsSync()) return null;
+    // Match the single-file size limit used elsewhere in the import flow —
+    // an include that ships megabytes of text is almost certainly malicious.
+    if (file.lengthSync() > 1024 * 1024) return null;
+    return file.readAsStringSync();
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Raw Host block kept in file order. A block matches a concrete host if any
@@ -176,6 +353,7 @@ class _RawBlock {
   final String? user;
   final int? port;
   final List<String> identityFiles;
+  final List<AuthType>? preferredAuthTypes;
 
   const _RawBlock({
     required this.orderIndex,
@@ -184,6 +362,7 @@ class _RawBlock {
     required this.user,
     required this.port,
     required this.identityFiles,
+    this.preferredAuthTypes,
   });
 
   bool matches(String host) {

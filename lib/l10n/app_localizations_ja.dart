@@ -455,6 +455,10 @@ class SJa extends S {
   String get noPasswordsInQr => 'このQRコードにパスワードや鍵は含まれていません';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'このQRコードには認証情報が含まれています。画面を他人に見せないでください。';
+
+  @override
   String get copyLink => 'リンクをコピー';
 
   @override

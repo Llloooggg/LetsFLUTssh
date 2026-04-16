@@ -33,6 +33,7 @@ import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
+import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/hover_region.dart';
@@ -797,6 +798,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
       _handleQrImport(data);
     };
+    _deepLinkHandler.onQrImportVersionTooNew = (found, supported) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Toast.show(
+            ctx,
+            message: S.of(ctx).errLfsUnsupportedVersion(found, supported),
+            level: ToastLevel.warning,
+          );
+        }
+      });
+    };
     _deepLinkHandler.init();
   }
 
@@ -967,11 +980,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Future<void> _handleQrImport(ExportPayloadData data) async {
-    // Use ImportService for full import (keys, sessions, tags, snippets).
-    // Intent flags mirror what the QR payload carries — same shape as the
-    // .lfs archive path, so ImportService handles every data type (incl.
-    // known_hosts) in one place instead of us re-inserting it afterwards.
-    final importResult = ImportResult(
+    // Ask the user what to bring in before writing anything — mirrors the
+    // .lfs and paste-link flows so QR imports aren't the only path that
+    // silently clobbers merge/replace choices and data-type selection.
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    final choice = await LinkImportPreviewDialog.show(ctx, payload: data);
+    if (choice == null) return;
+
+    // Build the full ImportResult from the payload, then let
+    // [ImportResult.filtered] drop whatever the user unchecked.
+    final fullResult = ImportResult(
       sessions: data.sessions,
       emptyFolders: data.emptyFolders,
       managerKeys: data.managerKeys,
@@ -981,33 +1000,53 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       snippets: data.snippets,
       sessionSnippets: data.sessionSnippets,
       config: data.config,
-      mode: ImportMode.merge,
+      mode: choice.mode,
       knownHostsContent: data.knownHostsContent,
       includeTags: data.tags.isNotEmpty,
       includeSnippets: data.snippets.isNotEmpty,
       includeKnownHosts: data.knownHostsContent != null,
     );
-    final summary = await _buildImportService().applyResult(importResult);
-    _invalidateImportProviders();
+    final importResult = fullResult.filtered(choice.options, choice.mode);
 
-    AppLogger.instance.log(
-      'QR import complete: ${summary.sessions} session(s), '
-      '${summary.managerKeys} key(s), '
-      '${summary.tags} tag(s), '
-      '${summary.snippets} snippet(s)',
-      name: 'App',
-    );
+    try {
+      final summary = await _buildImportService().applyResult(importResult);
+      _invalidateImportProviders();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        Toast.show(
-          ctx,
-          message: formatImportSummary(S.of(ctx), summary),
-          level: ToastLevel.success,
-        );
-      }
-    });
+      AppLogger.instance.log(
+        'QR import complete: ${summary.sessions} session(s), '
+        '${summary.managerKeys} key(s), '
+        '${summary.tags} tag(s), '
+        '${summary.snippets} snippet(s)',
+        name: 'App',
+      );
+
+      // Context may have been torn down during the import await — re-read
+      // off the global navigator key so we don't paint onto a disposed tree.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final postCtx = navigatorKey.currentContext;
+        if (postCtx != null && postCtx.mounted) {
+          Toast.show(
+            postCtx,
+            message: formatImportSummary(S.of(postCtx), summary),
+            level: ToastLevel.success,
+          );
+        }
+      });
+    } catch (e) {
+      AppLogger.instance.log('QR import failed: $e', name: 'App', error: e);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final postCtx = navigatorKey.currentContext;
+        if (postCtx != null && postCtx.mounted) {
+          Toast.show(
+            postCtx,
+            message: S
+                .of(postCtx)
+                .importFailed(localizeError(S.of(postCtx), e)),
+            level: ToastLevel.error,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _showLfsImportDialog(
@@ -1153,6 +1192,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       importKnownHosts: (content) async {
         await knownHostsMgr.importFromString(content);
       },
+      existingManagerKeyIds: () async =>
+          (await keyStore.loadAll()).keys.toSet(),
+      deleteManagerKey: keyStore.delete,
       runInTransaction: store.database == null
           ? null
           : <T>(body) => store.database!.transaction(body),

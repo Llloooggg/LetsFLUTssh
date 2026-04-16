@@ -7,6 +7,7 @@ import '../core/qr/qr_scanner.dart';
 import '../core/session/qr_codec.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart' show localizeError;
 import 'app_dialog.dart';
 
 /// Dialog that accepts a `letsflutssh://import?d=...` URL or the raw
@@ -44,7 +45,9 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
   /// Decode the pasted text.  Accepts the full deep-link URI or the raw
   /// payload string (what `decodeExportPayload` produces).  Returns null
   /// when nothing parses — the dialog sets [_error] so the user can try
-  /// again instead of silently dismissing.
+  /// again instead of silently dismissing. A valid-but-too-new payload
+  /// bubbles up as [QrPayloadVersionTooNewException] so the caller can
+  /// steer the user to update rather than retry.
   ExportPayloadData? _tryDecode(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
@@ -77,7 +80,15 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
   }
 
   void _submit() {
-    final data = _tryDecode(_controller.text);
+    final ExportPayloadData? data;
+    try {
+      data = _tryDecode(_controller.text);
+    } on QrPayloadVersionTooNewException catch (e) {
+      // Valid payload, just newer than this build — tell the user to
+      // update instead of showing the generic "invalid link" error.
+      setState(() => _error = localizeError(S.of(context), e));
+      return;
+    }
     if (data == null) {
       setState(() => _error = S.of(context).invalidImportLink);
       return;

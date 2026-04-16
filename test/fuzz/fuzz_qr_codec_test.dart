@@ -46,8 +46,29 @@ void main() {
     test('handles wrong version numbers', () {
       // Build payloads with explicit wrong `v` field values as
       // base64(JSON) to reach the old-format parser path.
-      final wrongVersions = [-999, -1, 0, 2, 3, 99, 9999999];
-      for (final v in wrongVersions) {
+      //
+      // Values larger than the current schema throw the dedicated
+      // [QrPayloadVersionTooNewException] (so the UI can route the user to
+      // "update the app" instead of showing a generic failure). Everything
+      // else — negative, zero, legacy versions — must still parse without
+      // throwing.
+      final tooNew = [99, 9999999];
+      for (final v in tooNew) {
+        final json = jsonEncode({
+          'v': v,
+          's': [
+            {'l': 'test', 'h': 'host', 'u': 'user'},
+          ],
+        });
+        final encoded = base64Url.encode(utf8.encode(json));
+        expect(
+          () => decodeExportPayload(encoded),
+          throwsA(isA<QrPayloadVersionTooNewException>()),
+        );
+      }
+
+      final acceptableVersions = [-999, -1, 0, 2, 3];
+      for (final v in acceptableVersions) {
         final json = jsonEncode({
           'v': v,
           's': [

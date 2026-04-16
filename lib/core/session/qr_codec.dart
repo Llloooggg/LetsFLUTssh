@@ -515,6 +515,10 @@ ExportPayloadData? _decodePayload(String b64) {
     final json = utf8.decode(inflated);
     final result = _parsePayload(json);
     if (result != null) return result;
+  } on QrPayloadVersionTooNewException {
+    // A valid QR from a newer app — let the caller show a specific error
+    // instead of pretending the QR was malformed.
+    rethrow;
   } on FormatException {
     // Invalid base64
   } on RangeError {
@@ -529,6 +533,8 @@ ExportPayloadData? _decodePayload(String b64) {
     final json = utf8.decode(raw);
     jsonDecode(json);
     return _parsePayload(json);
+  } on QrPayloadVersionTooNewException {
+    rethrow;
   } on FormatException {
     // Invalid base64 or UTF-8
   } catch (_) {
@@ -552,7 +558,9 @@ ExportPayloadData? _parsePayload(String payload) {
     // Version check: reject future versions up-front — unknown fields may
     // carry data this build cannot interpret, and silently dropping them
     // would cause partial/incorrect imports. Missing `v` is treated as v1
-    // (legacy payloads predate the version marker).
+    // (legacy payloads predate the version marker). The specific
+    // [QrPayloadVersionTooNewException] lets callers show an accurate
+    // "update the app" message instead of collapsing to "invalid QR".
     final version = _asInt(json['v'], fallback: 1);
     if (version > _currentFormatVersion) {
       AppLogger.instance.log(
@@ -560,7 +568,10 @@ ExportPayloadData? _parsePayload(String payload) {
         'v$_currentFormatVersion — update the app to import this QR.',
         name: 'QrCodec',
       );
-      return null;
+      throw QrPayloadVersionTooNewException(
+        found: version,
+        supported: _currentFormatVersion,
+      );
     }
     AppLogger.instance.log(
       'Parsing payload: version=$version',
@@ -602,6 +613,11 @@ ExportPayloadData? _parsePayload(String payload) {
       snippets: decodedSnippets,
       sessionSnippets: sessionSnippetLinks,
     );
+  } on QrPayloadVersionTooNewException {
+    // Propagate — the caller needs to know this was a valid-but-too-new
+    // payload, not a malformed one. Wrapping it as null would tell the
+    // user to scan a different QR when the right fix is "update the app".
+    rethrow;
   } on TypeError {
     // Malformed data from untrusted source — gracefully return null
     // instead of crashing. TypeErrors happen when JSON structure doesn't
@@ -863,4 +879,25 @@ class ExportPayloadData {
     final content = knownHostsContent;
     return content != null && content.isNotEmpty;
   }
+}
+
+/// Thrown when a QR / paste-link payload advertises a schema version newer
+/// than this build understands. The decode path never continues with
+/// unknown fields — we'd risk silently dropping session records or key
+/// metadata — so the only safe response is to tell the user to update.
+///
+/// The exception intentionally mirrors [UnsupportedLfsVersionException] so
+/// callers can route both through the same "outdated app" UI branch.
+class QrPayloadVersionTooNewException implements Exception {
+  final int found;
+  final int supported;
+  const QrPayloadVersionTooNewException({
+    required this.found,
+    required this.supported,
+  });
+
+  @override
+  String toString() =>
+      'QrPayloadVersionTooNewException: payload schema v$found is newer '
+      'than supported v$supported. Update the app to import this QR.';
 }

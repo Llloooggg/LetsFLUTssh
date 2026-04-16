@@ -6,6 +6,7 @@ import 'package:letsflutssh/features/tags/tag_assign_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/data_checkboxes.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
 import 'tag_manager_dialog_test.dart';
@@ -55,6 +56,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Finds the data checkbox row whose label reads [text]. The select-all
+  /// header and the per-tag rows all render as [DataCheckboxRow], so the
+  /// label match is what disambiguates them.
+  Finder tagRow(String text) => find.ancestor(
+    of: find.text(text),
+    matching: find.byType(DataCheckboxRow),
+  );
+
   tearDown(() => Toast.clearAllForTest());
 
   group('TagAssignDialog', () {
@@ -70,74 +79,107 @@ void main() {
       await openDialog(tester);
 
       expect(find.text('No tags yet'), findsOneWidget);
+      // Manage Tags lives in the footer; the body shows the empty-state
+      // icon + message (no duplicate button in the body).
       expect(find.text('Manage Tags'), findsOneWidget);
     });
 
-    testWidgets('shows checkboxes for each tag', (tester) async {
+    testWidgets('renders each tag as a data checkbox row', (tester) async {
       fakeStore = FakeTagStore([testTag, testTag2]);
       await openDialog(tester);
 
-      expect(find.text('Production'), findsOneWidget);
-      expect(find.text('Staging'), findsOneWidget);
-      expect(find.byType(CheckboxListTile), findsNWidgets(2));
+      expect(tagRow('Production'), findsOneWidget);
+      expect(tagRow('Staging'), findsOneWidget);
     });
 
-    testWidgets('checking a tag assigns it', (tester) async {
+    testWidgets('tapping an unassigned tag row assigns it', (tester) async {
       fakeStore = FakeTagStore([testTag]);
       await openDialog(tester);
 
-      // Tag should be unchecked initially.
-      final checkbox = tester.widget<CheckboxListTile>(
-        find.byType(CheckboxListTile),
-      );
-      expect(checkbox.value, isFalse);
-
-      // Tap to assign.
-      await tester.tap(find.byType(CheckboxListTile));
+      await tester.tap(tagRow('Production'));
       await tester.pumpAndSettle();
 
-      // Verify the store received the call.
       final assigned = await fakeStore.getForSession('test-session');
       expect(assigned.map((t) => t.id), contains('t1'));
     });
 
-    testWidgets('unchecking a tag unassigns it', (tester) async {
+    testWidgets('tapping an assigned tag row unassigns it', (tester) async {
       fakeStore = FakeTagStore([testTag]);
-      // Pre-assign the tag.
       await fakeStore.tagSession('test-session', testTag.id);
       await openDialog(tester);
 
-      // Tag should be checked initially.
-      final checkbox = tester.widget<CheckboxListTile>(
-        find.byType(CheckboxListTile),
-      );
-      expect(checkbox.value, isTrue);
-
-      // Tap to unassign.
-      await tester.tap(find.byType(CheckboxListTile));
+      await tester.tap(tagRow('Production'));
       await tester.pumpAndSettle();
 
-      // Verify the store no longer has the assignment.
       final assigned = await fakeStore.getForSession('test-session');
       expect(assigned, isEmpty);
     });
 
-    testWidgets('shows correct initial state with pre-assigned tags checked', (
+    testWidgets('pre-assigned tag shows checked, other unchecked', (
       tester,
     ) async {
       fakeStore = FakeTagStore([testTag, testTag2]);
-      // Pre-assign only the first tag.
       await fakeStore.tagSession('test-session', testTag.id);
       await openDialog(tester);
 
-      final checkboxes = tester.widgetList<CheckboxListTile>(
-        find.byType(CheckboxListTile),
+      // Tags are sorted by name → Production first.
+      final productionRow = tester.widget<DataCheckboxRow>(
+        tagRow('Production'),
       );
-      final values = checkboxes.map((cb) => cb.value).toList();
+      final stagingRow = tester.widget<DataCheckboxRow>(tagRow('Staging'));
+      expect(productionRow.value, isTrue);
+      expect(stagingRow.value, isFalse);
+    });
 
-      // Production (t1) is assigned, Staging (t2) is not.
-      // Tags are sorted by name: Production comes first.
-      expect(values, [true, false]);
+    testWidgets('select-all toggles every tag at once', (tester) async {
+      fakeStore = FakeTagStore([testTag, testTag2]);
+      await openDialog(tester);
+
+      // The select-all row is labelled "Select all" and shows the
+      // "0 / 2" counter.
+      final selectAll = tagRow('Select All');
+      expect(selectAll, findsOneWidget);
+
+      await tester.tap(selectAll);
+      await tester.pumpAndSettle();
+
+      final assigned = await fakeStore.getForSession('test-session');
+      expect(assigned.map((t) => t.id).toSet(), {'t1', 't2'});
+    });
+
+    testWidgets('select-all with all assigned clears every tag', (
+      tester,
+    ) async {
+      fakeStore = FakeTagStore([testTag, testTag2]);
+      await fakeStore.tagSession('test-session', testTag.id);
+      await fakeStore.tagSession('test-session', testTag2.id);
+      await openDialog(tester);
+
+      await tester.tap(tagRow('Select All'));
+      await tester.pumpAndSettle();
+
+      final assigned = await fakeStore.getForSession('test-session');
+      expect(assigned, isEmpty);
+    });
+
+    testWidgets('search field only appears past the threshold', (tester) async {
+      // Two tags — well under the threshold, no search box.
+      fakeStore = FakeTagStore([testTag, testTag2]);
+      await openDialog(tester);
+      expect(find.byIcon(Icons.search), findsNothing);
+
+      // Close the dialog so the next pump rebuilds clean.
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      // Seven tags — search field appears.
+      final many = [
+        for (var i = 0; i < 7; i++)
+          Tag(id: 't$i', name: 'Tag $i', createdAt: DateTime(2024, 1, i + 1)),
+      ];
+      fakeStore = FakeTagStore(many);
+      await openDialog(tester);
+      expect(find.byIcon(Icons.search), findsOneWidget);
     });
 
     testWidgets('close button dismisses dialog', (tester) async {
@@ -147,7 +189,6 @@ void main() {
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
 
-      // Dialog title should be gone.
       expect(find.text('Edit Tags'), findsNothing);
     });
   });

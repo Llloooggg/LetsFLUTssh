@@ -462,6 +462,10 @@ class STr extends S {
   String get noPasswordsInQr => 'Bu QR kodunda şifre veya anahtar yok';
 
   @override
+  String get qrContainsCredentialsWarning =>
+      'Bu QR kodu kimlik bilgilerini içerir. Ekranı gizli tutun.';
+
+  @override
   String get copyLink => 'Bağlantıyı Kopyala';
 
   @override

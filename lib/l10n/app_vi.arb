@@ -129,6 +129,7 @@
   "qrGenerationFailed": "Tạo mã QR thất bại",
   "scanWithCameraApp": "Quét bằng ứng dụng camera trên thiết bị\ncó cài LetsFLUTssh.",
   "noPasswordsInQr": "Không có mật khẩu hoặc khóa trong mã QR này",
+  "qrContainsCredentialsWarning": "Mã QR này chứa thông tin xác thực. Giữ màn hình riêng tư.",
   "copyLink": "Sao chép liên kết",
   "linkCopied": "Đã sao chép liên kết vào bộ nhớ tạm",
   "hostKeyChanged": "Khóa máy chủ đã thay đổi!",

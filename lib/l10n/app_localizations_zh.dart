@@ -454,6 +454,9 @@ class SZh extends S {
   String get noPasswordsInQr => '此 QR 码中不包含密码或密钥';
 
   @override
+  String get qrContainsCredentialsWarning => '此二维码包含凭据。请保持屏幕隐私。';
+
+  @override
   String get copyLink => '复制链接';
 
   @override

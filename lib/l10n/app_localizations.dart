@@ -921,6 +921,12 @@ abstract class S {
   /// **'No passwords or keys are in this QR code'**
   String get noPasswordsInQr;
 
+  /// No description provided for @qrContainsCredentialsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This QR code contains session credentials. Keep the screen private.'**
+  String get qrContainsCredentialsWarning;
+
   /// No description provided for @copyLink.
   ///
   /// In en, this message translates to:

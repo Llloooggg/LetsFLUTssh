@@ -40,11 +40,40 @@ void main() {
       expect(find.textContaining('Scan with any camera app'), findsOneWidget);
     });
 
-    testWidgets('shows no-credentials disclaimer', (tester) async {
+    testWidgets('shows no-credentials disclaimer by default', (tester) async {
       await tester.pumpWidget(buildApp(data: testPayload));
       await tester.pumpAndSettle();
 
+      // Defaulting `containsCredentials` to false keeps the neutral info
+      // message — the earlier "lie" about "No passwords in QR" is only
+      // shown when the payload really has none.
       expect(find.textContaining('No passwords or keys'), findsOneWidget);
+      expect(find.textContaining('contains session credentials'), findsNothing);
+    });
+
+    testWidgets('swaps to orange warning when containsCredentials=true', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: QrDisplayScreen(
+            data: testPayload,
+            sessionCount: 1,
+            containsCredentials: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('contains session credentials'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('No passwords or keys'), findsNothing);
+      // Warning icon lives inside the badge.
+      expect(find.byIcon(Icons.warning_amber), findsOneWidget);
     });
 
     testWidgets('shows app bar with title', (tester) async {
