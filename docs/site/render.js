@@ -159,13 +159,17 @@
     setMeta('description', tagline);
 
     /* Title + logo (cfg override, else auto-detected) */
-    document.getElementById('hero-title').textContent = name;
+    var titleEl = document.getElementById('hero-title');
+    titleEl.textContent = name;
+    titleEl.classList.remove('hero-title-skeleton');
     var logo = cfg.logo || detectedLogo;
     if (logo) {
       var logoEl = document.getElementById('hero-logo');
-      logoEl.src = logo;
       logoEl.alt = name + ' logo';
-      logoEl.style.display = '';
+      /* Only reveal once the image has actually loaded — avoids a
+       * flash of broken-image icon between src-set and load. */
+      logoEl.onload = function () { logoEl.style.display = ''; };
+      logoEl.src = logo;
       /* Favicon */
       var fav = document.createElement('link');
       fav.rel = 'icon';
@@ -217,7 +221,8 @@
       var badges = document.getElementById('hero-badges');
       badges.innerHTML = rows.map(function (row) {
         return '<div class="badge-row">' + row.filter(Boolean).map(function (b) {
-          var img = '<img src="' + esc(b.img) + '" alt="' + esc(b.alt || '') + '">';
+          var img = '<img src="' + esc(b.img) + '" alt="' + esc(b.alt || '')
+            + '" onload="this.classList.add(\'loaded\')">';
           return b.link
             ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">' + img + '</a>'
             : img;
@@ -253,7 +258,8 @@
     document.getElementById('screenshots-section').style.display = '';
     document.getElementById('screenshot-grid').innerHTML = shots.map(function (s) {
       return '<figure class="screenshot-clickable">'
-        + '<img src="' + esc(s.src) + '" alt="' + esc(s.caption || 'Screenshot') + '">'
+        + '<img src="' + esc(s.src) + '" alt="' + esc(s.caption || 'Screenshot')
+        + '" onload="this.classList.add(\'loaded\')">'
         + (s.caption ? '<figcaption>' + esc(s.caption) + '</figcaption>' : '')
         + '</figure>';
     }).join('');
