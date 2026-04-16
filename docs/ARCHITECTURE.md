@@ -2324,6 +2324,7 @@ All files live in the platform's app-support directory (see **Location** below).
 - `openDatabase(encryptionKey: key)` → SQLite3MultipleCiphers with `PRAGMA key = "x'hex'"`
 - `openTestDatabase()` → in-memory SQLite for tests
 - Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
+- **POSIX permissions:** `restrictDatabaseFilePermissions()` runs on every open and forces `chmod 600` on `letsflutssh.db` and any existing `-journal` / `-wal` / `-shm` sidecar (Linux/macOS via `chmod`, Windows via `icacls`). Idempotent; logs and continues if the call fails so a permission-system quirk never blocks startup. The file is pre-created before SQLite touches it so the very first encrypted page lands on a 0600 inode.
 
 **Config stays file-based:** `config.json` is loaded before the database opens because it contains the theme (needed for splash screen) and security preferences. Will migrate to DB in a future release.
 

@@ -5,10 +5,16 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'database.dart';
 
 const _dbFileName = 'letsflutssh.db';
+
+/// SQLite sidecar files that may sit next to the main DB. Created lazily by
+/// SQLite during write transactions / WAL mode; we restrict their permissions
+/// on every open in case they were left behind by a crash.
+const _dbSidecarSuffixes = ['-journal', '-wal', '-shm'];
 
 /// Whether the database file already exists on disk.
 ///
@@ -54,6 +60,19 @@ Future<void> rekeyDatabase(AppDatabase db, Uint8List? newKey) async {
   );
 }
 
+/// Restrict the encrypted DB file (and any SQLite sidecars) to owner-only
+/// access. Idempotent: safe to call on every open. Logs and continues on
+/// failure — losing the chmod is worse than refusing to start.
+Future<void> restrictDatabaseFilePermissions(String dbPath) async {
+  await restrictFilePermissions(dbPath);
+  for (final suffix in _dbSidecarSuffixes) {
+    final sidecar = File('$dbPath$suffix');
+    if (await sidecar.exists()) {
+      await restrictFilePermissions(sidecar.path);
+    }
+  }
+}
+
 /// Open an in-memory database for tests (no encryption, no file I/O).
 AppDatabase openTestDatabase() {
   return AppDatabase(
@@ -73,6 +92,13 @@ LazyDatabase _openConnection({Uint8List? encryptionKey}) {
       'encrypted=${encryptionKey != null}',
       name: 'DatabaseOpener',
     );
+
+    // Pre-create the file so we can lock down permissions BEFORE SQLite
+    // writes the first encrypted page. SQLite preserves existing mode.
+    if (!await file.exists()) {
+      await file.create(recursive: true);
+    }
+    await restrictDatabaseFilePermissions(file.path);
 
     return NativeDatabase(
       file,
