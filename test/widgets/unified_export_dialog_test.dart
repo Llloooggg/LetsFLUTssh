@@ -210,8 +210,8 @@ void main() {
         expect(checkboxFor('App Settings').value, isFalse);
         expect(checkboxFor('Session passwords').value, isTrue);
         expect(checkboxFor('Session keys').value, isFalse);
-        expect(checkboxFor('Session keys from manager').value, isFalse);
-        expect(checkboxFor('All keys from manager').value, isFalse);
+        expect(checkboxFor('Session SSH keys').value, isFalse);
+        expect(checkboxFor('All manager keys').value, isFalse);
         expect(checkboxFor('Known Hosts').value, isFalse);
         expect(checkboxFor('Tags').value, isTrue);
         expect(checkboxFor('Snippets').value, isTrue);
@@ -779,10 +779,7 @@ void main() {
           );
           await tester.pumpAndSettle();
 
-          // BUG: row label is hardcoded "All keys from manager" (L818)
-          // instead of l10n key allManagerKeys. Testing the literal text
-          // until the code-side fix lands.
-          await tester.tap(find.text('All keys from manager'));
+          await tester.tap(find.text('All manager keys'));
           await tester.pump();
           await tester.tap(find.text('Export'));
           await tester.pumpAndSettle();

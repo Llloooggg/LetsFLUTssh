@@ -802,7 +802,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
         ),
         _buildCheckboxRow(
           Icons.vpn_key,
-          'Session keys from manager',
+          S.of(context).sessionSshKeys,
           _options.includeManagerKeys,
           () => setState(() {
             _invalidatePayloadCache();
@@ -815,7 +815,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
         ),
         _buildCheckboxRow(
           Icons.cloud_done,
-          'All keys from manager',
+          S.of(context).allManagerKeys,
           _options.includeAllManagerKeys,
           () => setState(() {
             _invalidatePayloadCache();
