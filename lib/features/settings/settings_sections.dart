@@ -287,66 +287,78 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
-    final l10n = S.of(context);
     if (enable) {
-      // Enabling: ask the user for their master password so we can cache the
-      // DB key in the biometric-gated vault. Without a fresh prompt there's
-      // nothing to cache — the live key in SecurityState is the same bytes,
-      // but requiring the password here matches user expectation and rejects
-      // accidental taps.
-      final currentCtrl = TextEditingController();
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
-      );
-      if (password == null || !context.mounted) return;
-      final manager = ref.read(masterPasswordProvider);
-      if (!await manager.verify(password)) {
-        if (context.mounted) {
-          Toast.show(
-            context,
-            message: S.of(context).currentPasswordIncorrect,
-            level: ToastLevel.error,
-          );
-        }
-        return;
-      }
-      final bio = ref.read(biometricAuthProvider);
-      final ok = await bio.authenticate(l10n.biometricUnlockPrompt);
-      if (!ok) return;
-      final key = await manager.deriveKey(password);
-      final vault = ref.read(biometricKeyVaultProvider);
-      final stored = await vault.store(key);
-      if (!mounted) return;
-      if (!stored) {
-        if (context.mounted) {
-          Toast.show(
-            context,
-            message: l10n.biometricEnableFailed,
-            level: ToastLevel.error,
-          );
-        }
-        return;
-      }
-      setState(() => _biometricEnabled = true);
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: l10n.biometricEnabled,
-          level: ToastLevel.success,
-        );
-      }
+      await _enableBiometricUnlock(context);
     } else {
-      await ref.read(biometricKeyVaultProvider).clear();
-      if (!mounted) return;
-      setState(() => _biometricEnabled = false);
+      await _disableBiometricUnlock(context);
+    }
+  }
+
+  /// Cache the DB key in the biometric-gated vault. Requires a fresh
+  /// master-password prompt so an accidental toggle tap can't silently
+  /// enable biometric access; the live key in SecurityState is the same
+  /// bytes we'd store, but forcing re-entry matches user expectation.
+  Future<void> _enableBiometricUnlock(BuildContext context) async {
+    final l10n = S.of(context);
+    final currentCtrl = TextEditingController();
+    final password = await AppDialog.show<String>(
+      context,
+      builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+    );
+    if (password == null || !context.mounted) return;
+
+    final manager = ref.read(masterPasswordProvider);
+    if (!await manager.verify(password)) {
       if (context.mounted) {
         Toast.show(
           context,
-          message: l10n.biometricDisabled,
-          level: ToastLevel.success,
+          message: S.of(context).currentPasswordIncorrect,
+          level: ToastLevel.error,
         );
       }
+      return;
+    }
+
+    final bio = ref.read(biometricAuthProvider);
+    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) return;
+
+    final key = await manager.deriveKey(password);
+    final vault = ref.read(biometricKeyVaultProvider);
+    final stored = await vault.store(key);
+    if (!mounted) return;
+
+    if (!stored) {
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricEnableFailed,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+
+    setState(() => _biometricEnabled = true);
+    if (context.mounted) {
+      Toast.show(
+        context,
+        message: l10n.biometricEnabled,
+        level: ToastLevel.success,
+      );
+    }
+  }
+
+  Future<void> _disableBiometricUnlock(BuildContext context) async {
+    final l10n = S.of(context);
+    await ref.read(biometricKeyVaultProvider).clear();
+    if (!mounted) return;
+    setState(() => _biometricEnabled = false);
+    if (context.mounted) {
+      Toast.show(
+        context,
+        message: l10n.biometricDisabled,
+        level: ToastLevel.success,
+      );
     }
   }
 
@@ -1339,71 +1351,18 @@ class _ExportImportTile extends ConsumerWidget {
     final path = await _pickLfsFile(context);
     if (path == null || !context.mounted) return;
 
-    // Skip the password prompt for unencrypted (plain-ZIP) archives —
-    // ExportImport.import_ accepts an empty password in that branch.
-    final isEncrypted = LfsImportDialog.probeEncrypted(path);
-
     final passwordCtrl = TextEditingController();
     try {
-      final String? password;
-      if (isEncrypted) {
-        password = await AppDialog.show<String>(
-          context,
-          builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
-        );
-        if (password == null || !context.mounted) return;
-      } else {
-        password = '';
-      }
+      final password = await _askImportPassword(context, path, passwordCtrl);
+      if (password == null || !context.mounted) return;
 
-      // Decrypt once — reuse for both preview and import to avoid running
-      // the expensive PBKDF2 key derivation (600k iterations) twice.
-      final l10n = S.of(context);
-      final reporter = ProgressReporter(l10n.progressReadingArchive);
-      AppProgressBarDialog.show(context, reporter);
-      var progressShown = true;
-      final ImportResult fullImport;
-      try {
-        fullImport = await ExportImport.import_(
-          filePath: path,
-          masterPassword: password,
-          mode: ImportMode.merge, // placeholder — user picks mode in preview
-          options: const ExportOptions(
-            includeSessions: true,
-            includeConfig: true,
-            includeKnownHosts: true,
-            includeAllManagerKeys: true,
-            includeTags: true,
-            includeSnippets: true,
-          ),
-          progress: reporter,
-          l10n: l10n,
-        );
-      } finally {
-        if (progressShown && context.mounted) {
-          Navigator.of(context).pop();
-          progressShown = false;
-        }
-        reporter.dispose();
-      }
-      if (!context.mounted) return;
-
-      final preview = LfsPreview(
-        sessions: fullImport.sessions,
-        hasConfig: fullImport.config != null,
-        hasKnownHosts:
-            fullImport.knownHostsContent != null &&
-            fullImport.knownHostsContent!.isNotEmpty,
-        emptyFolders: fullImport.emptyFolders,
-        managerKeyCount: fullImport.managerKeys.length,
-        tagCount: fullImport.tags.length,
-        snippetCount: fullImport.snippets.length,
-      );
+      final fullImport = await _decryptForPreview(context, path, password);
+      if (fullImport == null || !context.mounted) return;
 
       final importConfig = await LfsImportPreviewDialog.show(
         context,
         filePath: path,
-        preview: preview,
+        preview: _buildPreview(fullImport),
       );
       if (importConfig == null || !context.mounted) return;
 
@@ -1425,6 +1384,73 @@ class _ExportImportTile extends ConsumerWidget {
       passwordCtrl.dispose();
     }
   }
+
+  /// Ask for the archive's master password. Skips the prompt entirely
+  /// for unencrypted plain-ZIP archives (their first 4 bytes are the
+  /// ZIP local-file-header magic) — `ExportImport.import_` accepts an
+  /// empty password in that branch. Returns null on cancel.
+  Future<String?> _askImportPassword(
+    BuildContext context,
+    String path,
+    TextEditingController passwordCtrl,
+  ) async {
+    if (!LfsImportDialog.probeEncrypted(path)) return '';
+    final password = await AppDialog.show<String>(
+      context,
+      builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
+    );
+    return password;
+  }
+
+  /// Decrypt the archive once so preview + final import share the PBKDF2
+  /// key derivation (600k iterations is too expensive to run twice).
+  /// Shows a progress dialog for the duration. Returns null when the
+  /// outer widget is no longer mounted after the work completes.
+  Future<ImportResult?> _decryptForPreview(
+    BuildContext context,
+    String path,
+    String password,
+  ) async {
+    final l10n = S.of(context);
+    final reporter = ProgressReporter(l10n.progressReadingArchive);
+    AppProgressBarDialog.show(context, reporter);
+    var progressShown = true;
+    try {
+      return await ExportImport.import_(
+        filePath: path,
+        masterPassword: password,
+        mode: ImportMode.merge, // placeholder — user picks mode in preview
+        options: const ExportOptions(
+          includeSessions: true,
+          includeConfig: true,
+          includeKnownHosts: true,
+          includeAllManagerKeys: true,
+          includeTags: true,
+          includeSnippets: true,
+        ),
+        progress: reporter,
+        l10n: l10n,
+      );
+    } finally {
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
+      }
+      reporter.dispose();
+    }
+  }
+
+  LfsPreview _buildPreview(ImportResult fullImport) => LfsPreview(
+    sessions: fullImport.sessions,
+    hasConfig: fullImport.config != null,
+    hasKnownHosts:
+        fullImport.knownHostsContent != null &&
+        fullImport.knownHostsContent!.isNotEmpty,
+    emptyFolders: fullImport.emptyFolders,
+    managerKeyCount: fullImport.managerKeys.length,
+    tagCount: fullImport.tags.length,
+    snippetCount: fullImport.snippets.length,
+  );
 
   /// Apply an already-decrypted [ImportResult] to state.
   ///

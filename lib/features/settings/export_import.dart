@@ -665,31 +665,12 @@ class ExportImport {
       iterations: iterations,
     );
 
-    // Parse config (only if requested and present)
-    AppConfig? config;
-    if (options.includeConfig) {
-      final configFile = parsed.archive.findFile(_configFile);
-      if (configFile != null) {
-        final json = utf8.decode(configFile.content as List<int>);
-        config = AppConfig.fromJson(jsonDecode(json) as Map<String, dynamic>);
-      }
-    }
-
-    // Known hosts — return content only if requested
-    String? knownHostsContent;
-    if (options.includeKnownHosts) {
-      final khFile = parsed.archive.findFile(_knownHostsFile);
-      if (khFile != null) {
-        final bytes = khFile.content as List<int>;
-        if (bytes.length > maxKnownHostsBytes) {
-          throw LfsKnownHostsTooLargeException(
-            size: bytes.length,
-            limit: maxKnownHostsBytes,
-          );
-        }
-        knownHostsContent = utf8.decode(bytes);
-      }
-    }
+    final config = options.includeConfig
+        ? _readConfigEntry(parsed.archive)
+        : null;
+    final knownHostsContent = options.includeKnownHosts
+        ? _readKnownHostsEntry(parsed.archive)
+        : null;
 
     return ImportResult(
       sessions: options.includeSessions ? parsed.sessions : [],
@@ -708,6 +689,33 @@ class ExportImport {
       includeKnownHosts: options.includeKnownHosts,
       skippedSessions: options.includeSessions ? parsed.skippedSessions : 0,
     );
+  }
+
+  /// Read and parse the optional `config.json` entry. Returns null if
+  /// the archive doesn't carry one — callers decide what "no config"
+  /// means for their mode.
+  static AppConfig? _readConfigEntry(Archive archive) {
+    final configFile = archive.findFile(_configFile);
+    if (configFile == null) return null;
+    final json = utf8.decode(configFile.content as List<int>);
+    return AppConfig.fromJson(jsonDecode(json) as Map<String, dynamic>);
+  }
+
+  /// Read the optional `known_hosts` entry. Returns null when the
+  /// archive doesn't carry one; throws [LfsKnownHostsTooLargeException]
+  /// when it does but the decompressed blob exceeds the per-entry cap
+  /// — caller must surface that as a localized error.
+  static String? _readKnownHostsEntry(Archive archive) {
+    final khFile = archive.findFile(_knownHostsFile);
+    if (khFile == null) return null;
+    final bytes = khFile.content as List<int>;
+    if (bytes.length > maxKnownHostsBytes) {
+      throw LfsKnownHostsTooLargeException(
+        size: bytes.length,
+        limit: maxKnownHostsBytes,
+      );
+    }
+    return utf8.decode(bytes);
   }
 
   // --- Crypto helpers ---

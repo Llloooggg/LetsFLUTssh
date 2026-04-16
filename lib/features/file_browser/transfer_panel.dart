@@ -315,6 +315,16 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     });
   }
 
+  /// Trailing icon for a sort-menu row: an arrow in the current sort
+  /// direction when [col] is the active column, nothing otherwise.
+  Widget? _sortDirectionIcon(TransferSortColumn col) {
+    if (col != _sortColumn) return null;
+    return Icon(
+      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+      size: 18,
+    );
+  }
+
   /// Bottom-sheet sort picker for mobile. The scrollable header layout
   /// pushes the time column off-screen by default, so reaching it via the
   /// header is fiddly on a phone — match the file-browser pattern and
@@ -349,14 +359,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               ListTile(
                 leading: Icon(icon),
                 title: Text(label),
-                trailing: col == _sortColumn
-                    ? Icon(
-                        _sortAscending
-                            ? Icons.arrow_upward
-                            : Icons.arrow_downward,
-                        size: 18,
-                      )
-                    : null,
+                trailing: _sortDirectionIcon(col),
                 selected: col == _sortColumn,
                 onTap: () {
                   Navigator.pop(ctx);
