@@ -387,6 +387,7 @@
   "autoLockSubtitle": "在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。",
   "autoLockOff": "关闭",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分钟}}",
+  "errLfsNotArchive": "所选文件不是 LetsFLUTssh 归档。",
   "errLfsDecryptFailed": "主密码错误或 .lfs 归档已损坏",
   "errLfsArchiveTooLarge": "归档过大（{sizeMb} MB）。上限为 {limitMb} MB — 已在解密前中止以保护内存。",
   "errLfsImportRolledBack": "导入失败 — 您的数据已恢复到导入前的状态。({cause})",

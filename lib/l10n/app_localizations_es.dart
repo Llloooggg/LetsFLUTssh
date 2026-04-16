@@ -1241,6 +1241,10 @@ class SEs extends S {
   }
 
   @override
+  String get errLfsNotArchive =>
+      'El archivo seleccionado no es un archivo de LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Contraseña maestra incorrecta o archivo .lfs dañado';
 

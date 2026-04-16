@@ -1202,6 +1202,9 @@ class SZh extends S {
   }
 
   @override
+  String get errLfsNotArchive => '所选文件不是 LetsFLUTssh 归档。';
+
+  @override
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
 
   @override

@@ -387,6 +387,7 @@
   "autoLockSubtitle": "Khóa giao diện sau khoảng thời gian không hoạt động này. Cơ sở dữ liệu mã hóa chỉ bị khóa lại khi không còn phiên SSH nào hoạt động, để các thao tác dài không bị ngắt.",
   "autoLockOff": "Tắt",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} phút}}",
+  "errLfsNotArchive": "Tệp đã chọn không phải là tệp lưu trữ LetsFLUTssh.",
   "errLfsDecryptFailed": "Mật khẩu chính sai hoặc tệp .lfs bị hỏng",
   "errLfsArchiveTooLarge": "Tệp lưu trữ quá lớn ({sizeMb} MB). Giới hạn là {limitMb} MB — đã hủy trước khi giải mã để bảo vệ bộ nhớ.",
   "errLfsImportRolledBack": "Nhập thất bại — dữ liệu của bạn đã được khôi phục về trạng thái trước khi nhập. ({cause})",

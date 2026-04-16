@@ -1207,6 +1207,9 @@ class SJa extends S {
   }
 
   @override
+  String get errLfsNotArchive => '選択したファイルは LetsFLUTssh のアーカイブではありません。';
+
+  @override
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
 
   @override

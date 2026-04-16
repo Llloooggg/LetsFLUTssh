@@ -1351,9 +1351,23 @@ class _ExportImportTile extends ConsumerWidget {
     final path = await _pickLfsFile(context);
     if (path == null || !context.mounted) return;
 
+    // Validate the file before anything else. On Android SAF the `.lfs`
+    // extension filter is advisory (no registered MIME type), so users can
+    // land on any file — including APKs, which are also ZIPs. `probeArchive`
+    // rejects non-LFS content before we bother asking for a password.
+    final kind = ExportImport.probeArchive(path);
+    if (kind == LfsArchiveKind.notLfs) {
+      Toast.show(
+        context,
+        message: S.of(context).errLfsNotArchive,
+        level: ToastLevel.error,
+      );
+      return;
+    }
+
     final passwordCtrl = TextEditingController();
     try {
-      final password = await _askImportPassword(context, path, passwordCtrl);
+      final password = await _askImportPassword(context, kind, passwordCtrl);
       if (password == null || !context.mounted) return;
 
       final fullImport = await _decryptForPreview(context, path, password);
@@ -1385,16 +1399,15 @@ class _ExportImportTile extends ConsumerWidget {
     }
   }
 
-  /// Ask for the archive's master password. Skips the prompt entirely
-  /// for unencrypted plain-ZIP archives (their first 4 bytes are the
-  /// ZIP local-file-header magic) — `ExportImport.import_` accepts an
-  /// empty password in that branch. Returns null on cancel.
+  /// Ask for the archive's master password. Skips the prompt entirely for
+  /// an unencrypted archive — `ExportImport.import_` accepts an empty
+  /// password in that branch. Returns null on cancel.
   Future<String?> _askImportPassword(
     BuildContext context,
-    String path,
+    LfsArchiveKind kind,
     TextEditingController passwordCtrl,
   ) async {
-    if (!LfsImportDialog.probeEncrypted(path)) return '';
+    if (kind == LfsArchiveKind.unencryptedLfs) return '';
     final password = await AppDialog.show<String>(
       context,
       builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),

@@ -82,6 +82,54 @@ class ExportImport {
         data[3] == 0x04;
   }
 
+  /// Probe an `.lfs` candidate file and decide what the import flow
+  /// should do with it before asking for a password.
+  ///
+  /// * ZIP magic + at least one of our marker entries → [LfsArchiveKind.unencryptedLfs]
+  /// * ZIP magic but no marker entries (e.g. an `.apk` or unrelated archive
+  ///   picked by mistake — SAF on Android ignores the `.lfs` extension
+  ///   filter) → [LfsArchiveKind.notLfs]
+  /// * Anything else (non-ZIP header) → [LfsArchiveKind.encryptedLfs];
+  ///   definitive validation happens after decryption.
+  ///
+  /// Read/parse failures collapse to [LfsArchiveKind.notLfs] so the caller
+  /// can show a single friendly rejection instead of surfacing an IO stack.
+  static LfsArchiveKind probeArchive(String filePath) {
+    try {
+      final file = File(filePath);
+      final Uint8List head;
+      final raf = file.openSync();
+      try {
+        head = Uint8List(4);
+        final read = raf.readIntoSync(head);
+        if (read < 4) return LfsArchiveKind.notLfs;
+      } finally {
+        raf.closeSync();
+      }
+      if (!isUnencryptedArchive(head)) return LfsArchiveKind.encryptedLfs;
+
+      // Plain ZIP — decode fully and look for our marker entries. APKs are
+      // also ZIPs but carry none of these, so they get filtered out here.
+      if (file.lengthSync() > maxArchiveBytes) return LfsArchiveKind.notLfs;
+      final Archive archive;
+      try {
+        archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
+      } catch (_) {
+        return LfsArchiveKind.notLfs;
+      }
+      const markers = [_manifestFile, _sessionsFile, _configFile, _keysFile];
+      final isOurs = markers.any((name) => archive.findFile(name) != null);
+      return isOurs ? LfsArchiveKind.unencryptedLfs : LfsArchiveKind.notLfs;
+    } catch (e) {
+      AppLogger.instance.log(
+        'probeArchive failed — treating as notLfs',
+        name: 'ExportImport',
+        error: e,
+      );
+      return LfsArchiveKind.notLfs;
+    }
+  }
+
   static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
@@ -867,6 +915,25 @@ class LfsManifest {
     : schemaVersion = 1,
       appVersion = null,
       createdAt = null;
+}
+
+/// Classification of a file offered to the import flow. Produced by
+/// [ExportImport.probeArchive] before any password is requested.
+enum LfsArchiveKind {
+  /// Plain ZIP carrying at least one LetsFLUTssh marker entry — import
+  /// can proceed with an empty password.
+  unencryptedLfs,
+
+  /// Non-ZIP header — most likely an AES-GCM payload from our encryptor.
+  /// The caller must still prompt for a password; final validation runs
+  /// after decryption.
+  encryptedLfs,
+
+  /// File is readable but is not a LetsFLUTssh archive (wrong format, or
+  /// an unrelated ZIP like an `.apk` picked by mistake on Android — SAF
+  /// ignores the `allowedExtensions: ['lfs']` filter for unregistered
+  /// MIME types).
+  notLfs,
 }
 
 /// Thrown when an .lfs archive was written by a newer app version with a

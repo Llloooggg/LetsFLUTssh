@@ -1231,6 +1231,9 @@ class SEn extends S {
   }
 
   @override
+  String get errLfsNotArchive => 'Selected file is not a LetsFLUTssh archive.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Wrong master password or corrupted .lfs archive';
 

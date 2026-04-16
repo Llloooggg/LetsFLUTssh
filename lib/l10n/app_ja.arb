@@ -387,6 +387,7 @@
   "autoLockSubtitle": "この時間操作がないと UI をロックします。暗号化データベースはアクティブな SSH セッションがない場合のみ再ロックされ、長時間の処理は接続を維持します。",
   "autoLockOff": "オフ",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分}}",
+  "errLfsNotArchive": "選択したファイルは LetsFLUTssh のアーカイブではありません。",
   "errLfsDecryptFailed": "マスターパスワードが間違っているか、.lfs アーカイブが破損しています",
   "errLfsArchiveTooLarge": "アーカイブが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。メモリ保護のため、復号前に中止しました。",
   "errLfsImportRolledBack": "インポート失敗 — データはインポート前の状態に復元されました。({cause})",

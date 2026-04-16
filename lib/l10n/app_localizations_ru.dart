@@ -1241,6 +1241,10 @@ class SRu extends S {
   }
 
   @override
+  String get errLfsNotArchive =>
+      'Выбранный файл не является архивом LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed =>
       'Неверный мастер-пароль или повреждённый архив .lfs';
 

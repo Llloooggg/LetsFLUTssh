@@ -221,33 +221,6 @@ void main() {
     });
   });
 
-  group('LfsImportDialog.probeEncrypted', () {
-    test('returns false for a raw ZIP header', () {
-      final zip = File('${tempDir.path}/raw.zip');
-      zip.writeAsBytesSync([0x50, 0x4B, 0x03, 0x04, 0xFF, 0xFF]);
-      expect(LfsImportDialog.probeEncrypted(zip.path), isFalse);
-    });
-
-    test('returns true for random (encrypted-looking) bytes', () {
-      final enc = File('${tempDir.path}/enc.lfs');
-      enc.writeAsBytesSync([0x13, 0x37, 0x00, 0x42, 0xAB, 0xCD]);
-      expect(LfsImportDialog.probeEncrypted(enc.path), isTrue);
-    });
-
-    test('returns true for a file shorter than 4 bytes', () {
-      final tiny = File('${tempDir.path}/tiny.lfs');
-      tiny.writeAsBytesSync([0x50, 0x4B]);
-      expect(LfsImportDialog.probeEncrypted(tiny.path), isTrue);
-    });
-
-    test('returns true when the file does not exist (safe default)', () {
-      expect(
-        LfsImportDialog.probeEncrypted('${tempDir.path}/missing.lfs'),
-        isTrue,
-      );
-    });
-  });
-
   group('LfsImportDialog — dialog route (Navigator.pop coverage)', () {
     testWidgets('Import with password returns result with password and mode', (
       tester,

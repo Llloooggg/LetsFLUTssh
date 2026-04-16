@@ -1228,6 +1228,10 @@ class SVi extends S {
   }
 
   @override
+  String get errLfsNotArchive =>
+      'Tệp đã chọn không phải là tệp lưu trữ LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
 
   @override

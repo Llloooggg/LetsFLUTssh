@@ -1206,6 +1206,9 @@ class SKo extends S {
   }
 
   @override
+  String get errLfsNotArchive => '선택한 파일은 LetsFLUTssh 아카이브가 아닙니다.';
+
+  @override
   String get errLfsDecryptFailed => '마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다';
 
   @override

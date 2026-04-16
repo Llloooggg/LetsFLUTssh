@@ -1,12 +1,10 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
-import '../utils/logger.dart';
 import 'app_dialog.dart';
 import 'mode_button.dart';
 import 'styled_form_field.dart';
@@ -29,37 +27,6 @@ class LfsImportDialog extends StatefulWidget {
     required this.filePath,
     this.isEncrypted = true,
   });
-
-  /// Detect whether the `.lfs` file at [filePath] is encrypted by reading
-  /// its first 4 bytes and comparing them to the ZIP local-file-header
-  /// magic. Returns true for encrypted archives, including when the probe
-  /// itself fails — defaulting to asking for a password is the safer UX
-  /// than silently attempting an unencrypted import of a malformed file.
-  ///
-  /// Reads synchronously because the cost (one open/close + 4-byte read) is
-  /// negligible and keeping the call sync means callers from the main
-  /// isolate don't introduce an extra frame gap before the follow-up
-  /// dialog appears.
-  static bool probeEncrypted(String filePath) {
-    try {
-      final raf = File(filePath).openSync();
-      try {
-        final head = Uint8List(4);
-        final read = raf.readIntoSync(head);
-        if (read < 4) return true;
-        return !ExportImport.isUnencryptedArchive(head);
-      } finally {
-        raf.closeSync();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'probeEncrypted failed — defaulting to encrypted',
-        name: 'LfsImportDialog',
-        error: e,
-      );
-      return true;
-    }
-  }
 
   /// Show the dialog and return the result.
   static Future<LfsImportDialogResult?> show(

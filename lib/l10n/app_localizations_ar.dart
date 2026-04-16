@@ -1240,6 +1240,9 @@ class SAr extends S {
   }
 
   @override
+  String get errLfsNotArchive => 'الملف المحدد ليس أرشيف LetsFLUTssh.';
+
+  @override
   String get errLfsDecryptFailed =>
       'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
 

@@ -1235,6 +1235,9 @@ class SHi extends S {
   }
 
   @override
+  String get errLfsNotArchive => 'चयनित फ़ाइल LetsFLUTssh संग्रह नहीं है।';
+
+  @override
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
 
   @override

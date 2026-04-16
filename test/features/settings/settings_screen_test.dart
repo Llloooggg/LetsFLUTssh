@@ -40,6 +40,12 @@ class _MockFilePickerPlatform extends FilePickerPlatform
   String? directoryPath;
   String? savePath;
 
+  /// File returned by [pickFiles]. Tests that exercise the import flow set
+  /// this to a real on-disk file so `ExportImport.probeArchive` can read it
+  /// and classify it; a missing path is correctly rejected now that the
+  /// import flow validates before prompting for a password.
+  String? pickedPath;
+
   @override
   Future<String?> getDirectoryPath({
     String? dialogTitle,
@@ -73,8 +79,14 @@ class _MockFilePickerPlatform extends FilePickerPlatform
     bool readSequential = false,
     bool cancelUploadOnWindowBlur = true,
   }) async {
+    final path = pickedPath;
+    if (path == null) return null;
     return FilePickerResult([
-      PlatformFile(path: '/tmp/test.lfs', name: 'test.lfs', size: 100),
+      PlatformFile(
+        path: path,
+        name: path.split(Platform.pathSeparator).last,
+        size: 100,
+      ),
     ]);
   }
 }
@@ -176,8 +188,16 @@ void main() {
     // Start all collapsible sections expanded so content is immediately visible.
     debugCollapsibleSectionsExpanded = true;
     tempDir = await Directory.systemTemp.createTemp('settings_test_');
-    // Mock FilePicker to prevent native dialog launches in tests.
-    mockFilePicker = _MockFilePickerPlatform()..directoryPath = tempDir.path;
+    // Mock FilePicker to prevent native dialog launches in tests. The
+    // default picked file is a real on-disk encrypted-looking archive so
+    // `ExportImport.probeArchive` classifies it as `encryptedLfs` and the
+    // import flow proceeds to the password prompt. Individual tests can
+    // override `mockFilePicker.pickedPath` to exercise other branches.
+    final encryptedStub = File('${tempDir.path}/test.lfs')
+      ..writeAsBytesSync([0x13, 0x37, 0x00, 0x42, 0xAB, 0xCD]);
+    mockFilePicker = _MockFilePickerPlatform()
+      ..directoryPath = tempDir.path
+      ..pickedPath = encryptedStub.path;
     FilePickerPlatform.instance = mockFilePicker;
     // Fake secure storage so _SecuritySection's keyStorage.isAvailable() works.
     fakeSecureStorage = _FakeFlutterSecureStorage();
@@ -1531,39 +1551,48 @@ void main() {
   // ---------------------------------------------------------------------------
   // Import file not found toast verification
   // ---------------------------------------------------------------------------
-  group('SettingsScreen - Import file not found toast', () {
-    testWidgets('nonexistent file shows File not found toast text', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(800, 3200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  group('SettingsScreen - Import rejects non-LFS files', () {
+    testWidgets(
+      'nonexistent picked path shows errLfsNotArchive toast and does not open import dialog',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 3200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final sessions = [
-        Session(
-          label: 'Test',
-          server: const ServerAddress(
-            host: 'example.com',
-            user: 'user',
-            port: 22,
+        mockFilePicker.pickedPath = '${tempDir.path}/does-not-exist.lfs';
+
+        final sessions = [
+          Session(
+            label: 'Test',
+            server: const ServerAddress(
+              host: 'example.com',
+              user: 'user',
+              port: 22,
+            ),
           ),
-        ),
-      ];
-      await tester.pumpWidget(buildFullApp(sessions: sessions));
-      await tester.pump();
+        ];
+        await tester.pumpWidget(buildFullApp(sessions: sessions));
+        await tester.pump();
 
-      await tester.scrollUntilVisible(
-        find.text('Import archive'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Import archive'));
-      await tester.pump();
+        await tester.scrollUntilVisible(
+          find.text('Import archive'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(find.text('Import archive'));
+        await tester.pump();
 
-      // Import dialog opens
-      expect(find.byType(Dialog), findsOneWidget);
-    });
+        expect(find.byType(Dialog), findsNothing);
+        expect(
+          find.text('Selected file is not a LetsFLUTssh archive.'),
+          findsOneWidget,
+        );
+        // Let the Toast auto-dismiss timer fire before disposing the widget
+        // tree — otherwise the binding flags a pending-timer assertion.
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
