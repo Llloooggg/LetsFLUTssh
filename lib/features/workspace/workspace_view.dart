@@ -182,74 +182,77 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final isFocused = panel.id == focusedPanelId;
     final notifier = ref.read(workspaceProvider.notifier);
 
+    // Fire focus + onActivated on raw pointer-down rather than
+    // GestureDetector.onTap. onTap only fires when the gesture arena
+    // resolves as a clean tap (no movement), so even a single-pixel hand
+    // tremor let the gesture get re-classified as a pan and the panel
+    // silently skipped the focus change — giving the "every other click"
+    // symptom on terminal focus switching.
     final content = ClipRect(
       child: Listener(
-        onPointerDown: widget.onActivated != null
-            ? (_) => widget.onActivated!()
-            : null,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () => notifier.setFocusedPanel(panel.id),
-          child: Column(
-            children: [
-              // Tab bar.
-              Container(
-                height: AppTheme.barHeightSm,
-                color: AppTheme.bg1,
-                child: PanelTabBar(
-                  panelId: panel.id,
-                  tabs: panel.tabs,
-                  activeIndex: panel.activeTabIndex,
-                  isFocusedPanel: isFocused,
-                  onSelect: (idx) => notifier.selectTab(panel.id, idx),
-                  onClose: (tabId) => notifier.closeTab(panel.id, tabId),
-                  onReorder: (oldIdx, newIdx) =>
-                      notifier.reorderTabs(panel.id, oldIdx, newIdx),
-                  onAcceptCrossPanel: (data, idx) {
-                    notifier.moveTab(
-                      data.sourcePanelId,
-                      data.tab.id,
-                      panel.id,
-                      index: idx,
-                    );
-                  },
-                  onContextMenu: (tabId, index, offset) =>
-                      _showTabContextMenu(context, panel, tabId, index, offset),
-                ),
+        onPointerDown: (_) {
+          notifier.setFocusedPanel(panel.id);
+          widget.onActivated?.call();
+        },
+        child: Column(
+          children: [
+            // Tab bar.
+            Container(
+              height: AppTheme.barHeightSm,
+              color: AppTheme.bg1,
+              child: PanelTabBar(
+                panelId: panel.id,
+                tabs: panel.tabs,
+                activeIndex: panel.activeTabIndex,
+                isFocusedPanel: isFocused,
+                onSelect: (idx) => notifier.selectTab(panel.id, idx),
+                onClose: (tabId) => notifier.closeTab(panel.id, tabId),
+                onReorder: (oldIdx, newIdx) =>
+                    notifier.reorderTabs(panel.id, oldIdx, newIdx),
+                onAcceptCrossPanel: (data, idx) {
+                  notifier.moveTab(
+                    data.sourcePanelId,
+                    data.tab.id,
+                    panel.id,
+                    index: idx,
+                  );
+                },
+                onContextMenu: (tabId, index, offset) =>
+                    _showTabContextMenu(context, panel, tabId, index, offset),
               ),
-              // Connection bar.
-              if (panel.activeTab != null)
-                _PanelConnectionBar(
-                  activeTab: panel.activeTab!,
-                  panelId: panel.id,
-                  onRetry: _retryCallback(panel),
-                ),
-              // Tab content.
-              Expanded(
-                child: panel.tabs.isEmpty
-                    ? const SizedBox.shrink()
-                    : IndexedStack(
-                        index: panel.activeTabIndex,
-                        children: panel.tabs.map((tab) {
-                          return switch (tab.kind) {
-                            TabKind.terminal => TerminalTab(
-                              key: _keyForTab(tab.id),
-                              tabId: tab.id,
-                              connection: tab.connection,
-                            ),
-                            TabKind.sftp => FileBrowserTab(
-                              key: _keyForFileBrowser(tab.id),
-                              connection: tab.connection,
-                              crossMarquee: widget.crossMarquee,
-                              reverseCrossMarquee: widget.reverseCrossMarquee,
-                              sidebarActivated: widget.sidebarActivated,
-                            ),
-                          };
-                        }).toList(),
-                      ),
+            ),
+            // Connection bar.
+            if (panel.activeTab != null)
+              _PanelConnectionBar(
+                activeTab: panel.activeTab!,
+                panelId: panel.id,
+                onRetry: _retryCallback(panel),
               ),
-            ],
-          ),
+            // Tab content.
+            Expanded(
+              child: panel.tabs.isEmpty
+                  ? const SizedBox.shrink()
+                  : IndexedStack(
+                      index: panel.activeTabIndex,
+                      children: panel.tabs.map((tab) {
+                        return switch (tab.kind) {
+                          TabKind.terminal => TerminalTab(
+                            key: _keyForTab(tab.id),
+                            tabId: tab.id,
+                            connection: tab.connection,
+                          ),
+                          TabKind.sftp => FileBrowserTab(
+                            key: _keyForFileBrowser(tab.id),
+                            connection: tab.connection,
+                            crossMarquee: widget.crossMarquee,
+                            reverseCrossMarquee: widget.reverseCrossMarquee,
+                            sidebarActivated: widget.sidebarActivated,
+                          ),
+                        };
+                      }).toList(),
+                    ),
+            ),
+          ],
         ),
       ),
     );
