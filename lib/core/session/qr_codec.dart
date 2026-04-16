@@ -173,8 +173,23 @@ class ExportOptions {
     includeSnippets: v,
   );
 
+  /// True when at least one *standalone* entity is selected. Used to gate the
+  /// Import button in [ImportPreviewDialog].
+  ///
+  /// "Standalone" means an entity that can exist on its own without a session:
+  /// sessions themselves, app config, known_hosts, the full manager-key set,
+  /// tags, and snippets. Session-linked modifiers ([includeManagerKeys] — the
+  /// subset referenced by selected sessions, [includePasswords] and
+  /// [includeEmbeddedKeys]) are deliberately excluded: they're meaningless
+  /// without [includeSessions], so ticking them alone would produce an
+  /// effectively empty import.
   bool get hasAnySelection =>
-      includeSessions || includeConfig || includeKnownHosts;
+      includeSessions ||
+      includeConfig ||
+      includeKnownHosts ||
+      includeAllManagerKeys ||
+      includeTags ||
+      includeSnippets;
 
   @override
   bool operator ==(Object other) =>

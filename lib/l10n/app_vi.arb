@@ -32,6 +32,7 @@
   "yes": "Có",
   "no": "Không",
   "importWhatToImport": "Những gì cần nhập:",
+  "exportWhatToExport": "Những gì cần xuất:",
   "terminal": "Terminal",
   "files": "Tệp",
   "transfer": "Truyền tệp",

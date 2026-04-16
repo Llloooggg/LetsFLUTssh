@@ -50,14 +50,26 @@ For each file to cover:
 
 ### Step 4: Write tests
 
+**Assert spec, not current output.** Before writing any `expect(...)`, state in one sentence what the function *should* do for the given input — derived from the feature's intent (commit history, naming, surrounding docstrings, user-facing strings), not from running the code and copying the result. **Never** run the function, observe the output, and paste it into `expect(...)` as the oracle: that's a pinning test, it cements bugs, and it's the reason "coverage went up, bugs are still a truckload". This applies doubly to parsers, formatters, `localizeError`, URL/URI handling, and anything that touches untrusted input. If the correct behavior is genuinely unclear, stop and ask the user rather than inventing an oracle.
+
+**When test and code disagree, surface it — don't silently "fix" either side.** If your derived spec says X and the code returns Y, you have three possibilities: (1) real bug in code, (2) wrong spec on your side (you misread the intent), (3) genuinely ambiguous requirement. From inside the test file you cannot tell which. Stop writing the test. Report the disagreement to the user with:
+- the exact input
+- the expected value per your spec, **and** where you derived the spec from (commit message, docstring, user-visible string, linked issue)
+- the current output the code actually produces
+
+Let the user decide which side is wrong. Only after confirmation: fix the code **or** update the spec. A confident "I found a bug, patching it" on an edge case is exactly how correct behavior gets quietly regressed and tests start cementing a *new* wrong answer.
+
+**Uncovered lines are a marker, not a target.** SonarCloud's "line 42 not covered" means "no test verifies the behavior this line implements" — it is NOT a target that says "write anything that reaches this line". A test whose only purpose is to execute the line (`function(args); expect(result, isNotNull);` / `expect(() => fn(), returnsNormally)` / `expect(result, isA<T>())` on any non-trivial function) raises coverage and catches nothing. Before writing it, answer: **what branch, decision, or contract does this line encode?** Then write a test that would fail if that contract broke. If you can't articulate the contract for a line, either the logic is too implicit to test (refactor first — extract a pure function) or you don't understand it yet (ask the user). A file at 100% coverage with smoke-style assertions is worse than 80% with meaningful ones: it gives false confidence *and* it will fight you when you try to change the code. Skip lines you can't spec, don't paper over them.
+
 Rules:
 - **One test file per source file** — add to existing test file, never create `_extra_test.dart`
 - Test uncovered branches: if/else, switch cases, error handling, edge cases
-- Use descriptive test names: `'should return empty list when no sessions exist'`
+- Use descriptive test names that encode the spec: `'should reject empty host with InvalidHostError'`, not `'test1'` or `'covers line 42'`
 - Follow existing test patterns in the file
 - Mock external dependencies (SSH, file I/O, platform) — never make real connections
 - Pure logic should have direct unit tests without mocks
 - Group related tests in `group()` blocks matching the class/function being tested
+- If you can't state the expected behavior in one sentence without looking at the implementation, you don't have a spec yet — stop and derive one first
 
 ### Step 5: Verify coverage improved
 

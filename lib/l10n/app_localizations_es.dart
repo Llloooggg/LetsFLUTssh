@@ -75,6 +75,9 @@ class SEs extends S {
   String get importWhatToImport => 'Qué importar:';
 
   @override
+  String get exportWhatToExport => 'Qué exportar:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Ingrese contraseña maestra:';
 
   @override

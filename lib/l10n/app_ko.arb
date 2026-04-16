@@ -32,6 +32,7 @@
   "yes": "예",
   "no": "아니요",
   "importWhatToImport": "가져올 내용:",
+  "exportWhatToExport": "내보낼 내용:",
   "terminal": "터미널",
   "files": "파일",
   "transfer": "전송",

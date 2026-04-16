@@ -32,6 +32,7 @@
   "yes": "Да",
   "no": "Нет",
   "importWhatToImport": "Что импортировать:",
+  "exportWhatToExport": "Что экспортировать:",
   "terminal": "Терминал",
   "files": "Файлы",
   "transfer": "Передача",

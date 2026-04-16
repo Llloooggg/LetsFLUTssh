@@ -75,6 +75,9 @@ class SZh extends S {
   String get importWhatToImport => '导入内容：';
 
   @override
+  String get exportWhatToExport => '导出内容：';
+
+  @override
   String get enterMasterPasswordPrompt => '输入主密码:';
 
   @override

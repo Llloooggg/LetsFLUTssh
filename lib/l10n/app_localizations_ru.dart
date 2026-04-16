@@ -75,6 +75,9 @@ class SRu extends S {
   String get importWhatToImport => 'Что импортировать:';
 
   @override
+  String get exportWhatToExport => 'Что экспортировать:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Введите мастер-пароль:';
 
   @override

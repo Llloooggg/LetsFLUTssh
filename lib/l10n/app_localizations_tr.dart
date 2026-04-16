@@ -75,6 +75,9 @@ class STr extends S {
   String get importWhatToImport => 'Ne içe aktarılacak:';
 
   @override
+  String get exportWhatToExport => 'Ne dışa aktarılacak:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Ana şifreyi girin:';
 
   @override

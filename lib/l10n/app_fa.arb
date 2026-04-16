@@ -32,6 +32,7 @@
   "yes": "بله",
   "no": "خیر",
   "importWhatToImport": "چه چیزی وارد شود:",
+  "exportWhatToExport": "چه چیزی صادر شود:",
   "terminal": "ترمینال",
   "files": "فایل‌ها",
   "transfer": "انتقال",

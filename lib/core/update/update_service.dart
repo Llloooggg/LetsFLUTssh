@@ -99,13 +99,20 @@ class UpdateService {
   final FileDownloader _download;
   final ProcessRunner _runProcess;
 
+  /// Platform identifier used by [openFile] to pick the host-specific opener.
+  /// Injected so tests can exercise every branch (linux / macos / windows /
+  /// unsupported) without mocking `dart:io` `Platform`.
+  final String _platform;
+
   UpdateService({
     HttpFetcher? fetch,
     FileDownloader? download,
     ProcessRunner? runProcess,
+    String? platform,
   }) : _fetch = fetch ?? defaultFetch,
        _download = download ?? defaultDownload,
-       _runProcess = runProcess ?? Process.run;
+       _runProcess = runProcess ?? Process.run,
+       _platform = platform ?? _hostPlatform();
 
   /// True if [uri] uses HTTPS and a host GitHub uses for release assets
   /// (same-origin policy for [browser_download_url] and redirect targets).
@@ -198,7 +205,7 @@ class UpdateService {
     List<dynamic> assets, {
     String? platformOverride,
   }) {
-    final platform = platformOverride ?? _currentPlatform();
+    final platform = platformOverride ?? _hostPlatform();
     final suffix = _assetSuffix(platform);
     if (suffix == null) return null;
     for (final asset in assets) {
@@ -269,7 +276,7 @@ class UpdateService {
     List<dynamic> assets, {
     String? platformOverride,
   }) {
-    final platform = platformOverride ?? _currentPlatform();
+    final platform = platformOverride ?? _hostPlatform();
     final suffix = _assetSuffix(platform);
     if (suffix == null) return null;
 
@@ -283,12 +290,19 @@ class UpdateService {
     return null;
   }
 
-  static String _currentPlatform() {
-    if (Platform.isLinux) return 'linux';
-    if (Platform.isWindows) return 'windows';
-    if (Platform.isMacOS) return 'macos';
-    if (Platform.isAndroid) return 'android';
-    return 'unknown';
+  /// Platforms we ship self-updatable binaries for. Anything else (iOS,
+  /// fuchsia, …) maps to `'unknown'` so [assetUrlForPlatform] returns null
+  /// instead of picking a random asset.
+  static const _selfUpdatablePlatforms = {
+    'linux',
+    'windows',
+    'macos',
+    'android',
+  };
+
+  static String _hostPlatform() {
+    final os = Platform.operatingSystem;
+    return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
 
   /// Map platform to expected asset filename suffix.
@@ -313,19 +327,19 @@ class UpdateService {
   /// Open a downloaded file using the platform's default handler.
   Future<bool> openFile(String path) async {
     ProcessResult result;
-    if (Platform.isLinux) {
+    if (_platform == 'linux') {
       AppLogger.instance.log(
         'Opening file with xdg-open: $path',
         name: 'UpdateService',
       );
       result = await _runProcess('xdg-open', [path]);
-    } else if (Platform.isMacOS) {
+    } else if (_platform == 'macos') {
       AppLogger.instance.log(
         'Opening file with open: $path',
         name: 'UpdateService',
       );
       result = await _runProcess('open', [path]);
-    } else if (Platform.isWindows) {
+    } else if (_platform == 'windows') {
       if (_unsafePathChars.hasMatch(path)) {
         AppLogger.instance.log(
           'Refusing to open path with unsafe characters: $path',

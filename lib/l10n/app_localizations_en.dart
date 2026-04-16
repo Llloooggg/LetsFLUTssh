@@ -75,6 +75,9 @@ class SEn extends S {
   String get importWhatToImport => 'What to import:';
 
   @override
+  String get exportWhatToExport => 'What to export:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Enter master password:';
 
   @override

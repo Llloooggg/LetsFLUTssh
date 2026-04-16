@@ -32,6 +32,7 @@
   "yes": "Oui",
   "no": "Non",
   "importWhatToImport": "Éléments à importer :",
+  "exportWhatToExport": "Éléments à exporter :",
   "terminal": "Terminal",
   "files": "Fichiers",
   "transfer": "Transfert",

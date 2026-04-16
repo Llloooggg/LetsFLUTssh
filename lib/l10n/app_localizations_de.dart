@@ -75,6 +75,9 @@ class SDe extends S {
   String get importWhatToImport => 'Was importieren:';
 
   @override
+  String get exportWhatToExport => 'Was exportieren:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Master-Passwort eingeben:';
 
   @override

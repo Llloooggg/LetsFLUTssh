@@ -32,6 +32,7 @@
   "yes": "Ya",
   "no": "Tidak",
   "importWhatToImport": "Apa yang akan diimpor:",
+  "exportWhatToExport": "Apa yang akan diekspor:",
   "terminal": "Terminal",
   "files": "File",
   "transfer": "Transfer",

@@ -22,6 +22,7 @@
   "yes": "Yes",
   "no": "No",
   "importWhatToImport": "What to import:",
+  "exportWhatToExport": "What to export:",
   "enterMasterPasswordPrompt": "Enter master password:",
   "nextStep": "Next",
   "includeCredentials": "Include passwords and SSH keys",

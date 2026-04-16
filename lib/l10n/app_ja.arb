@@ -32,6 +32,7 @@
   "yes": "はい",
   "no": "いいえ",
   "importWhatToImport": "インポートする内容：",
+  "exportWhatToExport": "エクスポートする内容：",
   "terminal": "ターミナル",
   "files": "ファイル",
   "transfer": "転送",

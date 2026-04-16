@@ -255,6 +255,12 @@ abstract class S {
   /// **'What to import:'**
   String get importWhatToImport;
 
+  /// No description provided for @exportWhatToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'What to export:'**
+  String get exportWhatToExport;
+
   /// No description provided for @enterMasterPasswordPrompt.
   ///
   /// In en, this message translates to:

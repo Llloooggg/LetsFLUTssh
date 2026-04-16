@@ -32,6 +32,7 @@
   "yes": "是",
   "no": "否",
   "importWhatToImport": "导入内容：",
+  "exportWhatToExport": "导出内容：",
   "terminal": "终端",
   "files": "文件",
   "transfer": "传输",
