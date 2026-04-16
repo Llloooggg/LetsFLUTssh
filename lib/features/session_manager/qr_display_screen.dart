@@ -4,9 +4,16 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
-/// Full-screen display of a QR code for scanning by another device.
+/// Modal display of a QR code for scanning by another device.
+///
+/// Shown via [AppDialog.show] so it matches the rest of the export flow
+/// (the preceding `QrExportDialog` is also a modal). The previous
+/// full-screen route was an outlier and introduced an unwanted slide
+/// transition — every other modal in the app uses the app's shared
+/// no-animation dialog style.
 class QrDisplayScreen extends StatelessWidget {
   final String data;
   final int sessionCount;
@@ -17,16 +24,15 @@ class QrDisplayScreen extends StatelessWidget {
     required this.sessionCount,
   });
 
-  /// Show the QR display screen.
+  /// Show the QR display as a modal dialog.
   static Future<void> show(
     BuildContext context, {
     required String data,
     required int sessionCount,
   }) {
-    return Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => QrDisplayScreen(data: data, sessionCount: sessionCount),
-      ),
+    return AppDialog.show<void>(
+      context,
+      builder: (_) => QrDisplayScreen(data: data, sessionCount: sessionCount),
     );
   }
 
@@ -35,103 +41,96 @@ class QrDisplayScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(S.of(context).scanQrCode)),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // QR code with white background for reliable scanning
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: AppTheme.radiusLg,
-                ),
-                child: QrImageView(
-                  data: data,
-                  version: QrVersions.auto,
-                  size: 280,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Colors.black,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Colors.black,
-                  ),
-                  errorStateBuilder: (context, error) => Center(
-                    child: Text(
-                      S.of(context).qrGenerationFailed,
-                      style: TextStyle(color: AppTheme.red),
-                    ),
-                  ),
+    return AppDialog(
+      title: S.of(context).scanQrCode,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // QR code with white background for reliable scanning
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: AppTheme.radiusLg,
+            ),
+            child: QrImageView(
+              data: data,
+              version: QrVersions.auto,
+              size: 280,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Colors.black,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Colors.black,
+              ),
+              errorStateBuilder: (context, error) => Center(
+                child: Text(
+                  S.of(context).qrGenerationFailed,
+                  style: TextStyle(color: AppTheme.red),
                 ),
               ),
-              const SizedBox(height: 24),
-              Text(
-                S.of(context).nSessions(sessionCount),
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                S.of(context).scanWithCameraApp,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppFonts.lg,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? theme.colorScheme.surfaceContainerHigh
-                      : theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.3,
-                        ),
-                  borderRadius: AppTheme.radiusLg,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      S.of(context).noPasswordsInQr,
-                      style: TextStyle(fontSize: AppFonts.md),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: data));
-                  Toast.show(
-                    context,
-                    message: S.of(context).linkCopied,
-                    level: ToastLevel.success,
-                  );
-                },
-                icon: const Icon(Icons.copy, size: 16),
-                label: Text(S.of(context).copyLink),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 24),
+          Text(
+            S.of(context).nSessions(sessionCount),
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            S.of(context).scanWithCameraApp,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppFonts.lg,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? theme.colorScheme.surfaceContainerHigh
+                  : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: AppTheme.radiusLg,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    S.of(context).noPasswordsInQr,
+                    style: TextStyle(fontSize: AppFonts.md),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
+      actions: [
+        AppDialogAction.primary(
+          label: S.of(context).copyLink,
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: data));
+            Toast.show(
+              context,
+              message: S.of(context).linkCopied,
+              level: ToastLevel.success,
+            );
+          },
+        ),
+      ],
     );
   }
 }
