@@ -334,5 +334,81 @@ Host evil
       expect(preview.hostsWithMissingKeys, ['evil']);
       expect(preview.result.managerKeys, isEmpty);
     });
+
+    test('encrypted IdentityFile — flagged separately from truly missing', () {
+      // An existing-but-encrypted key is a different remedy from a missing
+      // one ("unlock it" vs "find it"), so the importer surfaces encrypted
+      // hosts in [hostsWithEncryptedKeys] while still including them in
+      // [hostsWithMissingKeys] (superset, driving the existing UI warning).
+      const keyPath = '/home/u/.ssh/id_rsa_enc';
+      const encryptedPem =
+          '-----BEGIN RSA PRIVATE KEY-----\n'
+          'Proc-Type: 4,ENCRYPTED\n'
+          'DEK-Info: AES-128-CBC,ABC\n'
+          'base64body\n'
+          '-----END RSA PRIVATE KEY-----';
+      final importer = OpenSshConfigImporter(
+        readPem: (p) => p == keyPath ? encryptedPem : null,
+      );
+      final preview = importer.buildPreview(
+        configContent:
+            '''
+Host locked
+    HostName locked.example.com
+    User u
+    IdentityFile $keyPath
+''',
+        folderLabel: 'f',
+      );
+      expect(preview.result.sessions.single.auth.keyId, isEmpty);
+      expect(preview.hostsWithEncryptedKeys, ['locked']);
+      expect(preview.hostsWithMissingKeys, ['locked']);
+      expect(preview.result.managerKeys, isEmpty);
+    });
+
+    test(
+      'PreferredAuthentications=password forces password auth despite IdentityFile',
+      () {
+        const keyPath = '/home/u/.ssh/id';
+        final preview = importerWith({keyPath: realPem}).buildPreview(
+          configContent:
+              '''
+Host demo
+    HostName d.example.com
+    User u
+    IdentityFile $keyPath
+    PreferredAuthentications password
+''',
+          folderLabel: 'f',
+        );
+        final session = preview.result.sessions.single;
+        // User wants password auth — importer honours that even though a
+        // readable key exists. No keyId is attached so the session opens
+        // cleanly on a password-only server.
+        expect(session.authType, AuthType.password);
+        expect(session.auth.keyId, isEmpty);
+      },
+    );
+
+    test(
+      'PreferredAuthentications=publickey keeps key auth when key present',
+      () {
+        const keyPath = '/home/u/.ssh/id';
+        final preview = importerWith({keyPath: realPem}).buildPreview(
+          configContent:
+              '''
+Host demo
+    HostName d.example.com
+    User u
+    IdentityFile $keyPath
+    PreferredAuthentications publickey,password
+''',
+          folderLabel: 'f',
+        );
+        final session = preview.result.sessions.single;
+        expect(session.authType, AuthType.key);
+        expect(session.auth.keyId, isNotEmpty);
+      },
+    );
   });
 }
