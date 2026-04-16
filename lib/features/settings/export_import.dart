@@ -40,6 +40,23 @@ class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;
 
+  /// Header placed at the start of v2 encrypted archives so future releases
+  /// can raise PBKDF2 iterations without breaking the reader.
+  ///
+  /// Layout:
+  ///   [magic 'LFSE' 4] [version 1] [iterations u32 BE 4] [salt 32] [iv 12]
+  ///   [ciphertext + GCM tag]
+  ///
+  /// Archives written before this header existed start straight with the
+  /// 32-byte random salt (no detectable magic); those are treated as legacy
+  /// v1 payloads and decrypted with [productionPbkdf2Iterations]. Unencrypted
+  /// ZIP archives still expose the `PK\x03\x04` magic and are handled
+  /// separately.
+  static const List<int> _encHeaderMagic = [0x4C, 0x46, 0x53, 0x45]; // 'LFSE'
+  static const int _encHeaderVersion = 1;
+  static const int _encHeaderBaseLen =
+      4 /* magic */ + 1 /* version */ + 4 /* iters */;
+
   /// Production PBKDF2-SHA256 iteration count. Public so tests that need a
   /// roundtrip with the real cost can reference it explicitly. Most tests
   /// pass a much lower value via the per-call [iterations] parameter.
@@ -80,6 +97,23 @@ class ExportImport {
         data[1] == 0x4B &&
         data[2] == 0x03 &&
         data[3] == 0x04;
+  }
+
+  /// True when [data] starts with the `LFSE` magic — i.e. a v2+ encrypted
+  /// archive that carries its PBKDF2 iteration count in a 9-byte header
+  /// ahead of the salt.
+  static bool _hasEncryptionHeader(Uint8List data) {
+    if (data.length < _encHeaderBaseLen) return false;
+    for (var i = 0; i < _encHeaderMagic.length; i++) {
+      if (data[i] != _encHeaderMagic[i]) return false;
+    }
+    return true;
+  }
+
+  /// Decode the iteration count from a v2 header. Assumes
+  /// [_hasEncryptionHeader] already returned true on [data].
+  static int _readHeaderIterations(Uint8List data) {
+    return (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
   }
 
   /// Probe an `.lfs` candidate file and decide what the import flow
@@ -518,11 +552,11 @@ class ExportImport {
   /// actually writing to disk or running PBKDF2.
   ///
   /// Builds the ZIP archive in memory and adds fixed encryption overhead:
-  /// salt (32) + IV (12) + GCM tag (16) = 60 bytes.
+  /// 9-byte header + salt (32) + IV (12) + GCM tag (16) = 69 bytes.
   static int calculateLfsSize(LfsExportInput input) {
     final archive = _buildArchive(input);
     final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
-    return zipBytes.length + _saltLen + _ivLen + 16;
+    return zipBytes.length + _encHeaderBaseLen + _saltLen + _ivLen + 16;
   }
 
   /// Decrypt an .lfs file and parse the archive contents.
@@ -788,7 +822,12 @@ class ExportImport {
   }
 
   /// Encrypt bytes with password-derived key (PBKDF2 + AES-256-GCM).
-  /// Format: [salt (32)] [iv (12)] [ciphertext + GCM tag]
+  /// Format: [magic 'LFSE' 4] [version 1] [iterations u32 BE 4]
+  ///         [salt 32] [iv 12] [ciphertext + GCM tag]
+  ///
+  /// The header lets a newer reader pick up a future iteration bump without
+  /// a format flag day — decrypt takes iterations from the file, not a
+  /// hard-coded constant.
   static Uint8List _encryptWithPassword(
     Uint8List data,
     String password,
@@ -810,23 +849,50 @@ class ExportImport {
           AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
         );
       final output = cipher.process(data);
-      return Uint8List.fromList([...salt, ...iv, ...output]);
+      final header = <int>[
+        ..._encHeaderMagic,
+        _encHeaderVersion,
+        (iterations >> 24) & 0xFF,
+        (iterations >> 16) & 0xFF,
+        (iterations >> 8) & 0xFF,
+        iterations & 0xFF,
+      ];
+      return Uint8List.fromList([...header, ...salt, ...iv, ...output]);
     } finally {
       keyBuf.dispose();
     }
   }
 
   /// Decrypt bytes with password-derived key.
+  ///
+  /// Accepts both the v2 header format (`LFSE…`) and the legacy salt-first
+  /// layout. For the legacy case [iterations] is the fallback PBKDF2 cost
+  /// (callers pass [defaultPbkdf2Iterations] — which equals
+  /// [productionPbkdf2Iterations] in production). For v2 the header
+  /// overrides [iterations] so an archive written with a different cost
+  /// still decrypts correctly.
   static Uint8List _decryptWithPassword(
     Uint8List data,
     String password,
     int iterations,
   ) {
-    final salt = data.sublist(0, _saltLen);
-    final iv = data.sublist(_saltLen, _saltLen + _ivLen);
-    final ciphertext = data.sublist(_saltLen + _ivLen);
+    final bytes = Uint8List.fromList(data);
+    final int saltStart;
+    final int effectiveIterations;
+    if (_hasEncryptionHeader(bytes)) {
+      effectiveIterations = _readHeaderIterations(bytes);
+      saltStart = _encHeaderBaseLen;
+    } else {
+      effectiveIterations = iterations;
+      saltStart = 0;
+    }
 
-    final keyBuf = _deriveKeyLocked(password, salt, iterations);
+    final salt = bytes.sublist(saltStart, saltStart + _saltLen);
+    final ivStart = saltStart + _saltLen;
+    final iv = bytes.sublist(ivStart, ivStart + _ivLen);
+    final ciphertext = bytes.sublist(ivStart + _ivLen);
+
+    final keyBuf = _deriveKeyLocked(password, salt, effectiveIterations);
     try {
       final cipher = GCMBlockCipher(AESEngine())
         ..init(

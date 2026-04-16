@@ -1663,6 +1663,128 @@ void main() {
       expect(txClose, 1);
       expect(store, hasLength(2));
     });
+
+    group('manager-keys rollback snapshot', () {
+      test('deletes keys added during a failed replace-mode import', () async {
+        // Pre-existing key must stay; a key added by the import *and*
+        // then rolled back must be deleted so the key store returns to
+        // its pre-import state.
+        final keyStore = <String>{'preexisting'};
+        final deletedKeys = <String>[];
+        var nextId = 1;
+
+        final svc = ImportService(
+          addEmptyFolder: (f) async {},
+          addSession: (s) async => throw Exception('boom on session insert'),
+          deleteSession: (id) async {},
+          getSessions: () => [],
+          applyConfig: (_) {},
+          saveManagerKey: (entry) async {
+            final id = 'imported-${nextId++}';
+            keyStore.add(id);
+            return id;
+          },
+          existingManagerKeyIds: () async => Set.of(keyStore),
+          deleteManagerKey: (id) async {
+            keyStore.remove(id);
+            deletedKeys.add(id);
+          },
+        );
+
+        await expectLater(
+          () => svc.applyResult(
+            ImportResult(
+              sessions: [
+                Session(
+                  id: 's1',
+                  label: 'l',
+                  server: const ServerAddress(host: 'h', user: 'u'),
+                ),
+              ],
+              managerKeys: [_makeKey('incoming')],
+              mode: ImportMode.replace,
+            ),
+          ),
+          throwsA(isA<LfsImportRolledBackException>()),
+        );
+
+        // Imported key gone, pre-existing key untouched.
+        expect(keyStore, {'preexisting'});
+        expect(deletedKeys, ['imported-1']);
+      });
+
+      test(
+        'leaves pre-import keys alone when rollback enumerates the store',
+        () async {
+          // No keys are added by the import (empty managerKeys list). The
+          // rollback path still walks `existingManagerKeyIds` — it must
+          // not delete anything because no id is new.
+          final keyStore = <String>{'k1', 'k2', 'k3'};
+          final deletedKeys = <String>[];
+
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => throw Exception('boom'),
+            deleteSession: (id) async {},
+            getSessions: () => [],
+            applyConfig: (_) {},
+            existingManagerKeyIds: () async => Set.of(keyStore),
+            deleteManagerKey: (id) async {
+              keyStore.remove(id);
+              deletedKeys.add(id);
+            },
+          );
+
+          await expectLater(
+            () => svc.applyResult(
+              ImportResult(
+                sessions: [
+                  Session(
+                    id: 's1',
+                    label: 'l',
+                    server: const ServerAddress(host: 'h', user: 'u'),
+                  ),
+                ],
+                mode: ImportMode.replace,
+              ),
+            ),
+            throwsA(isA<LfsImportRolledBackException>()),
+          );
+
+          expect(keyStore, {'k1', 'k2', 'k3'});
+          expect(deletedKeys, isEmpty);
+        },
+      );
+
+      test(
+        'rollback without key callbacks is a no-op (tests without KeyStore wiring)',
+        () async {
+          final svc = ImportService(
+            addEmptyFolder: (f) async {},
+            addSession: (s) async => throw Exception('boom'),
+            deleteSession: (id) async {},
+            getSessions: () => [],
+            applyConfig: (_) {},
+            // Deliberately leave existingManagerKeyIds / deleteManagerKey null.
+          );
+          await expectLater(
+            () => svc.applyResult(
+              ImportResult(
+                sessions: [
+                  Session(
+                    id: 's1',
+                    label: 'l',
+                    server: const ServerAddress(host: 'h', user: 'u'),
+                  ),
+                ],
+                mode: ImportMode.replace,
+              ),
+            ),
+            throwsA(isA<LfsImportRolledBackException>()),
+          );
+        },
+      );
+    });
   });
 }
 

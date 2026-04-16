@@ -1153,6 +1153,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       importKnownHosts: (content) async {
         await knownHostsMgr.importFromString(content);
       },
+      existingManagerKeyIds: () async =>
+          (await keyStore.loadAll()).keys.toSet(),
+      deleteManagerKey: keyStore.delete,
       runInTransaction: store.database == null
           ? null
           : <T>(body) => store.database!.transaction(body),

@@ -65,6 +65,20 @@ class ImportService {
   final Future<void> Function()? clearKnownHosts;
   final Future<void> Function(String content)? importKnownHosts;
 
+  /// Rollback hooks for manager keys. Unlike tags/snippets the key store is
+  /// never *cleared* on replace — incoming keys always merge-by-fingerprint
+  /// with the existing set. But if the import fails halfway through, we need
+  /// a way to undo any keys we appended. Snapshotting the pre-import id set
+  /// and deleting every id that appears post-import but wasn't in the
+  /// snapshot is the cheapest way to restore the store without touching keys
+  /// the user already had.
+  ///
+  /// In production these point at `KeyStore.loadAll()` and `KeyStore.delete`;
+  /// tests that don't wire a KeyStore leave them null and the snapshot step
+  /// is skipped.
+  final Future<Set<String>> Function()? existingManagerKeyIds;
+  final Future<void> Function(String id)? deleteManagerKey;
+
   /// Wraps the entire import body in a single database transaction when
   /// provided. Production wires this to `AppDatabase.transaction(...)` so
   /// bulk imports (100s–1000s of rows) run as one atomic write — ~10×
@@ -97,6 +111,8 @@ class ImportService {
     this.exportKnownHosts,
     this.clearKnownHosts,
     this.importKnownHosts,
+    this.existingManagerKeyIds,
+    this.deleteManagerKey,
     this.runInTransaction,
   });
 
@@ -657,12 +673,16 @@ class ImportService {
         result.includeKnownHosts && exportKnownHosts != null
         ? await exportKnownHosts!()
         : null;
+    final keyIdsBackup = existingManagerKeyIds != null
+        ? await existingManagerKeyIds!()
+        : <String>{};
 
     AppLogger.instance.log(
       'Replace mode: clearing sessions=${existing.length}, '
       'tags=${result.includeTags ? tagsBackup.length : "skip"}, '
       'snippets=${result.includeSnippets ? snippetsBackup.length : "skip"}, '
-      'knownHosts=${result.includeKnownHosts ? "yes" : "skip"}',
+      'knownHosts=${result.includeKnownHosts ? "yes" : "skip"}, '
+      'preImportKeys=${keyIdsBackup.length}',
       name: 'Import',
     );
 
@@ -673,6 +693,7 @@ class ImportService {
       tags: tagsBackup,
       snippets: snippetsBackup,
       knownHosts: knownHostsBackup,
+      preImportKeyIds: keyIdsBackup,
     );
   }
 
@@ -760,12 +781,45 @@ class ImportService {
     await _restoreTags(snapshot.tags);
     await _restoreSnippets(snapshot.snippets);
     await _restoreKnownHosts(snapshot.knownHosts);
+    final deletedKeys = await _restoreManagerKeys(snapshot.preImportKeyIds);
     AppLogger.instance.log(
       'Restored ${snapshot.sessions.length} sessions, '
-      '${snapshot.tags.length} tags, ${snapshot.snippets.length} snippets '
+      '${snapshot.tags.length} tags, ${snapshot.snippets.length} snippets, '
+      '$deletedKeys newly-added manager keys removed '
       'after import failure',
       name: 'Import',
     );
+  }
+
+  /// Remove any manager-key rows that appeared *during* the failed import
+  /// but were not in the pre-import snapshot. Keys that predate the import
+  /// stay untouched — replace mode never wipes the key store, so there's
+  /// nothing to restore for those.
+  Future<int> _restoreManagerKeys(Set<String> preImportIds) async {
+    if (existingManagerKeyIds == null || deleteManagerKey == null) return 0;
+    try {
+      final nowIds = await existingManagerKeyIds!();
+      final toDelete = nowIds.difference(preImportIds);
+      for (final id in toDelete) {
+        try {
+          await deleteManagerKey!(id);
+        } catch (e) {
+          AppLogger.instance.log(
+            'Failed to delete key $id during rollback',
+            name: 'Import',
+            error: e,
+          );
+        }
+      }
+      return toDelete.length;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to enumerate manager keys for rollback',
+        name: 'Import',
+        error: e,
+      );
+      return 0;
+    }
   }
 
   Future<void> _restoreTags(List<Tag> tags) async {
@@ -914,6 +968,12 @@ class _Snapshot {
   final List<Snippet> snippets;
   final String? knownHosts;
 
+  /// Ids of manager keys that existed before the import started. On
+  /// rollback we enumerate the current keys and drop any id that isn't in
+  /// this set — undoing the merge-appends without touching pre-existing
+  /// rows.
+  final Set<String> preImportKeyIds;
+
   const _Snapshot({
     required this.sessions,
     required this.folders,
@@ -921,5 +981,6 @@ class _Snapshot {
     this.tags = const [],
     this.snippets = const [],
     this.knownHosts,
+    this.preImportKeyIds = const {},
   });
 }
