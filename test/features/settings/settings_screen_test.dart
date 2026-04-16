@@ -1008,6 +1008,105 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Data section — Export password dialog (passwordless archive flow)
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — Export password dialog', () {
+    // Reach the password dialog by tapping Export archive, then the
+    // UnifiedExportDialog's primary button. buildFullApp already mocks
+    // FilePicker so the save prompt resolves.
+    Future<void> openExportPasswordDialog(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final sessions = [
+        Session(
+          label: 'Test',
+          server: const ServerAddress(
+            host: 'example.com',
+            user: 'user',
+            port: 22,
+          ),
+        ),
+      ];
+      await tester.pumpWidget(buildFullApp(sessions: sessions));
+      await tester.pump();
+      await tester.scrollUntilVisible(
+        find.text('Export archive'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Export archive'));
+      await tester.pumpAndSettle();
+
+      // UnifiedExportDialog has "Cancel" + primary "Export" button. Tap
+      // Export to advance to _ExportPasswordDialog.
+      await tester.tap(find.text('Export').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('mismatched passwords show inline error and red border', (
+      tester,
+    ) async {
+      await openExportPasswordDialog(tester);
+
+      // We should now be on _ExportPasswordDialog — two obscured fields.
+      final pwFields = find.byWidgetPredicate(
+        (w) => w is TextField && w.obscureText,
+      );
+      expect(pwFields, findsNWidgets(2));
+
+      await tester.enterText(pwFields.at(0), 'secret123');
+      await tester.enterText(pwFields.at(1), 'typo');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Export').last);
+      await tester.pumpAndSettle();
+
+      // Inline error shown, dialog still open (Navigator.pop never fired).
+      expect(find.text('Passwords do not match'), findsOneWidget);
+      expect(find.byType(Dialog), findsWidgets);
+    });
+
+    testWidgets('empty password opens passwordless confirmation dialog', (
+      tester,
+    ) async {
+      await openExportPasswordDialog(tester);
+
+      // Both fields empty → pressing Export triggers the
+      // "Export Without Password?" confirmation.
+      await tester.tap(find.text('Export').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Export Without Password?'), findsOneWidget);
+      expect(find.textContaining('will not be encrypted'), findsOneWidget);
+      expect(find.text('Continue Without Password'), findsOneWidget);
+    });
+
+    testWidgets('cancelling confirmation keeps password dialog open', (
+      tester,
+    ) async {
+      await openExportPasswordDialog(tester);
+
+      await tester.tap(find.text('Export').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Export Without Password?'), findsOneWidget);
+
+      // Tap Cancel on the confirmation; the password dialog must remain.
+      await tester.tap(find.text('Cancel').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Export Without Password?'), findsNothing);
+      // Password dialog still shown (two obscured TextFields remain).
+      expect(
+        find.byWidgetPredicate((w) => w is TextField && w.obscureText),
+        findsNWidgets(2),
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Data section — Import
   // ---------------------------------------------------------------------------
   group('SettingsScreen — Import Data', () {
