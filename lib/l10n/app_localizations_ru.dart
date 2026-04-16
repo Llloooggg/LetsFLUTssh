@@ -2091,4 +2091,14 @@ class SRu extends S {
   @override
   String get enableLoggingSubtitle =>
       'Записывать события приложения в ротируемый лог-файл';
+
+  @override
+  String get exportWithoutPassword => 'Экспортировать без пароля?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.';
+
+  @override
+  String get continueWithoutPassword => 'Продолжить без пароля';
 }

@@ -632,5 +632,8 @@
   "pasteFromClipboard": "क्लिपबोर्ड से पेस्ट करें",
   "invalidImportLink": "लिंक में मान्य LetsFLUTssh पेलोड नहीं है",
   "importAction": "आयात करें",
-  "emptyFolder": "खाली फ़ोल्डर"
+  "emptyFolder": "खाली फ़ोल्डर",
+  "exportWithoutPassword": "पासवर्ड के बिना निर्यात करें?",
+  "exportWithoutPasswordWarning": "संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।",
+  "continueWithoutPassword": "बिना पासवर्ड के जारी रखें"
 }

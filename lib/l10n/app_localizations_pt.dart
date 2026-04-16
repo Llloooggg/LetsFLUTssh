@@ -2087,4 +2087,14 @@ class SPt extends S {
   @override
   String get enableLoggingSubtitle =>
       'Gravar eventos do app em arquivo de log rotativo';
+
+  @override
+  String get exportWithoutPassword => 'Exportar sem senha?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.';
+
+  @override
+  String get continueWithoutPassword => 'Continuar sem senha';
 }

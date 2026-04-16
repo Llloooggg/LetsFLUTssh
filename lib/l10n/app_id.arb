@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Tempel dari clipboard",
   "invalidImportLink": "Tautan tidak berisi payload LetsFLUTssh yang valid",
   "importAction": "Impor",
-  "emptyFolder": "Folder kosong"
+  "emptyFolder": "Folder kosong",
+  "exportWithoutPassword": "Ekspor tanpa kata sandi?",
+  "exportWithoutPasswordWarning": "Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.",
+  "continueWithoutPassword": "Lanjutkan tanpa kata sandi"
 }

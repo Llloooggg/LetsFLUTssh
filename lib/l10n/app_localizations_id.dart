@@ -2074,4 +2074,14 @@ class SId extends S {
   @override
   String get enableLoggingSubtitle =>
       'Tulis peristiwa aplikasi ke berkas log berotasi';
+
+  @override
+  String get exportWithoutPassword => 'Ekspor tanpa kata sandi?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.';
+
+  @override
+  String get continueWithoutPassword => 'Lanjutkan tanpa kata sandi';
 }

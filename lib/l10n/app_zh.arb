@@ -632,5 +632,8 @@
   "pasteFromClipboard": "从剪贴板粘贴",
   "invalidImportLink": "链接不包含有效的 LetsFLUTssh 数据",
   "importAction": "导入",
-  "emptyFolder": "空文件夹"
+  "emptyFolder": "空文件夹",
+  "exportWithoutPassword": "不设密码导出？",
+  "exportWithoutPasswordWarning": "归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。",
+  "continueWithoutPassword": "不设密码继续"
 }

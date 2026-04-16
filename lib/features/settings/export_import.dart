@@ -69,6 +69,19 @@ class ExportImport {
   /// 10 MiB comfortably covers any real fleet (~50k host keys at ~200 B
   /// per line) and rejects pathological inputs early.
   static const int maxKnownHostsBytes = 10 * 1024 * 1024;
+
+  /// Detect an unencrypted `.lfs` (plain ZIP) by its local-file-header
+  /// magic `PK\x03\x04`. Encrypted archives start with a random 32-byte
+  /// salt, so a false positive is a ~2⁻³² lottery — and even then the
+  /// ZIP decoder would reject the garbage.
+  static bool isUnencryptedArchive(Uint8List data) {
+    if (data.length < 4) return false;
+    return data[0] == 0x50 &&
+        data[1] == 0x4B &&
+        data[2] == 0x03 &&
+        data[3] == 0x04;
+  }
+
   static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
@@ -263,19 +276,32 @@ class ExportImport {
       name: 'ExportImport',
     );
 
-    // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
-    progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
-    // Capture iteration count in the main isolate so the value crosses the
-    // Isolate boundary as a const, not via the global default that would
-    // otherwise be re-read on the worker side.
-    final iters = iterations ?? defaultPbkdf2Iterations;
-    final encrypted = await Isolate.run(
-      () => _encryptWithPassword(zipBytes, masterPassword, iters),
-    );
-    AppLogger.instance.log(
-      'Export: encrypted ${encrypted.length} bytes',
-      name: 'ExportImport',
-    );
+    // Empty password → write the raw ZIP unencrypted. The user has already
+    // acknowledged the risk via the export dialog's confirmation step; the
+    // file carries every saved credential in plain text.
+    final Uint8List encrypted;
+    if (masterPassword.isEmpty) {
+      progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
+      encrypted = zipBytes;
+      AppLogger.instance.log(
+        'Export: wrote unencrypted archive ${encrypted.length} bytes',
+        name: 'ExportImport',
+      );
+    } else {
+      // Encrypt with master password (runs in isolate — PBKDF2 is CPU-heavy).
+      progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
+      // Capture iteration count in the main isolate so the value crosses the
+      // Isolate boundary as a const, not via the global default that would
+      // otherwise be re-read on the worker side.
+      final iters = iterations ?? defaultPbkdf2Iterations;
+      encrypted = await Isolate.run(
+        () => _encryptWithPassword(zipBytes, masterPassword, iters),
+      );
+      AppLogger.instance.log(
+        'Export: encrypted ${encrypted.length} bytes',
+        name: 'ExportImport',
+      );
+    }
 
     // Write atomically: flush to "<outputPath>.tmp", then rename. If the write
     // fails mid-way (I/O error, out of space, process killed), we don't leave
@@ -467,21 +493,30 @@ class ExportImport {
     }
     final encData = await file.readAsBytes();
 
-    progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
-    // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy.
-    // GCM auth-tag failure (wrong password or tampered archive) surfaces as
-    // InvalidCipherTextException from pointycastle. ZipDecoder will also
-    // throw on successfully-decrypted-but-non-ZIP bytes (truncated file).
-    // Both cases collapse to LfsDecryptionFailedException so the UI can show
-    // a single localized message.
+    // Detect unencrypted archive by the ZIP local-file-header magic
+    // `PK\x03\x04` (0x50 0x4B 0x03 0x04). Encrypted archives start with a
+    // random 32-byte salt, so the probability of a collision is 2^-32 and
+    // the decoder would reject a false positive as malformed anyway.
     final Uint8List zipBytes;
-    final iters = iterations ?? defaultPbkdf2Iterations;
-    try {
-      zipBytes = await Isolate.run(
-        () => _decryptWithPassword(encData, masterPassword, iters),
-      );
-    } catch (e) {
-      throw LfsDecryptionFailedException(cause: e);
+    if (isUnencryptedArchive(encData)) {
+      progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
+      zipBytes = encData;
+    } else {
+      progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
+      // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy.
+      // GCM auth-tag failure (wrong password or tampered archive) surfaces as
+      // InvalidCipherTextException from pointycastle. ZipDecoder will also
+      // throw on successfully-decrypted-but-non-ZIP bytes (truncated file).
+      // Both cases collapse to LfsDecryptionFailedException so the UI can show
+      // a single localized message.
+      final iters = iterations ?? defaultPbkdf2Iterations;
+      try {
+        zipBytes = await Isolate.run(
+          () => _decryptWithPassword(encData, masterPassword, iters),
+        );
+      } catch (e) {
+        throw LfsDecryptionFailedException(cause: e);
+      }
     }
     progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
     final Archive archive;

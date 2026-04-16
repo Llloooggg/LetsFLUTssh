@@ -2063,4 +2063,14 @@ class SEn extends S {
 
   @override
   String get enableLoggingSubtitle => 'Write app events to a rotating log file';
+
+  @override
+  String get exportWithoutPassword => 'Export Without Password?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.';
+
+  @override
+  String get continueWithoutPassword => 'Continue Without Password';
 }

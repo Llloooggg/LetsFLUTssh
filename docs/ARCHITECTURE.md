@@ -794,6 +794,14 @@ payload = ZIP archive:
 
 Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
+
+Unencrypted variant: export dialog accepts an empty master password after
+a confirmation step. ExportImport.export() then writes the raw ZIP
+bytes (the `PK\x03\x04` local-file-header magic) instead of the
+salt + IV + ciphertext + tag layout. Import side detects the format by
+checking the first 4 bytes via ExportImport.isUnencryptedArchive() /
+LfsImportDialog.probeEncrypted() and skips the PBKDF2 / AES-GCM path,
+so the user never sees a password prompt for a plain-ZIP archive.
 ```
 
 Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**). The

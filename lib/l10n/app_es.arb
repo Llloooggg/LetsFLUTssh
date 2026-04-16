@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Pegar del portapapeles",
   "invalidImportLink": "El enlace no contiene un payload LetsFLUTssh válido",
   "importAction": "Importar",
-  "emptyFolder": "Carpeta vacía"
+  "emptyFolder": "Carpeta vacía",
+  "exportWithoutPassword": "¿Exportar sin contraseña?",
+  "exportWithoutPasswordWarning": "El archivo no se cifrará. Cualquiera con acceso al archivo podrá leer tus datos, incluidas contraseñas y claves privadas.",
+  "continueWithoutPassword": "Continuar sin contraseña"
 }

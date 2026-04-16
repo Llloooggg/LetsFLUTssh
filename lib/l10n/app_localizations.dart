@@ -3662,6 +3662,24 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Write app events to a rotating log file'**
   String get enableLoggingSubtitle;
+
+  /// No description provided for @exportWithoutPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Without Password?'**
+  String get exportWithoutPassword;
+
+  /// No description provided for @exportWithoutPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.'**
+  String get exportWithoutPasswordWarning;
+
+  /// No description provided for @continueWithoutPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Without Password'**
+  String get continueWithoutPassword;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

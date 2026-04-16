@@ -632,5 +632,8 @@
   "pasteFromClipboard": "클립보드에서 붙여넣기",
   "invalidImportLink": "링크에 유효한 LetsFLUTssh 페이로드가 없습니다",
   "importAction": "가져오기",
-  "emptyFolder": "빈 폴더"
+  "emptyFolder": "빈 폴더",
+  "exportWithoutPassword": "비밀번호 없이 내보내시겠습니까?",
+  "exportWithoutPasswordWarning": "아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.",
+  "continueWithoutPassword": "비밀번호 없이 계속"
 }

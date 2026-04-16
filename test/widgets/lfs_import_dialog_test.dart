@@ -150,6 +150,101 @@ void main() {
     testWidgets('constructor accepts filePath', (tester) async {
       const widget = LfsImportDialog(filePath: '/tmp/test.lfs');
       expect(widget.filePath, '/tmp/test.lfs');
+      expect(widget.isEncrypted, isTrue);
+    });
+  });
+
+  group('LfsImportDialog — unencrypted archive', () {
+    Widget buildUnencryptedDialog(String filePath) {
+      return MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: LfsImportDialog(filePath: filePath, isEncrypted: false),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('hides password field and shows warning', (tester) async {
+      final lfsFile = File('${tempDir.path}/plain.lfs');
+      lfsFile.writeAsBytesSync([0x50, 0x4B, 0x03, 0x04]);
+
+      await tester.pumpWidget(buildUnencryptedDialog(lfsFile.path));
+      await tester.pump();
+
+      expect(find.text('Master Password'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      // The plain-text warning is re-used from the export-side string.
+      expect(find.textContaining('not be encrypted'), findsOneWidget);
+    });
+
+    testWidgets('Import button submits without password', (tester) async {
+      final lfsFile = File('${tempDir.path}/plain2.lfs');
+      lfsFile.writeAsBytesSync([0x50, 0x4B, 0x03, 0x04]);
+
+      LfsImportDialogResult? result;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () async {
+                  result = await LfsImportDialog.show(
+                    context,
+                    filePath: lfsFile.path,
+                    isEncrypted: false,
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Import'));
+      await tester.pumpAndSettle();
+
+      expect(result, isNotNull);
+      expect(result!.password, '');
+      expect(result!.mode, ImportMode.merge);
+    });
+  });
+
+  group('LfsImportDialog.probeEncrypted', () {
+    test('returns false for a raw ZIP header', () {
+      final zip = File('${tempDir.path}/raw.zip');
+      zip.writeAsBytesSync([0x50, 0x4B, 0x03, 0x04, 0xFF, 0xFF]);
+      expect(LfsImportDialog.probeEncrypted(zip.path), isFalse);
+    });
+
+    test('returns true for random (encrypted-looking) bytes', () {
+      final enc = File('${tempDir.path}/enc.lfs');
+      enc.writeAsBytesSync([0x13, 0x37, 0x00, 0x42, 0xAB, 0xCD]);
+      expect(LfsImportDialog.probeEncrypted(enc.path), isTrue);
+    });
+
+    test('returns true for a file shorter than 4 bytes', () {
+      final tiny = File('${tempDir.path}/tiny.lfs');
+      tiny.writeAsBytesSync([0x50, 0x4B]);
+      expect(LfsImportDialog.probeEncrypted(tiny.path), isTrue);
+    });
+
+    test('returns true when the file does not exist (safe default)', () {
+      expect(
+        LfsImportDialog.probeEncrypted('${tempDir.path}/missing.lfs'),
+        isTrue,
+      );
     });
   });
 

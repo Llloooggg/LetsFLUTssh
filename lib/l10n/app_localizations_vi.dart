@@ -2062,4 +2062,14 @@ class SVi extends S {
   @override
   String get enableLoggingSubtitle =>
       'Ghi các sự kiện ứng dụng vào tệp nhật ký xoay vòng';
+
+  @override
+  String get exportWithoutPassword => 'Xuất không có mật khẩu?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.';
+
+  @override
+  String get continueWithoutPassword => 'Tiếp tục không dùng mật khẩu';
 }

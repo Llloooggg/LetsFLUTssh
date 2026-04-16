@@ -632,5 +632,8 @@
   "pasteFromClipboard": "چسباندن از کلیپ‌بورد",
   "invalidImportLink": "پیوند بار معتبر LetsFLUTssh را شامل نیست",
   "importAction": "درون‌ریزی",
-  "emptyFolder": "پوشه خالی"
+  "emptyFolder": "پوشه خالی",
+  "exportWithoutPassword": "بدون رمز عبور خروجی گرفته شود؟",
+  "exportWithoutPasswordWarning": "آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.",
+  "continueWithoutPassword": "بدون رمز عبور ادامه بده"
 }

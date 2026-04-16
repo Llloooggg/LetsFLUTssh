@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Dán từ bộ nhớ tạm",
   "invalidImportLink": "Liên kết không chứa payload LetsFLUTssh hợp lệ",
   "importAction": "Nhập",
-  "emptyFolder": "Thư mục trống"
+  "emptyFolder": "Thư mục trống",
+  "exportWithoutPassword": "Xuất không có mật khẩu?",
+  "exportWithoutPasswordWarning": "Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.",
+  "continueWithoutPassword": "Tiếp tục không dùng mật khẩu"
 }

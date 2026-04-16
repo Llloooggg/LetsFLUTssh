@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Вставить из буфера",
   "invalidImportLink": "Ссылка не содержит корректные данные LetsFLUTssh",
   "importAction": "Импортировать",
-  "emptyFolder": "Папка пуста"
+  "emptyFolder": "Папка пуста",
+  "exportWithoutPassword": "Экспортировать без пароля?",
+  "exportWithoutPasswordWarning": "Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.",
+  "continueWithoutPassword": "Продолжить без пароля"
 }

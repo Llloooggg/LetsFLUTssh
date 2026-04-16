@@ -2077,4 +2077,14 @@ class SHi extends S {
   @override
   String get enableLoggingSubtitle =>
       'ऐप की घटनाओं को एक रोटेटिंग लॉग फ़ाइल में लिखें';
+
+  @override
+  String get exportWithoutPassword => 'पासवर्ड के बिना निर्यात करें?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।';
+
+  @override
+  String get continueWithoutPassword => 'बिना पासवर्ड के जारी रखें';
 }

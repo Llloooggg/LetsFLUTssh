@@ -2084,4 +2084,14 @@ class SAr extends S {
 
   @override
   String get enableLoggingSubtitle => 'كتابة أحداث التطبيق في ملف سجل دوّار';
+
+  @override
+  String get exportWithoutPassword => 'تصدير بدون كلمة مرور؟';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.';
+
+  @override
+  String get continueWithoutPassword => 'المتابعة بدون كلمة مرور';
 }

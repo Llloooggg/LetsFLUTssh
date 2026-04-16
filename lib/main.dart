@@ -1027,7 +1027,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       'LFS import started: ${filePath.split('/').last}',
       name: 'App',
     );
-    final result = await LfsImportDialog.show(context, filePath: filePath);
+    // Peek at the archive header so the password prompt can be skipped for
+    // unencrypted (plain-ZIP) exports.
+    final isEncrypted = LfsImportDialog.probeEncrypted(filePath);
+    final result = await LfsImportDialog.show(
+      context,
+      filePath: filePath,
+      isEncrypted: isEncrypted,
+    );
     if (result == null || !context.mounted) return;
 
     // Show progress bar while PBKDF2 + decryption run in isolate and the

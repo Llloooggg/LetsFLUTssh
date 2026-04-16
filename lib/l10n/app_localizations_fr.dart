@@ -2103,4 +2103,14 @@ class SFr extends S {
   @override
   String get enableLoggingSubtitle =>
       'Écrire les événements de l\'application dans un fichier journal rotatif';
+
+  @override
+  String get exportWithoutPassword => 'Exporter sans mot de passe ?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'L\'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.';
+
+  @override
+  String get continueWithoutPassword => 'Continuer sans mot de passe';
 }

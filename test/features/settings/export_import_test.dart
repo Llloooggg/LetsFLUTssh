@@ -468,6 +468,91 @@ void main() {
     });
   });
 
+  group('ExportImport — unencrypted archive', () {
+    test('export with empty password writes a raw ZIP', () async {
+      final outputPath = '${tempDir.path}/plain.lfs';
+      await ExportImport.export(
+        masterPassword: '',
+        outputPath: outputPath,
+        input: LfsExportInput(
+          sessions: [makeSession(id: 'u1', label: 'u1', password: 'x')],
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
+      );
+
+      final bytes = await File(outputPath).readAsBytes();
+      // The first four bytes must be the ZIP local-file-header magic — the
+      // whole point of the unencrypted path is that the archive is a plain
+      // ZIP anyone can open.
+      expect(bytes[0], 0x50);
+      expect(bytes[1], 0x4B);
+      expect(bytes[2], 0x03);
+      expect(bytes[3], 0x04);
+      expect(ExportImport.isUnencryptedArchive(bytes), isTrue);
+    });
+
+    test('unencrypted export roundtrips through import', () async {
+      final sessions = [
+        makeSession(id: 'p-1', label: 'plain', password: 'secret'),
+      ];
+      final outputPath = '${tempDir.path}/roundtrip.lfs';
+
+      await ExportImport.export(
+        masterPassword: '',
+        outputPath: outputPath,
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
+      );
+
+      // Password is ignored on the unencrypted path.
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: '',
+        mode: ImportMode.merge,
+        options: const ExportOptions(includeConfig: true),
+      );
+
+      expect(result.sessions, hasLength(1));
+      expect(result.sessions.first.id, 'p-1');
+      expect(result.sessions.first.password, 'secret');
+    });
+
+    test('isUnencryptedArchive detects ZIP magic', () {
+      final zip = Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 0, 0]);
+      final enc = Uint8List.fromList([0x12, 0x34, 0x56, 0x78, 0, 0]);
+      final tiny = Uint8List.fromList([0x50, 0x4B]);
+      expect(ExportImport.isUnencryptedArchive(zip), isTrue);
+      expect(ExportImport.isUnencryptedArchive(enc), isFalse);
+      expect(ExportImport.isUnencryptedArchive(tiny), isFalse);
+    });
+
+    test('preview reads unencrypted archive without a password', () async {
+      final sessions = [makeSession(id: 'pv-1', label: 'x', password: 'y')];
+      final outputPath = '${tempDir.path}/preview.lfs';
+
+      await ExportImport.export(
+        masterPassword: '',
+        outputPath: outputPath,
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
+      );
+
+      final preview = await ExportImport.preview(
+        filePath: outputPath,
+        masterPassword: '',
+      );
+      expect(preview.sessions, hasLength(1));
+      expect(preview.sessions.first.id, 'pv-1');
+    });
+  });
+
   group('ImportMode and ImportResult', () {
     test('ImportMode values', () {
       expect(ImportMode.values, hasLength(2));

@@ -2084,4 +2084,14 @@ class STr extends S {
   @override
   String get enableLoggingSubtitle =>
       'Uygulama olaylarını döngüsel bir günlük dosyasına yaz';
+
+  @override
+  String get exportWithoutPassword => 'Parolasız dışa aktarılsın mı?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.';
+
+  @override
+  String get continueWithoutPassword => 'Parolasız devam et';
 }

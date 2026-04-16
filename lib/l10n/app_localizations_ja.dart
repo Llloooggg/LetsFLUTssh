@@ -2025,4 +2025,14 @@ class SJa extends S {
 
   @override
   String get enableLoggingSubtitle => 'アプリのイベントをローテーションログファイルに記録';
+
+  @override
+  String get exportWithoutPassword => 'パスワードなしでエクスポートしますか？';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。';
+
+  @override
+  String get continueWithoutPassword => 'パスワードなしで続行';
 }

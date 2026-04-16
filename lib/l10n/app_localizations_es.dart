@@ -2095,4 +2095,14 @@ class SEs extends S {
   @override
   String get enableLoggingSubtitle =>
       'Escribir los eventos de la app en un archivo de registro rotativo';
+
+  @override
+  String get exportWithoutPassword => '¿Exportar sin contraseña?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'El archivo no se cifrará. Cualquiera con acceso al archivo podrá leer tus datos, incluidas contraseñas y claves privadas.';
+
+  @override
+  String get continueWithoutPassword => 'Continuar sin contraseña';
 }

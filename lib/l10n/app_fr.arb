@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Coller depuis le presse-papiers",
   "invalidImportLink": "Le lien ne contient pas de payload LetsFLUTssh valide",
   "importAction": "Importer",
-  "emptyFolder": "Dossier vide"
+  "emptyFolder": "Dossier vide",
+  "exportWithoutPassword": "Exporter sans mot de passe ?",
+  "exportWithoutPasswordWarning": "L'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.",
+  "continueWithoutPassword": "Continuer sans mot de passe"
 }

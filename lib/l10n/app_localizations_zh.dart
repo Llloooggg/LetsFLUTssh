@@ -2013,4 +2013,14 @@ class SZh extends S {
 
   @override
   String get enableLoggingSubtitle => '将应用事件写入循环日志文件';
+
+  @override
+  String get exportWithoutPassword => '不设密码导出？';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      '归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。';
+
+  @override
+  String get continueWithoutPassword => '不设密码继续';
 }

@@ -1327,13 +1327,22 @@ class _ExportImportTile extends ConsumerWidget {
     final path = await _pickLfsFile(context);
     if (path == null || !context.mounted) return;
 
+    // Skip the password prompt for unencrypted (plain-ZIP) archives —
+    // ExportImport.import_ accepts an empty password in that branch.
+    final isEncrypted = LfsImportDialog.probeEncrypted(path);
+
     final passwordCtrl = TextEditingController();
     try {
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
-      );
-      if (password == null || !context.mounted) return;
+      final String? password;
+      if (isEncrypted) {
+        password = await AppDialog.show<String>(
+          context,
+          builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
+        );
+        if (password == null || !context.mounted) return;
+      } else {
+        password = '';
+      }
 
       // Decrypt once — reuse for both preview and import to avoid running
       // the expensive PBKDF2 key derivation (600k iterations) twice.

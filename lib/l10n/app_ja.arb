@@ -632,5 +632,8 @@
   "pasteFromClipboard": "クリップボードから貼り付け",
   "invalidImportLink": "リンクに有効な LetsFLUTssh ペイロードが含まれていません",
   "importAction": "インポート",
-  "emptyFolder": "空のフォルダ"
+  "emptyFolder": "空のフォルダ",
+  "exportWithoutPassword": "パスワードなしでエクスポートしますか？",
+  "exportWithoutPasswordWarning": "アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。",
+  "continueWithoutPassword": "パスワードなしで続行"
 }

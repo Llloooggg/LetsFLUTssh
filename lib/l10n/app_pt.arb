@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Colar da área de transferência",
   "invalidImportLink": "O link não contém um payload válido do LetsFLUTssh",
   "importAction": "Importar",
-  "emptyFolder": "Pasta vazia"
+  "emptyFolder": "Pasta vazia",
+  "exportWithoutPassword": "Exportar sem senha?",
+  "exportWithoutPasswordWarning": "O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.",
+  "continueWithoutPassword": "Continuar sem senha"
 }

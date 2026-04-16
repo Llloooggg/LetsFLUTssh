@@ -2069,4 +2069,14 @@ class SFa extends S {
   @override
   String get enableLoggingSubtitle =>
       'ثبت رویدادهای برنامه در یک فایل گزارش چرخشی';
+
+  @override
+  String get exportWithoutPassword => 'بدون رمز عبور خروجی گرفته شود؟';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.';
+
+  @override
+  String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
 }

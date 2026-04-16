@@ -6,7 +6,14 @@ part of 'settings_screen.dart';
 
 // ── Export password dialog ──
 
-class _ExportPasswordDialog extends StatelessWidget {
+/// Password dialog for archive export.
+///
+/// Allowing an empty password is intentional: the user sometimes wants a
+/// plain ZIP they can inspect or import without master password prompts.
+/// Submitting with both fields empty pops a confirmation first so the user
+/// acknowledges that the archive will ship unencrypted — anyone with the
+/// file gets every saved password and private key in plain text.
+class _ExportPasswordDialog extends StatefulWidget {
   final TextEditingController passwordCtrl;
   final TextEditingController confirmCtrl;
 
@@ -16,51 +23,151 @@ class _ExportPasswordDialog extends StatelessWidget {
   });
 
   @override
+  State<_ExportPasswordDialog> createState() => _ExportPasswordDialogState();
+}
+
+class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
+  bool _mismatch = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.passwordCtrl.addListener(_clearMismatch);
+    widget.confirmCtrl.addListener(_clearMismatch);
+  }
+
+  @override
+  void dispose() {
+    // Controllers are owned by the caller — only unregister our listeners.
+    widget.passwordCtrl.removeListener(_clearMismatch);
+    widget.confirmCtrl.removeListener(_clearMismatch);
+    super.dispose();
+  }
+
+  void _clearMismatch() {
+    if (_mismatch) setState(() => _mismatch = false);
+  }
+
+  Future<void> _submit() async {
+    final pw = widget.passwordCtrl.text;
+    final confirm = widget.confirmCtrl.text;
+
+    // Empty + empty → offer an unencrypted export after confirmation.
+    if (pw.isEmpty && confirm.isEmpty) {
+      final proceed = await _confirmUnencrypted(context);
+      if (!mounted) return;
+      if (proceed) {
+        Navigator.pop(context, '');
+      }
+      return;
+    }
+
+    if (pw != confirm) {
+      setState(() => _mismatch = true);
+      return;
+    }
+
+    Navigator.pop(context, pw);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = S.of(context);
     return AppDialog(
-      title: S.of(context).exportData,
+      title: l10n.exportData,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            S.of(context).setMasterPasswordHint,
+            l10n.setMasterPasswordHint,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           ),
           const SizedBox(height: 16),
-          _styledPasswordField(passwordCtrl, S.of(context).masterPassword),
+          _styledPasswordField(
+            widget.passwordCtrl,
+            l10n.masterPassword,
+            error: _mismatch,
+          ),
           const SizedBox(height: 8),
-          _styledPasswordField(confirmCtrl, S.of(context).confirmPassword),
+          _styledPasswordField(
+            widget.confirmCtrl,
+            l10n.confirmPassword,
+            error: _mismatch,
+          ),
+          if (_mismatch) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                l10n.passwordsDoNotMatch,
+                style: TextStyle(
+                  fontSize: AppFonts.sm,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(
-          label: S.of(context).export_,
-          onTap: () {
-            if (passwordCtrl.text.isEmpty) return;
-            if (passwordCtrl.text != confirmCtrl.text) {
-              Toast.show(
-                context,
-                message: S.of(context).passwordsDoNotMatch,
-                level: ToastLevel.warning,
-              );
-              return;
-            }
-            Navigator.pop(context, passwordCtrl.text);
-          },
-        ),
+        AppDialogAction.primary(label: l10n.export_, onTap: _submit),
       ],
     );
   }
 
-  static Widget _styledPasswordField(TextEditingController ctrl, String label) {
+  static Widget _styledPasswordField(
+    TextEditingController ctrl,
+    String label, {
+    bool error = false,
+  }) {
     return TextField(
       controller: ctrl,
       obscureText: true,
       style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-      decoration: AppTheme.inputDecoration(labelText: label),
+      decoration: AppTheme.inputDecoration(labelText: label).copyWith(
+        enabledBorder: error
+            ? OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.red, width: 1),
+              )
+            : null,
+        focusedBorder: error
+            ? OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.red, width: 1.5),
+              )
+            : null,
+      ),
     );
   }
+}
+
+/// Warn the user that the archive will be exported without encryption.
+/// Returns true if the user chose to proceed.
+Future<bool> _confirmUnencrypted(BuildContext context) async {
+  final l10n = S.of(context);
+  final confirmed = await AppDialog.show<bool>(
+    context,
+    builder: (ctx) => AppDialog(
+      title: l10n.exportWithoutPassword,
+      content: Text(
+        l10n.exportWithoutPasswordWarning,
+        style: TextStyle(
+          fontSize: AppFonts.md,
+          color: Theme.of(ctx).colorScheme.error,
+        ),
+      ),
+      actions: [
+        AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
+        AppDialogAction.primary(
+          label: l10n.continueWithoutPassword,
+          onTap: () => Navigator.pop(ctx, true),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
 }
 
 // ── Import password dialog ──

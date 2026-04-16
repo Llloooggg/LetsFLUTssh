@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Aus Zwischenablage einfügen",
   "invalidImportLink": "Der Link enthält keine gültige LetsFLUTssh-Payload",
   "importAction": "Importieren",
-  "emptyFolder": "Leerer Ordner"
+  "emptyFolder": "Leerer Ordner",
+  "exportWithoutPassword": "Ohne Passwort exportieren?",
+  "exportWithoutPasswordWarning": "Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.",
+  "continueWithoutPassword": "Ohne Passwort fortfahren"
 }

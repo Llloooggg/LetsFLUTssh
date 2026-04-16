@@ -1270,5 +1270,8 @@
   "maxHistorySubtitle": "Maximum saved commands in history",
   "calculateFolderSizesSubtitle": "Show total size next to folders in the sidebar",
   "checkForUpdatesOnStartupSubtitle": "Query GitHub for a new release when the app launches",
-  "enableLoggingSubtitle": "Write app events to a rotating log file"
+  "enableLoggingSubtitle": "Write app events to a rotating log file",
+  "exportWithoutPassword": "Export Without Password?",
+  "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
+  "continueWithoutPassword": "Continue Without Password"
 }

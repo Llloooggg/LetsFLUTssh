@@ -2022,4 +2022,14 @@ class SKo extends S {
 
   @override
   String get enableLoggingSubtitle => '앱 이벤트를 순환 로그 파일에 기록';
+
+  @override
+  String get exportWithoutPassword => '비밀번호 없이 내보내시겠습니까?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      '아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.';
+
+  @override
+  String get continueWithoutPassword => '비밀번호 없이 계속';
 }

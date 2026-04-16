@@ -632,5 +632,8 @@
   "pasteFromClipboard": "Panodan yapıştır",
   "invalidImportLink": "Bağlantı geçerli bir LetsFLUTssh yükü içermiyor",
   "importAction": "İçe aktar",
-  "emptyFolder": "Boş klasör"
+  "emptyFolder": "Boş klasör",
+  "exportWithoutPassword": "Parolasız dışa aktarılsın mı?",
+  "exportWithoutPasswordWarning": "Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.",
+  "continueWithoutPassword": "Parolasız devam et"
 }
