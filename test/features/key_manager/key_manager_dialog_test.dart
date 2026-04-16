@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
@@ -227,6 +228,79 @@ void main() {
       expect(find.text('Key Label'), findsOneWidget);
       expect(find.text('Paste Private Key (PEM)'), findsOneWidget);
     });
+
+    testWidgets(
+      'copy public key button writes the entry publicKey to the clipboard',
+      // Spec (L161-167): the copy icon on each row is the user's way of
+      // picking up the public key to paste into an authorized_keys file.
+      // It must put the exact `SshKeyEntry.publicKey` string on the
+      // system clipboard — nothing prefixed, nothing truncated.
+      (tester) async {
+        fakeStore = FakeKeyStore([testKey]);
+
+        String? clipboardText;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                final args = call.arguments as Map<Object?, Object?>?;
+                clipboardText = args?['text'] as String?;
+              }
+              return null;
+            });
+        addTearDown(() {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(SystemChannels.platform, null);
+        });
+
+        await openDialog(tester);
+        await tester.tap(find.byIcon(Icons.content_copy));
+        await tester.pump();
+
+        expect(clipboardText, 'ssh-ed25519 AAAA');
+
+        // Toast's 3s timer is still pending; let it expire so the tree
+        // disposes cleanly.
+        Toast.clearAllForTest();
+        await tester.pump();
+      },
+    );
+
+    testWidgets(
+      'successful import saves the entry and shows the keyImported toast',
+      // Spec (L222-233): a successful importKey path runs store.save and
+      // pushes a keyImported(label) toast. Regression guard — the error
+      // path was already tested; the happy path needs its own pinning.
+      (tester) async {
+        fakeStore = FakeKeyStore(); // default: importThrows=false
+        await openDialog(tester);
+
+        await tester.tap(find.text('Import Key'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Key Label'),
+          'New Key',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Paste Private Key (PEM)'),
+          '-----BEGIN OPENSSH PRIVATE KEY-----\nAAA\n-----END OPENSSH PRIVATE KEY-----',
+        );
+
+        await tester.tap(find.text('Import Key').last);
+        await tester.pumpAndSettle();
+
+        // FakeKeyStore.importKey returns a synthesized SshKeyEntry with the
+        // user's label; store.save in FakeKeyStore is an in-memory put.
+        expect(fakeStore._keys, hasLength(1));
+        expect(fakeStore._keys.values.first.label, 'New Key');
+
+        // Success toast carries the entry label per keyImported(label).
+        expect(find.text('Key imported: New Key'), findsOneWidget);
+
+        Toast.clearAllForTest();
+        await tester.pump();
+      },
+    );
 
     testWidgets('import with invalid PEM shows error toast', (tester) async {
       fakeStore = FakeKeyStore();
