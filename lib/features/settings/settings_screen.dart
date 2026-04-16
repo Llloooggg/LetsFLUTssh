@@ -22,6 +22,7 @@ import '../../core/security/master_password.dart';
 import '../../core/security/security_level.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
+import '../../providers/auto_lock_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../core/security/key_store.dart';

@@ -2032,9 +2032,7 @@ class _AutoLockTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
-    final current = ref.watch(
-      configProvider.select((c) => c.behavior.autoLockMinutes),
-    );
+    final current = ref.watch(autoLockMinutesProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -2085,13 +2083,8 @@ class _AutoLockTile extends ConsumerWidget {
                 ),
                 selected: selected,
                 selectedColor: AppTheme.accent,
-                onSelected: (_) => ref
-                    .read(configProvider.notifier)
-                    .update(
-                      (c) => c.copyWith(
-                        behavior: c.behavior.copyWith(autoLockMinutes: m),
-                      ),
-                    ),
+                onSelected: (_) =>
+                    ref.read(autoLockMinutesProvider.notifier).set(m),
               );
             }).toList(),
           ),

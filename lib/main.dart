@@ -1,4 +1,4 @@
-import 'dart:async' show runZonedGuarded;
+import 'dart:async' show runZonedGuarded, unawaited;
 import 'dart:io' show exit;
 import 'dart:ui' show PlatformDispatcher;
 
@@ -45,6 +45,7 @@ import 'features/tabs/tab_model.dart';
 import 'features/workspace/workspace_controller.dart';
 import 'features/workspace/workspace_node.dart';
 import 'features/workspace/workspace_view.dart';
+import 'providers/auto_lock_provider.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/key_provider.dart';
@@ -446,9 +447,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.read(knownHostsProvider).setDatabase(db);
     ref.read(snippetStoreProvider).setDatabase(db);
     ref.read(tagStoreProvider).setDatabase(db);
+    ref.read(autoLockStoreProvider).setDatabase(db);
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
+    // Load the persisted auto-lock timeout (and run the one-shot legacy
+    // migration from config.json into the DB). Fire-and-forget — the
+    // notifier publishes 0 until the load resolves, which matches the
+    // behaviour of "auto-lock disabled" and is the safe default during
+    // the brief window between DB open and first read.
+    unawaited(ref.read(autoLockMinutesProvider.notifier).load());
   }
 
   /// Attempt to unlock with biometrics. Returns the cached DB key on

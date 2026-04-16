@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
 import '../core/security/security_level.dart';
-import '../providers/config_provider.dart';
+import '../providers/auto_lock_provider.dart';
 import '../providers/security_provider.dart';
 import '../utils/logger.dart';
 
-/// Wraps the app body and locks the app after [BehaviorConfig.autoLockMinutes]
+/// Wraps the app body and locks the app after `autoLockMinutesProvider`
 /// minutes of user inactivity when security level is `masterPassword`.
 ///
 /// What "lock" means:
@@ -46,15 +46,12 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector> {
     // React to config + security-level changes synchronously so the timer
     // is (re)armed the moment the user toggles auto-lock or switches
     // modes. Using ref.listen keeps the build cheap.
-    ref.listen(
-      configProvider.select((c) => c.behavior.autoLockMinutes),
-      (_, _) => _rearm(),
-    );
+    ref.listen(autoLockMinutesProvider, (_, _) => _rearm());
     ref.listen(
       securityStateProvider.select((s) => s.level),
       (_, _) => _rearm(),
     );
-    final minutes = ref.read(configProvider).behavior.autoLockMinutes;
+    final minutes = ref.read(autoLockMinutesProvider);
     final level = ref.read(securityStateProvider).level;
     _syncTimer(minutes, level);
 
@@ -82,7 +79,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector> {
   }
 
   void _rearm() {
-    final minutes = ref.read(configProvider).behavior.autoLockMinutes;
+    final minutes = ref.read(autoLockMinutesProvider);
     final level = ref.read(securityStateProvider).level;
     _syncTimer(minutes, level);
   }
