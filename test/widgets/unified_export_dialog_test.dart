@@ -879,4 +879,29 @@ void main() {
       });
     },
   );
+
+  group('UnifiedExportDialog — preset chips', () {
+    testWidgets('preset ChoiceChips hide the default checkmark overlay so the '
+        'avatar icon stays visible when selected', (tester) async {
+      await tester.pumpWidget(buildDialog(sessions: [makeSession('1', 'A')]));
+      await tester.pump();
+      final chips = tester
+          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+          .toList();
+      expect(
+        chips,
+        isNotEmpty,
+        reason: 'dialog should render at least one preset chip',
+      );
+      for (final chip in chips) {
+        expect(
+          chip.showCheckmark,
+          isFalse,
+          reason:
+              'checkmark overlay must be disabled — the avatar icon is the '
+              'only indicator, selection is signalled by background colour',
+        );
+      }
+    });
+  });
 }

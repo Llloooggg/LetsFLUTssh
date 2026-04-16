@@ -719,6 +719,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               label: Text(S.of(context).fullBackup),
               selected: _isPresetActive(_fullBackupPreset),
               selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+              showCheckmark: false,
               onSelected: (_) => setState(() {
                 _invalidatePayloadCache();
                 _options = _fullBackupPreset;
@@ -730,6 +731,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               label: Text(S.of(context).sessionsOnly),
               selected: _isPresetActive(_sessionsPreset),
               selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+              showCheckmark: false,
               onSelected: (_) => setState(() {
                 _invalidatePayloadCache();
                 _options = _sessionsPreset;
