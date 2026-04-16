@@ -234,6 +234,26 @@ class STr extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ilişki düşürüldü (hedef eksik)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bozuk oturum atlandı',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Oturumlar';
 
   @override
@@ -1197,7 +1217,7 @@ class STr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Bu süre boyunca boşta kalındığında bellekteki anahtarı sıfırlayın ve arayüzü kilitleyin.';
+      'Bu süre boyunca boşta kalındığında arayüzü kilitler. Şifrelenmiş veritabanı yalnızca aktif SSH oturumu yokken yeniden kilitlenir, uzun süreli işlemler bağlı kalır.';
 
   @override
   String get autoLockOff => 'Kapalı';
@@ -1219,6 +1239,16 @@ class STr extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Arşiv çok büyük ($sizeMb MB). Sınır $limitMb MB — belleği korumak için şifre çözme öncesi iptal edildi.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts girdisi çok büyük ($sizeMb MB). Sınır $limitMb MB — içe aktarma yanıt verir kalsın diye iptal edildi.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'İçe aktarma başarısız — verileriniz içe aktarma öncesi duruma geri yüklendi. ($cause)';
   }
 
   @override
@@ -2054,4 +2084,14 @@ class STr extends S {
   @override
   String get enableLoggingSubtitle =>
       'Uygulama olaylarını döngüsel bir günlük dosyasına yaz';
+
+  @override
+  String get exportWithoutPassword => 'Parolasız dışa aktarılsın mı?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.';
+
+  @override
+  String get continueWithoutPassword => 'Parolasız devam et';
 }

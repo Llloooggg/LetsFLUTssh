@@ -295,7 +295,16 @@ class KnownHostsManager {
   }
 
   /// Export all entries to OpenSSH known_hosts format.
-  String exportToString() {
+  /// Export all known hosts to OpenSSH format.
+  ///
+  /// Ensures the in-memory cache is hydrated first: callers that export
+  /// before any `verify()` / known-hosts-UI interaction in this session
+  /// would otherwise see an empty string even though the encrypted DB
+  /// has entries (the lazy `load()` only fires on first access). Missing
+  /// this call was the visible bug — archives shipped without the user's
+  /// TOFU history even though the checkbox was on.
+  Future<String> exportToString() async {
+    await load();
     final sb = StringBuffer();
     for (final entry in _hosts.entries) {
       sb.writeln('${entry.key} ${entry.value}');

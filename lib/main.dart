@@ -1,4 +1,4 @@
-import 'dart:async' show runZonedGuarded;
+import 'dart:async' show runZonedGuarded, unawaited;
 import 'dart:io' show exit;
 import 'dart:ui' show PlatformDispatcher;
 
@@ -45,6 +45,7 @@ import 'features/tabs/tab_model.dart';
 import 'features/workspace/workspace_controller.dart';
 import 'features/workspace/workspace_node.dart';
 import 'features/workspace/workspace_view.dart';
+import 'providers/auto_lock_provider.dart';
 import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/key_provider.dart';
@@ -446,9 +447,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.read(knownHostsProvider).setDatabase(db);
     ref.read(snippetStoreProvider).setDatabase(db);
     ref.read(tagStoreProvider).setDatabase(db);
+    ref.read(autoLockStoreProvider).setDatabase(db);
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
+    // Load the persisted auto-lock timeout (and run the one-shot legacy
+    // migration from config.json into the DB). Fire-and-forget — the
+    // notifier publishes 0 until the load resolves, which matches the
+    // behaviour of "auto-lock disabled" and is the safe default during
+    // the brief window between DB open and first read.
+    unawaited(ref.read(autoLockMinutesProvider.notifier).load());
   }
 
   /// Attempt to unlock with biometrics. Returns the cached DB key on
@@ -989,6 +997,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       includeKnownHosts: data.knownHostsContent != null,
     );
     final summary = await _buildImportService().applyResult(importResult);
+    _invalidateImportProviders();
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -1018,7 +1027,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       'LFS import started: ${filePath.split('/').last}',
       name: 'App',
     );
-    final result = await LfsImportDialog.show(context, filePath: filePath);
+    // Peek at the archive header so the password prompt can be skipped for
+    // unencrypted (plain-ZIP) exports.
+    final isEncrypted = LfsImportDialog.probeEncrypted(filePath);
+    final result = await LfsImportDialog.show(
+      context,
+      filePath: filePath,
+      isEncrypted: isEncrypted,
+    );
     if (result == null || !context.mounted) return;
 
     // Show progress bar while PBKDF2 + decryption run in isolate and the
@@ -1050,6 +1066,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         progress: progress,
         l10n: l10n,
       );
+      _invalidateImportProviders();
 
       AppLogger.instance.log(
         'LFS import success: ${summary.sessions} session(s)',
@@ -1083,6 +1100,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       }
       progress.dispose();
     }
+  }
+
+  /// Refresh all cached FutureProviders after a QR or LFS import so the UI
+  /// picks up newly imported keys, tags and snippets without an app restart.
+  void _invalidateImportProviders() {
+    ref.invalidate(sshKeysProvider);
+    ref.invalidate(tagsProvider);
+    ref.invalidate(snippetsProvider);
   }
 
   ImportService _buildImportService() {
@@ -1122,7 +1147,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       deleteAllTags: () => tagStore.deleteAll(),
       loadAllSnippets: () => snippetStore.loadAll(),
       deleteAllSnippets: () => snippetStore.deleteAll(),
-      exportKnownHosts: () async => knownHostsMgr.exportToString(),
+      exportKnownHosts: () => knownHostsMgr.exportToString(),
       clearKnownHosts: () => knownHostsMgr.clearAll(),
       importKnownHosts: (content) async {
         await knownHostsMgr.importFromString(content);

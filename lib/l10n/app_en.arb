@@ -133,6 +133,24 @@
       }
     }
   },
+  "importSkippedLinks": "{count, plural, one{{count} association dropped (target missing)} other{{count} associations dropped (targets missing)}}",
+  "@importSkippedLinks": {
+    "description": "Trailing note for the import-success toast when one or more session/folder→tag or session→snippet links were dropped because the referenced tag/snippet was not part of the import (would have failed an FK insert).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importSkippedSessions": "{count, plural, one{{count} corrupt session skipped} other{{count} corrupt sessions skipped}}",
+  "@importSkippedSessions": {
+    "description": "Trailing note appended to the import-success toast when one or more session entries in the .lfs archive failed to parse and were dropped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "sessions": "Sessions",
   "emptyFolders": "Empty Folders",
   "sessionsHeader": "SESSIONS",
@@ -687,7 +705,7 @@
   "lockScreenSubtitle": "Enter the master password or use biometrics to continue.",
   "unlock": "Unlock",
   "autoLockTitle": "Auto-lock after inactivity",
-  "autoLockSubtitle": "Zero the in-memory key and block the UI when idle for this long.",
+  "autoLockSubtitle": "Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.",
   "autoLockOff": "Off",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
   "@autoLockMinutesValue": {
@@ -701,6 +719,21 @@
     "placeholders": {
       "sizeMb": { "type": "String" },
       "limitMb": { "type": "String" }
+    }
+  },
+  "errLfsKnownHostsTooLarge": "known_hosts entry is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted to keep the import responsive.",
+  "@errLfsKnownHostsTooLarge": {
+    "description": "Shown when the known_hosts blob inside a successfully decrypted .lfs archive exceeds the per-entry cap.",
+    "placeholders": {
+      "sizeMb": { "type": "String" },
+      "limitMb": { "type": "String" }
+    }
+  },
+  "errLfsImportRolledBack": "Import failed — your data has been restored to the state before the import. ({cause})",
+  "@errLfsImportRolledBack": {
+    "description": "Shown after a replace-mode import fails and the pre-import snapshot has been replayed. {cause} is the underlying failure (already localized).",
+    "placeholders": {
+      "cause": { "type": "String" }
     }
   },
   "errLfsUnsupportedVersion": "Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.",
@@ -1237,5 +1270,8 @@
   "maxHistorySubtitle": "Maximum saved commands in history",
   "calculateFolderSizesSubtitle": "Show total size next to folders in the sidebar",
   "checkForUpdatesOnStartupSubtitle": "Query GitHub for a new release when the app launches",
-  "enableLoggingSubtitle": "Write app events to a rotating log file"
+  "enableLoggingSubtitle": "Write app events to a rotating log file",
+  "exportWithoutPassword": "Export Without Password?",
+  "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
+  "continueWithoutPassword": "Continue Without Password"
 }

@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "QR経由で {count} 件のセッションをインポートしました",
   "importedSessions": "{count} 件のセッションをインポートしました",
   "importFailed": "インポート失敗: {error}",
+  "importSkippedLinks": "{count, plural, other{関連付け{count}件を破棄しました（対象が存在しません）}}",
+  "importSkippedSessions": "{count, plural, other{破損したセッション{count}件をスキップしました}}",
   "sessions": "セッション",
   "sessionsHeader": "セッション",
   "savedSessions": "保存済みセッション",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "続行するにはマスターパスワードを入力するか、生体認証を使用してください。",
   "unlock": "ロック解除",
   "autoLockTitle": "操作がないときに自動ロック",
-  "autoLockSubtitle": "この時間操作がないと、メモリ内の鍵を消去して UI をロックします。",
+  "autoLockSubtitle": "この時間操作がないと UI をロックします。暗号化データベースはアクティブな SSH セッションがない場合のみ再ロックされ、長時間の処理は接続を維持します。",
   "autoLockOff": "オフ",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分}}",
   "errLfsDecryptFailed": "マスターパスワードが間違っているか、.lfs アーカイブが破損しています",
   "errLfsArchiveTooLarge": "アーカイブが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。メモリ保護のため、復号前に中止しました。",
+  "errLfsImportRolledBack": "インポート失敗 — データはインポート前の状態に復元されました。({cause})",
+  "errLfsKnownHostsTooLarge": "known_hosts エントリが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。インポートの応答性を保つため中止しました。",
   "errLfsUnsupportedVersion": "アーカイブはスキーマ v{found} を使用していますが、このビルドは v{supported} までしか対応していません。インポートするにはアプリを更新してください。",
   "progressReadingArchive": "アーカイブを読み込み中…",
   "progressDecrypting": "復号中…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "クリップボードから貼り付け",
   "invalidImportLink": "リンクに有効な LetsFLUTssh ペイロードが含まれていません",
   "importAction": "インポート",
-  "emptyFolder": "空のフォルダ"
+  "emptyFolder": "空のフォルダ",
+  "exportWithoutPassword": "パスワードなしでエクスポートしますか？",
+  "exportWithoutPasswordWarning": "アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。",
+  "continueWithoutPassword": "パスワードなしで続行"
 }

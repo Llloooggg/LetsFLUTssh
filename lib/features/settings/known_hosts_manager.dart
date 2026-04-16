@@ -312,7 +312,8 @@ class _KnownHostsManagerPanelState
       return;
     }
 
-    final content = _manager.exportToString();
+    final content = await _manager.exportToString();
+    if (!mounted) return;
 
     if (plat.isDesktopPlatform) {
       final outputPath = await FilePicker.saveFile(

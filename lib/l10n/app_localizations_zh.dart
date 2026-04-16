@@ -228,6 +228,26 @@ class SZh extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已丢弃 $count 个关联（目标缺失）',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已跳过 $count 个损坏的会话',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => '会话';
 
   @override
@@ -1162,7 +1182,8 @@ class SZh extends S {
   String get autoLockTitle => '闲置后自动锁定';
 
   @override
-  String get autoLockSubtitle => '在闲置达到此时长后清除内存中的密钥并锁定界面。';
+  String get autoLockSubtitle =>
+      '在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。';
 
   @override
   String get autoLockOff => '关闭';
@@ -1183,6 +1204,16 @@ class SZh extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return '归档过大（$sizeMb MB）。上限为 $limitMb MB — 已在解密前中止以保护内存。';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts 条目过大（$sizeMb MB）。上限为 $limitMb MB — 为保持导入响应性已中止。';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return '导入失败 — 您的数据已恢复到导入前的状态。($cause)';
   }
 
   @override
@@ -1982,4 +2013,14 @@ class SZh extends S {
 
   @override
   String get enableLoggingSubtitle => '将应用事件写入循环日志文件';
+
+  @override
+  String get exportWithoutPassword => '不设密码导出？';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      '归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。';
+
+  @override
+  String get continueWithoutPassword => '不设密码继续';
 }

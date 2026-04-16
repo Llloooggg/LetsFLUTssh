@@ -157,6 +157,12 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                         error: (_, _) => const SizedBox.shrink(),
                       ),
                       const SizedBox(width: 4),
+                      if (_expanded && _mobile)
+                        _headerButton(
+                          icon: Icons.sort,
+                          tooltip: S.of(context).sort,
+                          onTap: () => _showMobileSortMenu(context),
+                        ),
                       if (_expanded)
                         _headerButton(
                           icon: Icons.delete_outline,
@@ -216,8 +222,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       icon: icon,
       onTap: onTap,
       tooltip: tooltip,
-      size: 12,
-      boxSize: 20,
+      dense: true,
       color: AppTheme.fgFaint,
     );
   }
@@ -308,6 +313,60 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         _sortAscending = true;
       }
     });
+  }
+
+  /// Bottom-sheet sort picker for mobile. The scrollable header layout
+  /// pushes the time column off-screen by default, so reaching it via the
+  /// header is fiddly on a phone — match the file-browser pattern and
+  /// offer a one-tap menu instead. Selecting the active column toggles
+  /// ascending ↔ descending, same as tapping the header on desktop.
+  void _showMobileSortMenu(BuildContext context) {
+    final l10n = S.of(context);
+    final columns = <(TransferSortColumn, String, IconData)>[
+      (TransferSortColumn.name, l10n.name, Icons.sort_by_alpha),
+      (TransferSortColumn.local, l10n.local, Icons.folder_outlined),
+      (TransferSortColumn.remote, l10n.remote, Icons.dns_outlined),
+      (TransferSortColumn.size, l10n.size, Icons.storage),
+      (TransferSortColumn.time, l10n.time, Icons.schedule),
+    ];
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                l10n.sort,
+                style: TextStyle(
+                  fontSize: AppFonts.lg,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final (col, label, icon) in columns)
+              ListTile(
+                leading: Icon(icon),
+                title: Text(label),
+                trailing: col == _sortColumn
+                    ? Icon(
+                        _sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        size: 18,
+                      )
+                    : null,
+                selected: col == _sortColumn,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _setSort(col);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _sortableCell(

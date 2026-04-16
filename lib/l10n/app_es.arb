@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "{count} sesión/sesiones importadas vía QR",
   "importedSessions": "{count} sesión/sesiones importadas",
   "importFailed": "Error al importar: {error}",
+  "importSkippedLinks": "{count, plural, one{{count} asociación descartada (destino faltante)} other{{count} asociaciones descartadas (destinos faltantes)}}",
+  "importSkippedSessions": "{count, plural, one{{count} sesión corrupta omitida} other{{count} sesiones corruptas omitidas}}",
   "sessions": "Sesiones",
   "sessionsHeader": "SESIONES",
   "savedSessions": "Sesiones guardadas",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Introduce la contraseña maestra o usa la biometría para continuar.",
   "unlock": "Desbloquear",
   "autoLockTitle": "Bloqueo automático por inactividad",
-  "autoLockSubtitle": "Borrar la clave en memoria y bloquear la interfaz tras este periodo de inactividad.",
+  "autoLockSubtitle": "Bloquea la interfaz tras este periodo de inactividad. La base de datos cifrada solo se vuelve a bloquear cuando no hay sesiones SSH activas, para no interrumpir operaciones largas.",
   "autoLockOff": "Desactivado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errLfsDecryptFailed": "Contraseña maestra incorrecta o archivo .lfs dañado",
   "errLfsArchiveTooLarge": "El archivo es demasiado grande ({sizeMb} MB). El límite es de {limitMb} MB: cancelado antes del descifrado para proteger la memoria.",
+  "errLfsImportRolledBack": "Error al importar — sus datos se han restaurado al estado anterior a la importación. ({cause})",
+  "errLfsKnownHostsTooLarge": "La entrada known_hosts es demasiado grande ({sizeMb} MB). El límite es de {limitMb} MB: cancelado para mantener la importación responsiva.",
   "errLfsUnsupportedVersion": "El archivo usa el esquema v{found}, pero esta versión solo admite hasta v{supported}. Actualiza la aplicación para importarlo.",
   "progressReadingArchive": "Leyendo archivo…",
   "progressDecrypting": "Descifrando…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Pegar del portapapeles",
   "invalidImportLink": "El enlace no contiene un payload LetsFLUTssh válido",
   "importAction": "Importar",
-  "emptyFolder": "Carpeta vacía"
+  "emptyFolder": "Carpeta vacía",
+  "exportWithoutPassword": "¿Exportar sin contraseña?",
+  "exportWithoutPasswordWarning": "El archivo no se cifrará. Cualquiera con acceso al archivo podrá leer tus datos, incluidas contraseñas y claves privadas.",
+  "continueWithoutPassword": "Continuar sin contraseña"
 }

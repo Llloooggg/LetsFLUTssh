@@ -9,6 +9,7 @@ import '../features/settings/export_import.dart'
     show
         LfsArchiveTooLargeException,
         LfsDecryptionFailedException,
+        LfsKnownHostsTooLargeException,
         UnsupportedLfsVersionException;
 import '../l10n/app_localizations.dart';
 import 'sanitize.dart';
@@ -52,8 +53,16 @@ String formatImportSummary(S l10n, ImportSummary s) {
   if (s.knownHostsApplied) extras.add(l10n.knownHosts);
   if (s.configApplied) extras.add(l10n.appSettings);
   final head = l10n.importedSessions(s.sessions);
-  if (extras.isEmpty) return head;
-  return '$head, ${extras.join(', ')}';
+  final body = extras.isEmpty ? head : '$head, ${extras.join(', ')}';
+  final notes = <String>[];
+  if (s.skippedSessions > 0) {
+    notes.add(l10n.importSkippedSessions(s.skippedSessions));
+  }
+  if (s.skippedLinks > 0) {
+    notes.add(l10n.importSkippedLinks(s.skippedLinks));
+  }
+  if (notes.isEmpty) return body;
+  return '$body — ${notes.join('; ')}';
 }
 
 /// Sanitize error messages to English — strips OS-locale text from
@@ -127,6 +136,15 @@ String localizeError(S l10n, Object error) {
       (error.size / (1024 * 1024)).toStringAsFixed(1),
       (error.limit / (1024 * 1024)).toStringAsFixed(0),
     );
+  }
+  if (error is LfsKnownHostsTooLargeException) {
+    return l10n.errLfsKnownHostsTooLarge(
+      (error.size / (1024 * 1024)).toStringAsFixed(1),
+      (error.limit / (1024 * 1024)).toStringAsFixed(0),
+    );
+  }
+  if (error is LfsImportRolledBackException) {
+    return l10n.errLfsImportRolledBack(localizeError(l10n, error.cause));
   }
   if (error is UnsupportedLfsVersionException) {
     return l10n.errLfsUnsupportedVersion(error.found, error.supported);

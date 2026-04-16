@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/logger.dart';
 import 'app_dialog.dart';
 import 'mode_button.dart';
 import 'styled_form_field.dart';
@@ -14,21 +16,61 @@ typedef LfsImportDialogResult = ({String password, ImportMode mode});
 
 /// Dialog for entering master password and import mode for .lfs file import.
 ///
-/// Returns [LfsImportDialogResult] on submit, null on cancel.
-/// Extracted from MainScreen for testability.
+/// Returns [LfsImportDialogResult] on submit, null on cancel. When
+/// [isEncrypted] is false (unencrypted ZIP archive), the password field is
+/// hidden and the import button is always enabled; an empty password is
+/// passed to [ExportImport.import_] to signal the unencrypted path.
 class LfsImportDialog extends StatefulWidget {
   final String filePath;
+  final bool isEncrypted;
 
-  const LfsImportDialog({super.key, required this.filePath});
+  const LfsImportDialog({
+    super.key,
+    required this.filePath,
+    this.isEncrypted = true,
+  });
+
+  /// Detect whether the `.lfs` file at [filePath] is encrypted by reading
+  /// its first 4 bytes and comparing them to the ZIP local-file-header
+  /// magic. Returns true for encrypted archives, including when the probe
+  /// itself fails — defaulting to asking for a password is the safer UX
+  /// than silently attempting an unencrypted import of a malformed file.
+  ///
+  /// Reads synchronously because the cost (one open/close + 4-byte read) is
+  /// negligible and keeping the call sync means callers from the main
+  /// isolate don't introduce an extra frame gap before the follow-up
+  /// dialog appears.
+  static bool probeEncrypted(String filePath) {
+    try {
+      final raf = File(filePath).openSync();
+      try {
+        final head = Uint8List(4);
+        final read = raf.readIntoSync(head);
+        if (read < 4) return true;
+        return !ExportImport.isUnencryptedArchive(head);
+      } finally {
+        raf.closeSync();
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'probeEncrypted failed — defaulting to encrypted',
+        name: 'LfsImportDialog',
+        error: e,
+      );
+      return true;
+    }
+  }
 
   /// Show the dialog and return the result.
   static Future<LfsImportDialogResult?> show(
     BuildContext context, {
     required String filePath,
+    bool isEncrypted = true,
   }) {
     return AppDialog.show<LfsImportDialogResult>(
       context,
-      builder: (_) => LfsImportDialog(filePath: filePath),
+      builder: (_) =>
+          LfsImportDialog(filePath: filePath, isEncrypted: isEncrypted),
     );
   }
 
@@ -47,14 +89,18 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
   }
 
   void _submit() {
-    if (_passwordCtrl.text.isEmpty) return;
+    // For unencrypted archives the password is ignored downstream; for
+    // encrypted ones an empty value would just fail to decrypt, so we
+    // require non-empty input in that branch.
+    if (widget.isEncrypted && _passwordCtrl.text.isEmpty) return;
     Navigator.pop(context, (password: _passwordCtrl.text, mode: _mode));
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = S.of(context);
     return AppDialog(
-      title: S.of(context).importData,
+      title: l10n.importData,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -63,35 +109,44 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
           ),
           const SizedBox(height: 12),
-          StyledInput(
-            controller: _passwordCtrl,
-            obscure: true,
-            autofocus: true,
-            labelText: S.of(context).masterPassword,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 10,
+          if (widget.isEncrypted)
+            StyledInput(
+              controller: _passwordCtrl,
+              obscure: true,
+              autofocus: true,
+              labelText: l10n.masterPassword,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
+              onSubmitted: (v) {
+                if (v.isNotEmpty) {
+                  Navigator.pop(context, (password: v, mode: _mode));
+                }
+              },
+            )
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                l10n.exportWithoutPasswordWarning,
+                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+              ),
             ),
-            onSubmitted: (v) {
-              if (v.isNotEmpty) {
-                Navigator.pop(context, (password: v, mode: _mode));
-              }
-            },
-          ),
           const SizedBox(height: 12),
           _buildModeSelector(),
           const SizedBox(height: 4),
           Text(
             _mode == ImportMode.merge
-                ? S.of(context).importModeMergeDescription
-                : S.of(context).importModeReplaceDescription,
+                ? l10n.importModeMergeDescription
+                : l10n.importModeReplaceDescription,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         ],
       ),
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: S.of(context).import_, onTap: _submit),
+        AppDialogAction.primary(label: l10n.import_, onTap: _submit),
       ],
     );
   }

@@ -233,6 +233,28 @@ class SPt extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count associações descartadas (alvos ausentes)',
+      one: '$count associação descartada (alvo ausente)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessões corrompidas ignoradas',
+      one: '$count sessão corrompida ignorada',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sessões';
 
   @override
@@ -1197,7 +1219,7 @@ class SPt extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Zerar a chave em memória e bloquear a interface após este período de inatividade.';
+      'Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.';
 
   @override
   String get autoLockOff => 'Desativado';
@@ -1220,6 +1242,16 @@ class SPt extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Arquivo muito grande ($sizeMb MB). O limite é de $limitMb MB — interrompido antes da descriptografia para proteger a memória.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Entrada known_hosts muito grande ($sizeMb MB). O limite é de $limitMb MB — interrompido para manter a importação responsiva.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Falha na importação — seus dados foram restaurados ao estado anterior. ($cause)';
   }
 
   @override
@@ -2055,4 +2087,14 @@ class SPt extends S {
   @override
   String get enableLoggingSubtitle =>
       'Gravar eventos do app em arquivo de log rotativo';
+
+  @override
+  String get exportWithoutPassword => 'Exportar sem senha?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.';
+
+  @override
+  String get continueWithoutPassword => 'Continuar sem senha';
 }

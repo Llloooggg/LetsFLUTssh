@@ -234,6 +234,28 @@ class SFr extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count associations ignorées (cibles manquantes)',
+      one: '$count association ignorée (cible manquante)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions corrompues ignorées',
+      one: '$count session corrompue ignorée',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sessions';
 
   @override
@@ -1204,7 +1226,7 @@ class SFr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Effacer la clé en mémoire et verrouiller l’interface après cette durée d’inactivité.';
+      'Verrouille l’interface après cette durée d’inactivité. La base de données chiffrée n’est reverrouillée que lorsqu’aucune session SSH n’est active, afin que les opérations longues restent connectées.';
 
   @override
   String get autoLockOff => 'Désactivé';
@@ -1227,6 +1249,16 @@ class SFr extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'L\'archive est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu avant le déchiffrement pour protéger la mémoire.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'L\'entrée known_hosts est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu pour garder l\'import réactif.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Échec de l\'import — vos données ont été restaurées à l\'état antérieur. ($cause)';
   }
 
   @override
@@ -2071,4 +2103,14 @@ class SFr extends S {
   @override
   String get enableLoggingSubtitle =>
       'Écrire les événements de l\'application dans un fichier journal rotatif';
+
+  @override
+  String get exportWithoutPassword => 'Exporter sans mot de passe ?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'L\'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.';
+
+  @override
+  String get continueWithoutPassword => 'Continuer sans mot de passe';
 }

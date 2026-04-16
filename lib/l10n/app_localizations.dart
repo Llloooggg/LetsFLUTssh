@@ -525,6 +525,18 @@ abstract class S {
   /// **'Import failed: {error}'**
   String importFailed(String error);
 
+  /// Trailing note for the import-success toast when one or more session/folder→tag or session→snippet links were dropped because the referenced tag/snippet was not part of the import (would have failed an FK insert).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} association dropped (target missing)} other{{count} associations dropped (targets missing)}}'**
+  String importSkippedLinks(int count);
+
+  /// Trailing note appended to the import-success toast when one or more session entries in the .lfs archive failed to parse and were dropped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} corrupt session skipped} other{{count} corrupt sessions skipped}}'**
+  String importSkippedSessions(int count);
+
   /// No description provided for @sessions.
   ///
   /// In en, this message translates to:
@@ -2250,7 +2262,7 @@ abstract class S {
   /// No description provided for @autoLockSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Zero the in-memory key and block the UI when idle for this long.'**
+  /// **'Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.'**
   String get autoLockSubtitle;
 
   /// No description provided for @autoLockOff.
@@ -2276,6 +2288,18 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.'**
   String errLfsArchiveTooLarge(String sizeMb, String limitMb);
+
+  /// Shown when the known_hosts blob inside a successfully decrypted .lfs archive exceeds the per-entry cap.
+  ///
+  /// In en, this message translates to:
+  /// **'known_hosts entry is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted to keep the import responsive.'**
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb);
+
+  /// Shown after a replace-mode import fails and the pre-import snapshot has been replayed. {cause} is the underlying failure (already localized).
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed — your data has been restored to the state before the import. ({cause})'**
+  String errLfsImportRolledBack(String cause);
 
   /// No description provided for @errLfsUnsupportedVersion.
   ///
@@ -3638,6 +3662,24 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Write app events to a rotating log file'**
   String get enableLoggingSubtitle;
+
+  /// No description provided for @exportWithoutPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Without Password?'**
+  String get exportWithoutPassword;
+
+  /// No description provided for @exportWithoutPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.'**
+  String get exportWithoutPasswordWarning;
+
+  /// No description provided for @continueWithoutPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Without Password'**
+  String get continueWithoutPassword;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

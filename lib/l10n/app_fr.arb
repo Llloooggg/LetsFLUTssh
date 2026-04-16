@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "{count} session(s) importée(s) via QR",
   "importedSessions": "{count} session(s) importée(s)",
   "importFailed": "Échec de l'import : {error}",
+  "importSkippedLinks": "{count, plural, one{{count} association ignorée (cible manquante)} other{{count} associations ignorées (cibles manquantes)}}",
+  "importSkippedSessions": "{count, plural, one{{count} session corrompue ignorée} other{{count} sessions corrompues ignorées}}",
   "sessions": "Sessions",
   "sessionsHeader": "SESSIONS",
   "savedSessions": "Sessions enregistrées",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Saisissez le mot de passe maître ou utilisez la biométrie pour continuer.",
   "unlock": "Déverrouiller",
   "autoLockTitle": "Verrouillage automatique après inactivité",
-  "autoLockSubtitle": "Effacer la clé en mémoire et verrouiller l’interface après cette durée d’inactivité.",
+  "autoLockSubtitle": "Verrouille l’interface après cette durée d’inactivité. La base de données chiffrée n’est reverrouillée que lorsqu’aucune session SSH n’est active, afin que les opérations longues restent connectées.",
   "autoLockOff": "Désactivé",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
   "errLfsDecryptFailed": "Mot de passe maître incorrect ou archive .lfs corrompue",
   "errLfsArchiveTooLarge": "L'archive est trop volumineuse ({sizeMb} Mo). La limite est de {limitMb} Mo — interrompu avant le déchiffrement pour protéger la mémoire.",
+  "errLfsImportRolledBack": "Échec de l'import — vos données ont été restaurées à l'état antérieur. ({cause})",
+  "errLfsKnownHostsTooLarge": "L'entrée known_hosts est trop volumineuse ({sizeMb} Mo). La limite est de {limitMb} Mo — interrompu pour garder l'import réactif.",
   "errLfsUnsupportedVersion": "L'archive utilise le schéma v{found}, mais cette version ne prend en charge que jusqu'à v{supported}. Mettez à jour l'application pour l'importer.",
   "progressReadingArchive": "Lecture de l'archive…",
   "progressDecrypting": "Déchiffrement…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Coller depuis le presse-papiers",
   "invalidImportLink": "Le lien ne contient pas de payload LetsFLUTssh valide",
   "importAction": "Importer",
-  "emptyFolder": "Dossier vide"
+  "emptyFolder": "Dossier vide",
+  "exportWithoutPassword": "Exporter sans mot de passe ?",
+  "exportWithoutPasswordWarning": "L'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.",
+  "continueWithoutPassword": "Continuer sans mot de passe"
 }

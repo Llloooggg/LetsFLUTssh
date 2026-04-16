@@ -79,23 +79,32 @@ void main() {
     });
 
     test('handles malformed session entries', () {
-      // These payloads have invalid type casts that should return null.
-      // Wrap in base64Url so they reach the old-format JSON parser path
-      // (raw JSON fails at the base64 layer and never tests JSON parsing).
-      final malformedJsonPayloads = [
-        '{"v":1,"s":"not_a_list"}', // s is string, not list
-        '{"v":1,"s":[null]}', // null entry in list
-        '{"v":1,"s":["string"]}', // string where object expected
-        '{"v":1,"s":[42]}', // number where object expected
-        '{"v":1,"s":[true]}', // bool where object expected
-        '{"v":1,"s":[[]]}', // list where object expected
-        '{"v":1,"s":[{"l":123,"h":456,"p":"NaN"}]}', // wrong types
+      // After hardening (`is List` / `whereType` instead of `as` casts),
+      // most malformed shapes no longer crash and instead surface as a
+      // payload with empty sessions. The contract is "must never throw,
+      // and never silently insert garbage" — not "must return null".
+      final tolerantPayloads = [
+        '{"v":1,"s":"not_a_list"}', // s is a string, not a list — skipped
+        '{"v":1,"s":[null]}', // null entry — skipped
+        '{"v":1,"s":["string"]}', // wrong shape — skipped
+        '{"v":1,"s":[42]}', // wrong shape — skipped
+        '{"v":1,"s":[true]}', // wrong shape — skipped
+        '{"v":1,"s":[[]]}', // wrong shape — skipped
       ];
-      for (final json in malformedJsonPayloads) {
+      for (final json in tolerantPayloads) {
         final encoded = base64Url.encode(utf8.encode(json));
-        // Must never throw — returns null on invalid input
-        expect(decodeExportPayload(encoded), isNull, reason: 'Payload: $json');
+        final result = decodeExportPayload(encoded);
+        expect(result, isNotNull, reason: 'Payload: $json');
+        expect(result!.sessions, isEmpty, reason: 'Payload: $json');
       }
+
+      // Type errors deeper inside _decodeSession (wrong types for required
+      // fields like port=NaN) still trip the outer catch and return null —
+      // those entries genuinely violate the schema, not just its container
+      // shape.
+      const stillBad = '{"v":1,"s":[{"l":123,"h":456,"p":"NaN"}]}';
+      final encodedBad = base64Url.encode(utf8.encode(stillBad));
+      expect(decodeExportPayload(encodedBad), isNull);
 
       // These are structurally valid and should decode with defaults.
       // Use encodeExportPayload for proper base64(deflate(JSON)) format.

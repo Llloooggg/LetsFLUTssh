@@ -239,6 +239,12 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
     final theme = Theme.of(context);
     final bg = AppTheme.bg0;
     final fg = AppTheme.green;
+    // Mirror the session-panel header: on mobile we give each AppIconButton
+    // a filled background + rounded corners so the three log actions read
+    // as buttons (they were 16 px transparent icons before — too small for
+    // a thumb and easy to miss).
+    final mobile = plat.isMobilePlatform;
+    final buttonBg = mobile ? AppTheme.bg3 : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,14 +275,18 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
                 );
               },
               tooltip: S.of(context).copyLog,
-              size: 16,
+              backgroundColor: buttonBg,
+              borderRadius: AppTheme.radiusSm,
             ),
+            if (mobile) const SizedBox(width: 8),
             AppIconButton(
               icon: Icons.save_alt,
               onTap: widget.onExport,
               tooltip: S.of(context).exportLog,
-              size: 16,
+              backgroundColor: buttonBg,
+              borderRadius: AppTheme.radiusSm,
             ),
+            if (mobile) const SizedBox(width: 8),
             AppIconButton(
               icon: Icons.delete_outline,
               onTap: () async {
@@ -285,7 +295,8 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
                 await _refresh();
               },
               tooltip: S.of(context).clearLogs,
-              size: 16,
+              backgroundColor: buttonBg,
+              borderRadius: AppTheme.radiusSm,
             ),
           ],
         ),

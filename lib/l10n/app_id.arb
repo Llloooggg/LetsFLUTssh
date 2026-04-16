@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "{count} sesi diimpor via QR",
   "importedSessions": "{count} sesi diimpor",
   "importFailed": "Impor gagal: {error}",
+  "importSkippedLinks": "{count, plural, other{{count} asosiasi dilewati (target hilang)}}",
+  "importSkippedSessions": "{count, plural, other{{count} sesi rusak dilewati}}",
   "sessions": "Sesi",
   "sessionsHeader": "SESI",
   "savedSessions": "Sesi tersimpan",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Masukkan kata sandi utama atau gunakan biometrik untuk melanjutkan.",
   "unlock": "Buka kunci",
   "autoLockTitle": "Kunci otomatis setelah tidak aktif",
-  "autoLockSubtitle": "Hapus kunci di memori dan kunci UI setelah tidak aktif selama durasi ini.",
+  "autoLockSubtitle": "Mengunci UI setelah tidak aktif selama durasi ini. Basis data terenkripsi hanya dikunci ulang ketika tidak ada sesi SSH aktif, agar operasi panjang tetap berjalan.",
   "autoLockOff": "Mati",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} menit}}",
   "errLfsDecryptFailed": "Kata sandi utama salah atau arsip .lfs rusak",
   "errLfsArchiveTooLarge": "Arsip terlalu besar ({sizeMb} MB). Batasnya adalah {limitMb} MB — dibatalkan sebelum dekripsi untuk melindungi memori.",
+  "errLfsImportRolledBack": "Impor gagal — data Anda telah dipulihkan ke kondisi sebelum impor. ({cause})",
+  "errLfsKnownHostsTooLarge": "Entri known_hosts terlalu besar ({sizeMb} MB). Batasnya adalah {limitMb} MB — dibatalkan agar impor tetap responsif.",
   "errLfsUnsupportedVersion": "Arsip menggunakan skema v{found}, tetapi build ini hanya mendukung hingga v{supported}. Perbarui aplikasi untuk mengimpornya.",
   "progressReadingArchive": "Membaca arsip…",
   "progressDecrypting": "Mendekripsi…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Tempel dari clipboard",
   "invalidImportLink": "Tautan tidak berisi payload LetsFLUTssh yang valid",
   "importAction": "Impor",
-  "emptyFolder": "Folder kosong"
+  "emptyFolder": "Folder kosong",
+  "exportWithoutPassword": "Ekspor tanpa kata sandi?",
+  "exportWithoutPasswordWarning": "Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.",
+  "continueWithoutPassword": "Lanjutkan tanpa kata sandi"
 }

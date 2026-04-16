@@ -136,6 +136,61 @@ void main() {
       );
     });
 
+    test(
+      'replace mode wraps failure in LfsImportRolledBackException',
+      () async {
+        final cause = Exception('save failed');
+        final errorService = ImportService(
+          addEmptyFolder: (f) async => importedFolders.add(f),
+          addSession: (s) async => throw cause,
+          deleteSession: (id) async => deletedIds.add(id),
+          getSessions: () => [],
+          applyConfig: (config) => appliedConfig = config,
+        );
+
+        try {
+          await errorService.applyResult(
+            ImportResult(
+              sessions: [makeSession('1', 'A')],
+              mode: ImportMode.replace,
+            ),
+          );
+          fail('expected LfsImportRolledBackException');
+        } on LfsImportRolledBackException catch (e) {
+          expect(e.cause, cause);
+        }
+      },
+    );
+
+    test('merge mode does NOT wrap failures (no rollback ran)', () async {
+      final cause = Exception('save failed');
+      final errorService = ImportService(
+        addEmptyFolder: (f) async => importedFolders.add(f),
+        addSession: (s) async => throw cause,
+        deleteSession: (id) async => deletedIds.add(id),
+        getSessions: () => [],
+        applyConfig: (config) => appliedConfig = config,
+      );
+
+      // Merge mode propagates the original error verbatim — there is no
+      // pre-import snapshot to restore, so the rolled-back wrapper would
+      // be misleading. (Note: by default, merge mode logs and continues
+      // on per-session failures; here we use replace-style logic to
+      // confirm the wrapper specifically only fires for replace.)
+      // To force a throw in merge, use a callback that always rethrows.
+      try {
+        await errorService.applyResult(
+          ImportResult(
+            sessions: [makeSession('1', 'A')],
+            mode: ImportMode.merge,
+          ),
+        );
+        // Merge mode swallowed the per-session error — that's fine.
+      } on LfsImportRolledBackException {
+        fail('merge mode must not wrap as rolled-back');
+      }
+    });
+
     test('applies config when not null', () async {
       const config = AppConfig(terminal: TerminalConfig(fontSize: 18.0));
 
@@ -254,6 +309,47 @@ void main() {
         expect(restoredSessions.first.id, 'old1');
         expect(restoredFolders, contains('FolderA'));
       });
+
+      test(
+        'rollback that itself throws still surfaces the original error',
+        () async {
+          // Simulate a doomsday scenario: import fails AND the snapshot
+          // restore callback also throws (e.g. DB went offline). The
+          // ImportService must NOT crash the caller — it should swallow the
+          // restore error (only logs it) and still surface the original
+          // failure wrapped in LfsImportRolledBackException so the UI can
+          // report what happened.
+          final existing = makeSession('old1', 'Old1');
+          store.add(existing);
+
+          final originalCause = Exception('disk full');
+          final svc = ImportService(
+            addEmptyFolder: (f) async => importedFolders.add(f),
+            addSession: (s) async => throw originalCause,
+            deleteSession: (id) async => deletedIds.add(id),
+            getSessions: () => store,
+            applyConfig: (config) => appliedConfig = config,
+            getEmptyFolders: () => emptyFolders,
+            restoreSnapshot: (sessions, folders) async {
+              throw Exception('restore also failed');
+            },
+          );
+
+          try {
+            await svc.applyResult(
+              ImportResult(
+                sessions: [makeSession('new1', 'New1')],
+                mode: ImportMode.replace,
+              ),
+            );
+            fail('expected LfsImportRolledBackException');
+          } on LfsImportRolledBackException catch (e) {
+            // Must surface the *original* cause, not the restore error —
+            // the restore failure is a side effect, not the headline.
+            expect(e.cause, originalCause);
+          }
+        },
+      );
 
       test('successful replace does not trigger restore', () async {
         final existing = makeSession('old1', 'Old1');
@@ -628,7 +724,7 @@ void main() {
           },
         );
 
-        await svc.applyResult(
+        final summary = await svc.applyResult(
           ImportResult(
             sessions: [],
             tags: [tag],
@@ -641,10 +737,65 @@ void main() {
         );
 
         // Only the link to the imported tag is applied; the link to 'missing'
-        // is silently skipped — it would FK-fail otherwise.
+        // is dropped — it would FK-fail otherwise — and the drop is counted
+        // in summary.skippedLinks so the toast can surface it.
         expect(taggedSessions, hasLength(1));
         expect(taggedSessions.single.tagId, 'new-imported');
+        expect(summary.skippedLinks, 1);
       });
+
+      test(
+        'skippedLinks aggregates session-tag, folder-tag, and snippet drops',
+        () async {
+          final tag = Tag(id: 'tag-ok', name: 'OK');
+          final snippet = Snippet(id: 'sn-ok', title: 'ok', command: 'echo');
+          final svc = buildTagSnippetService(
+            onSaveTag: (t) async {
+              savedTags.add(t);
+              return 'new-${t.id}';
+            },
+            onSaveSnippet: (s) async {
+              savedSnippets.add(s);
+              return 'new-${s.id}';
+            },
+            onTagSession: (sessionId, tagId) async {
+              taggedSessions.add((sessionId: sessionId, tagId: tagId));
+            },
+            onLinkSnippet: (snippetId, sessionId) async {
+              linkedSnippets.add((snippetId: snippetId, sessionId: sessionId));
+            },
+            onTagFolder: (folderId, tagId) async {
+              taggedFolders.add((folderId: folderId, tagId: tagId));
+            },
+          );
+
+          final summary = await svc.applyResult(
+            ImportResult(
+              sessions: [],
+              tags: [tag],
+              snippets: [snippet],
+              sessionTags: const [
+                ExportLink(sessionId: 's1', targetId: 'tag-ok'),
+                ExportLink(sessionId: 's1', targetId: 'tag-missing'),
+              ],
+              folderTags: const [
+                ExportFolderTagLink(folderPath: '/f', tagId: 'tag-missing'),
+              ],
+              sessionSnippets: const [
+                ExportLink(sessionId: 's1', targetId: 'sn-ok'),
+                ExportLink(sessionId: 's1', targetId: 'sn-missing'),
+                ExportLink(sessionId: 's1', targetId: 'sn-missing-2'),
+              ],
+              mode: ImportMode.merge,
+            ),
+          );
+
+          // 1 session-tag + 1 folder-tag + 2 session-snippet = 4 drops.
+          expect(summary.skippedLinks, 4);
+          expect(taggedSessions, hasLength(1));
+          expect(linkedSnippets, hasLength(1));
+        },
+      );
 
       test('skips folder-tag link when tag was not imported', () async {
         final tag = Tag(id: 'imported', name: 'Imported');

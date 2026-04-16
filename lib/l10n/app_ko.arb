@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "QR을 통해 {count}개 세션 가져옴",
   "importedSessions": "{count}개 세션 가져옴",
   "importFailed": "가져오기 실패: {error}",
+  "importSkippedLinks": "{count, plural, other{연결 {count}개를 삭제했습니다(대상 없음)}}",
+  "importSkippedSessions": "{count, plural, other{손상된 세션 {count}개를 건너뛰었습니다}}",
   "sessions": "세션",
   "sessionsHeader": "세션",
   "savedSessions": "저장된 세션",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "계속하려면 마스터 비밀번호를 입력하거나 생체 인식을 사용하세요.",
   "unlock": "잠금 해제",
   "autoLockTitle": "비활성 상태에서 자동 잠금",
-  "autoLockSubtitle": "이 시간 동안 활동이 없으면 메모리의 키를 지우고 UI를 잠급니다.",
+  "autoLockSubtitle": "이 시간 동안 활동이 없으면 UI를 잠급니다. 활성 SSH 세션이 없을 때에만 암호화된 데이터베이스가 다시 잠겨, 장시간 작업은 끊기지 않습니다.",
   "autoLockOff": "끔",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes}분}}",
   "errLfsDecryptFailed": "마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다",
   "errLfsArchiveTooLarge": "아카이브가 너무 큽니다 ({sizeMb} MB). 제한은 {limitMb} MB이며, 메모리 보호를 위해 복호화 전에 중단되었습니다.",
+  "errLfsImportRolledBack": "가져오기 실패 — 데이터를 가져오기 전 상태로 복원했습니다. ({cause})",
+  "errLfsKnownHostsTooLarge": "known_hosts 항목이 너무 큽니다 ({sizeMb} MB). 제한은 {limitMb} MB이며, 가져오기 응답성을 유지하기 위해 중단되었습니다.",
   "errLfsUnsupportedVersion": "아카이브는 스키마 v{found}을(를) 사용하지만, 이 빌드는 v{supported}까지만 지원합니다. 가져오려면 앱을 업데이트하세요.",
   "progressReadingArchive": "아카이브 읽는 중…",
   "progressDecrypting": "복호화 중…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "클립보드에서 붙여넣기",
   "invalidImportLink": "링크에 유효한 LetsFLUTssh 페이로드가 없습니다",
   "importAction": "가져오기",
-  "emptyFolder": "빈 폴더"
+  "emptyFolder": "빈 폴더",
+  "exportWithoutPassword": "비밀번호 없이 내보내시겠습니까?",
+  "exportWithoutPasswordWarning": "아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.",
+  "continueWithoutPassword": "비밀번호 없이 계속"
 }

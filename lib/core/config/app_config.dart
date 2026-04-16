@@ -233,11 +233,14 @@ class BehaviorConfig {
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
 
-  /// Auto-lock timeout in minutes. `0` disables auto-lock. Any positive
-  /// value schedules a lock after that many minutes of user inactivity —
-  /// the in-memory DB key is zeroed and a lock screen blocks the UI until
-  /// the user re-authenticates. Only meaningful in master-password mode;
-  /// settings UI hides the control otherwise.
+  /// **Legacy field** — auto-lock timeout used to live in this plaintext
+  /// `config.json`. As of schema v2 the authoritative value lives in the
+  /// encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with
+  /// disk access cannot weaken the security control by editing a
+  /// plaintext file. The notifier (`autoLockMinutesProvider`) reads this
+  /// field exactly once on first DB unlock to migrate any pre-existing
+  /// value, then resets it to `0`. New writes go straight to the DB and
+  /// never touch this field. Kept for the migration window only.
   final int autoLockMinutes;
 
   const BehaviorConfig({

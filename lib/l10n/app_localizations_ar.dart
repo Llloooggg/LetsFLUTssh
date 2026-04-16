@@ -230,6 +230,36 @@ class SAr extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم إسقاط $count ارتباط (الأهداف مفقودة)',
+      many: 'تم إسقاط $count ارتباطًا (الأهداف مفقودة)',
+      few: 'تم إسقاط $count ارتباطات (الأهداف مفقودة)',
+      two: 'تم إسقاط ارتباطين (الأهداف مفقودة)',
+      one: 'تم إسقاط ارتباط واحد (الهدف مفقود)',
+      zero: 'لا توجد ارتباطات مفقودة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'تم تخطي $count جلسة تالفة',
+      many: 'تم تخطي $count جلسة تالفة',
+      few: 'تم تخطي $count جلسات تالفة',
+      two: 'تم تخطي جلستين تالفتين',
+      one: 'تم تخطي جلسة تالفة واحدة',
+      zero: 'لا توجد جلسات تالفة',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'الجلسات';
 
   @override
@@ -1186,7 +1216,7 @@ class SAr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'تصفير المفتاح من الذاكرة وقفل الواجهة بعد هذه المدة من الخمول.';
+      'قفل الواجهة بعد هذه المدة من الخمول. لا يُعاد قفل قاعدة البيانات المشفّرة إلا عند عدم وجود جلسات SSH نشطة، حتى تستمر العمليات الطويلة دون انقطاع.';
 
   @override
   String get autoLockOff => 'معطّل';
@@ -1213,6 +1243,16 @@ class SAr extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'الأرشيف كبير جدًا ($sizeMb ميجابايت). الحد الأقصى هو $limitMb ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'إدخال known_hosts كبير جدًا ($sizeMb ميجابايت). الحد الأقصى هو $limitMb ميجابايت — تم الإلغاء للحفاظ على استجابة الاستيراد.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'فشل الاستيراد — تمت استعادة بياناتك إلى الحالة السابقة. ($cause)';
   }
 
   @override
@@ -2044,4 +2084,14 @@ class SAr extends S {
 
   @override
   String get enableLoggingSubtitle => 'كتابة أحداث التطبيق في ملف سجل دوّار';
+
+  @override
+  String get exportWithoutPassword => 'تصدير بدون كلمة مرور؟';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.';
+
+  @override
+  String get continueWithoutPassword => 'المتابعة بدون كلمة مرور';
 }

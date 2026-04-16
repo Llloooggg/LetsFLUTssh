@@ -232,6 +232,26 @@ class SFa extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count پیوند کنار گذاشته شد (هدف وجود ندارد)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count نشست خراب نادیده گرفته شد',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'جلسات';
 
   @override
@@ -1190,7 +1210,7 @@ class SFa extends S {
 
   @override
   String get autoLockSubtitle =>
-      'پس از این مدت بی‌کاری، کلید موجود در حافظه را صفر کرده و رابط را قفل کنید.';
+      'پس از این مدت بی‌کاری، رابط را قفل می‌کند. پایگاه داده رمزنگاری‌شده تنها زمانی دوباره قفل می‌شود که هیچ نشست فعال SSH وجود نداشته باشد، تا عملیات طولانی قطع نشوند.';
 
   @override
   String get autoLockOff => 'خاموش';
@@ -1212,6 +1232,16 @@ class SFa extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'بایگانی بسیار بزرگ است ($sizeMb مگابایت). محدودیت $limitMb مگابایت است — برای محافظت از حافظه، پیش از رمزگشایی لغو شد.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'ورودی known_hosts بسیار بزرگ است ($sizeMb مگابایت). محدودیت $limitMb مگابایت است — برای پاسخگو ماندن وارد کردن لغو شد.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'وارد کردن ناموفق بود — داده‌های شما به وضعیت پیش از وارد کردن بازگردانده شد. ($cause)';
   }
 
   @override
@@ -2039,4 +2069,14 @@ class SFa extends S {
   @override
   String get enableLoggingSubtitle =>
       'ثبت رویدادهای برنامه در یک فایل گزارش چرخشی';
+
+  @override
+  String get exportWithoutPassword => 'بدون رمز عبور خروجی گرفته شود؟';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.';
+
+  @override
+  String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
 }

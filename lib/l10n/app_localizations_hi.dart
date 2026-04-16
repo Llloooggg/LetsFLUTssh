@@ -233,6 +233,28 @@ class SHi extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count संबद्धताएँ छोड़ी गईं (लक्ष्य अनुपस्थित)',
+      one: '$count संबद्धता छोड़ी गई (लक्ष्य अनुपस्थित)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count खराब सत्र छोड़े गए',
+      one: '$count खराब सत्र छोड़ा गया',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'सत्र';
 
   @override
@@ -1193,7 +1215,7 @@ class SHi extends S {
 
   @override
   String get autoLockSubtitle =>
-      'इतनी देर निष्क्रिय रहने पर मेमोरी में कुंजी मिटा दें और UI को लॉक कर दें।';
+      'इतनी देर निष्क्रिय रहने पर UI लॉक होता है। एन्क्रिप्टेड डेटाबेस तभी पुनः लॉक होता है जब कोई सक्रिय SSH सत्र न हो, ताकि लंबी प्रक्रियाएँ बाधित न हों।';
 
   @override
   String get autoLockOff => 'बंद';
@@ -1215,6 +1237,16 @@ class SHi extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'संग्रह बहुत बड़ा है ($sizeMb MB). सीमा $limitMb MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts प्रविष्टि बहुत बड़ी है ($sizeMb MB). सीमा $limitMb MB है — आयात को उत्तरदायी बनाए रखने के लिए रोका गया.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'आयात विफल — आपका डेटा आयात से पहले की स्थिति में पुनर्स्थापित कर दिया गया है। ($cause)';
   }
 
   @override
@@ -2045,4 +2077,14 @@ class SHi extends S {
   @override
   String get enableLoggingSubtitle =>
       'ऐप की घटनाओं को एक रोटेटिंग लॉग फ़ाइल में लिखें';
+
+  @override
+  String get exportWithoutPassword => 'पासवर्ड के बिना निर्यात करें?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।';
+
+  @override
+  String get continueWithoutPassword => 'बिना पासवर्ड के जारी रखें';
 }

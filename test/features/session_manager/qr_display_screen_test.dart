@@ -121,8 +121,9 @@ void main() {
       await tester.pumpWidget(buildApp(data: testPayload));
       await tester.pumpAndSettle();
 
+      // The copy action lives in the dialog's action bar as an
+      // AppDialogAction.primary (label-only) — no icon any more.
       expect(find.text('Copy Link'), findsOneWidget);
-      expect(find.byIcon(Icons.copy), findsOneWidget);
     });
 
     testWidgets('Copy Link button copies data to clipboard', (tester) async {

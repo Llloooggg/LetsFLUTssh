@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "{count} sessão(ões) importada(s) via QR",
   "importedSessions": "{count} sessão(ões) importada(s)",
   "importFailed": "Falha na importação: {error}",
+  "importSkippedLinks": "{count, plural, one{{count} associação descartada (alvo ausente)} other{{count} associações descartadas (alvos ausentes)}}",
+  "importSkippedSessions": "{count, plural, one{{count} sessão corrompida ignorada} other{{count} sessões corrompidas ignoradas}}",
   "sessions": "Sessões",
   "sessionsHeader": "SESSÕES",
   "savedSessions": "Sessões salvas",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Digite a senha mestra ou use a biometria para continuar.",
   "unlock": "Desbloquear",
   "autoLockTitle": "Bloquear automaticamente após inatividade",
-  "autoLockSubtitle": "Zerar a chave em memória e bloquear a interface após este período de inatividade.",
+  "autoLockSubtitle": "Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.",
   "autoLockOff": "Desativado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errLfsDecryptFailed": "Senha mestra incorreta ou arquivo .lfs corrompido",
   "errLfsArchiveTooLarge": "Arquivo muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido antes da descriptografia para proteger a memória.",
+  "errLfsImportRolledBack": "Falha na importação — seus dados foram restaurados ao estado anterior. ({cause})",
+  "errLfsKnownHostsTooLarge": "Entrada known_hosts muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido para manter a importação responsiva.",
   "errLfsUnsupportedVersion": "O arquivo usa o esquema v{found}, mas esta versão do app só entende até v{supported}. Atualize o aplicativo para importá-lo.",
   "progressReadingArchive": "Lendo arquivo…",
   "progressDecrypting": "Descriptografando…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Colar da área de transferência",
   "invalidImportLink": "O link não contém um payload válido do LetsFLUTssh",
   "importAction": "Importar",
-  "emptyFolder": "Pasta vazia"
+  "emptyFolder": "Pasta vazia",
+  "exportWithoutPassword": "Exportar sem senha?",
+  "exportWithoutPasswordWarning": "O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.",
+  "continueWithoutPassword": "Continuar sem senha"
 }

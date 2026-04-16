@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "{count} Sitzung(en) über QR importiert",
   "importedSessions": "{count} Sitzung(en) importiert",
   "importFailed": "Import fehlgeschlagen: {error}",
+  "importSkippedLinks": "{count, plural, one{{count} Verknüpfung verworfen (Ziel fehlt)} other{{count} Verknüpfungen verworfen (Ziele fehlen)}}",
+  "importSkippedSessions": "{count, plural, one{{count} beschädigte Sitzung übersprungen} other{{count} beschädigte Sitzungen übersprungen}}",
   "sessions": "Sitzungen",
   "sessionsHeader": "SITZUNGEN",
   "savedSessions": "Gespeicherte Sitzungen",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.",
   "unlock": "Entsperren",
   "autoLockTitle": "Automatisch sperren bei Inaktivität",
-  "autoLockSubtitle": "Den Schlüssel im Speicher löschen und die Oberfläche sperren, wenn so lange inaktiv.",
+  "autoLockSubtitle": "Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Die verschlüsselte Datenbank wird nur dann erneut gesperrt, wenn keine SSH-Sitzungen aktiv sind – laufende Operationen bleiben verbunden.",
   "autoLockOff": "Aus",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} Minute} other{{minutes} Minuten}}",
   "errLfsDecryptFailed": "Falsches Master-Passwort oder beschädigtes .lfs-Archiv",
   "errLfsArchiveTooLarge": "Archiv ist zu groß ({sizeMb} MB). Das Limit beträgt {limitMb} MB – Abbruch vor der Entschlüsselung zum Schutz des Speichers.",
+  "errLfsImportRolledBack": "Import fehlgeschlagen – Ihre Daten wurden auf den Stand vor dem Import zurückgesetzt. ({cause})",
+  "errLfsKnownHostsTooLarge": "known_hosts-Eintrag ist zu groß ({sizeMb} MB). Das Limit beträgt {limitMb} MB – abgebrochen, damit der Import reaktionsfähig bleibt.",
   "errLfsUnsupportedVersion": "Archiv verwendet Schema v{found}, aber dieser Build unterstützt nur bis v{supported}. Aktualisieren Sie die App, um es zu importieren.",
   "progressReadingArchive": "Archiv wird gelesen…",
   "progressDecrypting": "Entschlüsseln…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Aus Zwischenablage einfügen",
   "invalidImportLink": "Der Link enthält keine gültige LetsFLUTssh-Payload",
   "importAction": "Importieren",
-  "emptyFolder": "Leerer Ordner"
+  "emptyFolder": "Leerer Ordner",
+  "exportWithoutPassword": "Ohne Passwort exportieren?",
+  "exportWithoutPasswordWarning": "Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.",
+  "continueWithoutPassword": "Ohne Passwort fortfahren"
 }

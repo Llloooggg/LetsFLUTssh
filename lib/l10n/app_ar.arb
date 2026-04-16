@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "تم استيراد {count} جلسة عبر QR",
   "importedSessions": "تم استيراد {count} جلسة",
   "importFailed": "فشل الاستيراد: {error}",
+  "importSkippedLinks": "{count, plural, zero{لا توجد ارتباطات مفقودة} one{تم إسقاط ارتباط واحد (الهدف مفقود)} two{تم إسقاط ارتباطين (الأهداف مفقودة)} few{تم إسقاط {count} ارتباطات (الأهداف مفقودة)} many{تم إسقاط {count} ارتباطًا (الأهداف مفقودة)} other{تم إسقاط {count} ارتباط (الأهداف مفقودة)}}",
+  "importSkippedSessions": "{count, plural, zero{لا توجد جلسات تالفة} one{تم تخطي جلسة تالفة واحدة} two{تم تخطي جلستين تالفتين} few{تم تخطي {count} جلسات تالفة} many{تم تخطي {count} جلسة تالفة} other{تم تخطي {count} جلسة تالفة}}",
   "sessions": "الجلسات",
   "sessionsHeader": "الجلسات",
   "savedSessions": "الجلسات المحفوظة",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "أدخل كلمة المرور الرئيسية أو استخدم المقاييس الحيوية للمتابعة.",
   "unlock": "إلغاء القفل",
   "autoLockTitle": "القفل التلقائي بعد الخمول",
-  "autoLockSubtitle": "تصفير المفتاح من الذاكرة وقفل الواجهة بعد هذه المدة من الخمول.",
+  "autoLockSubtitle": "قفل الواجهة بعد هذه المدة من الخمول. لا يُعاد قفل قاعدة البيانات المشفّرة إلا عند عدم وجود جلسات SSH نشطة، حتى تستمر العمليات الطويلة دون انقطاع.",
   "autoLockOff": "معطّل",
   "autoLockMinutesValue": "{minutes, plural, zero{{minutes} دقيقة} one{دقيقة واحدة} two{دقيقتان} few{{minutes} دقائق} many{{minutes} دقيقة} other{{minutes} دقيقة}}",
   "errLfsDecryptFailed": "كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف",
   "errLfsArchiveTooLarge": "الأرشيف كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.",
+  "errLfsImportRolledBack": "فشل الاستيراد — تمت استعادة بياناتك إلى الحالة السابقة. ({cause})",
+  "errLfsKnownHostsTooLarge": "إدخال known_hosts كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء للحفاظ على استجابة الاستيراد.",
   "errLfsUnsupportedVersion": "يستخدم الأرشيف المخطط v{found}، لكن هذا الإصدار يدعم فقط حتى v{supported}. قم بتحديث التطبيق لاستيراده.",
   "progressReadingArchive": "قراءة الأرشيف…",
   "progressDecrypting": "فك التشفير…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "لصق من الحافظة",
   "invalidImportLink": "الرابط لا يحتوي على حمولة LetsFLUTssh صالحة",
   "importAction": "استيراد",
-  "emptyFolder": "مجلد فارغ"
+  "emptyFolder": "مجلد فارغ",
+  "exportWithoutPassword": "تصدير بدون كلمة مرور؟",
+  "exportWithoutPasswordWarning": "لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.",
+  "continueWithoutPassword": "المتابعة بدون كلمة مرور"
 }

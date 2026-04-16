@@ -35,8 +35,11 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// History:
   ///   1 — initial schema (first public release).
+  ///   2 — `app_configs.auto_lock_minutes` column. Moves the auto-lock
+  ///       timeout out of plaintext `config.json` into the encrypted DB
+  ///       so an attacker with disk access cannot tamper with it.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,8 +47,9 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
     },
     onUpgrade: (m, from, to) async {
-      // Upgrade steps go here as the schema evolves, e.g.:
-      //   if (from < 2) { await m.addColumn(sessions, sessions.newCol); }
+      if (from < 2) {
+        await m.addColumn(appConfigs, appConfigs.autoLockMinutes);
+      }
     },
     beforeOpen: (details) async {
       // Foreign keys are also set in database_opener; repeat here so drift's

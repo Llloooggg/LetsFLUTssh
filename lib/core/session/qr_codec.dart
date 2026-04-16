@@ -612,12 +612,20 @@ Map<String, String> _parseKeyMap(Map<String, dynamic> json) {
 ) {
   final sessions = <Session>[];
   final emptyFolders = <String>{};
-  if (json.containsKey('s')) {
-    for (final m in (json['s'] as List).cast<Map<String, dynamic>>()) {
-      sessions.add(_decodeSession(m, keyMap));
+  // The outer try/catch in decodeImportPayload would still catch a bad
+  // type, but be explicit so a malformed entry is *quietly* skipped without
+  // taking down the whole payload — the QR scanner is an untrusted source.
+  final raw = json['s'];
+  if (raw is List) {
+    for (final m in raw) {
+      if (m is Map<String, dynamic>) {
+        sessions.add(_decodeSession(m, keyMap));
+      }
     }
-    final ef = json['eg'] as List?;
-    if (ef != null) emptyFolders.addAll(ef.cast<String>());
+    final ef = json['eg'];
+    if (ef is List) {
+      emptyFolders.addAll(ef.whereType<String>());
+    }
   }
   return (sessions, emptyFolders);
 }

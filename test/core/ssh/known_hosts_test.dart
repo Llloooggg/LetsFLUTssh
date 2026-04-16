@@ -363,10 +363,28 @@ void main() {
       await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
       await manager.verify('beta.com', 2222, 'ssh-ed25519', [3, 4]);
 
-      final exported = manager.exportToString();
+      final exported = await manager.exportToString();
       expect(exported, contains('alpha.com:22 ssh-rsa'));
       expect(exported, contains('beta.com:2222 ssh-ed25519'));
     });
+
+    test(
+      'exportToString auto-loads when called before any verify/load',
+      () async {
+        // Pre-seed the DB via a separate manager, flush it, then create a
+        // fresh manager that hasn't had load() called. The first real call
+        // has to be `exportToString`, simulating the Settings → Export path
+        // when the user hasn't touched known-hosts UI yet this session.
+        manager.onUnknownHost = (_, _, _, _) async => true;
+        await manager.load();
+        await manager.verify('gamma.com', 22, 'ssh-rsa', [5, 6]);
+
+        final fresh = KnownHostsManager()..setDatabase(db);
+        // No explicit load() — exportToString() must hydrate first.
+        final exported = await fresh.exportToString();
+        expect(exported, contains('gamma.com:22 ssh-rsa'));
+      },
+    );
 
     test('callback receives correct parameters', () async {
       String? capturedHost;

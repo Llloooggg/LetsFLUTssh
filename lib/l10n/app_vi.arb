@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "Đã nhập {count} phiên qua QR",
   "importedSessions": "Đã nhập {count} phiên",
   "importFailed": "Nhập thất bại: {error}",
+  "importSkippedLinks": "{count, plural, other{Đã bỏ qua {count} liên kết (mục tiêu không tồn tại)}}",
+  "importSkippedSessions": "{count, plural, other{Đã bỏ qua {count} phiên bị hỏng}}",
   "sessions": "Phiên",
   "sessionsHeader": "PHIÊN",
   "savedSessions": "Phiên đã lưu",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Nhập mật khẩu chính hoặc dùng sinh trắc học để tiếp tục.",
   "unlock": "Mở khóa",
   "autoLockTitle": "Tự động khóa khi không hoạt động",
-  "autoLockSubtitle": "Xóa khóa trong bộ nhớ và khóa giao diện sau khoảng thời gian không hoạt động này.",
+  "autoLockSubtitle": "Khóa giao diện sau khoảng thời gian không hoạt động này. Cơ sở dữ liệu mã hóa chỉ bị khóa lại khi không còn phiên SSH nào hoạt động, để các thao tác dài không bị ngắt.",
   "autoLockOff": "Tắt",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} phút}}",
   "errLfsDecryptFailed": "Mật khẩu chính sai hoặc tệp .lfs bị hỏng",
   "errLfsArchiveTooLarge": "Tệp lưu trữ quá lớn ({sizeMb} MB). Giới hạn là {limitMb} MB — đã hủy trước khi giải mã để bảo vệ bộ nhớ.",
+  "errLfsImportRolledBack": "Nhập thất bại — dữ liệu của bạn đã được khôi phục về trạng thái trước khi nhập. ({cause})",
+  "errLfsKnownHostsTooLarge": "Mục known_hosts quá lớn ({sizeMb} MB). Giới hạn là {limitMb} MB — đã hủy để giữ cho thao tác nhập phản hồi nhanh.",
   "errLfsUnsupportedVersion": "Tệp lưu trữ sử dụng lược đồ v{found}, nhưng bản dựng này chỉ hỗ trợ đến v{supported}. Hãy cập nhật ứng dụng để nhập nó.",
   "progressReadingArchive": "Đang đọc kho lưu trữ…",
   "progressDecrypting": "Đang giải mã…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Dán từ bộ nhớ tạm",
   "invalidImportLink": "Liên kết không chứa payload LetsFLUTssh hợp lệ",
   "importAction": "Nhập",
-  "emptyFolder": "Thư mục trống"
+  "emptyFolder": "Thư mục trống",
+  "exportWithoutPassword": "Xuất không có mật khẩu?",
+  "exportWithoutPasswordWarning": "Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.",
+  "continueWithoutPassword": "Tiếp tục không dùng mật khẩu"
 }

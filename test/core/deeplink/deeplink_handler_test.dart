@@ -143,6 +143,57 @@ void main() {
       expect(config, isNull);
     });
 
+    test('returns null for host with null byte', () {
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h%00x&user=u'),
+      );
+      expect(config, isNull);
+    });
+
+    test('returns null for host with control character (CR/LF)', () {
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h%0Anew&user=u'),
+      );
+      expect(config, isNull);
+    });
+
+    test('returns null for user with null byte', () {
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h&user=u%00x'),
+      );
+      expect(config, isNull);
+    });
+
+    test('returns null for user with newline (config-injection guard)', () {
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h&user=u%0AHost+evil'),
+      );
+      expect(config, isNull);
+    });
+
+    test('returns null for user with path separator', () {
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h&user=a%2Fb'),
+      );
+      expect(config, isNull);
+    });
+
+    test('returns null for excessively long user', () {
+      final longUser = 'u' * 300;
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h&user=$longUser'),
+      );
+      expect(config, isNull);
+    });
+
+    test('accepts user with @ for domain-style accounts', () {
+      final config = DeepLinkHandler.parseConnectUri(
+        Uri.parse('letsflutssh://connect?host=h&user=alice%40example.com'),
+      );
+      expect(config, isNotNull);
+      expect(config!.user, 'alice@example.com');
+    });
+
     test('ignores key path parameter — credentials not in deep links', () {
       final config = DeepLinkHandler.parseConnectUri(
         Uri.parse('letsflutssh://connect?host=h&user=u&key=../../etc/passwd'),

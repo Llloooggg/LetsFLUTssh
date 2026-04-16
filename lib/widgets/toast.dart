@@ -175,8 +175,7 @@ class _ToastWidget extends StatelessWidget {
                     AppIconButton(
                       icon: Icons.close,
                       onTap: onDismiss,
-                      size: 14,
-                      boxSize: 20,
+                      dense: true,
                       borderRadius: AppTheme.radiusMd,
                     ),
                   ],

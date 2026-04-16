@@ -757,17 +757,21 @@ class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
           as _i2.Future<int>);
 
   @override
-  String exportToString() =>
+  _i2.Future<String> exportToString() =>
       (super.noSuchMethod(
             Invocation.method(#exportToString, []),
-            returnValue: _i11.dummyValue<String>(
-              this,
-              Invocation.method(#exportToString, []),
+            returnValue: _i2.Future<String>.value(
+              _i11.dummyValue<String>(
+                this,
+                Invocation.method(#exportToString, []),
+              ),
             ),
-            returnValueForMissingStub: _i11.dummyValue<String>(
-              this,
-              Invocation.method(#exportToString, []),
+            returnValueForMissingStub: _i2.Future<String>.value(
+              _i11.dummyValue<String>(
+                this,
+                Invocation.method(#exportToString, []),
+              ),
             ),
           )
-          as String);
+          as _i2.Future<String>);
 }

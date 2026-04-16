@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "通过 QR 导入了 {count} 个会话",
   "importedSessions": "已导入 {count} 个会话",
   "importFailed": "导入失败：{error}",
+  "importSkippedLinks": "{count, plural, other{已丢弃 {count} 个关联（目标缺失）}}",
+  "importSkippedSessions": "{count, plural, other{已跳过 {count} 个损坏的会话}}",
   "sessions": "会话",
   "sessionsHeader": "会话",
   "savedSessions": "已保存的会话",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "输入主密码或使用生物识别以继续。",
   "unlock": "解锁",
   "autoLockTitle": "闲置后自动锁定",
-  "autoLockSubtitle": "在闲置达到此时长后清除内存中的密钥并锁定界面。",
+  "autoLockSubtitle": "在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。",
   "autoLockOff": "关闭",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分钟}}",
   "errLfsDecryptFailed": "主密码错误或 .lfs 归档已损坏",
   "errLfsArchiveTooLarge": "归档过大（{sizeMb} MB）。上限为 {limitMb} MB — 已在解密前中止以保护内存。",
+  "errLfsImportRolledBack": "导入失败 — 您的数据已恢复到导入前的状态。({cause})",
+  "errLfsKnownHostsTooLarge": "known_hosts 条目过大（{sizeMb} MB）。上限为 {limitMb} MB — 为保持导入响应性已中止。",
   "errLfsUnsupportedVersion": "归档使用架构 v{found}，但此版本仅支持到 v{supported}。请更新应用以导入它。",
   "progressReadingArchive": "正在读取归档…",
   "progressDecrypting": "正在解密…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "从剪贴板粘贴",
   "invalidImportLink": "链接不包含有效的 LetsFLUTssh 数据",
   "importAction": "导入",
-  "emptyFolder": "空文件夹"
+  "emptyFolder": "空文件夹",
+  "exportWithoutPassword": "不设密码导出？",
+  "exportWithoutPasswordWarning": "归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。",
+  "continueWithoutPassword": "不设密码继续"
 }

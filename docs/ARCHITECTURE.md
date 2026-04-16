@@ -607,7 +607,7 @@ Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Andr
 
 #### Auto-lock
 
-Opt-in, off by default. `BehaviorConfig.autoLockMinutes` (0 = off; presets 5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). Only visible in master-password mode — plaintext/keychain has no secret to re-prove.
+Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`, schema v2) — moving it out of plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. A one-shot migration on first DB unlock copies any pre-existing value from the legacy `config.json` field into the DB. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). Only visible in master-password mode — plaintext/keychain has no secret to re-prove.
 
 **Known scope**: the drift database handle is *not* closed on lock. SQLite3MultipleCiphers keeps its cipher key in internal page-cipher state, so DB reads continue to work after lock. Closing + reopening the DB would require disconnecting every live SSH/SFTP session. The auto-lock zeroes the explicit public handle used by rekey / export / config code paths and blocks UI input; it does not fully purge the SQLCipher runtime state.
 
@@ -617,7 +617,8 @@ Opt-in, off by default. `BehaviorConfig.autoLockMinutes` (0 = off; presets 5/15/
 
 * Linux / Android — `prctl(PR_SET_DUMPABLE, 0)`: kernel skips core-dump generation on SIGSEGV and another process under the same UID can no longer `gdb -p` to read our memory without `CAP_SYS_PTRACE`.
 * macOS — `ptrace(PT_DENY_ATTACH, 0, NULL, 0)`: refuses subsequent debugger attach.
-* Windows / iOS — no-op; platform-specific hardening out of scope.
+* Windows — `SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)`: suppresses the "stopped working" dialog and tells Windows Error Reporting (WER) not to capture a crash dump for our process. Without this, WER can write a heap snapshot (and optionally upload it to Microsoft) that contains the live SQLite cipher key and decrypted credentials.
+* iOS — no-op; sandboxing already covers the relevant attacks.
 
 All calls are wrapped in try/catch; a failed hardening call never blocks startup.
 
@@ -793,6 +794,14 @@ payload = ZIP archive:
 
 Encryption: AES-256-GCM
 Key: PBKDF2-SHA256(password, salt, 600000 iterations)
+
+Unencrypted variant: export dialog accepts an empty master password after
+a confirmation step. ExportImport.export() then writes the raw ZIP
+bytes (the `PK\x03\x04` local-file-header magic) instead of the
+salt + IV + ciphertext + tag layout. Import side detects the format by
+checking the first 4 bytes via ExportImport.isUnencryptedArchive() /
+LfsImportDialog.probeEncrypted() and skips the PBKDF2 / AES-GCM path,
+so the user never sees a password prompt for a plain-ZIP archive.
 ```
 
 Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**). The
@@ -1366,8 +1375,9 @@ AppIconButton({
   required IconData icon,
   VoidCallback? onTap,         // null → disabled (30% opacity)
   String? tooltip,
-  double size = 14,
-  double boxSize = 26,
+  double? size,                // null → AppTheme.iconBtnIcon / iconBtnIconDense
+  double? boxSize,             // null → AppTheme.iconBtnBox / iconBtnBoxDense
+  bool dense = false,          // true → pick the tighter AppTheme defaults
   Color? color,
   Color? hoverColor,
   Color? backgroundColor,      // permanent bg (e.g. mobile buttons)
@@ -1376,6 +1386,7 @@ AppIconButton({
 })
 ```
 Rectangular hover, no splash/ripple. **Replaces Material `IconButton` everywhere.**
+When `size`/`boxSize` are left unset the widget resolves them from responsive getters on `AppTheme`: `iconBtnBox`/`iconBtnIcon` return **40/20 on mobile, 26/14 on desktop**, and the dense pair (`iconBtnBoxDense`/`iconBtnIconDense`) drops to **36/18 on mobile, 22/14 on desktop** — use `dense: true` in tight toolbars (dialog header close, toast close, file-browser breadcrumbs, transfer panel).
 When `tooltip` is set, `Tooltip` provides semantics. When absent, `Semantics(button: true)` is added for screen readers.
 
 ### HoverRegion
@@ -2301,7 +2312,7 @@ All files live in the platform's app-support directory (see **Location** below).
 |------|-----------|--------|---------|--------------|
 | `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
 | `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
-| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs. Loaded **before** the DB opens (needed for splash screen and security preferences) | First config save |
+| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout has been moved to the encrypted DB; the field is kept here only for one-shot migration | First config save |
 | `credentials.salt` | No | 32 raw bytes | PBKDF2 salt for master-password key derivation. Presence = master password is enabled | Master password setup |
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
 | `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
@@ -2322,8 +2333,9 @@ All files live in the platform's app-support directory (see **Location** below).
 - `openDatabase(encryptionKey: key)` → SQLite3MultipleCiphers with `PRAGMA key = "x'hex'"`
 - `openTestDatabase()` → in-memory SQLite for tests
 - Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
+- **POSIX permissions:** `restrictDatabaseFilePermissions()` runs on every open and forces `chmod 600` on `letsflutssh.db` and any existing `-journal` / `-wal` / `-shm` sidecar (Linux/macOS via `chmod`, Windows via `icacls`). Idempotent; logs and continues if the call fails so a permission-system quirk never blocks startup. The file is pre-created before SQLite touches it so the very first encrypted page lands on a 0600 inode.
 
-**Config stays file-based:** `config.json` is loaded before the database opens because it contains the theme (needed for splash screen) and security preferences. Will migrate to DB in a future release.
+**Config split:** `config.json` is loaded before the database opens because it carries pre-unlock UI state (theme, locale, window size) — anything that has to render before the user types the master password. The auto-lock timeout, by contrast, is a security control: it now lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with disk access cannot weaken it. The legacy field in `config.json` is read once on first DB unlock for migration, then zeroed.
 
 **Location:** `path_provider` → `getApplicationSupportDirectory()`
 - Linux: `~/.local/share/letsflutssh/`

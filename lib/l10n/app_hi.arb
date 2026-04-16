@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "QR से {count} सत्र आयात किए गए",
   "importedSessions": "{count} सत्र आयात किए गए",
   "importFailed": "आयात विफल: {error}",
+  "importSkippedLinks": "{count, plural, one{{count} संबद्धता छोड़ी गई (लक्ष्य अनुपस्थित)} other{{count} संबद्धताएँ छोड़ी गईं (लक्ष्य अनुपस्थित)}}",
+  "importSkippedSessions": "{count, plural, one{{count} खराब सत्र छोड़ा गया} other{{count} खराब सत्र छोड़े गए}}",
   "sessions": "सत्र",
   "sessionsHeader": "सत्र",
   "savedSessions": "सहेजे गए सत्र",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "जारी रखने के लिए मास्टर पासवर्ड दर्ज करें या बायोमेट्रिक्स का उपयोग करें।",
   "unlock": "अनलॉक करें",
   "autoLockTitle": "निष्क्रियता के बाद ऑटो-लॉक",
-  "autoLockSubtitle": "इतनी देर निष्क्रिय रहने पर मेमोरी में कुंजी मिटा दें और UI को लॉक कर दें।",
+  "autoLockSubtitle": "इतनी देर निष्क्रिय रहने पर UI लॉक होता है। एन्क्रिप्टेड डेटाबेस तभी पुनः लॉक होता है जब कोई सक्रिय SSH सत्र न हो, ताकि लंबी प्रक्रियाएँ बाधित न हों।",
   "autoLockOff": "बंद",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} मिनट} other{{minutes} मिनट}}",
   "errLfsDecryptFailed": "गलत मास्टर पासवर्ड या दूषित .lfs संग्रह",
   "errLfsArchiveTooLarge": "संग्रह बहुत बड़ा है ({sizeMb} MB). सीमा {limitMb} MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.",
+  "errLfsImportRolledBack": "आयात विफल — आपका डेटा आयात से पहले की स्थिति में पुनर्स्थापित कर दिया गया है। ({cause})",
+  "errLfsKnownHostsTooLarge": "known_hosts प्रविष्टि बहुत बड़ी है ({sizeMb} MB). सीमा {limitMb} MB है — आयात को उत्तरदायी बनाए रखने के लिए रोका गया.",
   "errLfsUnsupportedVersion": "संग्रह स्कीमा v{found} का उपयोग करता है, लेकिन यह बिल्ड केवल v{supported} तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.",
   "progressReadingArchive": "संग्रह पढ़ा जा रहा है…",
   "progressDecrypting": "डिक्रिप्ट किया जा रहा है…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "क्लिपबोर्ड से पेस्ट करें",
   "invalidImportLink": "लिंक में मान्य LetsFLUTssh पेलोड नहीं है",
   "importAction": "आयात करें",
-  "emptyFolder": "खाली फ़ोल्डर"
+  "emptyFolder": "खाली फ़ोल्डर",
+  "exportWithoutPassword": "पासवर्ड के बिना निर्यात करें?",
+  "exportWithoutPasswordWarning": "संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।",
+  "continueWithoutPassword": "बिना पासवर्ड के जारी रखें"
 }

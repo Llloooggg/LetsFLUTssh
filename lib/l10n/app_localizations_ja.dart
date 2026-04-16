@@ -228,6 +228,26 @@ class SJa extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '関連付け$count件を破棄しました（対象が存在しません）',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '破損したセッション$count件をスキップしました',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'セッション';
 
   @override
@@ -1167,7 +1187,8 @@ class SJa extends S {
   String get autoLockTitle => '操作がないときに自動ロック';
 
   @override
-  String get autoLockSubtitle => 'この時間操作がないと、メモリ内の鍵を消去して UI をロックします。';
+  String get autoLockSubtitle =>
+      'この時間操作がないと UI をロックします。暗号化データベースはアクティブな SSH セッションがない場合のみ再ロックされ、長時間の処理は接続を維持します。';
 
   @override
   String get autoLockOff => 'オフ';
@@ -1188,6 +1209,16 @@ class SJa extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'アーカイブが大きすぎます ($sizeMb MB)。上限は $limitMb MB です。メモリ保護のため、復号前に中止しました。';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts エントリが大きすぎます ($sizeMb MB)。上限は $limitMb MB です。インポートの応答性を保つため中止しました。';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'インポート失敗 — データはインポート前の状態に復元されました。($cause)';
   }
 
   @override
@@ -1994,4 +2025,14 @@ class SJa extends S {
 
   @override
   String get enableLoggingSubtitle => 'アプリのイベントをローテーションログファイルに記録';
+
+  @override
+  String get exportWithoutPassword => 'パスワードなしでエクスポートしますか？';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。';
+
+  @override
+  String get continueWithoutPassword => 'パスワードなしで続行';
 }

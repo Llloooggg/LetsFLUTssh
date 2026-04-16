@@ -468,6 +468,91 @@ void main() {
     });
   });
 
+  group('ExportImport — unencrypted archive', () {
+    test('export with empty password writes a raw ZIP', () async {
+      final outputPath = '${tempDir.path}/plain.lfs';
+      await ExportImport.export(
+        masterPassword: '',
+        outputPath: outputPath,
+        input: LfsExportInput(
+          sessions: [makeSession(id: 'u1', label: 'u1', password: 'x')],
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
+      );
+
+      final bytes = await File(outputPath).readAsBytes();
+      // The first four bytes must be the ZIP local-file-header magic — the
+      // whole point of the unencrypted path is that the archive is a plain
+      // ZIP anyone can open.
+      expect(bytes[0], 0x50);
+      expect(bytes[1], 0x4B);
+      expect(bytes[2], 0x03);
+      expect(bytes[3], 0x04);
+      expect(ExportImport.isUnencryptedArchive(bytes), isTrue);
+    });
+
+    test('unencrypted export roundtrips through import', () async {
+      final sessions = [
+        makeSession(id: 'p-1', label: 'plain', password: 'secret'),
+      ];
+      final outputPath = '${tempDir.path}/roundtrip.lfs';
+
+      await ExportImport.export(
+        masterPassword: '',
+        outputPath: outputPath,
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
+      );
+
+      // Password is ignored on the unencrypted path.
+      final result = await ExportImport.import_(
+        filePath: outputPath,
+        masterPassword: '',
+        mode: ImportMode.merge,
+        options: const ExportOptions(includeConfig: true),
+      );
+
+      expect(result.sessions, hasLength(1));
+      expect(result.sessions.first.id, 'p-1');
+      expect(result.sessions.first.password, 'secret');
+    });
+
+    test('isUnencryptedArchive detects ZIP magic', () {
+      final zip = Uint8List.fromList([0x50, 0x4B, 0x03, 0x04, 0, 0]);
+      final enc = Uint8List.fromList([0x12, 0x34, 0x56, 0x78, 0, 0]);
+      final tiny = Uint8List.fromList([0x50, 0x4B]);
+      expect(ExportImport.isUnencryptedArchive(zip), isTrue);
+      expect(ExportImport.isUnencryptedArchive(enc), isFalse);
+      expect(ExportImport.isUnencryptedArchive(tiny), isFalse);
+    });
+
+    test('preview reads unencrypted archive without a password', () async {
+      final sessions = [makeSession(id: 'pv-1', label: 'x', password: 'y')];
+      final outputPath = '${tempDir.path}/preview.lfs';
+
+      await ExportImport.export(
+        masterPassword: '',
+        outputPath: outputPath,
+        input: LfsExportInput(
+          sessions: sessions,
+          config: AppConfig.defaults,
+          options: const ExportOptions(includeConfig: true),
+        ),
+      );
+
+      final preview = await ExportImport.preview(
+        filePath: outputPath,
+        masterPassword: '',
+      );
+      expect(preview.sessions, hasLength(1));
+      expect(preview.sessions.first.id, 'pv-1');
+    });
+  });
+
   group('ImportMode and ImportResult', () {
     test('ImportMode values', () {
       expect(ImportMode.values, hasLength(2));
@@ -699,6 +784,93 @@ void main() {
       expect(ex.size, 123456);
       expect(ex.limit, 1000);
       expect(ex.toString(), contains('123456'));
+    });
+  });
+
+  group('ExportImport — known_hosts size cap', () {
+    test(
+      'rejects archive whose decompressed known_hosts exceeds the cap',
+      () async {
+        // Use the per-call iterations override so the global default
+        // (already lowered by flutter_test_config.dart) is irrelevant.
+        // Build a known_hosts string just over the cap. Use a printable byte so
+        // utf8.decode wouldn't even be attempted (the size guard runs first).
+        final big = String.fromCharCodes(
+          List<int>.filled(ExportImport.maxKnownHostsBytes + 1, 0x41),
+        );
+        final outputPath = '${tempDir.path}/big_kh.lfs';
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          iterations: 1,
+          input: LfsExportInput(
+            sessions: const [],
+            config: AppConfig.defaults,
+            options: const ExportOptions(includeKnownHosts: true),
+            knownHostsContent: big,
+          ),
+        );
+
+        await expectLater(
+          ExportImport.import_(
+            filePath: outputPath,
+            masterPassword: 'pw',
+            mode: ImportMode.merge,
+            options: const ExportOptions(includeKnownHosts: true),
+            iterations: 1,
+          ),
+          throwsA(isA<LfsKnownHostsTooLargeException>()),
+        );
+      },
+    );
+
+    test('LfsKnownHostsTooLargeException carries size and limit', () {
+      const ex = LfsKnownHostsTooLargeException(size: 999, limit: 100);
+      expect(ex.size, 999);
+      expect(ex.limit, 100);
+      expect(ex.toString(), contains('999'));
+    });
+  });
+
+  group('ExportImport — robust session parsing', () {
+    test('skips malformed session entries and counts them', () {
+      const json = '''
+[
+  {"id": "valid-1", "label": "ok", "host": "h1", "port": 22, "user": "u",
+   "auth_method": "password", "password": "p", "key_id": "", "key_passphrase": "",
+   "passphrase_storage": "memory", "use_jump_host": false,
+   "created_at": "2026-01-01T00:00:00.000Z"},
+  {"id": "bad-port", "label": "bad", "host": "h2", "port": "not-a-number",
+   "user": "u", "auth_method": "password", "password": "p", "key_id": "",
+   "key_passphrase": "", "passphrase_storage": "memory", "use_jump_host": false,
+   "created_at": "2026-01-01T00:00:00.000Z"},
+  "not-an-object",
+  {"id": "valid-2", "label": "ok2", "host": "h3", "port": 22, "user": "u",
+   "auth_method": "password", "password": "p", "key_id": "", "key_passphrase": "",
+   "passphrase_storage": "memory", "use_jump_host": false,
+   "created_at": "2026-01-01T00:00:00.000Z"}
+]
+''';
+      final (sessions, skipped) = ExportImport.parseSessionsJson(json);
+      expect(sessions.map((s) => s.id).toList(), ['valid-1', 'valid-2']);
+      // Bad-port entry throws on cast; "not-an-object" is filtered by
+      // _decodeList earlier, so only 1 entry counts as skipped here.
+      expect(skipped, 1);
+    });
+
+    test('returns empty list and zero skipped for null/empty input', () {
+      expect(ExportImport.parseSessionsJson(null).$1, isEmpty);
+      expect(ExportImport.parseSessionsJson(null).$2, 0);
+      expect(ExportImport.parseSessionsJson('').$1, isEmpty);
+    });
+
+    test('parseEmptyFoldersJson tolerates non-string entries', () {
+      expect(ExportImport.parseEmptyFoldersJson('["a", 42, "b", null]'), {
+        'a',
+        'b',
+      });
+      expect(ExportImport.parseEmptyFoldersJson('not json'), isEmpty);
+      expect(ExportImport.parseEmptyFoldersJson('{}'), isEmpty);
     });
   });
 

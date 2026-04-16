@@ -39,19 +39,19 @@ class ExportImport {
 
   static const _saltLen = 32;
   static const _ivLen = 12;
-  static const _pbkdf2IterationsProd = 600000;
 
-  /// PBKDF2 iteration count. Constant in production — tests may lower it
-  /// via [debugSetPbkdf2Iterations] so roundtrips don't spend 500 ms per
-  /// derive, which would stretch the full suite into minutes.
-  static int _pbkdf2Iterations = _pbkdf2IterationsProd;
+  /// Production PBKDF2-SHA256 iteration count. Public so tests that need a
+  /// roundtrip with the real cost can reference it explicitly. Most tests
+  /// pass a much lower value via the per-call [iterations] parameter.
+  static const int productionPbkdf2Iterations = 600000;
 
-  /// Lower PBKDF2 iterations for tests. Restores to production value when
-  /// called with null. NEVER call from production code.
+  /// Default PBKDF2 iteration count when [export], [import_] or [preview]
+  /// callers do not provide an explicit `iterations` parameter. Mutable so
+  /// the test bootstrap (`flutter_test_config.dart`) can globally lower it
+  /// for the whole suite without every test having to thread the value
+  /// through. Production code never writes this field.
   @visibleForTesting
-  static void debugSetPbkdf2Iterations(int? iterations) {
-    _pbkdf2Iterations = iterations ?? _pbkdf2IterationsProd;
-  }
+  static int defaultPbkdf2Iterations = productionPbkdf2Iterations;
 
   /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
   /// decryption or decompression so a pathologically large file can't OOM
@@ -60,6 +60,28 @@ class ExportImport {
   /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
   /// is generous for normal use but catches zip-bomb-scale inputs.
   static const int maxArchiveBytes = 50 * 1024 * 1024;
+
+  /// Maximum accepted decompressed known_hosts payload (10 MiB). The outer
+  /// archive size is already bounded by [maxArchiveBytes], but a malicious
+  /// or corrupted .lfs could still ship a tiny ZIP entry that decompresses
+  /// to a runaway known_hosts blob — `KnownHostsManager.importFromString`
+  /// processes it line-by-line on the UI isolate and would stall the app.
+  /// 10 MiB comfortably covers any real fleet (~50k host keys at ~200 B
+  /// per line) and rejects pathological inputs early.
+  static const int maxKnownHostsBytes = 10 * 1024 * 1024;
+
+  /// Detect an unencrypted `.lfs` (plain ZIP) by its local-file-header
+  /// magic `PK\x03\x04`. Encrypted archives start with a random 32-byte
+  /// salt, so a false positive is a ~2⁻³² lottery — and even then the
+  /// ZIP decoder would reject the garbage.
+  static bool isUnencryptedArchive(Uint8List data) {
+    if (data.length < 4) return false;
+    return data[0] == 0x50 &&
+        data[1] == 0x4B &&
+        data[2] == 0x03 &&
+        data[3] == 0x04;
+  }
+
   static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
@@ -107,6 +129,45 @@ class ExportImport {
   }
 
   static String _asString(Object? raw) => raw is String ? raw : '';
+
+  /// Parse the sessions JSON entry. Each session is decoded inside an
+  /// individual try/catch so a single malformed record (wrong type for
+  /// `port`, missing required field, etc.) skips that one entry and logs
+  /// the count instead of aborting the entire import.
+  ///
+  /// Returns `(parsedSessions, skippedCount)`.
+  @visibleForTesting
+  static (List<Session>, int) parseSessionsJson(String? json) {
+    final maps = _decodeList(json);
+    final out = <Session>[];
+    var skipped = 0;
+    for (final m in maps) {
+      try {
+        out.add(Session.fromJson(m));
+      } catch (e) {
+        skipped++;
+        AppLogger.instance.log(
+          'Skipped malformed session during import: $e',
+          name: 'ExportImport',
+        );
+      }
+    }
+    return (out, skipped);
+  }
+
+  /// Parse the empty-folders JSON entry. Non-string entries are dropped
+  /// rather than crashing the cast.
+  @visibleForTesting
+  static Set<String> parseEmptyFoldersJson(String? json) {
+    if (json == null || json.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const {};
+      return decoded.whereType<String>().toSet();
+    } catch (_) {
+      return const {};
+    }
+  }
 
   @visibleForTesting
   static List<SshKeyEntry> parseKeysJson(String? json) {
@@ -199,6 +260,7 @@ class ExportImport {
     required String outputPath,
     ProgressReporter? progress,
     S? l10n,
+    int? iterations,
   }) async {
     progress?.phase(l10n?.progressCollectingData ?? 'Collecting data…');
     final archive = _buildArchive(input);
@@ -214,18 +276,32 @@ class ExportImport {
       name: 'ExportImport',
     );
 
-    // Encrypt with master password (runs in isolate — PBKDF2 600k is CPU-heavy)
-    progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
-    // Capture iteration count in the main isolate so debugSetPbkdf2Iterations
-    // (used only by tests) actually takes effect across the isolate boundary.
-    final iterations = _pbkdf2Iterations;
-    final encrypted = await Isolate.run(
-      () => _encryptWithPassword(zipBytes, masterPassword, iterations),
-    );
-    AppLogger.instance.log(
-      'Export: encrypted ${encrypted.length} bytes',
-      name: 'ExportImport',
-    );
+    // Empty password → write the raw ZIP unencrypted. The user has already
+    // acknowledged the risk via the export dialog's confirmation step; the
+    // file carries every saved credential in plain text.
+    final Uint8List encrypted;
+    if (masterPassword.isEmpty) {
+      progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
+      encrypted = zipBytes;
+      AppLogger.instance.log(
+        'Export: wrote unencrypted archive ${encrypted.length} bytes',
+        name: 'ExportImport',
+      );
+    } else {
+      // Encrypt with master password (runs in isolate — PBKDF2 is CPU-heavy).
+      progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
+      // Capture iteration count in the main isolate so the value crosses the
+      // Isolate boundary as a const, not via the global default that would
+      // otherwise be re-read on the worker side.
+      final iters = iterations ?? defaultPbkdf2Iterations;
+      encrypted = await Isolate.run(
+        () => _encryptWithPassword(zipBytes, masterPassword, iters),
+      );
+      AppLogger.instance.log(
+        'Export: encrypted ${encrypted.length} bytes',
+        name: 'ExportImport',
+      );
+    }
 
     // Write atomically: flush to "<outputPath>.tmp", then rename. If the write
     // fails mid-way (I/O error, out of space, process killed), we don't leave
@@ -407,6 +483,7 @@ class ExportImport {
     required String masterPassword,
     ProgressReporter? progress,
     S? l10n,
+    int? iterations,
   }) async {
     progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
     final file = File(filePath);
@@ -416,21 +493,30 @@ class ExportImport {
     }
     final encData = await file.readAsBytes();
 
-    progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
-    // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy.
-    // GCM auth-tag failure (wrong password or tampered archive) surfaces as
-    // InvalidCipherTextException from pointycastle. ZipDecoder will also
-    // throw on successfully-decrypted-but-non-ZIP bytes (truncated file).
-    // Both cases collapse to LfsDecryptionFailedException so the UI can show
-    // a single localized message.
+    // Detect unencrypted archive by the ZIP local-file-header magic
+    // `PK\x03\x04` (0x50 0x4B 0x03 0x04). Encrypted archives start with a
+    // random 32-byte salt, so the probability of a collision is 2^-32 and
+    // the decoder would reject a false positive as malformed anyway.
     final Uint8List zipBytes;
-    final iterations = _pbkdf2Iterations;
-    try {
-      zipBytes = await Isolate.run(
-        () => _decryptWithPassword(encData, masterPassword, iterations),
-      );
-    } catch (e) {
-      throw LfsDecryptionFailedException(cause: e);
+    if (isUnencryptedArchive(encData)) {
+      progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
+      zipBytes = encData;
+    } else {
+      progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
+      // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy.
+      // GCM auth-tag failure (wrong password or tampered archive) surfaces as
+      // InvalidCipherTextException from pointycastle. ZipDecoder will also
+      // throw on successfully-decrypted-but-non-ZIP bytes (truncated file).
+      // Both cases collapse to LfsDecryptionFailedException so the UI can show
+      // a single localized message.
+      final iters = iterations ?? defaultPbkdf2Iterations;
+      try {
+        zipBytes = await Isolate.run(
+          () => _decryptWithPassword(encData, masterPassword, iters),
+        );
+      } catch (e) {
+        throw LfsDecryptionFailedException(cause: e);
+      }
     }
     progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
     final Archive archive;
@@ -448,23 +534,12 @@ class ExportImport {
       );
     }
 
-    List<Session> sessions = [];
-    final sessionsFile = archive.findFile(_sessionsFile);
-    if (sessionsFile != null) {
-      final json = utf8.decode(sessionsFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      sessions = list
-          .map((e) => Session.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-
-    Set<String> emptyFolders = {};
-    final foldersFile = archive.findFile(_emptyFoldersFile);
-    if (foldersFile != null) {
-      final json = utf8.decode(foldersFile.content as List<int>);
-      final list = jsonDecode(json) as List;
-      emptyFolders = list.cast<String>().toSet();
-    }
+    final (sessions, skippedSessions) = parseSessionsJson(
+      _entryJson(archive.findFile(_sessionsFile)),
+    );
+    final emptyFolders = parseEmptyFoldersJson(
+      _entryJson(archive.findFile(_emptyFoldersFile)),
+    );
 
     final managerKeys = parseKeysJson(_entryJson(archive.findFile(_keysFile)));
     final tags = parseTagsJson(_entryJson(archive.findFile(_tagsFile)));
@@ -485,7 +560,8 @@ class ExportImport {
 
     AppLogger.instance.log(
       'Import: decrypted ${encData.length} bytes, '
-      '${sessions.length} sessions, ${managerKeys.length} keys, '
+      '${sessions.length} sessions (skipped $skippedSessions), '
+      '${managerKeys.length} keys, '
       '${tags.length} tags, ${snippetList.length} snippets, '
       '${emptyFolders.length} empty folders',
       name: 'ExportImport',
@@ -494,6 +570,7 @@ class ExportImport {
       archive: archive,
       manifest: manifest,
       sessions: sessions,
+      skippedSessions: skippedSessions,
       emptyFolders: emptyFolders,
       managerKeys: managerKeys,
       tags: tags,
@@ -541,10 +618,12 @@ class ExportImport {
   static Future<LfsPreview> preview({
     required String filePath,
     required String masterPassword,
+    int? iterations,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
+      iterations: iterations,
     );
 
     final hasConfig = parsed.archive.findFile(_configFile) != null;
@@ -559,6 +638,7 @@ class ExportImport {
       tagCount: parsed.tags.length,
       snippetCount: parsed.snippets.length,
       manifest: parsed.manifest,
+      skippedSessions: parsed.skippedSessions,
     );
   }
 
@@ -575,12 +655,14 @@ class ExportImport {
     ExportOptions options = const ExportOptions(),
     ProgressReporter? progress,
     S? l10n,
+    int? iterations,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
       progress: progress,
       l10n: l10n,
+      iterations: iterations,
     );
 
     // Parse config (only if requested and present)
@@ -598,7 +680,14 @@ class ExportImport {
     if (options.includeKnownHosts) {
       final khFile = parsed.archive.findFile(_knownHostsFile);
       if (khFile != null) {
-        knownHostsContent = utf8.decode(khFile.content as List<int>);
+        final bytes = khFile.content as List<int>;
+        if (bytes.length > maxKnownHostsBytes) {
+          throw LfsKnownHostsTooLargeException(
+            size: bytes.length,
+            limit: maxKnownHostsBytes,
+          );
+        }
+        knownHostsContent = utf8.decode(bytes);
       }
     }
 
@@ -617,6 +706,7 @@ class ExportImport {
       includeTags: options.includeTags,
       includeSnippets: options.includeSnippets,
       includeKnownHosts: options.includeKnownHosts,
+      skippedSessions: options.includeSessions ? parsed.skippedSessions : 0,
     );
   }
 
@@ -728,6 +818,7 @@ class _ParsedArchive {
   final Archive archive;
   final LfsManifest manifest;
   final List<Session> sessions;
+  final int skippedSessions;
   final Set<String> emptyFolders;
   final List<SshKeyEntry> managerKeys;
   final List<Tag> tags;
@@ -740,6 +831,7 @@ class _ParsedArchive {
     required this.archive,
     required this.manifest,
     required this.sessions,
+    this.skippedSessions = 0,
     required this.emptyFolders,
     required this.managerKeys,
     this.tags = const [],
@@ -799,6 +891,23 @@ class LfsArchiveTooLargeException implements Exception {
       'LfsArchiveTooLargeException: archive is $size bytes, limit is $limit';
 }
 
+/// Thrown when the known_hosts entry inside a successfully decrypted .lfs
+/// archive is larger than [ExportImport.maxKnownHostsBytes]. The line-by-line
+/// importer would otherwise stall the UI on a multi-GB blob.
+class LfsKnownHostsTooLargeException implements Exception {
+  final int size;
+  final int limit;
+  const LfsKnownHostsTooLargeException({
+    required this.size,
+    required this.limit,
+  });
+
+  @override
+  String toString() =>
+      'LfsKnownHostsTooLargeException: known_hosts is $size bytes, '
+      'limit is $limit';
+}
+
 /// Thrown when decrypting/unpacking an .lfs archive fails — either because
 /// the master password is wrong (GCM auth-tag mismatch) or the archive was
 /// truncated/corrupted after encryption. Callers should show a generic
@@ -822,6 +931,11 @@ class LfsPreview {
   final int snippetCount;
   final LfsManifest manifest;
 
+  /// Number of session entries that failed to parse (malformed JSON, type
+  /// mismatch). Surfaced in the preview dialog and in the post-import toast
+  /// so the user knows the archive contained corrupt records.
+  final int skippedSessions;
+
   const LfsPreview({
     required this.sessions,
     this.hasConfig = false,
@@ -831,6 +945,7 @@ class LfsPreview {
     this.tagCount = 0,
     this.snippetCount = 0,
     this.manifest = const LfsManifest.legacy(),
+    this.skippedSessions = 0,
   });
 
   bool get hasSessions => sessions.isNotEmpty;
@@ -863,6 +978,11 @@ class ImportResult {
   final bool includeSnippets;
   final bool includeKnownHosts;
 
+  /// Count of session JSON entries that failed to parse and were skipped
+  /// during archive decoding. Propagated into [ImportSummary.skippedSessions]
+  /// so the success toast can surface partial-recovery cases.
+  final int skippedSessions;
+
   const ImportResult({
     required this.sessions,
     this.emptyFolders = const {},
@@ -878,6 +998,7 @@ class ImportResult {
     this.includeTags = false,
     this.includeSnippets = false,
     this.includeKnownHosts = false,
+    this.skippedSessions = 0,
   });
 
   /// Returns a copy of this result filtered by [options], with the given
@@ -909,6 +1030,7 @@ class ImportResult {
       includeTags: options.includeTags,
       includeSnippets: options.includeSnippets,
       includeKnownHosts: options.includeKnownHosts,
+      skippedSessions: skippedSessions,
     );
   }
 }

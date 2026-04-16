@@ -8,7 +8,7 @@ import 'package:letsflutssh/features/settings/export_import.dart';
 /// finishes in seconds instead of minutes — the crypto primitives stay
 /// untested-to-cryptographic-strength but are exercised end-to-end.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
-  ExportImport.debugSetPbkdf2Iterations(1000);
+  ExportImport.defaultPbkdf2Iterations = 1000;
   MasterPasswordManager.debugSetPbkdf2Iterations(1000);
   await testMain();
 }

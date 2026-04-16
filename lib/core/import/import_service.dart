@@ -135,9 +135,13 @@ class ImportService {
         return await runInTransaction!<ImportSummary>(body);
       }
       return await body();
-    } catch (_) {
+    } catch (e) {
       if (result.mode == ImportMode.replace) {
         await _tryRestore(snapshot);
+        // Rewrap so the UI can show "data restored" instead of a bare
+        // "import failed" — the user otherwise can't tell whether the DB
+        // is in a half-imported state or back to the pre-import snapshot.
+        throw LfsImportRolledBackException(cause: e);
       }
       rethrow;
     }
@@ -149,9 +153,56 @@ class ImportService {
     ProgressReporter? progress,
     S? l10n,
   ) async {
-    // Import manager keys first — the saveManagerKey callback dedups by
-    // fingerprint (see KeyStore), so the returned map resolves incoming keys
-    // to either a brand-new or an existing stored key id.
+    final keys = await _phaseSessions(result, snapshot, progress, l10n);
+    final tags = await _phaseTagsAndLinks(
+      result,
+      keys.sessionIdMap,
+      progress,
+      l10n,
+    );
+    final snippets = await _phaseSnippetsAndLinks(
+      result,
+      keys.sessionIdMap,
+      progress,
+      l10n,
+    );
+    await _phaseConfigAndKnownHosts(result, progress, l10n);
+
+    AppLogger.instance.log(
+      'Import complete: ${keys.imported}/${result.sessions.length} sessions, '
+      '${keys.foldersImported}/${result.emptyFolders.length} folders, '
+      '${keys.managerKeyMap.length}/${result.managerKeys.length} keys, '
+      '${tags.tagIdMap.length}/${result.tags.length} tags, '
+      '${snippets.snippetIdMap.length}/${result.snippets.length} snippets imported',
+      name: 'Import',
+    );
+
+    return ImportSummary(
+      sessions: keys.imported,
+      folders: keys.foldersImported,
+      managerKeys: keys.managerKeyMap.length,
+      tags: tags.tagIdMap.length,
+      snippets: snippets.snippetIdMap.length,
+      configApplied: result.config != null,
+      knownHostsApplied:
+          result.knownHostsContent != null &&
+          result.knownHostsContent!.isNotEmpty,
+      skippedSessions: result.skippedSessions,
+      skippedLinks: tags.skippedLinks + snippets.skippedLinks,
+    );
+  }
+
+  /// Phase 1 — import manager keys, remap session keyIds, resolve session id
+  /// collisions, write sessions and empty folders. Returns the per-entity
+  /// counters and the id remap for downstream link-rewriting.
+  Future<_SessionsPhase> _phaseSessions(
+    ImportResult result,
+    _Snapshot? snapshot,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
+    // Manager keys first — saveManagerKey dedups by fingerprint, so the
+    // returned map resolves incoming keys to either a fresh or existing id.
     final keyIdMap = await _importManagerKeys(
       result.managerKeys,
       progress,
@@ -183,61 +234,74 @@ class ImportService {
       l10n,
     );
 
+    return _SessionsPhase(
+      managerKeyMap: keyIdMap,
+      sessionIdMap: sessionIdMap,
+      imported: imported,
+      foldersImported: foldersImported,
+    );
+  }
+
+  /// Phase 2 — import tags + apply session/folder→tag links.
+  Future<_TagsPhase> _phaseTagsAndLinks(
+    ImportResult result,
+    Map<String, String> sessionIdMap,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
     final tagIdMap = await _importTags(
       result.tags,
       result.mode,
       progress,
       l10n,
     );
-    await _importTagLinks(
+    final skipped = await _importTagLinks(
       result.sessionTags,
       result.folderTags,
       tagIdMap,
       sessionIdMap,
     );
+    return _TagsPhase(tagIdMap: tagIdMap, skippedLinks: skipped);
+  }
 
+  /// Phase 3 — import snippets + apply session→snippet links.
+  Future<_SnippetsPhase> _phaseSnippetsAndLinks(
+    ImportResult result,
+    Map<String, String> sessionIdMap,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
     final snippetIdMap = await _importSnippets(
       result.snippets,
       result.mode,
       progress,
       l10n,
     );
-    await _importSnippetLinks(
+    final skipped = await _importSnippetLinks(
       result.sessionSnippets,
       snippetIdMap,
       sessionIdMap,
     );
+    return _SnippetsPhase(snippetIdMap: snippetIdMap, skippedLinks: skipped);
+  }
 
+  /// Phase 4 — apply imported config and append known_hosts content.
+  Future<void> _phaseConfigAndKnownHosts(
+    ImportResult result,
+    ProgressReporter? progress,
+    S? l10n,
+  ) async {
     progress?.phase(l10n?.progressApplyingConfig ?? 'Applying configuration…');
     _applyImportedConfig(result);
-    if (result.knownHostsContent != null &&
-        result.knownHostsContent!.isNotEmpty) {
+    final hasKnownHosts =
+        result.knownHostsContent != null &&
+        result.knownHostsContent!.isNotEmpty;
+    if (hasKnownHosts) {
       progress?.phase(
         l10n?.progressImportingKnownHosts ?? 'Importing known_hosts…',
       );
     }
     await _applyImportedKnownHosts(result);
-
-    AppLogger.instance.log(
-      'Import complete: $imported/${result.sessions.length} sessions, '
-      '$foldersImported/${result.emptyFolders.length} folders, '
-      '${keyIdMap.length}/${result.managerKeys.length} keys, '
-      '${tagIdMap.length}/${result.tags.length} tags, '
-      '${snippetIdMap.length}/${result.snippets.length} snippets imported',
-      name: 'Import',
-    );
-
-    return ImportSummary(
-      sessions: imported,
-      folders: foldersImported,
-      managerKeys: keyIdMap.length,
-      tags: tagIdMap.length,
-      snippets: snippetIdMap.length,
-      configApplied: result.config != null,
-      knownHostsApplied:
-          result.knownHostsContent != null &&
-          result.knownHostsContent!.isNotEmpty,
-    );
   }
 
   /// Rewrite session `keyId` fields using the manager-key id map.
@@ -429,49 +493,66 @@ class ImportService {
   static String _withCopySuffix(String label) =>
       label.isEmpty ? label : '$label (copy)';
 
-  /// Apply session→tag and folder→tag links with remapped IDs.
-  Future<void> _importTagLinks(
+  /// Apply session→tag and folder→tag links with remapped IDs. Returns the
+  /// total number of links that were dropped — either because the referenced
+  /// tag was not imported (would have failed an FK insert) or because the
+  /// underlying save callback threw. Surfaced in [ImportSummary.skippedLinks]
+  /// so the user can tell when partial-import metadata is missing.
+  Future<int> _importTagLinks(
     List<ExportLink> sessionLinks,
     List<ExportFolderTagLink> folderLinks,
     Map<String, String> tagIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
-    await _applyFolderTagLinks(folderLinks, tagIdMap);
+    final s = await _applySessionTagLinks(sessionLinks, tagIdMap, sessionIdMap);
+    final f = await _applyFolderTagLinks(folderLinks, tagIdMap);
+    return s + f;
   }
 
-  Future<void> _applySessionTagLinks(
+  Future<int> _applySessionTagLinks(
     List<ExportLink> links,
     Map<String, String> tagIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    if (tagSession == null) return;
+    if (tagSession == null) return 0;
+    var skipped = 0;
     for (final link in links) {
       final newTagId = tagIdMap[link.targetId];
-      if (newTagId == null) continue; // tag not imported — would FK-fail
+      if (newTagId == null) {
+        skipped++; // tag not imported — would FK-fail
+        continue;
+      }
       final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
       try {
         await tagSession!(newSessionId, newTagId);
       } catch (e) {
+        skipped++;
         AppLogger.instance.log('Skipped session-tag link: $e', name: 'Import');
       }
     }
+    return skipped;
   }
 
-  Future<void> _applyFolderTagLinks(
+  Future<int> _applyFolderTagLinks(
     List<ExportFolderTagLink> links,
     Map<String, String> tagIdMap,
   ) async {
-    if (tagFolder == null) return;
+    if (tagFolder == null) return 0;
+    var skipped = 0;
     for (final link in links) {
       final newTagId = tagIdMap[link.tagId];
-      if (newTagId == null) continue;
+      if (newTagId == null) {
+        skipped++;
+        continue;
+      }
       try {
         await tagFolder!(link.folderPath, newTagId);
       } catch (e) {
+        skipped++;
         AppLogger.instance.log('Skipped folder-tag link: $e', name: 'Import');
       }
     }
+    return skipped;
   }
 
   /// Import snippets. Returns oldId→newId map. Same id-collision handling
@@ -516,27 +597,34 @@ class ImportService {
     return idMap;
   }
 
-  /// Apply session→snippet links with remapped IDs.
-  Future<void> _importSnippetLinks(
+  /// Apply session→snippet links with remapped IDs. Returns the count of
+  /// links dropped (snippet missing from the import set or save callback
+  /// threw); aggregated into [ImportSummary.skippedLinks].
+  Future<int> _importSnippetLinks(
     List<ExportLink> links,
     Map<String, String> snippetIdMap,
     Map<String, String> sessionIdMap,
   ) async {
-    if (linkSnippetToSession == null) return;
+    if (linkSnippetToSession == null) return 0;
+    var skipped = 0;
     for (final link in links) {
       final newSnippetId = snippetIdMap[link.targetId];
-      // snippet not imported — would FK-fail
-      if (newSnippetId == null) continue;
+      if (newSnippetId == null) {
+        skipped++; // snippet not imported — would FK-fail
+        continue;
+      }
       final newSessionId = sessionIdMap[link.sessionId] ?? link.sessionId;
       try {
         await linkSnippetToSession!(newSnippetId, newSessionId);
       } catch (e) {
+        skipped++;
         AppLogger.instance.log(
           'Skipped session-snippet link: $e',
           name: 'Import',
         );
       }
     }
+    return skipped;
   }
 
   /// Takes a snapshot of existing data and clears the stores that the user
@@ -745,6 +833,19 @@ class ImportSummary {
   final bool configApplied;
   final bool knownHostsApplied;
 
+  /// Number of session JSON entries in the archive that failed to parse and
+  /// were dropped during decoding (e.g. wrong type for `port`, missing keys).
+  /// Surfaced in the success toast so the user knows the archive contained
+  /// corrupt records.
+  final int skippedSessions;
+
+  /// Total number of session→tag, folder→tag, and session→snippet links that
+  /// were dropped because their target was not part of the import set (would
+  /// FK-fail on insert) or because the underlying save callback threw.
+  /// Surfaced in the success toast so the user knows some metadata
+  /// associations did not survive the import.
+  final int skippedLinks;
+
   const ImportSummary({
     this.sessions = 0,
     this.folders = 0,
@@ -753,6 +854,55 @@ class ImportSummary {
     this.snippets = 0,
     this.configApplied = false,
     this.knownHostsApplied = false,
+    this.skippedSessions = 0,
+    this.skippedLinks = 0,
+  });
+}
+
+/// Thrown by [ImportService.applyResult] in replace mode when the import body
+/// fails and the pre-import snapshot has been replayed back into the stores.
+/// The UI surfaces this with a dedicated localized message ("Import failed —
+/// your data has been restored") so the user knows the database is back to
+/// the prior state, not in a half-imported limbo.
+///
+/// [cause] is the original failure (FK-violation, callback exception, etc.).
+class LfsImportRolledBackException implements Exception {
+  final Object cause;
+  const LfsImportRolledBackException({required this.cause});
+
+  @override
+  String toString() => 'LfsImportRolledBackException: $cause';
+}
+
+/// Internal phase results — flat data carriers used to thread per-phase
+/// counters and id remaps through [ImportService._applyCore] without bloating
+/// its argument list.
+
+class _SessionsPhase {
+  final Map<String, String> managerKeyMap;
+  final Map<String, String> sessionIdMap;
+  final int imported;
+  final int foldersImported;
+  const _SessionsPhase({
+    required this.managerKeyMap,
+    required this.sessionIdMap,
+    required this.imported,
+    required this.foldersImported,
+  });
+}
+
+class _TagsPhase {
+  final Map<String, String> tagIdMap;
+  final int skippedLinks;
+  const _TagsPhase({required this.tagIdMap, required this.skippedLinks});
+}
+
+class _SnippetsPhase {
+  final Map<String, String> snippetIdMap;
+  final int skippedLinks;
+  const _SnippetsPhase({
+    required this.snippetIdMap,
+    required this.skippedLinks,
   });
 }
 

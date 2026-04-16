@@ -923,14 +923,20 @@ class _ExportImportTile extends ConsumerWidget {
       }
       if (!context.mounted) return;
 
-      // Nothing to show at all — surface a warning and bail.
+      // Nothing to show at all — surface a warning and bail. Mobile
+      // sandboxes usually hide ~/.ssh from us, so an empty scan there is
+      // expected rather than an error: fall through to the dialog so the
+      // user can still reach the "Browse…" pickers and feed it files from
+      // the SAF / iOS document picker.
       if (scannedKeys.isEmpty && (preview?.result.sessions.isEmpty ?? true)) {
-        Toast.show(
-          context,
-          message: S.of(context).fileNotFound(sshDir),
-          level: ToastLevel.warning,
-        );
-        return;
+        if (plat.isDesktopPlatform) {
+          Toast.show(
+            context,
+            message: S.of(context).fileNotFound(sshDir),
+            level: ToastLevel.warning,
+          );
+          return;
+        }
       }
 
       final existing = await keyStore.loadAll();
@@ -1054,13 +1060,18 @@ class _ExportImportTile extends ConsumerWidget {
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
     );
 
+    final knownHostsContent = await ref
+        .read(knownHostsProvider)
+        .exportToString();
+    if (!context.mounted) return;
+
     final exportResult = await UnifiedExportDialog.show(
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
         emptyFolders: store.emptyFolders,
         config: ref.read(configProvider),
-        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        knownHostsContent: knownHostsContent,
         managerKeys: managerKeys,
         managerKeyEntries: allKeys,
         tags: allTags,
@@ -1140,6 +1151,9 @@ class _ExportImportTile extends ConsumerWidget {
         ref,
         exportResult,
       );
+      final knownHostsContent = exportResult.options.includeKnownHosts
+          ? await ref.read(knownHostsProvider).exportToString()
+          : null;
 
       await ExportImport.export(
         masterPassword: password,
@@ -1153,9 +1167,7 @@ class _ExportImportTile extends ConsumerWidget {
           emptyFolders: exportResult.options.includeSessions
               ? exportResult.selectedEmptyFolders
               : {},
-          knownHostsContent: exportResult.options.includeKnownHosts
-              ? ref.read(knownHostsProvider).exportToString()
-              : null,
+          knownHostsContent: knownHostsContent,
           managerKeyEntries: managerKeyEntries,
           tags: tags,
           sessionTags: sessionTags,
@@ -1327,13 +1339,22 @@ class _ExportImportTile extends ConsumerWidget {
     final path = await _pickLfsFile(context);
     if (path == null || !context.mounted) return;
 
+    // Skip the password prompt for unencrypted (plain-ZIP) archives —
+    // ExportImport.import_ accepts an empty password in that branch.
+    final isEncrypted = LfsImportDialog.probeEncrypted(path);
+
     final passwordCtrl = TextEditingController();
     try {
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
-      );
-      if (password == null || !context.mounted) return;
+      final String? password;
+      if (isEncrypted) {
+        password = await AppDialog.show<String>(
+          context,
+          builder: (ctx) => _ImportPasswordDialog(passwordCtrl: passwordCtrl),
+        );
+        if (password == null || !context.mounted) return;
+      } else {
+        password = '';
+      }
 
       // Decrypt once — reuse for both preview and import to avoid running
       // the expensive PBKDF2 key derivation (600k iterations) twice.
@@ -1456,7 +1477,7 @@ class _ExportImportTile extends ConsumerWidget {
         deleteAllTags: () => tagStore.deleteAll(),
         loadAllSnippets: () => snippetStore.loadAll(),
         deleteAllSnippets: () => snippetStore.deleteAll(),
-        exportKnownHosts: () async => knownHostsMgr.exportToString(),
+        exportKnownHosts: () => knownHostsMgr.exportToString(),
         clearKnownHosts: () => knownHostsMgr.clearAll(),
         importKnownHosts: (content) async {
           await knownHostsMgr.importFromString(content);
@@ -1470,6 +1491,11 @@ class _ExportImportTile extends ConsumerWidget {
         progress: reporter,
         l10n: l10n,
       );
+      // Refresh cached FutureProviders so newly imported keys, tags and
+      // snippets appear in the UI without an app restart.
+      ref.invalidate(sshKeysProvider);
+      ref.invalidate(tagsProvider);
+      ref.invalidate(snippetsProvider);
 
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -1890,13 +1916,18 @@ class _QrExportTile extends ConsumerWidget {
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
     );
 
+    final knownHostsContent = await ref
+        .read(knownHostsProvider)
+        .exportToString();
+    if (!context.mounted) return;
+
     final exportResult = await UnifiedExportDialog.show(
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
         emptyFolders: store.emptyFolders,
         config: ref.read(configProvider),
-        knownHostsContent: ref.read(knownHostsProvider).exportToString(),
+        knownHostsContent: knownHostsContent,
         managerKeys: managerKeys,
         managerKeyEntries: allKeys,
         tags: allTags,
@@ -1939,7 +1970,7 @@ class _QrExportTile extends ConsumerWidget {
             ? ref.read(configProvider)
             : null,
         knownHostsContent: exportResult.options.includeKnownHosts
-            ? ref.read(knownHostsProvider).exportToString()
+            ? knownHostsContent
             : null,
         managerKeyEntries: allKeys,
         tags: tags,
@@ -2032,9 +2063,7 @@ class _AutoLockTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
-    final current = ref.watch(
-      configProvider.select((c) => c.behavior.autoLockMinutes),
-    );
+    final current = ref.watch(autoLockMinutesProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -2085,13 +2114,8 @@ class _AutoLockTile extends ConsumerWidget {
                 ),
                 selected: selected,
                 selectedColor: AppTheme.accent,
-                onSelected: (_) => ref
-                    .read(configProvider.notifier)
-                    .update(
-                      (c) => c.copyWith(
-                        behavior: c.behavior.copyWith(autoLockMinutes: m),
-                      ),
-                    ),
+                onSelected: (_) =>
+                    ref.read(autoLockMinutesProvider.notifier).set(m),
               );
             }).toList(),
           ),

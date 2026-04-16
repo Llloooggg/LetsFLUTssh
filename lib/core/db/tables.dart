@@ -97,6 +97,12 @@ class AppConfigs extends Table {
   TextColumn get data => text()();
   DateTimeColumn get updatedAt => dateTime()();
 
+  /// Idle-timeout in minutes for automatic re-locking. Lives in the
+  /// encrypted DB instead of `config.json` because it is a security
+  /// control — an attacker with disk access could otherwise disable
+  /// auto-lock by editing a plaintext file. Default `0` means disabled.
+  IntColumn get autoLockMinutes => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

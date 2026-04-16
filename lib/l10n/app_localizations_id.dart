@@ -233,6 +233,26 @@ class SId extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count asosiasi dilewati (target hilang)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sesi rusak dilewati',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sesi';
 
   @override
@@ -1197,7 +1217,7 @@ class SId extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Hapus kunci di memori dan kunci UI setelah tidak aktif selama durasi ini.';
+      'Mengunci UI setelah tidak aktif selama durasi ini. Basis data terenkripsi hanya dikunci ulang ketika tidak ada sesi SSH aktif, agar operasi panjang tetap berjalan.';
 
   @override
   String get autoLockOff => 'Mati';
@@ -1219,6 +1239,16 @@ class SId extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Arsip terlalu besar ($sizeMb MB). Batasnya adalah $limitMb MB — dibatalkan sebelum dekripsi untuk melindungi memori.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Entri known_hosts terlalu besar ($sizeMb MB). Batasnya adalah $limitMb MB — dibatalkan agar impor tetap responsif.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Impor gagal — data Anda telah dipulihkan ke kondisi sebelum impor. ($cause)';
   }
 
   @override
@@ -2044,4 +2074,14 @@ class SId extends S {
   @override
   String get enableLoggingSubtitle =>
       'Tulis peristiwa aplikasi ke berkas log berotasi';
+
+  @override
+  String get exportWithoutPassword => 'Ekspor tanpa kata sandi?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.';
+
+  @override
+  String get continueWithoutPassword => 'Lanjutkan tanpa kata sandi';
 }

@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "Импортировано сессий через QR: {count}",
   "importedSessions": "Импортировано сессий: {count}",
   "importFailed": "Ошибка импорта: {error}",
+  "importSkippedLinks": "{count, plural, =1{отброшена {count} связь (цель отсутствует)} few{отброшено {count} связи (цели отсутствуют)} many{отброшено {count} связей (цели отсутствуют)} other{отброшено {count} связей (цели отсутствуют)}}",
+  "importSkippedSessions": "{count, plural, =1{пропущена {count} повреждённая сессия} few{пропущено {count} повреждённых сессии} many{пропущено {count} повреждённых сессий} other{пропущено {count} повреждённых сессий}}",
   "sessions": "Сессии",
   "sessionsHeader": "СЕССИИ",
   "savedSessions": "Сохранённые сессии",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Введите мастер-пароль или используйте биометрию, чтобы продолжить.",
   "unlock": "Разблокировать",
   "autoLockTitle": "Автоблокировка при бездействии",
-  "autoLockSubtitle": "Очищать ключ в памяти и блокировать интерфейс после указанного периода бездействия.",
+  "autoLockSubtitle": "Блокировать интерфейс после указанного периода бездействия. Зашифрованная база перезакрывается только когда нет активных SSH-сессий — длительные операции не прерываются.",
   "autoLockOff": "Выкл.",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} минута} few{{minutes} минуты} many{{minutes} минут} other{{minutes} минуты}}",
   "errLfsDecryptFailed": "Неверный мастер-пароль или повреждённый архив .lfs",
   "errLfsArchiveTooLarge": "Архив слишком большой ({sizeMb} МБ). Лимит — {limitMb} МБ — прерывание до расшифровки для защиты памяти.",
+  "errLfsImportRolledBack": "Импорт не удался — данные восстановлены до состояния перед импортом. ({cause})",
+  "errLfsKnownHostsTooLarge": "Запись known_hosts слишком большая ({sizeMb} МБ). Лимит — {limitMb} МБ — импорт прерван, чтобы интерфейс оставался отзывчивым.",
   "errLfsUnsupportedVersion": "Архив использует схему v{found}, а эта сборка поддерживает только до v{supported}. Обновите приложение для импорта.",
   "progressReadingArchive": "Чтение архива…",
   "progressDecrypting": "Расшифровка…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Вставить из буфера",
   "invalidImportLink": "Ссылка не содержит корректные данные LetsFLUTssh",
   "importAction": "Импортировать",
-  "emptyFolder": "Папка пуста"
+  "emptyFolder": "Папка пуста",
+  "exportWithoutPassword": "Экспортировать без пароля?",
+  "exportWithoutPasswordWarning": "Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.",
+  "continueWithoutPassword": "Продолжить без пароля"
 }

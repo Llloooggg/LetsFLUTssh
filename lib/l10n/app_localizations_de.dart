@@ -233,6 +233,28 @@ class SDe extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Verknüpfungen verworfen (Ziele fehlen)',
+      one: '$count Verknüpfung verworfen (Ziel fehlt)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count beschädigte Sitzungen übersprungen',
+      one: '$count beschädigte Sitzung übersprungen',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sitzungen';
 
   @override
@@ -1202,7 +1224,7 @@ class SDe extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Den Schlüssel im Speicher löschen und die Oberfläche sperren, wenn so lange inaktiv.';
+      'Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Die verschlüsselte Datenbank wird nur dann erneut gesperrt, wenn keine SSH-Sitzungen aktiv sind – laufende Operationen bleiben verbunden.';
 
   @override
   String get autoLockOff => 'Aus';
@@ -1225,6 +1247,16 @@ class SDe extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Archiv ist zu groß ($sizeMb MB). Das Limit beträgt $limitMb MB – Abbruch vor der Entschlüsselung zum Schutz des Speichers.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts-Eintrag ist zu groß ($sizeMb MB). Das Limit beträgt $limitMb MB – abgebrochen, damit der Import reaktionsfähig bleibt.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Import fehlgeschlagen – Ihre Daten wurden auf den Stand vor dem Import zurückgesetzt. ($cause)';
   }
 
   @override
@@ -2061,4 +2093,14 @@ class SDe extends S {
   @override
   String get enableLoggingSubtitle =>
       'App-Ereignisse in eine rotierende Logdatei schreiben';
+
+  @override
+  String get exportWithoutPassword => 'Ohne Passwort exportieren?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.';
+
+  @override
+  String get continueWithoutPassword => 'Ohne Passwort fortfahren';
 }

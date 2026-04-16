@@ -65,6 +65,8 @@
   "importedSessionsViaQr": "QR ile {count} oturum içe aktarıldı",
   "importedSessions": "{count} oturum içe aktarıldı",
   "importFailed": "İçe aktarma başarısız: {error}",
+  "importSkippedLinks": "{count, plural, other{{count} ilişki düşürüldü (hedef eksik)}}",
+  "importSkippedSessions": "{count, plural, other{{count} bozuk oturum atlandı}}",
   "sessions": "Oturumlar",
   "sessionsHeader": "OTURUMLAR",
   "savedSessions": "Kayıtlı oturumlar",
@@ -381,11 +383,13 @@
   "lockScreenSubtitle": "Devam etmek için ana parolayı girin veya biyometriyi kullanın.",
   "unlock": "Kilidi aç",
   "autoLockTitle": "Hareketsizlik sonrası otomatik kilit",
-  "autoLockSubtitle": "Bu süre boyunca boşta kalındığında bellekteki anahtarı sıfırlayın ve arayüzü kilitleyin.",
+  "autoLockSubtitle": "Bu süre boyunca boşta kalındığında arayüzü kilitler. Şifrelenmiş veritabanı yalnızca aktif SSH oturumu yokken yeniden kilitlenir, uzun süreli işlemler bağlı kalır.",
   "autoLockOff": "Kapalı",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} dakika}}",
   "errLfsDecryptFailed": "Yanlış ana parola veya bozulmuş .lfs arşivi",
   "errLfsArchiveTooLarge": "Arşiv çok büyük ({sizeMb} MB). Sınır {limitMb} MB — belleği korumak için şifre çözme öncesi iptal edildi.",
+  "errLfsImportRolledBack": "İçe aktarma başarısız — verileriniz içe aktarma öncesi duruma geri yüklendi. ({cause})",
+  "errLfsKnownHostsTooLarge": "known_hosts girdisi çok büyük ({sizeMb} MB). Sınır {limitMb} MB — içe aktarma yanıt verir kalsın diye iptal edildi.",
   "errLfsUnsupportedVersion": "Arşiv v{found} şemasını kullanıyor, ancak bu sürüm yalnızca v{supported} sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.",
   "progressReadingArchive": "Arşiv okunuyor…",
   "progressDecrypting": "Şifre çözülüyor…",
@@ -628,5 +632,8 @@
   "pasteFromClipboard": "Panodan yapıştır",
   "invalidImportLink": "Bağlantı geçerli bir LetsFLUTssh yükü içermiyor",
   "importAction": "İçe aktar",
-  "emptyFolder": "Boş klasör"
+  "emptyFolder": "Boş klasör",
+  "exportWithoutPassword": "Parolasız dışa aktarılsın mı?",
+  "exportWithoutPasswordWarning": "Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.",
+  "continueWithoutPassword": "Parolasız devam et"
 }

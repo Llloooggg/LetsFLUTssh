@@ -1,5 +1,5 @@
 // Simple vanilla lightbox for screenshot previews.
-// Click a .screenshot-clickable img → opens overlay; click overlay or Esc → closes.
+// Click a .screenshot-clickable img to open; click overlay or Esc to close.
 (() => {
   const lightbox = document.getElementById('lightbox');
   if (!lightbox) return;
@@ -34,7 +34,6 @@
   });
 
   lightbox.addEventListener('click', (e) => {
-    // Click anywhere on the overlay (including the image) closes it.
     if (e.target === lightbox || e.target === lightboxImg || e.target === closeBtn) {
       close();
     }

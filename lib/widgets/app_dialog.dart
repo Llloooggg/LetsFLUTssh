@@ -125,12 +125,7 @@ class AppDialogHeader extends StatelessWidget {
           ),
           const Spacer(),
           if (onClose != null)
-            AppIconButton(
-              icon: Icons.close,
-              onTap: onClose!,
-              size: 13,
-              boxSize: 22,
-            ),
+            AppIconButton(icon: Icons.close, onTap: onClose!, dense: true),
         ],
       ),
     );

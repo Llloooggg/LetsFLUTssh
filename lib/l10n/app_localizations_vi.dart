@@ -231,6 +231,26 @@ class SVi extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Đã bỏ qua $count liên kết (mục tiêu không tồn tại)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Đã bỏ qua $count phiên bị hỏng',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Phiên';
 
   @override
@@ -1189,7 +1209,7 @@ class SVi extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Xóa khóa trong bộ nhớ và khóa giao diện sau khoảng thời gian không hoạt động này.';
+      'Khóa giao diện sau khoảng thời gian không hoạt động này. Cơ sở dữ liệu mã hóa chỉ bị khóa lại khi không còn phiên SSH nào hoạt động, để các thao tác dài không bị ngắt.';
 
   @override
   String get autoLockOff => 'Tắt';
@@ -1210,6 +1230,16 @@ class SVi extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Tệp lưu trữ quá lớn ($sizeMb MB). Giới hạn là $limitMb MB — đã hủy trước khi giải mã để bảo vệ bộ nhớ.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Mục known_hosts quá lớn ($sizeMb MB). Giới hạn là $limitMb MB — đã hủy để giữ cho thao tác nhập phản hồi nhanh.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Nhập thất bại — dữ liệu của bạn đã được khôi phục về trạng thái trước khi nhập. ($cause)';
   }
 
   @override
@@ -2032,4 +2062,14 @@ class SVi extends S {
   @override
   String get enableLoggingSubtitle =>
       'Ghi các sự kiện ứng dụng vào tệp nhật ký xoay vòng';
+
+  @override
+  String get exportWithoutPassword => 'Xuất không có mật khẩu?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.';
+
+  @override
+  String get continueWithoutPassword => 'Tiếp tục không dùng mật khẩu';
 }

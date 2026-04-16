@@ -232,6 +232,32 @@ class SRu extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'отброшено $count связей (цели отсутствуют)',
+      many: 'отброшено $count связей (цели отсутствуют)',
+      few: 'отброшено $count связи (цели отсутствуют)',
+      one: 'отброшена $count связь (цель отсутствует)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'пропущено $count повреждённых сессий',
+      many: 'пропущено $count повреждённых сессий',
+      few: 'пропущено $count повреждённых сессии',
+      one: 'пропущена $count повреждённая сессия',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Сессии';
 
   @override
@@ -1193,7 +1219,7 @@ class SRu extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Очищать ключ в памяти и блокировать интерфейс после указанного периода бездействия.';
+      'Блокировать интерфейс после указанного периода бездействия. Зашифрованная база перезакрывается только когда нет активных SSH-сессий — длительные операции не прерываются.';
 
   @override
   String get autoLockOff => 'Выкл.';
@@ -1218,6 +1244,16 @@ class SRu extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Архив слишком большой ($sizeMb МБ). Лимит — $limitMb МБ — прерывание до расшифровки для защиты памяти.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Запись known_hosts слишком большая ($sizeMb МБ). Лимит — $limitMb МБ — импорт прерван, чтобы интерфейс оставался отзывчивым.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Импорт не удался — данные восстановлены до состояния перед импортом. ($cause)';
   }
 
   @override
@@ -2055,4 +2091,14 @@ class SRu extends S {
   @override
   String get enableLoggingSubtitle =>
       'Записывать события приложения в ротируемый лог-файл';
+
+  @override
+  String get exportWithoutPassword => 'Экспортировать без пароля?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.';
+
+  @override
+  String get continueWithoutPassword => 'Продолжить без пароля';
 }

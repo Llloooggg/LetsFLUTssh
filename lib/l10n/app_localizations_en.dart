@@ -232,6 +232,28 @@ class SEn extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count associations dropped (targets missing)',
+      one: '$count association dropped (target missing)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count corrupt sessions skipped',
+      one: '$count corrupt session skipped',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => 'Sessions';
 
   @override
@@ -1189,7 +1211,7 @@ class SEn extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Zero the in-memory key and block the UI when idle for this long.';
+      'Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.';
 
   @override
   String get autoLockOff => 'Off';
@@ -1212,6 +1234,16 @@ class SEn extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Archive is too large ($sizeMb MB). The limit is $limitMb MB — aborted before decryption to protect memory.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts entry is too large ($sizeMb MB). The limit is $limitMb MB — aborted to keep the import responsive.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return 'Import failed — your data has been restored to the state before the import. ($cause)';
   }
 
   @override
@@ -2031,4 +2063,14 @@ class SEn extends S {
 
   @override
   String get enableLoggingSubtitle => 'Write app events to a rotating log file';
+
+  @override
+  String get exportWithoutPassword => 'Export Without Password?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.';
+
+  @override
+  String get continueWithoutPassword => 'Continue Without Password';
 }

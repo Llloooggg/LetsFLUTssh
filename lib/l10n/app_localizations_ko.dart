@@ -228,6 +228,26 @@ class SKo extends S {
   }
 
   @override
+  String importSkippedLinks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '연결 $count개를 삭제했습니다(대상 없음)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importSkippedSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '손상된 세션 $count개를 건너뛰었습니다',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get sessions => '세션';
 
   @override
@@ -1166,7 +1186,8 @@ class SKo extends S {
   String get autoLockTitle => '비활성 상태에서 자동 잠금';
 
   @override
-  String get autoLockSubtitle => '이 시간 동안 활동이 없으면 메모리의 키를 지우고 UI를 잠급니다.';
+  String get autoLockSubtitle =>
+      '이 시간 동안 활동이 없으면 UI를 잠급니다. 활성 SSH 세션이 없을 때에만 암호화된 데이터베이스가 다시 잠겨, 장시간 작업은 끊기지 않습니다.';
 
   @override
   String get autoLockOff => '끔';
@@ -1187,6 +1208,16 @@ class SKo extends S {
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return '아카이브가 너무 큽니다 ($sizeMb MB). 제한은 $limitMb MB이며, 메모리 보호를 위해 복호화 전에 중단되었습니다.';
+  }
+
+  @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts 항목이 너무 큽니다 ($sizeMb MB). 제한은 $limitMb MB이며, 가져오기 응답성을 유지하기 위해 중단되었습니다.';
+  }
+
+  @override
+  String errLfsImportRolledBack(String cause) {
+    return '가져오기 실패 — 데이터를 가져오기 전 상태로 복원했습니다. ($cause)';
   }
 
   @override
@@ -1991,4 +2022,14 @@ class SKo extends S {
 
   @override
   String get enableLoggingSubtitle => '앱 이벤트를 순환 로그 파일에 기록';
+
+  @override
+  String get exportWithoutPassword => '비밀번호 없이 내보내시겠습니까?';
+
+  @override
+  String get exportWithoutPasswordWarning =>
+      '아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.';
+
+  @override
+  String get continueWithoutPassword => '비밀번호 없이 계속';
 }
