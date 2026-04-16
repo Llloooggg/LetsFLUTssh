@@ -131,6 +131,21 @@ String? _sanitizeErrnoMessage(String msg) {
 /// Use this in UI code where [BuildContext] is available.
 /// Falls back to [sanitizeError] for unknown error types.
 String localizeError(S l10n, Object error) {
+  final lfs = _tryLocalizeLfsError(l10n, error);
+  if (lfs != null) return lfs;
+
+  final ssh = _tryLocalizeSshError(l10n, error);
+  if (ssh != null) return ssh;
+
+  if (error is TimeoutException) return _localizeTimeout(l10n, error);
+
+  // OS errors: extract errno and map to localized message.
+  return _localizeOsError(l10n, error);
+}
+
+/// Localize every archive / import-time exception. Returns null when
+/// [error] is not an LFS one, so the caller can fall through.
+String? _tryLocalizeLfsError(S l10n, Object error) {
   if (error is LfsArchiveTooLargeException) {
     return l10n.errLfsArchiveTooLarge(
       (error.size / (1024 * 1024)).toStringAsFixed(1),
@@ -152,14 +167,16 @@ String localizeError(S l10n, Object error) {
   if (error is LfsDecryptionFailedException) {
     return l10n.errLfsDecryptFailed;
   }
+  return null;
+}
 
-  // SFTPError: map status codes to localized messages.
+/// Localize SFTP / SSH transport errors. Returns null when [error] is
+/// not SSH-related.
+String? _tryLocalizeSshError(S l10n, Object error) {
   if (error is SFTPError) {
     final localized = _localizeSftpError(l10n, error);
     return _withLocalizedCause(l10n, localized, error.cause);
   }
-
-  // SSHError subtypes: use structured data for parameterized messages.
   if (error is HostKeyError) {
     final localized = l10n.errSshHostKeyRejected(
       error.host ?? '?',
@@ -168,12 +185,18 @@ String localizeError(S l10n, Object error) {
     return _withLocalizedCause(l10n, localized, error.cause);
   }
   if (error is AuthError) {
-    final localized = _localizeAuthError(l10n, error);
-    return _withLocalizedCause(l10n, localized, error.cause);
+    return _withLocalizedCause(
+      l10n,
+      _localizeAuthError(l10n, error),
+      error.cause,
+    );
   }
   if (error is ConnectError) {
-    final localized = _localizeConnectError(l10n, error);
-    return _withLocalizedCause(l10n, localized, error.cause);
+    return _withLocalizedCause(
+      l10n,
+      _localizeConnectError(l10n, error),
+      error.cause,
+    );
   }
   if (error is SSHError) {
     if (error.cause == null) return error.message;
@@ -183,18 +206,14 @@ String localizeError(S l10n, Object error) {
     }
     return error.message;
   }
+  return null;
+}
 
-  // TimeoutException from Connection.waitUntilReady
-  if (error is TimeoutException) {
-    final seconds = error.duration?.inSeconds;
-    if (seconds != null) {
-      return l10n.errConnectionTimedOutSeconds(seconds);
-    }
-    return l10n.errConnectionTimedOut;
-  }
-
-  // OS errors: extract errno and map to localized message.
-  return _localizeOsError(l10n, error);
+String _localizeTimeout(S l10n, TimeoutException error) {
+  final seconds = error.duration?.inSeconds;
+  return seconds != null
+      ? l10n.errConnectionTimedOutSeconds(seconds)
+      : l10n.errConnectionTimedOut;
 }
 
 String _localizeAuthError(S l10n, AuthError error) {
