@@ -156,8 +156,19 @@ class DeepLinkHandler {
     if (host.length > 253 ||
         host.contains('/') ||
         host.contains('\\') ||
-        host.contains('\x00')) {
+        _containsControlChar(host)) {
       AppLogger.instance.log('Invalid host', name: 'DeepLink');
+      return null;
+    }
+
+    // Validate user: bound the length, reject control chars / null bytes /
+    // path separators. POSIX `useradd` caps at 32 chars; allow more to cover
+    // domain-style accounts (`user@domain`) but stay well under DoS-able size.
+    if (user.length > 256 ||
+        user.contains('/') ||
+        user.contains('\\') ||
+        _containsControlChar(user)) {
+      AppLogger.instance.log('Invalid user', name: 'DeepLink');
       return null;
     }
 
@@ -174,6 +185,16 @@ class DeepLinkHandler {
     return SSHConfig(
       server: ServerAddress(host: host, port: port, user: user),
     );
+  }
+
+  /// True if [s] contains any C0/C1 control character (0x00–0x1F, 0x7F–0x9F).
+  /// Catches null bytes, CR/LF injection into ssh-config, BEL/escape chars
+  /// that could mangle terminal prompts.
+  static bool _containsControlChar(String s) {
+    for (final cu in s.codeUnits) {
+      if (cu < 0x20 || (cu >= 0x7F && cu <= 0x9F)) return true;
+    }
+    return false;
   }
 
   void dispose() {
