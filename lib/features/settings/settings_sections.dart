@@ -923,14 +923,20 @@ class _ExportImportTile extends ConsumerWidget {
       }
       if (!context.mounted) return;
 
-      // Nothing to show at all — surface a warning and bail.
+      // Nothing to show at all — surface a warning and bail. Mobile
+      // sandboxes usually hide ~/.ssh from us, so an empty scan there is
+      // expected rather than an error: fall through to the dialog so the
+      // user can still reach the "Browse…" pickers and feed it files from
+      // the SAF / iOS document picker.
       if (scannedKeys.isEmpty && (preview?.result.sessions.isEmpty ?? true)) {
-        Toast.show(
-          context,
-          message: S.of(context).fileNotFound(sshDir),
-          level: ToastLevel.warning,
-        );
-        return;
+        if (plat.isDesktopPlatform) {
+          Toast.show(
+            context,
+            message: S.of(context).fileNotFound(sshDir),
+            level: ToastLevel.warning,
+          );
+          return;
+        }
       }
 
       final existing = await keyStore.loadAll();
