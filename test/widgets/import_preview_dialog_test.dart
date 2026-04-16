@@ -101,13 +101,12 @@ void main() {
     );
 
     testWidgets(
-      'Import button disabled once sessions, config, and known_hosts are all off',
-      // Spec from qr_codec.ExportOptions.hasAnySelection (L176-177): a
-      // selection is "empty" iff `includeSessions || includeConfig ||
-      // includeKnownHosts` is false. Those three toggles gate the Import
-      // button; keys/tags/snippets alone do NOT keep Import enabled — per
-      // spec, they're session-linked payloads and cannot be imported on
-      // their own.
+      'Import button disabled only when every standalone entity is off',
+      // Spec from qr_codec.ExportOptions.hasAnySelection: a selection is
+      // "empty" iff none of the standalone entities (sessions, config,
+      // known_hosts, all-manager-keys, tags, snippets) is selected. As long
+      // as any one of them is ticked, Import stays enabled — e.g. a
+      // tags-only or manager-keys-only import is a valid operation.
       (tester) async {
         tester.view.physicalSize = const Size(900, 1400);
         tester.view.devicePixelRatio = 1.0;
@@ -139,9 +138,17 @@ void main() {
         await tester.tap(find.text('open'));
         await tester.pumpAndSettle();
 
-        // Default preset is Full → all three gate-flags are ON. Toggle each
-        // off in turn; after the last one hasAnySelection becomes false.
-        for (final label in const ['Sessions', 'App Settings', 'Known Hosts']) {
+        // Default preset is Full → every standalone flag is ON. Toggle each
+        // off in turn. After the last tap, hasAnySelection flips to false
+        // and Import becomes disabled.
+        for (final label in const [
+          'Sessions',
+          'App Settings',
+          'All manager keys',
+          'Tags',
+          'Snippets',
+          'Known Hosts',
+        ]) {
           await tester.tap(find.text(label));
           await tester.pump();
         }
@@ -152,6 +159,64 @@ void main() {
         await tester.pumpAndSettle();
         expect(result, isNull);
         expect(find.text('Import Data'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Import stays enabled with only Tags selected (standalone entity)',
+      // Spec: tags is a standalone entity per hasAnySelection — a
+      // tags-only import must succeed. Regression guard against the old
+      // gate that required sessions/config/known_hosts.
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        ImportPreviewSelection? result;
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () async {
+                    result = await ImportPreviewDialog.show(
+                      ctx,
+                      header: const _StubHeader('H'),
+                      counts: defaultCounts,
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        // From Full preset, uncheck every row except Tags.
+        for (final label in const [
+          'Sessions',
+          'App Settings',
+          'All manager keys',
+          'Snippets',
+          'Known Hosts',
+        ]) {
+          await tester.tap(find.text(label));
+          await tester.pump();
+        }
+
+        await tester.tap(find.text('Import'));
+        await tester.pumpAndSettle();
+        expect(result, isNotNull);
+        expect(result!.options.includeTags, isTrue);
+        expect(result!.options.includeSessions, isFalse);
+        expect(result!.options.includeConfig, isFalse);
+        expect(result!.options.includeKnownHosts, isFalse);
       },
     );
 
