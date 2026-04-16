@@ -287,66 +287,78 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
-    final l10n = S.of(context);
     if (enable) {
-      // Enabling: ask the user for their master password so we can cache the
-      // DB key in the biometric-gated vault. Without a fresh prompt there's
-      // nothing to cache — the live key in SecurityState is the same bytes,
-      // but requiring the password here matches user expectation and rejects
-      // accidental taps.
-      final currentCtrl = TextEditingController();
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
-      );
-      if (password == null || !context.mounted) return;
-      final manager = ref.read(masterPasswordProvider);
-      if (!await manager.verify(password)) {
-        if (context.mounted) {
-          Toast.show(
-            context,
-            message: S.of(context).currentPasswordIncorrect,
-            level: ToastLevel.error,
-          );
-        }
-        return;
-      }
-      final bio = ref.read(biometricAuthProvider);
-      final ok = await bio.authenticate(l10n.biometricUnlockPrompt);
-      if (!ok) return;
-      final key = await manager.deriveKey(password);
-      final vault = ref.read(biometricKeyVaultProvider);
-      final stored = await vault.store(key);
-      if (!mounted) return;
-      if (!stored) {
-        if (context.mounted) {
-          Toast.show(
-            context,
-            message: l10n.biometricEnableFailed,
-            level: ToastLevel.error,
-          );
-        }
-        return;
-      }
-      setState(() => _biometricEnabled = true);
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: l10n.biometricEnabled,
-          level: ToastLevel.success,
-        );
-      }
+      await _enableBiometricUnlock(context);
     } else {
-      await ref.read(biometricKeyVaultProvider).clear();
-      if (!mounted) return;
-      setState(() => _biometricEnabled = false);
+      await _disableBiometricUnlock(context);
+    }
+  }
+
+  /// Cache the DB key in the biometric-gated vault. Requires a fresh
+  /// master-password prompt so an accidental toggle tap can't silently
+  /// enable biometric access; the live key in SecurityState is the same
+  /// bytes we'd store, but forcing re-entry matches user expectation.
+  Future<void> _enableBiometricUnlock(BuildContext context) async {
+    final l10n = S.of(context);
+    final currentCtrl = TextEditingController();
+    final password = await AppDialog.show<String>(
+      context,
+      builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+    );
+    if (password == null || !context.mounted) return;
+
+    final manager = ref.read(masterPasswordProvider);
+    if (!await manager.verify(password)) {
       if (context.mounted) {
         Toast.show(
           context,
-          message: l10n.biometricDisabled,
-          level: ToastLevel.success,
+          message: S.of(context).currentPasswordIncorrect,
+          level: ToastLevel.error,
         );
       }
+      return;
+    }
+
+    final bio = ref.read(biometricAuthProvider);
+    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) return;
+
+    final key = await manager.deriveKey(password);
+    final vault = ref.read(biometricKeyVaultProvider);
+    final stored = await vault.store(key);
+    if (!mounted) return;
+
+    if (!stored) {
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricEnableFailed,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+
+    setState(() => _biometricEnabled = true);
+    if (context.mounted) {
+      Toast.show(
+        context,
+        message: l10n.biometricEnabled,
+        level: ToastLevel.success,
+      );
+    }
+  }
+
+  Future<void> _disableBiometricUnlock(BuildContext context) async {
+    final l10n = S.of(context);
+    await ref.read(biometricKeyVaultProvider).clear();
+    if (!mounted) return;
+    setState(() => _biometricEnabled = false);
+    if (context.mounted) {
+      Toast.show(
+        context,
+        message: l10n.biometricDisabled,
+        level: ToastLevel.success,
+      );
     }
   }
 
