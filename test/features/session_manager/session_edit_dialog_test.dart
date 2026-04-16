@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/features/session_manager/session_edit_dialog.dart';
+import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
@@ -1936,4 +1938,212 @@ void main() {
       expect(dialogResult, isNull);
     });
   });
+
+  // ===========================================================================
+  // Key store picker — covers _buildKeyPickerButton, _buildSelectedKeyChip,
+  // _showKeyPicker, _resolveKeyLabel.
+  //
+  // Specs (derived from lib/features/session_manager/session_edit_dialog.dart):
+  //
+  //  * Auth tab shows a "Select from key store" button that is disabled when
+  //    the key store has no entries — there's nothing to pick, so the button
+  //    must not pretend otherwise.
+  //  * Tapping the button while the store has entries opens a SimpleDialog
+  //    listing every key's label + key type; tapping an entry dismisses the
+  //    dialog and replaces the button with a chip that shows the selected
+  //    key's label.
+  //  * The chip carries an "X" action that clears the selection, reverting
+  //    the UI to the picker button.
+  //  * When editing an existing session whose auth.keyId is already set,
+  //    _resolveKeyLabel(keyId) looks the entry up in keyStoreProvider and the
+  //    resolved label is the one that shows on the chip — the session only
+  //    stores the id, not the label.
+  // ===========================================================================
+  group('SessionEditDialog — key store picker', () {
+    SshKeyEntry makeKey(String id, String label) => SshKeyEntry(
+      id: id,
+      label: label,
+      privateKey: '',
+      publicKey: '',
+      keyType: 'ed25519',
+      createdAt: DateTime(2025, 1, 1),
+    );
+
+    Widget buildWithKeys(
+      List<SshKeyEntry> keys, {
+      Session? session,
+      KeyStore? keyStore,
+    }) {
+      return ProviderScope(
+        overrides: [
+          sshKeysProvider.overrideWith(
+            (_) async => List<SshKeyEntry>.unmodifiable(keys),
+          ),
+          if (keyStore != null) keyStoreProvider.overrideWithValue(keyStore),
+          if (session != null)
+            sessionTagsProvider(
+              session.id,
+            ).overrideWith((_) async => const <Tag>[]),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () =>
+                    SessionEditDialog.show(context, session: session),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets(
+      'section is hidden when the store is empty and no key is selected',
+      // Spec (L478-480): when there's nothing to pick and nothing to display,
+      // _buildKeyStoreSelector collapses to SizedBox.shrink rather than
+      // rendering a dead disabled button that invites a pointless click.
+      (tester) async {
+        await tester.pumpWidget(buildWithKeys(const []));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+
+        expect(find.text('Select from Key Store'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'picker button appears and opens a SimpleDialog when store has keys',
+      (tester) async {
+        await tester.pumpWidget(
+          buildWithKeys([makeKey('k1', 'Prod key'), makeKey('k2', 'CI key')]),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+
+        await tester.tap(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+
+        // Both labels appear in the picker dialog.
+        expect(find.text('Prod key'), findsOneWidget);
+        expect(find.text('CI key'), findsOneWidget);
+        // Key type is shown as a subtitle under each entry.
+        expect(find.text('ed25519'), findsNWidgets(2));
+      },
+    );
+
+    testWidgets(
+      'selecting a key replaces the picker button with a labelled chip',
+      (tester) async {
+        await tester.pumpWidget(buildWithKeys([makeKey('k1', 'Prod key')]));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+
+        await tester.tap(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(SimpleDialogOption, 'Prod key'));
+        await tester.pumpAndSettle();
+
+        // Picker button has collapsed away.
+        expect(
+          find.widgetWithText(OutlinedButton, 'Select from Key Store'),
+          findsNothing,
+        );
+        // Label appears on the chip.
+        expect(find.text('Prod key'), findsOneWidget);
+        // Divider below the chip shows "Select from Key Store: {label}"
+        // (_buildOrDividerLabel), regression guard.
+        expect(
+          find.textContaining('Select from Key Store: Prod key'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'chip clear button resets the selection and brings the picker back',
+      (tester) async {
+        await tester.pumpWidget(buildWithKeys([makeKey('k1', 'Prod key')]));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+
+        await tester.tap(find.text('Select from Key Store'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(SimpleDialogOption, 'Prod key'));
+        await tester.pumpAndSettle();
+
+        // Clear button tooltip comes from clearKeyFile l10n key ("Clear key
+        // file"). Use byTooltip for stability across icon swaps.
+        await tester.tap(find.byTooltip('Clear key file'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Prod key'), findsNothing);
+        expect(
+          find.widgetWithText(OutlinedButton, 'Select from Key Store'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'editing a session with keyId resolves and displays the stored label',
+      (tester) async {
+        // Spec: Session row carries auth.keyId = 'k-abc'. When the dialog
+        // opens for editing, it must call keyStoreProvider.get('k-abc') and
+        // render the resolved label on the chip. The session itself never
+        // stores the label — the key store is the source of truth.
+        final storedKey = makeKey('k-abc', 'Saved laptop key');
+        final fakeStore = _StubKeyStore({'k-abc': storedKey});
+        final existing = Session(
+          id: 's1',
+          label: 'Existing',
+          server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+          auth: const SessionAuth(authType: AuthType.key, keyId: 'k-abc'),
+        );
+
+        await tester.pumpWidget(
+          buildWithKeys([storedKey], session: existing, keyStore: fakeStore),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await switchToAuth(tester);
+        // Extra pumps: _resolveKeyLabel is an async chain (keyStoreProvider →
+        // KeyStore.get → setState), so the label lands a microtask or two
+        // after the initial widget tree settles.
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.text('Saved laptop key'), findsOneWidget);
+        expect(fakeStore.getIds, ['k-abc']);
+      },
+    );
+  });
+}
+
+/// Minimal [KeyStore] test double.
+///
+/// Overrides only [get] — the one method the key-picker flow relies on when
+/// resolving an already-stored `keyId` into a human label. Records the ids it
+/// is queried with so tests can assert the dialog only looks up what it needs.
+class _StubKeyStore implements KeyStore {
+  final Map<String, SshKeyEntry> _entries;
+  final List<String> getIds = [];
+
+  _StubKeyStore(this._entries);
+
+  @override
+  Future<SshKeyEntry?> get(String id) async {
+    getIds.add(id);
+    return _entries[id];
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
