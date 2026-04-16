@@ -1813,7 +1813,7 @@ class STr extends S {
   String get securityLevel => 'Güvenlik düzeyi';
 
   @override
-  String get securityLevelPlaintext => 'Yok (düz metin)';
+  String get securityLevelPlaintext => 'Yok';
 
   @override
   String get securityLevelKeychain => 'Sistem anahtar zinciri';
@@ -1825,9 +1825,7 @@ class STr extends S {
   String get keychainStatus => 'Anahtar zinciri';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Kullanılabilir ($name)';
-  }
+  String get keychainAvailable => 'Kullanılabilir';
 
   @override
   String get keychainNotAvailable => 'Kullanılamaz';

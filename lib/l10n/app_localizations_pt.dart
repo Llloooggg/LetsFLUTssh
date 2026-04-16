@@ -1819,7 +1819,7 @@ class SPt extends S {
   String get securityLevel => 'Nível de segurança';
 
   @override
-  String get securityLevelPlaintext => 'Nenhum (texto simples)';
+  String get securityLevelPlaintext => 'Nenhum';
 
   @override
   String get securityLevelKeychain => 'Chaveiro do sistema';
@@ -1831,9 +1831,7 @@ class SPt extends S {
   String get keychainStatus => 'Chaveiro';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Disponível ($name)';
-  }
+  String get keychainAvailable => 'Disponível';
 
   @override
   String get keychainNotAvailable => 'Não disponível';

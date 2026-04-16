@@ -1765,7 +1765,7 @@ class SKo extends S {
   String get securityLevel => '보안 수준';
 
   @override
-  String get securityLevelPlaintext => '없음 (평문)';
+  String get securityLevelPlaintext => '없음';
 
   @override
   String get securityLevelKeychain => 'OS 키체인';
@@ -1777,9 +1777,7 @@ class SKo extends S {
   String get keychainStatus => '키체인';
 
   @override
-  String keychainAvailable(String name) {
-    return '사용 가능 ($name)';
-  }
+  String get keychainAvailable => '사용 가능';
 
   @override
   String get keychainNotAvailable => '사용 불가';

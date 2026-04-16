@@ -3210,7 +3210,7 @@ abstract class S {
   /// No description provided for @securityLevelPlaintext.
   ///
   /// In en, this message translates to:
-  /// **'None (plaintext)'**
+  /// **'None'**
   String get securityLevelPlaintext;
 
   /// No description provided for @securityLevelKeychain.
@@ -3234,8 +3234,8 @@ abstract class S {
   /// No description provided for @keychainAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Available ({name})'**
-  String keychainAvailable(String name);
+  /// **'Available'**
+  String get keychainAvailable;
 
   /// No description provided for @keychainNotAvailable.
   ///

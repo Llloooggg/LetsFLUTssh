@@ -1827,7 +1827,7 @@ class SDe extends S {
   String get securityLevel => 'Sicherheitsstufe';
 
   @override
-  String get securityLevelPlaintext => 'Keine (Klartext)';
+  String get securityLevelPlaintext => 'Keine';
 
   @override
   String get securityLevelKeychain => 'OS-Schlüsselbund';
@@ -1839,9 +1839,7 @@ class SDe extends S {
   String get keychainStatus => 'Schlüsselbund';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Verfügbar ($name)';
-  }
+  String get keychainAvailable => 'Verfügbar';
 
   @override
   String get keychainNotAvailable => 'Nicht verfügbar';

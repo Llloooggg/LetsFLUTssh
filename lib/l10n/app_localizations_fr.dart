@@ -1831,7 +1831,7 @@ class SFr extends S {
   String get securityLevel => 'Niveau de sécurité';
 
   @override
-  String get securityLevelPlaintext => 'Aucun (texte clair)';
+  String get securityLevelPlaintext => 'Aucun';
 
   @override
   String get securityLevelKeychain => 'Trousseau du système';
@@ -1843,9 +1843,7 @@ class SFr extends S {
   String get keychainStatus => 'Trousseau';
 
   @override
-  String keychainAvailable(String name) {
-    return 'Disponible ($name)';
-  }
+  String get keychainAvailable => 'Disponible';
 
   @override
   String get keychainNotAvailable => 'Non disponible';

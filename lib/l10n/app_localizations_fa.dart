@@ -1801,7 +1801,7 @@ class SFa extends S {
   String get securityLevel => 'سطح امنیت';
 
   @override
-  String get securityLevelPlaintext => 'بدون (متن ساده)';
+  String get securityLevelPlaintext => 'بدون';
 
   @override
   String get securityLevelKeychain => 'زنجیره کلید سیستم';
@@ -1813,9 +1813,7 @@ class SFa extends S {
   String get keychainStatus => 'زنجیره کلید';
 
   @override
-  String keychainAvailable(String name) {
-    return 'در دسترس ($name)';
-  }
+  String get keychainAvailable => 'در دسترس';
 
   @override
   String get keychainNotAvailable => 'در دسترس نیست';

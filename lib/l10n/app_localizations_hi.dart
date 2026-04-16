@@ -1811,7 +1811,7 @@ class SHi extends S {
   String get securityLevel => 'सुरक्षा स्तर';
 
   @override
-  String get securityLevelPlaintext => 'कोई नहीं (सादा पाठ)';
+  String get securityLevelPlaintext => 'कोई नहीं';
 
   @override
   String get securityLevelKeychain => 'OS कीचेन';
@@ -1823,9 +1823,7 @@ class SHi extends S {
   String get keychainStatus => 'कीचेन';
 
   @override
-  String keychainAvailable(String name) {
-    return 'उपलब्ध ($name)';
-  }
+  String get keychainAvailable => 'उपलब्ध';
 
   @override
   String get keychainNotAvailable => 'अनुपलब्ध';

@@ -1813,7 +1813,7 @@ class SAr extends S {
   String get securityLevel => 'مستوى الأمان';
 
   @override
-  String get securityLevelPlaintext => 'بدون (نص عادي)';
+  String get securityLevelPlaintext => 'بدون';
 
   @override
   String get securityLevelKeychain => 'سلسلة مفاتيح النظام';
@@ -1825,9 +1825,7 @@ class SAr extends S {
   String get keychainStatus => 'سلسلة المفاتيح';
 
   @override
-  String keychainAvailable(String name) {
-    return 'متاحة ($name)';
-  }
+  String get keychainAvailable => 'متاحة';
 
   @override
   String get keychainNotAvailable => 'غير متاحة';

@@ -363,12 +363,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   String _keychainStatusLabel(S l10n) {
-    if (_keychainAvailable == true) {
-      return l10n.keychainAvailable(_keychainName);
-    }
-    if (_keychainAvailable == false) {
-      return l10n.keychainNotAvailable;
-    }
+    if (_keychainAvailable == true) return l10n.keychainAvailable;
+    if (_keychainAvailable == false) return l10n.keychainNotAvailable;
     return '...';
   }
 
@@ -381,13 +377,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       case SecurityLevel.masterPassword:
         return l10n.securityLevelMasterPassword;
     }
-  }
-
-  static String get _keychainName {
-    if (Platform.isMacOS || Platform.isIOS) return 'Keychain';
-    if (Platform.isWindows) return 'Credential Manager';
-    if (Platform.isAndroid) return 'EncryptedSharedPreferences';
-    return 'libsecret';
   }
 
   /// Single entry point for master password management.
