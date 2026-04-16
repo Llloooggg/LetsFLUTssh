@@ -888,6 +888,57 @@ void main() {
       expect(find.textContaining('↑'), findsOneWidget);
     });
 
+    testWidgets('sort icon in header opens bottom-sheet menu on mobile', (
+      tester,
+    ) async {
+      final history = [
+        HistoryEntry(
+          id: 'h1',
+          name: 'zzz.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/zzz.txt',
+          targetPath: '/remote/zzz.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime(2024, 1, 1),
+        ),
+        HistoryEntry(
+          id: 'h2',
+          name: 'aaa.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/local/aaa.txt',
+          targetPath: '/remote/aaa.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime(2024, 1, 2),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        _buildTestWidget(manager: manager, history: history),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transfers:'));
+      await tester.pumpAndSettle();
+
+      // Sort icon button is rendered only on mobile and only when expanded.
+      final sortIcon = find.byIcon(Icons.sort);
+      expect(sortIcon, findsOneWidget);
+      await tester.tap(sortIcon);
+      await tester.pumpAndSettle();
+
+      // Bottom sheet shows "Sort" header + every column label.
+      expect(find.text('Sort'), findsOneWidget);
+      expect(find.text('Name'), findsWidgets);
+      expect(find.text('Time'), findsWidgets);
+
+      // Picking "Name" activates ascending sort.
+      await tester.tap(find.text('Name').last);
+      await tester.pumpAndSettle();
+
+      // Bottom sheet has been dismissed and the list is re-sorted (aaa first).
+      expect(find.text('Sort'), findsNothing);
+    });
+
     testWidgets('shows error state in scrollable body on mobile', (
       tester,
     ) async {
