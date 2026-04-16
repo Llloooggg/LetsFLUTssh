@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/widgets/data_checkboxes.dart';
+import 'package:letsflutssh/widgets/hover_region.dart';
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -506,4 +508,290 @@ void main() {
       expect(find.text('Known Hosts'), findsNothing);
     });
   });
+
+  // ===========================================================================
+  // Specs derived from lib/widgets/unified_export_dialog.dart:
+  //
+  //  * "Full backup" preset chip flips every includeX to true and selects
+  //    every session — the user's one-click "give me everything" path.
+  //  * "Sessions only" preset chip clears config / known-hosts / keys /
+  //    tags / snippets so a casual "give me my sessions" export doesn't
+  //    accidentally ship app settings or keys.
+  //  * Each data-type checkbox row toggles its underlying ExportOptions
+  //    flag. The Export button's returned UnifiedExportResult carries
+  //    that flag — same bit the LFS / QR encoders will honor downstream.
+  //  * Tags and Snippets rows only render when the payload actually has
+  //    them; empty tags / snippets hide the row entirely so the user
+  //    isn't invited to toggle something that has no effect.
+  //
+  // We drive the dialog through show() and inspect the returned
+  // UnifiedExportResult, because that's the contract the caller relies on.
+  // ===========================================================================
+  group(
+    'UnifiedExportDialog — preset chips and data-type toggles drive result',
+    () {
+      Widget openerFor({
+        required List<Session> sessions,
+        AppConfig? config,
+        String? knownHostsContent,
+        Map<String, String> managerKeys = const {},
+        required ValueChanged<UnifiedExportResult?> onResult,
+      }) {
+        return MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () async {
+                  final r = await UnifiedExportDialog.show(
+                    context,
+                    data: UnifiedExportDialogData(
+                      sessions: sessions,
+                      emptyFolders: const {},
+                      config: config,
+                      knownHostsContent: knownHostsContent,
+                      managerKeys: managerKeys,
+                    ),
+                    isQrMode: false,
+                  );
+                  onResult(r);
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        );
+      }
+
+      testWidgets(
+        'Full backup preset selects every session and every data type',
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          final sessions = [makeSession('1', 'A'), makeSession('2', 'B')];
+          await tester.pumpWidget(
+            openerFor(
+              sessions: sessions,
+              config: AppConfig.defaults,
+              knownHostsContent: 'github.com ssh-rsa AAA',
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(ChoiceChip, 'Full backup'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeSessions, isTrue);
+          expect(result!.options.includeConfig, isTrue);
+          expect(result!.options.includeKnownHosts, isTrue);
+          expect(result!.options.includePasswords, isTrue);
+          expect(result!.options.includeAllManagerKeys, isTrue);
+          // Every session is in the selection.
+          expect(result!.selectedSessions.map((s) => s.id), ['1', '2']);
+        },
+      );
+
+      testWidgets(
+        'Sessions preset drops config/known-hosts but keeps session-linked data',
+        // Spec (_sessionsPreset, L687-696): "Sessions" means "send this
+        // sessions package to the other device" — it must carry the
+        // sessions plus anything only meaningful *with* a session
+        // (passwords, embedded keys, session-referenced manager keys,
+        // tags, snippets). What it drops is the *global* stuff:
+        // includeConfig (app settings) and includeKnownHosts (host-key
+        // trust DB). includeAllManagerKeys is off because "all keys" is
+        // the full-app-transfer mode, which belongs to Full backup.
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          await tester.pumpWidget(
+            openerFor(
+              sessions: [makeSession('1', 'A')],
+              config: AppConfig.defaults,
+              knownHostsContent: 'github.com ssh-rsa AAA',
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeSessions, isTrue);
+          // Dropped global-scope flags.
+          expect(result!.options.includeConfig, isFalse);
+          expect(result!.options.includeKnownHosts, isFalse);
+          expect(result!.options.includeAllManagerKeys, isFalse);
+          // Kept session-scoped flags.
+          expect(result!.options.includePasswords, isTrue);
+          expect(result!.options.includeManagerKeys, isTrue);
+          expect(result!.options.includeTags, isTrue);
+          expect(result!.options.includeSnippets, isTrue);
+        },
+      );
+
+      testWidgets(
+        'App Settings checkbox toggle flips includeConfig on the result',
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          await tester.pumpWidget(
+            openerFor(
+              sessions: [makeSession('1', 'A')],
+              config: AppConfig.defaults,
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Default preset is Full (every flag on). Expand checkbox section,
+          // flip "App Settings" off, export.
+          // BUG: export dialog currently labels its checkbox section "What to
+          // import:" (L754 uses importWhatToImport). Tapping the first
+          // HoverRegion inside the CollapsibleCheckboxesSection expands the
+          // grid without relying on that wrong label — swap this out once the
+          // l10n fix lands.
+          await tester.tap(
+            find
+                .descendant(
+                  of: find.byType(CollapsibleCheckboxesSection),
+                  matching: find.byType(HoverRegion),
+                )
+                .first,
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('App Settings'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeConfig, isFalse);
+          expect(result!.options.includeSessions, isTrue);
+        },
+      );
+
+      testWidgets(
+        'Known Hosts checkbox toggle flips includeKnownHosts on the result',
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          await tester.pumpWidget(
+            openerFor(
+              sessions: [makeSession('1', 'A')],
+              knownHostsContent: 'github.com ssh-rsa AAA',
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // BUG: export dialog currently labels its checkbox section "What to
+          // import:" (L754 uses importWhatToImport). Tapping the first
+          // HoverRegion inside the CollapsibleCheckboxesSection expands the
+          // grid without relying on that wrong label — swap this out once the
+          // l10n fix lands.
+          await tester.tap(
+            find
+                .descendant(
+                  of: find.byType(CollapsibleCheckboxesSection),
+                  matching: find.byType(HoverRegion),
+                )
+                .first,
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Known Hosts'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeKnownHosts, isFalse);
+        },
+      );
+
+      testWidgets(
+        'All manager keys row flips includeAllManagerKeys and clears session keys',
+        // Spec (L820-825): All-keys and Session-keys are mutually exclusive
+        // — turning all-keys on must turn session-keys off. Exporting both
+        // at once would double-encode the subset in the archive.
+        (tester) async {
+          tester.view.physicalSize = const Size(900, 1400);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          UnifiedExportResult? result;
+          await tester.pumpWidget(
+            openerFor(
+              sessions: [makeSession('1', 'A')],
+              managerKeys: {'k1': 'PRIVKEYPEM'},
+              onResult: (r) => result = r,
+            ),
+          );
+
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+          // Start from Sessions-only so both key flags begin OFF.
+          await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
+          await tester.pump();
+          // BUG: export dialog currently labels its checkbox section "What to
+          // import:" (L754 uses importWhatToImport). Tapping the first
+          // HoverRegion inside the CollapsibleCheckboxesSection expands the
+          // grid without relying on that wrong label — swap this out once the
+          // l10n fix lands.
+          await tester.tap(
+            find
+                .descendant(
+                  of: find.byType(CollapsibleCheckboxesSection),
+                  matching: find.byType(HoverRegion),
+                )
+                .first,
+          );
+          await tester.pumpAndSettle();
+
+          // BUG: row label is hardcoded "All keys from manager" (L818)
+          // instead of l10n key allManagerKeys. Testing the literal text
+          // until the code-side fix lands.
+          await tester.tap(find.text('All keys from manager'));
+          await tester.pump();
+          await tester.tap(find.text('Export'));
+          await tester.pumpAndSettle();
+
+          expect(result, isNotNull);
+          expect(result!.options.includeAllManagerKeys, isTrue);
+          expect(result!.options.includeManagerKeys, isFalse);
+        },
+      );
+    },
+  );
 }
