@@ -75,6 +75,9 @@ class SVi extends S {
   String get importWhatToImport => 'Những gì cần nhập:';
 
   @override
+  String get exportWhatToExport => 'Những gì cần xuất:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Nhập mật khẩu chính:';
 
   @override

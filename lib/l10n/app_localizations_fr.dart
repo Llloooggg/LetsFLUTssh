@@ -75,6 +75,9 @@ class SFr extends S {
   String get importWhatToImport => 'Éléments à importer :';
 
   @override
+  String get exportWhatToExport => 'Éléments à exporter :';
+
+  @override
   String get enterMasterPasswordPrompt => 'Entrez le mot de passe principal:';
 
   @override

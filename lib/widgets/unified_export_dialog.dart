@@ -751,7 +751,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   Widget _buildCheckboxesSection() {
     return CollapsibleCheckboxesSection(
-      title: S.of(context).importWhatToImport,
+      title: S.of(context).exportWhatToExport,
       trailingLabel: _activePresetLabel(),
       expanded: _checkboxesExpanded,
       onToggle: () =>

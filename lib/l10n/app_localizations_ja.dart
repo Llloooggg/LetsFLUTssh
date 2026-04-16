@@ -75,6 +75,9 @@ class SJa extends S {
   String get importWhatToImport => 'インポートする内容：';
 
   @override
+  String get exportWhatToExport => 'エクスポートする内容：';
+
+  @override
   String get enterMasterPasswordPrompt => 'マスターパスワードを入力:';
 
   @override

@@ -75,6 +75,9 @@ class SAr extends S {
   String get importWhatToImport => 'ماذا تريد أن تستورد:';
 
   @override
+  String get exportWhatToExport => 'ماذا تريد أن تصدّر:';
+
+  @override
   String get enterMasterPasswordPrompt => 'أدخل كلمة المرور الرئيسية:';
 
   @override

@@ -75,6 +75,9 @@ class SHi extends S {
   String get importWhatToImport => 'क्या आयात करें:';
 
   @override
+  String get exportWhatToExport => 'क्या निर्यात करें:';
+
+  @override
   String get enterMasterPasswordPrompt => 'मास्टर पासवर्ड दर्ज करें:';
 
   @override

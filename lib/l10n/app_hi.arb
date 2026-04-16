@@ -32,6 +32,7 @@
   "yes": "हाँ",
   "no": "नहीं",
   "importWhatToImport": "क्या आयात करें:",
+  "exportWhatToExport": "क्या निर्यात करें:",
   "terminal": "टर्मिनल",
   "files": "फ़ाइलें",
   "transfer": "ट्रांसफ़र",

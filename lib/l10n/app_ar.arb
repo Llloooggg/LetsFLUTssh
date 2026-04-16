@@ -32,6 +32,7 @@
   "yes": "نعم",
   "no": "لا",
   "importWhatToImport": "ماذا تريد أن تستورد:",
+  "exportWhatToExport": "ماذا تريد أن تصدّر:",
   "terminal": "الطرفية",
   "files": "الملفات",
   "transfer": "النقل",

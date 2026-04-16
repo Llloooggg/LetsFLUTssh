@@ -75,6 +75,9 @@ class SKo extends S {
   String get importWhatToImport => '가져올 내용:';
 
   @override
+  String get exportWhatToExport => '내보낼 내용:';
+
+  @override
   String get enterMasterPasswordPrompt => '마스터 비밀번호 입력:';
 
   @override

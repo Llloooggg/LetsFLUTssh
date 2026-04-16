@@ -4,8 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
-import 'package:letsflutssh/widgets/data_checkboxes.dart';
-import 'package:letsflutssh/widgets/hover_region.dart';
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -160,7 +158,7 @@ void main() {
       await tester.pump();
 
       // Expand the collapsed "What to import" section to reveal checkboxes.
-      await tester.tap(find.text('What to import:'));
+      await tester.tap(find.text('What to export:'));
       await tester.pumpAndSettle();
 
       // Embedded keys are OFF by default — enable it (second checkbox)
@@ -192,7 +190,7 @@ void main() {
         await tester.pump();
 
         // Expand the collapsible section so we can read checkbox states.
-        await tester.tap(find.text('What to import:'));
+        await tester.tap(find.text('What to export:'));
         await tester.pumpAndSettle();
 
         // Map visible checkboxes by the label rendered to the right of them.
@@ -471,7 +469,7 @@ void main() {
       await tester.pump();
 
       // Expand the collapsed "What to import" section to reveal checkboxes.
-      await tester.tap(find.text('What to import:'));
+      await tester.tap(find.text('What to export:'));
       await tester.pumpAndSettle();
 
       // Tap the session passwords checkbox (English l10n)
@@ -671,19 +669,7 @@ void main() {
           await tester.pumpAndSettle();
           // Default preset is Full (every flag on). Expand checkbox section,
           // flip "App Settings" off, export.
-          // BUG: export dialog currently labels its checkbox section "What to
-          // import:" (L754 uses importWhatToImport). Tapping the first
-          // HoverRegion inside the CollapsibleCheckboxesSection expands the
-          // grid without relying on that wrong label — swap this out once the
-          // l10n fix lands.
-          await tester.tap(
-            find
-                .descendant(
-                  of: find.byType(CollapsibleCheckboxesSection),
-                  matching: find.byType(HoverRegion),
-                )
-                .first,
-          );
+          await tester.tap(find.text('What to export:'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('App Settings'));
           await tester.pump();
@@ -715,19 +701,7 @@ void main() {
 
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
-          // BUG: export dialog currently labels its checkbox section "What to
-          // import:" (L754 uses importWhatToImport). Tapping the first
-          // HoverRegion inside the CollapsibleCheckboxesSection expands the
-          // grid without relying on that wrong label — swap this out once the
-          // l10n fix lands.
-          await tester.tap(
-            find
-                .descendant(
-                  of: find.byType(CollapsibleCheckboxesSection),
-                  matching: find.byType(HoverRegion),
-                )
-                .first,
-          );
+          await tester.tap(find.text('What to export:'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Known Hosts'));
           await tester.pump();
@@ -764,19 +738,7 @@ void main() {
           // Start from Sessions-only so both key flags begin OFF.
           await tester.tap(find.widgetWithText(ChoiceChip, 'Sessions'));
           await tester.pump();
-          // BUG: export dialog currently labels its checkbox section "What to
-          // import:" (L754 uses importWhatToImport). Tapping the first
-          // HoverRegion inside the CollapsibleCheckboxesSection expands the
-          // grid without relying on that wrong label — swap this out once the
-          // l10n fix lands.
-          await tester.tap(
-            find
-                .descendant(
-                  of: find.byType(CollapsibleCheckboxesSection),
-                  matching: find.byType(HoverRegion),
-                )
-                .first,
-          );
+          await tester.tap(find.text('What to export:'));
           await tester.pumpAndSettle();
 
           await tester.tap(find.text('All manager keys'));

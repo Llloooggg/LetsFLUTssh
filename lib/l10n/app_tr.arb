@@ -32,6 +32,7 @@
   "yes": "Evet",
   "no": "Hayır",
   "importWhatToImport": "Ne içe aktarılacak:",
+  "exportWhatToExport": "Ne dışa aktarılacak:",
   "terminal": "Terminal",
   "files": "Dosyalar",
   "transfer": "Transfer",

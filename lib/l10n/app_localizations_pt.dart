@@ -75,6 +75,9 @@ class SPt extends S {
   String get importWhatToImport => 'O que importar:';
 
   @override
+  String get exportWhatToExport => 'O que exportar:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Digite a senha mestra:';
 
   @override

@@ -75,6 +75,9 @@ class SId extends S {
   String get importWhatToImport => 'Apa yang akan diimpor:';
 
   @override
+  String get exportWhatToExport => 'Apa yang akan diekspor:';
+
+  @override
   String get enterMasterPasswordPrompt => 'Masukkan kata sandi utama:';
 
   @override

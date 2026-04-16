@@ -75,6 +75,9 @@ class SFa extends S {
   String get importWhatToImport => 'چه چیزی وارد شود:';
 
   @override
+  String get exportWhatToExport => 'چه چیزی صادر شود:';
+
+  @override
   String get enterMasterPasswordPrompt => 'رمز عبور اصلی را وارد کنید:';
 
   @override
