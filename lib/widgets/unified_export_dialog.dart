@@ -695,7 +695,14 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
     includeSnippets: true,
   );
 
+  /// A preset is active only when both its [ExportOptions] flags match
+  /// the current state **and** every session is selected. A preset
+  /// represents a "complete" export of its category, so deselecting even
+  /// a single session turns the selection into a custom one — otherwise
+  /// the chip would stay highlighted and the "Full backup" label would
+  /// lie about partial exports.
   bool _isPresetActive(ExportOptions preset) {
+    if (!_allSelected) return false;
     return _options.includeSessions == preset.includeSessions &&
         _options.includeConfig == preset.includeConfig &&
         _options.includeKnownHosts == preset.includeKnownHosts &&
@@ -735,6 +742,11 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
               onSelected: (_) => setState(() {
                 _invalidatePayloadCache();
                 _options = _sessionsPreset;
+                // "Sessions only" covers every session by definition —
+                // clicking the chip must re-select all so the highlight
+                // matches the chip's meaning (and so the chip can stay
+                // active on click, not just toggle the flags).
+                _selectedIds.addAll(widget.data.sessions.map((s) => s.id));
               }),
             ),
           ],
