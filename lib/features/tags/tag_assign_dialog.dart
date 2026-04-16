@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tags/tag.dart';
+import '../../core/tags/tag_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_divider.dart';
+import '../../widgets/data_checkboxes.dart';
+import 'tag_manager_dialog.dart';
 
 /// Dialog to assign/remove tags on a session or folder.
 ///
-/// Shows all available tags as checkboxes. Changes are applied immediately.
+/// Shows every tag as a [DataCheckboxRow] so the row metrics match the
+/// rest of the import/export surface. Changes apply immediately: each tap
+/// writes through to the store, no explicit "Save". A tristate header row
+/// toggles every tag in one gesture; a search field appears once the tag
+/// list crosses the threshold where scanning becomes awkward.
 class TagAssignDialog extends ConsumerStatefulWidget {
   /// Session ID to tag. Mutually exclusive with [folderId].
   final String? sessionId;
@@ -49,15 +57,28 @@ class TagAssignDialog extends ConsumerStatefulWidget {
   ConsumerState<TagAssignDialog> createState() => _TagAssignDialogState();
 }
 
+/// The search field only appears once the user has enough tags that
+/// eyeballing them becomes slower than typing. Below this threshold the
+/// field is just chrome.
+const int _kSearchThreshold = 6;
+
 class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
   List<Tag> _allTags = [];
   Set<String> _assignedIds = {};
   bool _loading = true;
+  String _filter = '';
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -80,16 +101,41 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
     }
   }
 
+  List<Tag> get _visibleTags {
+    if (_filter.isEmpty) return _allTags;
+    final q = _filter.toLowerCase();
+    return _allTags.where((t) => t.name.toLowerCase().contains(q)).toList();
+  }
+
+  /// Tristate for the "select all" row: all → true, none → false,
+  /// partial → null (drawn as the mixed indicator).
+  bool? get _allAssignedTristate {
+    if (_allTags.isEmpty) return false;
+    final n = _assignedIds.length;
+    if (n == 0) return false;
+    if (n == _allTags.length) return true;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
     return AppDialog(
       title: s.editTags,
-      maxWidth: 400,
+      maxWidth: 420,
       scrollable: false,
-      contentPadding: EdgeInsets.zero,
-      content: SizedBox(height: 300, child: _buildBody(s)),
+      // Default padding (all(16)) — avoids trailing labels touching the
+      // modal's rounded corners, which earlier clipped the "N / M"
+      // counter against the right edge.
+      content: SizedBox(height: 360, child: _buildBody(s)),
       actions: [
+        // Manage lives in the footer so it's reachable from both the
+        // populated and empty states without duplicating the button.
+        if (!_loading)
+          AppDialogAction.secondary(
+            label: s.manageTags,
+            onTap: _openTagManager,
+          ),
         AppDialogAction.primary(
           label: s.close,
           onTap: () => Navigator.pop(context),
@@ -103,45 +149,118 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_allTags.isEmpty) {
+      return _buildEmptyState(s);
+    }
+    final showSearch = _allTags.length >= _kSearchThreshold;
+    final visible = _visibleTags;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showSearch) ...[_buildSearchField(s), const SizedBox(height: 6)],
+        _buildSelectAllRow(s),
+        const AppDivider(),
+        const SizedBox(height: 4),
+        Expanded(child: _buildTagList(s, visible)),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(S s) {
+    // Subtle icon + single-line message. The "Manage Tags" CTA lives in
+    // the dialog footer; repeating it here confuses widget finders (two
+    // "Manage Tags" texts on screen) and just clutters a small surface.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.local_offer_outlined, size: 32, color: AppTheme.fgFaint),
+          const SizedBox(height: 12),
+          Text(
+            s.noTags,
+            textAlign: TextAlign.center,
+            style: AppFonts.inter(fontSize: AppFonts.md, color: AppTheme.fgDim),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchField(S s) {
+    return TextField(
+      controller: _searchCtrl,
+      style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
+      decoration: AppTheme.inputDecoration(labelText: s.search).copyWith(
+        isDense: true,
+        prefixIcon: Icon(Icons.search, size: 16, color: AppTheme.fgDim),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        suffixIcon: _filter.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.clear, size: 16),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() => _filter = '');
+                },
+              ),
+      ),
+      onChanged: (v) => setState(() => _filter = v),
+    );
+  }
+
+  Widget _buildSelectAllRow(S s) {
+    final total = _allTags.length;
+    final selected = _assignedIds.length;
+    return DataCheckboxRow(
+      icon: Icons.done_all,
+      label: s.selectAll,
+      value: _allAssignedTristate,
+      tristate: true,
+      trailingLabel: '$selected / $total',
+      onTap: _toggleAll,
+    );
+  }
+
+  Widget _buildTagList(S s, List<Tag> visible) {
+    if (visible.isEmpty) {
+      // Filtered to nothing — keep the frame but tell the user why.
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              s.noTags,
-              style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(s.manageTags),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            s.noTags,
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+          ),
         ),
       );
     }
     return ListView.builder(
-      itemCount: _allTags.length,
+      itemCount: visible.length,
       itemBuilder: (context, index) {
-        final tag = _allTags[index];
+        final tag = visible[index];
         final isAssigned = _assignedIds.contains(tag.id);
         final color = tag.colorValue ?? AppTheme.fgDim;
-        return CheckboxListTile(
-          dense: true,
+        return DataCheckboxRow(
+          icon: Icons.label,
+          iconColor: color,
+          label: tag.name,
           value: isAssigned,
-          onChanged: (_) => _toggle(tag, isAssigned),
-          secondary: Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          title: Text(
-            tag.name,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
-          ),
+          onTap: () => _toggle(tag, isAssigned),
         );
       },
     );
+  }
+
+  Future<void> _openTagManager() async {
+    await TagManagerDialog.show(context);
+    // Manager may have added, renamed, or removed tags — reload so the
+    // picker reflects the new state without the user having to reopen the
+    // assign dialog.
+    if (mounted) {
+      setState(() => _loading = true);
+      await _load();
+    }
   }
 
   Future<void> _toggle(Tag tag, bool currentlyAssigned) async {
@@ -162,6 +281,7 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
       ref.invalidate(folderTagsProvider(widget.folderId!));
     }
 
+    if (!mounted) return;
     setState(() {
       if (currentlyAssigned) {
         _assignedIds.remove(tag.id);
@@ -169,5 +289,51 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
         _assignedIds.add(tag.id);
       }
     });
+  }
+
+  /// Tristate toggle-all: tapping the header row assigns every tag when any
+  /// are unassigned, and unassigns every tag when all are already on. The
+  /// mixed state resolves to "assign all" because that's the most common
+  /// follow-up after selecting partially.
+  Future<void> _toggleAll() async {
+    final next = _allAssignedTristate != true;
+    final store = ref.read(tagStoreProvider);
+    for (final tag in _allTags) {
+      final isAssigned = _assignedIds.contains(tag.id);
+      if (next && !isAssigned) {
+        await _writeAssignment(store, tag, assign: true);
+      } else if (!next && isAssigned) {
+        await _writeAssignment(store, tag, assign: false);
+      }
+    }
+    if (!mounted) return;
+    if (widget.sessionId != null) {
+      ref.invalidate(sessionTagsProvider(widget.sessionId!));
+    } else {
+      ref.invalidate(folderTagsProvider(widget.folderId!));
+    }
+    setState(() {
+      _assignedIds = next ? _allTags.map((t) => t.id).toSet() : <String>{};
+    });
+  }
+
+  Future<void> _writeAssignment(
+    TagStore store,
+    Tag tag, {
+    required bool assign,
+  }) async {
+    if (widget.sessionId != null) {
+      if (assign) {
+        await store.tagSession(widget.sessionId!, tag.id);
+      } else {
+        await store.untagSession(widget.sessionId!, tag.id);
+      }
+    } else {
+      if (assign) {
+        await store.tagFolder(widget.folderId!, tag.id);
+      } else {
+        await store.untagFolder(widget.folderId!, tag.id);
+      }
+    }
   }
 }
