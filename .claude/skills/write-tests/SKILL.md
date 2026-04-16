@@ -59,6 +59,8 @@ For each file to cover:
 
 Let the user decide which side is wrong. Only after confirmation: fix the code **or** update the spec. A confident "I found a bug, patching it" on an edge case is exactly how correct behavior gets quietly regressed and tests start cementing a *new* wrong answer.
 
+**Uncovered lines are a marker, not a target.** SonarCloud's "line 42 not covered" means "no test verifies the behavior this line implements" — it is NOT a target that says "write anything that reaches this line". A test whose only purpose is to execute the line (`function(args); expect(result, isNotNull);` / `expect(() => fn(), returnsNormally)` / `expect(result, isA<T>())` on any non-trivial function) raises coverage and catches nothing. Before writing it, answer: **what branch, decision, or contract does this line encode?** Then write a test that would fail if that contract broke. If you can't articulate the contract for a line, either the logic is too implicit to test (refactor first — extract a pure function) or you don't understand it yet (ask the user). A file at 100% coverage with smoke-style assertions is worse than 80% with meaningful ones: it gives false confidence *and* it will fight you when you try to change the code. Skip lines you can't spec, don't paper over them.
+
 Rules:
 - **One test file per source file** — add to existing test file, never create `_extra_test.dart`
 - Test uncovered branches: if/else, switch cases, error handling, edge cases
