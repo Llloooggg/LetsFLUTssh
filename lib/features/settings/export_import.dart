@@ -60,6 +60,15 @@ class ExportImport {
   /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
   /// is generous for normal use but catches zip-bomb-scale inputs.
   static const int maxArchiveBytes = 50 * 1024 * 1024;
+
+  /// Maximum accepted decompressed known_hosts payload (10 MiB). The outer
+  /// archive size is already bounded by [maxArchiveBytes], but a malicious
+  /// or corrupted .lfs could still ship a tiny ZIP entry that decompresses
+  /// to a runaway known_hosts blob — `KnownHostsManager.importFromString`
+  /// processes it line-by-line on the UI isolate and would stall the app.
+  /// 10 MiB comfortably covers any real fleet (~50k host keys at ~200 B
+  /// per line) and rejects pathological inputs early.
+  static const int maxKnownHostsBytes = 10 * 1024 * 1024;
   static const _manifestFile = 'manifest.json';
   static const _sessionsFile = 'sessions.json';
   static const _keysFile = 'keys.json';
@@ -629,7 +638,14 @@ class ExportImport {
     if (options.includeKnownHosts) {
       final khFile = parsed.archive.findFile(_knownHostsFile);
       if (khFile != null) {
-        knownHostsContent = utf8.decode(khFile.content as List<int>);
+        final bytes = khFile.content as List<int>;
+        if (bytes.length > maxKnownHostsBytes) {
+          throw LfsKnownHostsTooLargeException(
+            size: bytes.length,
+            limit: maxKnownHostsBytes,
+          );
+        }
+        knownHostsContent = utf8.decode(bytes);
       }
     }
 
@@ -831,6 +847,23 @@ class LfsArchiveTooLargeException implements Exception {
   @override
   String toString() =>
       'LfsArchiveTooLargeException: archive is $size bytes, limit is $limit';
+}
+
+/// Thrown when the known_hosts entry inside a successfully decrypted .lfs
+/// archive is larger than [ExportImport.maxKnownHostsBytes]. The line-by-line
+/// importer would otherwise stall the UI on a multi-GB blob.
+class LfsKnownHostsTooLargeException implements Exception {
+  final int size;
+  final int limit;
+  const LfsKnownHostsTooLargeException({
+    required this.size,
+    required this.limit,
+  });
+
+  @override
+  String toString() =>
+      'LfsKnownHostsTooLargeException: known_hosts is $size bytes, '
+      'limit is $limit';
 }
 
 /// Thrown when decrypting/unpacking an .lfs archive fails — either because

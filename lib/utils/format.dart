@@ -9,6 +9,7 @@ import '../features/settings/export_import.dart'
     show
         LfsArchiveTooLargeException,
         LfsDecryptionFailedException,
+        LfsKnownHostsTooLargeException,
         UnsupportedLfsVersionException;
 import '../l10n/app_localizations.dart';
 import 'sanitize.dart';
@@ -125,6 +126,12 @@ String? _sanitizeErrnoMessage(String msg) {
 String localizeError(S l10n, Object error) {
   if (error is LfsArchiveTooLargeException) {
     return l10n.errLfsArchiveTooLarge(
+      (error.size / (1024 * 1024)).toStringAsFixed(1),
+      (error.limit / (1024 * 1024)).toStringAsFixed(0),
+    );
+  }
+  if (error is LfsKnownHostsTooLargeException) {
+    return l10n.errLfsKnownHostsTooLarge(
       (error.size / (1024 * 1024)).toStringAsFixed(1),
       (error.limit / (1024 * 1024)).toStringAsFixed(0),
     );

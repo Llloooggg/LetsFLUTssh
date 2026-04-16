@@ -1201,6 +1201,11 @@ class SJa extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts エントリが大きすぎます ($sizeMb MB)。上限は $limitMb MB です。インポートの応答性を保つため中止しました。';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'アーカイブはスキーマ v$found を使用していますが、このビルドは v$supported までしか対応していません。インポートするにはアプリを更新してください。';
   }

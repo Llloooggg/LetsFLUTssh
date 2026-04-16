@@ -1196,6 +1196,11 @@ class SZh extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts 条目过大（$sizeMb MB）。上限为 $limitMb MB — 为保持导入响应性已中止。';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return '归档使用架构 v$found，但此版本仅支持到 v$supported。请更新应用以导入它。';
   }

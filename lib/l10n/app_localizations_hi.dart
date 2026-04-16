@@ -1229,6 +1229,11 @@ class SHi extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts प्रविष्टि बहुत बड़ी है ($sizeMb MB). सीमा $limitMb MB है — आयात को उत्तरदायी बनाए रखने के लिए रोका गया.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'संग्रह स्कीमा v$found का उपयोग करता है, लेकिन यह बिल्ड केवल v$supported तक समझता है. इसे आयात करने के लिए ऐप अपडेट करें.';
   }

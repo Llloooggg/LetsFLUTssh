@@ -1226,6 +1226,11 @@ class SEn extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts entry is too large ($sizeMb MB). The limit is $limitMb MB — aborted to keep the import responsive.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Archive uses schema v$found, but this build only understands up to v$supported. Update the app to import it.';
   }

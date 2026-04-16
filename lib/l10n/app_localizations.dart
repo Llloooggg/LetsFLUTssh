@@ -2283,6 +2283,12 @@ abstract class S {
   /// **'Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.'**
   String errLfsArchiveTooLarge(String sizeMb, String limitMb);
 
+  /// Shown when the known_hosts blob inside a successfully decrypted .lfs archive exceeds the per-entry cap.
+  ///
+  /// In en, this message translates to:
+  /// **'known_hosts entry is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted to keep the import responsive.'**
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb);
+
   /// No description provided for @errLfsUnsupportedVersion.
   ///
   /// In en, this message translates to:

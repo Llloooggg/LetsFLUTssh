@@ -1239,6 +1239,11 @@ class SDe extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts-Eintrag ist zu groß ($sizeMb MB). Das Limit beträgt $limitMb MB – abgebrochen, damit der Import reaktionsfähig bleibt.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Archiv verwendet Schema v$found, aber dieser Build unterstützt nur bis v$supported. Aktualisieren Sie die App, um es zu importieren.';
   }

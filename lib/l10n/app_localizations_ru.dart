@@ -1234,6 +1234,11 @@ class SRu extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Запись known_hosts слишком большая ($sizeMb МБ). Лимит — $limitMb МБ — импорт прерван, чтобы интерфейс оставался отзывчивым.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Архив использует схему v$found, а эта сборка поддерживает только до v$supported. Обновите приложение для импорта.';
   }

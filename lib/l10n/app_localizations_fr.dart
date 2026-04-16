@@ -1241,6 +1241,11 @@ class SFr extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'L\'entrée known_hosts est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu pour garder l\'import réactif.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'L\'archive utilise le schéma v$found, mais cette version ne prend en charge que jusqu\'à v$supported. Mettez à jour l\'application pour l\'importer.';
   }

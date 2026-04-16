@@ -387,6 +387,7 @@
   "autoLockMinutesValue": "{minutes, plural, zero{{minutes} دقيقة} one{دقيقة واحدة} two{دقيقتان} few{{minutes} دقائق} many{{minutes} دقيقة} other{{minutes} دقيقة}}",
   "errLfsDecryptFailed": "كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف",
   "errLfsArchiveTooLarge": "الأرشيف كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.",
+  "errLfsKnownHostsTooLarge": "إدخال known_hosts كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء للحفاظ على استجابة الاستيراد.",
   "errLfsUnsupportedVersion": "يستخدم الأرشيف المخطط v{found}، لكن هذا الإصدار يدعم فقط حتى v{supported}. قم بتحديث التطبيق لاستيراده.",
   "progressReadingArchive": "قراءة الأرشيف…",
   "progressDecrypting": "فك التشفير…",

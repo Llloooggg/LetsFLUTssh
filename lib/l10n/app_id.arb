@@ -387,6 +387,7 @@
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} menit}}",
   "errLfsDecryptFailed": "Kata sandi utama salah atau arsip .lfs rusak",
   "errLfsArchiveTooLarge": "Arsip terlalu besar ({sizeMb} MB). Batasnya adalah {limitMb} MB — dibatalkan sebelum dekripsi untuk melindungi memori.",
+  "errLfsKnownHostsTooLarge": "Entri known_hosts terlalu besar ({sizeMb} MB). Batasnya adalah {limitMb} MB — dibatalkan agar impor tetap responsif.",
   "errLfsUnsupportedVersion": "Arsip menggunakan skema v{found}, tetapi build ini hanya mendukung hingga v{supported}. Perbarui aplikasi untuk mengimpornya.",
   "progressReadingArchive": "Membaca arsip…",
   "progressDecrypting": "Mendekripsi…",

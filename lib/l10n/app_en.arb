@@ -712,6 +712,14 @@
       "limitMb": { "type": "String" }
     }
   },
+  "errLfsKnownHostsTooLarge": "known_hosts entry is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted to keep the import responsive.",
+  "@errLfsKnownHostsTooLarge": {
+    "description": "Shown when the known_hosts blob inside a successfully decrypted .lfs archive exceeds the per-entry cap.",
+    "placeholders": {
+      "sizeMb": { "type": "String" },
+      "limitMb": { "type": "String" }
+    }
+  },
   "errLfsUnsupportedVersion": "Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.",
   "@errLfsUnsupportedVersion": {
     "placeholders": {

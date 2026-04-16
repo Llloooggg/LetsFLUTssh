@@ -1236,6 +1236,11 @@ class SEs extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'La entrada known_hosts es demasiado grande ($sizeMb MB). El límite es de $limitMb MB: cancelado para mantener la importación responsiva.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'El archivo usa el esquema v$found, pero esta versión solo admite hasta v$supported. Actualiza la aplicación para importarlo.';
   }

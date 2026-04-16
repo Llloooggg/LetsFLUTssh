@@ -1231,6 +1231,11 @@ class SAr extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'إدخال known_hosts كبير جدًا ($sizeMb ميجابايت). الحد الأقصى هو $limitMb ميجابايت — تم الإلغاء للحفاظ على استجابة الاستيراد.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'يستخدم الأرشيف المخطط v$found، لكن هذا الإصدار يدعم فقط حتى v$supported. قم بتحديث التطبيق لاستيراده.';
   }

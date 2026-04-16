@@ -702,6 +702,50 @@ void main() {
     });
   });
 
+  group('ExportImport — known_hosts size cap', () {
+    test(
+      'rejects archive whose decompressed known_hosts exceeds the cap',
+      () async {
+        ExportImport.debugSetPbkdf2Iterations(1);
+        addTearDown(() => ExportImport.debugSetPbkdf2Iterations(null));
+
+        // Build a known_hosts string just over the cap. Use a printable byte so
+        // utf8.decode wouldn't even be attempted (the size guard runs first).
+        final big = String.fromCharCodes(
+          List<int>.filled(ExportImport.maxKnownHostsBytes + 1, 0x41),
+        );
+        final outputPath = '${tempDir.path}/big_kh.lfs';
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          input: LfsExportInput(
+            sessions: const [],
+            config: AppConfig.defaults,
+            options: const ExportOptions(includeKnownHosts: true),
+            knownHostsContent: big,
+          ),
+        );
+
+        await expectLater(
+          ExportImport.import_(
+            filePath: outputPath,
+            masterPassword: 'pw',
+            mode: ImportMode.merge,
+            options: const ExportOptions(includeKnownHosts: true),
+          ),
+          throwsA(isA<LfsKnownHostsTooLargeException>()),
+        );
+      },
+    );
+
+    test('LfsKnownHostsTooLargeException carries size and limit', () {
+      const ex = LfsKnownHostsTooLargeException(size: 999, limit: 100);
+      expect(ex.size, 999);
+      expect(ex.limit, 100);
+      expect(ex.toString(), contains('999'));
+    });
+  });
+
   group('ExportImport — robust session parsing', () {
     test('skips malformed session entries and counts them', () {
       const json = '''

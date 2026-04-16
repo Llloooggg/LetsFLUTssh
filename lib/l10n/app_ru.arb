@@ -387,6 +387,7 @@
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} минута} few{{minutes} минуты} many{{minutes} минут} other{{minutes} минуты}}",
   "errLfsDecryptFailed": "Неверный мастер-пароль или повреждённый архив .lfs",
   "errLfsArchiveTooLarge": "Архив слишком большой ({sizeMb} МБ). Лимит — {limitMb} МБ — прерывание до расшифровки для защиты памяти.",
+  "errLfsKnownHostsTooLarge": "Запись known_hosts слишком большая ({sizeMb} МБ). Лимит — {limitMb} МБ — импорт прерван, чтобы интерфейс оставался отзывчивым.",
   "errLfsUnsupportedVersion": "Архив использует схему v{found}, а эта сборка поддерживает только до v{supported}. Обновите приложение для импорта.",
   "progressReadingArchive": "Чтение архива…",
   "progressDecrypting": "Расшифровка…",

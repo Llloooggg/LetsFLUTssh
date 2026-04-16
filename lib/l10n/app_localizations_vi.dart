@@ -1223,6 +1223,11 @@ class SVi extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Mục known_hosts quá lớn ($sizeMb MB). Giới hạn là $limitMb MB — đã hủy để giữ cho thao tác nhập phản hồi nhanh.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Tệp lưu trữ sử dụng lược đồ v$found, nhưng bản dựng này chỉ hỗ trợ đến v$supported. Hãy cập nhật ứng dụng để nhập nó.';
   }

@@ -387,6 +387,7 @@
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
   "errLfsDecryptFailed": "Mot de passe maître incorrect ou archive .lfs corrompue",
   "errLfsArchiveTooLarge": "L'archive est trop volumineuse ({sizeMb} Mo). La limite est de {limitMb} Mo — interrompu avant le déchiffrement pour protéger la mémoire.",
+  "errLfsKnownHostsTooLarge": "L'entrée known_hosts est trop volumineuse ({sizeMb} Mo). La limite est de {limitMb} Mo — interrompu pour garder l'import réactif.",
   "errLfsUnsupportedVersion": "L'archive utilise le schéma v{found}, mais cette version ne prend en charge que jusqu'à v{supported}. Mettez à jour l'application pour l'importer.",
   "progressReadingArchive": "Lecture de l'archive…",
   "progressDecrypting": "Déchiffrement…",

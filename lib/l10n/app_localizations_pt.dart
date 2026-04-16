@@ -1234,6 +1234,11 @@ class SPt extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Entrada known_hosts muito grande ($sizeMb MB). O limite é de $limitMb MB — interrompido para manter a importação responsiva.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'O arquivo usa o esquema v$found, mas esta versão do app só entende até v$supported. Atualize o aplicativo para importá-lo.';
   }

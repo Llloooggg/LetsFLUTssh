@@ -1232,6 +1232,11 @@ class STr extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts girdisi çok büyük ($sizeMb MB). Sınır $limitMb MB — içe aktarma yanıt verir kalsın diye iptal edildi.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Arşiv v$found şemasını kullanıyor, ancak bu sürüm yalnızca v$supported sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.';
   }

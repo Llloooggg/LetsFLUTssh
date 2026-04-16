@@ -1232,6 +1232,11 @@ class SId extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'Entri known_hosts terlalu besar ($sizeMb MB). Batasnya adalah $limitMb MB — dibatalkan agar impor tetap responsif.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'Arsip menggunakan skema v$found, tetapi build ini hanya mendukung hingga v$supported. Perbarui aplikasi untuk mengimpornya.';
   }

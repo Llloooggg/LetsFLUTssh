@@ -1200,6 +1200,11 @@ class SKo extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'known_hosts 항목이 너무 큽니다 ($sizeMb MB). 제한은 $limitMb MB이며, 가져오기 응답성을 유지하기 위해 중단되었습니다.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return '아카이브는 스키마 v$found을(를) 사용하지만, 이 빌드는 v$supported까지만 지원합니다. 가져오려면 앱을 업데이트하세요.';
   }

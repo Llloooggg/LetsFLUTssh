@@ -1225,6 +1225,11 @@ class SFa extends S {
   }
 
   @override
+  String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
+    return 'ورودی known_hosts بسیار بزرگ است ($sizeMb مگابایت). محدودیت $limitMb مگابایت است — برای پاسخگو ماندن وارد کردن لغو شد.';
+  }
+
+  @override
   String errLfsUnsupportedVersion(int found, int supported) {
     return 'بایگانی از طرح v$found استفاده می‌کند، اما این نسخه فقط تا v$supported را پشتیبانی می‌کند. برای وارد کردن آن، برنامه را به‌روزرسانی کنید.';
   }
