@@ -144,7 +144,6 @@ lib/
 │   ├── confirm_dialog.dart          # Confirmation dialog (delete, destructive actions)
 │   ├── connection_progress.dart     # Terminal-styled progress for non-terminal tabs
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
-│   ├── cross_marquee_controller.dart # Cross-widget marquee selection notifier
 │   ├── error_state.dart             # Error display with retry/secondary actions
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
@@ -1632,21 +1631,6 @@ LocalDirectoryPicker.show(
 ```
 
 In-app directory browser that walks the filesystem via `dart:io` (no SAF, no `file_picker`). Used on Android when the app holds `MANAGE_EXTERNAL_STORAGE` — replaces SAF's `ACTION_OPEN_DOCUMENT_TREE`, which would otherwise prompt for per-folder consent on every export. Returns the selected directory's absolute path; callers append the filename.
-
-### CrossMarqueeController
-
-```dart
-class CrossMarqueeController extends ChangeNotifier {
-  Offset? globalPosition;
-  CrossMarqueePhase phase;     // start | move | end
-  bool get active;
-
-  void start(Offset globalPos);
-  void move(Offset globalPos);
-  void end();
-}
-```
-Notifier for cross-widget marquee selection.
 
 ### MarqueeMixin
 

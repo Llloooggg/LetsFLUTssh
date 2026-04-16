@@ -6,7 +6,6 @@ import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/context_menu.dart';
-import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/hover_region.dart';
 import '../file_browser/file_browser_tab.dart';
 import '../tabs/tab_model.dart';
@@ -20,26 +19,15 @@ import 'workspace_node.dart';
 /// Recursively renders the [WorkspaceNode] tree as tiled panels,
 /// each with its own tab bar and content.
 class WorkspaceView extends ConsumerStatefulWidget {
-  final CrossMarqueeController? crossMarquee;
-
   /// Called when any workspace panel receives a pointer down.
   /// Used to clear sidebar selection.
   final VoidCallback? onActivated;
-
-  /// Reverse cross-marquee: file pane → session panel.
-  final CrossMarqueeController? reverseCrossMarquee;
 
   /// Notifier incremented when the sidebar is activated — file browser
   /// tabs listen and clear their selection.
   final ValueNotifier<int>? sidebarActivated;
 
-  const WorkspaceView({
-    super.key,
-    this.crossMarquee,
-    this.reverseCrossMarquee,
-    this.onActivated,
-    this.sidebarActivated,
-  });
+  const WorkspaceView({super.key, this.onActivated, this.sidebarActivated});
 
   @override
   ConsumerState<WorkspaceView> createState() => WorkspaceViewState();
@@ -79,27 +67,25 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 
     if (!ws.hasTabs) return const WelcomeScreen();
 
-    // When a panel is maximized, render only that panel full-screen.
-    // The workspace tree is preserved — only rendering changes.
-    final Widget content;
+    // Always render the full workspace tree — even when a panel is
+    // maximized — so every TerminalTab stays mounted and its live SSH
+    // shell plus on-screen buffer survive the layout change. Maximize
+    // is implemented by collapsing the sibling-side of each split on
+    // the path to the maximized panel to 0 px (see [_buildSplitLayout]),
+    // which hides them without disposing their state.
+    final maxId = ws.isMaximized ? ws.maximizedPanelId : null;
+    Widget content = _buildNode(ws.root, ws.focusedPanelId, maxId);
     if (ws.isMaximized) {
-      final panel = findPanel(ws.root, ws.maximizedPanelId!);
-      if (panel != null) {
-        content = DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: AppTheme.accent.withValues(alpha: 0.5),
-              width: 1.5,
-            ),
+      content = DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: AppTheme.accent.withValues(alpha: 0.5),
+            width: 1.5,
           ),
-          child: _buildPanel(panel, ws.focusedPanelId),
-        );
-      } else {
-        content = _buildNode(ws.root, ws.focusedPanelId);
-      }
-    } else {
-      content = _buildNode(ws.root, ws.focusedPanelId);
+        ),
+        child: content,
+      );
     }
 
     // When maximized, disable edge drop targets (splits don't apply).
@@ -113,10 +99,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     );
   }
 
-  Widget _buildNode(WorkspaceNode node, String focusedPanelId) {
+  Widget _buildNode(
+    WorkspaceNode node,
+    String focusedPanelId,
+    String? maximizedPanelId,
+  ) {
     return switch (node) {
       PanelLeaf() => _buildPanel(node, focusedPanelId),
-      WorkspaceBranch() => _buildBranch(node, focusedPanelId),
+      WorkspaceBranch() => _buildBranch(node, focusedPanelId, maximizedPanelId),
     };
   }
 
@@ -124,7 +114,11 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   // Branch rendering
   // ---------------------------------------------------------------------------
 
-  Widget _buildBranch(WorkspaceBranch node, String focusedPanelId) {
+  Widget _buildBranch(
+    WorkspaceBranch node,
+    String focusedPanelId,
+    String? maximizedPanelId,
+  ) {
     final isHorizontal = node.direction == Axis.horizontal;
 
     return LayoutBuilder(
@@ -132,7 +126,13 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         final totalSize = isHorizontal
             ? constraints.maxWidth
             : constraints.maxHeight;
-        return _buildSplitLayout(node, isHorizontal, totalSize, focusedPanelId);
+        return _buildSplitLayout(
+          node,
+          isHorizontal,
+          totalSize,
+          focusedPanelId,
+          maximizedPanelId,
+        );
       },
     );
   }
@@ -142,19 +142,33 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     bool isHorizontal,
     double totalSize,
     String focusedPanelId,
+    String? maximizedPanelId,
   ) {
-    final firstSize = totalSize * node.ratio;
-    final secondSize = totalSize * (1 - node.ratio);
+    // Default to the stored ratio. When a descendant is being maximized,
+    // give the winning side 100% and zero out the losing side so all
+    // panels stay mounted but only the maximized one is visible.
+    double firstRatio = node.ratio;
+    if (maximizedPanelId != null) {
+      final inFirst = subtreeContainsPanel(node.first, maximizedPanelId);
+      final inSecond = subtreeContainsPanel(node.second, maximizedPanelId);
+      if (inFirst && !inSecond) {
+        firstRatio = 1.0;
+      } else if (inSecond && !inFirst) {
+        firstRatio = 0.0;
+      }
+    }
+    final firstSize = totalSize * firstRatio;
+    final secondSize = totalSize * (1 - firstRatio);
 
     final firstChild = SizedBox(
       width: isHorizontal ? firstSize : null,
       height: isHorizontal ? null : firstSize,
-      child: _buildNode(node.first, focusedPanelId),
+      child: _buildNode(node.first, focusedPanelId, maximizedPanelId),
     );
     final secondChild = SizedBox(
       width: isHorizontal ? secondSize : null,
       height: isHorizontal ? null : secondSize,
-      child: _buildNode(node.second, focusedPanelId),
+      child: _buildNode(node.second, focusedPanelId, maximizedPanelId),
     );
 
     final layout = ClipRect(
@@ -162,6 +176,12 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
           ? Row(children: [firstChild, secondChild])
           : Column(children: [firstChild, secondChild]),
     );
+
+    // Hide the divider while a descendant is maximized — the usual
+    // resize affordance is meaningless when one side is 0 px.
+    if (maximizedPanelId != null && (firstRatio == 0.0 || firstRatio == 1.0)) {
+      return layout;
+    }
 
     return _WorkspaceDividerLayout(
       node: node,
@@ -182,74 +202,75 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     final isFocused = panel.id == focusedPanelId;
     final notifier = ref.read(workspaceProvider.notifier);
 
+    // Fire focus + onActivated on raw pointer-down rather than
+    // GestureDetector.onTap. onTap only fires when the gesture arena
+    // resolves as a clean tap (no movement), so even a single-pixel hand
+    // tremor let the gesture get re-classified as a pan and the panel
+    // silently skipped the focus change — giving the "every other click"
+    // symptom on terminal focus switching.
     final content = ClipRect(
       child: Listener(
-        onPointerDown: widget.onActivated != null
-            ? (_) => widget.onActivated!()
-            : null,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () => notifier.setFocusedPanel(panel.id),
-          child: Column(
-            children: [
-              // Tab bar.
-              Container(
-                height: AppTheme.barHeightSm,
-                color: AppTheme.bg1,
-                child: PanelTabBar(
-                  panelId: panel.id,
-                  tabs: panel.tabs,
-                  activeIndex: panel.activeTabIndex,
-                  isFocusedPanel: isFocused,
-                  onSelect: (idx) => notifier.selectTab(panel.id, idx),
-                  onClose: (tabId) => notifier.closeTab(panel.id, tabId),
-                  onReorder: (oldIdx, newIdx) =>
-                      notifier.reorderTabs(panel.id, oldIdx, newIdx),
-                  onAcceptCrossPanel: (data, idx) {
-                    notifier.moveTab(
-                      data.sourcePanelId,
-                      data.tab.id,
-                      panel.id,
-                      index: idx,
-                    );
-                  },
-                  onContextMenu: (tabId, index, offset) =>
-                      _showTabContextMenu(context, panel, tabId, index, offset),
-                ),
+        onPointerDown: (_) {
+          notifier.setFocusedPanel(panel.id);
+          widget.onActivated?.call();
+        },
+        child: Column(
+          children: [
+            // Tab bar.
+            Container(
+              height: AppTheme.barHeightSm,
+              color: AppTheme.bg1,
+              child: PanelTabBar(
+                panelId: panel.id,
+                tabs: panel.tabs,
+                activeIndex: panel.activeTabIndex,
+                isFocusedPanel: isFocused,
+                onSelect: (idx) => notifier.selectTab(panel.id, idx),
+                onClose: (tabId) => notifier.closeTab(panel.id, tabId),
+                onReorder: (oldIdx, newIdx) =>
+                    notifier.reorderTabs(panel.id, oldIdx, newIdx),
+                onAcceptCrossPanel: (data, idx) {
+                  notifier.moveTab(
+                    data.sourcePanelId,
+                    data.tab.id,
+                    panel.id,
+                    index: idx,
+                  );
+                },
+                onContextMenu: (tabId, index, offset) =>
+                    _showTabContextMenu(context, panel, tabId, index, offset),
               ),
-              // Connection bar.
-              if (panel.activeTab != null)
-                _PanelConnectionBar(
-                  activeTab: panel.activeTab!,
-                  panelId: panel.id,
-                  onRetry: _retryCallback(panel),
-                ),
-              // Tab content.
-              Expanded(
-                child: panel.tabs.isEmpty
-                    ? const SizedBox.shrink()
-                    : IndexedStack(
-                        index: panel.activeTabIndex,
-                        children: panel.tabs.map((tab) {
-                          return switch (tab.kind) {
-                            TabKind.terminal => TerminalTab(
-                              key: _keyForTab(tab.id),
-                              tabId: tab.id,
-                              connection: tab.connection,
-                            ),
-                            TabKind.sftp => FileBrowserTab(
-                              key: _keyForFileBrowser(tab.id),
-                              connection: tab.connection,
-                              crossMarquee: widget.crossMarquee,
-                              reverseCrossMarquee: widget.reverseCrossMarquee,
-                              sidebarActivated: widget.sidebarActivated,
-                            ),
-                          };
-                        }).toList(),
-                      ),
+            ),
+            // Connection bar.
+            if (panel.activeTab != null)
+              _PanelConnectionBar(
+                activeTab: panel.activeTab!,
+                panelId: panel.id,
+                onRetry: _retryCallback(panel),
               ),
-            ],
-          ),
+            // Tab content.
+            Expanded(
+              child: panel.tabs.isEmpty
+                  ? const SizedBox.shrink()
+                  : IndexedStack(
+                      index: panel.activeTabIndex,
+                      children: panel.tabs.map((tab) {
+                        return switch (tab.kind) {
+                          TabKind.terminal => TerminalTab(
+                            key: _keyForTab(tab.id),
+                            tabId: tab.id,
+                            connection: tab.connection,
+                          ),
+                          TabKind.sftp => FileBrowserTab(
+                            key: _keyForFileBrowser(tab.id),
+                            connection: tab.connection,
+                            sidebarActivated: widget.sidebarActivated,
+                          ),
+                        };
+                      }).toList(),
+                    ),
+            ),
+          ],
         ),
       ),
     );

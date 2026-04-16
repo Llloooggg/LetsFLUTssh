@@ -165,10 +165,31 @@ mixin MarqueeMixin<T extends StatefulWidget> on State<T> {
   }
 
   // ── Drag callbacks (wire to Draggable) ──
+  //
+  // When Draggable wins the gesture arena it consumes the pointer-up, so
+  // [handleMarqueePointerUp] is never called and the anchor would linger
+  // into the next interaction — the host widget then sees a stale
+  // [_mAnchor] on the following pointer-down and the drag threshold
+  // check behaves inconsistently, producing the "works every other time"
+  // symptom. Reset all marquee state on both sides of the drag lifecycle.
 
-  void onDragStarted() => marqueeDragActive = true;
-  void onDragEnd(DraggableDetails _) => marqueeDragActive = false;
-  void onDragCanceled(Velocity _, Offset _) => marqueeDragActive = false;
+  void onDragStarted() {
+    marqueeDragActive = true;
+    _mAnchor = null;
+    _mStart = null;
+    _mCurrent = null;
+    _mActive = false;
+  }
+
+  void onDragEnd(DraggableDetails _) {
+    marqueeDragActive = false;
+    _mAnchor = null;
+  }
+
+  void onDragCanceled(Velocity _, Offset _) {
+    marqueeDragActive = false;
+    _mAnchor = null;
+  }
 
   // ── Cleanup ──
 

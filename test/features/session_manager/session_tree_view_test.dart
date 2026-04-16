@@ -7,7 +7,6 @@ import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/utils/platform.dart';
-import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
 import 'package:letsflutssh/widgets/threshold_draggable.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
@@ -881,103 +880,10 @@ void main() {
     });
   });
 
-  group('SessionTreeView — cross-widget marquee', () {
-    testWidgets('drag outside bounds fires crossMarquee.start', (tester) async {
-      final crossMarquee = CrossMarqueeController();
-      addTearDown(crossMarquee.dispose);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionTreeView(tree: tree, crossMarquee: crossMarquee),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Start inside, drag far to the right (outside bounds)
-      final center = tester.getCenter(find.byType(SessionTreeView));
-      final gesture = await tester.startGesture(center);
-      await tester.pump();
-      await gesture.moveBy(const Offset(400, 0));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(crossMarquee.active, isTrue);
-
-      await gesture.up();
-      await tester.pump();
-
-      expect(crossMarquee.active, isFalse);
-    });
-
-    testWidgets(
-      'drag back inside cancels cross-marquee and resumes session marquee',
-      (tester) async {
-        final crossMarquee = CrossMarqueeController();
-        addTearDown(crossMarquee.dispose);
-        Set<String>? selectedIds;
-
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              localizationsDelegates: S.localizationsDelegates,
-              supportedLocales: S.supportedLocales,
-              theme: AppTheme.dark(),
-              home: Scaffold(
-                body: SizedBox(
-                  width: 300,
-                  height: 600,
-                  child: SessionTreeView(
-                    tree: tree,
-                    crossMarquee: crossMarquee,
-                    onMarqueeSelect: (ids, _) => selectedIds = ids,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // Start below all rows (empty space) so Draggable doesn't intercept
-        final center = tester.getCenter(find.byType(SessionTreeView));
-        final gesture = await tester.startGesture(Offset(center.dx, 400));
-        await tester.pump();
-
-        // Move outside
-        await gesture.moveBy(const Offset(400, 0));
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(crossMarquee.active, isTrue);
-
-        // Move back inside and up into rows
-        await gesture.moveTo(Offset(center.dx, 200));
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(crossMarquee.active, isFalse);
-
-        // Session marquee should be active now — check via onMarqueeSelect
-        await gesture.moveBy(const Offset(0, -150));
-        await tester.pump(const Duration(milliseconds: 100));
-
-        // selectedIds was called during inside-marquee
-        expect(selectedIds, isNotNull);
-
-        await gesture.up();
-        await tester.pump();
-      },
-    );
-
-    testWidgets('cross-marquee not triggered without controller', (
-      tester,
-    ) async {
+  group('SessionTreeView — marquee stays within the panel', () {
+    testWidgets('dragging past the panel boundary never propagates a selection '
+        'outside — the marquee is local-only since the cross-widget '
+        'controllers were removed', (tester) async {
       Set<String>? selectedIds;
 
       await tester.pumpWidget(
@@ -1001,10 +907,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Drag outside bounds — without crossMarquee, should still do normal marquee
       final center = tester.getCenter(find.byType(SessionTreeView));
       final gesture = await tester.startGesture(Offset(center.dx, 10));
       await tester.pump();
+      // Drag down stays inside → normal marquee picks rows.
       await gesture.moveBy(const Offset(0, 200));
       await tester.pump(const Duration(milliseconds: 100));
       await gesture.up();

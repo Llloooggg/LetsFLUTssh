@@ -14,7 +14,6 @@ import '../../widgets/column_resize_handle.dart';
 import '../../widgets/sortable_header_cell.dart';
 import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
-import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/marquee_mixin.dart';
 import 'breadcrumb_path.dart';
 import 'file_browser_controller.dart';
@@ -47,14 +46,6 @@ class FilePane extends StatefulWidget {
   /// Used by parent to clear selection in the sibling pane.
   final VoidCallback? onPaneActivated;
 
-  /// Cross-widget marquee controller — receives events when a marquee drag
-  /// starts in the session panel and crosses into this file pane.
-  final CrossMarqueeController? crossMarquee;
-
-  /// Reverse cross-marquee: sends events when a marquee drag exits the
-  /// left boundary of this file pane towards the session panel.
-  final CrossMarqueeController? reverseCrossMarquee;
-
   /// Whether to calculate and display folder sizes.
   final bool showFolderSizes;
 
@@ -69,8 +60,6 @@ class FilePane extends StatefulWidget {
     this.onDropReceived,
     this.onOsDropReceived,
     this.onPaneActivated,
-    this.crossMarquee,
-    this.reverseCrossMarquee,
     this.showFolderSizes = false,
   });
 
@@ -129,7 +118,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   void initState() {
     super.initState();
     ctrl.addListener(_onChanged);
-    widget.crossMarquee?.addListener(_onCrossMarquee);
     _pathFocusNode.addListener(_onPathFocusChanged);
   }
 
@@ -140,17 +128,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   }
 
   @override
-  void didUpdateWidget(covariant FilePane oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.crossMarquee != widget.crossMarquee) {
-      oldWidget.crossMarquee?.removeListener(_onCrossMarquee);
-      widget.crossMarquee?.addListener(_onCrossMarquee);
-    }
-  }
-
-  @override
   void dispose() {
-    widget.crossMarquee?.removeListener(_onCrossMarquee);
     ctrl.removeListener(_onChanged);
     _pathFocusNode.removeListener(_onPathFocusChanged);
     _pathFocusNode.dispose();
@@ -158,55 +136,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     disposeMarquee();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  void _onCrossMarquee() {
-    final cm = widget.crossMarquee!;
-    if (!cm.active) {
-      if (marqueeActive) {
-        setState(() {
-          marqueeAnchor = null;
-          marqueeStart = null;
-          marqueeCurrent = null;
-          _preMarqueeSelection = null;
-          marqueeActive = false;
-        });
-      }
-      return;
-    }
-
-    final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.attached) return;
-    final local = box.globalToLocal(cm.globalPosition!);
-
-    if (cm.phase == CrossMarqueePhase.start) {
-      marqueeActive = true;
-      marqueeAnchor = local;
-      _preMarqueeSelection = isCtrlHeld ? Set.from(ctrl.selected) : null;
-      if (!isCtrlHeld) ctrl.clearSelection();
-    }
-
-    setState(() {
-      marqueeStart = marqueeAnchor;
-      marqueeCurrent = local;
-    });
-    _crossMarqueeUpdateSelection();
-  }
-
-  void _crossMarqueeUpdateSelection() {
-    if (marqueeStart == null || marqueeCurrent == null) return;
-    final scroll = marqueeScrollController.hasClients
-        ? marqueeScrollController.offset
-        : 0.0;
-    final startY = marqueeStart!.dy + scroll;
-    final endY = marqueeCurrent!.dy + scroll;
-    final minY = startY < endY ? startY : endY;
-    final maxY = startY > endY ? startY : endY;
-    final maxIdx = ctrl.entries.length - 1;
-    if (maxIdx < 0) return;
-    final firstIndex = (minY / _rowHeight).floor().clamp(0, maxIdx);
-    final lastIndex = (maxY / _rowHeight).floor().clamp(0, maxIdx);
-    applyMarqueeSelection(firstIndex, lastIndex, ctrlHeld: isCtrlHeld);
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -676,62 +605,6 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     _preMarqueeSelection = null;
   }
 
-  // ── Reverse cross-marquee (file pane → session panel) ──
-
-  bool _reverseCrossActive = false;
-
-  void _handlePointerMove(PointerMoveEvent e) {
-    if (marqueeDragActive || marqueeAnchor == null) return;
-
-    if (_handleReverseCrossMarquee(e)) return;
-
-    handleMarqueePointerMove(e);
-  }
-
-  /// Returns `true` when the event was consumed by reverse cross-marquee.
-  bool _handleReverseCrossMarquee(PointerMoveEvent e) {
-    if (widget.reverseCrossMarquee == null) return false;
-
-    final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return false;
-
-    final local = e.localPosition;
-    if (local.dx < 0) {
-      _deactivateMarqueeIfActive();
-      if (!_reverseCrossActive) {
-        _reverseCrossActive = true;
-        widget.reverseCrossMarquee!.start(e.position);
-      } else {
-        widget.reverseCrossMarquee!.move(e.position);
-      }
-      return true;
-    }
-    if (_reverseCrossActive) {
-      _reverseCrossActive = false;
-      widget.reverseCrossMarquee!.end();
-      marqueeAnchor = e.localPosition;
-    }
-    return false;
-  }
-
-  void _deactivateMarqueeIfActive() {
-    if (!marqueeActive) return;
-    setState(() {
-      marqueeStart = null;
-      marqueeCurrent = null;
-      marqueeActive = false;
-    });
-    onMarqueeDeactivated();
-  }
-
-  void _handlePointerUp(PointerUpEvent e) {
-    if (_reverseCrossActive) {
-      _reverseCrossActive = false;
-      widget.reverseCrossMarquee?.end();
-    }
-    handleMarqueePointerUp(e);
-  }
-
   // ── File list ──
 
   Widget _buildFileList(
@@ -822,12 +695,8 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   ) {
     return Listener(
       onPointerDown: handleMarqueePointerDown,
-      onPointerMove: widget.reverseCrossMarquee != null
-          ? _handlePointerMove
-          : handleMarqueePointerMove,
-      onPointerUp: widget.reverseCrossMarquee != null
-          ? _handlePointerUp
-          : handleMarqueePointerUp,
+      onPointerMove: handleMarqueePointerMove,
+      onPointerUp: handleMarqueePointerUp,
       child: GestureDetector(
         onSecondaryTapUp: (d) =>
             _showBackgroundContextMenu(context, d.globalPosition),

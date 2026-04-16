@@ -33,7 +33,6 @@ import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
-import 'widgets/cross_marquee_controller.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/hover_region.dart';
@@ -593,8 +592,6 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   final _deepLinkHandler = DeepLinkHandler();
-  final _crossMarquee = CrossMarqueeController();
-  final _reverseCrossMarquee = CrossMarqueeController();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
   final _workspaceKey = GlobalKey<WorkspaceViewState>();
@@ -611,8 +608,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void dispose() {
     _deepLinkHandler.dispose();
-    _crossMarquee.dispose();
-    _reverseCrossMarquee.dispose();
     _sidebarActivated.dispose();
     super.dispose();
   }
@@ -899,15 +894,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       key: _sessionPanelKey,
       onConnect: (session) => _connectSession(context, ref, session),
       onSftpConnect: (session) => _connectSessionSftp(context, ref, session),
-      crossMarquee: _crossMarquee,
-      reverseCrossMarquee: _reverseCrossMarquee,
       onActivated: () => _sidebarActivated.value++,
     );
 
     final body = WorkspaceView(
       key: _workspaceKey,
-      crossMarquee: _crossMarquee,
-      reverseCrossMarquee: _reverseCrossMarquee,
       sidebarActivated: _sidebarActivated,
       onActivated: () => _sessionPanelKey.currentState?.clearDesktopSelection(),
     );

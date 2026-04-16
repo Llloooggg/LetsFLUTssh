@@ -165,3 +165,17 @@ List<TabEntry> collectAllTabs(WorkspaceNode root) {
     ],
   };
 }
+
+/// Returns `true` when the subtree rooted at [node] contains a panel
+/// whose id is [panelId]. Used by the workspace view to decide which
+/// split branches should give all their space to the maximized panel
+/// while still keeping every widget mounted (and every terminal shell
+/// alive) via a zero-size sibling.
+bool subtreeContainsPanel(WorkspaceNode node, String panelId) {
+  return switch (node) {
+    PanelLeaf() => node.id == panelId,
+    WorkspaceBranch() =>
+      subtreeContainsPanel(node.first, panelId) ||
+          subtreeContainsPanel(node.second, panelId),
+  };
+}

@@ -6,7 +6,6 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
-import '../../widgets/cross_marquee_controller.dart';
 import '../../widgets/marquee_mixin.dart';
 import '../../widgets/tag_dots.dart';
 import '../../widgets/threshold_draggable.dart';
@@ -77,14 +76,6 @@ class SessionTreeView extends StatefulWidget {
   /// Called when a marquee drag ends (pointer up or leaves bounds).
   final VoidCallback? onMarqueeEnd;
 
-  /// Cross-widget marquee controller — when the pointer exits session panel
-  /// bounds during a marquee drag, events are forwarded to the file pane.
-  final CrossMarqueeController? crossMarquee;
-
-  /// Reverse cross-marquee: receives events when a marquee drag starts
-  /// in the file pane and crosses into the session panel.
-  final CrossMarqueeController? reverseCrossMarquee;
-
   /// IDs of sessions that currently have an active (connected) connection.
   final Set<String> connectedSessionIds;
 
@@ -141,8 +132,6 @@ class SessionTreeView extends StatefulWidget {
     this.onMarqueeSelect,
     this.onMarqueeStart,
     this.onMarqueeEnd,
-    this.crossMarquee,
-    this.reverseCrossMarquee,
     this.connectedSessionIds = const {},
     this.connectingSessionIds = const {},
     this.onSessionSelected,
@@ -168,9 +157,6 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   DateTime _lastTapTime = DateTime(0);
   String? _lastTapSessionId;
 
-  // ── Cross-marquee state (session panel only) ──
-  bool _crossMarqueeActive = false;
-
   bool get _hasAnySelection =>
       widget.selectedIds.isNotEmpty || widget.selectedFolderPaths.isNotEmpty;
 
@@ -189,7 +175,6 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     super.initState();
     _expandAllFolders(widget.tree);
     _expandedFolders.removeAll(widget.collapsedFolders);
-    widget.reverseCrossMarquee?.addListener(_onReverseCrossMarquee);
   }
 
   @override
@@ -197,10 +182,6 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     super.didUpdateWidget(oldWidget);
     // Expand newly added folders (unless they are persisted as collapsed).
     _expandNewFolders(widget.tree);
-    if (oldWidget.reverseCrossMarquee != widget.reverseCrossMarquee) {
-      oldWidget.reverseCrossMarquee?.removeListener(_onReverseCrossMarquee);
-      widget.reverseCrossMarquee?.addListener(_onReverseCrossMarquee);
-    }
   }
 
   void _expandNewFolders(List<SessionTreeNode> nodes) {
@@ -217,53 +198,8 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
 
   @override
   void dispose() {
-    widget.reverseCrossMarquee?.removeListener(_onReverseCrossMarquee);
     disposeMarquee();
     super.dispose();
-  }
-
-  // ── Reverse cross-marquee (file pane → session panel) ──
-
-  void _onReverseCrossMarquee() {
-    final cm = widget.reverseCrossMarquee!;
-    if (!cm.active) {
-      if (marqueeActive) {
-        setState(() {
-          marqueeAnchor = null;
-          marqueeStart = null;
-          marqueeCurrent = null;
-          marqueeActive = false;
-        });
-        widget.onMarqueeEnd?.call();
-      }
-      return;
-    }
-
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.attached) return;
-    final local = box.globalToLocal(cm.globalPosition!);
-
-    if (cm.phase == CrossMarqueePhase.start) {
-      marqueeActive = true;
-      marqueeAnchor = local;
-      widget.onMarqueeStart?.call();
-      if (!isCtrlHeld) {
-        widget.onMarqueeSelect?.call({}, {});
-      }
-    }
-
-    setState(() {
-      marqueeStart = marqueeAnchor;
-      marqueeCurrent = local;
-    });
-    _reverseMarqueeUpdateSelection();
-  }
-
-  void _reverseMarqueeUpdateSelection() {
-    if (marqueeStart == null || marqueeCurrent == null) return;
-    final a = _clampedIndex(marqueeStart!.dy);
-    final b = _clampedIndex(marqueeCurrent!.dy);
-    applyMarqueeSelection(a < b ? a : b, a > b ? a : b, ctrlHeld: isCtrlHeld);
   }
 
   // ── MarqueeMixin implementation ──
@@ -403,7 +339,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     }
   }
 
-  // ── Cross-marquee (session panel → file pane) ──
+  // ── Pointer handlers ──
 
   void _onPointerDown(PointerDownEvent e) {
     if (_mobile) return;
@@ -411,32 +347,13 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   }
 
   void _onPointerMove(PointerMoveEvent e) {
-    if (_mobile || marqueeAnchor == null) return;
-
-    final distance = (e.localPosition - marqueeAnchor!).distance;
-    if (!marqueeActive && !_crossMarqueeActive) {
-      if (distance < 5.0) return;
+    if (_mobile) return;
+    handleMarqueePointerMove(e);
+    if (marqueeActive && marqueeStart != null && marqueeCurrent != null) {
+      final a = _clampedIndex(marqueeStart!.dy);
+      final b = _clampedIndex(marqueeCurrent!.dy);
+      applyMarqueeSelection(a < b ? a : b, a > b ? a : b, ctrlHeld: isCtrlHeld);
     }
-
-    final box = context.findRenderObject() as RenderBox?;
-    if (box != null && widget.crossMarquee != null) {
-      if (_handleCrossMarquee(e, box)) return;
-    }
-
-    if (marqueeDragActive) return;
-
-    if (!marqueeActive) {
-      marqueeActive = true;
-      onMarqueeActivated();
-    }
-
-    setState(() {
-      marqueeStart = marqueeAnchor;
-      marqueeCurrent = e.localPosition;
-    });
-    final a = _clampedIndex(marqueeStart!.dy);
-    final b = _clampedIndex(marqueeCurrent!.dy);
-    applyMarqueeSelection(a < b ? a : b, a > b ? a : b, ctrlHeld: isCtrlHeld);
   }
 
   int _clampedIndex(double localY) {
@@ -445,51 +362,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     return marqueeRowIndexAt(localY).clamp(0, maxIdx);
   }
 
-  bool _handleCrossMarquee(PointerMoveEvent e, RenderBox box) {
-    final local = e.localPosition;
-    final size = box.size;
-    final outside =
-        local.dx > size.width ||
-        local.dx < 0 ||
-        local.dy < 0 ||
-        local.dy > size.height;
-
-    if (outside) {
-      if (marqueeActive) {
-        setState(() {
-          marqueeStart = null;
-          marqueeCurrent = null;
-          marqueeActive = false;
-        });
-        widget.onMarqueeEnd?.call();
-        widget.onMarqueeSelect?.call({}, {});
-      }
-      if (!_crossMarqueeActive) {
-        _crossMarqueeActive = true;
-        widget.crossMarquee!.start(e.position);
-      } else {
-        widget.crossMarquee!.move(e.position);
-      }
-      return true;
-    }
-
-    if (_crossMarqueeActive) {
-      _crossMarqueeActive = false;
-      widget.crossMarquee!.end();
-      marqueeAnchor = e.localPosition;
-    }
-    return false;
-  }
-
-  void _onPointerUp(PointerUpEvent e) {
-    if (_crossMarqueeActive) {
-      _crossMarqueeActive = false;
-      widget.crossMarquee?.end();
-      marqueeAnchor = null;
-      return;
-    }
-    handleMarqueePointerUp(e);
-  }
+  void _onPointerUp(PointerUpEvent e) => handleMarqueePointerUp(e);
 
   @override
   Widget build(BuildContext context) {

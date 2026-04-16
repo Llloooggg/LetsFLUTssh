@@ -130,6 +130,68 @@ void main() {
       );
       expect(state.marqueeDragActive, isFalse);
     });
+
+    testWidgets(
+      'onDragStarted clears any marquee anchor the mixin picked up at '
+      'pointer-down — otherwise Draggable winning the gesture arena would '
+      'leave stale state that breaks the next drag attempt',
+      (tester) async {
+        late _TestMarqueeState state;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: _TestMarqueeWidget(onStateCreated: (s) => state = s),
+          ),
+        );
+
+        // Simulate a pointer-down that picked the row as a potential drag
+        // anchor, then Draggable claiming the gesture.
+        state.handleMarqueePointerDown(
+          const PointerDownEvent(position: Offset(10, 10), buttons: 1),
+        );
+        expect(state.marqueeAnchor, isNotNull);
+
+        state.onDragStarted();
+        expect(state.marqueeAnchor, isNull);
+        expect(state.marqueeStart, isNull);
+        expect(state.marqueeCurrent, isNull);
+        expect(state.marqueeActive, isFalse);
+      },
+    );
+
+    testWidgets('onDragEnd clears the anchor so the next pointer-down '
+        'starts fresh (repro of "every other drag" bug)', (tester) async {
+      late _TestMarqueeState state;
+      await tester.pumpWidget(
+        MaterialApp(home: _TestMarqueeWidget(onStateCreated: (s) => state = s)),
+      );
+
+      state.handleMarqueePointerDown(
+        const PointerDownEvent(position: Offset(5, 5), buttons: 1),
+      );
+      state.onDragStarted();
+      // Draggable consumes the pointer-up — handleMarqueePointerUp is
+      // never called. onDragEnd is the only cleanup opportunity.
+      state.onDragEnd(
+        DraggableDetails(velocity: Velocity.zero, offset: Offset.zero),
+      );
+      expect(state.marqueeAnchor, isNull);
+      expect(state.marqueeDragActive, isFalse);
+    });
+
+    testWidgets('onDragCanceled also clears the anchor', (tester) async {
+      late _TestMarqueeState state;
+      await tester.pumpWidget(
+        MaterialApp(home: _TestMarqueeWidget(onStateCreated: (s) => state = s)),
+      );
+
+      state.handleMarqueePointerDown(
+        const PointerDownEvent(position: Offset(5, 5), buttons: 1),
+      );
+      state.onDragStarted();
+      state.onDragCanceled(Velocity.zero, Offset.zero);
+      expect(state.marqueeAnchor, isNull);
+      expect(state.marqueeDragActive, isFalse);
+    });
   });
 }
 

@@ -22,7 +22,6 @@ import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/connection_progress.dart';
-import 'package:letsflutssh/widgets/cross_marquee_controller.dart';
 @GenerateNiceMocks([MockSpec<SftpClient>()])
 import 'file_browser_tab_test.mocks.dart';
 
@@ -2942,69 +2941,6 @@ void main() {
       expect(find.byType(FilePane), findsNWidgets(2));
       // No file rows should be visible.
       expect(find.byType(FileRow), findsNothing);
-    });
-  });
-
-  // ===========================================================================
-  // CrossMarqueeController passed to panes
-  // ===========================================================================
-  group('FileBrowserTab — crossMarquee forwarding', () {
-    testWidgets('crossMarquee and reverseCrossMarquee reach local pane', (
-      tester,
-    ) async {
-      final crossMarquee = CrossMarqueeController();
-      final reverseCrossMarquee = CrossMarqueeController();
-      addTearDown(() {
-        crossMarquee.dispose();
-        reverseCrossMarquee.dispose();
-      });
-
-      final conn = Connection(
-        id: 'marquee-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u'),
-        ),
-        state: SSHConnectionState.connected,
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [transferManagerProvider.overrideWithValue(manager)],
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 1200,
-                height: 800,
-                child: FileBrowserTab(
-                  connection: conn,
-                  sftpInitFactory: _fakeInitFactory,
-                  crossMarquee: crossMarquee,
-                  reverseCrossMarquee: reverseCrossMarquee,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // The local pane should have the crossMarquee and reverseCrossMarquee
-      // forwarded from the FileBrowserTab.
-      final filePanes = tester
-          .widgetList<FilePane>(find.byType(FilePane))
-          .toList();
-      final localPane = filePanes.firstWhere((p) => p.paneId == 'local');
-      final remotePane = filePanes.firstWhere((p) => p.paneId == 'remote');
-
-      expect(localPane.crossMarquee, same(crossMarquee));
-      expect(localPane.reverseCrossMarquee, same(reverseCrossMarquee));
-      // Remote pane should NOT have crossMarquee.
-      expect(remotePane.crossMarquee, isNull);
-      expect(remotePane.reverseCrossMarquee, isNull);
     });
   });
 

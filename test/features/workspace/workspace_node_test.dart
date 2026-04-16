@@ -55,7 +55,12 @@ void main() {
     test('replaces child in branch', () {
       final p1 = PanelLeaf(id: 'p1');
       final p2 = PanelLeaf(id: 'p2');
-      final branch = WorkspaceBranch(id: 'b1', direction: Axis.horizontal, first: p1, second: p2);
+      final branch = WorkspaceBranch(
+        id: 'b1',
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
       final replacement = PanelLeaf(id: 'p3');
       final result = replaceWorkspaceNode(branch, 'p2', replacement);
       expect(result, isA<WorkspaceBranch>());
@@ -81,7 +86,11 @@ void main() {
     test('promotes sibling when first child removed', () {
       final p1 = PanelLeaf(id: 'p1');
       final p2 = PanelLeaf(id: 'p2');
-      final branch = WorkspaceBranch(direction: Axis.horizontal, first: p1, second: p2);
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
       final result = removeWorkspaceNode(branch, 'p1');
       expect(result?.id, 'p2');
     });
@@ -89,7 +98,11 @@ void main() {
     test('promotes sibling when second child removed', () {
       final p1 = PanelLeaf(id: 'p1');
       final p2 = PanelLeaf(id: 'p2');
-      final branch = WorkspaceBranch(direction: Axis.vertical, first: p1, second: p2);
+      final branch = WorkspaceBranch(
+        direction: Axis.vertical,
+        first: p1,
+        second: p2,
+      );
       final result = removeWorkspaceNode(branch, 'p2');
       expect(result?.id, 'p1');
     });
@@ -98,8 +111,18 @@ void main() {
       final p1 = PanelLeaf(id: 'p1');
       final p2 = PanelLeaf(id: 'p2');
       final p3 = PanelLeaf(id: 'p3');
-      final inner = WorkspaceBranch(id: 'inner', direction: Axis.horizontal, first: p2, second: p3);
-      final root = WorkspaceBranch(id: 'root', direction: Axis.vertical, first: p1, second: inner);
+      final inner = WorkspaceBranch(
+        id: 'inner',
+        direction: Axis.horizontal,
+        first: p2,
+        second: p3,
+      );
+      final root = WorkspaceBranch(
+        id: 'root',
+        direction: Axis.vertical,
+        first: p1,
+        second: inner,
+      );
 
       final result = removeWorkspaceNode(root, 'p2');
       expect(result, isA<WorkspaceBranch>());
@@ -125,8 +148,16 @@ void main() {
       final p1 = PanelLeaf(id: 'p1');
       final p2 = PanelLeaf(id: 'p2');
       final p3 = PanelLeaf(id: 'p3');
-      final inner = WorkspaceBranch(direction: Axis.horizontal, first: p2, second: p3);
-      final root = WorkspaceBranch(direction: Axis.vertical, first: p1, second: inner);
+      final inner = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p2,
+        second: p3,
+      );
+      final root = WorkspaceBranch(
+        direction: Axis.vertical,
+        first: p1,
+        second: inner,
+      );
       expect(collectPanelIds(root), ['p1', 'p2', 'p3']);
     });
   });
@@ -135,7 +166,11 @@ void main() {
     test('finds panel by id', () {
       final p1 = PanelLeaf(id: 'p1', tabs: [_tab('t1')]);
       final p2 = PanelLeaf(id: 'p2');
-      final root = WorkspaceBranch(direction: Axis.horizontal, first: p1, second: p2);
+      final root = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
       final found = findPanel(root, 'p1');
       expect(found, isNotNull);
       expect(found!.tabs.length, 1);
@@ -166,7 +201,11 @@ void main() {
     test('leaves non-matching panels unchanged', () {
       final p1 = PanelLeaf(id: 'p1', tabs: [_tab('t1')]);
       final p2 = PanelLeaf(id: 'p2');
-      final root = WorkspaceBranch(direction: Axis.horizontal, first: p1, second: p2);
+      final root = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
 
       final updated = updatePanel(root, 'p2', (p) {
         return p.copyWith(tabs: [_tab('t2')], activeTabIndex: 0);
@@ -190,7 +229,11 @@ void main() {
     test('collects tabs from multiple panels', () {
       final p1 = PanelLeaf(tabs: [_tab('t1')]);
       final p2 = PanelLeaf(tabs: [_tab('t2'), _tab('t3')]);
-      final root = WorkspaceBranch(direction: Axis.horizontal, first: p1, second: p2);
+      final root = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: p1,
+        second: p2,
+      );
       final tabs = collectAllTabs(root);
       expect(tabs.length, 3);
       expect(tabs.map((t) => t.id), ['t1', 't2', 't3']);
@@ -199,6 +242,44 @@ void main() {
     test('returns empty list for empty panels', () {
       final panel = PanelLeaf();
       expect(collectAllTabs(panel), isEmpty);
+    });
+  });
+
+  group('subtreeContainsPanel', () {
+    test('returns true when the leaf IS the target panel', () {
+      final leaf = PanelLeaf(id: 'p1');
+      expect(subtreeContainsPanel(leaf, 'p1'), isTrue);
+    });
+
+    test('returns false for a leaf with a different id', () {
+      final leaf = PanelLeaf(id: 'p2');
+      expect(subtreeContainsPanel(leaf, 'p1'), isFalse);
+    });
+
+    test('walks into both sides of a branch', () {
+      final target = PanelLeaf(id: 'target');
+      final other = PanelLeaf(id: 'other');
+      final leftBranch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: target,
+        second: other,
+      );
+      final rightBranch = WorkspaceBranch(
+        direction: Axis.vertical,
+        first: other,
+        second: target,
+      );
+      expect(subtreeContainsPanel(leftBranch, 'target'), isTrue);
+      expect(subtreeContainsPanel(rightBranch, 'target'), isTrue);
+    });
+
+    test('returns false when the panel is absent from both sides', () {
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: PanelLeaf(id: 'a'),
+        second: PanelLeaf(id: 'b'),
+      );
+      expect(subtreeContainsPanel(branch, 'nope'), isFalse);
     });
   });
 }
