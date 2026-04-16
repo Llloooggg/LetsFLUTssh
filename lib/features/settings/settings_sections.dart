@@ -1470,6 +1470,11 @@ class _ExportImportTile extends ConsumerWidget {
         progress: reporter,
         l10n: l10n,
       );
+      // Refresh cached FutureProviders so newly imported keys, tags and
+      // snippets appear in the UI without an app restart.
+      ref.invalidate(sshKeysProvider);
+      ref.invalidate(tagsProvider);
+      ref.invalidate(snippetsProvider);
 
       if (context.mounted) {
         Navigator.of(context).pop();
