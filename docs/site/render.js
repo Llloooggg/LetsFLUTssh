@@ -68,6 +68,19 @@
     if (results[0] && results[0].ok) repoData = await results[0].json();
     if (results[1] && results[1].ok) release = await results[1].json();
 
+    /* Canonicalize owner/repo from the API response.
+     * GitHub accepts case-insensitive slugs on its own endpoints,
+     * but third-party services pinned to shields.io / scorecard.dev /
+     * sonarcloud.io index under the exact case that was registered —
+     * e.g. SonarCloud's project id is "Llloooggg_LetsFLUTssh", not
+     * "llloooggg_LetsFLUTssh". Use whatever case the API returns. */
+    if (repoData) {
+      if (repoData.owner && repoData.owner.login) owner = repoData.owner.login;
+      if (repoData.name) repo = repoData.name;
+      repoUrl = 'https://github.com/' + owner + '/' + repo;
+      rawBase = 'https://raw.githubusercontent.com/' + owner + '/' + repo + '/main/';
+    }
+
     var detectedLogo = results[2];
     var detectedScreenshots = results[3] || [];
     var detectedWorkflows = results[4] || [];
