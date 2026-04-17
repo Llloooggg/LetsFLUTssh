@@ -427,10 +427,6 @@ jobs:
         # 2) `letsflutssh-<version>-SHA256SUMS.sig` — one Ed25519
         #    signature over the whole manifest. Covers every artefact
         #    in the release via its entry in the manifest.
-        # 3) `letsflutssh-release.pub` — PEM pubkey attached for manual
-        #    verification. Trust anchor is the byte-identical key baked
-        #    into `lib/core/update/release_signing.dart`; the `.pub`
-        #    file is a convenience copy, not authoritative.
         #
         # Old per-artefact `<binary>.sig` files are intentionally
         # **not** produced here. Installs on releases older than the
@@ -439,6 +435,14 @@ jobs:
         # the expected behaviour. The README tells those users to
         # reinstall manually once; from that reinstall onward, the
         # manifest flow is what drives all future updates.
+        #
+        # The public key is **not** attached to the release — a
+        # downloaded `.pub` forged under MITM would be
+        # self-consistent with a forged `.sig`, implying manual-verify
+        # security the file cannot actually provide. The app's trust
+        # anchor is the byte-identical key baked into
+        # `lib/core/update/release_signing.dart`; that bakes in with
+        # the install and is what the auto-updater verifies against.
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           VERSION: ${{ needs.preflight.outputs.version }}
@@ -460,7 +464,7 @@ jobs:
             [ -d "$d" ] || continue
             (cd "$d" && find . -maxdepth 1 -type f \
               ! -name '*.sig' ! -name '*.intoto.jsonl' \
-              ! -name '*-SHA256SUMS*' ! -name '*.pub' \
+              ! -name '*-SHA256SUMS*' \
               -exec sha256sum {} +) \
               | sed 's| \./| |' >> "$MANIFEST"
           done
@@ -471,11 +475,6 @@ jobs:
             -rawin -in "$MANIFEST" -out "${MANIFEST}.sig"
           echo "Signed manifest → $(basename "${MANIFEST}.sig") \
 ($(wc -c <"${MANIFEST}.sig") bytes)"
-
-          # Export pubkey for manual verification.
-          openssl pkey -in /tmp/release-key.pem -pubout -outform PEM \
-            -out artifacts/letsflutssh-release.pub
-          echo "Exported public key: $(wc -c <artifacts/letsflutssh-release.pub) bytes"
 
       - name: Attest build provenance
         # Enumerate binaries by extension, NOT `artifacts/.../*` — the
@@ -632,4 +631,3 @@ jobs:
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}-SHA256SUMS
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}-SHA256SUMS.sig
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.intoto.jsonl
-            artifacts/letsflutssh-release.pub

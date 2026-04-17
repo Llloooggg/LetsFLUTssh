@@ -62,29 +62,6 @@ Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 
 To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
-> [!IMPORTANT]
-> **One-time manual reinstall (from 5.8.1 and earlier).** Starting with 5.8.2 the release-signing scheme moves from per-artefact `.sig` files to a single signed `SHA256SUMS` manifest per release. Auto-update cannot bridge that boundary: older installs still look for per-artefact signatures that 5.8.2+ no longer publish. Download the latest binary from the [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) page manually once — from then on auto-update works as before.
-
-### Manual Verification
-
-Every release ships three companion files so users can verify binaries by hand:
-
-- `letsflutssh-<version>-SHA256SUMS` — plaintext hash manifest
-- `letsflutssh-<version>-SHA256SUMS.sig` — Ed25519 signature over the manifest
-- `letsflutssh-release.pub` — PEM public key (byte-identical to the key pinned in the app)
-
-```bash
-# Verify the manifest signature
-openssl pkeyutl -verify -pubin -inkey letsflutssh-release.pub \
-  -rawin -in letsflutssh-<version>-SHA256SUMS \
-  -sigfile letsflutssh-<version>-SHA256SUMS.sig
-
-# Verify the artefact's hash against the signed manifest
-sha256sum --check letsflutssh-<version>-SHA256SUMS --ignore-missing
-```
-
-Both steps must succeed before installing. See [SECURITY.md](.github/SECURITY.md) for the full trust model.
-
 ### Data Locations
 
 Sessions, credentials, known hosts, snippets, tags, and app config are stored in the OS per-app data directory. Logs live in a `logs/` subfolder. Remove these paths for a clean reinstall (e.g. after a release-key rotation where auto-update refuses to cross the boundary, or to reset all state).
