@@ -182,6 +182,32 @@ jobs:
       - name: Build Windows x64
         run: flutter build windows --release
 
+      - name: Self-signed Authenticode
+        # No commercial code-signing cert. Self-sign so Windows at least
+        # shows the publisher in the SmartScreen dialog (instead of
+        # "Unknown publisher") — users still have to click "More info"
+        # → "Run anyway" the first time, but the dialog is less alarming.
+        # Certificate is generated fresh per release and discarded; the
+        # binary identity that matters is the Ed25519 release signature
+        # that the updater verifies (lib/core/update/release_signing.dart).
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=LetsFLUTssh Open Source, O=Llloooggg, C=XX" `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -KeyAlgorithm RSA `
+            -KeyLength 3072 `
+            -HashAlgorithm SHA256 `
+            -NotAfter (Get-Date).AddYears(2)
+          $exe = "build\windows\x64\runner\Release\letsflutssh.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $exe `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $exe
+
       - name: Package zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
 
@@ -194,6 +220,24 @@ jobs:
           $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
           Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe" .
+
+      - name: Self-signed Authenticode (installer)
+        # Installer inherits its own Authenticode signature — the signing
+        # from the previous step only covered letsflutssh.exe inside the
+        # build dir; Inno Setup re-wraps it into a separate PE that needs
+        # its own signature. Same self-signed cert.
+        shell: pwsh
+        run: |
+          $cert = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object { $_.Subject -like '*LetsFLUTssh Open Source*' } |
+            Select-Object -First 1
+          $installer = "letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $installer `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $installer
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -221,6 +265,25 @@ jobs:
 
       - name: Build macOS (universal — x64 + arm64)
         run: flutter build macos --release
+
+      - name: Ad-hoc codesign (no Apple Developer ID)
+        # Without ad-hoc signing, Gatekeeper refuses to launch the app at
+        # all on a modern macOS — the user has to run
+        # `xattr -dr com.apple.quarantine` every install.
+        # Ad-hoc (`codesign --sign -`) produces a locally-valid signature
+        # that Gatekeeper accepts via the "right-click → Open" flow.
+        # The app is still marked "Unidentified developer" because we
+        # don't carry an Apple-rooted cert — Apple Developer ID is out
+        # of scope (no external paid accounts).
+        # --deep walks the bundle (frameworks, plugins, dylib embeds);
+        # --options=runtime enables the hardened runtime so the binary
+        # at least doesn't look worse than its signed counterparts.
+        run: |
+          set -euxo pipefail
+          codesign --force --deep --sign - --options=runtime \
+            build/macos/Build/Products/Release/letsflutssh.app
+          codesign --verify --deep --strict --verbose=2 \
+            build/macos/Build/Products/Release/letsflutssh.app
 
       - name: Package tar.gz
         run: |
