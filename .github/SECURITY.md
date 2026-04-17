@@ -64,38 +64,60 @@ For detailed technical documentation on the security model (credential encryptio
 
 ### Release signing
 
-Every release binary ships with a detached Ed25519 signature
-(`<asset>.sig`) produced in CI from the `RELEASE_SIGNING_KEY` secret.
-The updater verifies the signature against the public key compiled
-into the app (`lib/core/update/release_signing.dart`) before
-installing an update — an attacker who rewrites the GitHub response
-cannot forge a signature without the private key.
+Each release is signed by a single Ed25519 signature over a
+`SHA256SUMS` manifest that lists every artefact and its sha256 digest.
+Three files are published alongside the binaries:
 
-**Single-pin design:** the app embeds **one** public key. Keeping a
+- `letsflutssh-<version>-SHA256SUMS` — plaintext manifest, `sha256sum`
+  format (compatible with `sha256sum --check`)
+- `letsflutssh-<version>-SHA256SUMS.sig` — detached Ed25519 signature
+  over the manifest
+- `letsflutssh-release.pub` — PEM public key, convenience copy of the
+  same 32 bytes pinned inside the app at
+  `lib/core/update/release_signing.dart`
+
+The auto-updater verifies the manifest signature against the pinned
+public key, then compares the downloaded artefact's sha256 with the
+entry in the verified manifest. An attacker who rewrites the GitHub
+response cannot forge a manifest signature without the private key.
+
+**Manual verification.** Users can check any artefact by hand:
+
+```bash
+# 1. Verify the manifest hasn't been tampered with.
+openssl pkeyutl -verify -pubin -inkey letsflutssh-release.pub \
+  -rawin -in letsflutssh-5.9.0-SHA256SUMS \
+  -sigfile letsflutssh-5.9.0-SHA256SUMS.sig
+
+# 2. Verify the binary's hash matches the (now-trusted) manifest.
+sha256sum --check letsflutssh-5.9.0-SHA256SUMS --ignore-missing
+```
+
+Step 1 must print `Signature Verified Successfully`; step 2 must
+print `<artefact>: OK`. Any other output means the pair does not
+verify — **do not install**.
+
+**Single-pin design.** The app embeds one public key. Keeping a
 second pinned key as a rotation fallback is a deliberate non-goal —
-the extra key doubles the maintenance surface (two PEMs to guard,
-rotation ceremony to document, tests to keep in sync) for a scenario
-that, for a solo-dev repo, is already survivable with a manual
-reinstall.
+the extra key doubles the maintenance surface for a scenario that,
+for a solo-dev repo, is survivable with a manual reinstall.
 
-**If the private key leaks:** the auto-update channel is effectively
+**If the private key leaks.** The auto-update channel is effectively
 dead for existing installs. Incident response:
 
 1. Rotate the `RELEASE_SIGNING_KEY` GitHub secret to an entirely fresh
    Ed25519 key pair (generated offline).
 2. Replace the `_pinnedPublicKeys` entry in
    `lib/core/update/release_signing.dart` with the fresh public key.
-3. Cut a new release under a new version. Existing installs will fail
-   to verify it (they know only the leaked key) and will refuse to
-   auto-update — this is the correct behaviour, it keeps the
-   compromised key out of the trust chain.
-4. Announce in the GitHub Releases page and README: users must
-   manually reinstall from the website / release page to pick up the
-   new pinned key.
+3. Cut a new release. Existing installs will refuse to auto-update
+   (they still trust only the leaked key) — this is the correct
+   defensive behaviour.
+4. Announce on the GitHub Releases page and README: users must
+   manually reinstall to pick up the new pinned key.
 
-**What if you lose the private key?** Same playbook — generate a new
-key, ship a new release, users reinstall manually. No auto-update
-across the boundary.
+**If the private key is lost.** Same playbook — generate a new key,
+ship a new release, users reinstall manually. No auto-update across
+the boundary.
 
 ### Out of scope
 
