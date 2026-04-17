@@ -1,10 +1,8 @@
 part of 'unified_export_dialog.dart';
 
 /// Tree rendering + size-indicator builders split off from the main
-/// state class to shrink that 1000-line block. These are `extension`
-/// methods so they can stay in a sibling `part of` file without
-/// changing the public API or losing access to the private state
-/// fields they touch.
+/// state class to keep [_UnifiedExportDialogState] small. Presentation
+/// only — all state-reading goes through [_ctrl].
 extension _TreeBuilders on _UnifiedExportDialogState {
   List<Widget> _buildTreeItems(List<SessionTreeNode> nodes, int depth) {
     final items = <Widget>[];
@@ -20,11 +18,11 @@ extension _TreeBuilders on _UnifiedExportDialogState {
   }
 
   Widget _buildGroupItem(SessionTreeNode node, int depth) {
-    final tristate = _isFolderPartial(node.fullPath);
+    final tristate = _ctrl.isFolderPartial(node.fullPath);
     return Padding(
       padding: EdgeInsets.only(left: depth * 20.0),
       child: HoverRegion(
-        onTap: () => _toggleFolder(node.fullPath),
+        onTap: () => _ctrl.toggleFolder(node.fullPath),
         builder: (hovered) => Container(
           color: hovered ? AppTheme.hover : null,
           child: Row(
@@ -32,7 +30,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
               Checkbox(
                 value: tristate,
                 tristate: true,
-                onChanged: (_) => _toggleFolder(node.fullPath),
+                onChanged: (_) => _ctrl.toggleFolder(node.fullPath),
               ),
               const Icon(Icons.folder, size: 16),
               const SizedBox(width: 4),
@@ -55,19 +53,19 @@ extension _TreeBuilders on _UnifiedExportDialogState {
   }
 
   Widget _buildSessionItem(Session session, int depth) {
-    final isSelected = _selectedIds.contains(session.id);
+    final isSelected = _ctrl.selectedIds.contains(session.id);
     final isIncomplete = !session.isValid;
     return Padding(
       padding: EdgeInsets.only(left: depth * 20.0),
       child: HoverRegion(
-        onTap: () => _toggleSession(session.id),
+        onTap: () => _ctrl.toggleSession(session.id),
         builder: (hovered) => Container(
           color: hovered ? AppTheme.hover : null,
           child: Row(
             children: [
               Checkbox(
                 value: isSelected,
-                onChanged: (_) => _toggleSession(session.id),
+                onChanged: (_) => _ctrl.toggleSession(session.id),
               ),
               Icon(
                 isIncomplete ? Icons.warning_amber : Icons.computer,
@@ -103,14 +101,18 @@ extension _TreeBuilders on _UnifiedExportDialogState {
             S
                 .of(context)
                 .qrPayloadSize(
-                  (_payloadSize / 1024).toStringAsFixed(1),
+                  (_ctrl.payloadSize / 1024).toStringAsFixed(1),
                   (qrMaxPayloadBytes / 1024).toStringAsFixed(1),
                 ),
             style: AppFonts.inter(fontSize: AppFonts.sm, color: sizeColor),
           )
         else
           Text(
-            S.of(context).exportTotalSize(_formatSize(_payloadSize)),
+            S
+                .of(context)
+                .exportTotalSize(
+                  UnifiedExportController.formatSize(_ctrl.payloadSize),
+                ),
             style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
         if (widget.isQrMode) ...[
@@ -123,7 +125,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
               color: sizeColor,
             ),
           ),
-          if (!_fitsInQr && _hasSelection) ...[
+          if (!_ctrl.fitsInQr && _ctrl.hasSelection) ...[
             const SizedBox(height: 8),
             Text(
               S.of(context).qrTooLarge,
