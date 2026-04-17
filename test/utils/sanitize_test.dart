@@ -35,6 +35,22 @@ void main() {
       expect(redactSecrets(input), input);
     });
 
+    test('strips ENCRYPTED PRIVATE KEY blocks (PKCS#8 with passphrase)', () {
+      const input =
+          '-----BEGIN ENCRYPTED PRIVATE KEY-----\n'
+          'MIIBszBOBgkqhkiG9w0BBQ0wQTApBgkqhkiG9w0BBQwwHAQI\n'
+          '-----END ENCRYPTED PRIVATE KEY-----';
+      expect(redactSecrets(input), '[REDACTED PRIVATE KEY]');
+    });
+
+    test('strips DSA / DSS PEM blocks (legacy formats with hyphens)', () {
+      const input =
+          '-----BEGIN DSA PRIVATE KEY-----\nABCD\n-----END DSA PRIVATE KEY-----';
+      // The DSA suffix matches the RSA-style "<X> PRIVATE KEY" pattern via
+      // the broadened type group; redaction must succeed.
+      expect(redactSecrets(input), '[REDACTED PRIVATE KEY]');
+    });
+
     test('sqlite-style INSERT parameters with PEM keys are fully redacted', () {
       // Mirrors the drift/sqlite3 leak where a failed INSERT's toString()
       // dumps bound parameters verbatim, including private key PEM.
