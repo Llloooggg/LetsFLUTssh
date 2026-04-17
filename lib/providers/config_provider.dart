@@ -43,11 +43,14 @@ class ConfigNotifier extends Notifier<AppConfig> {
       state = updated;
       // Apply logging toggle immediately
       AppLogger.instance.setEnabled(updated.enableLogging);
-      // Chain saves to prevent concurrent file writes
-      _pendingSave = _pendingSave.then(
-        (_) => _store.save(updated),
-        onError: (_) => _store.save(updated),
-      );
+      // Chain saves to prevent concurrent file writes. Swallow any previous
+      // failure (it was already surfaced to its own caller) so that this
+      // save is attempted regardless — the state mutation has already
+      // happened in memory and the user expects persistence to follow.
+      // Errors from *this* save propagate to the await below.
+      _pendingSave = _pendingSave
+          .catchError((_) {})
+          .then((_) => _store.save(updated));
       await _pendingSave;
     } catch (e) {
       AppLogger.instance.log(
