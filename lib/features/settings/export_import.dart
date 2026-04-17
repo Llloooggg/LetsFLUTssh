@@ -110,10 +110,31 @@ class ExportImport {
     return true;
   }
 
+  /// Hard ceiling on the iteration count we are willing to honour from an
+  /// untrusted archive header. Anything above this is clamped to [maxImportIterations]
+  /// — a hostile or corrupt archive could otherwise embed `0xFFFFFFFF` and
+  /// hang PBKDF2 in the isolate for hours (DoS on import).
+  ///
+  /// The legitimate value for production archives is [productionPbkdf2Iterations]
+  /// (currently 600 000); the cap is set 10× above that to leave headroom
+  /// for future increases without a format flag day.
+  @visibleForTesting
+  static const int maxImportIterations = 6000000;
+
   /// Decode the iteration count from a v2 header. Assumes
   /// [_hasEncryptionHeader] already returned true on [data].
+  ///
+  /// Throws [LfsMalformedHeaderException] when the encoded value is zero
+  /// (impossible to derive a key with zero rounds) or exceeds
+  /// [maxImportIterations] (DoS guard against a hostile / corrupt header).
   static int _readHeaderIterations(Uint8List data) {
-    return (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
+    final raw = (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
+    if (raw <= 0 || raw > maxImportIterations) {
+      throw LfsMalformedHeaderException(
+        reason: 'iterations=$raw is outside [1, $maxImportIterations]',
+      );
+    }
+    return raw;
   }
 
   /// Probe an `.lfs` candidate file and decide what the import flow
@@ -1059,6 +1080,17 @@ class LfsDecryptionFailedException implements Exception {
 
   @override
   String toString() => 'LfsDecryptionFailedException';
+}
+
+/// The encrypted-archive header carried a value that we refuse to honour
+/// (e.g. an iteration count of 0 or above [LfsExportImport.maxImportIterations]).
+/// Importing would otherwise hang the isolate or crash on bad input.
+class LfsMalformedHeaderException implements Exception {
+  final String reason;
+  const LfsMalformedHeaderException({required this.reason});
+
+  @override
+  String toString() => 'LfsMalformedHeaderException: $reason';
 }
 
 /// Preview of .lfs archive contents.
