@@ -1461,6 +1461,26 @@ class STr extends S {
   }
 
   @override
+  String get fileConflictTitle => 'Dosya zaten mevcut';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" zaten $targetDir içinde var. Ne yapmak istersiniz?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Atla';
+
+  @override
+  String get fileConflictKeepBoth => 'İkisini de sakla';
+
+  @override
+  String get fileConflictReplace => 'Değiştir';
+
+  @override
+  String get fileConflictApplyAll => 'Kalan tümüne uygula';
+
+  @override
   String get folderNameLabel => 'KLASÖR ADI';
 
   @override

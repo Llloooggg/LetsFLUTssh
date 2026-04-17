@@ -1472,6 +1472,26 @@ class SFr extends S {
   }
 
   @override
+  String get fileConflictTitle => 'Le fichier existe déjà';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '« $fileName » existe déjà dans $targetDir. Que voulez-vous faire ?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Ignorer';
+
+  @override
+  String get fileConflictKeepBoth => 'Garder les deux';
+
+  @override
+  String get fileConflictReplace => 'Remplacer';
+
+  @override
+  String get fileConflictApplyAll => 'Appliquer à tous les suivants';
+
+  @override
   String get folderNameLabel => 'NOM DU DOSSIER';
 
   @override

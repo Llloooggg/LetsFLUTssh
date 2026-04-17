@@ -1458,6 +1458,26 @@ class SHi extends S {
   }
 
   @override
+  String get fileConflictTitle => 'फ़ाइल पहले से मौजूद है';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" पहले से $targetDir में मौजूद है। आप क्या करना चाहते हैं?';
+  }
+
+  @override
+  String get fileConflictSkip => 'छोड़ें';
+
+  @override
+  String get fileConflictKeepBoth => 'दोनों रखें';
+
+  @override
+  String get fileConflictReplace => 'बदलें';
+
+  @override
+  String get fileConflictApplyAll => 'सभी शेष पर लागू करें';
+
+  @override
   String get folderNameLabel => 'फ़ोल्डर का नाम';
 
   @override

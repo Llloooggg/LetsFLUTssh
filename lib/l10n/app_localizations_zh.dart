@@ -1420,6 +1420,26 @@ class SZh extends S {
   }
 
   @override
+  String get fileConflictTitle => '文件已存在';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" 已存在于 $targetDir 中。您想怎么做？';
+  }
+
+  @override
+  String get fileConflictSkip => '跳过';
+
+  @override
+  String get fileConflictKeepBoth => '保留两者';
+
+  @override
+  String get fileConflictReplace => '替换';
+
+  @override
+  String get fileConflictApplyAll => '应用于所有剩余项';
+
+  @override
   String get folderNameLabel => '文件夹名称';
 
   @override

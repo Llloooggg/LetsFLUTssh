@@ -69,6 +69,16 @@ class SFTPService {
     }
   }
 
+  /// Check whether a remote path exists.
+  Future<bool> exists(String path) async {
+    try {
+      await _sftp.stat(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Get file info.
   Future<FileEntry> stat(String path) async {
     try {

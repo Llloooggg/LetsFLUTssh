@@ -1425,6 +1425,26 @@ class SKo extends S {
   }
 
   @override
+  String get fileConflictTitle => '파일이 이미 존재합니다';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\"이(가) $targetDir에 이미 있습니다. 어떻게 하시겠습니까?';
+  }
+
+  @override
+  String get fileConflictSkip => '건너뛰기';
+
+  @override
+  String get fileConflictKeepBoth => '모두 유지';
+
+  @override
+  String get fileConflictReplace => '바꾸기';
+
+  @override
+  String get fileConflictApplyAll => '남은 모든 항목에 적용';
+
+  @override
   String get folderNameLabel => '폴더 이름';
 
   @override

@@ -1463,6 +1463,26 @@ class SAr extends S {
   }
 
   @override
+  String get fileConflictTitle => 'الملف موجود بالفعل';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" موجود بالفعل في $targetDir. ماذا تريد أن تفعل؟';
+  }
+
+  @override
+  String get fileConflictSkip => 'تخطي';
+
+  @override
+  String get fileConflictKeepBoth => 'الاحتفاظ بكلاهما';
+
+  @override
+  String get fileConflictReplace => 'استبدال';
+
+  @override
+  String get fileConflictApplyAll => 'تطبيق على جميع الملفات المتبقية';
+
+  @override
   String get folderNameLabel => 'اسم المجلد';
 
   @override

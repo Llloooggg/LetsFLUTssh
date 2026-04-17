@@ -1428,6 +1428,26 @@ class SJa extends S {
   }
 
   @override
+  String get fileConflictTitle => 'ファイルは既に存在します';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '「$fileName」は $targetDir に既に存在します。どうしますか？';
+  }
+
+  @override
+  String get fileConflictSkip => 'スキップ';
+
+  @override
+  String get fileConflictKeepBoth => '両方を保持';
+
+  @override
+  String get fileConflictReplace => '置き換え';
+
+  @override
+  String get fileConflictApplyAll => '残りすべてに適用';
+
+  @override
   String get folderNameLabel => 'フォルダ名';
 
   @override

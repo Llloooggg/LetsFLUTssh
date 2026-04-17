@@ -2649,6 +2649,42 @@ abstract class S {
   /// **'{done}/{total} files'**
   String transferFilesProgress(int done, int total);
 
+  /// No description provided for @fileConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'File already exists'**
+  String get fileConflictTitle;
+
+  /// No description provided for @fileConflictMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{fileName}\" already exists in {targetDir}. What would you like to do?'**
+  String fileConflictMessage(String fileName, String targetDir);
+
+  /// No description provided for @fileConflictSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get fileConflictSkip;
+
+  /// No description provided for @fileConflictKeepBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep both'**
+  String get fileConflictKeepBoth;
+
+  /// No description provided for @fileConflictReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get fileConflictReplace;
+
+  /// No description provided for @fileConflictApplyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to all remaining'**
+  String get fileConflictApplyAll;
+
   /// No description provided for @folderNameLabel.
   ///
   /// In en, this message translates to:

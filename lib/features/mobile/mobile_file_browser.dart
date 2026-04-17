@@ -97,17 +97,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
           child: MobileFileList(
             controller: _activeCtrl,
             onTransfer: _showRemote ? download : upload,
-            onTransferMultiple: _showRemote
-                ? (entries) {
-                    for (final e in entries) {
-                      download(e);
-                    }
-                  }
-                : (entries) {
-                    for (final e in entries) {
-                      upload(e);
-                    }
-                  },
+            onTransferMultiple: _showRemote ? downloadMany : uploadMany,
           ),
         ),
         const TransferPanel(),
