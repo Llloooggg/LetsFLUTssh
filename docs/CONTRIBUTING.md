@@ -159,6 +159,7 @@ Format: `type: short description`
 | `fix:`      | Bug fixes                       | Yes — under **Fixes**     |
 | `refactor:` | Code improvements (no new behavior) | Yes — under **Improvements** |
 | `perf:`     | Performance improvements        | Yes — under **Improvements** |
+| `security:` | Hardening / vulnerability fix   | Yes — under **Security**  |
 | `build:`    | Build system, dependencies      | No                        |
 | `test:`     | Test changes only               | No                        |
 | `docs:`     | Documentation only              | No                        |
@@ -196,7 +197,7 @@ Version bumps are **fully automated**. The bump script (`scripts/bump-version.sh
 
 | Commit prefix                           | Bump      |
 |-----------------------------------------|-----------|
-| `fix:`, `refactor:`, `perf:`, `build:`, Dependabot `Bump ...` | **patch** |
+| `fix:`, `refactor:`, `perf:`, `build:`, `security:`, Dependabot `Bump ...` | **patch** |
 | `feat:`                                 | **minor** |
 | `BREAKING CHANGE` or `feat!:`           | **major** |
 | `docs:`, `test:`, `ci:`, `chore:`, `i18n:`, `style:`, `revert:` | **no bump** |
