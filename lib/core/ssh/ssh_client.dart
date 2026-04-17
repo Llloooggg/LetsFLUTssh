@@ -416,6 +416,11 @@ class SSHConnection {
   }
 
   /// Prompt user up to [maxPassphraseAttempts] times for a valid passphrase.
+  ///
+  /// The loop body always exits via `return` (success) or `throw`
+  /// (cancelled / max attempts reached); structured so the type system
+  /// knows there is no fall-through and we don't need a sentinel
+  /// `return ''` at the bottom.
   Future<String> _promptForPassphrase(String pemData) async {
     for (int attempt = 1; attempt <= maxPassphraseAttempts; attempt++) {
       final passphrase = await onPassphraseRequired!(config.host, attempt);
@@ -439,7 +444,11 @@ class SSHConnection {
         );
       }
     }
-    return ''; // unreachable
+    // Unreachable: the loop always exits via the `attempt == max` branch
+    // above with a throw. Convert to an explicit StateError so any future
+    // refactor that breaks the invariant fails loudly instead of silently
+    // returning an empty passphrase.
+    throw StateError('passphrase loop exited without return or throw');
   }
 
   /// Try to decrypt the PEM key with the given passphrase.
