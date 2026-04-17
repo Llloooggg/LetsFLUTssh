@@ -51,7 +51,7 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_localizations:
     sdk: flutter
-  intl: any
+  intl: ^0.20.2
   flutter_secure_storage: ^10.0.0
 
   # Database (drift = typed SQLite ORM with codegen)
