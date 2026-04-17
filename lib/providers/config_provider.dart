@@ -34,21 +34,29 @@ class ConfigNotifier extends Notifier<AppConfig> {
   /// callers are notified together when the save completes (or fails).
   Completer<void>? _pendingSaveCompleter;
 
+  /// Cached store reference. Captured during `build` (when `ref` is
+  /// definitely live) so the dispose-time flush does not have to call
+  /// `ref.read` after the provider has been torn down — that would raise
+  /// UnmountedRefException in tests and during hot-reload.
+  ConfigStore? _cachedStore;
+
   @override
   AppConfig build() {
+    final store = ref.watch(configStoreProvider);
+    _cachedStore = store;
     ref.onDispose(() {
       _debounceTimer?.cancel();
-      // If we are torn down with a pending write still queued, fire it
-      // synchronously so a transient teardown does not lose the user's
-      // last change. Errors propagate to the awaiter via the completer.
+      // Flush any pending write so a transient teardown (e.g. hot-reload,
+      // test container.dispose) does not lose the user's last change.
+      // Uses the cached store so we never touch a disposed ref.
       if (_pendingConfig != null) {
         _flushPending();
       }
     });
-    return ref.watch(configStoreProvider).config;
+    return store.config;
   }
 
-  ConfigStore get _store => ref.read(configStoreProvider);
+  ConfigStore get _store => _cachedStore ?? ref.read(configStoreProvider);
 
   Future<void> load() async {
     try {
