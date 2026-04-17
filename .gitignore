@@ -7,6 +7,9 @@ build/
 .metadata
 devtools_options.yaml
 
+# Local tool cache (actionlint, etc — see Makefile)
+.cache/
+
 # IDE
 .idea/
 *.iml

@@ -51,6 +51,13 @@ jobs:
       - name: Analyze
         run: flutter analyze --fatal-infos
 
+      - name: Lint workflows
+        # actionlint catches YAML / shell / GHA expression bugs that
+        # would otherwise only fail at workflow-dispatch time. The
+        # local `make lint-workflows` target uses the same pinned
+        # version + ignore filter.
+        run: make lint-workflows
+
       - name: Verify ARB parity (every locale has the same keys as app_en.arb)
         run: bash scripts/check-arb-parity.sh
 
