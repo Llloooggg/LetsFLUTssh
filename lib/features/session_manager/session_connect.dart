@@ -93,10 +93,7 @@ class SessionConnect {
       );
       return config;
     }
-    AppLogger.instance.log(
-      'Resolved keyId ${session.keyId} → "${entry.label}"',
-      name: 'Session',
-    );
+    AppLogger.instance.log('Resolved keyId ${session.keyId}', name: 'Session');
     return config.copyWith(
       auth: config.auth.copyWith(keyData: entry.privateKey),
     );

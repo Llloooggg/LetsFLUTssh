@@ -78,8 +78,11 @@ class ConnectionManager {
     );
     _connections[id] = conn;
     _notify();
+    // Host:port is sanitised by AppLogger.sanitize into `<host>:<port>`;
+    // the username is user-identifying and carries no extra diagnostic
+    // value (one user per connection), so it stays out of the log.
     AppLogger.instance.log(
-      'Connecting to ${config.host}:${config.port} as ${config.user}',
+      'Connecting to ${config.host}:${config.port}',
       name: 'Connection',
     );
 

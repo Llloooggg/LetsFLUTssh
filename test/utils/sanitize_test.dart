@@ -101,6 +101,26 @@ void main() {
       expect(result, isNot(contains('192.168.1.100')));
     });
 
+    test('redacts "as <user>" after host:port in SSH log lines', () {
+      // Real-world leak: our own `Connecting to ${host}:${port} as ${user}`
+      // log line left the bare username intact even after the host was
+      // redacted. The sanitiser now treats "as <token>" as a user
+      // reference.
+      final result = sanitizeErrorMessage(
+        'Connecting to example.com:22 as burzuf',
+      );
+      expect(result, contains('as <user>'));
+      expect(result, isNot(contains('burzuf')));
+    });
+
+    test('redacts "user=<name>" shapes used by dartssh2 / OpenSSH', () {
+      final result = sanitizeErrorMessage(
+        'auth attempt user=admin method=publickey',
+      );
+      expect(result, contains('user= <user>'));
+      expect(result, isNot(contains('admin')));
+    });
+
     test('redacts Windows file paths with usernames', () {
       expect(
         sanitizeErrorMessage('C:\\Users\\john\\Documents\\key.pem'),
