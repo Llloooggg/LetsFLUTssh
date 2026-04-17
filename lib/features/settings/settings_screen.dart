@@ -61,7 +61,10 @@ import 'export_import.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
-part 'settings_sections.dart';
+part 'settings_sections_data.dart';
+part 'settings_sections_preferences.dart';
+part 'settings_sections_security.dart';
+part 'settings_sections_updates.dart';
 part 'settings_widgets.dart';
 
 const _githubUrl = 'https://github.com/Llloooggg/LetsFLUTssh';
