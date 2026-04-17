@@ -78,5 +78,30 @@ void main() {
         expect(received, isNull);
       });
     });
+
+    group('sensitive-content auto wipe', () {
+      test('looks-sensitive heuristic catches PEM blocks and long base64', () {
+        expect(
+          TerminalClipboard.debugLooksSensitive(
+            '-----BEGIN OPENSSH PRIVATE KEY-----\nABCD\n-----END OPENSSH PRIVATE KEY-----',
+          ),
+          isTrue,
+          reason: 'PEM block must be flagged for auto-wipe',
+        );
+        expect(
+          TerminalClipboard.debugLooksSensitive('A' * 250),
+          isTrue,
+          reason: 'Long base64 run must be flagged for auto-wipe',
+        );
+      });
+
+      test('looks-sensitive heuristic ignores normal short text', () {
+        expect(
+          TerminalClipboard.debugLooksSensitive('ls -la /var/log'),
+          isFalse,
+        );
+        expect(TerminalClipboard.debugLooksSensitive('hello world'), isFalse);
+      });
+    });
   });
 }
