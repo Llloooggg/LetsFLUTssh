@@ -22,6 +22,7 @@ import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
 import '../tags/tag_assign_dialog.dart';
 import 'session_edit_dialog.dart';
+import 'session_panel_controller.dart';
 import 'session_tree_view.dart';
 
 part 'session_panel_widgets.dart';
@@ -48,79 +49,53 @@ class SessionPanel extends ConsumerStatefulWidget {
 
 class SessionPanelState extends ConsumerState<SessionPanel> {
   final _focusNode = FocusNode();
-  bool _selectMode = false;
-  final _selectedIds = <String>{};
-  final _selectedFolderPaths = <String>{};
-  // Marquee state tracked for test visibility only.
-  @visibleForTesting
-  bool marqueeInProgress = false;
+  late final SessionPanelController _ctrl;
 
-  // Focused session for keyboard shortcuts (single-click selection).
-  String? _focusedSessionId;
-  // Focused folder for the details panel (single-click on desktop).
-  String? _focusedFolderPath;
-  int _focusedFolderItemCount = 0;
-  // Session clipboard — Ctrl+C stores the session ID, Ctrl+V duplicates it.
-  String? _copiedSessionId;
+  // ---- @visibleForTesting surface ----------------------------------
+  // Tests reach into state via these getters / methods. The state
+  // itself now lives on [_ctrl]; keep the shims so existing widget
+  // tests continue to drive the panel without touching the controller
+  // class directly.
 
   @visibleForTesting
   FocusNode get focusNode => _focusNode;
   @visibleForTesting
-  String? get focusedSessionId => _focusedSessionId;
+  SessionPanelController get controller => _ctrl;
   @visibleForTesting
-  bool get selectMode => _selectMode;
+  String? get focusedSessionId => _ctrl.focusedSessionId;
   @visibleForTesting
-  Set<String> get selectedIds => _selectedIds;
+  bool get selectMode => _ctrl.selectMode;
   @visibleForTesting
-  Set<String> get selectedFolderPaths => _selectedFolderPaths;
+  Set<String> get selectedIds => _ctrl.selectedIds;
+  @visibleForTesting
+  Set<String> get selectedFolderPaths => _ctrl.selectedFolderPaths;
+  @visibleForTesting
+  bool get marqueeInProgress => _ctrl.marqueeInProgress;
 
-  /// Simulate marquee selection in tests.
   @visibleForTesting
   void setMarqueeSelection(
     Set<String> ids, [
     Set<String> folderPaths = const {},
-  ]) {
-    setState(() {
-      _selectedIds
-        ..clear()
-        ..addAll(ids);
-      _selectedFolderPaths
-        ..clear()
-        ..addAll(folderPaths);
-    });
-  }
+  ]) => _ctrl.setMarqueeSelection(ids, folderPaths);
 
   @visibleForTesting
-  void simulateMarqueeStart() => setState(() => marqueeInProgress = true);
+  void simulateMarqueeStart() => _ctrl.setMarqueeInProgress(true);
 
   @visibleForTesting
-  void simulateMarqueeEnd() => setState(() => marqueeInProgress = false);
+  void simulateMarqueeEnd() => _ctrl.setMarqueeInProgress(false);
 
   @visibleForTesting
-  void enterSelectModeWithSession(String sessionId) {
-    setState(() {
-      _selectMode = true;
-      _selectedIds
-        ..clear()
-        ..add(sessionId);
-      _selectedFolderPaths.clear();
-    });
-  }
+  void enterSelectModeWithSession(String sessionId) =>
+      _ctrl.enterSelectModeWithSession(sessionId);
 
   @visibleForTesting
-  void enterSelectModeWithFolder(String folderPath) {
-    setState(() {
-      _selectMode = true;
-      _selectedIds.clear();
-      _selectedFolderPaths
-        ..clear()
-        ..add(folderPath);
-    });
-  }
+  void enterSelectModeWithFolder(String folderPath) =>
+      _ctrl.enterSelectModeWithFolder(folderPath);
 
   @override
   void initState() {
     super.initState();
+    _ctrl = SessionPanelController();
     _focusNode.addListener(_onFocusChanged);
   }
 
@@ -128,59 +103,25 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   void dispose() {
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   void _onFocusChanged() => setState(() {});
 
-  void _exitSelectMode() {
-    setState(() {
-      _selectMode = false;
-      _selectedIds.clear();
-      _selectedFolderPaths.clear();
-    });
-  }
-
   /// Clears multi-selection (marquee / Ctrl+click). Keeps the
   /// focused session/folder so the details panel stays visible.
-  void clearDesktopSelection() {
-    setState(() {
-      _selectedIds.clear();
-      _selectedFolderPaths.clear();
-    });
-  }
-
-  void _toggleSelected(String id) {
-    setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else {
-        _selectedIds.add(id);
-      }
-    });
-  }
-
-  void _toggleFolderSelected(String folderPath) {
-    setState(() {
-      if (_selectedFolderPaths.contains(folderPath)) {
-        _selectedFolderPaths.remove(folderPath);
-      } else {
-        _selectedFolderPaths.add(folderPath);
-      }
-    });
-  }
+  void clearDesktopSelection() => _ctrl.clearDesktopSelection();
 
   void _selectAll() {
     final sessions = ref.read(filteredSessionsProvider);
-    setState(() {
-      _selectedIds.addAll(sessions.map((s) => s.id));
-    });
+    _ctrl.selectAllIds(sessions.map((s) => s.id));
   }
 
   Future<void> _deleteSelected(BuildContext context) async {
-    if (_selectedIds.isEmpty && _selectedFolderPaths.isEmpty) return;
-    final sessionCount = _selectedIds.length;
-    final folderCount = _selectedFolderPaths.length;
+    if (!_ctrl.hasSelection) return;
+    final sessionCount = _ctrl.selectedIds.length;
+    final folderCount = _ctrl.selectedFolderPaths.length;
     final parts = <String>[
       if (sessionCount > 0) S.of(context).nSessions(sessionCount),
       if (folderCount > 0) S.of(context).nFolders(folderCount),
@@ -194,22 +135,22 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     );
     if (confirmed) {
       final notifier = ref.read(sessionProvider.notifier);
-      if (_selectedIds.isNotEmpty) {
-        await notifier.deleteMultiple(Set.of(_selectedIds));
+      if (_ctrl.selectedIds.isNotEmpty) {
+        await notifier.deleteMultiple(Set.of(_ctrl.selectedIds));
       }
-      for (final folderPath in _selectedFolderPaths) {
+      for (final folderPath in _ctrl.selectedFolderPaths) {
         await notifier.deleteFolder(folderPath);
       }
-      if (_selectMode) {
-        _exitSelectMode();
+      if (_ctrl.selectMode) {
+        _ctrl.exitSelectMode();
       } else {
-        clearDesktopSelection();
+        _ctrl.clearDesktopSelection();
       }
     }
   }
 
   Future<void> _moveSelected(BuildContext context) async {
-    if (_selectedIds.isEmpty && _selectedFolderPaths.isEmpty) return;
+    if (!_ctrl.hasSelection) return;
     final store = ref.read(sessionStoreProvider);
     final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
 
@@ -245,16 +186,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   Future<void> _applyMove(String target) async {
     final notifier = ref.read(sessionProvider.notifier);
-    if (_selectedIds.isNotEmpty) {
-      await notifier.moveMultiple(Set.of(_selectedIds), target);
+    if (_ctrl.selectedIds.isNotEmpty) {
+      await notifier.moveMultiple(Set.of(_ctrl.selectedIds), target);
     }
-    for (final folderPath in _selectedFolderPaths) {
+    for (final folderPath in _ctrl.selectedFolderPaths) {
       await notifier.moveFolder(folderPath, target);
     }
-    if (_selectMode) {
-      _exitSelectMode();
+    if (_ctrl.selectMode) {
+      _ctrl.exitSelectMode();
     } else {
-      clearDesktopSelection();
+      _ctrl.clearDesktopSelection();
     }
   }
 
@@ -275,24 +216,20 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   /// Copy the focused session to the clipboard.
   @visibleForTesting
-  void copyFocusedSession() {
-    if (_focusedSessionId != null) {
-      _copiedSessionId = _focusedSessionId;
-    }
-  }
+  void copyFocusedSession() => _ctrl.copyFocused();
 
   /// Paste (duplicate) the copied session.
   @visibleForTesting
   void pasteCopiedSession() {
-    if (_copiedSessionId != null) {
-      ref.read(sessionProvider.notifier).duplicate(_copiedSessionId!);
-    }
+    final id = _ctrl.copiedSessionId;
+    if (id == null) return;
+    ref.read(sessionProvider.notifier).duplicate(id);
   }
 
   /// Delete the focused session (shows confirmation dialog).
   @visibleForTesting
   void deleteFocusedSession() {
-    final id = _focusedSessionId;
+    final id = _ctrl.focusedSessionId;
     if (id == null) return;
     final sessions = ref.read(sessionProvider);
     final session = sessions.where((s) => s.id == id).firstOrNull;
@@ -303,7 +240,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// Edit the focused session (shows edit dialog).
   @visibleForTesting
   void editFocusedSession() {
-    final id = _focusedSessionId;
+    final id = _ctrl.focusedSessionId;
     if (id == null) return;
     final sessions = ref.read(sessionProvider);
     final session = sessions.where((s) => s.id == id).firstOrNull;
@@ -332,16 +269,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       return KeyEventResult.handled;
     }
     if (reg.matches(AppShortcut.sessionDelete, event)) {
-      if (_selectedIds.isNotEmpty || _selectedFolderPaths.isNotEmpty) {
+      if (_ctrl.hasSelection) {
         _deleteSelected(context);
         return KeyEventResult.handled;
       }
-      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      if (_ctrl.focusedSessionId == null) return KeyEventResult.ignored;
       deleteFocusedSession();
       return KeyEventResult.handled;
     }
     if (reg.matches(AppShortcut.sessionEdit, event)) {
-      if (_focusedSessionId == null) return KeyEventResult.ignored;
+      if (_ctrl.focusedSessionId == null) return KeyEventResult.ignored;
       editFocusedSession();
       return KeyEventResult.handled;
     }
@@ -370,24 +307,27 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         focusNode: _focusNode,
         autofocus: false,
         onKeyEvent: _onKeyEvent,
-        child: Container(
-          color: scheme.surfaceContainerLow,
-          child: Column(
-            children: [
-              ..._buildHeader(context, ref, searchQuery, mobile),
-              Expanded(
-                child: tree.isEmpty
-                    ? _EmptyState(onAdd: () => _addSession(context, ref))
-                    : _buildTreeView(context, ref, tree, mobile),
-              ),
-              if (!mobile)
-                _SessionDetailsPanel(
-                  session: _focusedSession(ref),
-                  folderPath: _focusedFolderPath,
-                  folderItemCount: _focusedFolderItemCount,
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, _) => Container(
+            color: scheme.surfaceContainerLow,
+            child: Column(
+              children: [
+                ..._buildHeader(context, ref, searchQuery, mobile),
+                Expanded(
+                  child: tree.isEmpty
+                      ? _EmptyState(onAdd: () => _addSession(context, ref))
+                      : _buildTreeView(context, ref, tree, mobile),
                 ),
-              if (!mobile) const _SidebarFooter(),
-            ],
+                if (!mobile)
+                  _SessionDetailsPanel(
+                    session: _focusedSession(ref),
+                    folderPath: _ctrl.focusedFolderPath,
+                    folderItemCount: _ctrl.focusedFolderItemCount,
+                  ),
+                if (!mobile) const _SidebarFooter(),
+              ],
+            ),
           ),
         ),
       ),
@@ -395,11 +335,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   Session? _focusedSession(WidgetRef ref) {
-    if (_focusedSessionId == null) return null;
-    return ref
-        .read(sessionProvider)
-        .where((s) => s.id == _focusedSessionId)
-        .firstOrNull;
+    final id = _ctrl.focusedSessionId;
+    if (id == null) return null;
+    return ref.read(sessionProvider).where((s) => s.id == id).firstOrNull;
   }
 
   List<Widget> _buildHeader(
@@ -408,7 +346,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     String searchQuery,
     bool mobile,
   ) {
-    if (_selectMode && mobile) {
+    if (_ctrl.selectMode && mobile) {
       return [_buildMobileSelectionBar(context, ref)];
     }
     return [
@@ -424,17 +362,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   }
 
   Widget _buildMobileSelectionBar(BuildContext context, WidgetRef ref) {
-    final hasSelection =
-        _selectedIds.isNotEmpty || _selectedFolderPaths.isNotEmpty;
+    final hasSelection = _ctrl.hasSelection;
     return MobileSelectionBar(
-      selectedCount: _selectedIds.length,
+      selectedCount: _ctrl.selectedIds.length,
       totalCount: ref.read(filteredSessionsProvider).length,
-      onCancel: _exitSelectMode,
+      onCancel: _ctrl.exitSelectMode,
       onSelectAll: _selectAll,
-      onDeselectAll: () => setState(() {
-        _selectedIds.clear();
-        _selectedFolderPaths.clear();
-      }),
+      onDeselectAll: _ctrl.deselectAll,
       onDelete: hasSelection ? () => _deleteSelected(context) : null,
       actions: [
         AppIconButton(
@@ -462,29 +396,20 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       collapsedFolders: ref.watch(sessionStoreProvider).collapsedFolders,
       onToggleFolderCollapsed: (path) =>
           ref.read(sessionStoreProvider).toggleFolderCollapsed(path),
-      selectMode: mobile && _selectMode,
-      selectedIds: _selectedIds,
-      onToggleSelected: _toggleSelected,
-      selectedFolderPaths: _selectedFolderPaths,
-      onToggleFolderSelected: _toggleFolderSelected,
-      focusedSessionId: _focusedSessionId,
-      focusedFolderPath: _focusedFolderPath,
+      selectMode: mobile && _ctrl.selectMode,
+      selectedIds: _ctrl.selectedIds,
+      onToggleSelected: _ctrl.toggleSelected,
+      selectedFolderPaths: _ctrl.selectedFolderPaths,
+      onToggleFolderSelected: _ctrl.toggleFolderSelected,
+      focusedSessionId: _ctrl.focusedSessionId,
+      focusedFolderPath: _ctrl.focusedFolderPath,
       panelHasFocus: _focusNode.hasFocus,
       onSessionDoubleTap: widget.onConnect,
       onSessionSelected: (id) {
-        setState(() {
-          _focusedSessionId = id;
-          _focusedFolderPath = null;
-        });
+        _ctrl.setFocusedSession(id);
         if (!mobile) _focusNode.requestFocus();
       },
-      onFolderSelected: (path, count) {
-        setState(() {
-          _focusedFolderPath = path;
-          _focusedFolderItemCount = count;
-          _focusedSessionId = null;
-        });
-      },
+      onFolderSelected: _ctrl.setFocusedFolder,
       onEmptySpaceTap: () {
         // Drop the panel focus so highlighted rows dim to grey — the
         // details panel still shows the previously-focused session or
@@ -515,20 +440,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         for (final gp in folderPaths) {
           await notifier.moveFolder(gp, targetFolder);
         }
-        clearDesktopSelection();
+        _ctrl.clearDesktopSelection();
       },
-      onMarqueeStart: () => setState(() => marqueeInProgress = true),
-      onMarqueeEnd: () => setState(() => marqueeInProgress = false),
-      onMarqueeSelect: (ids, folderPaths) {
-        setState(() {
-          _selectedIds
-            ..clear()
-            ..addAll(ids);
-          _selectedFolderPaths
-            ..clear()
-            ..addAll(folderPaths);
-        });
-      },
+      onMarqueeStart: () => _ctrl.setMarqueeInProgress(true),
+      onMarqueeEnd: () => _ctrl.setMarqueeInProgress(false),
+      onMarqueeSelect: _ctrl.setMarqueeSelection,
     );
   }
 

@@ -75,6 +75,8 @@ final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
 
 Consumers should `.select()` the slice they need — see [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod).
 
+Widget-local state (dialog selection, pane caches, panel focus) does **not** belong in a Riverpod provider. Use `ChangeNotifier` + `AnimatedBuilder` instead — see [§4.3 Widget-local controllers](ARCHITECTURE.md#43-widget-local-controllers-changenotifier) and the canonical `FilePaneController` / `UnifiedExportController` / `SessionPanelController` / `TransferPanelController` implementations.
+
 ### 4. UI — `lib/features/notes/notes_panel.dart`
 
 Conventions to respect (the analyzer will catch most, but not all):

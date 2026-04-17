@@ -12,9 +12,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
 import '../../widgets/sortable_header_cell.dart';
-
-/// Sort columns for the transfer table.
-enum TransferSortColumn { name, local, remote, size, time }
+import 'transfer_panel_controller.dart';
 
 /// Collapsible bottom panel showing transfer progress and history.
 class TransferPanel extends ConsumerStatefulWidget {
@@ -25,30 +23,20 @@ class TransferPanel extends ConsumerStatefulWidget {
 }
 
 class _TransferPanelState extends ConsumerState<TransferPanel> {
-  bool _expanded = false;
-  bool _wasRunning = false;
-  double _panelHeight = 200;
+  late final TransferPanelController _ctrl;
 
-  // Resizable column widths (match file pane defaults where applicable)
-  final double _nameColWidth = 150;
-  double _localColWidth = 110;
-  double _remoteColWidth = 110;
-  double _sizeColWidth = 55;
-  double _timeColWidth = 105;
-
-  // Linked horizontal scroll controllers for header + body sync
+  // Linked horizontal scroll controllers for header + body sync — stay
+  // in the widget because ScrollController lifecycle is a Flutter
+  // concern, not business state.
   final _headerScrollCtrl = ScrollController();
   final _bodyScrollCtrl = ScrollController();
-
-  // Sorting
-  TransferSortColumn _sortColumn = TransferSortColumn.time;
-  bool _sortAscending = false;
 
   static bool get _mobile => plat.isMobilePlatform;
 
   @override
   void initState() {
     super.initState();
+    _ctrl = TransferPanelController();
     _headerScrollCtrl.addListener(_syncHeaderToBody);
     _bodyScrollCtrl.addListener(_syncBodyToHeader);
   }
@@ -79,6 +67,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     _bodyScrollCtrl.removeListener(_syncBodyToHeader);
     _headerScrollCtrl.dispose();
     _bodyScrollCtrl.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
@@ -88,127 +77,125 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     final historyAsync = ref.watch(transferHistoryProvider);
     final statusAsync = ref.watch(transferStatusProvider);
 
-    // Auto-expand when transfers start
+    // Auto-expand edge is owned by the controller; calling this on
+    // every build is safe because it's idempotent on same-value writes.
     final status = statusAsync.value;
-    final isRunning = status?.hasActive ?? false;
-    if (isRunning && !_wasRunning && !_expanded) {
-      _expanded = true;
-    }
-    _wasRunning = isRunning;
+    _ctrl.syncAutoExpand(status?.hasActive ?? false);
 
-    return Container(
-      color: AppTheme.bg1,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Toggle header with overlaid drag handle
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _expanded = !_expanded),
-                child: Container(
-                  height: AppTheme.barHeightSm,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  color: AppTheme.bg0,
-                  child: ClippedRow(
-                    children: [
-                      Icon(
-                        _expanded ? Icons.expand_more : Icons.chevron_right,
-                        size: 11,
-                        color: AppTheme.fgDim,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        S.of(context).transfersLabel,
-                        style: AppFonts.inter(
-                          fontSize: AppFonts.xs,
-                          fontWeight: FontWeight.w500,
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) => Container(
+        color: AppTheme.bg1,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Toggle header with overlaid drag handle
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                GestureDetector(
+                  onTap: _ctrl.toggleExpanded,
+                  child: Container(
+                    height: AppTheme.barHeightSm,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    color: AppTheme.bg0,
+                    child: ClippedRow(
+                      children: [
+                        Icon(
+                          _ctrl.expanded
+                              ? Icons.expand_more
+                              : Icons.chevron_right,
+                          size: 11,
                           color: AppTheme.fgDim,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      if (status != null) ...[
+                        const SizedBox(width: 4),
                         Text(
-                          S.of(context).transferCountActive(status.running),
+                          S.of(context).transfersLabel,
                           style: AppFonts.inter(
                             fontSize: AppFonts.xs,
-                            color: AppTheme.accent,
-                          ),
-                        ),
-                        Text(
-                          S.of(context).transferCountQueued(status.queued),
-                          style: AppFonts.inter(
-                            fontSize: AppFonts.xs,
+                            fontWeight: FontWeight.w500,
                             color: AppTheme.fgDim,
                           ),
                         ),
-                      ],
-                      const Spacer(),
-                      historyAsync.when(
-                        data: (history) => Text(
-                          S.of(context).transferCountInHistory(history.length),
-                          style: AppFonts.inter(
-                            fontSize: AppFonts.xxs,
-                            color: AppTheme.fgFaint,
+                        const SizedBox(width: 6),
+                        if (status != null) ...[
+                          Text(
+                            S.of(context).transferCountActive(status.running),
+                            style: AppFonts.inter(
+                              fontSize: AppFonts.xs,
+                              color: AppTheme.accent,
+                            ),
                           ),
+                          Text(
+                            S.of(context).transferCountQueued(status.queued),
+                            style: AppFonts.inter(
+                              fontSize: AppFonts.xs,
+                              color: AppTheme.fgDim,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        historyAsync.when(
+                          data: (history) => Text(
+                            S
+                                .of(context)
+                                .transferCountInHistory(history.length),
+                            style: AppFonts.inter(
+                              fontSize: AppFonts.xxs,
+                              color: AppTheme.fgFaint,
+                            ),
+                          ),
+                          loading: SizedBox.shrink,
+                          error: (_, _) => const SizedBox.shrink(),
                         ),
-                        loading: SizedBox.shrink,
-                        error: (_, _) => const SizedBox.shrink(),
-                      ),
-                      const SizedBox(width: 4),
-                      if (_expanded && _mobile)
-                        _headerButton(
-                          icon: Icons.sort,
-                          tooltip: S.of(context).sort,
-                          onTap: () => _showMobileSortMenu(context),
-                        ),
-                      if (_expanded)
-                        _headerButton(
-                          icon: Icons.delete_outline,
-                          tooltip: S.of(context).clearHistory,
-                          onTap: () => manager.clearHistory(),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_expanded)
-                Positioned(
-                  top: -3,
-                  left: 0,
-                  right: 0,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.resizeRow,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onVerticalDragUpdate: (d) {
-                        setState(() {
-                          _panelHeight = (_panelHeight - d.delta.dy).clamp(
-                            80.0,
-                            500.0,
-                          );
-                        });
-                      },
-                      child: const SizedBox(height: 6),
+                        const SizedBox(width: 4),
+                        if (_ctrl.expanded && _mobile)
+                          _headerButton(
+                            icon: Icons.sort,
+                            tooltip: S.of(context).sort,
+                            onTap: () => _showMobileSortMenu(context),
+                          ),
+                        if (_ctrl.expanded)
+                          _headerButton(
+                            icon: Icons.delete_outline,
+                            tooltip: S.of(context).clearHistory,
+                            onTap: () => manager.clearHistory(),
+                          ),
+                      ],
                     ),
                   ),
                 ),
-            ],
-          ),
-          // Column headers + transfer list
-          if (_expanded) ...[
-            _mobile ? _buildScrollableHeader() : _buildColumnHeaders(),
-            Flexible(
-              child: SizedBox(
-                height: _panelHeight,
-                child: _mobile
-                    ? _buildScrollableBody(historyAsync, ref)
-                    : _buildTransferList(historyAsync, ref),
-              ),
+                if (_ctrl.expanded)
+                  Positioned(
+                    top: -3,
+                    left: 0,
+                    right: 0,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.resizeRow,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate: (d) =>
+                            _ctrl.resizePanelHeightBy(d.delta.dy),
+                        child: const SizedBox(height: 6),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+            // Column headers + transfer list
+            if (_ctrl.expanded) ...[
+              _mobile ? _buildScrollableHeader() : _buildColumnHeaders(),
+              Flexible(
+                child: SizedBox(
+                  height: _ctrl.panelHeight,
+                  child: _mobile
+                      ? _buildScrollableBody(historyAsync, ref)
+                      : _buildTransferList(historyAsync, ref),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -247,7 +234,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             ),
           );
         }
-        final sorted = _sortHistory(history);
+        final sorted = _ctrl.sorted(history);
         final totalCount = active.length + sorted.length;
         return ListView.builder(
           itemCount: totalCount,
@@ -256,18 +243,18 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             if (index < active.length) {
               return _ActiveRow(
                 entry: active[index],
-                localWidth: _localColWidth,
-                remoteWidth: _remoteColWidth,
-                sizeWidth: _sizeColWidth,
-                timeWidth: _timeColWidth,
+                localWidth: _ctrl.localColWidth,
+                remoteWidth: _ctrl.remoteColWidth,
+                sizeWidth: _ctrl.sizeColWidth,
+                timeWidth: _ctrl.timeColWidth,
               );
             }
             return _HistoryRow(
               entry: sorted[index - active.length],
-              localWidth: _localColWidth,
-              remoteWidth: _remoteColWidth,
-              sizeWidth: _sizeColWidth,
-              timeWidth: _timeColWidth,
+              localWidth: _ctrl.localColWidth,
+              remoteWidth: _ctrl.remoteColWidth,
+              sizeWidth: _ctrl.sizeColWidth,
+              timeWidth: _ctrl.timeColWidth,
             );
           },
         );
@@ -278,49 +265,12 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
-  static String _localPath(HistoryEntry e) =>
-      e.direction == TransferDirection.upload ? e.sourcePath : e.targetPath;
-
-  static String _remotePath(HistoryEntry e) =>
-      e.direction == TransferDirection.upload ? e.targetPath : e.sourcePath;
-
-  List<HistoryEntry> _sortHistory(List<HistoryEntry> history) {
-    final sorted = List<HistoryEntry>.from(history);
-    sorted.sort((a, b) {
-      final cmp = switch (_sortColumn) {
-        TransferSortColumn.name => a.name.toLowerCase().compareTo(
-          b.name.toLowerCase(),
-        ),
-        TransferSortColumn.local => _localPath(a).compareTo(_localPath(b)),
-        TransferSortColumn.remote => _remotePath(a).compareTo(_remotePath(b)),
-        TransferSortColumn.size => a.sizeBytes.compareTo(b.sizeBytes),
-        TransferSortColumn.time =>
-          (a.endedAt ?? a.startedAt ?? a.createdAt).compareTo(
-            b.endedAt ?? b.startedAt ?? b.createdAt,
-          ),
-      };
-      return _sortAscending ? cmp : -cmp;
-    });
-    return sorted;
-  }
-
-  void _setSort(TransferSortColumn column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = column;
-        _sortAscending = true;
-      }
-    });
-  }
-
   /// Trailing icon for a sort-menu row: an arrow in the current sort
   /// direction when [col] is the active column, nothing otherwise.
   Widget? _sortDirectionIcon(TransferSortColumn col) {
-    if (col != _sortColumn) return null;
+    if (col != _ctrl.sortColumn) return null;
     return Icon(
-      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+      _ctrl.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
       size: 18,
     );
   }
@@ -360,10 +310,10 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                 leading: Icon(icon),
                 title: Text(label),
                 trailing: _sortDirectionIcon(col),
-                selected: col == _sortColumn,
+                selected: col == _ctrl.sortColumn,
                 onTap: () {
                   Navigator.pop(ctx);
-                  _setSort(col);
+                  _ctrl.setSort(col);
                 },
               ),
           ],
@@ -380,9 +330,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
   }) {
     return SortableHeaderCell(
       label: label,
-      isActive: _sortColumn == column,
-      sortAscending: _sortAscending,
-      onTap: () => _setSort(column),
+      isActive: _ctrl.sortColumn == column,
+      sortAscending: _ctrl.sortAscending,
+      onTap: () => _ctrl.setSort(column),
       style: style,
       width: width,
     );
@@ -397,15 +347,15 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       4 +
       20 +
       4 +
-      _nameColWidth +
+      TransferPanelController.nameColWidth +
       10 +
-      _localColWidth +
+      _ctrl.localColWidth +
       10 +
-      _remoteColWidth +
+      _ctrl.remoteColWidth +
       10 +
-      _sizeColWidth +
+      _ctrl.sizeColWidth +
       10 +
-      _timeColWidth +
+      _ctrl.timeColWidth +
       12;
 
   Widget _buildScrollableHeader() {
@@ -436,35 +386,35 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                   S.of(context).name,
                   TransferSortColumn.name,
                   style,
-                  width: _nameColWidth,
+                  width: TransferPanelController.nameColWidth,
                 ),
                 columnDivider(),
                 _sortableCell(
                   S.of(context).local,
                   TransferSortColumn.local,
                   style,
-                  width: _localColWidth,
+                  width: _ctrl.localColWidth,
                 ),
                 columnDivider(),
                 _sortableCell(
                   S.of(context).remote,
                   TransferSortColumn.remote,
                   style,
-                  width: _remoteColWidth,
+                  width: _ctrl.remoteColWidth,
                 ),
                 columnDivider(),
                 _sortableCell(
                   S.of(context).size,
                   TransferSortColumn.size,
                   style,
-                  width: _sizeColWidth,
+                  width: _ctrl.sizeColWidth,
                 ),
                 columnDivider(),
                 _sortableCell(
                   S.of(context).time,
                   TransferSortColumn.time,
                   style,
-                  width: _timeColWidth,
+                  width: _ctrl.timeColWidth,
                 ),
               ],
             ),
@@ -494,7 +444,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             ),
           );
         }
-        final sorted = _sortHistory(history);
+        final sorted = _ctrl.sorted(history);
         final totalCount = active.length + sorted.length;
         return SingleChildScrollView(
           controller: _bodyScrollCtrl,
@@ -508,20 +458,20 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
                 if (index < active.length) {
                   return _ActiveRow(
                     entry: active[index],
-                    nameWidth: _nameColWidth,
-                    localWidth: _localColWidth,
-                    remoteWidth: _remoteColWidth,
-                    sizeWidth: _sizeColWidth,
-                    timeWidth: _timeColWidth,
+                    nameWidth: TransferPanelController.nameColWidth,
+                    localWidth: _ctrl.localColWidth,
+                    remoteWidth: _ctrl.remoteColWidth,
+                    sizeWidth: _ctrl.sizeColWidth,
+                    timeWidth: _ctrl.timeColWidth,
                   );
                 }
                 return _HistoryRow(
                   entry: sorted[index - active.length],
-                  nameWidth: _nameColWidth,
-                  localWidth: _localColWidth,
-                  remoteWidth: _remoteColWidth,
-                  sizeWidth: _sizeColWidth,
-                  timeWidth: _timeColWidth,
+                  nameWidth: TransferPanelController.nameColWidth,
+                  localWidth: _ctrl.localColWidth,
+                  remoteWidth: _ctrl.remoteColWidth,
+                  sizeWidth: _ctrl.sizeColWidth,
+                  timeWidth: _ctrl.timeColWidth,
                 );
               },
             ),
@@ -559,49 +509,33 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               style,
             ),
           ),
-          ColumnResizeHandle(
-            onDrag: (dx) => setState(
-              () => _localColWidth = (_localColWidth - dx).clamp(60, 300),
-            ),
-          ),
+          ColumnResizeHandle(onDrag: _ctrl.resizeLocalColBy),
           _sortableCell(
             S.of(context).local,
             TransferSortColumn.local,
             style,
-            width: _localColWidth,
+            width: _ctrl.localColWidth,
           ),
-          ColumnResizeHandle(
-            onDrag: (dx) => setState(
-              () => _remoteColWidth = (_remoteColWidth - dx).clamp(60, 300),
-            ),
-          ),
+          ColumnResizeHandle(onDrag: _ctrl.resizeRemoteColBy),
           _sortableCell(
             S.of(context).remote,
             TransferSortColumn.remote,
             style,
-            width: _remoteColWidth,
+            width: _ctrl.remoteColWidth,
           ),
-          ColumnResizeHandle(
-            onDrag: (dx) => setState(
-              () => _sizeColWidth = (_sizeColWidth - dx).clamp(40, 150),
-            ),
-          ),
+          ColumnResizeHandle(onDrag: _ctrl.resizeSizeColBy),
           _sortableCell(
             S.of(context).size,
             TransferSortColumn.size,
             style,
-            width: _sizeColWidth,
+            width: _ctrl.sizeColWidth,
           ),
-          ColumnResizeHandle(
-            onDrag: (dx) => setState(
-              () => _timeColWidth = (_timeColWidth - dx).clamp(60, 200),
-            ),
-          ),
+          ColumnResizeHandle(onDrag: _ctrl.resizeTimeColBy),
           _sortableCell(
             S.of(context).time,
             TransferSortColumn.time,
             style,
-            width: _timeColWidth,
+            width: _ctrl.timeColWidth,
           ),
         ],
       ),
