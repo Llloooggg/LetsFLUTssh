@@ -264,9 +264,9 @@ class UpdateService {
   ///   * **Ed25519 release signature** — `<url>.sig` is fetched alongside
   ///     the asset and verified against the pubkeys pinned in
   ///     [ReleaseSigning]. This is the authoritative defence against
-  ///     SEC-10 (GitHub response tampering) — a MITM would have to
-  ///     forge an Ed25519 signature under one of the embedded public
-  ///     keys to slip past.
+  ///     GitHub response tampering — a MITM would have to forge an
+  ///     Ed25519 signature under one of the embedded public keys to
+  ///     slip past.
   ///   * **SHA-256 digest** — secondary, belt-and-suspenders. Catches
   ///     disk corruption and the easy "attacker replaced only the
   ///     binary but not the .sig" case before the signature pass.
