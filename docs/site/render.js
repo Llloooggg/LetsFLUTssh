@@ -283,9 +283,19 @@
       /* Strip the first H1 (repo name — already shown in hero) */
       md = md.replace(/^#\s+.+$/m, '');
 
-      /* Strip leading badges/metadata block — everything before the first H2 */
-      var h2Match = md.match(/^##\s+/m);
-      if (h2Match) md = md.slice(h2Match.index);
+      /* Everything before the first H2 is preamble. Keep only blockquote
+       * blocks (e.g. "> Disclaimer: …") so notices survive; drop badges,
+       * tagline paragraphs, and inline screenshots — those already live
+       * in the hero and the screenshots section. */
+      var h2Idx = md.search(/^##\s+/m);
+      if (h2Idx !== -1) {
+        var head = md.slice(0, h2Idx);
+        var rest = md.slice(h2Idx);
+        var kept = head.split(/\n\s*\n/).filter(function (b) {
+          return /^\s*>/m.test(b);
+        });
+        md = (kept.length ? kept.join('\n\n') + '\n\n' : '') + rest;
+      }
 
       /* Strip screenshot images already shown in the screenshots section */
       if (cfg.screenshots && cfg.screenshots.length > 0) {
