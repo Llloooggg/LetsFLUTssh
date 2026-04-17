@@ -1,0 +1,43 @@
+# Default: text, normalised line endings on commit, native on checkout.
+* text=auto eol=lf
+
+# Dart / config sources
+*.dart        text eol=lf
+*.yaml        text eol=lf
+*.yml         text eol=lf
+*.json        text eol=lf
+*.arb         text eol=lf
+*.md          text eol=lf
+*.sh          text eol=lf
+Makefile      text eol=lf
+
+# Windows-only sources keep CRLF
+*.bat         text eol=crlf
+*.cmd         text eol=crlf
+*.ps1         text eol=crlf
+*.iss         text eol=crlf
+
+# Binary assets — never touch line endings, never diff as text.
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.gif         binary
+*.ico         binary
+*.icns        binary
+*.ttf         binary
+*.otf         binary
+*.woff        binary
+*.woff2       binary
+*.zip         binary
+*.gz          binary
+*.tar         binary
+*.dmg         binary
+*.apk         binary
+*.aab         binary
+*.exe         binary
+*.jks         binary
+
+# Generated files: still text, but mark in diffs.
+*.g.dart        linguist-generated=true
+*.freezed.dart  linguist-generated=true
+lib/l10n/app_localizations*.dart linguist-generated=true

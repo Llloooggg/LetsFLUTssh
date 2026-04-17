@@ -1,0 +1,30 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{dart,yaml,yml,json,arb,md}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.{sh,bash}]
+indent_style = space
+indent_size = 2
+
+[*.{md}]
+trim_trailing_whitespace = false
+
+[*.{png,jpg,jpeg,gif,ico,icns,ttf,otf,woff,woff2,zip,gz,tar}]
+charset = unset
+end_of_line = unset
+insert_final_newline = false
+trim_trailing_whitespace = false
+indent_style = unset
+indent_size = unset
