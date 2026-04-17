@@ -237,7 +237,10 @@ String _localizeAuthError(S l10n, AuthError error) {
   if (msg.contains('parse PEM')) {
     return l10n.errSshParseKeyFailed;
   }
-  return msg;
+  // Unknown auth-error variant: dartssh2 has been observed to embed file
+  // paths and key fingerprints in its messages. Strip secrets before
+  // returning so we never leak them to the UI / log.
+  return redactSecrets(msg);
 }
 
 String _localizeConnectError(S l10n, ConnectError error) {
@@ -259,7 +262,7 @@ String _localizeConnectError(S l10n, ConnectError error) {
   if (msg.contains('open shell')) {
     return l10n.errSshOpenShellFailed;
   }
-  return msg;
+  return redactSecrets(msg);
 }
 
 String _localizeSftpError(S l10n, SFTPError error) {
