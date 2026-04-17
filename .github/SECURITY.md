@@ -62,6 +62,48 @@ The following areas are in scope:
 
 For detailed technical documentation on the security model (credential encryption, TOFU, .lfs format, error sanitization), see [ARCHITECTURE.md §13 Security Model](ARCHITECTURE.md#13-security-model).
 
+### Release signing and key rotation
+
+Every release binary ships with a detached Ed25519 signature
+(`<asset>.sig`) produced in CI from the `RELEASE_SIGNING_KEY` secret.
+The updater verifies the signature against public keys compiled into
+the app (`lib/core/update/release_signing.dart`) before installing an
+update — an attacker who rewrites the GitHub response cannot forge a
+signature without one of the private keys.
+
+**Multi-pin design:** the app embeds **two** public keys (current +
+backup). Old installs continue to verify even after a key rotation, as
+long as the new signing key is one of the two they already know.
+
+**Rotation playbook:**
+
+1. The maintainer holds two Ed25519 private keys offline:
+   - `release-key-current.pem` — used by CI via the `RELEASE_SIGNING_KEY` secret
+   - `release-key-backup.pem` — stored offline (USB, password manager)
+
+2. **If current leaks:**
+   1. Swap the `RELEASE_SIGNING_KEY` GitHub secret to the backup private
+      key's PEM contents.
+   2. Generate a fresh backup pair offline:
+      `openssl genpkey -algorithm Ed25519 -out release-key-backup.pem`
+      and extract its 32-byte public key:
+      `openssl pkey -in release-key-backup.pem -pubout -outform DER | tail -c 32 | od -An -tx1`
+   3. Edit `lib/core/update/release_signing.dart` — replace the
+      `_pinnedPublicKeys` entries with `[backup, fresh-backup]`. The
+      previously-current (now-leaked) key is dropped.
+   4. Ship a new release. Old installs still verify via the (now-active)
+      backup pin; new installs learn the fresh backup.
+
+3. **Periodic rotation (every 12 months, even without leak):**
+   Same steps, just scheduled rather than incident-driven. Reduces the
+   blast radius of an undetected leak.
+
+**What if you lose both private keys?** Publish a new release branch
+with a brand-new pubkey pair, but users on the abandoned key pair can
+never receive verified updates from the old app. Recover manually by
+asking users to download the new version from the website. Prevent
+with redundant offline backups of both PEM files.
+
 ### Out of scope
 
 - Vulnerabilities in upstream dependencies (`dartssh2`, `pointycastle`, `xterm`) — please report those to their maintainers directly
