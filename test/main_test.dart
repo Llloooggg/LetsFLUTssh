@@ -268,8 +268,16 @@ void main() {
   });
 
   group('navigatorKey', () {
-    test('is a GlobalKey<NavigatorState>', () {
-      expect(navigatorKey, isA<GlobalKey<NavigatorState>>());
+    test('exposes the same GlobalKey instance for the lifetime of the app', () {
+      // The lock-screen, update-dialog and toast plumbing all reach into
+      // navigatorKey.currentContext to push routes from outside the
+      // widget tree. They depend on this being a stable singleton — a
+      // future refactor that re-creates it per build would break those
+      // call sites silently. Pin both the type *and* the identity.
+      final first = navigatorKey;
+      final second = navigatorKey;
+      expect(identical(first, second), isTrue);
+      expect(first, isA<GlobalKey<NavigatorState>>());
     });
   });
 
@@ -411,12 +419,6 @@ void main() {
 
       // Restore
       ErrorWidget.builder = originalBuilder;
-    });
-  });
-
-  group('navigatorKey', () {
-    test('is a GlobalKey<NavigatorState>', () {
-      expect(navigatorKey, isA<GlobalKey<NavigatorState>>());
     });
   });
 
