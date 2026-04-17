@@ -156,8 +156,20 @@ class DeepLinkHandler {
 
   /// Parse a `letsflutssh://connect?...` URI into an [SSHConfig].
   /// Returns null if required params (host, user) are missing or invalid.
+  ///
+  /// Inputs come from external deep links (OS-level URI handlers), so the
+  /// parser must never throw on garbage. Malformed percent-encoding in
+  /// the query string raises FormatException from dart:core's lazy
+  /// queryParameters decoder; treat that as "invalid URI, return null"
+  /// to keep the contract single-typed for callers.
   static SSHConfig? parseConnectUri(Uri uri) {
-    final params = uri.queryParameters;
+    final Map<String, String> params;
+    try {
+      params = uri.queryParameters;
+    } on FormatException catch (e) {
+      AppLogger.instance.log('Malformed query string: $e', name: 'DeepLink');
+      return null;
+    }
     final host = params['host']?.trim();
     final user = params['user']?.trim();
 
