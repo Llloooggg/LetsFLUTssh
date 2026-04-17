@@ -339,7 +339,7 @@ jobs:
       - name: Package tar.gz
         run: |
           cd build/macos/Build/Products/Release
-          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz *.app
+          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz ./*.app
 
       - name: Package dmg
         run: |
@@ -540,7 +540,13 @@ jobs:
       - name: Resolve release tag
         id: tag
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          # Assign first so shellcheck sees a normal variable
+          # comparison rather than a literal-vs-glob match against a
+          # GHA placeholder it cannot reason about (placeholders are
+          # substituted by GitHub Actions before bash sees them, so
+          # SC2193 is a false positive on the inline form).
+          REF="${{ github.ref }}"
+          if [[ "$REF" == refs/tags/* ]]; then
             echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
             echo "name=v${{ needs.preflight.outputs.version }}" >> "$GITHUB_OUTPUT"

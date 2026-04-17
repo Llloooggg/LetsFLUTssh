@@ -1,0 +1,21 @@
+# actionlint configuration.
+#
+# Per-path ignore regexes for known non-issues. Keep entries narrow so
+# real problems still surface — broad rule disables would defeat the
+# point of running actionlint at all.
+
+paths:
+  .github/workflows/**/*.yml:
+    ignore:
+      # SonarSource scan-action: actionlint's metadata flags
+      # `with.args` as a no-context field, but the action genuinely
+      # evaluates `${{ ... }}` there (CI runs prove it).
+      - 'context "[a-z]+" is not allowed here. no context is available here'
+      # SC2012 (`ls -t sha256*.jsonl | head -1`) — info-level
+      # suggestion to use `find`. We control the filename pattern;
+      # `find` would only obscure the intent.
+      - 'shellcheck reported issue in this script: SC2012:'
+      # SC2129 (multiple `>> $GITHUB_OUTPUT` redirects) — style
+      # suggestion to group with `{ ...; } >> file`. Reads worse for
+      # GHA output assignments, no functional difference.
+      - 'shellcheck reported issue in this script: SC2129:'

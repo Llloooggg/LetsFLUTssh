@@ -78,14 +78,10 @@ $(ACTIONLINT_BIN):
 
 lint-workflows: $(ACTIONLINT_BIN) ## Lint .github/workflows/*.yml with actionlint (catches YAML + shell + GHA bugs)
 	@echo "Linting workflows..."
-	@# `-ignore` suppresses a known actionlint false positive on the
-	@# SonarSource scan action: it claims `with.args` is a no-context
-	@# field, but the action genuinely evaluates `${{ ... }}` there
-	@# (CI runs prove it). Dropping the entire scan-action rule would
-	@# silence too much; the regex pins the wording actionlint uses
-	@# only for that specific position.
-	@$(ACTIONLINT_BIN) -color \
-		-ignore 'context "[a-z]+" is not allowed here. no context is available here'
+	@# Per-path ignores live in `.github/actionlint.yaml`. Keep them
+	@# narrow — broad disables would defeat the point of running
+	@# actionlint in the first place.
+	@$(ACTIONLINT_BIN) -color
 	@echo "Workflows OK"
 
 check: analyze lint-workflows ## Run analyzer + workflow lint + tests (sequential — analyze + lint must pass first)
