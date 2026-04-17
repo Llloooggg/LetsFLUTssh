@@ -11,33 +11,36 @@ import '../../utils/logger.dart';
 /// the same GitHub Release JSON the binary does, so on its own it is
 /// not authentication).
 ///
-/// Verification is local: the public keys are compiled into the app, and
+/// Verification is local: the public key is compiled into the app, and
 /// the signature is fetched from the GitHub release alongside the
 /// binary. No external service is consulted at verify time, so the
 /// updater works even if Sigstore / a CA / DNS is compromised.
 ///
-/// ## Multi-pin layout
+/// ## Single-pin layout
 ///
-/// We embed **both** the current and a backup pubkey from the start.
-/// CI signs with the current private key. If that key ever leaks:
-///   1. switch the GH Actions secret to the backup private key
-///   2. generate a fresh backup pair offline
-///   3. ship the next release with `[backup, fresh-backup]` in this list
-///   4. the previous current public key is dropped — old signatures
-///      stop being accepted
+/// We embed **one** release-signing public key. CI signs with the
+/// matching private key, held in the `RELEASE_SIGNING_KEY` GitHub
+/// secret plus an offline copy in the maintainer's password manager.
 ///
-/// Old installs continue to verify because they still recognise the
-/// (now-active) backup. Document the rotation playbook in
-/// `.github/SECURITY.md`.
+/// If the private key ever leaks, the auto-update channel is effectively
+/// dead for existing installs — any new release would have to be signed
+/// by a key the app already trusts, and the only pinned key is now the
+/// compromised one. The recovery path is to publish a new release
+/// branch with a fresh pubkey pair and ask users to reinstall manually
+/// from the website. There is no key-rotation ceremony.
+///
+/// This is a deliberate simplification: a backup pin buys one rotation
+/// at the cost of permanent ceremony (generate a second key, keep it
+/// offline, embed it, document the rotation flow). For a solo-dev repo
+/// where "dump the install and grab the fresh one" is a reasonable
+/// incident playbook, the single-pin design removes the whole
+/// two-key maintenance burden.
 class ReleaseSigning {
   ReleaseSigning._();
 
-  /// Trusted Ed25519 release-signing public keys. Each is the raw 32
-  /// bytes of the Edwards-curve public point, captured with:
-  ///   `openssl pkey -in <private>.pem -pubout -outform DER | tail -c 32`
-  ///
-  /// **Order matters only for documentation** — verification accepts
-  /// any matching pin. New entries go at the end.
+  /// Trusted Ed25519 release-signing public key. Raw 32 bytes of the
+  /// Edwards-curve public point, captured with:
+  ///   `openssl pkey -in release-key-current.pem -pubout -outform DER | tail -c 32`
   static final List<Uint8List> _pinnedPublicKeys = [
     // Current — `release-key-current.pem` (generated 2026-04-17)
     Uint8List.fromList([
@@ -73,41 +76,6 @@ class ReleaseSigning {
       0x57,
       0x32,
       0x03,
-    ]),
-    // Backup — `release-key-backup.pem` (generated 2026-04-17)
-    Uint8List.fromList([
-      0xb2,
-      0x99,
-      0x08,
-      0x3d,
-      0x37,
-      0x93,
-      0x1e,
-      0xa7,
-      0x0d,
-      0x4a,
-      0x9b,
-      0xf2,
-      0x32,
-      0x2a,
-      0xd5,
-      0xe6,
-      0xe1,
-      0xd2,
-      0xa5,
-      0x38,
-      0x5e,
-      0x1b,
-      0xd1,
-      0xdd,
-      0x7b,
-      0xf2,
-      0x6e,
-      0x77,
-      0xd4,
-      0x3a,
-      0xd2,
-      0x14,
     ]),
   ];
 

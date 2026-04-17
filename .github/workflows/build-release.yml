@@ -420,14 +420,28 @@ jobs:
           path: artifacts
 
       - name: Sign release artefacts (Ed25519)
-        # Produces <artifact>.sig next to every binary. The public keys
-        # corresponding to this private key are pinned in
-        # lib/core/update/release_signing.dart; on update, the client
-        # fetches the .sig alongside the binary and verifies offline.
-        # Requires the RELEASE_SIGNING_KEY secret to contain the PEM of
-        # an Ed25519 private key (output of `openssl genpkey -algorithm Ed25519`).
+        # Single signature per release:
+        #
+        # 1) `letsflutssh-<version>-SHA256SUMS` — plaintext
+        #    `sha256  name` lines, compatible with `sha256sum --check`.
+        # 2) `letsflutssh-<version>-SHA256SUMS.sig` — one Ed25519
+        #    signature over the whole manifest. Covers every artefact
+        #    in the release via its entry in the manifest.
+        # 3) `letsflutssh-release.pub` — PEM pubkey attached for manual
+        #    verification. Trust anchor is the byte-identical key baked
+        #    into `lib/core/update/release_signing.dart`; the `.pub`
+        #    file is a convenience copy, not authoritative.
+        #
+        # Old per-artefact `<binary>.sig` files are intentionally
+        # **not** produced here. Installs on releases older than the
+        # switch-over version (≤ 5.8.1) expect per-artefact signatures
+        # and will fail to auto-update across this boundary — that is
+        # the expected behaviour. The README tells those users to
+        # reinstall manually once; from that reinstall onward, the
+        # manifest flow is what drives all future updates.
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          VERSION: ${{ needs.preflight.outputs.version }}
         run: |
           set -euo pipefail
           if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
@@ -437,17 +451,31 @@ jobs:
           umask 077
           printf '%s' "$RELEASE_SIGNING_KEY" > /tmp/release-key.pem
           trap 'rm -f /tmp/release-key.pem' EXIT
-          count=0
-          for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
-            [ -f "$f" ] || continue
-            case "$f" in
-              *.sig|*.intoto.jsonl) continue ;;
-            esac
-            openssl pkeyutl -sign -inkey /tmp/release-key.pem -rawin -in "$f" -out "$f.sig"
-            count=$((count + 1))
-            echo "Signed $(basename "$f") → $(basename "$f").sig ($(wc -c <"$f.sig") bytes)"
+
+          # Build the manifest (sha256sum format), names only.
+          MANIFEST="artifacts/letsflutssh-${VERSION}-SHA256SUMS"
+          : > "$MANIFEST"
+          for d in artifacts/linux-x64 artifacts/windows-x64 \
+                   artifacts/macos-universal artifacts/android-apk; do
+            [ -d "$d" ] || continue
+            (cd "$d" && find . -maxdepth 1 -type f \
+              ! -name '*.sig' ! -name '*.intoto.jsonl' \
+              ! -name '*-SHA256SUMS*' ! -name '*.pub' \
+              -exec sha256sum {} +) \
+              | sed 's| \./| |' >> "$MANIFEST"
           done
-          echo "Signed $count artefact(s)."
+          echo "Manifest entries: $(wc -l <"$MANIFEST")"
+
+          # Sign the manifest.
+          openssl pkeyutl -sign -inkey /tmp/release-key.pem \
+            -rawin -in "$MANIFEST" -out "${MANIFEST}.sig"
+          echo "Signed manifest → $(basename "${MANIFEST}.sig") \
+($(wc -c <"${MANIFEST}.sig") bytes)"
+
+          # Export pubkey for manual verification.
+          openssl pkey -in /tmp/release-key.pem -pubout -outform PEM \
+            -out artifacts/letsflutssh-release.pub
+          echo "Exported public key: $(wc -c <artifacts/letsflutssh-release.pub) bytes"
 
       - name: Attest build provenance
         # Enumerate binaries by extension, NOT `artifacts/.../*` — the
@@ -473,27 +501,43 @@ jobs:
             artifacts/android-apk/*.apk
 
       - name: Export provenance for release
-        # Skip `.sig` and already-exported `.intoto.jsonl` files — only
-        # real build artefacts have attestations to export.
-        run: |
-          for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
-            case "$f" in
-              *.sig|*.intoto.jsonl) continue ;;
-            esac
-            NAME=$(basename "$f")
-            # gh attestation download saves to CWD as sha256:<digest>.jsonl
-            if gh attestation download "$f" -R "${{ github.repository }}"; then
-              BUNDLE=$(ls -t sha256*.jsonl 2>/dev/null | head -1)
-              if [ -n "$BUNDLE" ]; then
-                mv "$BUNDLE" "artifacts/${NAME}.intoto.jsonl"
-                echo "Exported provenance for ${NAME}"
-              fi
-            else
-              echo "::warning::No attestation found for ${NAME}"
-            fi
-          done
+        # A single `attest-build-provenance` call covers every artefact
+        # in one bundle — the attestation's `subject` array lists all
+        # of them with their sha256 digests, so downloading the bundle
+        # for any one artefact returns the exact same file. Shipping
+        # one `letsflutssh-<version>.intoto.jsonl` instead of ten
+        # identical copies is cleaner and reflects the truth:
+        # attestation is per-release, not per-artefact.
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Use any binary to pull the bundle — they all map to the
+          # same attestation.
+          anchor=""
+          for f in artifacts/linux-x64/* artifacts/windows-x64/* \
+                   artifacts/macos-universal/* artifacts/android-apk/*; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              *.sig|*.intoto.jsonl|*-SHA256SUMS*|*.pub) continue ;;
+            esac
+            anchor="$f"
+            break
+          done
+          if [ -z "$anchor" ]; then
+            echo "::warning::No artefact found to anchor attestation download"
+            exit 0
+          fi
+          if gh attestation download "$anchor" -R "${{ github.repository }}"; then
+            BUNDLE=$(ls -t sha256*.jsonl 2>/dev/null | head -1)
+            if [ -n "$BUNDLE" ]; then
+              mv "$BUNDLE" "artifacts/letsflutssh-${VERSION}.intoto.jsonl"
+              echo "Exported provenance → letsflutssh-${VERSION}.intoto.jsonl"
+            fi
+          else
+            echo "::warning::No attestation found for ${anchor}"
+          fi
 
       - name: Resolve release tag
         id: tag
@@ -576,23 +620,16 @@ jobs:
           body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
-            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz.sig
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
-            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage.sig
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
-            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb.sig
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
-            artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip.sig
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
-            artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe.sig
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
-            artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz.sig
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
-            artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg.sig
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
-            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk.sig
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
-            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk.sig
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
-            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk.sig
-            artifacts/*.intoto.jsonl
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}-SHA256SUMS
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}-SHA256SUMS.sig
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.intoto.jsonl
+            artifacts/letsflutssh-release.pub

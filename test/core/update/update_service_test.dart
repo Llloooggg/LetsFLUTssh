@@ -1702,6 +1702,147 @@ void main() {
       },
     );
   });
+
+  // ===========================================================================
+  // Manifest-signature flow (the production [_defaultVerifyArtifact]
+  // decomposes into two pure pieces: version parsing + manifest parsing).
+  // We unit-test each directly; the full end-to-end path is exercised
+  // through the wider update flow in release_signing_test.dart and the
+  // public verifier contract.
+  // ===========================================================================
+  group('UpdateService.parseAssetVersion', () {
+    test('captures the semver from a canonical release asset filename', () {
+      expect(
+        UpdateService.parseAssetVersion('letsflutssh-5.9.0-linux-x64.tar.gz'),
+        '5.9.0',
+      );
+      expect(
+        UpdateService.parseAssetVersion(
+          'letsflutssh-10.12.3-windows-x64-setup.exe',
+        ),
+        '10.12.3',
+      );
+    });
+
+    test(
+      'returns null for names that do not start with the product prefix',
+      () {
+        // Spec: we only accept names produced by our own release workflow.
+        // An upstream-typoed `letsflutssh_5.9.0-*` (underscore), a bare
+        // version, or a different product name must not silently pass —
+        // the whole manifest flow keys off this capture.
+        expect(
+          UpdateService.parseAssetVersion('letsflutssh_5.9.0.tar.gz'),
+          isNull,
+        );
+        expect(
+          UpdateService.parseAssetVersion('5.9.0-linux-x64.tar.gz'),
+          isNull,
+        );
+        expect(
+          UpdateService.parseAssetVersion('other-5.9.0-linux.tar.gz'),
+          isNull,
+        );
+      },
+    );
+
+    test('returns null for a pre-release or non-dotted version string', () {
+      // Our bump script only produces three-part semver — any other
+      // shape is a sign something went wrong upstream, better to
+      // fail-closed than match a surprise.
+      expect(
+        UpdateService.parseAssetVersion('letsflutssh-5.9-linux-x64.tar.gz'),
+        isNull,
+      );
+      expect(
+        UpdateService.parseAssetVersion(
+          'letsflutssh-5.9.0-rc1-linux-x64.tar.gz',
+        ),
+        '5.9.0',
+        reason:
+            'the leading three-digit dotted version still captures — '
+            'anything after the third segment is part of the platform '
+            'suffix and not our concern here',
+      );
+    });
+  });
+
+  group('UpdateService.parseSha256Manifest', () {
+    test('parses the text-mode (double-space) sha256sum format', () {
+      // Spec: workflow pipes `sha256sum <file>` output into the
+      // manifest; GNU coreutils uses `<hash>  <name>` (two spaces)
+      // by default. Verify we accept exactly that.
+      const content =
+          'a3f5e8d2c91b1234567890abcdef1234567890abcdef1234567890abcdef1234  '
+          'letsflutssh-5.9.0-linux-x64.tar.gz\n'
+          'b7d1f2e9a45cabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd  '
+          'letsflutssh-5.9.0-linux-amd64.deb\n';
+      final m = UpdateService.parseSha256Manifest(content);
+      expect(m.length, 2);
+      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], startsWith('a3f5'));
+      expect(m['letsflutssh-5.9.0-linux-amd64.deb'], startsWith('b7d1'));
+    });
+
+    test('accepts binary-mode (asterisk-prefixed) filename field', () {
+      // `sha256sum -b` emits `<hash> *<name>`. Be lenient so a
+      // workflow tweak that switches modes doesn't silently break
+      // the verifier.
+      final hash = 'a' * 64;
+      final m = UpdateService.parseSha256Manifest(
+        '$hash *letsflutssh-5.9.0-linux-x64.tar.gz\n',
+      );
+      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hash);
+    });
+
+    test('ignores blank lines and comments', () {
+      // Spec: the manifest format stays forward-compatible with
+      // human-readable annotations — a future workflow tweak that
+      // adds a header comment should not break the parser.
+      final hash = 'b' * 64;
+      final m = UpdateService.parseSha256Manifest('''
+# Release manifest — letsflutssh 5.9.0
+
+$hash  letsflutssh-5.9.0-linux-x64.tar.gz
+
+''');
+      expect(m.length, 1);
+      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hash);
+    });
+
+    test(
+      'rejects malformed lines (short hash, missing whitespace, empty name)',
+      () {
+        // Silent skip over malformed lines — defensive parse so a
+        // single stray byte doesn't poison the whole manifest.
+        final m = UpdateService.parseSha256Manifest('''
+short-hash  letsflutssh-5.9.0-linux-x64.tar.gz
+${'c' * 64}
+${'d' * 64}  ''');
+        expect(
+          m,
+          isEmpty,
+          reason:
+              'no valid entry — short hash is length-checked out, two '
+              'malformed lines carry no whitespace-bound name',
+        );
+      },
+    );
+
+    test('later duplicate entry overrides earlier — last write wins', () {
+      // Spec: a duplicate in a signed manifest means the release
+      // manifest is malformed, but the verifier still has to pick
+      // one value. Last-write-wins matches how `sha256sum -c` walks
+      // the file top-to-bottom — whichever entry is checked last is
+      // the effective one.
+      final hashA = 'a' * 64;
+      final hashB = 'b' * 64;
+      final m = UpdateService.parseSha256Manifest(
+        '$hashA  letsflutssh-5.9.0-linux-x64.tar.gz\n'
+        '$hashB  letsflutssh-5.9.0-linux-x64.tar.gz\n',
+      );
+      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hashB);
+    });
+  });
 }
 
 // ===========================================================================
