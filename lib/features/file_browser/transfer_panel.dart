@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
@@ -89,114 +90,139 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Toggle header with overlaid drag handle
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                GestureDetector(
-                  onTap: _ctrl.toggleExpanded,
-                  child: Container(
-                    height: AppTheme.barHeightSm,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    color: AppTheme.bg0,
-                    child: ClippedRow(
-                      children: [
-                        Icon(
-                          _ctrl.expanded
-                              ? Icons.expand_more
-                              : Icons.chevron_right,
-                          size: 11,
-                          color: AppTheme.fgDim,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          S.of(context).transfersLabel,
-                          style: AppFonts.inter(
-                            fontSize: AppFonts.xs,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.fgDim,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        if (status != null) ...[
-                          Text(
-                            S.of(context).transferCountActive(status.running),
-                            style: AppFonts.inter(
-                              fontSize: AppFonts.xs,
-                              color: AppTheme.accent,
-                            ),
-                          ),
-                          Text(
-                            S.of(context).transferCountQueued(status.queued),
-                            style: AppFonts.inter(
-                              fontSize: AppFonts.xs,
-                              color: AppTheme.fgDim,
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
-                        historyAsync.when(
-                          data: (history) => Text(
-                            S
-                                .of(context)
-                                .transferCountInHistory(history.length),
-                            style: AppFonts.inter(
-                              fontSize: AppFonts.xxs,
-                              color: AppTheme.fgFaint,
-                            ),
-                          ),
-                          loading: SizedBox.shrink,
-                          error: (_, _) => const SizedBox.shrink(),
-                        ),
-                        const SizedBox(width: 4),
-                        if (_ctrl.expanded && _mobile)
-                          _headerButton(
-                            icon: Icons.sort,
-                            tooltip: S.of(context).sort,
-                            onTap: () => _showMobileSortMenu(context),
-                          ),
-                        if (_ctrl.expanded)
-                          _headerButton(
-                            icon: Icons.delete_outline,
-                            tooltip: S.of(context).clearHistory,
-                            onTap: () => manager.clearHistory(),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_ctrl.expanded)
-                  Positioned(
-                    top: -3,
-                    left: 0,
-                    right: 0,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.resizeRow,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onVerticalDragUpdate: (d) =>
-                            _ctrl.resizePanelHeightBy(d.delta.dy),
-                        child: const SizedBox(height: 6),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            // Column headers + transfer list
-            if (_ctrl.expanded) ...[
-              _mobile ? _buildScrollableHeader() : _buildColumnHeaders(),
-              Flexible(
-                child: SizedBox(
-                  height: _ctrl.panelHeight,
-                  child: _mobile
-                      ? _buildScrollableBody(historyAsync, ref)
-                      : _buildTransferList(historyAsync, ref),
-                ),
-              ),
-            ],
+            _buildHeaderBar(context, status, historyAsync, manager),
+            if (_ctrl.expanded) _buildExpandedBody(historyAsync, ref),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderBar(
+    BuildContext context,
+    ActiveTransferState? status,
+    AsyncValue<List<HistoryEntry>> historyAsync,
+    TransferManager manager,
+  ) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          onTap: _ctrl.toggleExpanded,
+          child: Container(
+            height: AppTheme.barHeightSm,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            color: AppTheme.bg0,
+            child: ClippedRow(
+              children: _buildHeaderRowChildren(
+                context,
+                status,
+                historyAsync,
+                manager,
+              ),
+            ),
+          ),
+        ),
+        if (_ctrl.expanded) _buildResizeHandle(),
+      ],
+    );
+  }
+
+  List<Widget> _buildHeaderRowChildren(
+    BuildContext context,
+    ActiveTransferState? status,
+    AsyncValue<List<HistoryEntry>> historyAsync,
+    TransferManager manager,
+  ) {
+    final xsDim = AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim);
+    return [
+      Icon(
+        _ctrl.expanded ? Icons.expand_more : Icons.chevron_right,
+        size: 11,
+        color: AppTheme.fgDim,
+      ),
+      const SizedBox(width: 4),
+      Text(
+        S.of(context).transfersLabel,
+        style: AppFonts.inter(
+          fontSize: AppFonts.xs,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.fgDim,
+        ),
+      ),
+      const SizedBox(width: 6),
+      if (status != null) ...[
+        Text(
+          S.of(context).transferCountActive(status.running),
+          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
+        ),
+        Text(S.of(context).transferCountQueued(status.queued), style: xsDim),
+      ],
+      const Spacer(),
+      _buildHistoryCountLabel(context, historyAsync),
+      const SizedBox(width: 4),
+      if (_ctrl.expanded && _mobile)
+        _headerButton(
+          icon: Icons.sort,
+          tooltip: S.of(context).sort,
+          onTap: () => _showMobileSortMenu(context),
+        ),
+      if (_ctrl.expanded)
+        _headerButton(
+          icon: Icons.delete_outline,
+          tooltip: S.of(context).clearHistory,
+          onTap: () => manager.clearHistory(),
+        ),
+    ];
+  }
+
+  Widget _buildHistoryCountLabel(
+    BuildContext context,
+    AsyncValue<List<HistoryEntry>> historyAsync,
+  ) {
+    return historyAsync.when(
+      data: (history) => Text(
+        S.of(context).transferCountInHistory(history.length),
+        style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
+      ),
+      loading: SizedBox.shrink,
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildResizeHandle() {
+    return Positioned(
+      top: -3,
+      left: 0,
+      right: 0,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeRow,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragUpdate: (d) => _ctrl.resizePanelHeightBy(d.delta.dy),
+          child: const SizedBox(height: 6),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedBody(
+    AsyncValue<List<HistoryEntry>> historyAsync,
+    WidgetRef ref,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _mobile ? _buildScrollableHeader() : _buildColumnHeaders(),
+        Flexible(
+          child: SizedBox(
+            height: _ctrl.panelHeight,
+            child: _mobile
+                ? _buildScrollableBody(historyAsync, ref)
+                : _buildTransferList(historyAsync, ref),
+          ),
+        ),
+      ],
     );
   }
 
