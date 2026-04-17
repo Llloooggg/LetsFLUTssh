@@ -372,6 +372,21 @@ class TransferManager {
 
 **Queue processing:** `_processQueue` returns void and fires tasks via `unawaited()` — errors are caught internally per-task.
 
+**Task lifecycle**:
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: enqueue()
+    queued --> running: worker picks up
+    queued --> cancelled: cancel() before start
+    running --> completed: run() returns
+    running --> failed: run() throws (non-cancel)
+    running --> cancelled: _cancelledIds check / 30-min timeout
+    completed --> [*]: moves to history
+    failed --> [*]: moves to history
+    cancelled --> [*]: moves to history
+```
+
 #### TransferPanel — UI
 
 The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsible bottom panel unified with the file browser table pattern:
@@ -528,6 +543,19 @@ class Connection {
 
 **Deferred Init pattern:** Connection is created instantly in state=`connecting`. The actual SSH handshake runs in the background. UI immediately opens a tab and shows a connecting indicator.
 
+**State transitions** (terminal states in bold — a connection can leave `disconnected` only via `reconnect` on the same `Connection` object; a fresh `connectAsync` produces a new one):
+
+```mermaid
+stateDiagram-v2
+    [*] --> connecting: connectAsync()
+    connecting --> connected: handshake ok
+    connecting --> disconnected: timeout / failure
+    connected --> disconnected: onDisconnect fires
+    disconnected --> connecting: reconnect()
+    connected --> [*]: disconnect() / disposeAll()
+    disconnected --> [*]: disconnect() / disposeAll()
+```
+
 #### ConnectionManager
 
 ```dart
@@ -592,6 +620,18 @@ All data is stored in a single drift (SQLite) database. Encryption is applied at
 Stores (SessionStore, KeyStore, KnownHostsManager, SnippetStore, TagStore) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption.
 
 First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no database file).
+
+**Key-derivation pipeline** (only the master-password branch derives; keychain stores the DB key directly, plaintext has no key):
+
+```mermaid
+flowchart LR
+    A[User password] --> B["PBKDF2-SHA256<br/>600k iters<br/>+ 16-byte salt"]
+    B --> C["32-byte DB key<br/>(Uint8List)"]
+    C --> D["SecretBuffer<br/>(page-locked RAM)"]
+    D --> E[SQLite3MC<br/>PRAGMA key]
+    D -.-> F["Optional:<br/>BiometricKeyVault<br/>(OS keychain)"]
+    F -.-> D
+```
 
 #### In-memory DB key (page-locked)
 
