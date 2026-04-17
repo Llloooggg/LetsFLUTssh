@@ -373,10 +373,6 @@ void main() {
       );
       if (skipFinder.evaluate().isNotEmpty) {
         await tester.tap(skipFinder.first);
-        // ConfigNotifier.update debounces the save 300 ms. Advance the
-        // fake clock past it so the pending timer is flushed before the
-        // test ends; otherwise the test framework reports a leaked timer.
-        await tester.pump(const Duration(milliseconds: 350));
         await tester.pumpAndSettle();
       }
     });

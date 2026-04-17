@@ -1755,13 +1755,6 @@ class _FakeHttpClient implements HttpClient {
   @override
   void close({bool force = false}) {}
 
-  // No-op for SPKI pinning hook — production wires this through
-  // CertPinning.enforce, but the fake never returns a real cert chain.
-  @override
-  set badCertificateCallback(
-    bool Function(X509Certificate cert, String host, int port)? callback,
-  ) {}
-
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
