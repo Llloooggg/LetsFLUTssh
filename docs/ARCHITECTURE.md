@@ -145,6 +145,7 @@ lib/
 │   ├── connection_progress.dart     # Terminal-styled progress for non-terminal tabs
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
 │   ├── error_state.dart             # Error display with retry/secondary actions
+│   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
 │   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
@@ -327,6 +328,8 @@ class RemoteFS implements FileSystem { ... }  // SFTPService wrapper, dirSize ca
 |------|-------|---------|
 | `transfer_manager.dart` | `TransferManager` | Task queue, parallel workers, history, cancellation |
 | `transfer_task.dart` | `TransferTask`, `TransferDirection`, `HistoryEntry` | Task model, direction enum, history entry |
+| `conflict_resolver.dart` | `ConflictAction`, `ConflictDecision`, `BatchConflictResolver` | User decision for destination-exists conflicts, with "apply to all remaining" caching across a batch |
+| `unique_name.dart` | `uniqueSiblingName()` | Compute a non-colliding destination path (`file.txt` → `file (1).txt`) for the "Keep both" conflict action |
 
 #### TransferManager — architecture
 
@@ -1609,6 +1612,18 @@ ConfirmDialog.show(context, {
   bool destructive = true,
 }) → Future<bool>
 ```
+
+### FileConflictDialog
+
+```dart
+FileConflictDialog.show(context, {
+  required String targetPath,
+  required bool isRemoteTarget,
+  bool showApplyToAll = true,
+}) → Future<ConflictDecision>
+```
+
+Prompts the user when a transfer's destination already exists. Actions: `skip`, `keepBoth`, `replace`, `cancel`. When `showApplyToAll` is true, an "apply to all remaining" checkbox lets the resolver cache the decision for the rest of a batch — see `BatchConflictResolver` in `core/transfer/conflict_resolver.dart`. Dismissing via the scrim returns a `cancel` decision. Directory transfers bypass this dialog (silent merge-overwrite).
 
 ### ErrorState
 

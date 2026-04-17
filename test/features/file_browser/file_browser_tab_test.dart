@@ -31,6 +31,11 @@ class _TrackingSFTPService extends SFTPService {
 
   _TrackingSFTPService(super.sftp);
 
+  /// Tests assume a clean destination — no conflict dialog is expected.
+  /// Tests that exercise the conflict path should use a dedicated fixture.
+  @override
+  Future<bool> exists(String path) async => false;
+
   @override
   Future<void> upload(
     String localPath,

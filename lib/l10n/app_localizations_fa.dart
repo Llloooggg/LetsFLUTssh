@@ -1453,6 +1453,26 @@ class SFa extends S {
   }
 
   @override
+  String get fileConflictTitle => 'فایل از قبل وجود دارد';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" از قبل در $targetDir وجود دارد. چه کاری می‌خواهید انجام دهید؟';
+  }
+
+  @override
+  String get fileConflictSkip => 'رد کردن';
+
+  @override
+  String get fileConflictKeepBoth => 'نگه داشتن هر دو';
+
+  @override
+  String get fileConflictReplace => 'جایگزینی';
+
+  @override
+  String get fileConflictApplyAll => 'اعمال برای همه موارد باقی‌مانده';
+
+  @override
   String get folderNameLabel => 'نام پوشه';
 
   @override

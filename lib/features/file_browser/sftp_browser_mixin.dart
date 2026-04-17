@@ -4,20 +4,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../core/transfer/conflict_resolver.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
-import '../../utils/format.dart';
+import '../../utils/format.dart' show localizeError;
 import '../../utils/logger.dart';
 import '../../widgets/connection_progress.dart';
+import '../../widgets/file_conflict_dialog.dart';
 import 'sftp_initializer.dart';
 import 'transfer_helpers.dart';
 
 /// Shared SFTP browser logic used by both desktop [FileBrowserTab] and
 /// mobile [MobileFileBrowser].
 ///
-/// Provides common [initSftp], [upload], and [download] implementations.
-/// Concrete classes must provide the abstract getters for their widget-specific
-/// fields and override [onSftpReady] to apply platform-specific state.
+/// Provides common [initSftp], [uploadMany], and [downloadMany]
+/// implementations. Concrete classes must provide the abstract getters
+/// for their widget-specific fields and override [onSftpReady] to
+/// apply platform-specific state.
 mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// The SSH connection this browser operates on.
   Connection get sftpConnection;
@@ -104,33 +107,71 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
   }
 
-  /// Enqueue a file upload from local to remote.
-  void upload(FileEntry entry) {
+  /// Enqueue a single upload from local to remote.
+  void upload(FileEntry entry) => uploadMany([entry]);
+
+  /// Enqueue a single download from remote to local.
+  void download(FileEntry entry) => downloadMany([entry]);
+
+  /// Enqueue uploads for [entries] from local to remote.
+  ///
+  /// When a destination already exists, prompts the user. A single
+  /// [BatchConflictResolver] is shared across the batch so the
+  /// "apply to all remaining" choice sticks for this call.
+  Future<void> uploadMany(List<FileEntry> entries) async {
     final sftp = sftpResult?.sftpService;
     final remote = sftpResult?.remoteCtrl;
-    if (sftp == null || remote == null) return;
-    TransferHelpers.enqueueUpload(
-      manager: ref.read(transferManagerProvider),
-      sftp: sftp,
-      entry: entry,
-      remoteDirPath: remote.currentPath,
-      remoteCtrl: sftpResult?.remoteCtrl,
-      loc: S.of(context),
-    );
+    if (sftp == null || remote == null || entries.isEmpty) return;
+    final loc = S.of(context);
+    final resolver = _buildResolver(showApplyToAll: entries.length > 1);
+
+    for (final entry in entries) {
+      if (resolver.isCancelled) break;
+      if (!mounted) return;
+      await TransferHelpers.enqueueUpload(
+        manager: ref.read(transferManagerProvider),
+        sftp: sftp,
+        entry: entry,
+        remoteDirPath: remote.currentPath,
+        remoteCtrl: remote,
+        loc: loc,
+        conflictResolver: resolver,
+      );
+    }
   }
 
-  /// Enqueue a file download from remote to local.
-  void download(FileEntry entry) {
+  /// Enqueue downloads for [entries] from remote to local.
+  Future<void> downloadMany(List<FileEntry> entries) async {
     final sftp = sftpResult?.sftpService;
     final local = sftpResult?.localCtrl;
-    if (sftp == null || local == null) return;
-    TransferHelpers.enqueueDownload(
-      manager: ref.read(transferManagerProvider),
-      sftp: sftp,
-      entry: entry,
-      localDirPath: local.currentPath,
-      localCtrl: sftpResult?.localCtrl,
-      loc: S.of(context),
-    );
+    if (sftp == null || local == null || entries.isEmpty) return;
+    final loc = S.of(context);
+    final resolver = _buildResolver(showApplyToAll: entries.length > 1);
+
+    for (final entry in entries) {
+      if (resolver.isCancelled) break;
+      if (!mounted) return;
+      await TransferHelpers.enqueueDownload(
+        manager: ref.read(transferManagerProvider),
+        sftp: sftp,
+        entry: entry,
+        localDirPath: local.currentPath,
+        localCtrl: local,
+        loc: loc,
+        conflictResolver: resolver,
+      );
+    }
+  }
+
+  BatchConflictResolver _buildResolver({required bool showApplyToAll}) {
+    return BatchConflictResolver((path, {bool isRemote = false}) async {
+      if (!mounted) return const ConflictDecision(ConflictAction.cancel);
+      return FileConflictDialog.show(
+        context,
+        targetPath: path,
+        isRemoteTarget: isRemote,
+        showApplyToAll: showApplyToAll,
+      );
+    });
   }
 }

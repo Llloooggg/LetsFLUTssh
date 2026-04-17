@@ -1467,6 +1467,26 @@ class SRu extends S {
   }
 
   @override
+  String get fileConflictTitle => 'Файл уже существует';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" уже существует в $targetDir. Что сделать?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Пропустить';
+
+  @override
+  String get fileConflictKeepBoth => 'Сохранить оба';
+
+  @override
+  String get fileConflictReplace => 'Заменить';
+
+  @override
+  String get fileConflictApplyAll => 'Применить ко всем оставшимся';
+
+  @override
   String get folderNameLabel => 'ИМЯ ПАПКИ';
 
   @override

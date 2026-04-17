@@ -1452,6 +1452,26 @@ class SVi extends S {
   }
 
   @override
+  String get fileConflictTitle => 'Tệp đã tồn tại';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" đã tồn tại trong $targetDir. Bạn muốn làm gì?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Bỏ qua';
+
+  @override
+  String get fileConflictKeepBoth => 'Giữ cả hai';
+
+  @override
+  String get fileConflictReplace => 'Thay thế';
+
+  @override
+  String get fileConflictApplyAll => 'Áp dụng cho tất cả các tệp còn lại';
+
+  @override
   String get folderNameLabel => 'TÊN THƯ MỤC';
 
   @override

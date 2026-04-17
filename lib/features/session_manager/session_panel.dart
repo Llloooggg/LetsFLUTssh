@@ -484,7 +484,11 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         });
       },
       onEmptySpaceTap: () {
-        // Keep focused session/folder so the details panel stays visible.
+        // Drop the panel focus so highlighted rows dim to grey — the
+        // details panel still shows the previously-focused session or
+        // folder, so the user can tell which row it belongs to without
+        // the row stealing the accent colour from active work elsewhere.
+        if (!mobile) _focusNode.unfocus();
       },
       onSessionContextMenu: (session, position) {
         _showContextMenu(context, ref, session, position);

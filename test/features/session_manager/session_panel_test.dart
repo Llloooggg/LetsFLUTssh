@@ -3285,21 +3285,57 @@ void main() {
         );
         expect(panelState.focusNode.hasFocus, isFalse);
 
-        // Simulate a pointer-down on the background of the panel (not
-        // on a row) — this is what happens when a marquee drag starts
-        // on empty space.
+        // Simulate a marquee drag starting on empty space: pointer-down
+        // at an empty location, move past the threshold, then hold.
+        // Mid-drag the panel must own focus so SessionTreeView renders
+        // rows in the accent (focused) highlight, not the dimmed grey.
         final panelRect = tester.getRect(find.byType(SessionPanel));
-        await tester.tapAt(Offset(panelRect.left + 20, panelRect.bottom - 20));
+        final start = Offset(panelRect.left + 20, panelRect.bottom - 20);
+        final gesture = await tester.startGesture(start);
+        await gesture.moveBy(const Offset(30, 30));
         await tester.pump();
 
         expect(
           panelState.focusNode.hasFocus,
           isTrue,
           reason:
-              'the panel must own focus after any pointer-down so the '
+              'the panel must own focus during a marquee drag so the '
               'SessionTreeView sees panelHasFocus=true and picks the '
               'accent row highlight, eliminating the grey/blue flicker',
         );
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'plain tap on empty space drops panel focus so rows dim to grey — '
+      'keeps the details panel visible but stops the sidebar from '
+      'shouting for attention when the user is working elsewhere',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final panelState = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+
+        // Give the panel focus first (simulate the user having just
+        // clicked a row).
+        panelState.focusNode.requestFocus();
+        await tester.pump();
+        expect(panelState.focusNode.hasFocus, isTrue);
+
+        // A plain tap on empty space inside the tree view should
+        // release focus. The details panel at the bottom stays
+        // populated because _focusedSessionId is intentionally not
+        // cleared — the row just dims.
+        final treeRect = tester.getRect(find.byType(SessionTreeView));
+        await tester.tapAt(Offset(treeRect.left + 20, treeRect.bottom - 20));
+        await tester.pumpAndSettle();
+
+        expect(panelState.focusNode.hasFocus, isFalse);
       },
     );
   });

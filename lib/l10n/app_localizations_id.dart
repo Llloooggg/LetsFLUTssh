@@ -1461,6 +1461,26 @@ class SId extends S {
   }
 
   @override
+  String get fileConflictTitle => 'File sudah ada';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" sudah ada di $targetDir. Apa yang ingin Anda lakukan?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Lewati';
+
+  @override
+  String get fileConflictKeepBoth => 'Simpan keduanya';
+
+  @override
+  String get fileConflictReplace => 'Ganti';
+
+  @override
+  String get fileConflictApplyAll => 'Terapkan ke semua yang tersisa';
+
+  @override
   String get folderNameLabel => 'NAMA FOLDER';
 
   @override

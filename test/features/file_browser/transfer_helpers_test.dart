@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/sftp/sftp_client.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
+import 'package:letsflutssh/core/transfer/conflict_resolver.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_helpers.dart';
@@ -14,7 +15,12 @@ class _FakeLoc implements S {
 
 /// Fake SFTPService — never called because TransferManager has parallelism: 0,
 /// so tasks stay queued and their run() closures are never invoked.
-class _FakeSFTPService extends Fake implements SFTPService {}
+class _FakeSFTPService extends Fake implements SFTPService {
+  final Set<String> existingRemote = {};
+
+  @override
+  Future<bool> exists(String path) async => existingRemote.contains(path);
+}
 
 /// TransferManager subclass that captures enqueued tasks for inspection.
 /// Uses parallelism: 0 so tasks remain in the queue and are never executed.
@@ -198,6 +204,140 @@ void main() {
       );
 
       expect(manager.queueLength, 1);
+    });
+  });
+
+  group('TransferHelpers.enqueueUpload — conflict handling', () {
+    FileEntry fileEntry() => FileEntry(
+      name: 'report.txt',
+      path: '/home/user/report.txt',
+      size: 100,
+      modTime: DateTime(2025, 1, 1),
+      isDir: false,
+    );
+
+    BatchConflictResolver resolverYielding(ConflictAction action) {
+      return BatchConflictResolver(
+        (_, {bool isRemote = false}) async => ConflictDecision(action),
+      );
+    }
+
+    test('skips enqueue when resolver returns skip', () async {
+      fakeSftp.existingRemote.add('/srv/www/report.txt');
+
+      final enqueued = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        sftp: fakeSftp,
+        entry: fileEntry(),
+        remoteDirPath: '/srv/www',
+        remoteCtrl: null,
+        loc: fakeLoc,
+        conflictResolver: resolverYielding(ConflictAction.skip),
+      );
+
+      expect(enqueued, isFalse);
+      expect(manager.capturedTasks, isEmpty);
+    });
+
+    test('skips enqueue when resolver returns cancel', () async {
+      fakeSftp.existingRemote.add('/srv/www/report.txt');
+
+      final enqueued = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        sftp: fakeSftp,
+        entry: fileEntry(),
+        remoteDirPath: '/srv/www',
+        remoteCtrl: null,
+        loc: fakeLoc,
+        conflictResolver: resolverYielding(ConflictAction.cancel),
+      );
+
+      expect(enqueued, isFalse);
+      expect(manager.capturedTasks, isEmpty);
+    });
+
+    test('replace proceeds with the original target path', () async {
+      fakeSftp.existingRemote.add('/srv/www/report.txt');
+
+      final enqueued = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        sftp: fakeSftp,
+        entry: fileEntry(),
+        remoteDirPath: '/srv/www',
+        remoteCtrl: null,
+        loc: fakeLoc,
+        conflictResolver: resolverYielding(ConflictAction.replace),
+      );
+
+      expect(enqueued, isTrue);
+      expect(manager.capturedTasks, hasLength(1));
+      expect(manager.capturedTasks.single.targetPath, '/srv/www/report.txt');
+      expect(manager.capturedTasks.single.name, 'report.txt');
+    });
+
+    test('keepBoth enqueues a renamed sibling path', () async {
+      fakeSftp.existingRemote.add('/srv/www/report.txt');
+
+      final enqueued = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        sftp: fakeSftp,
+        entry: fileEntry(),
+        remoteDirPath: '/srv/www',
+        remoteCtrl: null,
+        loc: fakeLoc,
+        conflictResolver: resolverYielding(ConflictAction.keepBoth),
+      );
+
+      expect(enqueued, isTrue);
+      expect(manager.capturedTasks, hasLength(1));
+      expect(
+        manager.capturedTasks.single.targetPath,
+        '/srv/www/report (1).txt',
+      );
+      // Display name tracks the renamed file.
+      expect(manager.capturedTasks.single.name, 'report (1).txt');
+    });
+
+    test('enqueues normally when no conflict exists', () async {
+      // existingRemote is empty → exists() returns false → no prompt.
+      final enqueued = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        sftp: fakeSftp,
+        entry: fileEntry(),
+        remoteDirPath: '/srv/www',
+        remoteCtrl: null,
+        loc: fakeLoc,
+        conflictResolver: resolverYielding(ConflictAction.skip),
+      );
+
+      expect(enqueued, isTrue);
+      expect(manager.capturedTasks.single.targetPath, '/srv/www/report.txt');
+    });
+
+    test('directory entries bypass the conflict check', () async {
+      fakeSftp.existingRemote.add('/srv/www/images');
+      final dirEntry = FileEntry(
+        name: 'images',
+        path: '/home/user/images',
+        size: 0,
+        modTime: DateTime(2025, 1, 1),
+        isDir: true,
+      );
+
+      final enqueued = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        sftp: fakeSftp,
+        entry: dirEntry,
+        remoteDirPath: '/srv/www',
+        remoteCtrl: null,
+        loc: fakeLoc,
+        conflictResolver: resolverYielding(ConflictAction.skip),
+      );
+
+      // Even though the remote dir "exists" and the resolver would
+      // say skip, directories are not gated by the conflict dialog.
+      expect(enqueued, isTrue);
+      expect(manager.capturedTasks, hasLength(1));
     });
   });
 

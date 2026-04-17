@@ -1467,6 +1467,26 @@ class SEs extends S {
   }
 
   @override
+  String get fileConflictTitle => 'El archivo ya existe';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '«$fileName» ya existe en $targetDir. ¿Qué desea hacer?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Omitir';
+
+  @override
+  String get fileConflictKeepBoth => 'Conservar ambos';
+
+  @override
+  String get fileConflictReplace => 'Reemplazar';
+
+  @override
+  String get fileConflictApplyAll => 'Aplicar a todos los restantes';
+
+  @override
   String get folderNameLabel => 'NOMBRE DE CARPETA';
 
   @override

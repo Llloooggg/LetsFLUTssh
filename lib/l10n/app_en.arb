@@ -903,6 +903,22 @@
       }
     }
   },
+  "fileConflictTitle": "File already exists",
+  "fileConflictMessage": "\"{fileName}\" already exists in {targetDir}. What would you like to do?",
+  "@fileConflictMessage": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      },
+      "targetDir": {
+        "type": "String"
+      }
+    }
+  },
+  "fileConflictSkip": "Skip",
+  "fileConflictKeepBoth": "Keep both",
+  "fileConflictReplace": "Replace",
+  "fileConflictApplyAll": "Apply to all remaining",
   "folderNameLabel": "FOLDER NAME",
   "folderAlreadyExists": "Folder \"{name}\" already exists",
   "@folderAlreadyExists": {

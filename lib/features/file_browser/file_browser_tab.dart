@@ -11,7 +11,6 @@ import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
-import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../providers/transfer_provider.dart';
@@ -27,10 +26,10 @@ typedef SFTPInitFactory =
     Future<SFTPInitResult> Function(Connection connection);
 
 typedef _PaneActions = ({
-  void Function(FileEntry) transfer,
-  void Function(FileEntry) drop,
+  void Function(List<FileEntry>) transfer,
+  void Function(List<FileEntry>) drop,
   String oppositeSourcePane,
-  void Function(FileEntry) paste,
+  void Function(List<FileEntry>) paste,
   void Function(List<String>) onOsDropReceived,
 });
 
@@ -78,7 +77,6 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
 
   FilePaneController? get _localCtrl => sftpResult?.localCtrl;
   FilePaneController? get _remoteCtrl => sftpResult?.remoteCtrl;
-  SFTPService? get _sftpService => sftpResult?.sftpService;
 
   @override
   void initState() {
@@ -168,10 +166,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
                       paneId: 'local',
                       showFolderSizes: showFolderSizes,
                       actions: (
-                        transfer: upload,
-                        drop: download,
+                        transfer: uploadMany,
+                        drop: downloadMany,
                         oppositeSourcePane: 'remote',
-                        paste: download,
+                        paste: downloadMany,
                         onOsDropReceived: _osDropToLocal,
                       ),
                       otherController: remote,
@@ -185,10 +183,10 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
                       paneId: 'remote',
                       showFolderSizes: showFolderSizes,
                       actions: (
-                        transfer: download,
-                        drop: upload,
+                        transfer: downloadMany,
+                        drop: uploadMany,
                         oppositeSourcePane: 'local',
-                        paste: upload,
+                        paste: uploadMany,
                         onOsDropReceived: _osDropToRemote,
                       ),
                       otherController: local,
@@ -252,15 +250,15 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
       controller: controller,
       paneId: paneId,
       showFolderSizes: showFolderSizes,
-      onTransfer: actions.transfer,
-      onTransferMultiple: (entries) => entries.forEach(actions.transfer),
+      onTransfer: (entry) => actions.transfer([entry]),
+      onTransferMultiple: actions.transfer,
       onCopy: () => setState(() {
         _clipboardEntries = List.of(controller.selectedEntries);
         _clipboardSourcePane = paneId;
       }),
       onPaste: () =>
           _pasteFromClipboard(actions.oppositeSourcePane, actions.paste),
-      onDropReceived: (entries) => entries.forEach(actions.drop),
+      onDropReceived: actions.drop,
       onOsDropReceived: actions.onOsDropReceived,
       onPaneActivated: () => otherController.clearSelection(),
     );
@@ -268,12 +266,12 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
 
   void _pasteFromClipboard(
     String expectedSource,
-    void Function(FileEntry) action,
+    void Function(List<FileEntry>) action,
   ) {
     final entries = _clipboardEntries;
     if (entries == null || entries.isEmpty) return;
     if (_clipboardSourcePane != expectedSource) return;
-    entries.forEach(action);
+    action(entries);
   }
 
   /// OS drop onto local pane — copy files into the current local directory.
@@ -309,49 +307,22 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   }
 
   /// OS drop onto remote pane — upload files to the current remote directory.
-  void _osDropToRemote(List<String> paths) {
-    final sftp = _sftpService;
-    final remote = _remoteCtrl;
-    if (sftp == null || remote == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final loc = S.of(context);
-
+  Future<void> _osDropToRemote(List<String> paths) async {
+    final entries = <FileEntry>[];
     for (final srcPath in paths) {
-      final name = p.basename(srcPath);
-      final remotePath = p.posix.join(remote.currentPath, name);
-      final isDir = FileSystemEntity.isDirectorySync(srcPath);
-
-      manager.enqueue(
-        TransferTask(
-          name: isDir ? '$name/' : name,
-          direction: TransferDirection.upload,
-          sourcePath: srcPath,
-          targetPath: remotePath,
-          run: (update) async {
-            update(0, loc.transferStartingUpload);
-            if (isDir) {
-              await sftp.uploadDir(srcPath, remotePath, (progress) {
-                update(
-                  progress.percent,
-                  loc.transferFilesProgress(
-                    progress.doneBytes,
-                    progress.totalBytes,
-                  ),
-                );
-              });
-            } else {
-              await sftp.upload(srcPath, remotePath, (progress) {
-                update(
-                  progress.percent,
-                  '${progress.doneBytes}/${progress.totalBytes}',
-                );
-              });
-            }
-            _remoteCtrl?.refresh();
-          },
+      final stat = FileStat.statSync(srcPath);
+      if (stat.type == FileSystemEntityType.notFound) continue;
+      entries.add(
+        FileEntry(
+          name: p.basename(srcPath),
+          path: srcPath,
+          size: stat.size,
+          modTime: stat.modified,
+          isDir: stat.type == FileSystemEntityType.directory,
         ),
       );
     }
+    await uploadMany(entries);
   }
 
   static const _maxCopyDepth = 100;

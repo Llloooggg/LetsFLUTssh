@@ -1455,6 +1455,26 @@ class SEn extends S {
   }
 
   @override
+  String get fileConflictTitle => 'File already exists';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" already exists in $targetDir. What would you like to do?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Skip';
+
+  @override
+  String get fileConflictKeepBoth => 'Keep both';
+
+  @override
+  String get fileConflictReplace => 'Replace';
+
+  @override
+  String get fileConflictApplyAll => 'Apply to all remaining';
+
+  @override
   String get folderNameLabel => 'FOLDER NAME';
 
   @override

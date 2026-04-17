@@ -1470,6 +1470,26 @@ class SDe extends S {
   }
 
   @override
+  String get fileConflictTitle => 'Datei existiert bereits';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" existiert bereits in $targetDir. Was möchten Sie tun?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Überspringen';
+
+  @override
+  String get fileConflictKeepBoth => 'Beide behalten';
+
+  @override
+  String get fileConflictReplace => 'Ersetzen';
+
+  @override
+  String get fileConflictApplyAll => 'Auf alle verbleibenden anwenden';
+
+  @override
   String get folderNameLabel => 'ORDNERNAME';
 
   @override

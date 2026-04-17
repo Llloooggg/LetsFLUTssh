@@ -1465,6 +1465,26 @@ class SPt extends S {
   }
 
   @override
+  String get fileConflictTitle => 'O arquivo já existe';
+
+  @override
+  String fileConflictMessage(String fileName, String targetDir) {
+    return '\"$fileName\" já existe em $targetDir. O que você deseja fazer?';
+  }
+
+  @override
+  String get fileConflictSkip => 'Pular';
+
+  @override
+  String get fileConflictKeepBoth => 'Manter ambos';
+
+  @override
+  String get fileConflictReplace => 'Substituir';
+
+  @override
+  String get fileConflictApplyAll => 'Aplicar a todos os restantes';
+
+  @override
   String get folderNameLabel => 'NOME DA PASTA';
 
   @override

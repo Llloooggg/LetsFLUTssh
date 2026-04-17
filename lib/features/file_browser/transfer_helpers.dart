@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 
 import '../../core/sftp/sftp_client.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../core/transfer/conflict_resolver.dart';
 import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/transfer_task.dart';
+import '../../core/transfer/unique_name.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
@@ -13,23 +17,40 @@ class TransferHelpers {
   TransferHelpers._();
 
   /// Enqueue an upload task for [entry] to the remote [remoteDirPath].
-  static void enqueueUpload({
+  ///
+  /// Returns `true` if a task was enqueued, `false` if the transfer
+  /// was skipped (conflict → skip) or cancelled (conflict → cancel).
+  /// Dir entries bypass the conflict check — see class docs.
+  static Future<bool> enqueueUpload({
     required TransferManager manager,
     required SFTPService sftp,
     required FileEntry entry,
     required String remoteDirPath,
     required FilePaneController? remoteCtrl,
     required S loc,
-  }) {
-    final remotePath = p.posix.join(remoteDirPath, entry.name);
+    BatchConflictResolver? conflictResolver,
+  }) async {
+    var remotePath = p.posix.join(remoteDirPath, entry.name);
+
+    if (!entry.isDir && conflictResolver != null) {
+      final resolved = await _resolveUploadConflict(
+        sftp: sftp,
+        targetPath: remotePath,
+        resolver: conflictResolver,
+      );
+      if (resolved == null) return false;
+      remotePath = resolved;
+    }
+
     AppLogger.instance.log(
       'Enqueue upload: ${entry.path} → $remotePath',
       name: 'Transfer',
     );
 
+    final displayName = p.posix.basename(remotePath);
     manager.enqueue(
       TransferTask(
-        name: entry.isDir ? '${entry.name}/' : entry.name,
+        name: entry.isDir ? '${entry.name}/' : displayName,
         direction: TransferDirection.upload,
         sourcePath: entry.path,
         targetPath: remotePath,
@@ -58,26 +79,41 @@ class TransferHelpers {
         },
       ),
     );
+    return true;
   }
 
   /// Enqueue a download task for [entry] to the local [localDirPath].
-  static void enqueueDownload({
+  ///
+  /// Returns `true` if a task was enqueued, `false` if skipped/cancelled.
+  static Future<bool> enqueueDownload({
     required TransferManager manager,
     required SFTPService sftp,
     required FileEntry entry,
     required String localDirPath,
     required FilePaneController? localCtrl,
     required S loc,
-  }) {
-    final localPath = p.join(localDirPath, entry.name);
+    BatchConflictResolver? conflictResolver,
+  }) async {
+    var localPath = p.join(localDirPath, entry.name);
+
+    if (!entry.isDir && conflictResolver != null) {
+      final resolved = await _resolveDownloadConflict(
+        targetPath: localPath,
+        resolver: conflictResolver,
+      );
+      if (resolved == null) return false;
+      localPath = resolved;
+    }
+
     AppLogger.instance.log(
       'Enqueue download: ${entry.path} → $localPath',
       name: 'Transfer',
     );
 
+    final displayName = p.basename(localPath);
     manager.enqueue(
       TransferTask(
-        name: entry.isDir ? '${entry.name}/' : entry.name,
+        name: entry.isDir ? '${entry.name}/' : displayName,
         direction: TransferDirection.download,
         sourcePath: entry.path,
         targetPath: localPath,
@@ -106,5 +142,48 @@ class TransferHelpers {
         },
       ),
     );
+    return true;
+  }
+
+  /// Returns the effective remote path to upload to, or `null` when
+  /// the user chose to skip or cancel. When the user picks "keep
+  /// both", the returned path is a renamed sibling.
+  static Future<String?> _resolveUploadConflict({
+    required SFTPService sftp,
+    required String targetPath,
+    required BatchConflictResolver resolver,
+  }) async {
+    if (!await sftp.exists(targetPath)) return targetPath;
+    final action = await resolver.resolve(targetPath, isRemote: true);
+    switch (action) {
+      case ConflictAction.skip:
+      case ConflictAction.cancel:
+        return null;
+      case ConflictAction.keepBoth:
+        return uniqueSiblingName(targetPath, sftp.exists, isPosix: true);
+      case ConflictAction.replace:
+        return targetPath;
+    }
+  }
+
+  static Future<String?> _resolveDownloadConflict({
+    required String targetPath,
+    required BatchConflictResolver resolver,
+  }) async {
+    if (!await _localExists(targetPath)) return targetPath;
+    final action = await resolver.resolve(targetPath, isRemote: false);
+    switch (action) {
+      case ConflictAction.skip:
+      case ConflictAction.cancel:
+        return null;
+      case ConflictAction.keepBoth:
+        return uniqueSiblingName(targetPath, _localExists);
+      case ConflictAction.replace:
+        return targetPath;
+    }
+  }
+
+  static Future<bool> _localExists(String path) async {
+    return FileSystemEntity.typeSync(path) != FileSystemEntityType.notFound;
   }
 }
