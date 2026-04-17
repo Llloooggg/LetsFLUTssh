@@ -10,6 +10,7 @@ import '../providers/master_password_provider.dart';
 import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
+import '../utils/secret_controller.dart';
 
 /// Full-screen lock overlay shown while [lockStateProvider] is true.
 ///
@@ -39,6 +40,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   @override
   void dispose() {
+    _pwCtrl.wipeAndClear();
     _pwCtrl.dispose();
     _focusNode.dispose();
     super.dispose();

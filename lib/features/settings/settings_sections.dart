@@ -469,6 +469,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         );
       }
     } finally {
+      passwordCtrl.wipeAndClear();
+      confirmCtrl.wipeAndClear();
       passwordCtrl.dispose();
       confirmCtrl.dispose();
     }
@@ -551,6 +553,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         );
       }
     } finally {
+      currentCtrl.wipeAndClear();
+      newCtrl.wipeAndClear();
+      confirmCtrl.wipeAndClear();
       currentCtrl.dispose();
       newCtrl.dispose();
       confirmCtrl.dispose();
@@ -623,6 +628,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         );
       }
     } finally {
+      passwordCtrl.wipeAndClear();
       passwordCtrl.dispose();
     }
   }
@@ -1121,6 +1127,8 @@ class _ExportImportTile extends ConsumerWidget {
         );
       }
     } finally {
+      passwordCtrl.wipeAndClear();
+      confirmCtrl.wipeAndClear();
       passwordCtrl.dispose();
       confirmCtrl.dispose();
     }
@@ -1384,6 +1392,7 @@ class _ExportImportTile extends ConsumerWidget {
         );
       }
     } finally {
+      passwordCtrl.wipeAndClear();
       passwordCtrl.dispose();
     }
   }

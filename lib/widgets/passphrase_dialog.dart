@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
 
 /// Result from passphrase dialog.
@@ -49,6 +50,7 @@ class _PassphraseDialogWidgetState extends State<_PassphraseDialogWidget> {
 
   @override
   void dispose() {
+    _controller.wipeAndClear();
     _controller.dispose();
     super.dispose();
   }

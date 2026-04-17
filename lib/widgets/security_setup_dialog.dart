@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/security/secure_key_storage.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/secret_controller.dart';
 import 'toast.dart';
 
 /// Result of the first-launch security setup wizard.
@@ -70,6 +71,8 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
 
   @override
   void dispose() {
+    _passwordCtrl.wipeAndClear();
+    _confirmCtrl.wipeAndClear();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     _passwordFocus.dispose();
