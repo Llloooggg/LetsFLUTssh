@@ -43,19 +43,19 @@ jobs:
           sudo apt-get install -y libsecret-1-dev
 
       - name: Install dependencies
-        run: flutter pub get
+        run: make deps
 
       - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: make gen
 
       - name: Analyze
-        run: flutter analyze --fatal-infos
+        run: make analyze
 
       - name: Lint workflows
         # actionlint catches YAML / shell / GHA expression bugs that
         # would otherwise only fail at workflow-dispatch time. The
         # local `make lint-workflows` target uses the same pinned
-        # version + ignore filter.
+        # actionlint version + the same ignore config.
         run: make lint-workflows
 
       - name: Verify ARB parity (every locale has the same keys as app_en.arb)
@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Run tests with coverage
-        run: flutter test --coverage
+        run: make test
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
