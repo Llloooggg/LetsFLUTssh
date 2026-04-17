@@ -16,7 +16,8 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
         package-linux package-windows release-linux \
-        deps-linux deps-macos deps-windows fuzz-build hooks help
+        deps-linux deps-macos deps-windows fuzz-build hooks help \
+        lint-workflows
 
 all: build
 
@@ -44,7 +45,46 @@ test: ## Run all tests with coverage
 analyze: ## Run Dart analyzer (fatal on infos, same as CI)
 	$(FLUTTER) analyze --fatal-infos
 
-check: analyze ## Run analyzer + tests (sequential — analyze must pass first)
+# Pinned actionlint version + checksum. Update both together when bumping.
+ACTIONLINT_VERSION := 1.7.5
+ACTIONLINT_LINUX_AMD64_SHA256 := 3e6e0a832dfa0b5f027e6b8956aad2632d69b7cb778b1cff847b40279950a856
+ACTIONLINT_DARWIN_ARM64_SHA256 := 397119f9baa3fd9fe195db340b30acdaea532826e19a047a9cc9d96add7c267d
+ACTIONLINT_BIN := .cache/actionlint/$(ACTIONLINT_VERSION)/actionlint
+
+$(ACTIONLINT_BIN):
+	@mkdir -p $(dir $(ACTIONLINT_BIN))
+	@case "$(UNAME)/$(ARCH)" in \
+		Linux/x86_64) \
+			URL=https://github.com/rhysd/actionlint/releases/download/v$(ACTIONLINT_VERSION)/actionlint_$(ACTIONLINT_VERSION)_linux_amd64.tar.gz; \
+			SHA="$(ACTIONLINT_LINUX_AMD64_SHA256)" ;; \
+		Darwin/arm64) \
+			URL=https://github.com/rhysd/actionlint/releases/download/v$(ACTIONLINT_VERSION)/actionlint_$(ACTIONLINT_VERSION)_darwin_arm64.tar.gz; \
+			SHA="$(ACTIONLINT_DARWIN_ARM64_SHA256)" ;; \
+		*) \
+			echo "actionlint: unsupported host $(UNAME)/$(ARCH) — install actionlint manually and put it on PATH"; \
+			exit 1 ;; \
+	esac && \
+	echo "Downloading actionlint $(ACTIONLINT_VERSION) for $(UNAME)/$(ARCH)..." && \
+	TMP=$$(mktemp -d) && \
+	curl -sSL -o "$$TMP/actionlint.tgz" "$$URL" && \
+	if [ -n "$$SHA" ]; then \
+		echo "$$SHA  $$TMP/actionlint.tgz" | sha256sum -c - || { echo "checksum mismatch"; exit 1; }; \
+	else \
+		echo "WARNING: no pinned checksum for $(UNAME)/$(ARCH) — pin one in the Makefile"; \
+	fi && \
+	tar -xzf "$$TMP/actionlint.tgz" -C "$$TMP" actionlint && \
+	mv "$$TMP/actionlint" "$(ACTIONLINT_BIN)" && \
+	rm -rf "$$TMP"
+
+lint-workflows: $(ACTIONLINT_BIN) ## Lint .github/workflows/*.yml with actionlint (catches YAML + shell + GHA bugs)
+	@echo "Linting workflows..."
+	@# Per-path ignores live in `.github/actionlint.yaml`. Keep them
+	@# narrow — broad disables would defeat the point of running
+	@# actionlint in the first place.
+	@$(ACTIONLINT_BIN) -color
+	@echo "Workflows OK"
+
+check: analyze lint-workflows ## Run analyzer + workflow lint + tests (sequential — analyze + lint must pass first)
 	@$(MAKE) test
 
 hooks: ## Install local git hooks (pre-commit runs make check)
