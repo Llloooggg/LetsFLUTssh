@@ -203,7 +203,14 @@ class SPt extends S {
   String get installNow => 'Instalar Agora';
 
   @override
+  String get openReleasePage => 'Abrir página de lançamento';
+
+  @override
   String get couldNotOpenInstaller => 'Não foi possível abrir o instalador';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Falha ao iniciar o instalador; página de lançamento aberta no navegador';
 
   @override
   String versionAvailable(String version) {
@@ -617,12 +624,6 @@ class SPt extends S {
 
   @override
   String get closeTabsToTheRight => 'Fechar Abas à Direita';
-
-  @override
-  String get sortByName => 'Ordenar por Nome';
-
-  @override
-  String get sortByStatus => 'Ordenar por Status';
 
   @override
   String get noActiveSession => 'Nenhuma sessão ativa';

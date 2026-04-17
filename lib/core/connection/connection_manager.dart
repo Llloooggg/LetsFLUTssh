@@ -78,6 +78,11 @@ class ConnectionManager {
     );
     _connections[id] = conn;
     _notify();
+    // Full structure is preserved on purpose — AppLogger.sanitize
+    // turns it into `Connecting to <host>:<port> as <user>` when the
+    // file is written, so the diagnostic signal ("we tried to auth
+    // with a user") stays readable without leaking the actual
+    // username or hostname.
     AppLogger.instance.log(
       'Connecting to ${config.host}:${config.port} as ${config.user}',
       name: 'Connection',
@@ -123,7 +128,10 @@ class ConnectionManager {
 
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
-      AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
+      AppLogger.instance.log(
+        'Connected: <label> (id=${conn.id})',
+        name: 'Connection',
+      );
     } on TimeoutException {
       if (_isStaleGeneration(conn.id, generation)) {
         sshConn.disconnect();
@@ -223,10 +231,16 @@ class ConnectionManager {
   void disconnect(String id) {
     final conn = _connections[id];
     if (conn == null) return;
-    AppLogger.instance.log('Disconnected: ${conn.label}', name: 'Connection');
+    AppLogger.instance.log(
+      'Disconnected: <label> (id=${conn.id})',
+      name: 'Connection',
+    );
     conn.sshConnection?.disconnect();
     conn.state = SSHConnectionState.disconnected;
     conn.sshConnection = null;
+    // Drop the cached passphrase BEFORE losing the Connection reference
+    // so the GC can reclaim the String once our map stops pinning it.
+    conn.clearCachedCredentials();
     _connections.remove(id);
     _connectGeneration.remove(id);
     _notify();
@@ -240,6 +254,7 @@ class ConnectionManager {
     for (final conn in _connections.values) {
       conn.sshConnection?.disconnect();
       conn.completeReady();
+      conn.clearCachedCredentials();
     }
     _connections.clear();
     _connectGeneration.clear();

@@ -53,6 +53,16 @@ String sanitizeErrorMessage(String message) {
     (m) => '<user>@${m.group(2) ?? '<host>'}',
   );
 
+  // Defence-in-depth: also catch "as <user>" / "user=<user>" shapes
+  // from SSH / dartssh2 error messages that name the authenticating
+  // principal without wrapping it in user@host form. Without this the
+  // username survives every other redaction, which is exactly the leak
+  // the review flagged in `Connecting to ... as burzuf`.
+  message = message.replaceAllMapped(
+    RegExp(r'\b(as|user=|login=)\s*([a-zA-Z0-9_.-]+)'),
+    (m) => '${m.group(1)} <user>',
+  );
+
   // Redact port numbers in host:port patterns
   message = message.replaceAllMapped(
     RegExp(r'(<ip>|[a-zA-Z0-9_.-]+):(\d{2,5})\b'),

@@ -51,16 +51,16 @@ class CertPinning {
 
   /// Per-host SPKI pin lists. Empty list = host is not pinned and falls
   /// through to system CA validation (development / CI default).
+  ///
+  /// NOTE: the GitHub host lists are intentionally empty. Populating
+  /// them requires capturing the SHA-256(SPKI) base64 of GitHub's
+  /// current leaf plus one backup (see the openssl pipeline in the
+  /// class doc above) and refreshing on every rotation. Until that
+  /// operational commitment is made, transport security relies on the
+  /// system CA store only.
   static const Map<String, List<String>> _pins = {
-    'api.github.com': <String>[
-      // TODO(security/SEC-09): populate with the SHA-256(SPKI) base64 of
-      //   GitHub's leaf and one backup. Capture with the openssl pipeline
-      //   in the class doc above. Until populated, transport security
-      //   relies on the system CA store only.
-    ],
-    'objects.githubusercontent.com': <String>[
-      // TODO(security/SEC-09): same as above.
-    ],
+    'api.github.com': <String>[],
+    'objects.githubusercontent.com': <String>[],
   };
 
   /// Return true if the supplied X.509 certificate's SPKI matches one of

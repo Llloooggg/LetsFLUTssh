@@ -7,7 +7,7 @@ set -euo pipefail
 # Bump rules:
 #   BREAKING CHANGE / feat!:  → major
 #   feat:                     → minor
-#   fix: / refactor: / perf: / build: / Dependabot "Bump ..." → patch
+#   fix: / refactor: / perf: / build: / security: / Dependabot "Bump ..." → patch
 #   docs: / test: / ci: / chore: → no bump
 #
 # Usage: scripts/bump-version.sh [--dry-run]
@@ -64,8 +64,10 @@ while IFS= read -r MSG; do
     continue
   fi
 
-  # fix / refactor / perf / build → patch
-  if echo "$MSG" | grep -qE '^(fix|refactor|perf|build)(\([a-z0-9_-]+\))?: '; then
+  # fix / refactor / perf / build / security → patch
+  # `security` is treated like `fix` — a vulnerability / hardening
+  # change is always at least a patch bump.
+  if echo "$MSG" | grep -qE '^(fix|refactor|perf|build|security)(\([a-z0-9_-]+\))?: '; then
     [ "$BUMP" = "none" ] && BUMP="patch"
     continue
   fi

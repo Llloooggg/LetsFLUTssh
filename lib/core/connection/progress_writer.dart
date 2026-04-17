@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:xterm/xterm.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../utils/logger.dart';
 import '../ssh/ssh_config.dart';
 import 'connection_step.dart';
 import 'progress_tracker.dart';
@@ -51,22 +52,40 @@ class ProgressWriter {
   }
 
   /// Write a single progress step to the terminal.
+  ///
+  /// Wrapped in a RangeError guard because xterm's escape parser trips
+  /// `IndexAwareCircularBuffer[-2]` when the terminal has not been
+  /// sized yet but we already write sequences like `\x1B[A` (move
+  /// cursor up) — the progress stream fires during connect, which can
+  /// arrive before the terminal widget has performed its first layout
+  /// pass. The exception bubbles up as an unhandled async error in
+  /// AppLogger / ErrorBoundary even though the visible UI recovers
+  /// fine on the next frame. Swallow it here and log at debug level
+  /// so the user's log file stays readable.
   void writeStep(ConnectionStep step) {
     final label = _phaseLabel(step.phase);
-    switch (step.status) {
-      case StepStatus.inProgress:
-        terminal.write('${_Ansi.yellow}[*]${_Ansi.reset} $label...\r\n');
-      case StepStatus.success:
-        terminal.write(
-          '${_Ansi.moveUpAndClear}'
-          '${_Ansi.green}[✓]${_Ansi.reset} $label\r\n',
-        );
-      case StepStatus.failed:
-        final detail = step.detail != null ? ': ${step.detail}' : '';
-        terminal.write(
-          '${_Ansi.moveUpAndClear}'
-          '${_Ansi.red}[✗]${_Ansi.reset} $label$detail\r\n',
-        );
+    try {
+      switch (step.status) {
+        case StepStatus.inProgress:
+          terminal.write('${_Ansi.yellow}[*]${_Ansi.reset} $label...\r\n');
+        case StepStatus.success:
+          terminal.write(
+            '${_Ansi.moveUpAndClear}'
+            '${_Ansi.green}[✓]${_Ansi.reset} $label\r\n',
+          );
+        case StepStatus.failed:
+          final detail = step.detail != null ? ': ${step.detail}' : '';
+          terminal.write(
+            '${_Ansi.moveUpAndClear}'
+            '${_Ansi.red}[✗]${_Ansi.reset} $label$detail\r\n',
+          );
+      }
+    } on RangeError catch (e) {
+      AppLogger.instance.log(
+        'xterm buffer not ready for progress step (${step.phase.name}/${step.status.name}); skipped',
+        name: 'ProgressWriter',
+        error: e,
+      );
     }
   }
 

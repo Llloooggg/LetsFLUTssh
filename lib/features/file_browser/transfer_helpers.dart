@@ -170,7 +170,20 @@ class TransferHelpers {
     required String targetPath,
     required BatchConflictResolver resolver,
   }) async {
-    if (!await _localExists(targetPath)) return targetPath;
+    final snapshot = _snapshotLocal(targetPath);
+    if (snapshot == null) return targetPath;
+    // Symlink-at-probe is already suspicious — a plain overwrite through
+    // a symlink would follow it to whatever the link target is, which
+    // could be a sensitive file the user never intended to touch (e.g.
+    // `~/Downloads/foo.pdf` being a pre-planted symlink to `~/.ssh/id_ed25519`).
+    // Refuse up front rather than letting the user "replace" into it.
+    if (snapshot.isSymlink) {
+      AppLogger.instance.log(
+        'Refusing download to pre-existing symlink: $targetPath',
+        name: 'Transfer',
+      );
+      return null;
+    }
     final action = await resolver.resolve(targetPath, isRemote: false);
     switch (action) {
       case ConflictAction.skip:
@@ -179,6 +192,20 @@ class TransferHelpers {
       case ConflictAction.keepBoth:
         return uniqueSiblingName(targetPath, _localExists);
       case ConflictAction.replace:
+        // TOCTOU re-check: between probe and the user answering the
+        // prompt, another process could have swapped the file out for a
+        // symlink to a sensitive location or replaced it with a
+        // differently-shaped file. If that happened we refuse to
+        // overwrite — the user's "replace" was consent for the file
+        // they saw, not whatever is there now.
+        final current = _snapshotLocal(targetPath);
+        if (!_localSnapshotsMatch(snapshot, current)) {
+          AppLogger.instance.log(
+            'Local target changed between probe and confirm — aborting: $targetPath',
+            name: 'Transfer',
+          );
+          return null;
+        }
         return targetPath;
     }
   }
@@ -186,4 +213,62 @@ class TransferHelpers {
   static Future<bool> _localExists(String path) async {
     return FileSystemEntity.typeSync(path) != FileSystemEntityType.notFound;
   }
+
+  /// Inode-level snapshot of a local path. Returns null when the path
+  /// does not exist, so a "no target yet → just write" flow can skip
+  /// the TOCTOU check entirely.
+  static _LocalSnapshot? _snapshotLocal(String path) {
+    final type = FileSystemEntity.typeSync(path, followLinks: false);
+    if (type == FileSystemEntityType.notFound) return null;
+    if (type == FileSystemEntityType.link) {
+      return const _LocalSnapshot.symlink();
+    }
+    FileStat? stat;
+    try {
+      stat = FileStat.statSync(path);
+    } catch (_) {
+      return const _LocalSnapshot.unknown();
+    }
+    return _LocalSnapshot(type: type, size: stat.size, modified: stat.modified);
+  }
+
+  static bool _localSnapshotsMatch(_LocalSnapshot a, _LocalSnapshot? b) {
+    if (b == null) return false;
+    if (a.isSymlink || b.isSymlink) return false;
+    return a.type == b.type &&
+        a.size == b.size &&
+        a.modified?.millisecondsSinceEpoch ==
+            b.modified?.millisecondsSinceEpoch;
+  }
+}
+
+/// Shape/identity fingerprint for a local path captured just before a
+/// destructive operation. `size` + `modified` + `type` is coarse
+/// (Dart does not expose the inode number cross-platform) but it
+/// catches the common TOCTOU patterns: file swapped for a symlink,
+/// file replaced with different contents, or file moved and recreated
+/// as a different type.
+class _LocalSnapshot {
+  final FileSystemEntityType? type;
+  final int? size;
+  final DateTime? modified;
+  final bool isSymlink;
+
+  const _LocalSnapshot({
+    required this.type,
+    required this.size,
+    required this.modified,
+  }) : isSymlink = false;
+
+  const _LocalSnapshot.symlink()
+    : type = null,
+      size = null,
+      modified = null,
+      isSymlink = true;
+
+  const _LocalSnapshot.unknown()
+    : type = null,
+      size = null,
+      modified = null,
+      isSymlink = false;
 }

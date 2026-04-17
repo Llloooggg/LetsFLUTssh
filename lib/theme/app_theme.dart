@@ -259,6 +259,42 @@ abstract final class AppTheme {
   /// 38 px — dialog action buttons (Cancel, Connect, etc.).
   static const double controlHeightXl = 38;
 
+  // ── Full-screen modal inset ──
+  //
+  // Settings, Tools, and any other VS-Code-style desktop modal sit in
+  // the middle of the viewport with a symmetric gutter on each side.
+  // Keep the gutter at the same fraction of the viewport across all
+  // modals so they line up visually and feel like siblings, with a
+  // floor of 32 px so the dialog does not collapse on small windows.
+
+  /// Per-side gutter fraction of the viewport width used by desktop
+  /// full-screen modals (Settings, Tools, …). ~7.5% leaves the modal
+  /// ~85% of the viewport wide.
+  static const double desktopModalGutterFraction = 0.075;
+
+  /// Minimum per-side inset in logical pixels — prevents the modal
+  /// from shrinking past a readable minimum on narrow windows.
+  static const double desktopModalMinInset = 32;
+
+  /// Vertical inset used by desktop full-screen modals. Fixed, not
+  /// fractional — the top/bottom gutter does not need to track the
+  /// viewport width.
+  static const double desktopModalVerticalInset = 32;
+
+  /// Symmetric [EdgeInsets] for a desktop full-screen modal positioned
+  /// with the same gutter across every Settings / Tools / similar
+  /// dialog. [viewportWidth] is typically `MediaQuery.sizeOf(context).width`.
+  static EdgeInsets desktopModalInsetPadding(double viewportWidth) {
+    final horizontal = (viewportWidth * desktopModalGutterFraction).clamp(
+      desktopModalMinInset,
+      double.infinity,
+    );
+    return EdgeInsets.symmetric(
+      horizontal: horizontal,
+      vertical: desktopModalVerticalInset,
+    );
+  }
+
   // ── Item height scale ──
   /// 22 px — compact rows: path editors, transfer detail items.
   static const double itemHeightXs = 22;

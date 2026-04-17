@@ -28,9 +28,9 @@
     }
   }
 
-  document.querySelectorAll('.screenshot-clickable img').forEach((img) => {
-    img.style.cursor = 'zoom-in';
-    img.addEventListener('click', () => open(img.src, img.alt));
+  document.addEventListener('click', (e) => {
+    const img = e.target.closest('.screenshot-clickable img');
+    if (img) open(img.src, img.alt);
   });
 
   lightbox.addEventListener('click', (e) => {

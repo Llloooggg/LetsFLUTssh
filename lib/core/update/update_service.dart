@@ -264,9 +264,9 @@ class UpdateService {
   ///   * **Ed25519 release signature** — `<url>.sig` is fetched alongside
   ///     the asset and verified against the pubkeys pinned in
   ///     [ReleaseSigning]. This is the authoritative defence against
-  ///     SEC-10 (GitHub response tampering) — a MITM would have to
-  ///     forge an Ed25519 signature under one of the embedded public
-  ///     keys to slip past.
+  ///     GitHub response tampering — a MITM would have to forge an
+  ///     Ed25519 signature under one of the embedded public keys to
+  ///     slip past.
   ///   * **SHA-256 digest** — secondary, belt-and-suspenders. Catches
   ///     disk corruption and the easy "attacker replaced only the
   ///     binary but not the .sig" case before the signature pass.
@@ -463,6 +463,23 @@ class UpdateService {
 
   /// Characters that must not appear in file paths passed to `cmd /c start`.
   static final _unsafePathChars = RegExp(r'[&|<>^%]');
+
+  /// Platforms where the app can launch a platform-native installer for
+  /// a downloaded artefact (AppImage / .exe / .dmg via `xdg-open` / `cmd
+  /// start` / `open`). Anything outside this set must fall back to
+  /// opening the GitHub release page in a browser instead.
+  ///
+  /// Android is intentionally NOT listed — the APK install flow requires
+  /// REQUEST_INSTALL_PACKAGES + FileProvider + per-app system prompt
+  /// that needs a separate implementation; until that lands, Android
+  /// uses the browser-fallback path like iOS.
+  static const _platformsWithInstaller = {'linux', 'macos', 'windows'};
+
+  /// True when [openFile] can be expected to launch a native installer
+  /// flow on the host platform. UI code uses this to pick the right
+  /// button label ("Install Now" vs "Open Release Page") before the
+  /// user clicks — so the label always matches the action.
+  bool get canLaunchInstaller => _platformsWithInstaller.contains(_platform);
 
   /// Open a downloaded file using the platform's default handler.
   Future<bool> openFile(String path) async {

@@ -181,7 +181,10 @@ class TransferManager {
     final startedAt = DateTime.now();
     var lastPercent = 0.0;
     var lastMessage = '';
-    AppLogger.instance.log('Started: ${entry.task.name}', name: 'Transfer');
+    AppLogger.instance.log(
+      'Started: <name> (id=${entry.id})',
+      name: 'Transfer',
+    );
 
     try {
       final taskFuture = entry.task.run((percent, message) {
@@ -203,7 +206,10 @@ class TransferManager {
 
       await _awaitWithTimeout(taskFuture, entry.id);
 
-      AppLogger.instance.log('Completed: ${entry.task.name}', name: 'Transfer');
+      AppLogger.instance.log(
+        'Completed: <name> (id=${entry.id})',
+        name: 'Transfer',
+      );
       _addHistory(
         HistoryEntry(
           id: entry.id,
@@ -221,7 +227,10 @@ class TransferManager {
         ),
       );
     } on _CancelledException {
-      AppLogger.instance.log('Cancelled: ${entry.task.name}', name: 'Transfer');
+      AppLogger.instance.log(
+        'Cancelled: <name> (id=${entry.id})',
+        name: 'Transfer',
+      );
       _addHistory(
         HistoryEntry(
           id: entry.id,

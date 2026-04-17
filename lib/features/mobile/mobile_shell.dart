@@ -122,14 +122,10 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           const Spacer(),
           Builder(
             builder: (_) {
-              final connections = ref.watch(connectionsProvider).value ?? [];
-              final connectedCount = connections
-                  .where((c) => c.isConnected)
-                  .length;
-              final connectingCount = connections
-                  .where((c) => c.isConnecting)
-                  .length;
-              final activeCount = connectedCount + connectingCount;
+              final summary = ref.watch(connectionSummaryProvider);
+              final connectedCount = summary.connectedTotal;
+              final connectingCount = summary.connectingTotal;
+              final activeCount = summary.activeTotal;
               final savedCount = ref.watch(sessionProvider).length;
               final Color? connectionIconColor;
               if (connectedCount > 0) {
@@ -400,9 +396,6 @@ class _MobileSessionsPage extends ConsumerWidget {
   }
 }
 
-/// Sort order for mobile tab chips.
-enum _TabSort { none, name, status }
-
 /// Horizontal chip-based tab selector shared by terminal and SFTP pages.
 class _MobileTabChipBar extends ConsumerStatefulWidget {
   final List<TabEntry> filteredTabs;
@@ -420,7 +413,6 @@ class _MobileTabChipBar extends ConsumerStatefulWidget {
 class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
   final _scrollController = ScrollController();
   int _previousTabCount = 0;
-  _TabSort _sort = _TabSort.none;
 
   @override
   void initState() {
@@ -448,83 +440,17 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     super.dispose();
   }
 
-  List<TabEntry> get _sortedTabs {
-    final tabs = [...widget.filteredTabs];
-    switch (_sort) {
-      case _TabSort.none:
-        return tabs;
-      case _TabSort.name:
-        tabs.sort((a, b) => a.label.compareTo(b.label));
-        return tabs;
-      case _TabSort.status:
-        tabs.sort((a, b) {
-          final aConn = a.connection.isConnected ? 0 : 1;
-          final bConn = b.connection.isConnected ? 0 : 1;
-          final cmp = aConn.compareTo(bConn);
-          return cmp != 0 ? cmp : a.label.compareTo(b.label);
-        });
-        return tabs;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final sorted = _sortedTabs;
     return SizedBox(
       height: AppTheme.controlHeightLg,
-      child: Row(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.zero,
-              itemCount: sorted.length,
-              itemBuilder: (context, index) => _buildTabChip(sorted[index]),
-            ),
-          ),
-          if (widget.filteredTabs.length > 1) _buildSortButton(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSortButton(BuildContext context) {
-    final s = S.of(context);
-    return PopupMenuButton<_TabSort>(
-      icon: Icon(
-        Icons.sort,
-        size: 16,
-        color: _sort == _TabSort.none ? AppTheme.fgDim : AppTheme.accent,
-      ),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-      tooltip: '',
-      onSelected: (v) => setState(() => _sort = _sort == v ? _TabSort.none : v),
-      itemBuilder: (_) => [
-        _sortItem(_TabSort.name, s.sortByName, Icons.sort_by_alpha),
-        _sortItem(_TabSort.status, s.sortByStatus, Icons.wifi),
-      ],
-    );
-  }
-
-  PopupMenuEntry<_TabSort> _sortItem(
-    _TabSort value,
-    String label,
-    IconData icon,
-  ) {
-    return PopupMenuItem<_TabSort>(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppTheme.fgDim),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(fontSize: AppFonts.sm)),
-          if (_sort == value) ...[
-            const Spacer(),
-            Icon(Icons.check, size: 14, color: AppTheme.accent),
-          ],
-        ],
+      child: ListView.builder(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: widget.filteredTabs.length,
+        itemBuilder: (context, index) =>
+            _buildTabChip(widget.filteredTabs[index]),
       ),
     );
   }

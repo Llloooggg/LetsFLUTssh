@@ -248,9 +248,11 @@
       });
     }
     if (release && release.tag_name) {
-      ctaHtml += '<a href="' + esc(release.html_url)
+      ctaHtml += '<div class="release-tag-row">'
+        + '<a href="' + esc(release.html_url)
         + '" class="release-tag" target="_blank" rel="noopener">'
-        + '&#9660; ' + esc(release.tag_name) + '</a>';
+        + '&#9660; ' + esc(release.tag_name) + '</a>'
+        + '</div>';
     }
     document.getElementById('hero-cta').innerHTML = ctaHtml;
   }

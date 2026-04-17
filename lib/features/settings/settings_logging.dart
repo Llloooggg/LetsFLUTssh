@@ -300,15 +300,25 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
             ),
           ],
         ),
-        // Log content — sized to fit in the settings column without pushing
-        // other sections off-screen. A capped window is enough to skim the
-        // tail and reach the export / clear buttons.
+        // Log content — grow into the rest of the viewport. Previously
+        // the box was capped at 360 px, leaving a large blank gap under
+        // it on tall windows / phones in portrait. Subtracting a
+        // generous chrome budget (~280 px for dialog header, section
+        // header, toolbar, dialog inset on desktop; for mobile the
+        // AppBar + ExpansionTile ancestor is similar) lets the viewer
+        // reach the bottom of the viewport without pushing its own
+        // toolbar off-screen on small devices. Floor stays at 200 px
+        // so a very short window still shows a usable strip.
         LayoutBuilder(
           builder: (context, constraints) {
-            final availableHeight = MediaQuery.of(context).size.height - 200;
+            final viewportHeight = MediaQuery.of(context).size.height;
+            final maxHeight = (viewportHeight - 280).clamp(
+              200.0,
+              double.infinity,
+            );
             return Container(
               width: double.infinity,
-              height: availableHeight.clamp(200.0, 360.0),
+              height: maxHeight,
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: AppTheme.radiusLg,

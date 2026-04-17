@@ -85,7 +85,9 @@
   },
   "downloadComplete": "Download complete",
   "installNow": "Install Now",
+  "openReleasePage": "Open Release Page",
   "couldNotOpenInstaller": "Could not open installer",
+  "installerFailedOpenedReleasePage": "Installer launch failed; opened release page in browser",
   "versionAvailable": "Version {version} available",
   "@versionAvailable": {
     "placeholders": {
@@ -368,8 +370,6 @@
   "closeOthers": "Close Others",
   "closeTabsToTheLeft": "Close Tabs to the Left",
   "closeTabsToTheRight": "Close Tabs to the Right",
-  "sortByName": "Sort by Name",
-  "sortByStatus": "Sort by Status",
   "noActiveSession": "No active session",
   "createConnectionHint": "Create a new connection or select one from the sidebar",
   "hideSidebar": "Hide Sidebar (Ctrl+B)",
@@ -712,7 +712,9 @@
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
   "@autoLockMinutesValue": {
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "errLfsNotArchive": "Selected file is not a LetsFLUTssh archive.",
@@ -720,30 +722,44 @@
   "errLfsArchiveTooLarge": "Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.",
   "@errLfsArchiveTooLarge": {
     "placeholders": {
-      "sizeMb": { "type": "String" },
-      "limitMb": { "type": "String" }
+      "sizeMb": {
+        "type": "String"
+      },
+      "limitMb": {
+        "type": "String"
+      }
     }
   },
   "errLfsKnownHostsTooLarge": "known_hosts entry is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted to keep the import responsive.",
   "@errLfsKnownHostsTooLarge": {
     "description": "Shown when the known_hosts blob inside a successfully decrypted .lfs archive exceeds the per-entry cap.",
     "placeholders": {
-      "sizeMb": { "type": "String" },
-      "limitMb": { "type": "String" }
+      "sizeMb": {
+        "type": "String"
+      },
+      "limitMb": {
+        "type": "String"
+      }
     }
   },
   "errLfsImportRolledBack": "Import failed — your data has been restored to the state before the import. ({cause})",
   "@errLfsImportRolledBack": {
     "description": "Shown after a replace-mode import fails and the pre-import snapshot has been replayed. {cause} is the underlying failure (already localized).",
     "placeholders": {
-      "cause": { "type": "String" }
+      "cause": {
+        "type": "String"
+      }
     }
   },
   "errLfsUnsupportedVersion": "Archive uses schema v{found}, but this build only understands up to v{supported}. Update the app to import it.",
   "@errLfsUnsupportedVersion": {
     "placeholders": {
-      "found": { "type": "int" },
-      "supported": { "type": "int" }
+      "found": {
+        "type": "int"
+      },
+      "supported": {
+        "type": "int"
+      }
     }
   },
   "progressReadingArchive": "Reading archive…",
@@ -1110,7 +1126,6 @@
   "passphraseWrong": "Wrong passphrase. Please try again.",
   "passphrase": "Passphrase",
   "rememberPassphrase": "Remember for this session",
-  "unlock": "Unlock",
   "masterPasswordSubtitle": "Protect saved credentials with a password",
   "setMasterPassword": "Set Master Password",
   "changeMasterPassword": "Change Master Password",

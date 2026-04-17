@@ -202,8 +202,15 @@ class SDe extends S {
   String get installNow => 'Jetzt installieren';
 
   @override
+  String get openReleasePage => 'Release-Seite öffnen';
+
+  @override
   String get couldNotOpenInstaller =>
       'Installationsprogramm konnte nicht geöffnet werden';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Installationsprogramm konnte nicht gestartet werden; Release-Seite im Browser geöffnet';
 
   @override
   String versionAvailable(String version) {
@@ -619,12 +626,6 @@ class SDe extends S {
 
   @override
   String get closeTabsToTheRight => 'Tabs rechts schließen';
-
-  @override
-  String get sortByName => 'Nach Name sortieren';
-
-  @override
-  String get sortByStatus => 'Nach Status sortieren';
 
   @override
   String get noActiveSession => 'Keine aktive Sitzung';

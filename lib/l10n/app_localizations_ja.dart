@@ -198,7 +198,14 @@ class SJa extends S {
   String get installNow => '今すぐインストール';
 
   @override
+  String get openReleasePage => 'リリースページを開く';
+
+  @override
   String get couldNotOpenInstaller => 'インストーラーを開けませんでした';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'インストーラーの起動に失敗しました。ブラウザーでリリースページを開きました';
 
   @override
   String versionAvailable(String version) {
@@ -606,12 +613,6 @@ class SJa extends S {
 
   @override
   String get closeTabsToTheRight => '右のタブを閉じる';
-
-  @override
-  String get sortByName => '名前で並べ替え';
-
-  @override
-  String get sortByStatus => 'ステータスで並べ替え';
 
   @override
   String get noActiveSession => 'アクティブなセッションがありません';

@@ -203,7 +203,14 @@ class SHi extends S {
   String get installNow => 'अभी इंस्टॉल करें';
 
   @override
+  String get openReleasePage => 'रिलीज़ पेज खोलें';
+
+  @override
   String get couldNotOpenInstaller => 'इंस्टॉलर नहीं खुल सका';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'इंस्टॉलर लॉन्च विफल; ब्राउज़र में रिलीज़ पेज खोला गया';
 
   @override
   String versionAvailable(String version) {
@@ -615,12 +622,6 @@ class SHi extends S {
 
   @override
   String get closeTabsToTheRight => 'दाईं ओर के टैब बंद करें';
-
-  @override
-  String get sortByName => 'नाम से क्रमबद्ध करें';
-
-  @override
-  String get sortByStatus => 'स्थिति से क्रमबद्ध करें';
 
   @override
   String get noActiveSession => 'कोई सक्रिय सत्र नहीं';

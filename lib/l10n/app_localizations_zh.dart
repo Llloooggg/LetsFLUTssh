@@ -198,7 +198,13 @@ class SZh extends S {
   String get installNow => '立即安装';
 
   @override
+  String get openReleasePage => '打开发布页面';
+
+  @override
   String get couldNotOpenInstaller => '无法打开安装程序';
+
+  @override
+  String get installerFailedOpenedReleasePage => '启动安装程序失败；已在浏览器中打开发布页面';
 
   @override
   String versionAvailable(String version) {
@@ -604,12 +610,6 @@ class SZh extends S {
 
   @override
   String get closeTabsToTheRight => '关闭右侧标签页';
-
-  @override
-  String get sortByName => '按名称排序';
-
-  @override
-  String get sortByStatus => '按状态排序';
 
   @override
   String get noActiveSession => '没有活动会话';

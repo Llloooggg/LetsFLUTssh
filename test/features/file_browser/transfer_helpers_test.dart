@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/sftp/sftp_client.dart';
@@ -7,6 +9,7 @@ import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_helpers.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:path/path.dart' as p;
 
 class _FakeLoc implements S {
   @override
@@ -339,6 +342,139 @@ void main() {
       expect(enqueued, isTrue);
       expect(manager.capturedTasks, hasLength(1));
     });
+  });
+
+  group('TransferHelpers.enqueueDownload — TOCTOU local overwrite guard', () {
+    late Directory tmpDir;
+
+    setUp(() {
+      tmpDir = Directory.systemTemp.createTempSync('xfer-toctou-');
+    });
+
+    tearDown(() {
+      if (tmpDir.existsSync()) {
+        tmpDir.deleteSync(recursive: true);
+      }
+    });
+
+    FileEntry remoteEntry(String name) => FileEntry(
+      name: name,
+      path: '/srv/data/$name',
+      size: 999,
+      modTime: DateTime(2026, 4, 17),
+      isDir: false,
+    );
+
+    BatchConflictResolver resolverYielding(ConflictAction action) {
+      return BatchConflictResolver(
+        (_, {bool isRemote = false}) async => ConflictDecision(action),
+      );
+    }
+
+    test(
+      'refuses to overwrite a pre-existing local symlink (replace blocked)',
+      () async {
+        const targetName = 'bookkeeping.pdf';
+        final targetPath = p.join(tmpDir.path, targetName);
+        // Bait: a symlink planted at the target path before the dialog
+        // is even shown. A naive overwrite would follow the link to
+        // the pointed-at file (here a "sensitive" scratch file) and
+        // clobber it.
+        final sensitive = File(p.join(tmpDir.path, 'id_ed25519'))
+          ..writeAsStringSync('pretend-private-key');
+        Link(targetPath).createSync(sensitive.path);
+
+        final enqueued = await TransferHelpers.enqueueDownload(
+          manager: manager,
+          sftp: fakeSftp,
+          entry: remoteEntry(targetName),
+          localDirPath: tmpDir.path,
+          localCtrl: null,
+          loc: fakeLoc,
+          conflictResolver: resolverYielding(ConflictAction.replace),
+        );
+
+        expect(
+          enqueued,
+          isFalse,
+          reason:
+              'replace through a pre-existing symlink must be refused — '
+              'the user cannot have given informed consent for the link target',
+        );
+        expect(manager.capturedTasks, isEmpty);
+        // The "sensitive" file must remain untouched.
+        expect(sensitive.readAsStringSync(), 'pretend-private-key');
+      },
+    );
+
+    test(
+      'aborts replace when the target is swapped between probe and confirm',
+      () async {
+        const targetName = 'config.json';
+        final targetPath = p.join(tmpDir.path, targetName);
+        // Original file present at probe time — 10 bytes.
+        File(targetPath).writeAsStringSync('original!!');
+
+        // The resolver runs between the probe stat and the post-confirm
+        // re-stat. Simulate an attacker replacing the file during the
+        // dialog by rewriting it inside the prompt callback.
+        final raceResolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          // Overwrite with a different size + mtime shape so the
+          // post-confirm snapshot can't match the pre-probe one.
+          final replacement = File(path);
+          replacement.deleteSync();
+          replacement.writeAsStringSync(
+            'REPLACED with more bytes — different size',
+          );
+          return const ConflictDecision(ConflictAction.replace);
+        });
+
+        final enqueued = await TransferHelpers.enqueueDownload(
+          manager: manager,
+          sftp: fakeSftp,
+          entry: remoteEntry(targetName),
+          localDirPath: tmpDir.path,
+          localCtrl: null,
+          loc: fakeLoc,
+          conflictResolver: raceResolver,
+        );
+
+        expect(
+          enqueued,
+          isFalse,
+          reason:
+              'the file the user consented to replace is no longer what is '
+              'there now — the overwrite must be aborted',
+        );
+        expect(manager.capturedTasks, isEmpty);
+      },
+    );
+
+    test(
+      'replace proceeds when the target snapshot matches on re-check',
+      () async {
+        const targetName = 'ok.txt';
+        final targetPath = p.join(tmpDir.path, targetName);
+        File(targetPath).writeAsStringSync('steady state');
+
+        final enqueued = await TransferHelpers.enqueueDownload(
+          manager: manager,
+          sftp: fakeSftp,
+          entry: remoteEntry(targetName),
+          localDirPath: tmpDir.path,
+          localCtrl: null,
+          loc: fakeLoc,
+          conflictResolver: resolverYielding(ConflictAction.replace),
+        );
+
+        expect(enqueued, isTrue);
+        expect(manager.capturedTasks, hasLength(1));
+        expect(manager.capturedTasks.single.targetPath, targetPath);
+      },
+    );
   });
 
   test('multiple enqueues increase queue length cumulatively', () {

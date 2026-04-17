@@ -204,7 +204,14 @@ class SFr extends S {
   String get installNow => 'Installer maintenant';
 
   @override
+  String get openReleasePage => 'Ouvrir la page de release';
+
+  @override
   String get couldNotOpenInstaller => 'Impossible d\'ouvrir l\'installateur';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Échec du lancement de l\'installateur; page de release ouverte dans le navigateur';
 
   @override
   String versionAvailable(String version) {
@@ -620,12 +627,6 @@ class SFr extends S {
 
   @override
   String get closeTabsToTheRight => 'Fermer les onglets à droite';
-
-  @override
-  String get sortByName => 'Trier par nom';
-
-  @override
-  String get sortByStatus => 'Trier par statut';
 
   @override
   String get noActiveSession => 'Aucune session active';

@@ -200,7 +200,14 @@ class SAr extends S {
   String get installNow => 'تثبيت الآن';
 
   @override
+  String get openReleasePage => 'فتح صفحة الإصدار';
+
+  @override
   String get couldNotOpenInstaller => 'تعذر فتح المثبّت';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'تعذر تشغيل المثبّت؛ تم فتح صفحة الإصدار في المتصفح';
 
   @override
   String versionAvailable(String version) {
@@ -620,12 +627,6 @@ class SAr extends S {
 
   @override
   String get closeTabsToTheRight => 'إغلاق علامات التبويب على اليمين';
-
-  @override
-  String get sortByName => 'ترتيب حسب الاسم';
-
-  @override
-  String get sortByStatus => 'ترتيب حسب الحالة';
 
   @override
   String get noActiveSession => 'لا توجد جلسة نشطة';

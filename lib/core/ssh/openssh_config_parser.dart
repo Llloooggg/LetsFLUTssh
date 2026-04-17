@@ -243,37 +243,63 @@ String _expandIncludes(
   }
   final buffer = StringBuffer();
   for (final rawLine in const LineSplitter().convert(content)) {
-    final line = _stripComment(rawLine).trim();
-    if (line.isEmpty) {
+    final expansion = _maybeExpandIncludeLine(
+      rawLine,
+      reader,
+      baseDir,
+      remainingDepth,
+      visited,
+    );
+    if (expansion == null) {
       buffer.writeln(rawLine);
-      continue;
+    } else {
+      buffer.write(expansion);
     }
-    final (keyword, value) = _splitKeywordValue(line);
-    if (keyword == null ||
-        value == null ||
-        keyword.toLowerCase() != 'include') {
-      buffer.writeln(rawLine);
-      continue;
-    }
-    // Each whitespace-separated token is a pattern — e.g.
-    // `Include config.d/* extra`. The whole line is replaced with the
-    // concatenated contents of every matched file so host blocks from the
-    // included config read as if they were inline.
-    for (final token in _splitHostPatterns(value)) {
-      for (final resolved in _resolveIncludePaths(token, baseDir)) {
-        if (!visited.add(resolved)) continue;
-        final included = reader(resolved);
-        if (included == null) continue;
-        buffer.writeln(
-          _expandIncludes(
-            included,
-            reader,
-            baseDir,
-            remainingDepth - 1,
-            visited,
-          ),
-        );
-      }
+  }
+  return buffer.toString();
+}
+
+/// Returns the expanded content for [rawLine] if it is a valid `Include`
+/// directive, otherwise null so the caller can pass the line through
+/// unchanged. Blank lines, comments, and non-Include directives all return
+/// null — only a well-formed `Include <tokens>` line produces expansion
+/// output.
+String? _maybeExpandIncludeLine(
+  String rawLine,
+  IncludeReader reader,
+  String baseDir,
+  int remainingDepth,
+  Set<String> visited,
+) {
+  final line = _stripComment(rawLine).trim();
+  if (line.isEmpty) return null;
+  final (keyword, value) = _splitKeywordValue(line);
+  if (keyword == null || value == null || keyword.toLowerCase() != 'include') {
+    return null;
+  }
+  return _expandIncludeTokens(value, reader, baseDir, remainingDepth, visited);
+}
+
+/// Resolve and concatenate every file referenced by a single `Include`
+/// directive. Each whitespace-separated token is a pattern — e.g.
+/// `Include config.d/* extra`. The contents of every matched file are
+/// emitted inline so host blocks read as if they were written in place.
+String _expandIncludeTokens(
+  String value,
+  IncludeReader reader,
+  String baseDir,
+  int remainingDepth,
+  Set<String> visited,
+) {
+  final buffer = StringBuffer();
+  for (final token in _splitHostPatterns(value)) {
+    for (final resolved in _resolveIncludePaths(token, baseDir)) {
+      if (!visited.add(resolved)) continue;
+      final included = reader(resolved);
+      if (included == null) continue;
+      buffer.writeln(
+        _expandIncludes(included, reader, baseDir, remainingDepth - 1, visited),
+      );
     }
   }
   return buffer.toString();
