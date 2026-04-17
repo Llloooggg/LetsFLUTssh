@@ -69,6 +69,60 @@ void main() {
       });
     });
 
+    test(
+      'connectionSummaryProvider is empty when no connections are registered',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final summary = container.read(connectionSummaryProvider);
+        expect(summary.connectedTotal, 0);
+        expect(summary.connectingTotal, 0);
+        expect(summary.connectedSessionIds, isEmpty);
+        expect(summary.connectingSessionIds, isEmpty);
+        expect(summary.activeTotal, 0);
+      },
+    );
+
+    test('ConnectionSummary value-equality ignores set insertion order', () {
+      // Riverpod short-circuits rebuilds by comparing the new value
+      // with the previous one via `==`. If a stream re-emits the same
+      // connected/connecting state but the underlying set iteration
+      // order happens to differ, we still want `==` to be true so
+      // consumers (sidebar footer, session tree tinting) skip the
+      // rebuild. Lock that contract here.
+      final a = ConnectionSummary(
+        connectedSessionIds: const {'s1', 's2'},
+        connectingSessionIds: const {'s3'},
+        connectedTotal: 2,
+        connectingTotal: 1,
+      );
+      final b = ConnectionSummary(
+        connectedSessionIds: const {'s2', 's1'},
+        connectingSessionIds: const {'s3'},
+        connectedTotal: 2,
+        connectingTotal: 1,
+      );
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('ConnectionSummary distinguishes different state buckets', () {
+      final connected = ConnectionSummary(
+        connectedSessionIds: const {'s1'},
+        connectingSessionIds: const {},
+        connectedTotal: 1,
+        connectingTotal: 0,
+      );
+      final connecting = ConnectionSummary(
+        connectedSessionIds: const {},
+        connectingSessionIds: const {'s1'},
+        connectedTotal: 0,
+        connectingTotal: 1,
+      );
+      expect(connected, isNot(equals(connecting)));
+    });
+
     test('connectionManagerProvider disposes on container dispose', () async {
       final container = ProviderContainer();
       final manager = container.read(connectionManagerProvider);

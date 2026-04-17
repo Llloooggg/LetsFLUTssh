@@ -122,14 +122,10 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           const Spacer(),
           Builder(
             builder: (_) {
-              final connections = ref.watch(connectionsProvider).value ?? [];
-              final connectedCount = connections
-                  .where((c) => c.isConnected)
-                  .length;
-              final connectingCount = connections
-                  .where((c) => c.isConnecting)
-                  .length;
-              final activeCount = connectedCount + connectingCount;
+              final summary = ref.watch(connectionSummaryProvider);
+              final connectedCount = summary.connectedTotal;
+              final connectingCount = summary.connectingTotal;
+              final activeCount = summary.activeTotal;
               final savedCount = ref.watch(sessionProvider).length;
               final Color? connectionIconColor;
               if (connectedCount > 0) {

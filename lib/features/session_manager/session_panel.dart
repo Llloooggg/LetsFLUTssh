@@ -260,15 +260,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   ({Set<String> connected, Set<String> connecting}) _connectionSessionIds(
     WidgetRef ref,
   ) {
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    final connected = <String>{};
-    final connecting = <String>{};
-    for (final c in connections) {
-      if (c.sessionId == null) continue;
-      if (c.isConnected) connected.add(c.sessionId!);
-      if (c.isConnecting) connecting.add(c.sessionId!);
-    }
-    return (connected: connected, connecting: connecting);
+    // Watch the derived summary, not the raw stream — a cachedPassphrase
+    // write or a progress-step append on an unrelated connection does
+    // not change which session ids belong to which bucket, so value
+    // equality on ConnectionSummary suppresses the rebuild.
+    final summary = ref.watch(connectionSummaryProvider);
+    return (
+      connected: summary.connectedSessionIds,
+      connecting: summary.connectingSessionIds,
+    );
   }
 
   /// Copy the focused session to the clipboard.
@@ -1470,10 +1470,10 @@ class _SidebarFooter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedCount = ref.watch(sessionProvider).length;
-    final connections = ref.watch(connectionsProvider).value ?? [];
-    final connectedCount = connections.where((c) => c.isConnected).length;
-    final connectingCount = connections.where((c) => c.isConnecting).length;
-    final activeCount = connectedCount + connectingCount;
+    final summary = ref.watch(connectionSummaryProvider);
+    final connectedCount = summary.connectedTotal;
+    final connectingCount = summary.connectingTotal;
+    final activeCount = summary.activeTotal;
     final ws = ref.watch(workspaceProvider);
     final tabCount = collectAllTabs(ws.root).length;
 
