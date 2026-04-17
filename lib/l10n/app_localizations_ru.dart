@@ -202,7 +202,14 @@ class SRu extends S {
   String get installNow => 'Установить сейчас';
 
   @override
+  String get openReleasePage => 'Открыть страницу релиза';
+
+  @override
   String get couldNotOpenInstaller => 'Не удалось открыть установщик';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Не удалось запустить установщик; открыта страница релиза в браузере';
 
   @override
   String versionAvailable(String version) {

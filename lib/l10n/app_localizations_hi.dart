@@ -203,7 +203,14 @@ class SHi extends S {
   String get installNow => 'अभी इंस्टॉल करें';
 
   @override
+  String get openReleasePage => 'रिलीज़ पेज खोलें';
+
+  @override
   String get couldNotOpenInstaller => 'इंस्टॉलर नहीं खुल सका';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'इंस्टॉलर लॉन्च विफल; ब्राउज़र में रिलीज़ पेज खोला गया';
 
   @override
   String versionAvailable(String version) {

@@ -203,7 +203,14 @@ class SEs extends S {
   String get installNow => 'Instalar ahora';
 
   @override
+  String get openReleasePage => 'Abrir página de lanzamiento';
+
+  @override
   String get couldNotOpenInstaller => 'No se pudo abrir el instalador';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'No se pudo iniciar el instalador; se abrió la página de lanzamiento en el navegador';
 
   @override
   String versionAvailable(String version) {

@@ -85,7 +85,9 @@
   },
   "downloadComplete": "Download complete",
   "installNow": "Install Now",
+  "openReleasePage": "Open Release Page",
   "couldNotOpenInstaller": "Could not open installer",
+  "installerFailedOpenedReleasePage": "Installer launch failed; opened release page in browser",
   "versionAvailable": "Version {version} available",
   "@versionAvailable": {
     "placeholders": {

@@ -204,7 +204,14 @@ class STr extends S {
   String get installNow => 'Şimdi Kur';
 
   @override
+  String get openReleasePage => 'Yayın Sayfasını Aç';
+
+  @override
   String get couldNotOpenInstaller => 'Yükleyici açılamadı';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Yükleyici başlatılamadı; tarayıcıda yayın sayfası açıldı';
 
   @override
   String versionAvailable(String version) {

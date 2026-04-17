@@ -200,7 +200,14 @@ class SAr extends S {
   String get installNow => 'تثبيت الآن';
 
   @override
+  String get openReleasePage => 'فتح صفحة الإصدار';
+
+  @override
   String get couldNotOpenInstaller => 'تعذر فتح المثبّت';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'تعذر تشغيل المثبّت؛ تم فتح صفحة الإصدار في المتصفح';
 
   @override
   String versionAvailable(String version) {

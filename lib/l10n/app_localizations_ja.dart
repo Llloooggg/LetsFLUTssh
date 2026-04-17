@@ -198,7 +198,14 @@ class SJa extends S {
   String get installNow => '今すぐインストール';
 
   @override
+  String get openReleasePage => 'リリースページを開く';
+
+  @override
   String get couldNotOpenInstaller => 'インストーラーを開けませんでした';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'インストーラーの起動に失敗しました。ブラウザーでリリースページを開きました';
 
   @override
   String versionAvailable(String version) {

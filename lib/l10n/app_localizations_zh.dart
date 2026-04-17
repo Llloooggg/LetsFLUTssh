@@ -198,7 +198,13 @@ class SZh extends S {
   String get installNow => '立即安装';
 
   @override
+  String get openReleasePage => '打开发布页面';
+
+  @override
   String get couldNotOpenInstaller => '无法打开安装程序';
+
+  @override
+  String get installerFailedOpenedReleasePage => '启动安装程序失败；已在浏览器中打开发布页面';
 
   @override
   String versionAvailable(String version) {

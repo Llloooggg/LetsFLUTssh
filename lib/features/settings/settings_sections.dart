@@ -1836,24 +1836,62 @@ class _UpdateSection extends ConsumerWidget {
             spacing: 8,
             children: [
               _ChangelogButton(changelog: updateState.info?.changelog),
-              FilledButton.icon(
-                onPressed: () async {
-                  final ok = await ref.read(updateProvider.notifier).install();
-                  if (!ok && context.mounted) {
-                    Toast.show(
-                      context,
-                      message: S.of(context).couldNotOpenInstaller,
-                      level: ToastLevel.error,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.install_desktop, size: 18),
-                label: Text(S.of(context).installNow),
-              ),
+              _InstallOrOpenReleaseButton(),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Action button for a ready-to-install update. On platforms that can
+/// launch a native installer (desktop), the button says "Install Now"
+/// and triggers the installer. On platforms without an in-app installer
+/// (mobile / unknown / fallback after runtime failure), it says
+/// "Open Release Page" and launches the browser instead — so the label
+/// always matches the action the user is about to take.
+class _InstallOrOpenReleaseButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(updateProvider.notifier);
+    final canInstall = notifier.canLaunchInstaller;
+
+    if (!canInstall) {
+      return FilledButton.icon(
+        onPressed: () async {
+          final ok = await notifier.openReleasePage();
+          if (!ok && context.mounted) {
+            Toast.show(
+              context,
+              message: S.of(context).couldNotOpenInstaller,
+              level: ToastLevel.error,
+            );
+          }
+        },
+        icon: const Icon(Icons.open_in_new, size: 18),
+        label: Text(S.of(context).openReleasePage),
+      );
+    }
+
+    return FilledButton.icon(
+      onPressed: () async {
+        final ok = await notifier.install();
+        if (ok || !context.mounted) return;
+        // Installer launch failed at runtime — fall back to opening the
+        // release page in the browser so the user has a path forward.
+        final fallback = await notifier.openReleasePage();
+        if (!context.mounted) return;
+        Toast.show(
+          context,
+          message: fallback
+              ? S.of(context).installerFailedOpenedReleasePage
+              : S.of(context).couldNotOpenInstaller,
+          level: ToastLevel.error,
+        );
+      },
+      icon: const Icon(Icons.install_desktop, size: 18),
+      label: Text(S.of(context).installNow),
     );
   }
 }

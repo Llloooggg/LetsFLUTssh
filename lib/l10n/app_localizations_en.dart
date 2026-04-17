@@ -202,7 +202,14 @@ class SEn extends S {
   String get installNow => 'Install Now';
 
   @override
+  String get openReleasePage => 'Open Release Page';
+
+  @override
   String get couldNotOpenInstaller => 'Could not open installer';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Installer launch failed; opened release page in browser';
 
   @override
   String versionAvailable(String version) {

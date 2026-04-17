@@ -201,7 +201,14 @@ class SVi extends S {
   String get installNow => 'Cài đặt ngay';
 
   @override
+  String get openReleasePage => 'Mở trang phát hành';
+
+  @override
   String get couldNotOpenInstaller => 'Không thể mở trình cài đặt';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Không thể khởi chạy trình cài đặt; đã mở trang phát hành trong trình duyệt';
 
   @override
   String versionAvailable(String version) {

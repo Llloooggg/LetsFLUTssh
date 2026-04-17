@@ -489,11 +489,23 @@ abstract class S {
   /// **'Install Now'**
   String get installNow;
 
+  /// No description provided for @openReleasePage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Release Page'**
+  String get openReleasePage;
+
   /// No description provided for @couldNotOpenInstaller.
   ///
   /// In en, this message translates to:
   /// **'Could not open installer'**
   String get couldNotOpenInstaller;
+
+  /// No description provided for @installerFailedOpenedReleasePage.
+  ///
+  /// In en, this message translates to:
+  /// **'Installer launch failed; opened release page in browser'**
+  String get installerFailedOpenedReleasePage;
 
   /// No description provided for @versionAvailable.
   ///

@@ -203,7 +203,14 @@ class SId extends S {
   String get installNow => 'Pasang Sekarang';
 
   @override
+  String get openReleasePage => 'Buka Halaman Rilis';
+
+  @override
   String get couldNotOpenInstaller => 'Tidak dapat membuka penginstal';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Peluncuran penginstal gagal; halaman rilis dibuka di browser';
 
   @override
   String versionAvailable(String version) {

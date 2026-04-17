@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/update/update_service.dart';
 import 'version_provider.dart';
@@ -145,7 +146,14 @@ class UpdateNotifier extends Notifier<UpdateState> {
     }
   }
 
-  /// Open the downloaded installer file.
+  /// True when the current platform can launch a native installer from
+  /// a downloaded artefact. UI uses this to pick between "Install Now"
+  /// and "Open Release Page" before the user clicks.
+  bool get canLaunchInstaller => _service.canLaunchInstaller;
+
+  /// Open the downloaded installer file. Returns false if the platform
+  /// has no launcher wired up or if the launcher call failed; callers
+  /// should then fall back to [openReleasePage].
   Future<bool> install() async {
     final path = state.downloadedPath;
     if (path == null) return false;
@@ -155,6 +163,26 @@ class UpdateNotifier extends Notifier<UpdateState> {
       Future.delayed(const Duration(seconds: 5), () => _cleanupFile(path));
     }
     return ok;
+  }
+
+  /// Open the GitHub release page in the system browser. Used both as a
+  /// deliberate action on platforms without an in-app installer
+  /// (`canLaunchInstaller == false`) and as a runtime fallback when
+  /// [install] returns false on a supposedly-supported platform.
+  Future<bool> openReleasePage() async {
+    final url = state.info?.releaseUrl;
+    if (url == null || url.isEmpty) return false;
+    try {
+      final uri = Uri.parse(url);
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to open release page',
+        name: 'UpdateProvider',
+        error: e,
+      );
+      return false;
+    }
   }
 
   /// Delete previously downloaded update files in [dir] before starting a

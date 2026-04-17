@@ -202,7 +202,14 @@ class SFa extends S {
   String get installNow => 'نصب اکنون';
 
   @override
+  String get openReleasePage => 'باز کردن صفحه انتشار';
+
+  @override
   String get couldNotOpenInstaller => 'نصب‌کننده باز نشد';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'اجرای نصب‌کننده ناموفق بود؛ صفحه انتشار در مرورگر باز شد';
 
   @override
   String versionAvailable(String version) {

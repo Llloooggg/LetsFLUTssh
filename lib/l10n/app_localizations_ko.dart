@@ -198,7 +198,14 @@ class SKo extends S {
   String get installNow => '지금 설치';
 
   @override
+  String get openReleasePage => '릴리스 페이지 열기';
+
+  @override
   String get couldNotOpenInstaller => '설치 프로그램을 열 수 없습니다';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      '설치 프로그램 실행 실패; 브라우저에서 릴리스 페이지 열림';
 
   @override
   String versionAvailable(String version) {

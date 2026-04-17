@@ -202,8 +202,15 @@ class SDe extends S {
   String get installNow => 'Jetzt installieren';
 
   @override
+  String get openReleasePage => 'Release-Seite öffnen';
+
+  @override
   String get couldNotOpenInstaller =>
       'Installationsprogramm konnte nicht geöffnet werden';
+
+  @override
+  String get installerFailedOpenedReleasePage =>
+      'Installationsprogramm konnte nicht gestartet werden; Release-Seite im Browser geöffnet';
 
   @override
   String versionAvailable(String version) {
