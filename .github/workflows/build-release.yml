@@ -276,39 +276,65 @@ jobs:
         # don't carry an Apple-rooted cert — Apple Developer ID is out
         # of scope (no external paid accounts).
         #
-        # Sign bottom-up rather than relying on `--deep`:
-        #   * `--deep` is deprecated by Apple and has known bugs where it
-        #     silently skips nested frameworks, leaving them with their
-        #     original Xcode-injected Team ID while the outer bundle
-        #     ends up ad-hoc signed (empty Team ID). macOS 26 (Tahoe)
-        #     dyld enforces Team ID consistency at load time and halts
-        #     with "mapping process and mapped file (non-platform) have
-        #     different Team IDs" — the 5.6.0 launch crash.
-        #   * Signing every .framework / .dylib first, then the outer
-        #     .app last, guarantees one consistent ad-hoc (empty) Team
-        #     ID across the whole bundle.
+        # Sign every Mach-O binary first, then framework / dylib
+        # bundles, then the outer .app — strictly post-order:
+        #   * `--deep` is deprecated by Apple and has known bugs where
+        #     it silently skips nested frameworks, leaving them with
+        #     their original Xcode-injected Team ID while the outer
+        #     bundle ends up ad-hoc signed (empty Team ID).
+        #   * Signing only the framework *bundle* (without recursing
+        #     into the inner binary) is what bit us in 5.6.0 AND 5.8.0:
+        #     `codesign --force "$fw"` rewrites the bundle's signature
+        #     but does NOT always replace the Team ID baked into the
+        #     inner Mach-O binary. macOS 26 (Tahoe) dyld then halts at
+        #     launch with "mapping process and mapped file (non-platform)
+        #     have different Team IDs".
+        #   * Post-order `find -depth` + explicit Mach-O-first signing
+        #     guarantees one uniform ad-hoc (empty) Team ID across every
+        #     loadable artefact in the bundle.
         run: |
           set -euxo pipefail
           APP="build/macos/Build/Products/Release/letsflutssh.app"
-          # Sign nested frameworks first — leaves before roots.
+
+          # 1) Sign every Mach-O binary directly (framework inners,
+          # dylibs, plugin executables). `file --mime-type` identifies
+          # Mach-O reliably; `-depth` ensures leaves are signed before
+          # their containers.
+          while IFS= read -r -d '' f; do
+            case "$(file -b --mime-type "$f")" in
+              application/x-mach-binary)
+                codesign --force --sign - \
+                  --options=runtime --timestamp=none "$f"
+                ;;
+            esac
+          done < <(find "$APP" -depth -type f -print0)
+
+          # 2) Sign every framework bundle (post-order), now that their
+          # inner binary is already ad-hoc.
           if [ -d "$APP/Contents/Frameworks" ]; then
             while IFS= read -r -d '' fw; do
-              codesign --force --sign - --options=runtime --timestamp=none "$fw"
-            done < <(find "$APP/Contents/Frameworks" -type d -name "*.framework" -print0)
-            while IFS= read -r -d '' dy; do
-              codesign --force --sign - --options=runtime --timestamp=none "$dy"
-            done < <(find "$APP/Contents/Frameworks" -type f -name "*.dylib" -print0)
+              codesign --force --sign - \
+                --options=runtime --timestamp=none "$fw"
+            done < <(find "$APP/Contents/Frameworks" -depth -type d \
+              -name "*.framework" -print0)
           fi
-          # Top-level app bundle last so the outer signature covers the
-          # now-uniformly-signed frameworks.
+
+          # 3) Outer app bundle last so the outer signature covers
+          # everything that's now uniformly ad-hoc.
           codesign --force --sign - --options=runtime --timestamp=none "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
-          # Extra sanity: every nested binary must now be ad-hoc signed.
-          # Fail loud if any item still carries a non-ad-hoc Team ID.
+
+          # Sanity gate: every Mach-O binary in the bundle must carry an
+          # ad-hoc signature. Framework binaries live at
+          # `.../$NAME.framework/Versions/A/$NAME` so a `-path
+          # '*/MacOS/*'` filter misses them — inspect every file and
+          # only assert on Mach-O.
           while IFS= read -r -d '' bin; do
-            codesign -dv "$bin" 2>&1 | grep -q 'Signature=adhoc' \
-              || { echo "::error::Not ad-hoc signed: $bin"; exit 1; }
-          done < <(find "$APP/Contents" -type f \( -name '*.dylib' -o -path '*/MacOS/*' \) -print0)
+            if [ "$(file -b --mime-type "$bin")" = application/x-mach-binary ]; then
+              codesign -dv "$bin" 2>&1 | grep -q 'Signature=adhoc' \
+                || { echo "::error::Not ad-hoc signed: $bin"; exit 1; }
+            fi
+          done < <(find "$APP/Contents" -type f -print0)
 
       - name: Package tar.gz
         run: |

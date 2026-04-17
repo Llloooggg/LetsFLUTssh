@@ -120,17 +120,31 @@ void main() {
       expect(c.panelHeight, TransferPanelController.panelHeightMin);
     });
 
-    test('column resizers clamp to their bounds', () {
+    test('every column resizer clamps to its bounds', () {
+      // Covers the full set — local / remote / size / time. Each
+      // column has its own independent clamp range and a no-op short
+      // circuit; we verify both extremes to defend against copy-paste
+      // swaps between the four resizers.
       final c = TransferPanelController();
       c.resizeLocalColBy(-10000);
       expect(c.localColWidth, TransferPanelController.pathColMax);
       c.resizeLocalColBy(10000);
       expect(c.localColWidth, TransferPanelController.pathColMin);
 
+      c.resizeRemoteColBy(-10000);
+      expect(c.remoteColWidth, TransferPanelController.pathColMax);
+      c.resizeRemoteColBy(10000);
+      expect(c.remoteColWidth, TransferPanelController.pathColMin);
+
       c.resizeSizeColBy(-10000);
       expect(c.sizeColWidth, TransferPanelController.sizeColMax);
       c.resizeSizeColBy(10000);
       expect(c.sizeColWidth, TransferPanelController.sizeColMin);
+
+      c.resizeTimeColBy(-10000);
+      expect(c.timeColWidth, TransferPanelController.timeColMax);
+      c.resizeTimeColBy(10000);
+      expect(c.timeColWidth, TransferPanelController.timeColMin);
     });
 
     test('no-op resize (at clamp) does not notify', () {
@@ -233,6 +247,41 @@ void main() {
           'started-only',
           'ended',
         ]);
+      },
+    );
+
+    test(
+      'sort by remote uses targetPath on upload, sourcePath on download',
+      () {
+        // Mirror of the `local` test — the "Remote" column must always
+        // reflect the REMOTE filesystem path: that's targetPath on an
+        // upload (we write remotely) and sourcePath on a download (we
+        // read remotely). A copy-paste mistake swapping the two would
+        // sort by the wrong path depending on transfer direction.
+        final c = TransferPanelController();
+        c.setSort(TransferSortColumn.name); // reset
+        c.setSort(TransferSortColumn.remote); // ascending
+        final out = c.sorted([
+          _entry(
+            id: 'up',
+            direction: TransferDirection.upload,
+            sourcePath: '/z-local',
+            targetPath: '/b-remote',
+          ),
+          _entry(
+            id: 'down',
+            direction: TransferDirection.download,
+            sourcePath: '/a-remote',
+            targetPath: '/z-local',
+          ),
+        ]);
+        expect(
+          out.map((e) => e.id).toList(),
+          ['down', 'up'],
+          reason:
+              'download remote (/a-remote) sorts before upload remote '
+              '(/b-remote) regardless of sourcePath',
+        );
       },
     );
 
