@@ -93,17 +93,17 @@ generic "Update check failed" error) with an explicit "Open Releases
 page" action, steering the user towards a manual reinstall rather
 than a retry of the same failing download.
 
-**Independent provenance check.** For fresh installs, users who want
-to verify by hand can use the SLSA attestation shipped in
-`letsflutssh-<version>.intoto.jsonl`:
-
-```bash
-gh attestation verify letsflutssh-<version>-linux-x64.tar.gz \
-  --repo Llloooggg/LetsFLUTssh
-```
-
-Its trust root is Sigstore, baked into the `gh` CLI — independent of
-anything served from this repo.
+**Fresh-install trust.** Installing for the first time is outside
+the scope of this signing scheme — the trust chain starts at the
+first install and protects every subsequent update. First-time users
+implicitly trust the GitHub HTTPS pipeline and whatever package
+manager brought them to the release page; this repo does not try to
+layer on top of that. The `letsflutssh-<version>.intoto.jsonl`
+attestation file continues to be published alongside the release
+because `actions/attest-build-provenance` produces it for free and
+it carries a SLSA build-provenance record that survives in Sigstore
+Rekor's public transparency log — but we do not prescribe a
+user-facing command that depends on it.
 
 **Single-pin design.** The app embeds one public key. Keeping a
 second pinned key as a rotation fallback is a deliberate non-goal —
