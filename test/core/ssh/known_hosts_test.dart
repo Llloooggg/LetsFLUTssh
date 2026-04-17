@@ -435,6 +435,32 @@ void main() {
     );
 
     test(
+      'concurrent clearAll + importFromString are serialised, no interleave',
+      () async {
+        manager.onUnknownHost = (_, _, _, _) async => true;
+        await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
+        await manager.verify('beta.com', 22, 'ssh-rsa', [3, 4]);
+        expect(manager.count, 2);
+
+        // Kick off a clearAll and an import at the "same time". The
+        // serialised write lock must run them in submission order so the
+        // import sees a clean slate and ends with exactly the imported
+        // entries — never a mixture.
+        final clear = manager.clearAll();
+        final imp = manager.importFromString(
+          'gamma.com:22 ssh-rsa CCCC\n'
+          'delta.com:22 ssh-rsa DDDD\n',
+        );
+        await Future.wait([clear, imp]);
+
+        expect(manager.count, 2);
+        expect(manager.entries.containsKey('gamma.com:22'), isTrue);
+        expect(manager.entries.containsKey('delta.com:22'), isTrue);
+        expect(manager.entries.containsKey('alpha.com:22'), isFalse);
+      },
+    );
+
+    test(
       'load() retries after the underlying DAO call throws on a previous attempt',
       () async {
         // First load — DB is unset, so _doLoad() returns silently without
