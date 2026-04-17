@@ -132,7 +132,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppTheme.fg,
-                      fontSize: 20,
+                      fontSize: AppFonts.xl,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -140,7 +140,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   Text(
                     l10n.lockScreenSubtitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppTheme.fgDim, fontSize: 13),
+                    style: TextStyle(
+                      color: AppTheme.fgDim,
+                      fontSize: AppFonts.sm,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   TextField(
@@ -158,7 +161,10 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     const SizedBox(height: 6),
                     Text(
                       l10n.wrongPassword,
-                      style: TextStyle(color: AppTheme.red, fontSize: 12),
+                      style: TextStyle(
+                        color: AppTheme.red,
+                        fontSize: AppFonts.xs,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16),
