@@ -110,6 +110,13 @@ String _buildFolderPath(String? folderId, Map<String, DbFolder> folderMap) {
 /// Resolve a folder path string to a folderId, creating missing folders.
 ///
 /// Returns null for empty paths (root-level session).
+///
+/// [cache] is treated as the authoritative view of the folder tree —
+/// the caller (`SessionStore`) keeps it in sync with the DB on load and
+/// on every mutation. Lookups walk the cache in memory instead of
+/// issuing a `dao.getChildren` round-trip per path segment, so a 50-
+/// session import across deep folders no longer fans out into hundreds
+/// of awaited reads. Only folder **inserts** still hit the DB.
 Future<String?> resolveFolderPath(
   String path,
   FolderDao dao,
@@ -119,32 +126,48 @@ Future<String?> resolveFolderPath(
   final parts = path.split('/');
   String? parentId;
   for (final name in parts) {
-    final children = await dao.getChildren(parentId);
-    final existing = children.where((f) => f.name == name).firstOrNull;
+    final existing = _findChildByName(cache, parentId, name);
     if (existing != null) {
       parentId = existing.id;
-    } else {
-      final id = const Uuid().v4();
-      await dao.insert(
-        FoldersCompanion.insert(
-          id: id,
-          name: name,
-          parentId: Value(parentId),
-          createdAt: DateTime.now(),
-        ),
-      );
-      cache[id] = DbFolder(
+      continue;
+    }
+    final id = const Uuid().v4();
+    final now = DateTime.now();
+    await dao.insert(
+      FoldersCompanion.insert(
         id: id,
         name: name,
-        parentId: parentId,
-        sortOrder: 0,
-        collapsed: false,
-        createdAt: DateTime.now(),
-      );
-      parentId = id;
-    }
+        parentId: Value(parentId),
+        createdAt: now,
+      ),
+    );
+    cache[id] = DbFolder(
+      id: id,
+      name: name,
+      parentId: parentId,
+      sortOrder: 0,
+      collapsed: false,
+      createdAt: now,
+    );
+    parentId = id;
   }
   return parentId;
+}
+
+/// Linear scan over [cache] for the child of [parentId] named [name].
+/// Typical folder trees have ≤100 entries, so an O(N) scan per segment
+/// is ~1000× faster than the DB round-trip it replaces. If that ever
+/// stops being true, switch to a `(parentId, name) → DbFolder`
+/// secondary index maintained alongside [cache].
+DbFolder? _findChildByName(
+  Map<String, DbFolder> cache,
+  String? parentId,
+  String name,
+) {
+  for (final folder in cache.values) {
+    if (folder.parentId == parentId && folder.name == name) return folder;
+  }
+  return null;
 }
 
 /// Build a complete folder map (id → DbFolder) from a flat list.
