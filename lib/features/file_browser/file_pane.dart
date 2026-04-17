@@ -731,12 +731,14 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     String? folderSizeText;
     if (entry.isDir && widget.showFolderSizes) {
       final cachedSize = ctrl.folderSize(entry.path);
-      if (cachedSize != null) {
-        folderSizeText = formatSize(cachedSize);
-      } else {
-        ctrl.requestFolderSize(entry.path);
-        folderSizeText = '...';
-      }
+      folderSizeText = switch (cachedSize) {
+        FolderSizeOk(:final bytes) => formatSize(bytes),
+        FolderSizeFailed() => '?',
+        null => () {
+          ctrl.requestFolderSize(entry.path);
+          return '...';
+        }(),
+      };
     }
 
     final row = FileRow(

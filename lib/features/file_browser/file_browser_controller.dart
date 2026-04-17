@@ -10,6 +10,34 @@ import '../../utils/logger.dart';
 /// Sort column options for file table.
 enum SortColumn { name, size, mode, modified, owner }
 
+/// Cached outcome of an async folder-size computation.
+sealed class FolderSizeResult {
+  const FolderSizeResult();
+}
+
+class FolderSizeOk extends FolderSizeResult {
+  final int bytes;
+  const FolderSizeOk(this.bytes);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is FolderSizeOk && other.bytes == bytes;
+
+  @override
+  int get hashCode => bytes.hashCode;
+}
+
+class FolderSizeFailed extends FolderSizeResult {
+  const FolderSizeFailed();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is FolderSizeFailed;
+
+  @override
+  int get hashCode => 0;
+}
+
 /// Controller for a single file pane (local or remote).
 class FilePaneController extends ChangeNotifier {
   final FileSystem fs;
@@ -27,8 +55,11 @@ class FilePaneController extends ChangeNotifier {
   List<FileEntry>? _cachedSelectedEntries;
   int? _cachedTotalFileSize;
 
-  // Folder size cache: path → size (calculated async, max 2 concurrent)
-  final Map<String, int> _folderSizes = {};
+  // Folder size cache: path → result (calculated async, max 2 concurrent).
+  // Failed computations are cached as `FolderSizeFailed` so the UI can show
+  // an error indicator instead of an indefinite spinner, and so the queue
+  // does not endlessly retry the same broken path on every redraw.
+  final Map<String, FolderSizeResult> _folderSizes = {};
   final Set<String> _folderSizesPending = {};
   final Queue<String> _folderSizeQueue = Queue();
   static const _maxConcurrentSizeCalcs = 2;
@@ -50,7 +81,14 @@ class FilePaneController extends ChangeNotifier {
   bool get canGoForward => _forwardStack.isNotEmpty;
 
   /// Get cached folder size, or null if not yet calculated.
-  int? folderSize(String path) => _folderSizes[path];
+  FolderSizeResult? folderSize(String path) => _folderSizes[path];
+
+  /// Discard any cached size (success or failure) for [path] so the next
+  /// `requestFolderSize` retries from scratch. Used by the "retry" affordance
+  /// in the UI when the user wants to re-attempt a failed calculation.
+  void clearFolderSize(String path) {
+    if (_folderSizes.remove(path) != null) notifyListeners();
+  }
 
   /// Request async folder size calculation (queued, max 2 concurrent).
   void requestFolderSize(String path) {
@@ -72,17 +110,22 @@ class FilePaneController extends ChangeNotifier {
       fs
           .dirSize(path)
           .then((size) {
-            _folderSizes[path] = size;
+            _folderSizes[path] = FolderSizeOk(size);
             _folderSizesPending.remove(path);
             notifyListeners();
             _drainSizeQueue();
           })
           .catchError((e) {
+            // Cache the failure so the UI shows an error marker and the
+            // queue does not re-pick this path on every redraw. Caller can
+            // explicitly retry via `clearFolderSize`.
+            _folderSizes[path] = const FolderSizeFailed();
             _folderSizesPending.remove(path);
             AppLogger.instance.log(
               'Folder size failed: $path: $e',
               name: 'FilePane',
             );
+            notifyListeners();
             _drainSizeQueue();
           });
     }
