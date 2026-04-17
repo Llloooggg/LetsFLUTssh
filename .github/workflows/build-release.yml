@@ -399,17 +399,36 @@ jobs:
           echo "Signed $count artefact(s)."
 
       - name: Attest build provenance
+        # Enumerate binaries by extension, NOT `artifacts/.../*` — the
+        # previous globs pulled in our Ed25519 `.sig` files that the
+        # sign step wrote a few steps earlier. Attesting a signature
+        # file is redundant (the signature is metadata ABOUT the
+        # binary, not a buildable artefact), produces noisy extra
+        # attestation bundles on the release, and falsely implies that
+        # `.sig` is something consumers should verify through the
+        # SLSA chain — it is not: clients check the Ed25519 signature
+        # through the pinned public keys in `release_signing.dart`,
+        # a separate trust path.
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
-            artifacts/linux-x64/*
-            artifacts/windows-x64/*
-            artifacts/macos-universal/*
-            artifacts/android-apk/*
+            artifacts/linux-x64/*.tar.gz
+            artifacts/linux-x64/*.AppImage
+            artifacts/linux-x64/*.deb
+            artifacts/windows-x64/*.zip
+            artifacts/windows-x64/*.exe
+            artifacts/macos-universal/*.tar.gz
+            artifacts/macos-universal/*.dmg
+            artifacts/android-apk/*.apk
 
       - name: Export provenance for release
+        # Skip `.sig` and already-exported `.intoto.jsonl` files — only
+        # real build artefacts have attestations to export.
         run: |
           for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
+            case "$f" in
+              *.sig|*.intoto.jsonl) continue ;;
+            esac
             NAME=$(basename "$f")
             # gh attestation download saves to CWD as sha256:<digest>.jsonl
             if gh attestation download "$f" -R "${{ github.repository }}"; then
