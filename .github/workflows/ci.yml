@@ -8,7 +8,11 @@ on:
       - '*.md'
       - 'docs/**'
       - 'LICENSE'
-      - '.github/**'
+      # NOTE: `.github/**` deliberately NOT ignored. The release
+      # preflight gates on a green CI check-run for the same SHA;
+      # ignoring workflow-only changes makes the preflight fail
+      # because the CI check-run never appears, breaking
+      # `workflow_dispatch` of build-release on those commits.
   pull_request:
     branches: [main, dev]
 
