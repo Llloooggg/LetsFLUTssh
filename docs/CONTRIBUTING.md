@@ -140,7 +140,7 @@ For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — 
 ## Coding Conventions
 
 - **Logging** — `AppLogger.instance.log(message, name: 'Tag')`, never `print()`/`debugPrint()` — [§7 Utilities API](ARCHITECTURE.md#7-utilities--public-api-reference)
-- **State** — all state via Riverpod providers, no global mutable state. Use `.select()` on broad providers to avoid unnecessary rebuilds — [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod)
+- **State** — shared / app-wide state via Riverpod providers (no global mutable state). Widget-local state (dialog / pane / panel) via `ChangeNotifier` + `AnimatedBuilder` — see `FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`. Use `.select()` on broad Riverpod providers to avoid unnecessary rebuilds — [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod)
 - **Models** — immutable with `copyWith`, `==`, `hashCode`, `toJson`/`fromJson` — [§10 Data Models](ARCHITECTURE.md#10-data-models)
 - **Theme** — OneDark, semantic color constants, no hardcoded `Colors` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
 - **Font sizes** — use `AppFonts.tiny`/`xxs`/`xs`/`sm`/`md`/`lg`/`xl` (platform-aware), never hardcode `fontSize` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
