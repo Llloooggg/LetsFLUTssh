@@ -1381,6 +1381,41 @@ void main() {
     }
 
     test(
+      'enforceDecompressedSizeCap rejects archive whose total uncompressed entries exceed the cap',
+      () {
+        // The Archive object exposes a writable `size` per entry, so we can
+        // build a synthetic zip-bomb shape without actually allocating
+        // hundreds of MiB. Two entries each declaring 150 MiB uncompressed
+        // exceed the 200 MiB cap.
+        final huge = Archive()
+          ..addFile(
+            ArchiveFile.bytes('big1.bin', Uint8List(0))
+              ..size = 150 * 1024 * 1024,
+          )
+          ..addFile(
+            ArchiveFile.bytes('big2.bin', Uint8List(0))
+              ..size = 150 * 1024 * 1024,
+          );
+        expect(
+          () => ExportImport.enforceDecompressedSizeCap(huge),
+          throwsA(isA<LfsArchiveTooLargeException>()),
+        );
+      },
+    );
+
+    test(
+      'enforceDecompressedSizeCap accepts an archive whose total fits the cap',
+      () {
+        final ok = Archive()
+          ..addFile(ArchiveFile.bytes('small.bin', Uint8List(0))..size = 1024);
+        expect(
+          () => ExportImport.enforceDecompressedSizeCap(ok),
+          returnsNormally,
+        );
+      },
+    );
+
+    test(
       'decrypt+parse raises UnsupportedLfsVersionException when schema is newer',
       // Spec (L530-535): the manifest carries schema_version so we can
       // refuse gracefully if a file written by a future version lands in
