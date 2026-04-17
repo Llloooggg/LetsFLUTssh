@@ -473,8 +473,7 @@ jobs:
           # Sign the manifest.
           openssl pkeyutl -sign -inkey /tmp/release-key.pem \
             -rawin -in "$MANIFEST" -out "${MANIFEST}.sig"
-          echo "Signed manifest → $(basename "${MANIFEST}.sig") \
-($(wc -c <"${MANIFEST}.sig") bytes)"
+          echo "Signed manifest → $(basename "${MANIFEST}.sig") ($(wc -c <"${MANIFEST}.sig") bytes)"
 
       - name: Attest build provenance
         # Enumerate binaries by extension, NOT `artifacts/.../*` — the
