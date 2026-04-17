@@ -888,17 +888,38 @@ class UpdateService {
   // User can skip a version (skippedVersion in config).
   // Stale skip auto-clears when a newer version supersedes the skipped one.
   //
-  // DI: HttpFetcher, FileDownloader, ProcessRunner — all injectable for testing.
-  // Download: follows redirects (max 10), validates trusted hosts.
+  // DI: HttpFetcher, FileDownloader, ProcessRunner, ReleaseArtifactVerifier.
+  // Download: follows redirects (max 10), validates trusted hosts, and
+  //   verifies every downloaded artefact twice before extract —
+  //   (a) SHA-256 from the Releases JSON and
+  //   (b) Ed25519 signature against pinned public keys (release_signing.dart).
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
   // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
   //
   // Changelog: fetched once during check(), stored in UpdateInfo.changelog,
   // preserved across state transitions (downloading → downloaded) via copyWith.
-  // Displayed in startup dialog (inline) and settings (via "Release Notes" button → AppDialog).
-  // Available in both updateAvailable and downloaded states on all platforms.
 }
 ```
+
+Supporting classes in the same directory:
+
+- **`ReleaseSigning`** (`release_signing.dart`) — holds the pinned Ed25519
+  public keys (current + backup) as hex byte arrays and verifies a
+  `<artifact>.sig` file against them via `pinenacl`. Multi-pin so the
+  maintainer can rotate a leaked key without breaking already-installed
+  builds. See [§13 Update channel integrity](#update-channel-integrity)
+  for the end-to-end picture and `.github/SECURITY.md` for the rotation
+  playbook.
+- **`CertPinning`** (`cert_pinning.dart`) — installs a
+  `badCertificateCallback` on the update-download HTTP client that
+  checks the leaf cert's SPKI against a per-host pin set. Pin map is
+  empty by default (falls back to system CA); populating it flips the
+  updater into strict-pinning mode. Defence against DNS / CA
+  compromise of `api.github.com` / `objects.githubusercontent.com`.
+- **`InvalidReleaseSignatureException`** — thrown from
+  `UpdateService.downloadAsset` when the signature check fails. Distinct
+  from network errors so the UI can surface a "security-coloured" toast
+  instead of a retry prompt.
 
 ### 3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)
 
@@ -2535,6 +2556,53 @@ User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
 - **Change flow:** verify old → derive new → re-open database with new key
 - **Forgot password:** deletes encrypted database + salt/verifier files
 
+### Update channel integrity
+
+Every release artefact (`.deb`, `.AppImage`, `.tar.gz`, `.zip`, `.exe`,
+`.dmg`, `.apk`) ships with a detached Ed25519 signature produced in CI
+by `openssl pkeyutl -sign` against the `RELEASE_SIGNING_KEY` secret
+(see `.github/workflows/build-release.yml` step *Sign release artefacts
+(Ed25519)*). The `<asset>.sig` is uploaded alongside the binary and
+mirrored from the same GitHub release.
+
+On the client, `UpdateService.downloadAsset`:
+
+1. Downloads the binary under `<targetDir>/`
+2. Validates the SHA-256 from the Releases JSON (secondary — catches
+   disk corruption and "attacker replaced only the binary" on its own)
+3. Delegates to `ReleaseArtifactVerifier`, which by default
+   fetches `<asset>.sig` and calls `ReleaseSigning.verifyFile` —
+   Ed25519 verify against **two** pinned public keys (current + backup).
+   Either key matches → accept.
+4. Any failure deletes both the binary and the sig, throws
+   `InvalidReleaseSignatureException`. The install step never runs on
+   an unverified artefact.
+
+**Why this is independent of SHA-256 / TLS:** SHA-256 and the asset
+URL come from the same `api.github.com` response, so a MITM who can
+rewrite that response supplies both. TLS protects the channel only if
+DNS, every trusted CA, and the network path are intact — attackers
+have compromised all three historically. The Ed25519 signature comes
+from a private key held offline by the maintainer and verified by a
+public key compiled into the binary; the updater does not consult any
+online service at verify time.
+
+**Rotation:** the app embeds two public keys. If the current private
+key ever leaks the maintainer swaps the `RELEASE_SIGNING_KEY` secret
+to the backup, generates a fresh backup pair offline, and ships the
+next release with `[backup, fresh-backup]` in `release_signing.dart`.
+Already-installed builds keep verifying via the (now-active) backup
+pin. Full playbook in `.github/SECURITY.md`.
+
+**SPKI pinning (optional, off by default):** `CertPinning` adds a
+`badCertificateCallback` on the update HTTP client that checks the
+presented leaf cert's SPKI against a per-host pin set. Pin map is
+empty until the maintainer captures the current GitHub SPKI hashes
+via the `openssl s_client | x509 -pubkey | sha256 | base64` pipeline
+documented in the class. Shipping empty pins keeps behaviour at
+system-CA validation (same as before); populated pins strengthen the
+transport layer on top of the release signature.
+
 ### .lfs export
 
 ```
@@ -2905,6 +2973,8 @@ Manual build
 | `drift` | Typed SQLite ORM (database, DAOs, codegen) |
 | `drift_flutter` | Flutter integration for drift (NativeDatabase) |
 | `pointycastle` | AES-256-GCM encryption (transitive via dartssh2) |
+| `pinenacl` | Ed25519 verify for release-signature check |
+| `crypto` | SHA-256 over DER for SPKI pinning |
 | `path_provider` | App data directories |
 | `archive` | ZIP for .lfs export/import |
 | `desktop_drop` | OS drag & drop |
