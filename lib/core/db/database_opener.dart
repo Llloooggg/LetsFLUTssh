@@ -140,17 +140,34 @@ LazyDatabase _openConnection({Uint8List? encryptionKey}) {
               .join();
           db.execute("PRAGMA key = \"x'$hex'\"");
 
-          // Verify encryption is active
+          // Verify encryption is active. If the multi-cipher extension was
+          // not statically linked into this build, the PRAGMA returns an
+          // empty result and SQLite silently keeps the key-but-no-cipher
+          // state — meaning every subsequent write goes to disk in
+          // plaintext while the caller still believes it's encrypted.
+          // This is exactly the kind of silent downgrade that turns a
+          // master-password setup into false advertising. Hard-fail.
           final cipher = db.select('PRAGMA cipher');
           if (cipher.isEmpty) {
-            AppLogger.instance.log(
-              'WARNING: SQLite3MultipleCiphers not available',
-              name: 'DatabaseOpener',
-            );
+            throw const EncryptionUnavailableException();
           }
         }
         db.execute('PRAGMA foreign_keys = ON');
       },
     );
   });
+}
+
+/// Thrown when an encryption key was supplied but the underlying SQLite
+/// build does not actually support encryption (the SQLite3MultipleCiphers
+/// extension is missing). Refusing to open is the only safe outcome —
+/// continuing would silently store secrets in plaintext.
+class EncryptionUnavailableException implements Exception {
+  const EncryptionUnavailableException();
+
+  @override
+  String toString() =>
+      'EncryptionUnavailableException: SQLite3MultipleCiphers extension '
+      'is not linked into this build; refusing to open the database with '
+      'a key that would otherwise be silently ignored.';
 }
