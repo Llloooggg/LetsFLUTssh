@@ -9,7 +9,7 @@ import '../../utils/logger.dart';
 /// Goal: defend the auto-updater against the threat that an attacker can
 /// rewrite both the binary AND its declared SHA-256 (the SHA comes from
 /// the same GitHub Release JSON the binary does, so on its own it is
-/// not authentication — see SEC-10 in REVIEW_2026-04-17).
+/// not authentication).
 ///
 /// Verification is local: the public keys are compiled into the app, and
 /// the signature is fetched from the GitHub release alongside the
