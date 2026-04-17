@@ -4,6 +4,9 @@
 # translator has nothing to localise, and any S.of(context).newKey call
 # would crash at runtime in that locale.
 #
+# Requires `jq` on PATH. GitHub-hosted ubuntu-latest runners ship with
+# jq pre-installed.
+#
 # Exit codes:
 #   0 — every locale matches en
 #   1 — at least one locale is missing keys (printed to stderr)
@@ -19,37 +22,39 @@ if [[ ! -f "$TEMPLATE" ]]; then
   exit 2
 fi
 
-python3 - "$TEMPLATE" "$ARB_DIR" <<'PY'
-import json, os, sys, glob
+if ! command -v jq >/dev/null; then
+  echo "check-arb-parity: jq not found on PATH" >&2
+  exit 2
+fi
 
-template_path, arb_dir = sys.argv[1], sys.argv[2]
+# All keys that don't start with @ (those are ICU metadata, not messages).
+expected_keys=$(jq -r 'keys[] | select(startswith("@") | not)' "$TEMPLATE" | sort -u)
 
-def keys_of(path):
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    return {k for k in data.keys() if not k.startswith("@")}
+if [[ -z "$expected_keys" ]]; then
+  echo "check-arb-parity: template $TEMPLATE has no message keys" >&2
+  exit 2
+fi
 
-expected = keys_of(template_path)
-if not expected:
-    print(f"check-arb-parity: template {template_path} has no message keys", file=sys.stderr)
-    sys.exit(2)
+failed=0
+checked=0
+for arb in "$ARB_DIR"/app_*.arb; do
+  [[ "$arb" == "$TEMPLATE" ]] && continue
+  checked=$((checked + 1))
+  locale_name=$(basename "$arb" .arb)
+  actual_keys=$(jq -r 'keys[] | select(startswith("@") | not)' "$arb" | sort -u)
+  missing=$(comm -23 <(echo "$expected_keys") <(echo "$actual_keys"))
+  if [[ -n "$missing" ]]; then
+    failed=1
+    count=$(echo "$missing" | wc -l | tr -d ' ')
+    echo "::error file=$arb::$locale_name is missing $count key(s) present in app_en.arb"
+    echo "Missing keys in $locale_name:" >&2
+    echo "$missing" | sed 's/^/  - /' >&2
+  fi
+done
 
-failed = False
-for arb in sorted(glob.glob(os.path.join(arb_dir, "app_*.arb"))):
-    if os.path.abspath(arb) == os.path.abspath(template_path):
-        continue
-    locale = os.path.splitext(os.path.basename(arb))[0]
-    actual = keys_of(arb)
-    missing = sorted(expected - actual)
-    if missing:
-        failed = True
-        print(f"::error file={arb}::{locale} is missing {len(missing)} key(s) present in app_en.arb")
-        print(f"Missing keys in {locale}:", file=sys.stderr)
-        for k in missing:
-            print(f"  - {k}", file=sys.stderr)
+if [[ "$failed" -ne 0 ]]; then
+  echo "check-arb-parity: at least one locale is incomplete" >&2
+  exit 1
+fi
 
-if failed:
-    print("check-arb-parity: at least one locale is incomplete", file=sys.stderr)
-    sys.exit(1)
-print(f"check-arb-parity: every locale in {arb_dir} matches en")
-PY
+echo "check-arb-parity: all $checked locale ARB files match app_en.arb"
