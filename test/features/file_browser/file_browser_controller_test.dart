@@ -35,7 +35,8 @@ class _MockFS implements FileSystem {
   Future<void> removeDir(String path) async => removedDirs.add(path);
 
   @override
-  Future<void> rename(String oldPath, String newPath) async => renames.add((oldPath, newPath));
+  Future<void> rename(String oldPath, String newPath) async =>
+      renames.add((oldPath, newPath));
   @override
   Future<int> dirSize(String path) async {
     dirSizeCalls.add(path);
@@ -47,9 +48,30 @@ class _MockFS implements FileSystem {
 void main() {
   final now = DateTime(2024, 1, 1);
   final testEntries = [
-    FileEntry(name: 'docs', path: '/home/docs', size: 0, mode: 0755, modTime: now, isDir: true),
-    FileEntry(name: 'readme.md', path: '/home/readme.md', size: 100, mode: 0644, modTime: now, isDir: false),
-    FileEntry(name: 'app.dart', path: '/home/app.dart', size: 250, mode: 0644, modTime: now, isDir: false),
+    FileEntry(
+      name: 'docs',
+      path: '/home/docs',
+      size: 0,
+      mode: 0755,
+      modTime: now,
+      isDir: true,
+    ),
+    FileEntry(
+      name: 'readme.md',
+      path: '/home/readme.md',
+      size: 100,
+      mode: 0644,
+      modTime: now,
+      isDir: false,
+    ),
+    FileEntry(
+      name: 'app.dart',
+      path: '/home/app.dart',
+      size: 250,
+      mode: 0644,
+      modTime: now,
+      isDir: false,
+    ),
   ];
 
   group('FilePaneController', () {
@@ -60,7 +82,16 @@ void main() {
       fs = _MockFS({
         '/home': testEntries,
         '/home/docs': [],
-        '/': [FileEntry(name: 'home', path: '/home', size: 0, mode: 0755, modTime: now, isDir: true)],
+        '/': [
+          FileEntry(
+            name: 'home',
+            path: '/home',
+            size: 0,
+            mode: 0755,
+            modTime: now,
+            isDir: true,
+          ),
+        ],
       });
       ctrl = FilePaneController(fs: fs, label: 'Test');
     });
@@ -267,7 +298,7 @@ void main() {
       fs.dirSizeResults['/home/docs'] = 4096;
       ctrl.requestFolderSize('/home/docs');
       await Future<void>.delayed(Duration.zero);
-      expect(ctrl.folderSize('/home/docs'), 4096);
+      expect(ctrl.folderSize('/home/docs'), const FolderSizeOk(4096));
     });
 
     test('requestFolderSize deduplicates pending requests', () async {
@@ -285,7 +316,7 @@ void main() {
       fs.dirSizeResults['/home/docs'] = 512;
       ctrl.requestFolderSize('/home/docs');
       await Future<void>.delayed(Duration.zero);
-      expect(ctrl.folderSize('/home/docs'), 512);
+      expect(ctrl.folderSize('/home/docs'), const FolderSizeOk(512));
 
       fs.dirSizeCalls.clear();
       ctrl.requestFolderSize('/home/docs');
@@ -297,7 +328,16 @@ void main() {
       final slowFs = _MockFS({
         '/home': testEntries,
         '/home/docs': [],
-        '/': [FileEntry(name: 'home', path: '/home', size: 0, mode: 0755, modTime: now, isDir: true)],
+        '/': [
+          FileEntry(
+            name: 'home',
+            path: '/home',
+            size: 0,
+            mode: 0755,
+            modTime: now,
+            isDir: true,
+          ),
+        ],
       });
       slowFs.dirSizeResults = {};
 
@@ -320,8 +360,9 @@ void main() {
       fs.dirSizeErrors.add('/home/docs');
       ctrl.requestFolderSize('/home/docs');
       await Future<void>.delayed(Duration.zero);
-      // Error path: folder size remains uncached
-      expect(ctrl.folderSize('/home/docs'), isNull);
+      // Failed calculation cached as FolderSizeFailed so the UI can show an
+      // error marker and the queue does not endlessly retry.
+      expect(ctrl.folderSize('/home/docs'), const FolderSizeFailed());
     });
 
     test('requestFolderSize notifies listeners on success', () async {
@@ -339,27 +380,30 @@ void main() {
       fs.dirSizeResults['/home/docs'] = 4096;
       ctrl.requestFolderSize('/home/docs');
       await Future<void>.delayed(Duration.zero);
-      expect(ctrl.folderSize('/home/docs'), 4096);
+      expect(ctrl.folderSize('/home/docs'), const FolderSizeOk(4096));
 
       await ctrl.navigateTo('/home/docs');
       // Folder sizes cleared on navigation
       expect(ctrl.folderSize('/home/docs'), isNull);
     });
 
-    test('navigateTo adds current path to back stack and clears forward', () async {
-      await ctrl.init();
-      expect(ctrl.currentPath, '/home');
-      await ctrl.navigateTo('/home/docs');
-      expect(ctrl.canGoBack, isTrue);
-      expect(ctrl.canGoForward, isFalse);
+    test(
+      'navigateTo adds current path to back stack and clears forward',
+      () async {
+        await ctrl.init();
+        expect(ctrl.currentPath, '/home');
+        await ctrl.navigateTo('/home/docs');
+        expect(ctrl.canGoBack, isTrue);
+        expect(ctrl.canGoForward, isFalse);
 
-      await ctrl.goBack();
-      expect(ctrl.canGoForward, isTrue);
+        await ctrl.goBack();
+        expect(ctrl.canGoForward, isTrue);
 
-      // navigateTo should clear forward stack
-      await ctrl.navigateTo('/home/docs');
-      expect(ctrl.canGoForward, isFalse);
-    });
+        // navigateTo should clear forward stack
+        await ctrl.navigateTo('/home/docs');
+        expect(ctrl.canGoForward, isFalse);
+      },
+    );
 
     test('drainSizeQueue processes remaining items after completion', () async {
       await ctrl.init();
@@ -372,9 +416,9 @@ void main() {
       ctrl.requestFolderSize('/c');
       await Future<void>.delayed(Duration.zero);
 
-      expect(ctrl.folderSize('/a'), 100);
-      expect(ctrl.folderSize('/b'), 200);
-      expect(ctrl.folderSize('/c'), 300);
+      expect(ctrl.folderSize('/a'), const FolderSizeOk(100));
+      expect(ctrl.folderSize('/b'), const FolderSizeOk(200));
+      expect(ctrl.folderSize('/c'), const FolderSizeOk(300));
     });
 
     test('drainSizeQueue continues after error', () async {
@@ -386,8 +430,28 @@ void main() {
       ctrl.requestFolderSize('/ok');
       await Future<void>.delayed(Duration.zero);
 
-      expect(ctrl.folderSize('/fail'), isNull);
-      expect(ctrl.folderSize('/ok'), 999);
+      expect(ctrl.folderSize('/fail'), const FolderSizeFailed());
+      expect(ctrl.folderSize('/ok'), const FolderSizeOk(999));
     });
+
+    test(
+      'clearFolderSize discards cached failure so retry can succeed',
+      () async {
+        await ctrl.init();
+        fs.dirSizeErrors.add('/flaky');
+        ctrl.requestFolderSize('/flaky');
+        await Future<void>.delayed(Duration.zero);
+        expect(ctrl.folderSize('/flaky'), const FolderSizeFailed());
+
+        // Network came back. Clearing the failure marker lets the next
+        // request actually re-call dirSize.
+        fs.dirSizeErrors.clear();
+        fs.dirSizeResults['/flaky'] = 42;
+        ctrl.clearFolderSize('/flaky');
+        ctrl.requestFolderSize('/flaky');
+        await Future<void>.delayed(Duration.zero);
+        expect(ctrl.folderSize('/flaky'), const FolderSizeOk(42));
+      },
+    );
   });
 }

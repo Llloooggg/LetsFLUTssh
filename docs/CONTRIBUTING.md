@@ -118,6 +118,7 @@ make build-ios
 ## Development
 
 ```bash
+make hooks          # One-time: install git pre-commit (runs make check)
 make run            # Run in debug mode
 make test           # Run all tests (with coverage)
 make analyze        # Run Dart analyzer (--fatal-infos)
@@ -126,6 +127,11 @@ make gen            # Code generation (freezed, json_serializable)
 make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
+
+> **First clone:** run `make hooks` once. After that, every `git commit`
+> invokes `make check` (analyzer + full test suite) before the commit
+> is recorded. To bypass for an emergency commit, prefix with
+> `SKIP_PRECOMMIT=1`.
 
 **New contributors:** start with [ADDING_A_FEATURE.md](ADDING_A_FEATURE.md) — a hands-on walkthrough of the project's layers, conventions, and tooling using a small example feature.
 
@@ -228,4 +234,4 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+See [SECURITY.md](../.github/SECURITY.md) for reporting vulnerabilities.

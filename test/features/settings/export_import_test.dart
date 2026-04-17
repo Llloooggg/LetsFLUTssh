@@ -356,6 +356,65 @@ void main() {
     });
 
     test(
+      'maliciously huge iterations in header are rejected with LfsMalformedHeaderException',
+      () async {
+        // Write a real archive, then corrupt its iteration field in-place to a
+        // value far above the cap. Importing must abort with a structured
+        // header error instead of hanging PBKDF2.
+        final outputPath = '${tempDir.path}/huge-iters.lfs';
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        );
+        final bytes = (await File(outputPath).readAsBytes()).toList();
+        // Bytes 5..8 hold the big-endian iteration count.
+        bytes[5] = 0xFF;
+        bytes[6] = 0xFF;
+        bytes[7] = 0xFF;
+        bytes[8] = 0xFF;
+        final hostilePath = '${tempDir.path}/huge-iters-mut.lfs';
+        await File(hostilePath).writeAsBytes(bytes);
+
+        await expectLater(
+          ExportImport.import_(
+            filePath: hostilePath,
+            masterPassword: 'pw',
+            mode: ImportMode.merge,
+            options: const ExportOptions(includeConfig: true),
+          ),
+          throwsA(isA<LfsDecryptionFailedException>()),
+        );
+      },
+    );
+
+    test('zero iterations in header are rejected', () async {
+      final outputPath = '${tempDir.path}/zero-iters.lfs';
+      await ExportImport.export(
+        masterPassword: 'pw',
+        outputPath: outputPath,
+        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+      );
+      final bytes = (await File(outputPath).readAsBytes()).toList();
+      bytes[5] = 0;
+      bytes[6] = 0;
+      bytes[7] = 0;
+      bytes[8] = 0;
+      final hostilePath = '${tempDir.path}/zero-iters-mut.lfs';
+      await File(hostilePath).writeAsBytes(bytes);
+
+      await expectLater(
+        ExportImport.import_(
+          filePath: hostilePath,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeConfig: true),
+        ),
+        throwsA(isA<LfsDecryptionFailedException>()),
+      );
+    });
+
+    test(
       'legacy headerless archive still decrypts with default iterations',
       () async {
         // Strip the 9-byte header off a freshly written archive; the reader
@@ -1320,6 +1379,41 @@ void main() {
       final zipBytes = ZipEncoder().encode(archive);
       await File(path).writeAsBytes(zipBytes);
     }
+
+    test(
+      'enforceDecompressedSizeCap rejects archive whose total uncompressed entries exceed the cap',
+      () {
+        // The Archive object exposes a writable `size` per entry, so we can
+        // build a synthetic zip-bomb shape without actually allocating
+        // hundreds of MiB. Two entries each declaring 150 MiB uncompressed
+        // exceed the 200 MiB cap.
+        final huge = Archive()
+          ..addFile(
+            ArchiveFile.bytes('big1.bin', Uint8List(0))
+              ..size = 150 * 1024 * 1024,
+          )
+          ..addFile(
+            ArchiveFile.bytes('big2.bin', Uint8List(0))
+              ..size = 150 * 1024 * 1024,
+          );
+        expect(
+          () => ExportImport.enforceDecompressedSizeCap(huge),
+          throwsA(isA<LfsArchiveTooLargeException>()),
+        );
+      },
+    );
+
+    test(
+      'enforceDecompressedSizeCap accepts an archive whose total fits the cap',
+      () {
+        final ok = Archive()
+          ..addFile(ArchiveFile.bytes('small.bin', Uint8List(0))..size = 1024);
+        expect(
+          () => ExportImport.enforceDecompressedSizeCap(ok),
+          returnsNormally,
+        );
+      },
+    );
 
     test(
       'decrypt+parse raises UnsupportedLfsVersionException when schema is newer',

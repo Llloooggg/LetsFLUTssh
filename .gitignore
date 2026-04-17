@@ -69,3 +69,8 @@ fuzz/out/
 .claude/memory/
 .claude/plans/
 .claude/worktrees/
+
+# Local-only review / audit artefacts — per maintainer these never ship
+# with the repo (they go stale fast, bloat history). Keep them as
+# working docs, commit nothing.
+docs/REVIEW_*.md

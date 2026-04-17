@@ -164,6 +164,26 @@ body {
   font-weight: 700;
 }
 
+.release-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg3);
+  color: var(--green);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  align-self: center;
+  transition: background 0.15s;
+}
+
+.release-tag:hover {
+  background: var(--bg4);
+}
+
 /* ── Screenshots ────────────────────────────────────── */
 .screenshots {
   padding: 64px 0;

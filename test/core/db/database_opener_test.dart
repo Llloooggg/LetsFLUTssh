@@ -69,4 +69,19 @@ void main() {
       expect(encryptionKeyToSqlLiteral(key), "x'010aff00'");
     });
   });
+
+  group('RekeyFailedException', () {
+    test('toString never embeds the SQL or the encryption key', () {
+      const ex = RekeyFailedException(
+        cipherChange: 'to-encrypted',
+        causeType: 'SqliteException',
+      );
+      final msg = ex.toString();
+      expect(msg, contains('to-encrypted'));
+      expect(msg, contains('SqliteException'));
+      // No `PRAGMA rekey`, no hex-encoded key, no `x'...'` blob literal.
+      expect(msg, isNot(contains('rekey')));
+      expect(msg, isNot(contains("x'")));
+    });
+  });
 }

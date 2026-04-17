@@ -98,6 +98,38 @@ void main() {
       expect(notifier.state.theme, 'system');
     });
 
+    test('rapid update bursts coalesce into a single trailing save', () async {
+      // Wrap the real ConfigStore so we can count save() invocations
+      // without rewriting the rest of the assertion model.
+      final spy = _SaveCountingStore(store);
+      final container = ProviderContainer(
+        overrides: [configStoreProvider.overrideWithValue(spy)],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(configProvider.notifier);
+      await notifier.load();
+
+      // Simulate a slider drag: 20 updates inside the 300 ms debounce
+      // window. Each one mutates state synchronously but they should
+      // all share one trailing disk write.
+      Future<void>? last;
+      for (var i = 0; i < 20; i++) {
+        last = notifier.update(
+          (c) => c.copyWith(
+            terminal: c.terminal.copyWith(fontSize: 12.0 + i.toDouble()),
+          ),
+        );
+      }
+      await last;
+
+      expect(notifier.state.fontSize, 31.0);
+      expect(
+        spy.saveCount,
+        1,
+        reason: '20 updates inside the debounce window must coalesce',
+      );
+    });
+
     test('concurrent updates do not corrupt saved config', () async {
       final container = ProviderContainer(
         overrides: [configStoreProvider.overrideWithValue(store)],
@@ -125,4 +157,24 @@ void main() {
       expect(loaded.theme, 'dark');
     });
   });
+}
+
+/// Wraps an existing [ConfigStore] and counts how many times save() runs.
+class _SaveCountingStore extends ConfigStore {
+  final ConfigStore _inner;
+  int saveCount = 0;
+
+  _SaveCountingStore(this._inner);
+
+  @override
+  AppConfig get config => _inner.config;
+
+  @override
+  Future<AppConfig> load() => _inner.load();
+
+  @override
+  Future<void> save(AppConfig config) {
+    saveCount++;
+    return _inner.save(config);
+  }
 }

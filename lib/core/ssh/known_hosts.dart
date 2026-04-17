@@ -33,6 +33,23 @@ class KnownHostsManager {
   /// Cached load future — ensures concurrent calls to [load] don't race.
   Future<void>? _loadFuture;
 
+  /// Serialises mutating database operations so that two concurrent
+  /// `clearAll` / `importFromString` / `removeMultiple` callers cannot
+  /// interleave and leave the in-memory cache and the database in
+  /// inconsistent states (e.g. one clear running while another is mid-flight).
+  Future<void> _writeLock = Future.value();
+
+  Future<T> _serializeWrite<T>(Future<T> Function() body) {
+    final pending = _writeLock.then((_) => body());
+    _writeLock = pending.then((_) {}, onError: (_) {});
+    return pending;
+  }
+
+  /// True once [_doLoad] has completed successfully at least once. Used to
+  /// distinguish "load already done" from "load attempted but failed and
+  /// should be retried on the next call".
+  bool _loaded = false;
+
   /// Callback invoked when an unknown host is encountered.
   /// Return true to accept the key, false to reject.
   /// If null, unknown hosts are auto-accepted (TOFU).
@@ -58,8 +75,31 @@ class KnownHostsManager {
   /// Initialize and load known hosts from database.
   ///
   /// Safe to call concurrently — the first call does the actual I/O,
-  /// subsequent calls await the same future.
-  Future<void> load() => _loadFuture ??= _doLoad();
+  /// subsequent calls await the same future. If the underlying I/O fails
+  /// the failure is logged (not rethrown) and the cached future is
+  /// cleared, so the next call retries instead of returning instantly with
+  /// a stale empty cache.
+  Future<void> load() {
+    if (_loaded) return Future.value();
+    return _loadFuture ??= _runLoad();
+  }
+
+  /// Force a re-fetch from the database, discarding the cached state.
+  /// Use after operations that mutate the underlying table outside of this
+  /// manager (e.g. import, settings reset).
+  Future<void> reload() {
+    _loaded = false;
+    _loadFuture = null;
+    return load();
+  }
+
+  Future<void> _runLoad() async {
+    try {
+      await _doLoad();
+    } finally {
+      if (!_loaded) _loadFuture = null;
+    }
+  }
 
   Future<void> _doLoad() async {
     final db = _db;
@@ -71,6 +111,7 @@ class KnownHostsManager {
       for (final e in entries) {
         _hosts['${e.host}:${e.port}'] = '${e.keyType} ${e.keyBase64}';
       }
+      _loaded = true;
       AppLogger.instance.log(
         'Loaded ${_hosts.length} known hosts',
         name: 'KnownHosts',
@@ -202,7 +243,7 @@ class KnownHostsManager {
   }
 
   /// Remove a single known host entry.
-  Future<void> removeHost(String hostPort) async {
+  Future<void> removeHost(String hostPort) => _serializeWrite(() async {
     await load();
     if (_hosts.remove(hostPort) != null) {
       final db = _db;
@@ -217,33 +258,34 @@ class KnownHostsManager {
         name: 'KnownHosts',
       );
     }
-  }
+  });
 
   /// Remove multiple known host entries.
-  Future<void> removeMultiple(Set<String> hostPorts) async {
-    await load();
-    for (final hp in hostPorts) {
-      _hosts.remove(hp);
-    }
-    final db = _db;
-    if (db != null) {
-      for (final hp in hostPorts) {
-        final parts = hp.split(':');
-        final host = parts[0];
-        final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
-        await db.knownHostDao.deleteByHostPort(host, port);
-      }
-    }
-  }
+  Future<void> removeMultiple(Set<String> hostPorts) =>
+      _serializeWrite(() async {
+        await load();
+        for (final hp in hostPorts) {
+          _hosts.remove(hp);
+        }
+        final db = _db;
+        if (db != null) {
+          for (final hp in hostPorts) {
+            final parts = hp.split(':');
+            final host = parts[0];
+            final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+            await db.knownHostDao.deleteByHostPort(host, port);
+          }
+        }
+      });
 
   /// Remove all known host entries.
-  Future<void> clearAll() async {
+  Future<void> clearAll() => _serializeWrite(() async {
     await load();
     if (_hosts.isEmpty) return;
     _hosts.clear();
     await _db?.knownHostDao.clearAll();
     AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
-  }
+  });
 
   /// Import entries from an OpenSSH-format known_hosts file.
   ///
@@ -258,7 +300,7 @@ class KnownHostsManager {
   /// Import entries from an OpenSSH-format known_hosts string.
   ///
   /// Returns the number of new entries added (existing hosts are skipped).
-  Future<int> importFromString(String content) async {
+  Future<int> importFromString(String content) => _serializeWrite(() async {
     await load();
     final db = _db;
     var added = 0;
@@ -277,7 +319,7 @@ class KnownHostsManager {
       );
     }
     return added;
-  }
+  });
 
   Future<void> _persistEntry(AppDatabase db, _ParsedHostEntry entry) async {
     final hpParts = entry.hostPort.split(':');

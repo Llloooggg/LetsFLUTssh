@@ -247,6 +247,11 @@
           + esc(c.label) + '</a>';
       });
     }
+    if (release && release.tag_name) {
+      ctaHtml += '<a href="' + esc(release.html_url)
+        + '" class="release-tag" target="_blank" rel="noopener">'
+        + '&#9660; ' + esc(release.tag_name) + '</a>';
+    }
     document.getElementById('hero-cta').innerHTML = ctaHtml;
   }
 

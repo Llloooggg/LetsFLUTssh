@@ -182,6 +182,32 @@ jobs:
       - name: Build Windows x64
         run: flutter build windows --release
 
+      - name: Self-signed Authenticode
+        # No commercial code-signing cert. Self-sign so Windows at least
+        # shows the publisher in the SmartScreen dialog (instead of
+        # "Unknown publisher") — users still have to click "More info"
+        # → "Run anyway" the first time, but the dialog is less alarming.
+        # Certificate is generated fresh per release and discarded; the
+        # binary identity that matters is the Ed25519 release signature
+        # that the updater verifies (lib/core/update/release_signing.dart).
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=LetsFLUTssh Open Source, O=Llloooggg, C=XX" `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -KeyAlgorithm RSA `
+            -KeyLength 3072 `
+            -HashAlgorithm SHA256 `
+            -NotAfter (Get-Date).AddYears(2)
+          $exe = "build\windows\x64\runner\Release\letsflutssh.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $exe `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $exe
+
       - name: Package zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
 
@@ -194,6 +220,24 @@ jobs:
           $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
           Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe" .
+
+      - name: Self-signed Authenticode (installer)
+        # Installer inherits its own Authenticode signature — the signing
+        # from the previous step only covered letsflutssh.exe inside the
+        # build dir; Inno Setup re-wraps it into a separate PE that needs
+        # its own signature. Same self-signed cert.
+        shell: pwsh
+        run: |
+          $cert = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object { $_.Subject -like '*LetsFLUTssh Open Source*' } |
+            Select-Object -First 1
+          $installer = "letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $installer `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $installer
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -221,6 +265,25 @@ jobs:
 
       - name: Build macOS (universal — x64 + arm64)
         run: flutter build macos --release
+
+      - name: Ad-hoc codesign (no Apple Developer ID)
+        # Without ad-hoc signing, Gatekeeper refuses to launch the app at
+        # all on a modern macOS — the user has to run
+        # `xattr -dr com.apple.quarantine` every install.
+        # Ad-hoc (`codesign --sign -`) produces a locally-valid signature
+        # that Gatekeeper accepts via the "right-click → Open" flow.
+        # The app is still marked "Unidentified developer" because we
+        # don't carry an Apple-rooted cert — Apple Developer ID is out
+        # of scope (no external paid accounts).
+        # --deep walks the bundle (frameworks, plugins, dylib embeds);
+        # --options=runtime enables the hardened runtime so the binary
+        # at least doesn't look worse than its signed counterparts.
+        run: |
+          set -euxo pipefail
+          codesign --force --deep --sign - --options=runtime \
+            build/macos/Build/Products/Release/letsflutssh.app
+          codesign --verify --deep --strict --verbose=2 \
+            build/macos/Build/Products/Release/letsflutssh.app
 
       - name: Package tar.gz
         run: |
@@ -304,6 +367,36 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
+
+      - name: Sign release artefacts (Ed25519)
+        # Produces <artifact>.sig next to every binary. The public keys
+        # corresponding to this private key are pinned in
+        # lib/core/update/release_signing.dart; on update, the client
+        # fetches the .sig alongside the binary and verifies offline.
+        # Requires the RELEASE_SIGNING_KEY secret to contain the PEM of
+        # an Ed25519 private key (output of `openssl genpkey -algorithm Ed25519`).
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
+            echo "::error::RELEASE_SIGNING_KEY secret is empty — aborting release so the update channel stays locked"
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$RELEASE_SIGNING_KEY" > /tmp/release-key.pem
+          trap 'rm -f /tmp/release-key.pem' EXIT
+          count=0
+          for f in artifacts/linux-x64/* artifacts/windows-x64/* artifacts/macos-universal/* artifacts/android-apk/*; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              *.sig|*.intoto.jsonl) continue ;;
+            esac
+            openssl pkeyutl -sign -inkey /tmp/release-key.pem -rawin -in "$f" -out "$f.sig"
+            count=$((count + 1))
+            echo "Signed $(basename "$f") → $(basename "$f").sig ($(wc -c <"$f.sig") bytes)"
+          done
+          echo "Signed $count artefact(s)."
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
@@ -413,13 +506,23 @@ jobs:
           body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz.sig
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage.sig
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb.sig
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
+            artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip.sig
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
+            artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe.sig
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
+            artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz.sig
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
+            artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg.sig
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk.sig
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk.sig
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk.sig
             artifacts/*.intoto.jsonl

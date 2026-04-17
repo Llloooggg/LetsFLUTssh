@@ -42,6 +42,7 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
+import '../../utils/secret_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';

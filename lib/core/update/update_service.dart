@@ -1,11 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:pointycastle/digests/sha256.dart';
 
 import '../../utils/logger.dart';
+import 'cert_pinning.dart';
+import 'release_signing.dart';
+
+/// Thrown when a downloaded release artefact fails Ed25519 signature
+/// verification against the pinned public keys, or when the `.sig`
+/// companion fails to download / parse. Deliberately distinct from
+/// generic network errors so the UI can surface a security-coloured
+/// toast instead of a retry prompt.
+class InvalidReleaseSignatureException implements Exception {
+  final String reason;
+  const InvalidReleaseSignatureException(this.reason);
+
+  @override
+  String toString() => 'InvalidReleaseSignatureException: $reason';
+}
 
 /// Result of a version check against GitHub releases.
 class UpdateInfo {
@@ -85,6 +100,23 @@ typedef FileDownloader =
 typedef ProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 
+/// Callback that verifies a downloaded artefact end-to-end. Production
+/// fetches `<assetUri>.sig`, reads it, and calls [ReleaseSigning.verifyFile].
+/// Tests inject a no-op or a rejector to exercise the download path
+/// without generating real signatures per test.
+///
+/// The callback owns the `.sig` file lifecycle (download, parse, delete
+/// on failure). It must throw [InvalidReleaseSignatureException] on
+/// failure so the caller can distinguish crypto-layer failures from
+/// network / SHA failures.
+typedef ReleaseArtifactVerifier =
+    Future<void> Function({
+      required Uri assetUri,
+      required String assetPath,
+      required String targetDir,
+      required FileDownloader download,
+    });
+
 /// Checks GitHub releases for updates and downloads assets.
 ///
 /// HTTP operations are injected for testability — production code uses
@@ -98,6 +130,7 @@ class UpdateService {
   final HttpFetcher _fetch;
   final FileDownloader _download;
   final ProcessRunner _runProcess;
+  final ReleaseArtifactVerifier _verifyArtifact;
 
   /// Platform identifier used by [openFile] to pick the host-specific opener.
   /// Injected so tests can exercise every branch (linux / macos / windows /
@@ -108,10 +141,12 @@ class UpdateService {
     HttpFetcher? fetch,
     FileDownloader? download,
     ProcessRunner? runProcess,
+    ReleaseArtifactVerifier? verifyArtifact,
     String? platform,
   }) : _fetch = fetch ?? defaultFetch,
        _download = download ?? defaultDownload,
        _runProcess = runProcess ?? Process.run,
+       _verifyArtifact = verifyArtifact ?? _defaultVerifyArtifact,
        _platform = platform ?? _hostPlatform();
 
   /// True if [uri] uses HTTPS and a host GitHub uses for release assets
@@ -224,8 +259,20 @@ class UpdateService {
 
   /// Download the asset at [url] into [targetDir], returning the saved path.
   ///
-  /// If [expectedDigest] is provided, verifies the SHA256 hash of the
-  /// downloaded file and deletes it if verification fails.
+  /// Two independent integrity checks run against the downloaded file:
+  ///
+  ///   * **Ed25519 release signature** — `<url>.sig` is fetched alongside
+  ///     the asset and verified against the pubkeys pinned in
+  ///     [ReleaseSigning]. This is the authoritative defence against
+  ///     SEC-10 (GitHub response tampering) — a MITM would have to
+  ///     forge an Ed25519 signature under one of the embedded public
+  ///     keys to slip past.
+  ///   * **SHA-256 digest** — secondary, belt-and-suspenders. Catches
+  ///     disk corruption and the easy "attacker replaced only the
+  ///     binary but not the .sig" case before the signature pass.
+  ///
+  /// Either failure deletes the download and throws. No signature →
+  /// fail-closed (fresh releases MUST ship a `.sig`).
   Future<String> downloadAsset(
     String url,
     String targetDir, {
@@ -245,14 +292,7 @@ class UpdateService {
       AppLogger.instance.log('Verifying SHA256...', name: 'UpdateService');
       final actual = await computeFileSha256(savePath);
       if (actual != expectedDigest) {
-        try {
-          await File(savePath).delete();
-        } catch (e) {
-          AppLogger.instance.log(
-            'Failed to delete file after SHA256 mismatch: $e',
-            name: 'UpdateService',
-          );
-        }
+        await _deleteQuietly(savePath);
         throw StateError(
           'SHA256 mismatch: expected $expectedDigest, got $actual',
         );
@@ -260,8 +300,108 @@ class UpdateService {
       AppLogger.instance.log('SHA256 verified', name: 'UpdateService');
     }
 
+    try {
+      await _verifyArtifact(
+        assetUri: uri,
+        assetPath: savePath,
+        targetDir: targetDir,
+        download: _download,
+      );
+    } catch (_) {
+      await _deleteQuietly(savePath);
+      rethrow;
+    }
+
     AppLogger.instance.log('Downloaded to $savePath', name: 'UpdateService');
     return savePath;
+  }
+
+  Future<void> _deleteQuietly(String path) async {
+    try {
+      final f = File(path);
+      if (await f.exists()) await f.delete();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to delete $path: $e',
+        name: 'UpdateService',
+      );
+    }
+  }
+
+  /// Default [ReleaseArtifactVerifier]: download `<asset>.sig`, read it,
+  /// run Ed25519 verify against the pinned release public keys. Deletes
+  /// the `.sig` on failure; leaves it next to the binary on success so
+  /// the installer step can re-verify offline.
+  static Future<void> _defaultVerifyArtifact({
+    required Uri assetUri,
+    required String assetPath,
+    required String targetDir,
+    required FileDownloader download,
+  }) async {
+    final sigUri = assetUri.replace(path: '${assetUri.path}.sig');
+    if (!isTrustedReleaseAssetUri(sigUri)) {
+      throw StateError('Untrusted update signature URL: $sigUri');
+    }
+    final sigPath = p.join(targetDir, '${p.basename(assetPath)}.sig');
+    AppLogger.instance.log(
+      'Fetching release signature...',
+      name: 'UpdateService',
+    );
+    try {
+      await download(sigUri, sigPath, null);
+    } catch (e) {
+      await _deleteFileQuietly(sigPath);
+      throw InvalidReleaseSignatureException(
+        'Failed to fetch release signature: $e',
+      );
+    }
+
+    final Uint8List sigBytes;
+    try {
+      sigBytes = await File(sigPath).readAsBytes();
+    } catch (e) {
+      await _deleteFileQuietly(sigPath);
+      throw InvalidReleaseSignatureException(
+        'Failed to read release signature: $e',
+      );
+    }
+
+    final ok = await ReleaseSigning.verifyFile(
+      artifactPath: assetPath,
+      signature: sigBytes,
+    );
+    if (!ok) {
+      await _deleteFileQuietly(sigPath);
+      throw const InvalidReleaseSignatureException(
+        'Release signature did not verify against any pinned public key',
+      );
+    }
+    AppLogger.instance.log(
+      'Release signature verified (Ed25519)',
+      name: 'UpdateService',
+    );
+  }
+
+  static Future<void> _deleteFileQuietly(String path) async {
+    try {
+      final f = File(path);
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      /* best-effort */
+    }
+  }
+
+  /// Test helper: a [ReleaseArtifactVerifier] that never fails. Use in
+  /// tests that exercise the download path without caring about
+  /// signatures.
+  @visibleForTesting
+  static Future<void> skipSignatureVerification({
+    required Uri assetUri,
+    required String assetPath,
+    required String targetDir,
+    required FileDownloader download,
+  }) async {
+    return;
   }
 
   /// Compute SHA256 hex digest of a file.
@@ -368,6 +508,7 @@ class UpdateService {
 
   static Future<String> defaultFetch(Uri url) async {
     final client = HttpClient();
+    CertPinning.enforce(client);
     try {
       final request = await client.getUrl(url);
       request.headers.set('Accept', 'application/vnd.github.v3+json');
@@ -396,6 +537,7 @@ class UpdateService {
 
     const maxRedirects = 10;
     final client = HttpClient();
+    CertPinning.enforce(client);
     try {
       var requestUri = url;
       var redirectCount = 0;

@@ -78,6 +78,39 @@ class ExportImport {
   /// is generous for normal use but catches zip-bomb-scale inputs.
   static const int maxArchiveBytes = 50 * 1024 * 1024;
 
+  /// Maximum total uncompressed payload accepted from any decoded ZIP
+  /// (200 MiB). The outer file size is already capped by [maxArchiveBytes],
+  /// but ZIP allows tiny compressed entries to declare wildly large
+  /// uncompressed sizes (the classic zip-bomb pattern). After decoding the
+  /// archive we sum every entry's `size` and refuse to continue if the
+  /// total exceeds this cap, before any further processing reads the
+  /// content into memory.
+  ///
+  /// Set to 4× the compressed cap so legitimate exports with high-ratio
+  /// JSON content still fit, but anything pathological is rejected.
+  static const int maxDecompressedBytes = 200 * 1024 * 1024;
+
+  /// Walk every entry in [archive] and refuse if the cumulative declared
+  /// uncompressed size exceeds [maxDecompressedBytes].
+  ///
+  /// Throws [LfsArchiveTooLargeException] (re-using the existing exception
+  /// for "too big" so the UI surface stays consistent).
+  @visibleForTesting
+  static void enforceDecompressedSizeCap(Archive archive) {
+    var total = 0;
+    for (final entry in archive) {
+      final size = entry.size;
+      if (size < 0) continue; // negative sizes are not meaningful
+      total += size;
+      if (total > maxDecompressedBytes) {
+        throw LfsArchiveTooLargeException(
+          size: total,
+          limit: maxDecompressedBytes,
+        );
+      }
+    }
+  }
+
   /// Maximum accepted decompressed known_hosts payload (10 MiB). The outer
   /// archive size is already bounded by [maxArchiveBytes], but a malicious
   /// or corrupted .lfs could still ship a tiny ZIP entry that decompresses
@@ -110,10 +143,31 @@ class ExportImport {
     return true;
   }
 
+  /// Hard ceiling on the iteration count we are willing to honour from an
+  /// untrusted archive header. Anything above this is clamped to [maxImportIterations]
+  /// — a hostile or corrupt archive could otherwise embed `0xFFFFFFFF` and
+  /// hang PBKDF2 in the isolate for hours (DoS on import).
+  ///
+  /// The legitimate value for production archives is [productionPbkdf2Iterations]
+  /// (currently 600 000); the cap is set 10× above that to leave headroom
+  /// for future increases without a format flag day.
+  @visibleForTesting
+  static const int maxImportIterations = 6000000;
+
   /// Decode the iteration count from a v2 header. Assumes
   /// [_hasEncryptionHeader] already returned true on [data].
+  ///
+  /// Throws [LfsMalformedHeaderException] when the encoded value is zero
+  /// (impossible to derive a key with zero rounds) or exceeds
+  /// [maxImportIterations] (DoS guard against a hostile / corrupt header).
   static int _readHeaderIterations(Uint8List data) {
-    return (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
+    final raw = (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
+    if (raw <= 0 || raw > maxImportIterations) {
+      throw LfsMalformedHeaderException(
+        reason: 'iterations=$raw is outside [1, $maxImportIterations]',
+      );
+    }
+    return raw;
   }
 
   /// Probe an `.lfs` candidate file and decide what the import flow
@@ -149,6 +203,14 @@ class ExportImport {
       try {
         archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
       } catch (_) {
+        return LfsArchiveKind.notLfs;
+      }
+      // Probe is best-effort — a zip bomb here just means the file is not
+      // recognised as one of ours; classify as notLfs and let the caller
+      // surface a friendly rejection.
+      try {
+        enforceDecompressedSizeCap(archive);
+      } on LfsArchiveTooLargeException {
         return LfsArchiveKind.notLfs;
       }
       const markers = [_manifestFile, _sessionsFile, _configFile, _keysFile];
@@ -607,6 +669,9 @@ class ExportImport {
     } catch (e) {
       throw LfsDecryptionFailedException(cause: e);
     }
+    // Zip-bomb guard: refuse before the manifest / session readers start
+    // pulling entry bytes into memory.
+    enforceDecompressedSizeCap(archive);
 
     final manifest = _parseManifest(archive);
     if (manifest.schemaVersion > currentSchemaVersion) {
@@ -1059,6 +1124,17 @@ class LfsDecryptionFailedException implements Exception {
 
   @override
   String toString() => 'LfsDecryptionFailedException';
+}
+
+/// The encrypted-archive header carried a value that we refuse to honour
+/// (e.g. an iteration count of 0 or above [LfsExportImport.maxImportIterations]).
+/// Importing would otherwise hang the isolate or crash on bad input.
+class LfsMalformedHeaderException implements Exception {
+  final String reason;
+  const LfsMalformedHeaderException({required this.reason});
+
+  @override
+  String toString() => 'LfsMalformedHeaderException: $reason';
 }
 
 /// Preview of .lfs archive contents.

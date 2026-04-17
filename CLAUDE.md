@@ -48,7 +48,6 @@ Open-source alternative to Xshell/Termius. Platforms: Windows, Linux, macOS, And
 
 - Latest **stable** versions only — no beta/dev/pre-release. OS-level deps must be **optional** with graceful runtime fallback (e.g. `flutter_secure_storage` requires libsecret on Linux — app works without it)
 - **Always build via Makefile** — `make run`, `make build-linux`, `make test`, `make analyze`. Never call `flutter build`/`flutter run` directly
-- **Always use Context7 MCP** for library/API docs — don't guess APIs, look them up
 - **Pin external downloads in CI** — specific release version + SHA256 checksum
 
 ### What Not To Do

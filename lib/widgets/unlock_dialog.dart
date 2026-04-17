@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/security/master_password.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/secret_controller.dart';
 
 /// Full-screen unlock dialog shown at startup when master password is enabled.
 ///
@@ -51,6 +52,7 @@ class _UnlockDialogState extends State<UnlockDialog> {
 
   @override
   void dispose() {
+    _passwordCtrl.wipeAndClear();
     _passwordCtrl.dispose();
     _focusNode.dispose();
     super.dispose();

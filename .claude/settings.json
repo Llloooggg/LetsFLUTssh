@@ -1,4 +1,9 @@
 {
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/commit/**)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -46,12 +51,5 @@
       }
     ]
   },
-  "enabledPlugins": {
-    "context7@claude-plugins-official": true
-  },
-  "permissions": {
-    "allow": [
-      "Edit(/.claude/skills/commit/**)"
-    ]
-  }
+  "enabledPlugins": {}
 }

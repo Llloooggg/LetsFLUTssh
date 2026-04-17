@@ -47,6 +47,24 @@ jobs:
       - name: Analyze
         run: flutter analyze --fatal-infos
 
+      - name: Verify ARB parity (every locale has the same keys as app_en.arb)
+        run: bash scripts/check-arb-parity.sh
+
+      - name: Verify generated localisations are up to date
+        # Re-run flutter gen-l10n in place and fail if it mutated any of
+        # the checked-in generated files. Catches PRs that add ARB keys
+        # but forget to commit the regenerated S.of(context) helpers.
+        # --output-dir is ignored when l10n.yaml is present (Flutter warns
+        # about it), so we run gen-l10n on the real tree and use
+        # `git diff --exit-code` as the oracle.
+        run: |
+          flutter gen-l10n
+          if ! git diff --quiet -- lib/l10n/; then
+            echo "::error::generated lib/l10n/app_localizations*.dart is out of sync with the ARB files. Run \`flutter gen-l10n\` and commit." >&2
+            git diff -- lib/l10n/ | head -100 >&2 || true
+            exit 1
+          fi
+
       - name: Run tests with coverage
         run: flutter test --coverage
 

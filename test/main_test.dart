@@ -268,8 +268,16 @@ void main() {
   });
 
   group('navigatorKey', () {
-    test('is a GlobalKey<NavigatorState>', () {
-      expect(navigatorKey, isA<GlobalKey<NavigatorState>>());
+    test('exposes the same GlobalKey instance for the lifetime of the app', () {
+      // The lock-screen, update-dialog and toast plumbing all reach into
+      // navigatorKey.currentContext to push routes from outside the
+      // widget tree. They depend on this being a stable singleton — a
+      // future refactor that re-creates it per build would break those
+      // call sites silently. Pin both the type *and* the identity.
+      final first = navigatorKey;
+      final second = navigatorKey;
+      expect(identical(first, second), isTrue);
+      expect(first, isA<GlobalKey<NavigatorState>>());
     });
   });
 
@@ -365,6 +373,10 @@ void main() {
       );
       if (skipFinder.evaluate().isNotEmpty) {
         await tester.tap(skipFinder.first);
+        // ConfigNotifier.update debounces the save 300 ms. Advance the
+        // fake clock past it so the pending timer is flushed before the
+        // test ends; otherwise the test framework reports a leaked timer.
+        await tester.pump(const Duration(milliseconds: 350));
         await tester.pumpAndSettle();
       }
     });
@@ -411,12 +423,6 @@ void main() {
 
       // Restore
       ErrorWidget.builder = originalBuilder;
-    });
-  });
-
-  group('navigatorKey', () {
-    test('is a GlobalKey<NavigatorState>', () {
-      expect(navigatorKey, isA<GlobalKey<NavigatorState>>());
     });
   });
 

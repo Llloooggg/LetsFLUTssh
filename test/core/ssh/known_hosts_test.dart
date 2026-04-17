@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/core/db/database_opener.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
@@ -405,5 +406,85 @@ void main() {
       final fp = KnownHostsManager.fingerprint([10, 20, 30]);
       expect(fp, startsWith('SHA256:'));
     });
+
+    test(
+      'reload() picks up entries inserted directly into the DAO bypassing the manager',
+      () async {
+        manager.onUnknownHost = (_, _, _, _) async => true;
+        await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
+        expect(manager.count, 1);
+
+        // Simulate an external mutation: the import service writes straight
+        // into the DAO. The in-memory cache is now stale.
+        await db.knownHostDao.insert(
+          KnownHostsCompanion.insert(
+            host: 'beta.com',
+            port: const Value(22),
+            keyType: 'ssh-rsa',
+            keyBase64: 'AAAA',
+            addedAt: DateTime.now(),
+          ),
+        );
+        // Plain load() is a no-op because the manager already loaded once.
+        await manager.load();
+        expect(manager.count, 1, reason: 'load() must not re-fetch');
+
+        await manager.reload();
+        expect(manager.count, 2, reason: 'reload() must re-fetch from the DAO');
+      },
+    );
+
+    test(
+      'concurrent clearAll + importFromString are serialised, no interleave',
+      () async {
+        manager.onUnknownHost = (_, _, _, _) async => true;
+        await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
+        await manager.verify('beta.com', 22, 'ssh-rsa', [3, 4]);
+        expect(manager.count, 2);
+
+        // Kick off a clearAll and an import at the "same time". The
+        // serialised write lock must run them in submission order so the
+        // import sees a clean slate and ends with exactly the imported
+        // entries — never a mixture.
+        final clear = manager.clearAll();
+        final imp = manager.importFromString(
+          'gamma.com:22 ssh-rsa CCCC\n'
+          'delta.com:22 ssh-rsa DDDD\n',
+        );
+        await Future.wait([clear, imp]);
+
+        expect(manager.count, 2);
+        expect(manager.entries.containsKey('gamma.com:22'), isTrue);
+        expect(manager.entries.containsKey('delta.com:22'), isTrue);
+        expect(manager.entries.containsKey('alpha.com:22'), isFalse);
+      },
+    );
+
+    test(
+      'load() retries after the underlying DAO call throws on a previous attempt',
+      () async {
+        // First load — DB is unset, so _doLoad() returns silently without
+        // marking _loaded. Next load() with the DB attached must perform
+        // real I/O instead of short-circuiting.
+        final fresh = KnownHostsManager();
+        await fresh.load(); // no DB yet — silent no-op
+        expect(fresh.count, 0);
+
+        // Pre-seed the DB and only now attach it.
+        await db.knownHostDao.insert(
+          KnownHostsCompanion.insert(
+            host: 'gamma.com',
+            port: const Value(22),
+            keyType: 'ssh-rsa',
+            keyBase64: 'BBBB',
+            addedAt: DateTime.now(),
+          ),
+        );
+        fresh.setDatabase(db);
+
+        await fresh.load();
+        expect(fresh.count, 1);
+      },
+    );
   });
 }

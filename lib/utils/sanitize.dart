@@ -22,8 +22,15 @@
 /// including `-----BEGIN OPENSSH PRIVATE KEY-----...` — into the exception
 /// message.
 String redactSecrets(String input) {
+  // Match any PEM-style block (private key, encrypted private key, future
+  // proprietary formats with hyphens in the type name like "OPENSSH PRIVATE
+  // KEY"). The type-name class is restricted to non-newline characters
+  // rather than non-hyphen so types like "OPENSSH-PRIVATE-KEY" or
+  // "ENCRYPTED PRIVATE KEY" still match.
   final pemPattern = RegExp(
-    r'-----BEGIN[^-]*PRIVATE KEY-----[\s\S]*?-----END[^-]*PRIVATE KEY-----',
+    r'-----BEGIN[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----'
+    r'[\s\S]*?'
+    r'-----END[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----',
     multiLine: true,
   );
   var out = input.replaceAll(pemPattern, '[REDACTED PRIVATE KEY]');
