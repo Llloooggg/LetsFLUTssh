@@ -2638,6 +2638,38 @@ void main() {
       expect(find.text('Unknown error'), findsOneWidget);
     });
 
+    testWidgets(
+      'InvalidReleaseSignatureException renders the security warning + '
+      'Open Releases page action instead of the generic error tile',
+      (tester) async {
+        // Spec: a signature-verify failure is not a generic network /
+        // disk error — it is a security signal. The UI must stop
+        // prompting "retry" (same failing download) and instead point
+        // the user at the Releases page for a manual reinstall.
+        await tester.pumpWidget(
+          buildUpdateApp(
+            initialUpdateState: const UpdateState(
+              status: UpdateStatus.error,
+              error: InvalidReleaseSignatureException(
+                'Manifest signature did not verify against the pinned public key',
+              ),
+            ),
+          ),
+        );
+        await tester.scrollUntilVisible(
+          find.text('Update verification failed'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('Update verification failed'), findsOneWidget);
+        // Generic "Update check failed" tile must NOT appear — otherwise
+        // the user sees two competing prompts.
+        expect(find.text('Update check failed'), findsNothing);
+        // The Open Releases page button must be present and enabled.
+        expect(find.text('Open Releases page'), findsOneWidget);
+      },
+    );
+
     testWidgets('download complete shows downloaded path', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(

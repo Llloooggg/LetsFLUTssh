@@ -1249,6 +1249,16 @@ class SDe extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Aktualisierung abgelehnt: Die heruntergeladenen Dateien sind nicht mit dem in der App verankerten Release-Schlüssel signiert. Dies kann bedeuten, dass der Download unterwegs manipuliert wurde, oder die aktuelle Version ist nicht für diese Installation bestimmt. NICHT installieren — stattdessen manuell von der offiziellen Releases-Seite neu installieren.';
+
+  @override
+  String get updateSecurityWarningTitle => 'Update-Überprüfung fehlgeschlagen';
+
+  @override
+  String get updateReinstallAction => 'Releases-Seite öffnen';
+
+  @override
   String get errLfsNotArchive =>
       'Die ausgewählte Datei ist kein LetsFLUTssh-Archiv.';
 

@@ -7,6 +7,7 @@ import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 import 'package:letsflutssh/core/import/import_service.dart';
 import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
+import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/l10n/app_localizations_en.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
@@ -420,6 +421,36 @@ void main() {
         final msg = localizeError(l10n, e);
         expect(msg, contains('60.0'));
       });
+    });
+
+    group('InvalidReleaseSignatureException', () {
+      test(
+        'returns the fixed security-warning string regardless of reason',
+        () {
+          // Spec: the reason field may contain internal detail
+          // ("Manifest signature did not verify", "SHA-256 mismatch",
+          // "Failed to fetch manifest"...) but the user-facing string
+          // must be the same generic security warning. Surfacing the
+          // reason would either leak internal paths or — worse — hint
+          // at which part of the signed-release pipeline an attacker
+          // broke. Always show the same "do not install, reinstall
+          // manually" message.
+          const e1 = InvalidReleaseSignatureException(
+            'Manifest signature did not verify against the pinned public key',
+          );
+          const e2 = InvalidReleaseSignatureException(
+            'SHA-256 mismatch for letsflutssh-5.8.2-linux-x64.tar.gz',
+          );
+          final msg1 = localizeError(l10n, e1);
+          final msg2 = localizeError(l10n, e2);
+          expect(msg1, msg2, reason: 'same user-facing message');
+          expect(msg1, isNotEmpty);
+          // The raw reason must not leak — no internal path / hash / key
+          // details in the UI copy.
+          expect(msg1, isNot(contains('pinned public key')));
+          expect(msg2, isNot(contains('SHA-256 mismatch')));
+        },
+      );
     });
 
     group('TimeoutException', () {

@@ -142,6 +142,17 @@ class _UpdateSection extends ConsumerWidget {
         return _buildDownloaded(context, ref, updateState);
 
       case UpdateStatus.error:
+        // Signature-verification failures get their own presentation: the
+        // payload bytes on the network did not match the key pinned in
+        // the app, which either means the download was tampered with or
+        // the release genuinely is not for this installation. Either
+        // way the user must not be nudged to retry the same failing
+        // download — surface a security-styled warning with an "open
+        // Releases page" action that points them at a manual reinstall
+        // instead.
+        if (updateState.error is InvalidReleaseSignatureException) {
+          return _buildSignatureFailureWidget(context, ref);
+        }
         return ListTile(
           leading: Icon(
             Icons.error_outline,
@@ -275,6 +286,40 @@ class _UpdateSection extends ConsumerWidget {
       ],
     );
   }
+
+  Widget _buildSignatureFailureWidget(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final onError = theme.colorScheme.error;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          leading: Icon(Icons.gpp_bad_outlined, size: 20, color: onError),
+          title: Text(
+            S.of(context).updateSecurityWarningTitle,
+            style: TextStyle(color: onError, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            S.of(context).errReleaseSignatureInvalid,
+            style: TextStyle(fontSize: AppFonts.md, color: onError),
+          ),
+          contentPadding: EdgeInsets.zero,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () =>
+                  ref.read(updateProvider.notifier).openReleasePage(),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(S.of(context).updateReinstallAction),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Action button for a ready-to-install update. On platforms that can
@@ -396,4 +441,3 @@ class _AboutSection extends ConsumerWidget {
     );
   }
 }
-

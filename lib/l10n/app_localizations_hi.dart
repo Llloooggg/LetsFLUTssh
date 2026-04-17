@@ -1240,6 +1240,16 @@ class SHi extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'अपडेट अस्वीकृत: डाउनलोड की गई फ़ाइलें ऐप में पिन की गई रिलीज़ कुंजी से हस्ताक्षरित नहीं हैं। इसका मतलब यह हो सकता है कि डाउनलोड के दौरान छेड़छाड़ हुई थी, या वर्तमान रिलीज़ इस इंस्टॉलेशन के लिए नहीं है। इंस्टॉल न करें — इसके बजाय आधिकारिक रिलीज़ पेज से मैन्युअल रूप से पुनः इंस्टॉल करें।';
+
+  @override
+  String get updateSecurityWarningTitle => 'अपडेट सत्यापन विफल';
+
+  @override
+  String get updateReinstallAction => 'रिलीज़ पेज खोलें';
+
+  @override
   String get errLfsNotArchive => 'चयनित फ़ाइल LetsFLUTssh संग्रह नहीं है।';
 
   @override

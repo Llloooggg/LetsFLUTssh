@@ -717,6 +717,9 @@
       }
     }
   },
+  "errReleaseSignatureInvalid": "Update rejected: the downloaded files are not signed by the pinned release key. This can mean the download was tampered with in transit, or the current release genuinely is not for this installation. Do NOT install — reinstall manually from the official Releases page instead.",
+  "updateSecurityWarningTitle": "Update verification failed",
+  "updateReinstallAction": "Open Releases page",
   "errLfsNotArchive": "Selected file is not a LetsFLUTssh archive.",
   "errLfsDecryptFailed": "Wrong master password or corrupted .lfs archive",
   "errLfsArchiveTooLarge": "Archive is too large ({sizeMb} MB). The limit is {limitMb} MB — aborted before decryption to protect memory.",

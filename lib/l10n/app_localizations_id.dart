@@ -1241,6 +1241,16 @@ class SId extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Pembaruan ditolak: file yang diunduh tidak ditandatangani dengan kunci rilis yang disematkan di aplikasi. Ini dapat berarti unduhan telah diubah saat transit, atau rilis saat ini memang bukan untuk instalasi ini. JANGAN instal — instal ulang secara manual dari halaman Rilis resmi.';
+
+  @override
+  String get updateSecurityWarningTitle => 'Verifikasi pembaruan gagal';
+
+  @override
+  String get updateReinstallAction => 'Buka halaman Rilis';
+
+  @override
   String get errLfsNotArchive => 'Berkas yang dipilih bukan arsip LetsFLUTssh.';
 
   @override

@@ -1205,6 +1205,16 @@ class SZh extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      '更新已拒绝：下载的文件未使用应用中固定的发布密钥签名。这可能意味着下载过程中被篡改，或者当前版本并非适用于此安装。请勿安装 — 请从官方发布页面手动重新安装。';
+
+  @override
+  String get updateSecurityWarningTitle => '更新验证失败';
+
+  @override
+  String get updateReinstallAction => '打开发布页';
+
+  @override
   String get errLfsNotArchive => '所选文件不是 LetsFLUTssh 归档。';
 
   @override

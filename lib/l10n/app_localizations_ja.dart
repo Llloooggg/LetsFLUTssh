@@ -1212,6 +1212,16 @@ class SJa extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      '更新が拒否されました：ダウンロードされたファイルが、アプリに固定されているリリース鍵で署名されていません。ダウンロードが途中で改ざんされたか、現在のリリースがこのインストールに対応していない可能性があります。インストールしないでください — 公式リリースページから手動で再インストールしてください。';
+
+  @override
+  String get updateSecurityWarningTitle => '更新の検証に失敗しました';
+
+  @override
+  String get updateReinstallAction => 'リリースページを開く';
+
+  @override
   String get errLfsNotArchive => '選択したファイルは LetsFLUTssh のアーカイブではありません。';
 
   @override

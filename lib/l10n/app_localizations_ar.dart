@@ -1245,6 +1245,16 @@ class SAr extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'تم رفض التحديث: الملفات التي تم تنزيلها ليست موقّعة بمفتاح الإصدار المثبّت في التطبيق. قد يعني هذا أنه تم العبث بالتنزيل أثناء النقل، أو أن الإصدار الحالي ليس مخصصًا لهذا التثبيت. لا تقم بالتثبيت — أعد التثبيت يدويًا من صفحة الإصدارات الرسمية.';
+
+  @override
+  String get updateSecurityWarningTitle => 'فشل التحقق من التحديث';
+
+  @override
+  String get updateReinstallAction => 'فتح صفحة الإصدارات';
+
+  @override
   String get errLfsNotArchive => 'الملف المحدد ليس أرشيف LetsFLUTssh.';
 
   @override

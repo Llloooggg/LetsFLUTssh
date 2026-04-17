@@ -1236,6 +1236,16 @@ class SEn extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Update rejected: the downloaded files are not signed by the pinned release key. This can mean the download was tampered with in transit, or the current release genuinely is not for this installation. Do NOT install — reinstall manually from the official Releases page instead.';
+
+  @override
+  String get updateSecurityWarningTitle => 'Update verification failed';
+
+  @override
+  String get updateReinstallAction => 'Open Releases page';
+
+  @override
   String get errLfsNotArchive => 'Selected file is not a LetsFLUTssh archive.';
 
   @override
