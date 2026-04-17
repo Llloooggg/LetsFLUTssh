@@ -72,8 +72,12 @@ class _ToolsDialogState extends State<ToolsDialog> {
     final entries = _buildEntries(context);
     final theme = Theme.of(context);
 
+    final viewportWidth = MediaQuery.sizeOf(context).width;
     return Dialog(
-      insetPadding: const EdgeInsets.all(32),
+      // Match the Settings modal gutter exactly so the two VS-Code-style
+      // desktop dialogs line up visually — shared formula owned by
+      // AppTheme.desktopModalInsetPadding.
+      insetPadding: AppTheme.desktopModalInsetPadding(viewportWidth),
       backgroundColor: AppTheme.bg1,
       child: CallbackShortcuts(
         bindings: AppShortcutRegistry.instance.buildCallbackMap({

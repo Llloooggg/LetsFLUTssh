@@ -338,18 +338,13 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    // Make the desktop settings modal ~15% narrower than the viewport
-    // (7.5% gutter on each side), falling back to the fixed 32px inset
-    // on small windows so the dialog stops shrinking at a readable
-    // minimum instead of collapsing.
-    final width = MediaQuery.sizeOf(context).width;
-    final horizontalInset = (width * 0.075).clamp(32.0, double.infinity);
+    // Keep Settings, Tools, and every other full-screen desktop modal
+    // at the same symmetric inset so they feel like siblings — the
+    // fraction and floor are owned by AppTheme.desktopModalInsetPadding.
+    final viewportWidth = MediaQuery.sizeOf(context).width;
 
     return Dialog(
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: horizontalInset,
-        vertical: 32,
-      ),
+      insetPadding: AppTheme.desktopModalInsetPadding(viewportWidth),
       backgroundColor: AppTheme.bg1,
       child: CallbackShortcuts(
         bindings: AppShortcutRegistry.instance.buildCallbackMap({
