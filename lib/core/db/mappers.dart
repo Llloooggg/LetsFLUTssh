@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../utils/logger.dart';
 import '../session/session.dart';
 import '../ssh/ssh_config.dart';
 import 'dao/folder_dao.dart';
@@ -80,13 +81,26 @@ SessionsCompanion sessionToCompanion(Session s, {required String? folderId}) {
 
 /// Build folder path string (e.g. "Production/EU") from a folderId by walking
 /// up the parent chain.
+///
+/// If a referenced folder id is not present in [folderMap] (an orphaned
+/// `parent_id` pointing at a deleted row), the partial path collected so far
+/// is prefixed with `(orphaned)/` so the inconsistency is surfaced in the UI
+/// instead of being silently truncated, and a warning is logged with both ids
+/// so it can be diagnosed offline.
 String _buildFolderPath(String? folderId, Map<String, DbFolder> folderMap) {
   if (folderId == null) return '';
   final parts = <String>[];
   String? current = folderId;
   while (current != null) {
     final folder = folderMap[current];
-    if (folder == null) break;
+    if (folder == null) {
+      AppLogger.instance.log(
+        'Orphan folder reference: id=$current (started from $folderId). '
+        'Partial path: ${parts.reversed.join('/')}',
+        name: 'FolderMapper',
+      );
+      return '(orphaned)/${parts.reversed.join('/')}';
+    }
     parts.add(folder.name);
     current = folder.parentId;
   }
