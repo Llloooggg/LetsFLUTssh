@@ -240,8 +240,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                 Expanded(
                   child: Text(
                     item.label ?? '',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
+                    style: AppFonts.inter(
                       fontSize: AppFonts.sm,
                       color: fgColor,
                     ),
