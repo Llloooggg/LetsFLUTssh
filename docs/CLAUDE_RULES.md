@@ -63,7 +63,7 @@ Reference material for Claude. Read the specific section you need, not the whole
 ### Architecture (non-obvious rules)
 - **No SCP** — dartssh2 doesn't support it; SFTP covers all use cases
 - SSH keys accepted **both as file and text** (paste PEM)
-- `.lfs` export format: `[salt 32B] [iv 12B] [encrypted ZIP + GCM tag]`, merge/replace import modes. ZIP contains sessions, keys, config, known_hosts, tags, snippets — [§3.9 Import](ARCHITECTURE.md#39-import-coreimport)
+- `.lfs` export format and import modes — single source of truth: [§3.9 Import](ARCHITECTURE.md#39-import-coreimport)
 - Credentials in `CredentialStore` (AES-256-GCM), NOT in plain JSON — [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity)
 
 ### Theme & UI Constants

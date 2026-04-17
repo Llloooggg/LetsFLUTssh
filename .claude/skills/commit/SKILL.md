@@ -38,7 +38,7 @@ Note: Version bumps are automated by `scripts/bump-version.sh` (runs during `/pr
 git commit -m "$(cat <<'EOF'
 type: description
 
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
