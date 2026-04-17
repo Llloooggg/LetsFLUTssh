@@ -407,6 +407,7 @@ void main() {
   group('UpdateService.checkForUpdate', () {
     test('returns UpdateInfo with hasUpdate true when newer version', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v2.0.0')]),
       );
 
@@ -420,6 +421,7 @@ void main() {
 
     test('returns hasUpdate false when same version', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v1.0.0')]),
       );
 
@@ -429,6 +431,7 @@ void main() {
 
     test('returns hasUpdate false when older remote version', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v0.9.0')]),
       );
 
@@ -438,6 +441,7 @@ void main() {
 
     test('handles single object (legacy /latest format)', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')),
       );
 
@@ -447,7 +451,10 @@ void main() {
     });
 
     test('handles empty releases array', () async {
-      final service = UpdateService(fetch: (_) async => '[]');
+      final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
+        fetch: (_) async => '[]',
+      );
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -456,6 +463,7 @@ void main() {
 
     test('handles missing tag_name gracefully', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {'html_url': 'https://github.com/releases', 'assets': <dynamic>[]},
         ]),
@@ -468,6 +476,7 @@ void main() {
 
     test('handles missing html_url with fallback', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {'tag_name': 'v2.0.0', 'assets': <dynamic>[]},
         ]),
@@ -480,6 +489,7 @@ void main() {
 
     test('handles null changelog', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(body: null)]),
       );
 
@@ -489,6 +499,7 @@ void main() {
 
     test('extracts asset digest', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
@@ -500,6 +511,7 @@ void main() {
 
     test('builds cumulative changelog across multiple releases', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           _releaseJson(tagName: 'v3.0.0', body: 'Version three notes'),
           _releaseJson(tagName: 'v2.0.0', body: 'Version two notes'),
@@ -517,6 +529,7 @@ void main() {
 
     test('propagates fetch errors', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => throw const HttpException('Network error'),
       );
 
@@ -527,7 +540,10 @@ void main() {
     });
 
     test('propagates JSON parse errors', () async {
-      final service = UpdateService(fetch: (_) async => 'not json');
+      final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
+        fetch: (_) async => 'not json',
+      );
 
       expect(
         () => service.checkForUpdate('1.0.0'),
@@ -537,6 +553,7 @@ void main() {
 
     test('selects asset for current platform', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
@@ -603,6 +620,7 @@ void main() {
       try {
         final progressValues = <double>[];
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           download: (uri, savePath, onProgress) async {
             await File(savePath).writeAsString('fake binary');
             onProgress?.call(50, 100);
@@ -631,6 +649,7 @@ void main() {
       try {
         const content = 'test file content';
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           download: (_, savePath, _) async {
             await File(savePath).writeAsString(content);
           },
@@ -659,6 +678,7 @@ void main() {
       final tempDir = await Directory.systemTemp.createTemp('update_test_');
       try {
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           download: (_, savePath, _) async {
             final f = File(savePath);
             await f.parent.create(recursive: true);
@@ -695,6 +715,7 @@ void main() {
       final tempDir = await Directory.systemTemp.createTemp('update_test_');
       try {
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           download: (_, savePath, _) async {
             await File(savePath).writeAsString('content');
           },
@@ -714,6 +735,7 @@ void main() {
 
     test('propagates download errors', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         download: (_, _, _) async =>
             throw const HttpException('Download failed'),
       );
@@ -728,7 +750,10 @@ void main() {
     });
 
     test('rejects untrusted download URL before downloader runs', () async {
-      final service = UpdateService(download: (_, _, _) async {});
+      final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
+        download: (_, _, _) async {},
+      );
       expect(
         () => service.downloadAsset(
           'https://evil.example/asset.AppImage',
@@ -743,6 +768,46 @@ void main() {
         ),
       );
     });
+
+    test(
+      'rejects + deletes binary when the injected verifier throws InvalidReleaseSignatureException',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('rel_sig_test_');
+        try {
+          final service = UpdateService(
+            download: (_, savePath, _) async {
+              await File(savePath).writeAsString('fake binary');
+            },
+            verifyArtifact:
+                ({
+                  required assetUri,
+                  required assetPath,
+                  required targetDir,
+                  required download,
+                }) async {
+                  throw const InvalidReleaseSignatureException(
+                    'forced for test',
+                  );
+                },
+          );
+
+          await expectLater(
+            service.downloadAsset(
+              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+              tempDir.path,
+            ),
+            throwsA(isA<InvalidReleaseSignatureException>()),
+          );
+          // Binary must be deleted on signature failure.
+          expect(
+            await File(p.join(tempDir.path, 'file.AppImage')).exists(),
+            isFalse,
+          );
+        } finally {
+          await tempDir.delete(recursive: true);
+        }
+      },
+    );
   });
 
   // ===========================================================================
@@ -1000,7 +1065,10 @@ void main() {
   // ===========================================================================
   group('UpdateService.checkForUpdate (edge cases)', () {
     test('handles unexpected JSON type (number)', () async {
-      final service = UpdateService(fetch: (_) async => '42');
+      final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
+        fetch: (_) async => '42',
+      );
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -1008,7 +1076,10 @@ void main() {
     });
 
     test('handles unexpected JSON type (string)', () async {
-      final service = UpdateService(fetch: (_) async => '"hello"');
+      final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
+        fetch: (_) async => '"hello"',
+      );
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -1017,6 +1088,7 @@ void main() {
 
     test('handles release with null assets list', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {
             'tag_name': 'v2.0.0',
@@ -1033,6 +1105,7 @@ void main() {
 
     test('handles tag_name without v prefix', () async {
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {
             'tag_name': '3.0.0',
@@ -1053,7 +1126,10 @@ void main() {
   // ===========================================================================
   group('UpdateService.downloadAsset (edge cases)', () {
     test('rejects http (non-https) download URL', () async {
-      final service = UpdateService(download: (_, _, _) async {});
+      final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
+        download: (_, _, _) async {},
+      );
       expect(
         () => service.downloadAsset(
           'http://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
@@ -1073,6 +1149,7 @@ void main() {
       final tempDir = await Directory.systemTemp.createTemp('update_test_');
       try {
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           download: (uri, savePath, onProgress) async {
             await File(savePath).writeAsString('content');
             // onProgress is null, should not be called
@@ -1112,6 +1189,7 @@ void main() {
         final tempDir = await Directory.systemTemp.createTemp('update_test_');
         try {
           final service = UpdateService(
+            verifyArtifact: UpdateService.skipSignatureVerification,
             download: (_, savePath, _) async {
               await File(savePath).writeAsString('content');
               await Process.run('chmod', ['a-w', tempDir.path]);
@@ -1192,6 +1270,7 @@ void main() {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         platform: 'linux',
         runProcess: (exe, args) async {
           capturedExe = exe;
@@ -1211,6 +1290,7 @@ void main() {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         platform: 'macos',
         runProcess: (exe, args) async {
           capturedExe = exe;
@@ -1233,6 +1313,7 @@ void main() {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
+        verifyArtifact: UpdateService.skipSignatureVerification,
         platform: 'windows',
         runProcess: (exe, args) async {
           capturedExe = exe;
@@ -1251,6 +1332,7 @@ void main() {
     test('non-zero exit propagates as false on each host platform', () async {
       for (final platform in ['linux', 'macos', 'windows']) {
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: platform,
           runProcess: (_, _) async => ProcessResult(0, 1, '', 'err'),
         );
@@ -1271,6 +1353,7 @@ void main() {
       () async {
         var processCalled = false;
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'ios',
           runProcess: (_, _) async {
             processCalled = true;
@@ -1294,6 +1377,7 @@ void main() {
       () async {
         var processCalled = false;
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'windows',
           runProcess: (_, _) async {
             processCalled = true;
@@ -1321,6 +1405,7 @@ void main() {
         // real Windows paths routinely carry these.
         var processCalled = false;
         final service = UpdateService(
+          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'windows',
           runProcess: (_, _) async {
             processCalled = true;
