@@ -101,14 +101,18 @@ typedef ProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 
 /// Callback that verifies a downloaded artefact end-to-end. Production
-/// fetches `<assetUri>.sig`, reads it, and calls [ReleaseSigning.verifyFile].
+/// fetches the release's `SHA256SUMS` + `SHA256SUMS.sig` pair, verifies
+/// the manifest signature against the pinned pubkeys, then checks that
+/// the downloaded artefact's sha256 matches the corresponding line in
+/// the manifest.
+///
 /// Tests inject a no-op or a rejector to exercise the download path
 /// without generating real signatures per test.
 ///
-/// The callback owns the `.sig` file lifecycle (download, parse, delete
-/// on failure). It must throw [InvalidReleaseSignatureException] on
-/// failure so the caller can distinguish crypto-layer failures from
-/// network / SHA failures.
+/// The callback owns the manifest + signature file lifecycle (download,
+/// parse, delete on failure). It must throw
+/// [InvalidReleaseSignatureException] on failure so the caller can
+/// distinguish crypto-layer failures from generic network errors.
 typedef ReleaseArtifactVerifier =
     Future<void> Function({
       required Uri assetUri,
@@ -261,18 +265,21 @@ class UpdateService {
   ///
   /// Two independent integrity checks run against the downloaded file:
   ///
-  ///   * **Ed25519 release signature** — `<url>.sig` is fetched alongside
-  ///     the asset and verified against the pubkeys pinned in
-  ///     [ReleaseSigning]. This is the authoritative defence against
-  ///     GitHub response tampering — a MITM would have to forge an
-  ///     Ed25519 signature under one of the embedded public keys to
-  ///     slip past.
-  ///   * **SHA-256 digest** — secondary, belt-and-suspenders. Catches
-  ///     disk corruption and the easy "attacker replaced only the
-  ///     binary but not the .sig" case before the signature pass.
+  ///   * **Manifest signature** — the release's `SHA256SUMS` manifest
+  ///     is fetched along with its single `SHA256SUMS.sig`. The
+  ///     signature is verified against the pubkeys pinned in
+  ///     [ReleaseSigning]; the artefact's own sha256 must then match
+  ///     its line in the manifest. This is the authoritative defence
+  ///     against GitHub response tampering — a MITM would need to forge
+  ///     an Ed25519 signature under the embedded public key to slip
+  ///     past.
+  ///   * **SHA-256 digest from the release JSON** — secondary,
+  ///     belt-and-suspenders. Catches disk corruption and the easy
+  ///     "attacker replaced only the binary but not the manifest" case
+  ///     before the manifest signature pass.
   ///
-  /// Either failure deletes the download and throws. No signature →
-  /// fail-closed (fresh releases MUST ship a `.sig`).
+  /// Either failure deletes the download and throws. No manifest /
+  /// signature → fail-closed (fresh releases MUST ship both).
   Future<String> downloadAsset(
     String url,
     String targetDir, {
@@ -328,58 +335,164 @@ class UpdateService {
     }
   }
 
-  /// Default [ReleaseArtifactVerifier]: download `<asset>.sig`, read it,
-  /// run Ed25519 verify against the pinned release public keys. Deletes
-  /// the `.sig` on failure; leaves it next to the binary on success so
-  /// the installer step can re-verify offline.
+  /// Default [ReleaseArtifactVerifier]: download the release's
+  /// `SHA256SUMS` manifest + its single `SHA256SUMS.sig`, verify the
+  /// signature against the pinned pubkeys, and confirm that this
+  /// artefact's sha256 matches the hash the manifest pins it to.
+  ///
+  /// Both files are left on disk next to the binary on success so the
+  /// installer step (or a curious user) can re-verify offline. On any
+  /// failure they are cleaned up and an [InvalidReleaseSignatureException]
+  /// is thrown.
   static Future<void> _defaultVerifyArtifact({
     required Uri assetUri,
     required String assetPath,
     required String targetDir,
     required FileDownloader download,
   }) async {
-    final sigUri = assetUri.replace(path: '${assetUri.path}.sig');
-    if (!isTrustedReleaseAssetUri(sigUri)) {
-      throw StateError('Untrusted update signature URL: $sigUri');
-    }
-    final sigPath = p.join(targetDir, '${p.basename(assetPath)}.sig');
-    AppLogger.instance.log(
-      'Fetching release signature...',
-      name: 'UpdateService',
-    );
-    try {
-      await download(sigUri, sigPath, null);
-    } catch (e) {
-      await _deleteFileQuietly(sigPath);
+    // Parse the version out of the asset filename. Release assets are
+    // always named `letsflutssh-<version>-<platform>...`; the manifest
+    // is `letsflutssh-<version>-SHA256SUMS`, published in the same
+    // release directory.
+    final assetName = p.basename(assetPath);
+    final version = _parseAssetVersion(assetName);
+    if (version == null) {
       throw InvalidReleaseSignatureException(
-        'Failed to fetch release signature: $e',
+        'Cannot derive version from asset name: $assetName',
       );
     }
 
+    final manifestName = 'letsflutssh-$version-SHA256SUMS';
+    final assetDir = p.posix.dirname(assetUri.path);
+    final manifestUri = assetUri.replace(
+      path: p.posix.join(assetDir, manifestName),
+    );
+    final manifestSigUri = manifestUri.replace(path: '${manifestUri.path}.sig');
+    if (!isTrustedReleaseAssetUri(manifestUri) ||
+        !isTrustedReleaseAssetUri(manifestSigUri)) {
+      throw StateError(
+        'Untrusted manifest URL pair: $manifestUri / $manifestSigUri',
+      );
+    }
+
+    final manifestPath = p.join(targetDir, manifestName);
+    final manifestSigPath = p.join(targetDir, '$manifestName.sig');
+
+    AppLogger.instance.log(
+      'Fetching release manifest + signature...',
+      name: 'UpdateService',
+    );
+    try {
+      await download(manifestUri, manifestPath, null);
+      await download(manifestSigUri, manifestSigPath, null);
+    } catch (e) {
+      await _deleteFileQuietly(manifestPath);
+      await _deleteFileQuietly(manifestSigPath);
+      throw InvalidReleaseSignatureException(
+        'Failed to fetch release manifest: $e',
+      );
+    }
+
+    final Uint8List manifestBytes;
     final Uint8List sigBytes;
     try {
-      sigBytes = await File(sigPath).readAsBytes();
+      manifestBytes = await File(manifestPath).readAsBytes();
+      sigBytes = await File(manifestSigPath).readAsBytes();
     } catch (e) {
-      await _deleteFileQuietly(sigPath);
+      await _deleteFileQuietly(manifestPath);
+      await _deleteFileQuietly(manifestSigPath);
       throw InvalidReleaseSignatureException(
-        'Failed to read release signature: $e',
+        'Failed to read release manifest: $e',
       );
     }
 
-    final ok = await ReleaseSigning.verifyFile(
-      artifactPath: assetPath,
+    final sigOk = ReleaseSigning.verifyBytes(
+      message: manifestBytes,
       signature: sigBytes,
     );
-    if (!ok) {
-      await _deleteFileQuietly(sigPath);
+    if (!sigOk) {
+      await _deleteFileQuietly(manifestPath);
+      await _deleteFileQuietly(manifestSigPath);
       throw const InvalidReleaseSignatureException(
-        'Release signature did not verify against any pinned public key',
+        'Manifest signature did not verify against the pinned public key',
       );
     }
     AppLogger.instance.log(
-      'Release signature verified (Ed25519)',
+      'Manifest signature verified (Ed25519)',
       name: 'UpdateService',
     );
+
+    // Signed manifest contract: find this asset's line, compare hashes.
+    final manifest = parseSha256Manifest(utf8.decode(manifestBytes));
+    final expectedHash = manifest[assetName];
+    if (expectedHash == null) {
+      await _deleteFileQuietly(manifestPath);
+      await _deleteFileQuietly(manifestSigPath);
+      throw InvalidReleaseSignatureException(
+        'Manifest has no entry for $assetName — release is incomplete or '
+        'the asset name has drifted from the manifest format',
+      );
+    }
+
+    final actualHash = await computeFileSha256(assetPath);
+    if (actualHash.toLowerCase() != expectedHash.toLowerCase()) {
+      await _deleteFileQuietly(manifestPath);
+      await _deleteFileQuietly(manifestSigPath);
+      throw InvalidReleaseSignatureException(
+        'SHA-256 mismatch for $assetName: manifest=$expectedHash '
+        'actual=$actualHash',
+      );
+    }
+    AppLogger.instance.log(
+      'Artefact sha256 matches manifest entry',
+      name: 'UpdateService',
+    );
+  }
+
+  /// Extract the semver version from a release asset filename.
+  ///
+  /// Returns the captured version (e.g. `5.9.0`) or null when the name
+  /// does not match the `letsflutssh-<version>-...` pattern. Exposed
+  /// to tests via [parseAssetVersion] without breaking the internal
+  /// naming convention.
+  static String? _parseAssetVersion(String assetName) {
+    final match = RegExp(
+      r'^letsflutssh-([0-9]+\.[0-9]+\.[0-9]+)-',
+    ).firstMatch(assetName);
+    return match?.group(1);
+  }
+
+  @visibleForTesting
+  static String? parseAssetVersion(String assetName) =>
+      _parseAssetVersion(assetName);
+
+  /// Parse a `sha256sum`-format manifest into a `{name: hash}` map.
+  ///
+  /// Accepts both text mode (`<hash>  <name>`) and binary mode
+  /// (`<hash> *<name>`). Blank lines and lines starting with `#` are
+  /// ignored so the format stays forward-compatible with comments.
+  ///
+  /// Visible for testing — called by [_defaultVerifyArtifact] but also
+  /// exercised directly by unit tests without the rest of the
+  /// update-service plumbing.
+  @visibleForTesting
+  static Map<String, String> parseSha256Manifest(String content) {
+    final result = <String, String>{};
+    for (final rawLine in LineSplitter.split(content)) {
+      final line = rawLine.trim();
+      if (line.isEmpty || line.startsWith('#')) continue;
+      // Split on whitespace; first token is the hex hash, the rest is
+      // the filename (may carry a leading `*` in binary mode, stripped
+      // below).
+      final spaceIdx = line.indexOf(RegExp(r'\s'));
+      if (spaceIdx <= 0) continue;
+      final hash = line.substring(0, spaceIdx);
+      var name = line.substring(spaceIdx).trimLeft();
+      if (name.startsWith('*')) name = name.substring(1);
+      if (hash.length != 64 || name.isEmpty) continue;
+      result[name] = hash;
+    }
+    return result;
   }
 
   static Future<void> _deleteFileQuietly(String path) async {
