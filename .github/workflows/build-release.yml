@@ -275,15 +275,40 @@ jobs:
         # The app is still marked "Unidentified developer" because we
         # don't carry an Apple-rooted cert — Apple Developer ID is out
         # of scope (no external paid accounts).
-        # --deep walks the bundle (frameworks, plugins, dylib embeds);
-        # --options=runtime enables the hardened runtime so the binary
-        # at least doesn't look worse than its signed counterparts.
+        #
+        # Sign bottom-up rather than relying on `--deep`:
+        #   * `--deep` is deprecated by Apple and has known bugs where it
+        #     silently skips nested frameworks, leaving them with their
+        #     original Xcode-injected Team ID while the outer bundle
+        #     ends up ad-hoc signed (empty Team ID). macOS 26 (Tahoe)
+        #     dyld enforces Team ID consistency at load time and halts
+        #     with "mapping process and mapped file (non-platform) have
+        #     different Team IDs" — the 5.6.0 launch crash.
+        #   * Signing every .framework / .dylib first, then the outer
+        #     .app last, guarantees one consistent ad-hoc (empty) Team
+        #     ID across the whole bundle.
         run: |
           set -euxo pipefail
-          codesign --force --deep --sign - --options=runtime \
-            build/macos/Build/Products/Release/letsflutssh.app
-          codesign --verify --deep --strict --verbose=2 \
-            build/macos/Build/Products/Release/letsflutssh.app
+          APP="build/macos/Build/Products/Release/letsflutssh.app"
+          # Sign nested frameworks first — leaves before roots.
+          if [ -d "$APP/Contents/Frameworks" ]; then
+            while IFS= read -r -d '' fw; do
+              codesign --force --sign - --options=runtime --timestamp=none "$fw"
+            done < <(find "$APP/Contents/Frameworks" -type d -name "*.framework" -print0)
+            while IFS= read -r -d '' dy; do
+              codesign --force --sign - --options=runtime --timestamp=none "$dy"
+            done < <(find "$APP/Contents/Frameworks" -type f -name "*.dylib" -print0)
+          fi
+          # Top-level app bundle last so the outer signature covers the
+          # now-uniformly-signed frameworks.
+          codesign --force --sign - --options=runtime --timestamp=none "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          # Extra sanity: every nested binary must now be ad-hoc signed.
+          # Fail loud if any item still carries a non-ad-hoc Team ID.
+          while IFS= read -r -d '' bin; do
+            codesign -dv "$bin" 2>&1 | grep -q 'Signature=adhoc' \
+              || { echo "::error::Not ad-hoc signed: $bin"; exit 1; }
+          done < <(find "$APP/Contents" -type f \( -name '*.dylib' -o -path '*/MacOS/*' \) -print0)
 
       - name: Package tar.gz
         run: |
