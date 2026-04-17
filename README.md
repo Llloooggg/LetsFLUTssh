@@ -62,6 +62,23 @@ Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 
 To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
+### Data Locations
+
+Sessions, credentials, known hosts, snippets, tags, and app config are stored in the OS per-app data directory. Logs live in a `logs/` subfolder. Remove these paths for a clean reinstall (e.g. after a release-key rotation where auto-update refuses to cross the boundary, or to reset all state).
+
+| Platform | Path |
+|---|---|
+| **Linux** | `~/.local/share/com.llloooggg.letsflutssh/` |
+| **macOS** | `~/Library/Application Support/com.llloooggg.letsflutssh/` |
+| **Windows** | `%APPDATA%\com.llloooggg.letsflutssh\` (i.e. `C:\Users\<you>\AppData\Roaming\com.llloooggg.letsflutssh\`) |
+| **Android** | App uninstall removes everything (no user-reachable path) |
+| **iOS** | App uninstall removes everything (sandboxed) |
+
+Downloaded update binaries are cached separately under the same directory (`updates/` subfolder) and are deleted after install.
+
+> [!WARNING]
+> Wiping the data directory deletes **all** saved sessions and any unexported credentials. Export your data first via **Settings → Export** if you want to keep it.
+
 ## Security
 
 See [SECURITY.md](.github/SECURITY.md) for vulnerability reporting and security scope.
