@@ -91,15 +91,15 @@ void main() {
       // order happens to differ, we still want `==` to be true so
       // consumers (sidebar footer, session tree tinting) skip the
       // rebuild. Lock that contract here.
-      final a = ConnectionSummary(
-        connectedSessionIds: const {'s1', 's2'},
-        connectingSessionIds: const {'s3'},
+      const a = ConnectionSummary(
+        connectedSessionIds: {'s1', 's2'},
+        connectingSessionIds: {'s3'},
         connectedTotal: 2,
         connectingTotal: 1,
       );
-      final b = ConnectionSummary(
-        connectedSessionIds: const {'s2', 's1'},
-        connectingSessionIds: const {'s3'},
+      const b = ConnectionSummary(
+        connectedSessionIds: {'s2', 's1'},
+        connectingSessionIds: {'s3'},
         connectedTotal: 2,
         connectingTotal: 1,
       );
@@ -108,15 +108,15 @@ void main() {
     });
 
     test('ConnectionSummary distinguishes different state buckets', () {
-      final connected = ConnectionSummary(
-        connectedSessionIds: const {'s1'},
-        connectingSessionIds: const {},
+      const connected = ConnectionSummary(
+        connectedSessionIds: {'s1'},
+        connectingSessionIds: {},
         connectedTotal: 1,
         connectingTotal: 0,
       );
-      final connecting = ConnectionSummary(
-        connectedSessionIds: const {},
-        connectingSessionIds: const {'s1'},
+      const connecting = ConnectionSummary(
+        connectedSessionIds: {},
+        connectingSessionIds: {'s1'},
         connectedTotal: 0,
         connectingTotal: 1,
       );
