@@ -27,7 +27,21 @@ class Connection {
   SSHConnectionState state;
 
   /// Passphrase entered interactively — cached for reconnect within same session.
-  /// Cleared on disconnect. Set by [ConnectionManager] when user checks "remember".
+  ///
+  /// Cleared eagerly on [ConnectionManager.disconnect] via
+  /// [clearCachedCredentials]. Set by [ConnectionManager] when user
+  /// checks "remember".
+  ///
+  /// ## Memory hygiene caveat
+  ///
+  /// Dart `String` is immutable — we cannot overwrite its backing
+  /// bytes with zeros the way [SecretBuffer] does for the DB key.
+  /// The best we can do is drop every reference we own so the
+  /// garbage collector can reclaim it, which is what
+  /// [clearCachedCredentials] does. The passphrase copies that
+  /// `dartssh2` holds internally during auth are also out of reach
+  /// for the same reason. Treat this field as "narrow the exposure
+  /// window" rather than "erase the secret".
   String? cachedPassphrase;
 
   /// Raw error from last connection attempt, null if no error.
@@ -101,5 +115,18 @@ class Connection {
     _progressController = StreamController<ConnectionStep>.broadcast();
     _progressHistory.clear();
     connectionError = null;
+  }
+
+  /// Drop every reference this Connection owns to plaintext credentials
+  /// so the GC can reclaim them as soon as possible.
+  ///
+  /// Meant to be called by [ConnectionManager] right before removing the
+  /// Connection from its map on disconnect — by that point there is no
+  /// legitimate reason to keep the passphrase, and holding onto an
+  /// immutable `String` any longer just widens the window a coredump
+  /// could scoop it up. See the caveat on [cachedPassphrase] for why
+  /// "drop reference" is as strong as Dart allows.
+  void clearCachedCredentials() {
+    cachedPassphrase = null;
   }
 }

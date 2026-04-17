@@ -79,5 +79,17 @@ void main() {
       expect(conn.sshConfig.host, '192.168.1.1');
       expect(conn.sshConfig.user, 'admin');
     });
+
+    test('clearCachedCredentials drops the cached passphrase reference', () {
+      conn.cachedPassphrase = 'do-not-retain-me';
+      expect(conn.cachedPassphrase, isNotNull);
+
+      conn.clearCachedCredentials();
+
+      // Dart String immutability means the original bytes may linger
+      // until GC, but every reference this Connection owned is gone —
+      // which is all the language allows.
+      expect(conn.cachedPassphrase, isNull);
+    });
   });
 }

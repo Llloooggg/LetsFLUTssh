@@ -227,6 +227,9 @@ class ConnectionManager {
     conn.sshConnection?.disconnect();
     conn.state = SSHConnectionState.disconnected;
     conn.sshConnection = null;
+    // Drop the cached passphrase BEFORE losing the Connection reference
+    // so the GC can reclaim the String once our map stops pinning it.
+    conn.clearCachedCredentials();
     _connections.remove(id);
     _connectGeneration.remove(id);
     _notify();
@@ -240,6 +243,7 @@ class ConnectionManager {
     for (final conn in _connections.values) {
       conn.sshConnection?.disconnect();
       conn.completeReady();
+      conn.clearCachedCredentials();
     }
     _connections.clear();
     _connectGeneration.clear();
