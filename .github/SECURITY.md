@@ -66,36 +66,44 @@ For detailed technical documentation on the security model (credential encryptio
 
 Each release is signed by a single Ed25519 signature over a
 `SHA256SUMS` manifest that lists every artefact and its sha256 digest.
-Three files are published alongside the binaries:
+Two files are published alongside the binaries:
 
 - `letsflutssh-<version>-SHA256SUMS` — plaintext manifest, `sha256sum`
   format (compatible with `sha256sum --check`)
 - `letsflutssh-<version>-SHA256SUMS.sig` — detached Ed25519 signature
   over the manifest
-- `letsflutssh-release.pub` — PEM public key, convenience copy of the
-  same 32 bytes pinned inside the app at
-  `lib/core/update/release_signing.dart`
 
-The auto-updater verifies the manifest signature against the pinned
-public key, then compares the downloaded artefact's sha256 with the
-entry in the verified manifest. An attacker who rewrites the GitHub
-response cannot forge a manifest signature without the private key.
+The auto-updater is the only consumer of this pair. It verifies the
+manifest signature against the public key baked into the installed
+app (`lib/core/update/release_signing.dart`), then compares the
+downloaded artefact's sha256 with the entry in the verified manifest.
+A MITM'd GitHub response cannot forge a manifest signature without
+the private key.
 
-**Manual verification.** Users can check any artefact by hand:
+**Trust anchor.** The baked public key in the installed binary — not
+anything downloaded at update time. We intentionally do **not**
+publish the PEM public key alongside the release: a `.pub` file
+served from a hostile mirror would be byte-consistent with a forged
+manifest + signature, implying an authenticity check it cannot
+actually provide.
+
+**In-app security warning.** When signature verification fails the
+Settings → Updates panel shows a security-styled tile (not the
+generic "Update check failed" error) with an explicit "Open Releases
+page" action, steering the user towards a manual reinstall rather
+than a retry of the same failing download.
+
+**Independent provenance check.** For fresh installs, users who want
+to verify by hand can use the SLSA attestation shipped in
+`letsflutssh-<version>.intoto.jsonl`:
 
 ```bash
-# 1. Verify the manifest hasn't been tampered with.
-openssl pkeyutl -verify -pubin -inkey letsflutssh-release.pub \
-  -rawin -in letsflutssh-<version>-SHA256SUMS \
-  -sigfile letsflutssh-<version>-SHA256SUMS.sig
-
-# 2. Verify the binary's hash matches the (now-trusted) manifest.
-sha256sum --check letsflutssh-<version>-SHA256SUMS --ignore-missing
+gh attestation verify letsflutssh-<version>-linux-x64.tar.gz \
+  --repo Llloooggg/LetsFLUTssh
 ```
 
-Step 1 must print `Signature Verified Successfully`; step 2 must
-print `<artefact>: OK`. Any other output means the pair does not
-verify — **do not install**.
+Its trust root is Sigstore, baked into the `gh` CLI — independent of
+anything served from this repo.
 
 **Single-pin design.** The app embeds one public key. Keeping a
 second pinned key as a rotation fallback is a deliberate non-goal —

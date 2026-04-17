@@ -1246,6 +1246,16 @@ class SRu extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Обновление отклонено: скачанные файлы не подписаны закреплённым в приложении ключом. Это может означать, что загрузку подделали по пути, либо текущий релиз не предназначен для этой установки. НЕ устанавливайте — вместо этого переустановите приложение вручную с официальной страницы Releases.';
+
+  @override
+  String get updateSecurityWarningTitle => 'Проверка обновления не пройдена';
+
+  @override
+  String get updateReinstallAction => 'Открыть страницу Releases';
+
+  @override
   String get errLfsNotArchive =>
       'Выбранный файл не является архивом LetsFLUTssh.';
 

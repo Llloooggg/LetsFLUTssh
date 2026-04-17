@@ -1246,6 +1246,17 @@ class SEs extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Actualización rechazada: los archivos descargados no están firmados por la clave de lanzamiento fijada en la aplicación. Esto puede significar que la descarga fue manipulada en tránsito, o que el lanzamiento actual no es para esta instalación. NO instale — reinstale manualmente desde la página oficial de lanzamientos.';
+
+  @override
+  String get updateSecurityWarningTitle =>
+      'Falló la verificación de la actualización';
+
+  @override
+  String get updateReinstallAction => 'Abrir página de lanzamientos';
+
+  @override
   String get errLfsNotArchive =>
       'El archivo seleccionado no es un archivo de LetsFLUTssh.';
 

@@ -1241,6 +1241,16 @@ class STr extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Güncelleme reddedildi: İndirilen dosyalar uygulamada sabitlenmiş sürüm anahtarıyla imzalanmamış. Bu, indirmenin aktarım sırasında değiştirildiği veya mevcut sürümün bu kurulum için olmadığı anlamına gelebilir. YÜKLEMEYİN — bunun yerine resmi Sürümler sayfasından manuel olarak yeniden yükleyin.';
+
+  @override
+  String get updateSecurityWarningTitle => 'Güncelleme doğrulaması başarısız';
+
+  @override
+  String get updateReinstallAction => 'Sürümler sayfasını aç';
+
+  @override
   String get errLfsNotArchive => 'Seçilen dosya bir LetsFLUTssh arşivi değil.';
 
   @override

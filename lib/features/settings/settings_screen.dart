@@ -35,6 +35,7 @@ import '../../providers/master_password_provider.dart';
 import '../../providers/security_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../providers/tag_provider.dart';
+import '../../core/update/update_service.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
 import '../../utils/android_storage_permission.dart';

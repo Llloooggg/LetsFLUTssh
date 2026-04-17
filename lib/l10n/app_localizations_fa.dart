@@ -1235,6 +1235,16 @@ class SFa extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'به‌روزرسانی رد شد: فایل‌های دانلود‌شده با کلید انتشار تثبیت‌شده در برنامه امضا نشده‌اند. این ممکن است به معنای دستکاری دانلود در مسیر باشد، یا انتشار فعلی برای این نصب نیست. نصب نکنید — به صورت دستی از صفحه انتشارهای رسمی دوباره نصب کنید.';
+
+  @override
+  String get updateSecurityWarningTitle => 'تأیید به‌روزرسانی ناموفق بود';
+
+  @override
+  String get updateReinstallAction => 'باز کردن صفحه انتشارها';
+
+  @override
   String get errLfsNotArchive => 'فایل انتخاب‌شده یک بایگانی LetsFLUTssh نیست.';
 
   @override

@@ -2289,6 +2289,24 @@ abstract class S {
   /// **'{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}'**
   String autoLockMinutesValue(int minutes);
 
+  /// No description provided for @errReleaseSignatureInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Update rejected: the downloaded files are not signed by the pinned release key. This can mean the download was tampered with in transit, or the current release genuinely is not for this installation. Do NOT install — reinstall manually from the official Releases page instead.'**
+  String get errReleaseSignatureInvalid;
+
+  /// No description provided for @updateSecurityWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update verification failed'**
+  String get updateSecurityWarningTitle;
+
+  /// No description provided for @updateReinstallAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Releases page'**
+  String get updateReinstallAction;
+
   /// No description provided for @errLfsNotArchive.
   ///
   /// In en, this message translates to:

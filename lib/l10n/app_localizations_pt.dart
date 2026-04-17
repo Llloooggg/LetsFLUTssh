@@ -1244,6 +1244,17 @@ class SPt extends S {
   }
 
   @override
+  String get errReleaseSignatureInvalid =>
+      'Atualização rejeitada: os ficheiros transferidos não estão assinados pela chave de lançamento fixada na aplicação. Isto pode significar que a transferência foi adulterada a caminho, ou que o lançamento atual não se destina a esta instalação. NÃO instale — reinstale manualmente a partir da página oficial de lançamentos.';
+
+  @override
+  String get updateSecurityWarningTitle =>
+      'Falha na verificação da atualização';
+
+  @override
+  String get updateReinstallAction => 'Abrir página de lançamentos';
+
+  @override
   String get errLfsNotArchive =>
       'O arquivo selecionado não é um arquivo do LetsFLUTssh.';
 
