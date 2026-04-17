@@ -101,10 +101,10 @@ typedef ProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
 
 /// Callback that verifies a downloaded artefact end-to-end. Production
-/// fetches the release's `SHA256SUMS` + `SHA256SUMS.sig` pair, verifies
-/// the manifest signature against the pinned pubkeys, then checks that
-/// the downloaded artefact's sha256 matches the corresponding line in
-/// the manifest.
+/// fetches the release's `.sha256sums` + `.sha256sums.sig` pair,
+/// verifies the manifest signature against the pinned pubkeys, then
+/// checks that the downloaded artefact's sha256 matches the
+/// corresponding line in the manifest.
 ///
 /// Tests inject a no-op or a rejector to exercise the download path
 /// without generating real signatures per test.
@@ -265,9 +265,9 @@ class UpdateService {
   ///
   /// Two independent integrity checks run against the downloaded file:
   ///
-  ///   * **Manifest signature** — the release's `SHA256SUMS` manifest
-  ///     is fetched along with its single `SHA256SUMS.sig`. The
-  ///     signature is verified against the pubkeys pinned in
+  ///   * **Manifest signature** — the release's `.sha256sums`
+  ///     manifest is fetched along with its single `.sha256sums.sig`.
+  ///     The signature is verified against the pubkeys pinned in
   ///     [ReleaseSigning]; the artefact's own sha256 must then match
   ///     its line in the manifest. This is the authoritative defence
   ///     against GitHub response tampering — a MITM would need to forge
@@ -336,7 +336,7 @@ class UpdateService {
   }
 
   /// Default [ReleaseArtifactVerifier]: download the release's
-  /// `SHA256SUMS` manifest + its single `SHA256SUMS.sig`, verify the
+  /// `.sha256sums` manifest + its single `.sha256sums.sig`, verify the
   /// signature against the pinned pubkeys, and confirm that this
   /// artefact's sha256 matches the hash the manifest pins it to.
   ///
@@ -352,7 +352,7 @@ class UpdateService {
   }) async {
     // Parse the version out of the asset filename. Release assets are
     // always named `letsflutssh-<version>-<platform>...`; the manifest
-    // is `letsflutssh-<version>-SHA256SUMS`, published in the same
+    // is `letsflutssh-<version>.sha256sums`, published in the same
     // release directory.
     final assetName = p.basename(assetPath);
     final version = _parseAssetVersion(assetName);
@@ -362,7 +362,7 @@ class UpdateService {
       );
     }
 
-    final manifestName = 'letsflutssh-$version-SHA256SUMS';
+    final manifestName = 'letsflutssh-$version.sha256sums';
     final assetDir = p.posix.dirname(assetUri.path);
     final manifestUri = assetUri.replace(
       path: p.posix.join(assetDir, manifestName),

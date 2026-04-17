@@ -422,11 +422,16 @@ jobs:
       - name: Sign release artefacts (Ed25519)
         # Single signature per release:
         #
-        # 1) `letsflutssh-<version>-SHA256SUMS` — plaintext
+        # 1) `letsflutssh-<version>.sha256sums` — plaintext
         #    `sha256  name` lines, compatible with `sha256sum --check`.
-        # 2) `letsflutssh-<version>-SHA256SUMS.sig` — one Ed25519
+        # 2) `letsflutssh-<version>.sha256sums.sig` — one Ed25519
         #    signature over the whole manifest. Covers every artefact
         #    in the release via its entry in the manifest.
+        #
+        # Naming uses `.` (not `-`) before the suffix so case-insensitive
+        # alphabetical sort on the GitHub Releases page groups all aux
+        # artefacts (manifest, signature, attestation) at the bottom
+        # instead of slotting them between platform binaries.
         #
         # Old per-artefact `<binary>.sig` files are intentionally
         # **not** produced here. Installs on releases older than the
@@ -457,14 +462,14 @@ jobs:
           trap 'rm -f /tmp/release-key.pem' EXIT
 
           # Build the manifest (sha256sum format), names only.
-          MANIFEST="artifacts/letsflutssh-${VERSION}-SHA256SUMS"
+          MANIFEST="artifacts/letsflutssh-${VERSION}.sha256sums"
           : > "$MANIFEST"
           for d in artifacts/linux-x64 artifacts/windows-x64 \
                    artifacts/macos-universal artifacts/android-apk; do
             [ -d "$d" ] || continue
             (cd "$d" && find . -maxdepth 1 -type f \
               ! -name '*.sig' ! -name '*.intoto.jsonl' \
-              ! -name '*-SHA256SUMS*' \
+              ! -name '*.sha256sums*' \
               -exec sha256sum {} +) \
               | sed 's| \./| |' >> "$MANIFEST"
           done
@@ -518,7 +523,7 @@ jobs:
                    artifacts/macos-universal/* artifacts/android-apk/*; do
             [ -f "$f" ] || continue
             case "$f" in
-              *.sig|*.intoto.jsonl|*-SHA256SUMS*|*.pub) continue ;;
+              *.sig|*.intoto.jsonl|*.sha256sums*) continue ;;
             esac
             anchor="$f"
             break
@@ -633,6 +638,6 @@ jobs:
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
-            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}-SHA256SUMS
-            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}-SHA256SUMS.sig
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.sig
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.intoto.jsonl

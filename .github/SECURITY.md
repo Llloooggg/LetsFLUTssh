@@ -65,12 +65,12 @@ For detailed technical documentation on the security model (credential encryptio
 ### Release signing
 
 Each release is signed by a single Ed25519 signature over a
-`SHA256SUMS` manifest that lists every artefact and its sha256 digest.
-Two files are published alongside the binaries:
+`.sha256sums` manifest that lists every artefact and its sha256
+digest. Two files are published alongside the binaries:
 
-- `letsflutssh-<version>-SHA256SUMS` — plaintext manifest, `sha256sum`
+- `letsflutssh-<version>.sha256sums` — plaintext manifest, `sha256sum`
   format (compatible with `sha256sum --check`)
-- `letsflutssh-<version>-SHA256SUMS.sig` — detached Ed25519 signature
+- `letsflutssh-<version>.sha256sums.sig` — detached Ed25519 signature
   over the manifest
 
 The auto-updater is the only consumer of this pair. It verifies the
