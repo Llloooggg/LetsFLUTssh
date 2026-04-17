@@ -176,8 +176,6 @@
   "closeOthers": "Andere schließen",
   "closeTabsToTheLeft": "Tabs links schließen",
   "closeTabsToTheRight": "Tabs rechts schließen",
-  "sortByName": "Nach Name sortieren",
-  "sortByStatus": "Nach Status sortieren",
   "noActiveSession": "Keine aktive Sitzung",
   "createConnectionHint": "Erstellen Sie eine neue Verbindung oder wählen Sie eine aus der Seitenleiste",
   "hideSidebar": "Seitenleiste ausblenden (Ctrl+B)",

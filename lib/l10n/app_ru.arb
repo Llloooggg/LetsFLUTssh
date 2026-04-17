@@ -176,8 +176,6 @@
   "closeOthers": "Закрыть остальные",
   "closeTabsToTheLeft": "Закрыть вкладки слева",
   "closeTabsToTheRight": "Закрыть вкладки справа",
-  "sortByName": "По имени",
-  "sortByStatus": "По статусу",
   "noActiveSession": "Нет активной сессии",
   "createConnectionHint": "Создайте новое подключение или выберите из боковой панели",
   "hideSidebar": "Скрыть боковую панель (Ctrl+B)",

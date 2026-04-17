@@ -176,8 +176,6 @@
   "closeOthers": "Đóng các tab khác",
   "closeTabsToTheLeft": "Đóng các tab bên trái",
   "closeTabsToTheRight": "Đóng các tab bên phải",
-  "sortByName": "Sắp xếp theo tên",
-  "sortByStatus": "Sắp xếp theo trạng thái",
   "noActiveSession": "Không có phiên đang hoạt động",
   "createConnectionHint": "Tạo kết nối mới hoặc chọn một kết nối từ thanh bên",
   "hideSidebar": "Ẩn thanh bên (Ctrl+B)",

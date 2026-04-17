@@ -629,12 +629,6 @@ class SAr extends S {
   String get closeTabsToTheRight => 'إغلاق علامات التبويب على اليمين';
 
   @override
-  String get sortByName => 'ترتيب حسب الاسم';
-
-  @override
-  String get sortByStatus => 'ترتيب حسب الحالة';
-
-  @override
   String get noActiveSession => 'لا توجد جلسة نشطة';
 
   @override

@@ -628,12 +628,6 @@ class SDe extends S {
   String get closeTabsToTheRight => 'Tabs rechts schließen';
 
   @override
-  String get sortByName => 'Nach Name sortieren';
-
-  @override
-  String get sortByStatus => 'Nach Status sortieren';
-
-  @override
   String get noActiveSession => 'Keine aktive Sitzung';
 
   @override

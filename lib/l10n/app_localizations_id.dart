@@ -625,12 +625,6 @@ class SId extends S {
   String get closeTabsToTheRight => 'Tutup Tab di Kanan';
 
   @override
-  String get sortByName => 'Urutkan berdasarkan Nama';
-
-  @override
-  String get sortByStatus => 'Urutkan berdasarkan Status';
-
-  @override
   String get noActiveSession => 'Tidak ada sesi aktif';
 
   @override

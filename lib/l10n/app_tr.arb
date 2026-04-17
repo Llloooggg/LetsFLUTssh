@@ -176,8 +176,6 @@
   "closeOthers": "Diğerlerini Kapat",
   "closeTabsToTheLeft": "Soldaki Sekmeleri Kapat",
   "closeTabsToTheRight": "Sağdaki Sekmeleri Kapat",
-  "sortByName": "Ada Göre Sırala",
-  "sortByStatus": "Duruma Göre Sırala",
   "noActiveSession": "Aktif oturum yok",
   "createConnectionHint": "Yeni bir bağlantı oluşturun veya kenar çubuğundan birini seçin",
   "hideSidebar": "Kenar Çubuğunu Gizle (Ctrl+B)",

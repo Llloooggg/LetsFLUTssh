@@ -176,8 +176,6 @@
   "closeOthers": "Fermer les autres",
   "closeTabsToTheLeft": "Fermer les onglets à gauche",
   "closeTabsToTheRight": "Fermer les onglets à droite",
-  "sortByName": "Trier par nom",
-  "sortByStatus": "Trier par statut",
   "noActiveSession": "Aucune session active",
   "createConnectionHint": "Créez une nouvelle connexion ou sélectionnez-en une dans la barre latérale",
   "hideSidebar": "Masquer la barre latérale (Ctrl+B)",

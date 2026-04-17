@@ -629,12 +629,6 @@ class SFr extends S {
   String get closeTabsToTheRight => 'Fermer les onglets à droite';
 
   @override
-  String get sortByName => 'Trier par nom';
-
-  @override
-  String get sortByStatus => 'Trier par statut';
-
-  @override
   String get noActiveSession => 'Aucune session active';
 
   @override

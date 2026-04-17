@@ -625,12 +625,6 @@ class STr extends S {
   String get closeTabsToTheRight => 'Sağdaki Sekmeleri Kapat';
 
   @override
-  String get sortByName => 'Ada Göre Sırala';
-
-  @override
-  String get sortByStatus => 'Duruma Göre Sırala';
-
-  @override
   String get noActiveSession => 'Aktif oturum yok';
 
   @override

@@ -628,12 +628,6 @@ class SRu extends S {
   String get closeTabsToTheRight => 'Закрыть вкладки справа';
 
   @override
-  String get sortByName => 'По имени';
-
-  @override
-  String get sortByStatus => 'По статусу';
-
-  @override
   String get noActiveSession => 'Нет активной сессии';
 
   @override

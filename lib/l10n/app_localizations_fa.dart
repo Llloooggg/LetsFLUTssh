@@ -621,12 +621,6 @@ class SFa extends S {
   String get closeTabsToTheRight => 'بستن تب‌های سمت راست';
 
   @override
-  String get sortByName => 'مرتب‌سازی بر اساس نام';
-
-  @override
-  String get sortByStatus => 'مرتب‌سازی بر اساس وضعیت';
-
-  @override
   String get noActiveSession => 'جلسه فعالی وجود ندارد';
 
   @override

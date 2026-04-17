@@ -615,12 +615,6 @@ class SJa extends S {
   String get closeTabsToTheRight => '右のタブを閉じる';
 
   @override
-  String get sortByName => '名前で並べ替え';
-
-  @override
-  String get sortByStatus => 'ステータスで並べ替え';
-
-  @override
   String get noActiveSession => 'アクティブなセッションがありません';
 
   @override

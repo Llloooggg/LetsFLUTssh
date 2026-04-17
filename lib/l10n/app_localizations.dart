@@ -1203,18 +1203,6 @@ abstract class S {
   /// **'Close Tabs to the Right'**
   String get closeTabsToTheRight;
 
-  /// No description provided for @sortByName.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort by Name'**
-  String get sortByName;
-
-  /// No description provided for @sortByStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort by Status'**
-  String get sortByStatus;
-
   /// No description provided for @noActiveSession.
   ///
   /// In en, this message translates to:

@@ -624,12 +624,6 @@ class SHi extends S {
   String get closeTabsToTheRight => 'दाईं ओर के टैब बंद करें';
 
   @override
-  String get sortByName => 'नाम से क्रमबद्ध करें';
-
-  @override
-  String get sortByStatus => 'स्थिति से क्रमबद्ध करें';
-
-  @override
   String get noActiveSession => 'कोई सक्रिय सत्र नहीं';
 
   @override

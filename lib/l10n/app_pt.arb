@@ -176,8 +176,6 @@
   "closeOthers": "Fechar Outras",
   "closeTabsToTheLeft": "Fechar Abas à Esquerda",
   "closeTabsToTheRight": "Fechar Abas à Direita",
-  "sortByName": "Ordenar por Nome",
-  "sortByStatus": "Ordenar por Status",
   "noActiveSession": "Nenhuma sessão ativa",
   "createConnectionHint": "Crie uma nova conexão ou selecione uma na barra lateral",
   "hideSidebar": "Ocultar Barra Lateral (Ctrl+B)",

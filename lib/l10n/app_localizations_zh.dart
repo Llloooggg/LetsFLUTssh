@@ -612,12 +612,6 @@ class SZh extends S {
   String get closeTabsToTheRight => '关闭右侧标签页';
 
   @override
-  String get sortByName => '按名称排序';
-
-  @override
-  String get sortByStatus => '按状态排序';
-
-  @override
   String get noActiveSession => '没有活动会话';
 
   @override

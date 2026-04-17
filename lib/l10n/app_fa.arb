@@ -176,8 +176,6 @@
   "closeOthers": "بستن بقیه",
   "closeTabsToTheLeft": "بستن تب‌های سمت چپ",
   "closeTabsToTheRight": "بستن تب‌های سمت راست",
-  "sortByName": "مرتب‌سازی بر اساس نام",
-  "sortByStatus": "مرتب‌سازی بر اساس وضعیت",
   "noActiveSession": "جلسه فعالی وجود ندارد",
   "createConnectionHint": "یک اتصال جدید ایجاد کنید یا از نوار کناری انتخاب کنید",
   "hideSidebar": "پنهان کردن نوار کناری (Ctrl+B)",

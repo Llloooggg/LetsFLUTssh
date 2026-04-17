@@ -620,12 +620,6 @@ class SVi extends S {
   String get closeTabsToTheRight => 'Đóng các tab bên phải';
 
   @override
-  String get sortByName => 'Sắp xếp theo tên';
-
-  @override
-  String get sortByStatus => 'Sắp xếp theo trạng thái';
-
-  @override
   String get noActiveSession => 'Không có phiên đang hoạt động';
 
   @override
