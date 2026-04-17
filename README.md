@@ -64,7 +64,7 @@ To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Security
 
-See [SECURITY.md](docs/SECURITY.md) for vulnerability reporting and security scope.
+See [SECURITY.md](.github/SECURITY.md) for vulnerability reporting and security scope.
 
 ## License
 
