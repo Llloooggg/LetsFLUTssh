@@ -16,7 +16,7 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
         package-linux package-windows release-linux \
-        deps-linux deps-macos deps-windows fuzz-build help
+        deps-linux deps-macos deps-windows fuzz-build hooks help
 
 all: build
 
@@ -46,6 +46,9 @@ analyze: ## Run Dart analyzer (fatal on infos, same as CI)
 
 check: analyze ## Run analyzer + tests (sequential — analyze must pass first)
 	@$(MAKE) test
+
+hooks: ## Install local git hooks (pre-commit runs make check)
+	@bash scripts/install-hooks.sh
 
 format: ## Format Dart code
 	dart format .
