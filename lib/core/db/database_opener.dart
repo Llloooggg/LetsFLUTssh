@@ -46,6 +46,10 @@ String encryptionKeyToSqlLiteral(Uint8List key) {
 /// storage layer, so the only visible failure modes are disk-full or a
 /// cipher implementation error (both reported by drift as an execute error).
 ///
+/// On any underlying failure we strip the SQL fragment from the rethrown
+/// exception so the hex-encoded key cannot leak into log files / crash
+/// reporters via `error.toString()`.
+///
 /// Caller is responsible for updating `securityStateProvider` and moving the
 /// key in/out of the relevant storage backend (file / keychain / master
 /// password wrapper); this function only touches the DB pages.
@@ -53,11 +57,38 @@ Future<void> rekeyDatabase(AppDatabase db, Uint8List? newKey) async {
   final literal = newKey == null
       ? "''"
       : '"${encryptionKeyToSqlLiteral(newKey)}"';
-  await db.customStatement('PRAGMA rekey = $literal');
+  try {
+    await db.customStatement('PRAGMA rekey = $literal');
+  } catch (e) {
+    // Drift's exception messages embed the failing SQL verbatim, which in
+    // this case includes the hex-encoded key. Wrap into a generic error so
+    // nothing downstream (logger, crash reporter) ever sees the literal.
+    throw RekeyFailedException(
+      cipherChange: newKey == null ? 'to-plaintext' : 'to-encrypted',
+      causeType: e.runtimeType.toString(),
+    );
+  }
   AppLogger.instance.log(
     'Database rekeyed (newKey=${newKey == null ? "plaintext" : "encrypted"})',
     name: 'DatabaseOpener',
   );
+}
+
+/// Thrown when `PRAGMA rekey` fails. Deliberately carries no SQL or key
+/// material — only the high-level cipher transition and the original
+/// runtime type so downstream logs can hint at root cause without leaking
+/// the secret.
+class RekeyFailedException implements Exception {
+  final String cipherChange;
+  final String causeType;
+  const RekeyFailedException({
+    required this.cipherChange,
+    required this.causeType,
+  });
+
+  @override
+  String toString() =>
+      'RekeyFailedException(cipherChange: $cipherChange, cause: $causeType)';
 }
 
 /// Restrict the encrypted DB file (and any SQLite sidecars) to owner-only
