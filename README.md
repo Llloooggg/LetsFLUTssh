@@ -63,7 +63,7 @@ Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
 To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 > [!IMPORTANT]
-> **One-time manual reinstall (from 5.8.x and earlier).** Starting with 5.9.0 the release-signing scheme moves from per-artefact `.sig` files to a single signed `SHA256SUMS` manifest per release. Auto-update cannot bridge that boundary: older installs still look for per-artefact signatures that 5.9.0+ no longer publish. Download the latest binary from the [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) page manually once — from then on auto-update works as before.
+> **One-time manual reinstall (from 5.8.1 and earlier).** Starting with 5.8.2 the release-signing scheme moves from per-artefact `.sig` files to a single signed `SHA256SUMS` manifest per release. Auto-update cannot bridge that boundary: older installs still look for per-artefact signatures that 5.8.2+ no longer publish. Download the latest binary from the [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) page manually once — from then on auto-update works as before.
 
 ### Manual Verification
 
@@ -76,11 +76,11 @@ Every release ships three companion files so users can verify binaries by hand:
 ```bash
 # Verify the manifest signature
 openssl pkeyutl -verify -pubin -inkey letsflutssh-release.pub \
-  -rawin -in letsflutssh-5.9.0-SHA256SUMS \
-  -sigfile letsflutssh-5.9.0-SHA256SUMS.sig
+  -rawin -in letsflutssh-<version>-SHA256SUMS \
+  -sigfile letsflutssh-<version>-SHA256SUMS.sig
 
 # Verify the artefact's hash against the signed manifest
-sha256sum --check letsflutssh-5.9.0-SHA256SUMS --ignore-missing
+sha256sum --check letsflutssh-<version>-SHA256SUMS --ignore-missing
 ```
 
 Both steps must succeed before installing. See [SECURITY.md](.github/SECURITY.md) for the full trust model.

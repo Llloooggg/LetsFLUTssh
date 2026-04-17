@@ -86,11 +86,11 @@ response cannot forge a manifest signature without the private key.
 ```bash
 # 1. Verify the manifest hasn't been tampered with.
 openssl pkeyutl -verify -pubin -inkey letsflutssh-release.pub \
-  -rawin -in letsflutssh-5.9.0-SHA256SUMS \
-  -sigfile letsflutssh-5.9.0-SHA256SUMS.sig
+  -rawin -in letsflutssh-<version>-SHA256SUMS \
+  -sigfile letsflutssh-<version>-SHA256SUMS.sig
 
 # 2. Verify the binary's hash matches the (now-trusted) manifest.
-sha256sum --check letsflutssh-5.9.0-SHA256SUMS --ignore-missing
+sha256sum --check letsflutssh-<version>-SHA256SUMS --ignore-missing
 ```
 
 Step 1 must print `Signature Verified Successfully`; step 2 must
