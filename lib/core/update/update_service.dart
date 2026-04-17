@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:pointycastle/digests/sha256.dart';
 
 import '../../utils/logger.dart';
+import 'cert_pinning.dart';
 
 /// Result of a version check against GitHub releases.
 class UpdateInfo {
@@ -368,6 +369,7 @@ class UpdateService {
 
   static Future<String> defaultFetch(Uri url) async {
     final client = HttpClient();
+    CertPinning.enforce(client);
     try {
       final request = await client.getUrl(url);
       request.headers.set('Accept', 'application/vnd.github.v3+json');
@@ -396,6 +398,7 @@ class UpdateService {
 
     const maxRedirects = 10;
     final client = HttpClient();
+    CertPinning.enforce(client);
     try {
       var requestUri = url;
       var redirectCount = 0;

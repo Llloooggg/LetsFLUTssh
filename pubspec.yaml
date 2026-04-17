@@ -37,6 +37,9 @@ dependencies:
   pointycastle: ^4.0.0
   pinenacl: ^0.6.0
 
+  # SHA-256 digest helper (used for SPKI pinning in update channel)
+  crypto: ^3.0.5
+
   # Archive (pure Dart ZIP)
   archive: ^4.0.4
 
