@@ -78,11 +78,13 @@ class ConnectionManager {
     );
     _connections[id] = conn;
     _notify();
-    // Host:port is sanitised by AppLogger.sanitize into `<host>:<port>`;
-    // the username is user-identifying and carries no extra diagnostic
-    // value (one user per connection), so it stays out of the log.
+    // Full structure is preserved on purpose — AppLogger.sanitize
+    // turns it into `Connecting to <host>:<port> as <user>` when the
+    // file is written, so the diagnostic signal ("we tried to auth
+    // with a user") stays readable without leaking the actual
+    // username or hostname.
     AppLogger.instance.log(
-      'Connecting to ${config.host}:${config.port}',
+      'Connecting to ${config.host}:${config.port} as ${config.user}',
       name: 'Connection',
     );
 
@@ -126,7 +128,10 @@ class ConnectionManager {
 
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
-      AppLogger.instance.log('Connected: ${conn.label}', name: 'Connection');
+      AppLogger.instance.log(
+        'Connected: <label> (id=${conn.id})',
+        name: 'Connection',
+      );
     } on TimeoutException {
       if (_isStaleGeneration(conn.id, generation)) {
         sshConn.disconnect();
@@ -226,7 +231,10 @@ class ConnectionManager {
   void disconnect(String id) {
     final conn = _connections[id];
     if (conn == null) return;
-    AppLogger.instance.log('Disconnected: ${conn.label}', name: 'Connection');
+    AppLogger.instance.log(
+      'Disconnected: <label> (id=${conn.id})',
+      name: 'Connection',
+    );
     conn.sshConnection?.disconnect();
     conn.state = SSHConnectionState.disconnected;
     conn.sshConnection = null;

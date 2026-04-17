@@ -93,7 +93,15 @@ class SessionConnect {
       );
       return config;
     }
-    AppLogger.instance.log('Resolved keyId ${session.keyId}', name: 'Session');
+    // Key label is free-form user-chosen text (e.g. "Burzuf",
+    // "work-laptop"), so there is no regex the sanitiser could match
+    // without false positives. Log the marker `<label>` so the log
+    // tells us "keyId X resolved to a label" without leaking the
+    // label itself.
+    AppLogger.instance.log(
+      'Resolved keyId ${session.keyId} → <label>',
+      name: 'Session',
+    );
     return config.copyWith(
       auth: config.auth.copyWith(keyData: entry.privateKey),
     );
