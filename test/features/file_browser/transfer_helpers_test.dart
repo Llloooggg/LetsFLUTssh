@@ -374,7 +374,7 @@ void main() {
     test(
       'refuses to overwrite a pre-existing local symlink (replace blocked)',
       () async {
-        final targetName = 'bookkeeping.pdf';
+        const targetName = 'bookkeeping.pdf';
         final targetPath = p.join(tmpDir.path, targetName);
         // Bait: a symlink planted at the target path before the dialog
         // is even shown. A naive overwrite would follow the link to
@@ -410,7 +410,7 @@ void main() {
     test(
       'aborts replace when the target is swapped between probe and confirm',
       () async {
-        final targetName = 'config.json';
+        const targetName = 'config.json';
         final targetPath = p.join(tmpDir.path, targetName);
         // Original file present at probe time — 10 bytes.
         File(targetPath).writeAsStringSync('original!!');
@@ -456,7 +456,7 @@ void main() {
     test(
       'replace proceeds when the target snapshot matches on re-check',
       () async {
-        final targetName = 'ok.txt';
+        const targetName = 'ok.txt';
         final targetPath = p.join(tmpDir.path, targetName);
         File(targetPath).writeAsStringSync('steady state');
 
