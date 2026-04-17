@@ -10,6 +10,9 @@ devtools_options.yaml
 # Local tool cache (actionlint, etc — see Makefile)
 .cache/
 
+# Claude Code session-local files
+.claude/scheduled_tasks.lock
+
 # IDE
 .idea/
 *.iml
