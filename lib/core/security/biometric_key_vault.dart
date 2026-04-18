@@ -1,20 +1,24 @@
 import 'dart:convert';
+import 'dart:io' show File, Platform;
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../utils/logger.dart';
+import 'linux/fprintd_client.dart';
+import 'linux/tpm_client.dart';
 
 /// Secure storage of the master-password-derived DB key, gated by device
-/// biometrics via [FlutterSecureStorage] platform options.
+/// biometrics.
 ///
 /// Design: the user's master password remains the root secret. When they
 /// opt in to "unlock with biometrics", we save the already-derived 32-byte
-/// DB key here under an iOS accessibility / Android security-level that
-/// requires the device to be unlocked (passcode, fingerprint, face).
-/// On app start we query this vault first; if the platform returns the key
-/// we hand it straight to drift and skip the PBKDF2 prompt, otherwise we
-/// fall back to the master-password dialog.
+/// DB key here under a platform-specific protection layer. On app start
+/// we query this vault first; if the platform returns the key we hand it
+/// straight to drift and skip the KDF prompt, otherwise we fall back to
+/// the master-password dialog.
 ///
 /// Apple platforms (iOS + macOS): the key is wrapped with a `SecAccessControl`
 /// that requires [AccessControlFlag.biometryCurrentSet] on top of the
@@ -25,8 +29,20 @@ import '../../utils/logger.dart';
 /// rides on the default `flutter_secure_storage` EncryptedSharedPreferences
 /// until a dedicated Keystore + `BiometricPrompt.CryptoObject` plugin
 /// lands.
+///
+/// Linux: when a TPM2 is present (`/dev/tpmrm0` + `tpm2-tools` installed),
+/// the DB key is sealed under a fresh primary with the auth value set to
+/// the SHA-256 of the current fprintd enrolled-finger list. The sealed
+/// blob lands in a file under [getApplicationSupportDirectory]. Result:
+/// (a) the key is held by the TPM, not in RAM-readable libsecret; and (b)
+/// any change to the biometric enrolment flips the auth hash, the unseal
+/// fails, and the user is back on master password — same invariant as
+/// Apple's `biometryCurrentSet`. Without a TPM, Linux falls back to the
+/// same `flutter_secure_storage` (libsecret) path other platforms use —
+/// software-labelled in the UI so the weaker guarantee is visible.
 class BiometricKeyVault {
   static const _keyName = 'letsflutssh_bio_db_key';
+  static const _linuxSealFilename = 'biometric_vault.tpm';
 
   /// iOS options: Secure Enclave binding via `SecAccessControl` with
   /// `.biometryCurrentSet`. Exposed as a constant so tests (and ports to
@@ -47,9 +63,19 @@ class BiometricKeyVault {
   );
 
   final FlutterSecureStorage _storage;
+  final TpmClient _tpm;
+  final FprintdClient _fprintd;
+  final Future<File> Function() _linuxSealFileFactory;
 
-  BiometricKeyVault({FlutterSecureStorage? storage})
-    : _storage = storage ?? _defaultStorage();
+  BiometricKeyVault({
+    FlutterSecureStorage? storage,
+    TpmClient? tpmClient,
+    FprintdClient? fprintdClient,
+    Future<File> Function()? linuxSealFileFactory,
+  }) : _storage = storage ?? _defaultStorage(),
+       _tpm = tpmClient ?? TpmClient(),
+       _fprintd = fprintdClient ?? FprintdClient(),
+       _linuxSealFileFactory = linuxSealFileFactory ?? _defaultLinuxSealFile;
 
   static FlutterSecureStorage _defaultStorage() {
     return const FlutterSecureStorage(
@@ -59,8 +85,28 @@ class BiometricKeyVault {
     );
   }
 
+  static Future<File> _defaultLinuxSealFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File(p.join(dir.path, _linuxSealFilename));
+  }
+
+  /// True on Linux when a TPM2 device + `tpm2-tools` are both
+  /// reachable. Callers use this to decide whether the backing-level
+  /// label should read "hardware" or "software" — the storage layer
+  /// itself falls back silently, but the UI must not lie about it.
+  Future<bool> linuxTpmReady() async {
+    if (!Platform.isLinux) return false;
+    return _tpm.isAvailable();
+  }
+
   /// True if a biometric-protected DB key is currently stashed.
   Future<bool> isStored() async {
+    if (Platform.isLinux) {
+      try {
+        final file = await _linuxSealFileFactory();
+        if (await file.exists()) return true;
+      } catch (_) {}
+    }
     try {
       return await _storage.containsKey(key: _keyName);
     } catch (e) {
@@ -75,6 +121,11 @@ class BiometricKeyVault {
   /// Stash the DB [key] in platform secure storage. Returns false on
   /// failure (unsupported platform, keychain unavailable, etc.).
   Future<bool> store(Uint8List key) async {
+    if (Platform.isLinux) {
+      final sealed = await _linuxSeal(key);
+      if (sealed) return true;
+      // TPM not available / enrolment missing → software fallback.
+    }
     try {
       await _storage.write(key: _keyName, value: base64Encode(key));
       return true;
@@ -88,8 +139,15 @@ class BiometricKeyVault {
   }
 
   /// Read the stashed DB key. Returns null if nothing stored or read fails
-  /// (user cancelled passcode prompt, device locked, etc.).
+  /// (user cancelled passcode prompt, device locked, TPM policy mismatch
+  /// after re-enrolment, etc.).
   Future<Uint8List?> read() async {
+    if (Platform.isLinux) {
+      final unsealed = await _linuxUnseal();
+      if (unsealed != null) return unsealed;
+      // Fall through to libsecret in case the vault was written
+      // before TPM support was wired, or the TPM became unusable.
+    }
     try {
       final value = await _storage.read(key: _keyName);
       if (value == null) return null;
@@ -106,6 +164,17 @@ class BiometricKeyVault {
   /// Drop the stashed DB key — called when the user disables biometric
   /// unlock or changes the master password.
   Future<void> clear() async {
+    if (Platform.isLinux) {
+      try {
+        final file = await _linuxSealFileFactory();
+        if (await file.exists()) await file.delete();
+      } catch (e) {
+        AppLogger.instance.log(
+          'BiometricKeyVault.clear (linux seal file) failed: $e',
+          name: 'BiometricKeyVault',
+        );
+      }
+    }
     try {
       await _storage.delete(key: _keyName);
     } catch (e) {
@@ -113,6 +182,44 @@ class BiometricKeyVault {
         'BiometricKeyVault.clear failed: $e',
         name: 'BiometricKeyVault',
       );
+    }
+  }
+
+  Future<bool> _linuxSeal(Uint8List key) async {
+    try {
+      if (!await _tpm.isAvailable()) return false;
+      final authHash = await _fprintd.getEnrolmentHash();
+      if (authHash == null) return false;
+      final sealed = await _tpm.seal(key, authValue: authHash);
+      if (sealed == null) return false;
+      final file = await _linuxSealFileFactory();
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(sealed, flush: true);
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'BiometricKeyVault Linux seal failed: $e',
+        name: 'BiometricKeyVault',
+      );
+      return false;
+    }
+  }
+
+  Future<Uint8List?> _linuxUnseal() async {
+    try {
+      final file = await _linuxSealFileFactory();
+      if (!await file.exists()) return null;
+      if (!await _tpm.isAvailable()) return null;
+      final authHash = await _fprintd.getEnrolmentHash();
+      if (authHash == null) return null;
+      final blob = await file.readAsBytes();
+      return _tpm.unseal(blob, authValue: authHash);
+    } catch (e) {
+      AppLogger.instance.log(
+        'BiometricKeyVault Linux unseal failed: $e',
+        name: 'BiometricKeyVault',
+      );
+      return null;
     }
   }
 }

@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:dbus/dbus.dart';
 
 import '../../../utils/logger.dart';
@@ -68,6 +71,42 @@ class FprintdClient {
         name: 'FprintdClient',
       );
       return false;
+    } finally {
+      await client.close();
+    }
+  }
+
+  /// SHA-256 of the current user's enrolled-finger list, sorted and
+  /// joined by `:`. Returns null on any D-Bus / fprintd failure.
+  ///
+  /// Used as the TPM2 auth value when sealing the DB wrapping key so
+  /// any change to the biometric enrolment (added, removed, or
+  /// re-enrolled finger) invalidates the sealed blob — the Apple-side
+  /// equivalent of `biometryCurrentSet`.
+  Future<Uint8List?> getEnrolmentHash() async {
+    if (!Platform.isLinux) return null;
+    final client = _clientFactory();
+    try {
+      final devicePath = await _defaultDevicePath(client);
+      if (devicePath == null) return null;
+      final device = DBusRemoteObject(client, name: _busName, path: devicePath);
+      final response = await device.callMethod(
+        _deviceInterface,
+        'ListEnrolledFingers',
+        const [DBusString('')],
+      );
+      if (response.values.isEmpty) return null;
+      final fingers = response.values.first.asStringArray().toList()..sort();
+      if (fingers.isEmpty) return null;
+      final joined = fingers.join(':');
+      final digest = sha256.convert(utf8.encode(joined));
+      return Uint8List.fromList(digest.bytes);
+    } catch (e) {
+      AppLogger.instance.log(
+        'fprintd getEnrolmentHash failed: $e',
+        name: 'FprintdClient',
+      );
+      return null;
     } finally {
       await client.close();
     }

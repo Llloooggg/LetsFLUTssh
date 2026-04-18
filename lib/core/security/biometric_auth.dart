@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 
 import '../../utils/logger.dart';
 import 'linux/fprintd_client.dart';
+import 'linux/tpm_client.dart';
 
 /// Why biometric unlock is unavailable. Distinguishes "no hardware"
 /// from "hardware but nothing enrolled" so the UI can show a tooltip
@@ -65,10 +66,15 @@ typedef BiometricAvailability = BiometricUnavailableReason?;
 class BiometricAuth {
   final LocalAuthentication _auth;
   final FprintdClient _fprintd;
+  final TpmClient _tpm;
 
-  BiometricAuth({LocalAuthentication? auth, FprintdClient? fprintdClient})
-    : _auth = auth ?? LocalAuthentication(),
-      _fprintd = fprintdClient ?? FprintdClient();
+  BiometricAuth({
+    LocalAuthentication? auth,
+    FprintdClient? fprintdClient,
+    TpmClient? tpmClient,
+  }) : _auth = auth ?? LocalAuthentication(),
+       _fprintd = fprintdClient ?? FprintdClient(),
+       _tpm = tpmClient ?? TpmClient();
 
   /// Convenience: true if [availability] returns null.
   Future<bool> isAvailable() async => (await availability()) == null;
@@ -76,28 +82,33 @@ class BiometricAuth {
   /// Describe how the current platform protects the cached DB key.
   ///
   /// Returns `null` when biometrics are unavailable on this platform
-  /// entirely (Linux in the current build — follow-on commits wire
-  /// the fprintd + TPM2 path). Otherwise returns the backing level
-  /// that Settings surfaces next to the active biometric toggle.
+  /// entirely. Otherwise returns the backing level Settings surfaces
+  /// next to the active biometric toggle.
   ///
-  /// iOS / macOS report [BiometricBackingLevel.hardware] — Secure
-  /// Enclave binding is enforced via `SecAccessControl` with
-  /// `.biometryCurrentSet` (see `BiometricKeyVault.iosOptions` /
-  /// `macOsOptions`). Android rides on `flutter_secure_storage`'s
-  /// default EncryptedSharedPreferences until a dedicated Keystore
-  /// + `BiometricPrompt.CryptoObject` plugin lands, so the level is
-  /// reported as [BiometricBackingLevel.software] today. Windows is
-  /// also reported as software until `KeyCredentialManager` replaces
-  /// DPAPI.
-  BiometricBackingLevel? backingLevel() {
+  /// Probe is async because Linux needs a live TPM2 probe (file
+  /// existence + `tpm2 getcap` round-trip) to decide hardware vs
+  /// software. iOS / macOS report [BiometricBackingLevel.hardware]
+  /// unconditionally — Secure Enclave binding is enforced via
+  /// `SecAccessControl` with `.biometryCurrentSet`. Android rides on
+  /// `flutter_secure_storage`'s default EncryptedSharedPreferences
+  /// until a dedicated Keystore + `BiometricPrompt.CryptoObject`
+  /// plugin lands, so the level is reported as
+  /// [BiometricBackingLevel.software] today. Windows is also reported
+  /// as software until `KeyCredentialManager` replaces DPAPI. Linux
+  /// upgrades to hardware whenever a TPM2 device + `tpm2-tools`
+  /// binary are both reachable — otherwise the fprintd + libsecret
+  /// path is honestly labelled software.
+  Future<BiometricBackingLevel?> backingLevel() async {
     if (Platform.isIOS || Platform.isMacOS) {
       return BiometricBackingLevel.hardware;
     }
-    if (Platform.isAndroid || Platform.isWindows || Platform.isLinux) {
-      // Linux currently rides on fprintd + libsecret — software-only.
-      // A TPM2 seal layer added later will flip this to hardware when
-      // the TPM path is actually wired into store/read.
+    if (Platform.isAndroid || Platform.isWindows) {
       return BiometricBackingLevel.software;
+    }
+    if (Platform.isLinux) {
+      return await _tpm.isAvailable()
+          ? BiometricBackingLevel.hardware
+          : BiometricBackingLevel.software;
     }
     return null;
   }

@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
+import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -16,16 +17,21 @@ void main() {
     // pin the **shape** of the contract — not to pretend we're mocking
     // the host platform.
     test(
-      'returns software on Linux (fprintd + libsecret; hardware upgrade lands '
-      'when TPM seal is wired)',
-      () {
+      'returns software on Linux without a reachable TPM (fprintd-only path)',
+      () async {
         if (!Platform.isLinux) {
           return; // Skip on non-Linux CI runners.
         }
-        final bio = BiometricAuth();
-        expect(bio.backingLevel(), BiometricBackingLevel.software);
+        final bio = BiometricAuth(tpmClient: _FakeTpmClient(available: false));
+        expect(await bio.backingLevel(), BiometricBackingLevel.software);
       },
     );
+
+    test('returns hardware on Linux when the TPM probe succeeds', () async {
+      if (!Platform.isLinux) return;
+      final bio = BiometricAuth(tpmClient: _FakeTpmClient(available: true));
+      expect(await bio.backingLevel(), BiometricBackingLevel.hardware);
+    });
 
     test('enum carries both hardware and software variants', () {
       // Freezes the two-value vocabulary — adding a third backing level
@@ -125,6 +131,18 @@ void main() {
       expect(fake.verifyCalls, 1);
     });
   });
+}
+
+class _FakeTpmClient implements TpmClient {
+  _FakeTpmClient({required this.available});
+
+  final bool available;
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeFprintdClient implements FprintdClient {

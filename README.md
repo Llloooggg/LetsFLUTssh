@@ -86,6 +86,23 @@ cd letsflutssh && ./letsflutssh
 > # one-off: enrol a finger (any distro)
 > fprintd-enroll
 > ```
+>
+> Optional (upgrades the biometric-unlock backing from software to TPM2-hardware): `tpm2-tools` if your machine has a TPM2 chip (`ls /dev/tpmrm0` → exists). The Settings biometric row labels itself `Hardware-backed` when both TPM2 and `fprintd` are available; any biometric-enrolment change invalidates the sealed blob the next time around (equivalent to Apple's `biometryCurrentSet`).
+>
+> ```bash
+> # Debian / Ubuntu / Mint
+> sudo apt install tpm2-tools
+> # Fedora
+> sudo dnf install tpm2-tools
+> # Arch / Manjaro
+> sudo pacman -S tpm2-tools
+> # openSUSE
+> sudo zypper install tpm2.0-tools
+>
+> # one-off: make sure the current user can talk to the TPM
+> sudo usermod -aG tss "$USER"
+> # log out + back in for the group change to take effect
+> ```
 
 ### Windows
 

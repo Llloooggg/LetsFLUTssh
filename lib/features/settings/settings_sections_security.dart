@@ -43,7 +43,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
     final stored = await bioVault.isStored();
-    final backing = bio.backingLevel();
+    final backing = await bio.backingLevel();
     if (!mounted) return;
     setState(() {
       _biometricUnavailable = availability;
