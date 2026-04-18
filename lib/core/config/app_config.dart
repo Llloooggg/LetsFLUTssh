@@ -1,3 +1,5 @@
+import '../security/security_tier.dart';
+
 /// Terminal display settings.
 class TerminalConfig {
   final double fontSize;
@@ -319,6 +321,13 @@ class AppConfig {
   final int maxHistory;
   final String? locale;
 
+  /// Persisted security tier + modifiers. `null` means the user has
+  /// not yet been through the first-launch security wizard — the app
+  /// shows the wizard on next launch and writes the chosen config
+  /// back. Non-null (including `SecurityConfig.none` variants) means
+  /// the wizard has already run and the tier is authoritative.
+  final SecurityConfig? security;
+
   /// Locale codes supported by the app.
   static const supportedLocales = [
     'en',
@@ -346,6 +355,7 @@ class AppConfig {
     this.transferWorkers = 2,
     this.maxHistory = 500,
     this.locale,
+    this.security,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -390,6 +400,7 @@ class AppConfig {
       locale: locale != null && supportedLocales.contains(locale)
           ? locale
           : null,
+      security: security,
     );
   }
 
@@ -404,6 +415,7 @@ class AppConfig {
     int? transferWorkers,
     int? maxHistory,
     Object? locale = _unset,
+    Object? security = _unset,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -413,6 +425,9 @@ class AppConfig {
       transferWorkers: transferWorkers ?? this.transferWorkers,
       maxHistory: maxHistory ?? this.maxHistory,
       locale: identical(locale, _unset) ? this.locale : locale as String?,
+      security: identical(security, _unset)
+          ? this.security
+          : security as SecurityConfig?,
     );
   }
 
@@ -426,7 +441,8 @@ class AppConfig {
           behavior == other.behavior &&
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
-          locale == other.locale;
+          locale == other.locale &&
+          security == other.security;
 
   @override
   int get hashCode => Object.hash(
@@ -437,6 +453,7 @@ class AppConfig {
     transferWorkers,
     maxHistory,
     locale,
+    security,
   );
 
   /// JSON stays flat for backward compatibility.
@@ -448,6 +465,8 @@ class AppConfig {
     'transfer_workers': transferWorkers,
     'max_history': maxHistory,
     if (locale != null) 'locale': locale,
+    if (security != null) 'security_tier': _tierName(security!.tier),
+    if (security != null) 'security_modifiers': security!.modifiers.toJson(),
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
@@ -460,6 +479,57 @@ class AppConfig {
       transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       locale: json['locale'] as String?,
+      security: _readSecurityConfig(json),
     ).sanitized();
+  }
+}
+
+String _tierName(SecurityTier tier) {
+  switch (tier) {
+    case SecurityTier.plaintext:
+      return 'plaintext';
+    case SecurityTier.keychain:
+      return 'keychain';
+    case SecurityTier.keychainWithPassword:
+      return 'keychain_with_password';
+    case SecurityTier.hardware:
+      return 'hardware';
+    case SecurityTier.paranoid:
+      return 'paranoid';
+  }
+}
+
+SecurityConfig? _readSecurityConfig(Map<String, dynamic> json) {
+  // Absence of the `security_tier` field means the user has not yet
+  // completed the first-launch wizard. Returning `null` is the signal
+  // `_initSecurity` keys off to fire the wizard. An *unknown* tier
+  // string (e.g. a value from a newer version) is treated as "no
+  // config" for the same reason — the user will re-run the wizard
+  // rather than land in a silently-wrong tier.
+  final tierStr = json['security_tier'];
+  if (tierStr is! String) return null;
+  final tier = _tierFromName(tierStr);
+  if (tier == null) return null;
+  final modifiersJson = json['security_modifiers'];
+  final modifiers = modifiersJson is Map<String, dynamic>
+      ? SecurityTierModifiers.fromJson(modifiersJson)
+      : SecurityTierModifiers.defaults;
+  return SecurityConfig(tier: tier, modifiers: modifiers);
+}
+
+SecurityTier? _tierFromName(String s) {
+  switch (s) {
+    case 'plaintext':
+      return SecurityTier.plaintext;
+    case 'keychain':
+      return SecurityTier.keychain;
+    case 'keychain_with_password':
+      return SecurityTier.keychainWithPassword;
+    case 'hardware':
+      return SecurityTier.hardware;
+    case 'paranoid':
+      return SecurityTier.paranoid;
+    default:
+      return null;
   }
 }
