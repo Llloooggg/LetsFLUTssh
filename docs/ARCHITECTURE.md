@@ -734,11 +734,23 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 [`ProcessHardening.applyOnStartup()`](../lib/core/security/process_hardening.dart) is called from `main.dart` before any secrets touch RAM:
 
 * Linux / Android — `prctl(PR_SET_DUMPABLE, 0)`: kernel skips core-dump generation on SIGSEGV and another process under the same UID can no longer `gdb -p` to read our memory without `CAP_SYS_PTRACE`.
+* Linux / Android / macOS — `setrlimit(RLIMIT_CORE, {0, 0})`: belt-and-braces against accidental core dumps. `prctl`/`ptrace` above block the attack-paths they target, but on macOS and on a Linux shell that already ran `ulimit -c unlimited` a SIGSEGV would still write `/cores/<pid>.core` or `./core.<pid>`. Zeroing the soft *and* hard limits from inside the process closes that window without touching the user's shell config.
 * macOS — `ptrace(PT_DENY_ATTACH, 0, NULL, 0)`: refuses subsequent debugger attach.
 * Windows — `SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)`: suppresses the "stopped working" dialog and tells Windows Error Reporting (WER) not to capture a crash dump for our process. Without this, WER can write a heap snapshot (and optionally upload it to Microsoft) that contains the live SQLite cipher key and decrypted credentials.
 * iOS — no-op; sandboxing already covers the relevant attacks.
 
 All calls are wrapped in try/catch; a failed hardening call never blocks startup.
+
+**Process-hardening audit findings.** A pass against the checklist (core dumps, ptrace attach, `mlock` coverage, stack canaries, isolate cross-talk) confirmed the current surface is sound:
+
+* *Core dumps* — covered on every POSIX target (prctl + setrlimit on Linux/Android, ptrace PT_DENY_ATTACH + setrlimit on macOS). Windows WER is disabled for the process via SetErrorMode. No gap.
+* *Ptrace attach* — Linux requires `CAP_SYS_PTRACE` after `PR_SET_DUMPABLE, 0`; macOS blocked via `PT_DENY_ATTACH`; Windows equivalent is covered by the WER disable + the debugger-detection Windows already surfaces. No gap.
+* *mlock coverage* — every long-lived DB/crypto secret (`SecurityStateNotifier`'s current DB key, `MasterPasswordManager.verifyAndDerive` intermediate, `ExportImport._encryptWithPassword` / `_decryptWithPassword` PBKDF2-derived keys) lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every entry point zeros the source after copy.
+* *Stack canaries* — the Dart VM + `flutter` engine are compiled with `-fstack-protector-strong` by upstream; the project does not link any native code of its own that would opt out. No action.
+* *Isolate cross-talk* — Dart isolates have isolated heaps by design; the project uses one secondary isolate (`MasterPasswordManager.verifyAndDerive` spawns a short-lived isolate for Argon2id) and explicitly disposes its secret buffers before the isolate terminates. No cross-talk surface.
+* *Android manifest debuggable flag* — Flutter release builds set `debuggable=false` by default via Gradle; the project never overrides it. No action.
+
+Any finding that would have been expensive (signing / anti-tamper, runtime integrity checks, syscall filtering) is deliberately out of scope — the threat model is a lost device / hostile same-UID process, not a kernel-level attacker.
 
 #### AesGcm
 
