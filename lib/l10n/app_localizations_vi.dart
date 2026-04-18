@@ -1761,9 +1761,6 @@ class SVi extends S {
   String get currentPassword => 'Mật khẩu hiện tại';
 
   @override
-  String get passwordTooShort => 'Mật khẩu phải có ít nhất 8 ký tự';
-
-  @override
   String get masterPasswordSet => 'Đã bật mật khẩu chính';
 
   @override

@@ -1792,10 +1792,6 @@ class SFr extends S {
   String get currentPassword => 'Mot de passe actuel';
 
   @override
-  String get passwordTooShort =>
-      'Le mot de passe doit contenir au moins 8 caractères';
-
-  @override
   String get masterPasswordSet => 'Mot de passe principal activé';
 
   @override

@@ -3141,12 +3141,6 @@ abstract class S {
   /// **'Current Password'**
   String get currentPassword;
 
-  /// No description provided for @passwordTooShort.
-  ///
-  /// In en, this message translates to:
-  /// **'Password must be at least 8 characters'**
-  String get passwordTooShort;
-
   /// No description provided for @masterPasswordSet.
   ///
   /// In en, this message translates to:

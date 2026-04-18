@@ -531,7 +531,6 @@
   "wrongMasterPassword": "गलत पासवर्ड। कृपया पुनः प्रयास करें।",
   "newPassword": "नया पासवर्ड",
   "currentPassword": "वर्तमान पासवर्ड",
-  "passwordTooShort": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए",
   "masterPasswordSet": "मास्टर पासवर्ड सक्रिय किया गया",
   "masterPasswordChanged": "मास्टर पासवर्ड बदला गया",
   "masterPasswordRemoved": "मास्टर पासवर्ड हटाया गया",

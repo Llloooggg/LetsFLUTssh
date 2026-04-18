@@ -531,7 +531,6 @@
   "wrongMasterPassword": "密码错误。请重试。",
   "newPassword": "新密码",
   "currentPassword": "当前密码",
-  "passwordTooShort": "密码至少需要 8 个字符",
   "masterPasswordSet": "主密码已启用",
   "masterPasswordChanged": "主密码已更改",
   "masterPasswordRemoved": "主密码已移除",

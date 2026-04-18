@@ -233,12 +233,11 @@ void main() {
     testWidgets('empty password does not close dialog', (tester) async {
       await openSetDialog(tester);
 
-      // Tap OK with both fields empty.
+      // Tap OK with both fields empty — non-empty is the only constraint,
+      // so the handler silently returns and the dialog stays open.
       await tester.tap(find.text('OK'));
       await tester.pump();
 
-      // The dialog must remain open: empty password is < 8 chars, so the
-      // length-check triggers a toast and returns early without popping.
       expect(find.text('Set Master Password'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
@@ -247,7 +246,12 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('short password shows warning toast', (tester) async {
+    testWidgets('short matching passwords close dialog (no minimum length)', (
+      tester,
+    ) async {
+      // Length restrictions were intentionally removed: the only check on
+      // a new master password is that it is non-empty. A 5-char password
+      // that matches its confirmation must succeed.
       await openSetDialog(tester);
 
       await tester.enterText(
@@ -261,18 +265,9 @@ void main() {
 
       await tester.tap(find.text('OK'));
       await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
 
-      expect(
-        find.text('Password must be at least 8 characters'),
-        findsOneWidget,
-      );
-      // Dialog still open.
-      expect(find.text('Set Master Password'), findsOneWidget);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
+      expect(find.text('Set Master Password'), findsNothing);
     });
 
     testWidgets('mismatched passwords shows warning toast', (tester) async {
@@ -373,7 +368,41 @@ void main() {
       });
     });
 
-    testWidgets('short new password shows warning toast', (tester) async {
+    testWidgets(
+      'short matching new passwords close dialog (no minimum length)',
+      (tester) async {
+        // Length restrictions were intentionally removed: only the
+        // non-empty check on current + new + confirmation-match remains.
+        await tester.runAsync(() async {
+          await openManageOptionsAndTap(
+            tester,
+            option: 'Change Master Password',
+          );
+
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Current Password'),
+            'initialPass',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, 'New Password'),
+            'short',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Confirm Password'),
+            'short',
+          );
+
+          await tester.tap(find.text('OK'));
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 5));
+
+          expect(find.text('Change Master Password'), findsNothing);
+        });
+      },
+    );
+
+    testWidgets('empty new password does not close dialog', (tester) async {
+      // Current filled but new field empty — silent return (no toast).
       await tester.runAsync(() async {
         await openManageOptionsAndTap(tester, option: 'Change Master Password');
 
@@ -381,28 +410,13 @@ void main() {
           find.widgetWithText(TextField, 'Current Password'),
           'initialPass',
         );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'New Password'),
-          'short',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Confirm Password'),
-          'short',
-        );
-
+        // New + Confirm stay empty.
         await tester.tap(find.text('OK'));
         await tester.pump();
 
-        expect(
-          find.text('Password must be at least 8 characters'),
-          findsOneWidget,
-        );
-        // Dialog still open.
         expect(find.text('Change Master Password'), findsOneWidget);
 
         await tester.tap(find.text('Cancel'));
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 4));
         await tester.pumpAndSettle();
       });
     });

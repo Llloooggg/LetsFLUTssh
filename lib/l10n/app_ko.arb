@@ -531,7 +531,6 @@
   "wrongMasterPassword": "비밀번호가 올바르지 않습니다. 다시 시도하세요.",
   "newPassword": "새 비밀번호",
   "currentPassword": "현재 비밀번호",
-  "passwordTooShort": "비밀번호는 최소 8자 이상이어야 합니다",
   "masterPasswordSet": "마스터 비밀번호가 활성화되었습니다",
   "masterPasswordChanged": "마스터 비밀번호가 변경되었습니다",
   "masterPasswordRemoved": "마스터 비밀번호가 제거되었습니다",

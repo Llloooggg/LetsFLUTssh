@@ -531,7 +531,6 @@
   "wrongMasterPassword": "Yanlış şifre. Lütfen tekrar deneyin.",
   "newPassword": "Yeni şifre",
   "currentPassword": "Mevcut şifre",
-  "passwordTooShort": "Şifre en az 8 karakter olmalı",
   "masterPasswordSet": "Ana şifre etkinleştirildi",
   "masterPasswordChanged": "Ana şifre değiştirildi",
   "masterPasswordRemoved": "Ana şifre kaldırıldı",

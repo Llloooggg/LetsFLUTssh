@@ -1721,9 +1721,6 @@ class SZh extends S {
   String get currentPassword => '当前密码';
 
   @override
-  String get passwordTooShort => '密码至少需要 8 个字符';
-
-  @override
   String get masterPasswordSet => '主密码已启用';
 
   @override

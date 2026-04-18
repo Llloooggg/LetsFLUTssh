@@ -291,14 +291,9 @@ class _SetMasterPasswordDialogState extends State<_SetMasterPasswordDialog> {
   void _submit() {
     final l10n = S.of(context);
     final password = widget.passwordCtrl.text;
-    if (password.length < 8) {
-      Toast.show(
-        context,
-        message: l10n.passwordTooShort,
-        level: ToastLevel.warning,
-      );
-      return;
-    }
+    // Master password must be non-empty — length and complexity are
+    // the user's choice.
+    if (password.isEmpty) return;
     if (password != widget.confirmCtrl.text) {
       Toast.show(
         context,
@@ -381,14 +376,9 @@ class _ChangeMasterPasswordDialogState
     final l10n = S.of(context);
     if (widget.currentCtrl.text.isEmpty) return;
     final newPw = widget.newCtrl.text;
-    if (newPw.length < 8) {
-      Toast.show(
-        context,
-        message: l10n.passwordTooShort,
-        level: ToastLevel.warning,
-      );
-      return;
-    }
+    // New master password must be non-empty — length and complexity
+    // are the user's choice.
+    if (newPw.isEmpty) return;
     if (newPw != widget.confirmCtrl.text) {
       Toast.show(
         context,

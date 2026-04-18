@@ -531,7 +531,6 @@
   "wrongMasterPassword": "Contraseña incorrecta. Por favor, inténtelo de nuevo.",
   "newPassword": "Nueva contraseña",
   "currentPassword": "Contraseña actual",
-  "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
   "masterPasswordSet": "Contraseña maestra activada",
   "masterPasswordChanged": "Contraseña maestra cambiada",
   "masterPasswordRemoved": "Contraseña maestra eliminada",

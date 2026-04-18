@@ -531,7 +531,6 @@
   "wrongMasterPassword": "رمز عبور اشتباه. دوباره تلاش کنید.",
   "newPassword": "رمز عبور جدید",
   "currentPassword": "رمز عبور فعلی",
-  "passwordTooShort": "رمز عبور باید حداقل ۸ کاراکتر باشد",
   "masterPasswordSet": "رمز عبور اصلی فعال شد",
   "masterPasswordChanged": "رمز عبور اصلی تغییر کرد",
   "masterPasswordRemoved": "رمز عبور اصلی حذف شد",

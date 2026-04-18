@@ -1776,9 +1776,6 @@ class STr extends S {
   String get currentPassword => 'Mevcut şifre';
 
   @override
-  String get passwordTooShort => 'Şifre en az 8 karakter olmalı';
-
-  @override
   String get masterPasswordSet => 'Ana şifre etkinleştirildi';
 
   @override

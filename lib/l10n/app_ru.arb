@@ -531,7 +531,6 @@
   "wrongMasterPassword": "Неверный пароль. Попробуйте ещё раз.",
   "newPassword": "Новый пароль",
   "currentPassword": "Текущий пароль",
-  "passwordTooShort": "Пароль должен содержать минимум 8 символов",
   "masterPasswordSet": "Мастер-пароль установлен",
   "masterPasswordChanged": "Мастер-пароль изменён",
   "masterPasswordRemoved": "Мастер-пароль удалён",

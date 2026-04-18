@@ -531,7 +531,6 @@
   "wrongMasterPassword": "كلمة مرور خاطئة. حاول مرة أخرى.",
   "newPassword": "كلمة مرور جديدة",
   "currentPassword": "كلمة المرور الحالية",
-  "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
   "masterPasswordSet": "تم تفعيل كلمة المرور الرئيسية",
   "masterPasswordChanged": "تم تغيير كلمة المرور الرئيسية",
   "masterPasswordRemoved": "تمت إزالة كلمة المرور الرئيسية",

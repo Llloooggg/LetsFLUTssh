@@ -1774,9 +1774,6 @@ class SHi extends S {
   String get currentPassword => 'वर्तमान पासवर्ड';
 
   @override
-  String get passwordTooShort => 'पासवर्ड कम से कम 8 अक्षर का होना चाहिए';
-
-  @override
   String get masterPasswordSet => 'मास्टर पासवर्ड सक्रिय किया गया';
 
   @override

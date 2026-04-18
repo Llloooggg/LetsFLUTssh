@@ -1783,9 +1783,6 @@ class SPt extends S {
   String get currentPassword => 'Senha atual';
 
   @override
-  String get passwordTooShort => 'A senha deve ter pelo menos 8 caracteres';
-
-  @override
   String get masterPasswordSet => 'Senha mestra ativada';
 
   @override

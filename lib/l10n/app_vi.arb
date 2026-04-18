@@ -531,7 +531,6 @@
   "wrongMasterPassword": "Sai mật khẩu. Vui lòng thử lại.",
   "newPassword": "Mật khẩu mới",
   "currentPassword": "Mật khẩu hiện tại",
-  "passwordTooShort": "Mật khẩu phải có ít nhất 8 ký tự",
   "masterPasswordSet": "Đã bật mật khẩu chính",
   "masterPasswordChanged": "Đã đổi mật khẩu chính",
   "masterPasswordRemoved": "Đã xóa mật khẩu chính",

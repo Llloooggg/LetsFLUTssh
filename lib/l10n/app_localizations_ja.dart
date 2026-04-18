@@ -1732,9 +1732,6 @@ class SJa extends S {
   String get currentPassword => '現在のパスワード';
 
   @override
-  String get passwordTooShort => 'パスワードは 8 文字以上必要です';
-
-  @override
   String get masterPasswordSet => 'マスターパスワードを有効にしました';
 
   @override

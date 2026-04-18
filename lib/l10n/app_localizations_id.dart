@@ -1770,9 +1770,6 @@ class SId extends S {
   String get currentPassword => 'Kata sandi saat ini';
 
   @override
-  String get passwordTooShort => 'Kata sandi minimal 8 karakter';
-
-  @override
   String get masterPasswordSet => 'Kata sandi utama diaktifkan';
 
   @override

@@ -3307,7 +3307,10 @@ void main() {
       );
     });
 
-    testWidgets('short password shows toast', (tester) async {
+    testWidgets('short matching passwords close dialog (no minimum length)', (
+      tester,
+    ) async {
+      // Length restrictions were removed: only non-empty + match remain.
       await openSetDialog(tester);
 
       await tester.enterText(
@@ -3321,19 +3324,9 @@ void main() {
 
       await tester.tap(find.text('OK'));
       await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
 
-      expect(
-        find.text('Password must be at least 8 characters'),
-        findsOneWidget,
-      );
-
-      // Dialog stays open
-      expect(find.text('Set Master Password'), findsOneWidget);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
+      expect(find.text('Set Master Password'), findsNothing);
     });
 
     testWidgets('mismatched passwords shows toast', (tester) async {

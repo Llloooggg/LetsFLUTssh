@@ -1764,9 +1764,6 @@ class SFa extends S {
   String get currentPassword => 'رمز عبور فعلی';
 
   @override
-  String get passwordTooShort => 'رمز عبور باید حداقل ۸ کاراکتر باشد';
-
-  @override
   String get masterPasswordSet => 'رمز عبور اصلی فعال شد';
 
   @override

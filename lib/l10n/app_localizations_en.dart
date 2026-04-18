@@ -1761,9 +1761,6 @@ class SEn extends S {
   String get currentPassword => 'Current Password';
 
   @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
-
-  @override
   String get masterPasswordSet => 'Master password enabled';
 
   @override

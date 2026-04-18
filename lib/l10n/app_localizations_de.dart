@@ -1789,9 +1789,6 @@ class SDe extends S {
   String get currentPassword => 'Aktuelles Passwort';
 
   @override
-  String get passwordTooShort => 'Passwort muss mindestens 8 Zeichen lang sein';
-
-  @override
   String get masterPasswordSet => 'Master-Passwort aktiviert';
 
   @override

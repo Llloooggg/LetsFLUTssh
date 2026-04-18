@@ -1786,10 +1786,6 @@ class SEs extends S {
   String get currentPassword => 'Contraseña actual';
 
   @override
-  String get passwordTooShort =>
-      'La contraseña debe tener al menos 8 caracteres';
-
-  @override
   String get masterPasswordSet => 'Contraseña maestra activada';
 
   @override

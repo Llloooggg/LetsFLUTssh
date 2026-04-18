@@ -531,7 +531,6 @@
   "wrongMasterPassword": "パスワードが正しくありません。もう一度お試しください。",
   "newPassword": "新しいパスワード",
   "currentPassword": "現在のパスワード",
-  "passwordTooShort": "パスワードは 8 文字以上必要です",
   "masterPasswordSet": "マスターパスワードを有効にしました",
   "masterPasswordChanged": "マスターパスワードを変更しました",
   "masterPasswordRemoved": "マスターパスワードを削除しました",

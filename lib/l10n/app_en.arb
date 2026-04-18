@@ -1139,7 +1139,6 @@
   "wrongMasterPassword": "Wrong password. Please try again.",
   "newPassword": "New Password",
   "currentPassword": "Current Password",
-  "passwordTooShort": "Password must be at least 8 characters",
   "masterPasswordSet": "Master password enabled",
   "masterPasswordChanged": "Master password changed",
   "masterPasswordRemoved": "Master password removed",

@@ -1784,9 +1784,6 @@ class SRu extends S {
   String get currentPassword => 'Текущий пароль';
 
   @override
-  String get passwordTooShort => 'Пароль должен содержать минимум 8 символов';
-
-  @override
   String get masterPasswordSet => 'Мастер-пароль установлен';
 
   @override

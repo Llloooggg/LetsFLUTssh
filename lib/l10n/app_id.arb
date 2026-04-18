@@ -531,7 +531,6 @@
   "wrongMasterPassword": "Kata sandi salah. Silakan coba lagi.",
   "newPassword": "Kata sandi baru",
   "currentPassword": "Kata sandi saat ini",
-  "passwordTooShort": "Kata sandi minimal 8 karakter",
   "masterPasswordSet": "Kata sandi utama diaktifkan",
   "masterPasswordChanged": "Kata sandi utama diubah",
   "masterPasswordRemoved": "Kata sandi utama dihapus",

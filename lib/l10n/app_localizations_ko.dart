@@ -1728,9 +1728,6 @@ class SKo extends S {
   String get currentPassword => '현재 비밀번호';
 
   @override
-  String get passwordTooShort => '비밀번호는 최소 8자 이상이어야 합니다';
-
-  @override
   String get masterPasswordSet => '마스터 비밀번호가 활성화되었습니다';
 
   @override

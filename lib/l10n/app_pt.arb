@@ -531,7 +531,6 @@
   "wrongMasterPassword": "Senha incorreta. Por favor, tente novamente.",
   "newPassword": "Nova senha",
   "currentPassword": "Senha atual",
-  "passwordTooShort": "A senha deve ter pelo menos 8 caracteres",
   "masterPasswordSet": "Senha mestra ativada",
   "masterPasswordChanged": "Senha mestra alterada",
   "masterPasswordRemoved": "Senha mestra removida",

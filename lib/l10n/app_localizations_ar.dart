@@ -1776,9 +1776,6 @@ class SAr extends S {
   String get currentPassword => 'كلمة المرور الحالية';
 
   @override
-  String get passwordTooShort => 'يجب أن تكون كلمة المرور 8 أحرف على الأقل';
-
-  @override
   String get masterPasswordSet => 'تم تفعيل كلمة المرور الرئيسية';
 
   @override
