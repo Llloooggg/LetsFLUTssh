@@ -2038,12 +2038,19 @@ void main() {
       // The FutureBuilder may still show "..." or resolved path
       expect(find.text('Data Location'), findsOneWidget);
 
-      // Let the FutureBuilder resolve
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 100)),
-      );
-      await tester.pump();
-      await tester.pump();
+      // Let the FutureBuilder resolve. The delay exercises the path
+      // where the platform-channel mock answers between two pumps; the
+      // exact window is racy on loaded CI, so we pump repeatedly until
+      // the subtitle flips or 1s elapses — the point of the test is
+      // "loader eventually resolves", not a 100ms SLA.
+      final deadline = DateTime.now().add(const Duration(seconds: 1));
+      while (DateTime.now().isBefore(deadline) &&
+          find.text('...').evaluate().isNotEmpty) {
+        await tester.runAsync(
+          () => Future.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
 
       // After resolving, should show actual path (tempDir path)
       expect(find.text('...'), findsNothing);

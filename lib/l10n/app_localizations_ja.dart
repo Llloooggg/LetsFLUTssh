@@ -1764,6 +1764,23 @@ class SJa extends S {
   String get credentialsReset => '保存された認証情報がすべて削除されました';
 
   @override
+  String get legacyKdfTitle => 'セキュリティ更新が必要です';
+
+  @override
+  String get legacyKdfBody =>
+      'このインストールでは、マスターパスワードが古い鍵導出アルゴリズム（PBKDF2）で保護されています。これはGPU/ASICによる解読に対してはるかに強い耐性を持つArgon2idに置き換えられました。新しい形式には後方互換性がないため、古いソルトファイルを自動的に移行することはできません。';
+
+  @override
+  String get legacyKdfWarning =>
+      '「リセットして続行」を選択すると、保存されているすべての認証情報（パスワード、SSHキー、既知のホスト）が完全に削除されます。セッションと設定は保持されます。認証情報を復元する必要がある場合は、アプリを終了し、まず以前のバージョンのLetsFLUTsshを再インストールしてデータをエクスポートしてください。';
+
+  @override
+  String get legacyKdfResetContinue => 'リセットして続行';
+
+  @override
+  String get legacyKdfExit => 'LetsFLUTsshを終了';
+
+  @override
   String get derivingKey => '暗号化キーを生成中...';
 
   @override

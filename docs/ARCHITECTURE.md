@@ -628,7 +628,7 @@ All data is stored in a single drift (SQLite) database. Encryption is applied at
 |-------|------|----------|------------|
 | **Plaintext** | No keychain AND no master password | `letsflutssh.db` (unencrypted SQLite) | None |
 | **Keychain** | OS keychain available, no master password | `letsflutssh.db` (encrypted via PRAGMA key) | OS keychain via `flutter_secure_storage` |
-| **Master Password** | User set master password | `letsflutssh.db` (encrypted via PRAGMA key) + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
+| **Master Password** | User set master password | `letsflutssh.db` (encrypted via PRAGMA key) + `credentials.kdf` + `credentials.verify` | Argon2id-derived |
 
 Stores (SessionStore, KeyStore, KnownHostsManager, SnippetStore, TagStore) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption.
 
@@ -638,7 +638,7 @@ First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers th
 
 ```mermaid
 flowchart LR
-    A[User password] --> B["PBKDF2-SHA256<br/>600k iters<br/>+ 16-byte salt"]
+    A[User password] --> B["Argon2id<br/>m=46 MiB, t=2, p=1<br/>+ 32-byte salt"]
     B --> C["32-byte DB key<br/>(Uint8List)"]
     C --> D["SecretBuffer<br/>(page-locked RAM)"]
     D --> E[SQLite3MC<br/>PRAGMA key]
@@ -646,13 +646,27 @@ flowchart LR
     F -.-> D
 ```
 
+**KDF file format** (`credentials.kdf`, v1):
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | Magic `'LFKD'` (0x4C 0x46 0x4B 0x44) |
+| 4 | 1 | File version (`0x01`) |
+| 5 | 1 | KDF algorithm id (mirror of params[0]) |
+| 6 | 10 | Argon2id params: `memoryKiB` (u32 BE), `iterations` (u32 BE), `parallelism` (u8), plus algorithm id byte prefix |
+| 16 | 32 | Random salt |
+
+The algorithm id + params block is defined in [`KdfParams`](../lib/core/security/kdf_params.dart) — new algorithms can be added without changing the file-layout header. Production defaults are [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart) (Argon2id m=46 MiB t=2 p=1, chosen as the OWASP 2024 recommended floor that balances mid-tier mobile wall-clock against GPU/ASIC resistance).
+
+**Legacy PBKDF2 migration (force-breaking)**: installs from before the Argon2id rollout carry an older `credentials.salt` file with raw PBKDF2 salt (no header). [`MasterPasswordManager.hasLegacyFormat()`](../lib/core/security/master_password.dart) detects this at startup and `main._initSecurity()` shows the non-dismissible [`LegacyKdfDialog`](../lib/widgets/legacy_kdf_dialog.dart) — the user must choose *Reset & Continue* (wipes encrypted stores, fresh start with default keychain mode) or *Quit LetsFLUTssh* (leaves the old data intact so the user can reinstall a previous build and export their credentials first). PBKDF2 key derivation code is no longer on any runtime path for the DB key. The `.lfs` archive decryption retains its own PBKDF2 code path for backward compatibility — see §3.7.
+
 #### In-memory DB key (page-locked)
 
 The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the PBKDF2-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
 
-#### Unlock-path single PBKDF2
+#### Unlock-path single KDF
 
-Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two 600k-iteration PBKDF2 runs, adding up to 3-5 s on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm).
+Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two KDF runs, adding up to several seconds on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so this single-call optimisation matters even more than it did for PBKDF2.
 
 #### Switching modes on the fly
 

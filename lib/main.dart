@@ -32,6 +32,7 @@ import 'widgets/auto_lock_detector.dart';
 import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
+import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
@@ -347,6 +348,32 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (dbExists) {
       // Existing v4 install — unlock with stored credentials.
 
+      // 0. Legacy PBKDF2 format — reject with a force-breaking migration
+      // notice. The only paths forward are reset (wipes credentials) or
+      // quit (lets the user reinstall an older build and export first).
+      if (await manager.hasLegacyFormat()) {
+        final choice = await _showLegacyKdfDialog();
+        if (choice == LegacyKdfChoice.exitApp) {
+          AppLogger.instance.log(
+            'Legacy KDF detected — user chose to exit',
+            name: 'App',
+          );
+          await SystemNavigator.pop();
+          // Desktop does not honour SystemNavigator.pop — fall through to
+          // exit() as a belt-and-braces. No-op on mobile because the app
+          // is already backgrounded.
+          exit(0);
+        }
+        await manager.reset();
+        AppLogger.instance.log(
+          'Legacy KDF detected — credentials reset, starting fresh',
+          name: 'App',
+        );
+        _credentialsWereReset = true;
+        _injectDatabase();
+        return;
+      }
+
       // 1. Master password — try biometric unlock first, fall back to dialog.
       // Track whether we attempted biometrics so the fallback dialog knows
       // not to auto-fire the prompt a second time (user would see two
@@ -482,6 +509,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (!ok) return null;
     final vault = ref.read(biometricKeyVaultProvider);
     return vault.read();
+  }
+
+  /// Show the legacy-KDF reset-or-exit dialog. The call site has already
+  /// awaited async work, so we pull the current navigator context here
+  /// and pass it through synchronously.
+  Future<LegacyKdfChoice> _showLegacyKdfDialog() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(LegacyKdfChoice.exitApp);
+    return LegacyKdfDialog.show(ctx);
   }
 
   /// Resolve the biometric prompt reason string synchronously. Kept

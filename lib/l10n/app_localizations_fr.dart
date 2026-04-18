@@ -1828,6 +1828,23 @@ class SFr extends S {
       'Tous les identifiants enregistrés ont été supprimés';
 
   @override
+  String get legacyKdfTitle => 'Mise à niveau de sécurité requise';
+
+  @override
+  String get legacyKdfBody =>
+      'Cette installation protège votre mot de passe maître avec un ancien algorithme de dérivation de clé (PBKDF2). Il a été remplacé par Argon2id, qui offre une résistance bien supérieure face aux attaques GPU/ASIC. Le nouveau format n\'étant pas rétrocompatible, l\'ancien fichier de sel ne peut pas être migré automatiquement.';
+
+  @override
+  String get legacyKdfWarning =>
+      'Choisir « Réinitialiser et continuer » supprimera définitivement tous les identifiants enregistrés (mots de passe, clés SSH, hôtes connus). Vos sessions et paramètres seront conservés. Si vous avez besoin de récupérer vos identifiants, quittez l\'application et réinstallez la version précédente de LetsFLUTssh pour exporter vos données au préalable.';
+
+  @override
+  String get legacyKdfResetContinue => 'Réinitialiser et continuer';
+
+  @override
+  String get legacyKdfExit => 'Quitter LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Dérivation de la clé de chiffrement...';
 
   @override
