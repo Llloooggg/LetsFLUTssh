@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -95,11 +96,11 @@ class RekeyFailedException implements Exception {
 /// access. Idempotent: safe to call on every open. Logs and continues on
 /// failure — losing the chmod is worse than refusing to start.
 Future<void> restrictDatabaseFilePermissions(String dbPath) async {
-  await restrictFilePermissions(dbPath);
+  await hardenFilePerms(dbPath);
   for (final suffix in _dbSidecarSuffixes) {
     final sidecar = File('$dbPath$suffix');
     if (await sidecar.exists()) {
-      await restrictFilePermissions(sidecar.path);
+      await hardenFilePerms(sidecar.path);
     }
   }
 }
@@ -153,6 +154,15 @@ LazyDatabase _openConnection({Uint8List? encryptionKey}) {
           }
         }
         db.execute('PRAGMA foreign_keys = ON');
+        // Re-harden permissions after SQLite has had a chance to create
+        // the WAL / SHM sidecars. The pre-open call above covered the
+        // main DB file, but in WAL journal mode SQLite creates
+        // `-wal` / `-shm` lazily at first write; if we stop at the
+        // pre-open harden those sidecars inherit the default 0644
+        // umask and leak the encrypted WAL pages to a same-UID reader.
+        // Deliberately fire-and-forget: a failing chmod is logged by
+        // the helper and must not block database open.
+        unawaited(restrictDatabaseFilePermissions(file.path));
       },
     );
   });

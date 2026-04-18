@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'linux/fprintd_client.dart';
 import 'linux/tpm_client.dart';
@@ -195,6 +196,11 @@ class BiometricKeyVault {
       final file = await _linuxSealFileFactory();
       await file.parent.create(recursive: true);
       await file.writeAsBytes(sealed, flush: true);
+      // TPM-sealed blob encodes the wrapping key needed to decrypt the
+      // DB. A same-UID reader with world-readable default perms could
+      // still not unseal it without the TPM, but we treat it like
+      // every other secret file — 0600 across the board.
+      await hardenFilePerms(file.path);
       return true;
     } catch (e) {
       AppLogger.instance.log(

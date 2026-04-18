@@ -13,7 +13,7 @@ Future<void> writeFileAtomic(String path, String content) async {
   final tmp = File('$path.tmp${_rng.nextInt(1 << 30)}');
   try {
     await tmp.writeAsString(content);
-    await restrictFilePermissions(tmp.path);
+    await hardenFilePerms(tmp.path);
     await tmp.rename(path);
   } catch (e) {
     AppLogger.instance.log(
@@ -34,7 +34,7 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
   final tmp = File('$path.tmp${_rng.nextInt(1 << 30)}');
   try {
     await tmp.writeAsBytes(bytes);
-    await restrictFilePermissions(tmp.path);
+    await hardenFilePerms(tmp.path);
     await tmp.rename(path);
   } catch (e) {
     AppLogger.instance.log(
@@ -48,12 +48,25 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
   }
 }
 
-/// Set file permissions to owner-only on all desktop platforms.
+/// Single cross-cutting entry point for locking down permissions on a
+/// freshly-written secret file.
 ///
-/// Unix: `chmod 600` (owner read/write only).
-/// Windows: `icacls` — removes inherited ACLs, grants full control to current
-/// user only.
-Future<void> restrictFilePermissions(String path) async {
+/// Call this after every write that produces a file inside the app
+/// support directory that could hold encryption keys, authentication
+/// material, rate-limit state, or any other integrity-sensitive blob.
+/// The atomic-write helpers above already call it on the `.tmp` file
+/// before rename; other paths (direct `File.writeAsBytes`, drift's
+/// SQLite WAL/SHM sidecars, keychain marker files) must call this
+/// explicitly.
+///
+/// Unix: `chmod 600` (owner read/write only) — matches the OpenSSH
+/// expectation for every file under `~/.ssh/`.
+/// Windows: `icacls` — removes inherited ACLs, grants full control to
+/// current user only.
+/// Silent no-op on platforms with sandboxed per-app storage (iOS,
+/// Android) — the OS already enforces tighter access than `chmod 600`
+/// would.
+Future<void> hardenFilePerms(String path) async {
   try {
     if (Platform.isLinux || Platform.isMacOS) {
       final result = await Process.run('chmod', ['600', path]);
@@ -82,8 +95,14 @@ Future<void> restrictFilePermissions(String path) async {
     }
   } catch (e) {
     AppLogger.instance.log(
-      'Failed to restrict permissions: $e',
+      'Failed to harden permissions: $e',
       name: 'FileUtils',
     );
   }
 }
+
+/// Deprecated alias kept for one release window so existing call
+/// sites keep compiling while they are migrated over. Delete after
+/// the migration is complete.
+@Deprecated('Use hardenFilePerms — single cross-cutting entry point.')
+Future<void> restrictFilePermissions(String path) => hardenFilePerms(path);

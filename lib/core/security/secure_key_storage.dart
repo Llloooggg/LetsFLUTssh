@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// Thin wrapper around OS keychain for storing the AES-256 encryption key.
@@ -61,6 +62,12 @@ class SecureKeyStorage {
       final file = File(await _markerPath());
       await file.parent.create(recursive: true);
       await file.writeAsString('1');
+      // Marker itself holds nothing sensitive (`'1'`) but lives next
+      // to `credentials.kdf` and every other secret file in the app
+      // support dir. Keeping it at 0600 is a consistency win — the
+      // whole directory shouldn't have one file with a weaker mode
+      // than the rest.
+      await hardenFilePerms(file.path);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to write keychain marker: $e',

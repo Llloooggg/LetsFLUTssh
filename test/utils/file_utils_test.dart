@@ -81,19 +81,19 @@ void main() {
     });
   });
 
-  group('restrictFilePermissions', () {
+  group('hardenFilePerms', () {
     test('runs without error on current platform', () async {
       final path = '${tempDir.path}/perm_test.txt';
       File(path).writeAsStringSync('test');
       // Should not throw on any platform
-      await restrictFilePermissions(path);
+      await hardenFilePerms(path);
     });
 
     test('sets 600 permissions on Unix', () async {
       if (!Platform.isLinux && !Platform.isMacOS) return;
       final path = '${tempDir.path}/perm_test.txt';
       File(path).writeAsStringSync('secret');
-      await restrictFilePermissions(path);
+      await hardenFilePerms(path);
       final result = Process.runSync('stat', ['-c', '%a', path]);
       expect(result.stdout.toString().trim(), '600');
     });
@@ -102,7 +102,7 @@ void main() {
       if (!Platform.isWindows) return;
       final path = '${tempDir.path}/perm_test.txt';
       File(path).writeAsStringSync('secret');
-      await restrictFilePermissions(path);
+      await hardenFilePerms(path);
       // Verify icacls was applied — file should only have current user ACL
       final result = Process.runSync('icacls', [path]);
       final output = result.stdout.toString();
@@ -112,7 +112,7 @@ void main() {
 
     test('handles non-existent file gracefully', () async {
       // Should not throw — logs error internally
-      await restrictFilePermissions('${tempDir.path}/no_such_file');
+      await hardenFilePerms('${tempDir.path}/no_such_file');
     });
   });
 }
