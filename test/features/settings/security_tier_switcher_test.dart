@@ -90,5 +90,71 @@ void main() {
       await switcher.clearMarker();
       expect(await switcher.readPendingMarker(), isNull);
     });
+
+    test('every switch runs rekey exactly once', () async {
+      var rekeyCalls = 0;
+      final invariantSwitcher = SecurityTierSwitcher(
+        markerFileFactory: () async =>
+            File('${tempDir.path}/.tier-transition-pending'),
+        keyFactory: () => Uint8List.fromList(List<int>.filled(32, 9)),
+        rekey: (_, _) async => rekeyCalls++,
+      );
+      await invariantSwitcher.switchTier(
+        db: db,
+        targetMarkerPayload: '{"tier":"keychain"}',
+        applyWrapper: (_) async {},
+        persistConfig: (_) async {},
+        clearPrevious: () async {},
+      );
+      expect(rekeyCalls, 1);
+    });
+
+    test(
+      '25 (src,dst) pairs each orchestrate marker + rekey + callbacks',
+      () async {
+        // Enumerate the tier-label cross product (L0/L1/L2/L3/Paranoid
+        // squared) and exercise the switcher for every pair. `src` is
+        // informational — the switcher does not branch on it; the
+        // invariant being asserted is "regardless of the starting
+        // tier, the same orchestration runs for the same target".
+        const tiers = [
+          'plaintext',
+          'keychain',
+          'keychain_with_password',
+          'hardware',
+          'paranoid',
+        ];
+        for (final src in tiers) {
+          for (final dst in tiers) {
+            var rekey = 0;
+            var wrap = 0;
+            var persist = 0;
+            var clear = 0;
+            final pairSwitcher = SecurityTierSwitcher(
+              markerFileFactory: () async =>
+                  File('${tempDir.path}/.tier-transition-pending-$src-$dst'),
+              keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
+              rekey: (_, _) async => rekey++,
+            );
+            await pairSwitcher.switchTier(
+              db: db,
+              targetMarkerPayload: '{"src":"$src","dst":"$dst"}',
+              applyWrapper: (_) async => wrap++,
+              persistConfig: (_) async => persist++,
+              clearPrevious: () async => clear++,
+            );
+            expect(rekey, 1, reason: '$src → $dst rekey count');
+            expect(wrap, 1, reason: '$src → $dst wrap count');
+            expect(persist, 1, reason: '$src → $dst persist count');
+            expect(clear, 1, reason: '$src → $dst clear count');
+            expect(
+              await pairSwitcher.readPendingMarker(),
+              isNull,
+              reason: '$src → $dst marker cleared',
+            );
+          }
+        }
+      },
+    );
   });
 }
