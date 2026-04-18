@@ -330,7 +330,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     switch (result.tier) {
       case SecurityTier.plaintext:
-        await _reEncryptAll(null, SecurityTier.plaintext);
+        await _applyAlwaysRekey(null, SecurityTier.plaintext);
         await keyStorage.deleteKey();
         await gate.clear();
         await hwVault.clear();
@@ -340,7 +340,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         final key = AesGcm.generateKey();
         final stored = await keyStorage.writeKey(key);
         if (!stored) throw StateError('keychain write failed');
-        await _reEncryptAll(key, SecurityTier.keychain);
+        await _applyAlwaysRekey(key, SecurityTier.keychain);
         await gate.clear();
         await hwVault.clear();
         if (await manager.isEnabled()) await manager.disable();
@@ -357,7 +357,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           await gate.clear();
           throw StateError('keychain write failed');
         }
-        await _reEncryptAll(key, SecurityTier.keychainWithPassword);
+        await _applyAlwaysRekey(key, SecurityTier.keychainWithPassword);
         await hwVault.clear();
         if (await manager.isEnabled()) await manager.disable();
         await bioVault.clear();
@@ -367,7 +367,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         final key = AesGcm.generateKey();
         final sealed = await hwVault.store(dbKey: key, pin: pin);
         if (!sealed) throw StateError('hardware seal failed');
-        await _reEncryptAll(key, SecurityTier.hardware);
+        await _applyAlwaysRekey(key, SecurityTier.hardware);
         await keyStorage.deleteKey();
         await gate.clear();
         if (await manager.isEnabled()) await manager.disable();
@@ -378,7 +378,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           throw StateError('master password missing');
         }
         final key = await manager.enable(pw);
-        await _reEncryptAll(key, SecurityTier.paranoid);
+        await _applyAlwaysRekey(key, SecurityTier.paranoid);
         await keyStorage.deleteKey();
         await gate.clear();
         await hwVault.clear();
@@ -386,18 +386,18 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-
-  /// Re-encrypt the live database with a new key (or convert to plaintext
-  /// when [key] is null), then update global security state.
+  /// Rekey the live database under [key] (or convert to plaintext
+  /// when [key] is null) and flip `securityStateProvider` to the new
+  /// [level]. Single caller: `_applyTierChange`, which runs this
+  /// *after* it has already wrapped the new key into the target
+  /// tier's vault — so the on-disk wrapper and the DB cipher always
+  /// move together.
   ///
-  /// Wraps the rekey + provider update in a `SecurityTierSwitcher`
-  /// crash-recovery marker: the file is written before `PRAGMA rekey`
-  /// and cleared after the provider update succeeds. If the process
-  /// dies between the rekey and the provider update, the next launch
-  /// sees a stale marker in main's `_initSecurity` and logs it. The
-  /// order of rekey → provider update is unchanged: a crypto/disk
-  /// failure still leaves the old working state intact.
-  Future<void> _reEncryptAll(Uint8List? key, SecurityTier level) async {
+  /// Routes the rekey through `SecurityTierSwitcher` so a mid-switch
+  /// crash leaves the `.tier-transition-pending` marker on disk; the
+  /// next launch logs and clears it in `main._initSecurity` before
+  /// falling through to the standard unlock path.
+  Future<void> _applyAlwaysRekey(Uint8List? key, SecurityTier level) async {
     final store = ref.read(sessionStoreProvider);
     final db = store.database;
     final markerPayload = '{"tier":"${_tierName(level)}"}';
@@ -446,7 +446,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // Previous-tier cleanup (biometric vault clear, keychain
         // delete, credentials.kdf remove) is handled by the
         // specific enable/disable/change/remove methods that call
-        // into `_reEncryptAll`.
+        // into `_applyAlwaysRekey`.
       },
     );
   }
