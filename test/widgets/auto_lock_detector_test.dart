@@ -201,6 +201,83 @@ void main() {
       );
     });
 
+    testWidgets(
+      'minimize with timer=Off does NOT lock (regression for user report '
+      '"блокировка срабатывает если свернуть приложение")',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            // Timer OFF — auto-lock disabled entirely.
+            autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              _StubConnectionManager(const []),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(securityStateProvider.notifier)
+            .set(SecurityLevel.masterPassword, Uint8List(32));
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: _host(const AutoLockDetector(child: Text('content'))),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Simulate the user switching away from the app.
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump();
+
+        expect(
+          container.read(lockStateProvider),
+          false,
+          reason:
+              'with the timer off the user has opted out of auto-lock '
+              'entirely; minimizing must not lock',
+        );
+      },
+    );
+
+    testWidgets('minimize with timer>0 locks immediately', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(15)),
+          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          connectionManagerProvider.overrideWithValue(
+            _StubConnectionManager(const []),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(securityStateProvider.notifier)
+          .set(SecurityLevel.masterPassword, Uint8List(32));
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _host(const AutoLockDetector(child: Text('content'))),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+
+      expect(
+        container.read(lockStateProvider),
+        true,
+        reason:
+            'when the user has chosen an idle timeout, backgrounding '
+            'is treated as activity stop and the lock screen is '
+            'pre-overlaid so the OS lock dismisses onto the lock UI',
+      );
+    });
+
     testWidgets('pointer activity resets the idle timer', (tester) async {
       final container = ProviderContainer(
         overrides: [

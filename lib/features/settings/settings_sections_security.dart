@@ -677,97 +677,108 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 }
 
 class _AutoLockTile extends ConsumerWidget {
-  static const _presets = [0, 5, 15, 30, 60];
+  static const _presets = [0, 1, 5, 15, 30, 60];
 
-  /// Non-null means the tile is disabled: chips are visibly muted,
-  /// wrapped in a tooltip, and any tap surfaces the reason through a
-  /// toast instead of mutating the setting.
+  /// Non-null means the tile is disabled: the dropdown trigger is
+  /// visibly muted, wrapped in a tooltip, and any tap surfaces the
+  /// reason through a toast instead of opening the menu.
   final String? disabledReason;
 
   const _AutoLockTile({this.disabledReason});
+
+  String _label(S l10n, int minutes) =>
+      minutes == 0 ? l10n.autoLockOff : l10n.autoLockMinutesValue(minutes);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
     final current = ref.watch(autoLockMinutesProvider);
     final enabled = disabledReason == null;
-    final chips = Wrap(
-      spacing: 6,
-      children: _presets
-          .map((m) => _buildChip(context, ref, l10n, m, current, enabled))
-          .toList(),
-    );
+    final trigger = _buildTrigger(l10n, current);
     return Opacity(
       opacity: enabled ? 1.0 : 0.5,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.timer_outlined, size: 16, color: AppTheme.fgDim),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.autoLockTitle,
-                        style: AppFonts.inter(
-                          fontSize: AppFonts.sm,
-                          color: AppTheme.fg,
-                        ),
-                      ),
-                      Text(
-                        l10n.autoLockSubtitle,
-                        style: AppFonts.inter(
-                          fontSize: AppFonts.xs,
-                          color: AppTheme.fgFaint,
-                        ),
-                      ),
-                    ],
-                  ),
+      child: _SettingsRow(
+        label: l10n.autoLockTitle,
+        subtitle: l10n.autoLockSubtitle,
+        icon: Icons.timer_outlined,
+        child: enabled
+            ? PopupMenuButton<int>(
+                onSelected: (v) =>
+                    ref.read(autoLockMinutesProvider.notifier).set(v),
+                tooltip: '',
+                offset: const Offset(0, AppTheme.controlHeightSm),
+                constraints: const BoxConstraints(
+                  minWidth: 140,
+                  maxHeight: AppTheme.popupMaxHeight,
                 ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            enabled ? chips : Tooltip(message: disabledReason!, child: chips),
-          ],
-        ),
+                color: AppTheme.bg2,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppTheme.radiusMd,
+                ),
+                itemBuilder: (_) => _presets
+                    .map(
+                      (m) => PopupMenuItem<int>(
+                        value: m,
+                        child: Text(
+                          _label(l10n, m),
+                          style: TextStyle(
+                            fontSize: AppFonts.sm,
+                            color: m == current ? AppTheme.accent : AppTheme.fg,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                child: trigger,
+              )
+            : _DisabledDropdownTrigger(reason: disabledReason!, child: trigger),
       ),
     );
   }
 
-  Widget _buildChip(
-    BuildContext context,
-    WidgetRef ref,
-    S l10n,
-    int minutes,
-    int current,
-    bool enabled,
-  ) {
-    final label = minutes == 0
-        ? l10n.autoLockOff
-        : l10n.autoLockMinutesValue(minutes);
-    final selected = minutes == current;
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: AppFonts.xs,
-          color: selected ? AppTheme.onAccent : AppTheme.fg,
-        ),
+  Widget _buildTrigger(S l10n, int current) {
+    return Container(
+      height: AppTheme.controlHeightSm,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.bg3,
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.borderLight),
       ),
-      selected: selected,
-      selectedColor: AppTheme.accent,
-      onSelected: (_) {
-        if (!enabled) {
-          Toast.show(context, message: disabledReason!, level: ToastLevel.info);
-          return;
-        }
-        ref.read(autoLockMinutesProvider.notifier).set(minutes);
-      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _label(l10n, current),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
+        ],
+      ),
+    );
+  }
+}
+
+/// Visual stand-in for a disabled [PopupMenuButton] trigger: hover
+/// tooltip plus an info toast on tap explaining why the control is
+/// frozen. Keeps the same visual box so the dropdown doesn't appear
+/// to "disappear" in disabled states.
+class _DisabledDropdownTrigger extends StatelessWidget {
+  final String reason;
+  final Widget child;
+
+  const _DisabledDropdownTrigger({required this.reason, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: reason,
+      child: GestureDetector(
+        onTap: () =>
+            Toast.show(context, message: reason, level: ToastLevel.info),
+        child: child,
+      ),
     );
   }
 }
