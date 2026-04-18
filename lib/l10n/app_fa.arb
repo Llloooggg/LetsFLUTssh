@@ -2,6 +2,8 @@
   "@@locale": "fa",
   "appTitle": "LetsFLUTssh",
   "ok": "تأیید",
+  "infoDialogProtectsHeader": "محافظت می‌کند در برابر",
+  "infoDialogDoesNotProtectHeader": "محافظت نمی‌کند در برابر",
   "cancel": "لغو",
   "close": "بستن",
   "delete": "حذف",

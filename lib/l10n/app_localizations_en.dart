@@ -15,6 +15,12 @@ class SEn extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Protects against';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Does not protect against';
+
+  @override
   String get cancel => 'Cancel';
 
   @override

@@ -15,6 +15,12 @@ class SHi extends S {
   String get ok => 'ठीक है';
 
   @override
+  String get infoDialogProtectsHeader => 'सुरक्षा करता है';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'सुरक्षा नहीं करता';
+
+  @override
   String get cancel => 'रद्द करें';
 
   @override

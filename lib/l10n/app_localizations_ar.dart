@@ -15,6 +15,12 @@ class SAr extends S {
   String get ok => 'موافق';
 
   @override
+  String get infoDialogProtectsHeader => 'يحمي من';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'لا يحمي من';
+
+  @override
   String get cancel => 'إلغاء';
 
   @override

@@ -15,6 +15,12 @@ class SZh extends S {
   String get ok => '确定';
 
   @override
+  String get infoDialogProtectsHeader => '防护范围';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => '不在防护范围';
+
+  @override
   String get cancel => '取消';
 
   @override

@@ -15,6 +15,12 @@ class SDe extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Schützt vor';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Schützt nicht vor';
+
+  @override
   String get cancel => 'Abbrechen';
 
   @override

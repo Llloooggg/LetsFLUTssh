@@ -15,6 +15,12 @@ class SFa extends S {
   String get ok => 'تأیید';
 
   @override
+  String get infoDialogProtectsHeader => 'محافظت می‌کند در برابر';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'محافظت نمی‌کند در برابر';
+
+  @override
   String get cancel => 'لغو';
 
   @override

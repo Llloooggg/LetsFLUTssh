@@ -15,6 +15,12 @@ class SKo extends S {
   String get ok => '확인';
 
   @override
+  String get infoDialogProtectsHeader => '보호함';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => '보호하지 않음';
+
+  @override
   String get cancel => '취소';
 
   @override

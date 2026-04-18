@@ -2,6 +2,8 @@
   "@@locale": "ja",
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
+  "infoDialogProtectsHeader": "保護する",
+  "infoDialogDoesNotProtectHeader": "保護しない",
   "cancel": "キャンセル",
   "close": "閉じる",
   "delete": "削除",

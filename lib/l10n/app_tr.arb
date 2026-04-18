@@ -2,6 +2,8 @@
   "@@locale": "tr",
   "appTitle": "LetsFLUTssh",
   "ok": "Tamam",
+  "infoDialogProtectsHeader": "Şunlara karşı korur",
+  "infoDialogDoesNotProtectHeader": "Şunlara karşı korumaz",
   "cancel": "İptal",
   "close": "Kapat",
   "delete": "Sil",

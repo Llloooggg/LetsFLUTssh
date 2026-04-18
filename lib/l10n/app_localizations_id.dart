@@ -15,6 +15,12 @@ class SId extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Melindungi dari';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Tidak melindungi dari';
+
+  @override
   String get cancel => 'Batal';
 
   @override

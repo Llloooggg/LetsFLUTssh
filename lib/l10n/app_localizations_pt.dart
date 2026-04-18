@@ -15,6 +15,12 @@ class SPt extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Protege contra';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Não protege contra';
+
+  @override
   String get cancel => 'Cancelar';
 
   @override

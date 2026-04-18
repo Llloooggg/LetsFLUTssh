@@ -15,6 +15,12 @@ class SEs extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Protege contra';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'No protege contra';
+
+  @override
   String get cancel => 'Cancelar';
 
   @override

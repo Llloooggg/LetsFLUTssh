@@ -2,6 +2,8 @@
   "@@locale": "vi",
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
+  "infoDialogProtectsHeader": "Bảo vệ khỏi",
+  "infoDialogDoesNotProtectHeader": "Không bảo vệ khỏi",
   "cancel": "Hủy",
   "close": "Đóng",
   "delete": "Xóa",

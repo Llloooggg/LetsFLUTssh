@@ -15,6 +15,12 @@ class SJa extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => '保護する';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => '保護しない';
+
+  @override
   String get cancel => 'キャンセル';
 
   @override

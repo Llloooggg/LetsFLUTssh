@@ -2,6 +2,8 @@
   "@@locale": "zh",
   "appTitle": "LetsFLUTssh",
   "ok": "确定",
+  "infoDialogProtectsHeader": "防护范围",
+  "infoDialogDoesNotProtectHeader": "不在防护范围",
   "cancel": "取消",
   "close": "关闭",
   "delete": "删除",

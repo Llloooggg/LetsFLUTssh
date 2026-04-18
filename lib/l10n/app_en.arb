@@ -2,6 +2,8 @@
   "@@locale": "en",
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
+  "infoDialogProtectsHeader": "Protects against",
+  "infoDialogDoesNotProtectHeader": "Does not protect against",
   "cancel": "Cancel",
   "close": "Close",
   "delete": "Delete",

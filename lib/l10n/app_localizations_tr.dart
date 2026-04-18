@@ -15,6 +15,12 @@ class STr extends S {
   String get ok => 'Tamam';
 
   @override
+  String get infoDialogProtectsHeader => 'Şunlara karşı korur';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Şunlara karşı korumaz';
+
+  @override
   String get cancel => 'İptal';
 
   @override

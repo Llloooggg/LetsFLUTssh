@@ -135,6 +135,18 @@ abstract class S {
   /// **'OK'**
   String get ok;
 
+  /// No description provided for @infoDialogProtectsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Protects against'**
+  String get infoDialogProtectsHeader;
+
+  /// No description provided for @infoDialogDoesNotProtectHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Does not protect against'**
+  String get infoDialogDoesNotProtectHeader;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:

@@ -15,6 +15,12 @@ class SRu extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Защищает от';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Не защищает от';
+
+  @override
   String get cancel => 'Отмена';
 
   @override

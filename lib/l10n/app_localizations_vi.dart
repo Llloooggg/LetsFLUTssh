@@ -15,6 +15,12 @@ class SVi extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Bảo vệ khỏi';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Không bảo vệ khỏi';
+
+  @override
   String get cancel => 'Hủy';
 
   @override

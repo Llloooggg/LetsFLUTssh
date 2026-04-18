@@ -15,6 +15,12 @@ class SFr extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Protège contre';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Ne protège pas contre';
+
+  @override
   String get cancel => 'Annuler';
 
   @override

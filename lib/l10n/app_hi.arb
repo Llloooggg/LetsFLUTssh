@@ -2,6 +2,8 @@
   "@@locale": "hi",
   "appTitle": "LetsFLUTssh",
   "ok": "ठीक है",
+  "infoDialogProtectsHeader": "सुरक्षा करता है",
+  "infoDialogDoesNotProtectHeader": "सुरक्षा नहीं करता",
   "cancel": "रद्द करें",
   "close": "बंद करें",
   "delete": "हटाएं",

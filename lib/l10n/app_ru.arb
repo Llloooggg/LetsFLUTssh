@@ -2,6 +2,8 @@
   "@@locale": "ru",
   "appTitle": "LetsFLUTssh",
   "ok": "OK",
+  "infoDialogProtectsHeader": "Защищает от",
+  "infoDialogDoesNotProtectHeader": "Не защищает от",
   "cancel": "Отмена",
   "close": "Закрыть",
   "delete": "Удалить",

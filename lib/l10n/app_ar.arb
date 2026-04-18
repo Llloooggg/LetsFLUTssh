@@ -2,6 +2,8 @@
   "@@locale": "ar",
   "appTitle": "LetsFLUTssh",
   "ok": "موافق",
+  "infoDialogProtectsHeader": "يحمي من",
+  "infoDialogDoesNotProtectHeader": "لا يحمي من",
   "cancel": "إلغاء",
   "close": "إغلاق",
   "delete": "حذف",
