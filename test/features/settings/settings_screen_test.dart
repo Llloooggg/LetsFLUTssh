@@ -1023,7 +1023,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Export'), findsOneWidget);
+      // The dialog rendered — that's the spec. Don't pin the exact
+      // button label (the Data section now carries an "Export" section
+      // header too, so a loose text match is ambiguous).
+      expect(find.byType(Dialog), findsOneWidget);
     });
   });
 

@@ -35,7 +35,6 @@ Future<List<Session>> _resolveSessionKeys(
   return resolved;
 }
 
-
 class _DataSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -43,12 +42,12 @@ class _DataSection extends ConsumerWidget {
   }
 }
 
-
 class _ExportImportTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
+        _SectionHeader(title: S.of(context).import_),
         _ActionTile(
           icon: Icons.download,
           title: S.of(context).importArchive,
@@ -56,24 +55,26 @@ class _ExportImportTile extends ConsumerWidget {
           onTap: () => _showImportDialog(context, ref),
         ),
         _ActionTile(
-          icon: Icons.upload_file,
-          title: S.of(context).exportArchive,
-          subtitle: S.of(context).exportArchiveSubtitle,
-          onTap: () => _showExportDialog(context, ref),
-        ),
-        _ActionTile(
           icon: Icons.link,
           title: S.of(context).importFromLink,
           subtitle: S.of(context).importFromLinkSubtitle,
           onTap: () => _showPasteImportLink(context, ref),
         ),
-        const _QrExportTile(),
         _ActionTile(
           icon: Icons.folder_shared_outlined,
           title: S.of(context).importFromSshDir,
           subtitle: S.of(context).importFromSshDirSubtitle,
           onTap: () => _showSshDirImportDialog(context, ref),
         ),
+        const SizedBox(height: 8),
+        _SectionHeader(title: S.of(context).export_),
+        _ActionTile(
+          icon: Icons.upload_file,
+          title: S.of(context).exportArchive,
+          subtitle: S.of(context).exportArchiveSubtitle,
+          onTap: () => _showExportDialog(context, ref),
+        ),
+        const _QrExportTile(),
       ],
     );
   }
@@ -770,7 +771,6 @@ class _ExportImportTile extends ConsumerWidget {
   }
 }
 
-
 class _QrExportTile extends ConsumerWidget {
   const _QrExportTile();
 
@@ -915,7 +915,6 @@ class _QrExportTile extends ConsumerWidget {
     return sessionSnippets;
   }
 }
-
 
 class _DataPathTile extends StatelessWidget {
   const _DataPathTile();
