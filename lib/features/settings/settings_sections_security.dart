@@ -177,7 +177,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (password == null || !context.mounted) return;
 
     final manager = ref.read(masterPasswordProvider);
-    if (!await manager.verify(password)) {
+    // Single PBKDF2: verify + derive at once so the enable flow
+    // doesn't double the 600k-iteration wait on mobile.
+    final key = await manager.verifyAndDerive(password);
+    if (key == null) {
       if (context.mounted) {
         Toast.show(
           context,
@@ -203,8 +206,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       }
       return;
     }
-
-    final key = await manager.deriveKey(password);
     final vault = ref.read(biometricKeyVaultProvider);
     final stored = await vault.store(key);
     if (!mounted) return;

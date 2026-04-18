@@ -79,7 +79,26 @@ class MasterPasswordManager {
   /// Verify a password against the stored verifier.
   ///
   /// Returns true if the password is correct.
+  ///
+  /// Prefer [verifyAndDerive] when the caller will immediately need the
+  /// derived key — that variant runs the 600k-iteration PBKDF2 once
+  /// instead of twice.
   Future<bool> verify(String password) async {
+    final derived = await verifyAndDerive(password);
+    return derived != null;
+  }
+
+  /// Single-PBKDF2 unlock: verify the password and, on success, return
+  /// the derived DB key; return null on wrong password.
+  ///
+  /// The legacy unlock path called [verify] and then [deriveKey] back
+  /// to back — two isolate spawns + two 600k-iteration KDF runs for
+  /// each unlock. Users on mid-tier mobiles reported 3-5 s between
+  /// tapping unlock and the UI advancing. This combined variant runs
+  /// the KDF once inside a single isolate and returns the same bytes
+  /// the verifier was checked against, halving unlock latency on
+  /// every platform.
+  Future<Uint8List?> verifyAndDerive(String password) async {
     final basePath = await _getBasePath();
     final saltFile = File('$basePath/$_saltFileName');
     final verifierFile = File('$basePath/$_verifierFileName');
@@ -94,7 +113,8 @@ class MasterPasswordManager {
 
     return Isolate.run(() {
       final key = _deriveKeySync(password, salt, iterations);
-      return _verifySync(key, verifierData);
+      if (!_verifySync(key, verifierData)) return null;
+      return key;
     });
   }
 

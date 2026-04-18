@@ -130,8 +130,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
     final manager = ref.read(masterPasswordProvider);
     try {
-      final ok = await manager.verify(password);
-      if (!ok) {
+      // Single PBKDF2: verify + derive in one isolate spawn.
+      final key = await manager.verifyAndDerive(password);
+      if (key == null) {
         setState(() {
           _busy = false;
           _wrong = true;
@@ -140,7 +141,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         _focusNode.requestFocus();
         return;
       }
-      final key = await manager.deriveKey(password);
       if (!mounted) return;
       _releaseLock(key);
     } catch (e) {

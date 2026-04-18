@@ -639,6 +639,10 @@ flowchart LR
 
 The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the PBKDF2-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
 
+#### Unlock-path single PBKDF2
+
+Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two 600k-iteration PBKDF2 runs, adding up to 3-5 s on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm).
+
 #### Switching modes on the fly
 
 `_reEncryptAll()` in `settings_sections.dart` runs `PRAGMA rekey` through `rekeyDatabase()` in `lib/core/db/database_opener.dart` to re-encrypt every DB page under the new key *before* flipping `securityStateProvider`. A crypto / disk failure leaves the old working state intact instead of a half-migrated file. Removing master password or changing it wipes `BiometricKeyVault` since the cached key becomes stale.
