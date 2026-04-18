@@ -1313,7 +1313,7 @@ void main() {
     testWidgets('tapping Source Code copies URL and shows toast', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.physicalSize = const Size(800, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -1324,6 +1324,8 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.text('Source Code'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Source Code'));
       await tester.pump();
 
@@ -2848,6 +2850,8 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.text('Source Code'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Source Code'));
       await tester.pump();
 

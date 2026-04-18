@@ -1169,6 +1169,26 @@ class SKo extends S {
   String get biometricDisabled => '생체 인식 잠금 해제가 비활성화되었습니다';
 
   @override
+  String get biometricUnlockFailed => '생체 인증 잠금 해제에 실패했습니다. 마스터 비밀번호를 입력하세요.';
+
+  @override
+  String get biometricUnlockCancelled => '생체 인증 잠금 해제가 취소되었습니다.';
+
+  @override
+  String get biometricNotEnrolled => '이 기기에 등록된 생체 정보가 없습니다.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      '생체 인증 잠금 해제를 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
+
+  @override
+  String get biometricSensorNotAvailable => '이 기기에는 생체 인식 센서가 없습니다.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      '자동 잠금을 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
+
+  @override
   String get currentPasswordIncorrect => '현재 비밀번호가 올바르지 않습니다';
 
   @override

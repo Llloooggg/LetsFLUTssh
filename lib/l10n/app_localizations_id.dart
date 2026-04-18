@@ -1198,6 +1198,29 @@ class SId extends S {
   String get biometricDisabled => 'Buka kunci biometrik dinonaktifkan';
 
   @override
+  String get biometricUnlockFailed =>
+      'Buka kunci biometrik gagal. Masukkan kata sandi utama Anda.';
+
+  @override
+  String get biometricUnlockCancelled => 'Buka kunci biometrik dibatalkan.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Tidak ada kredensial biometrik yang terdaftar di perangkat ini.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan buka kunci biometrik.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Perangkat ini tidak memiliki sensor biometrik.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan kunci otomatis.';
+
+  @override
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
 
   @override

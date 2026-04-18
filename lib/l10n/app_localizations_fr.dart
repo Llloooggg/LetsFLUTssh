@@ -1207,6 +1207,29 @@ class SFr extends S {
   String get biometricDisabled => 'Déverrouillage biométrique désactivé';
 
   @override
+  String get biometricUnlockFailed =>
+      'Échec du déverrouillage biométrique. Saisissez votre mot de passe principal.';
+
+  @override
+  String get biometricUnlockCancelled => 'Déverrouillage biométrique annulé.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Aucune donnée biométrique enregistrée sur cet appareil.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Définissez d\'abord un mot de passe principal pour activer le déverrouillage biométrique.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Cet appareil n\'a pas de capteur biométrique.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Définissez d\'abord un mot de passe principal pour activer le verrouillage automatique.';
+
+  @override
   String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';
 
   @override

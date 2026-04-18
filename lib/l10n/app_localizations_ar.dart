@@ -1197,6 +1197,30 @@ class SAr extends S {
   String get biometricDisabled => 'تم تعطيل الفتح بالمقاييس الحيوية';
 
   @override
+  String get biometricUnlockFailed =>
+      'فشل فتح القفل بالبيانات الحيوية. أدخل كلمة المرور الرئيسية.';
+
+  @override
+  String get biometricUnlockCancelled =>
+      'تم إلغاء فتح القفل بالبيانات الحيوية.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'لا توجد بيانات حيوية مسجلة على هذا الجهاز.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين فتح القفل بالبيانات الحيوية.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'لا يحتوي هذا الجهاز على مستشعر بيومتري.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين القفل التلقائي.';
+
+  @override
   String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
 
   @override

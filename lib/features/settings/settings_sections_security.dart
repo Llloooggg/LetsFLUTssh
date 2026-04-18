@@ -10,8 +10,9 @@ class _SecuritySection extends ConsumerStatefulWidget {
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   bool? _masterPasswordEnabled;
   bool? _keychainAvailable;
-  bool? _biometricAvailable;
+  BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
+  bool _biometricProbed = false;
 
   @override
   void initState() {
@@ -39,15 +40,51 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final bio = ref.read(biometricAuthProvider);
     final bioVault = ref.read(biometricKeyVaultProvider);
-    final bioResults = await Future.wait([
-      bio.isAvailable(),
-      bioVault.isStored(),
-    ]);
+    final availability = await bio.availability();
+    final stored = await bioVault.isStored();
     if (!mounted) return;
     setState(() {
-      _biometricAvailable = bioResults[0];
-      _biometricEnabled = bioResults[1];
+      _biometricUnavailable = availability;
+      _biometricEnabled = stored;
+      _biometricProbed = true;
     });
+  }
+
+  /// Localized explanation for why the biometric toggle is disabled —
+  /// null means "either fully enabled, or still probing". Caller pairs
+  /// this with [_biometricEnabledFor] to decide. Two layers:
+  ///  * platform/hardware reason from [BiometricAuth.availability]
+  ///  * "you need a master password first" when the app is not in
+  ///    master-password mode (biometry caches the MP-derived key, so
+  ///    without an MP there is no key to cache)
+  String? _biometricDisabledReason(S l10n, SecurityLevel level) {
+    if (!_biometricProbed) return null;
+    switch (_biometricUnavailable) {
+      case BiometricUnavailableReason.platformUnsupported:
+      case BiometricUnavailableReason.noSensor:
+        return l10n.biometricSensorNotAvailable;
+      case BiometricUnavailableReason.notEnrolled:
+        return l10n.biometricNotEnrolled;
+      case null:
+        break;
+    }
+    if (level != SecurityLevel.masterPassword) {
+      return l10n.biometricRequiresMasterPassword;
+    }
+    return null;
+  }
+
+  /// Whether the biometric toggle can be flipped. Returns false during
+  /// the initial probe so the toggle doesn't momentarily look live.
+  bool _biometricToggleEnabled(SecurityLevel level) {
+    if (!_biometricProbed) return false;
+    if (_biometricUnavailable != null) return false;
+    return level == SecurityLevel.masterPassword;
+  }
+
+  String? _autoLockDisabledReason(S l10n, SecurityLevel level) {
+    if (level == SecurityLevel.masterPassword) return null;
+    return l10n.autoLockRequiresMasterPassword;
   }
 
   @override
@@ -92,25 +129,28 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
               ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
               : null,
         ),
-        // Biometric unlock — only rendered when the device actually has
-        // biometric hardware. Hidden on headless/Linux so the settings
-        // layout stays compact (and so our existing tests that tap by
-        // absolute offset still land on the right widgets).
-        if (_biometricAvailable == true)
-          _Toggle(
-            label: l10n.biometricUnlockTitle,
-            subtitle: l10n.biometricUnlockSubtitle,
-            icon: Icons.fingerprint,
-            value: _biometricEnabled == true,
-            onChanged: secState.level == SecurityLevel.masterPassword
-                ? (v) => _toggleBiometricUnlock(context, v)
-                : null,
-          ),
-        // Auto-lock — only meaningful in masterPassword mode, since lock
-        // zeroes the DB key and relies on the MP prompt (or biometrics)
-        // to restore it. In plaintext/keychain there is no secret to
-        // re-prove, so the row is hidden.
-        if (secState.level == SecurityLevel.masterPassword) _AutoLockTile(),
+        // Biometric unlock — always rendered so the user can see that
+        // the option exists and why it cannot be flipped right now.
+        // When disabled the [_Toggle] shows a tooltip + toast with the
+        // reason (no sensor, nothing enrolled, or no master password
+        // set yet) instead of silently disappearing.
+        _Toggle(
+          label: l10n.biometricUnlockTitle,
+          subtitle: l10n.biometricUnlockSubtitle,
+          icon: Icons.fingerprint,
+          value: _biometricEnabled == true,
+          onChanged: _biometricToggleEnabled(secState.level)
+              ? (v) => _toggleBiometricUnlock(context, v)
+              : null,
+          disabledReason: _biometricDisabledReason(l10n, secState.level),
+        ),
+        // Auto-lock — meaningful only when a master password is set,
+        // but still rendered in every mode with a disabled look +
+        // reason so the user doesn't wonder where it went after
+        // disabling master-password mode.
+        _AutoLockTile(
+          disabledReason: _autoLockDisabledReason(l10n, secState.level),
+        ),
       ],
     );
   }
@@ -149,7 +189,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
 
     final bio = ref.read(biometricAuthProvider);
-    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) return;
+    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
+      // Cancel / lockout / biometricOnly-without-enrollment all land
+      // here as a silent `false` from local_auth. Surface a toast so
+      // the user knows why the toggle didn't flip — the prior code
+      // returned quietly and looked like the tap did nothing.
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricUnlockCancelled,
+          level: ToastLevel.warning,
+        );
+      }
+      return;
+    }
 
     final key = await manager.deriveKey(password);
     final vault = ref.read(biometricKeyVaultProvider);
@@ -626,67 +679,95 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 class _AutoLockTile extends ConsumerWidget {
   static const _presets = [0, 5, 15, 30, 60];
 
+  /// Non-null means the tile is disabled: chips are visibly muted,
+  /// wrapped in a tooltip, and any tap surfaces the reason through a
+  /// toast instead of mutating the setting.
+  final String? disabledReason;
+
+  const _AutoLockTile({this.disabledReason});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
     final current = ref.watch(autoLockMinutesProvider);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.timer_outlined, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.autoLockTitle,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.sm,
-                        color: AppTheme.fg,
+    final enabled = disabledReason == null;
+    final chips = Wrap(
+      spacing: 6,
+      children: _presets
+          .map((m) => _buildChip(context, ref, l10n, m, current, enabled))
+          .toList(),
+    );
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.timer_outlined, size: 16, color: AppTheme.fgDim),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.autoLockTitle,
+                        style: AppFonts.inter(
+                          fontSize: AppFonts.sm,
+                          color: AppTheme.fg,
+                        ),
                       ),
-                    ),
-                    Text(
-                      l10n.autoLockSubtitle,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgFaint,
+                      Text(
+                        l10n.autoLockSubtitle,
+                        style: AppFonts.inter(
+                          fontSize: AppFonts.xs,
+                          color: AppTheme.fgFaint,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            children: _presets.map((m) {
-              final label = m == 0
-                  ? l10n.autoLockOff
-                  : l10n.autoLockMinutesValue(m);
-              final selected = m == current;
-              return ChoiceChip(
-                label: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: selected ? AppTheme.onAccent : AppTheme.fg,
+                    ],
                   ),
                 ),
-                selected: selected,
-                selectedColor: AppTheme.accent,
-                onSelected: (_) =>
-                    ref.read(autoLockMinutesProvider.notifier).set(m),
-              );
-            }).toList(),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            enabled ? chips : Tooltip(message: disabledReason!, child: chips),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildChip(
+    BuildContext context,
+    WidgetRef ref,
+    S l10n,
+    int minutes,
+    int current,
+    bool enabled,
+  ) {
+    final label = minutes == 0
+        ? l10n.autoLockOff
+        : l10n.autoLockMinutesValue(minutes);
+    final selected = minutes == current;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: AppFonts.xs,
+          color: selected ? AppTheme.onAccent : AppTheme.fg,
+        ),
+      ),
+      selected: selected,
+      selectedColor: AppTheme.accent,
+      onSelected: (_) {
+        if (!enabled) {
+          Toast.show(context, message: disabledReason!, level: ToastLevel.info);
+          return;
+        }
+        ref.read(autoLockMinutesProvider.notifier).set(minutes);
+      },
     );
   }
 }

@@ -1202,6 +1202,29 @@ class SEs extends S {
   String get biometricDisabled => 'Desbloqueo biométrico desactivado';
 
   @override
+  String get biometricUnlockFailed =>
+      'Falló el desbloqueo biométrico. Introduzca su contraseña maestra.';
+
+  @override
+  String get biometricUnlockCancelled => 'Desbloqueo biométrico cancelado.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'No hay credenciales biométricas registradas en este dispositivo.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Primero establezca una contraseña maestra para habilitar el desbloqueo biométrico.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Este dispositivo no tiene sensor biométrico.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Primero establezca una contraseña maestra para habilitar el bloqueo automático.';
+
+  @override
   String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';
 
   @override

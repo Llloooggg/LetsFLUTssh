@@ -1190,6 +1190,29 @@ class SVi extends S {
   String get biometricDisabled => 'Đã tắt mở khóa sinh trắc học';
 
   @override
+  String get biometricUnlockFailed =>
+      'Mở khóa bằng sinh trắc học thất bại. Nhập mật khẩu chính của bạn.';
+
+  @override
+  String get biometricUnlockCancelled => 'Đã hủy mở khóa bằng sinh trắc học.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Không có thông tin sinh trắc học nào được đăng ký trên thiết bị này.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Hãy đặt mật khẩu chính trước để bật mở khóa bằng sinh trắc học.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Thiết bị này không có cảm biến sinh trắc học.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Hãy đặt mật khẩu chính trước để bật tự động khóa.';
+
+  @override
   String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';
 
   @override

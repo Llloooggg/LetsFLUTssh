@@ -1200,6 +1200,29 @@ class SPt extends S {
   String get biometricDisabled => 'Desbloqueio biométrico desativado';
 
   @override
+  String get biometricUnlockFailed =>
+      'Falha no desbloqueio biométrico. Digite sua senha mestra.';
+
+  @override
+  String get biometricUnlockCancelled => 'Desbloqueio biométrico cancelado.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Nenhuma credencial biométrica registrada neste dispositivo.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Defina uma senha mestra primeiro para habilitar o desbloqueio biométrico.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Este dispositivo não tem sensor biométrico.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Defina uma senha mestra primeiro para habilitar o bloqueio automático.';
+
+  @override
   String get currentPasswordIncorrect => 'A senha atual está incorreta';
 
   @override

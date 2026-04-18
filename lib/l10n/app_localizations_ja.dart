@@ -1170,6 +1170,26 @@ class SJa extends S {
   String get biometricDisabled => '生体認証によるロック解除を無効にしました';
 
   @override
+  String get biometricUnlockFailed => '生体認証によるロック解除に失敗しました。マスターパスワードを入力してください。';
+
+  @override
+  String get biometricUnlockCancelled => '生体認証によるロック解除がキャンセルされました。';
+
+  @override
+  String get biometricNotEnrolled => 'このデバイスには生体情報が登録されていません。';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      '生体認証によるロック解除を有効にするには、まずマスターパスワードを設定してください。';
+
+  @override
+  String get biometricSensorNotAvailable => 'このデバイスには生体センサーがありません。';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      '自動ロックを有効にするには、まずマスターパスワードを設定してください。';
+
+  @override
   String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
 
   @override

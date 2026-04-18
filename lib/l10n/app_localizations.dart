@@ -2223,6 +2223,42 @@ abstract class S {
   /// **'Biometric unlock disabled'**
   String get biometricDisabled;
 
+  /// No description provided for @biometricUnlockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock failed. Enter your master password.'**
+  String get biometricUnlockFailed;
+
+  /// No description provided for @biometricUnlockCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock cancelled.'**
+  String get biometricUnlockCancelled;
+
+  /// No description provided for @biometricNotEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'No biometric credentials enrolled on this device.'**
+  String get biometricNotEnrolled;
+
+  /// No description provided for @biometricRequiresMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a master password first to enable biometric unlock.'**
+  String get biometricRequiresMasterPassword;
+
+  /// No description provided for @biometricSensorNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has no biometric sensor.'**
+  String get biometricSensorNotAvailable;
+
+  /// No description provided for @autoLockRequiresMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a master password first to enable auto-lock.'**
+  String get autoLockRequiresMasterPassword;
+
   /// No description provided for @currentPasswordIncorrect.
   ///
   /// In en, this message translates to:

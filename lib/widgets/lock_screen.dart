@@ -31,6 +31,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   bool _busy = false;
   bool _wrong = false;
   bool _biometricTried = false;
+  String? _bioError;
 
   @override
   void initState() {
@@ -46,28 +47,70 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     super.dispose();
   }
 
+  /// Probe the biometric vault and platform; on success swap the lock
+  /// screen for the normal UI. Every failure path surfaces a visible
+  /// error instead of leaving the user staring at the same screen —
+  /// the original bug report was "я ввел биометрию, нихера не
+  /// произошло, экран остался висеть" because a null vault read or
+  /// cancelled prompt returned silently.
   Future<void> _tryBiometric() async {
     if (_biometricTried) return;
     _biometricTried = true;
-    final vault = ref.read(biometricKeyVaultProvider);
-    if (!await vault.isStored()) {
-      if (mounted) _focusNode.requestFocus();
-      return;
+    try {
+      final vault = ref.read(biometricKeyVaultProvider);
+      if (!await vault.isStored()) {
+        if (mounted) _focusNode.requestFocus();
+        return;
+      }
+      final bio = ref.read(biometricAuthProvider);
+      if (!await bio.isAvailable()) {
+        if (mounted) _focusNode.requestFocus();
+        return;
+      }
+      if (!mounted) return;
+      final reason = S.of(context).biometricUnlockPrompt;
+      final ok = await bio.authenticate(reason);
+      if (!ok) {
+        _reportBiometricFailure(
+          mounted ? S.of(context).biometricUnlockCancelled : null,
+        );
+        return;
+      }
+      final key = await vault.read();
+      if (key == null) {
+        _reportBiometricFailure(
+          mounted ? S.of(context).biometricUnlockFailed : null,
+        );
+        return;
+      }
+      if (!mounted) return;
+      _releaseLock(key);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Biometric unlock failed: $e',
+        name: 'LockScreen',
+        error: e,
+      );
+      _reportBiometricFailure(
+        mounted ? S.of(context).biometricUnlockFailed : null,
+      );
     }
-    final bio = ref.read(biometricAuthProvider);
-    if (!await bio.isAvailable()) {
-      if (mounted) _focusNode.requestFocus();
-      return;
-    }
+  }
+
+  void _reportBiometricFailure(String? message) {
     if (!mounted) return;
-    final reason = S.of(context).biometricUnlockPrompt;
-    final ok = await bio.authenticate(reason);
-    if (!ok) {
-      if (mounted) _focusNode.requestFocus();
-      return;
-    }
-    final key = await vault.read();
-    if (key != null && mounted) _releaseLock(key);
+    setState(() => _bioError = message);
+    _focusNode.requestFocus();
+  }
+
+  /// Re-arm biometric and run it again. The user tapped the "Unlock
+  /// with biometrics" button — previously this only flipped the guard
+  /// flag without actually retrying, so the button appeared dead.
+  Future<void> _retryBiometric() async {
+    if (_busy) return;
+    setState(() => _bioError = null);
+    _biometricTried = false;
+    await _tryBiometric();
   }
 
   void _releaseLock(Uint8List key) {
@@ -169,6 +212,17 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       ),
                     ),
                   ],
+                  if (_bioError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _bioError!,
+                      style: TextStyle(
+                        color: AppTheme.red,
+                        fontSize: AppFonts.xs,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: _busy ? null : _submitPassword,
@@ -176,10 +230,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: _busy ? null : () => _biometricTried = false,
+                    onPressed: _busy ? null : _retryBiometric,
                     icon: const Icon(Icons.fingerprint, size: 18),
                     label: Text(l10n.biometricUnlockTitle),
-                    onLongPress: _tryBiometric,
                   ),
                 ],
               ),

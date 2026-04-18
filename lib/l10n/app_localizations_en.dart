@@ -1192,6 +1192,29 @@ class SEn extends S {
   String get biometricDisabled => 'Biometric unlock disabled';
 
   @override
+  String get biometricUnlockFailed =>
+      'Biometric unlock failed. Enter your master password.';
+
+  @override
+  String get biometricUnlockCancelled => 'Biometric unlock cancelled.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'No biometric credentials enrolled on this device.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Set a master password first to enable biometric unlock.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'This device has no biometric sensor.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Set a master password first to enable auto-lock.';
+
+  @override
   String get currentPasswordIncorrect => 'Current password is incorrect';
 
   @override

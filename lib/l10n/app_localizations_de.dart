@@ -1205,6 +1205,30 @@ class SDe extends S {
   String get biometricDisabled => 'Biometrische Entsperrung deaktiviert';
 
   @override
+  String get biometricUnlockFailed =>
+      'Biometrische Entsperrung fehlgeschlagen. Geben Sie Ihr Masterpasswort ein.';
+
+  @override
+  String get biometricUnlockCancelled =>
+      'Biometrische Entsperrung abgebrochen.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Auf diesem Gerät sind keine biometrischen Daten registriert.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Legen Sie zuerst ein Masterpasswort fest, um die biometrische Entsperrung zu aktivieren.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Dieses Gerät verfügt über keinen biometrischen Sensor.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Legen Sie zuerst ein Masterpasswort fest, um die Auto-Sperre zu aktivieren.';
+
+  @override
   String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';
 
   @override

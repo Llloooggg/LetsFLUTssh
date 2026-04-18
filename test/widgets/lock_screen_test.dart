@@ -50,6 +50,10 @@ class _NoBiometricAuth extends BiometricAuth {
   Future<bool> isAvailable() async => false;
 
   @override
+  Future<BiometricAvailability> availability() async =>
+      BiometricUnavailableReason.platformUnsupported;
+
+  @override
   Future<bool> authenticate(String reason) async => false;
 }
 

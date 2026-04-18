@@ -1164,6 +1164,24 @@ class SZh extends S {
   String get biometricDisabled => '已停用生物识别解锁';
 
   @override
+  String get biometricUnlockFailed => '生物识别解锁失败。请输入主密码。';
+
+  @override
+  String get biometricUnlockCancelled => '生物识别解锁已取消。';
+
+  @override
+  String get biometricNotEnrolled => '此设备未注册任何生物识别凭据。';
+
+  @override
+  String get biometricRequiresMasterPassword => '请先设置主密码以启用生物识别解锁。';
+
+  @override
+  String get biometricSensorNotAvailable => '此设备没有生物识别传感器。';
+
+  @override
+  String get autoLockRequiresMasterPassword => '请先设置主密码以启用自动锁定。';
+
+  @override
   String get currentPasswordIncorrect => '当前密码不正确';
 
   @override

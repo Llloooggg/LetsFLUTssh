@@ -1198,6 +1198,29 @@ class STr extends S {
   String get biometricDisabled => 'Biyometrik kilit açma devre dışı';
 
   @override
+  String get biometricUnlockFailed =>
+      'Biyometrik kilit açma başarısız. Ana parolanızı girin.';
+
+  @override
+  String get biometricUnlockCancelled => 'Biyometrik kilit açma iptal edildi.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Bu cihazda kayıtlı biyometrik kimlik bilgisi yok.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Biyometrik kilit açmayı etkinleştirmek için önce bir ana parola belirleyin.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Bu cihazın biyometrik sensörü yok.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Otomatik kilidi etkinleştirmek için önce bir ana parola belirleyin.';
+
+  @override
   String get currentPasswordIncorrect => 'Mevcut parola yanlış';
 
   @override

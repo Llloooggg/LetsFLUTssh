@@ -1191,6 +1191,28 @@ class SFa extends S {
   String get biometricDisabled => 'باز کردن قفل زیست‌سنجی غیرفعال شد';
 
   @override
+  String get biometricUnlockFailed =>
+      'باز کردن قفل با زیست‌سنجی ناموفق بود. رمز عبور اصلی خود را وارد کنید.';
+
+  @override
+  String get biometricUnlockCancelled => 'باز کردن قفل با زیست‌سنجی لغو شد.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'هیچ اطلاعات زیست‌سنجی روی این دستگاه ثبت نشده است.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'ابتدا یک رمز عبور اصلی تنظیم کنید تا باز کردن قفل با زیست‌سنجی فعال شود.';
+
+  @override
+  String get biometricSensorNotAvailable => 'این دستگاه سنسور زیست‌سنجی ندارد.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'ابتدا یک رمز عبور اصلی تنظیم کنید تا قفل خودکار فعال شود.';
+
+  @override
   String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
 
   @override

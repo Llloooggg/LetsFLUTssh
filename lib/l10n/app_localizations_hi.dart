@@ -1196,6 +1196,29 @@ class SHi extends S {
   String get biometricDisabled => 'बायोमेट्रिक अनलॉक अक्षम';
 
   @override
+  String get biometricUnlockFailed =>
+      'बायोमेट्रिक अनलॉक विफल रहा। अपना मास्टर पासवर्ड दर्ज करें।';
+
+  @override
+  String get biometricUnlockCancelled => 'बायोमेट्रिक अनलॉक रद्द कर दिया गया।';
+
+  @override
+  String get biometricNotEnrolled =>
+      'इस डिवाइस पर कोई बायोमेट्रिक क्रेडेंशियल पंजीकृत नहीं है।';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'बायोमेट्रिक अनलॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'इस डिवाइस पर कोई बायोमेट्रिक सेंसर नहीं है।';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'ऑटो-लॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
+
+  @override
   String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
 
   @override

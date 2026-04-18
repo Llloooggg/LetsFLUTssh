@@ -647,6 +647,8 @@ The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.d
 
 Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) wraps `local_auth` for the availability probe + prompt; [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key in `flutter_secure_storage` under a platform keychain slot (iOS/macOS Keychain, Windows Credential Manager, Android EncryptedSharedPreferences). At startup, `_tryBiometricUnlock()` in `main.dart` runs the biometric prompt first and skips the master-password dialog on success; fall back is the normal `UnlockDialog`.
 
+`BiometricAuth.availability()` returns a `BiometricUnavailableReason?` (null when biometrics work). The probe goes beyond `canCheckBiometrics + getAvailableBiometrics().isNotEmpty` — a Windows Hello PIN alone satisfies those two checks and would falsely report biometrics as ready. The probe additionally filters the enrolled list for a real bio type (`fingerprint` / `face` / `iris` / `strong`) so PIN-only Hello is correctly reported as `notEnrolled`. The settings UI uses this three-state result to show a reason tooltip on a disabled toggle instead of hiding the option.
+
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
 #### Auto-lock

@@ -1200,6 +1200,29 @@ class SRu extends S {
   String get biometricDisabled => 'Биометрическая разблокировка отключена';
 
   @override
+  String get biometricUnlockFailed =>
+      'Разблокировка по биометрии не удалась. Введите мастер-пароль.';
+
+  @override
+  String get biometricUnlockCancelled => 'Разблокировка по биометрии отменена.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'На этом устройстве не зарегистрированы биометрические данные.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Сначала задайте мастер-пароль, чтобы включить разблокировку по биометрии.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'На этом устройстве нет биометрического датчика.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Сначала задайте мастер-пароль, чтобы включить авто-блокировку.';
+
+  @override
   String get currentPasswordIncorrect => 'Неверный текущий пароль';
 
   @override

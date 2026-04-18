@@ -18,6 +18,7 @@ import '../../core/import/ssh_dir_key_scanner.dart';
 import '../../core/db/database_opener.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/security/aes_gcm.dart';
+import '../../core/security/biometric_auth.dart';
 import '../../core/security/master_password.dart';
 import '../../core/security/security_level.dart';
 import '../../core/session/qr_codec.dart';
