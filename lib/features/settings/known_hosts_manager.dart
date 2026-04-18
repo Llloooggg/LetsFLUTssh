@@ -107,12 +107,14 @@ class _KnownHostsManagerPanelState
             s.knownHostsCount(totalCount),
             style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           ),
-          const SizedBox(width: 8),
-          _ToolbarButton(
-            icon: Icons.delete_sweep,
-            tooltip: s.clearAllKnownHosts,
-            onTap: totalCount > 0 ? _clearAll : null,
-          ),
+          if (totalCount > 0) ...[
+            const SizedBox(width: 8),
+            _ToolbarButton(
+              icon: Icons.delete_sweep,
+              tooltip: s.clearAllKnownHosts,
+              onTap: _clearAll,
+            ),
+          ],
         ],
       ),
     );

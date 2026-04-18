@@ -112,7 +112,10 @@ void main() {
       expect(searchField, findsOneWidget);
     });
 
-    testWidgets('clear all button is disabled when empty', (tester) async {
+    testWidgets('clear all button is hidden when empty', (tester) async {
+      // Clear-all is an action; on action surfaces we hide unavailable
+      // controls rather than rendering them greyed-out (see the
+      // disable-vs-hide rule in CLAUDE.md).
       await tester.pumpWidget(buildApp(manager));
       await openDialog(tester);
 
@@ -122,9 +125,7 @@ void main() {
             w.icon is Icon &&
             (w.icon as Icon).icon == Icons.delete_sweep,
       );
-      expect(clearAllBtn, findsOneWidget);
-      final btn = tester.widget<IconButton>(clearAllBtn);
-      expect(btn.onPressed, isNull);
+      expect(clearAllBtn, findsNothing);
     });
   });
 
