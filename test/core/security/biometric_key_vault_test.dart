@@ -86,7 +86,7 @@ void main() {
     });
 
     test('iOS options bind the key to Secure Enclave + biometryCurrentSet', () {
-      // Anchors the security invariant for P1.2-ios-macos: a change that
+      // Anchors the iOS/macOS Secure Enclave binding invariant: a change that
       // removes the biometryCurrentSet flag (or downgrades the
       // accessibility tier away from passcode-required) must break this
       // test so the regression is caught before ship.

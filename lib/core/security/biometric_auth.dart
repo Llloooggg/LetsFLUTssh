@@ -73,19 +73,19 @@ class BiometricAuth {
   /// Describe how the current platform protects the cached DB key.
   ///
   /// Returns `null` when biometrics are unavailable on this platform
-  /// entirely (Linux in the current build — wiring lands in P1.2-linux
-  /// phases 2/3). Otherwise returns the backing level that Settings
-  /// surfaces next to the active biometric toggle.
+  /// entirely (Linux in the current build — follow-on commits wire
+  /// the fprintd + TPM2 path). Otherwise returns the backing level
+  /// that Settings surfaces next to the active biometric toggle.
   ///
   /// iOS / macOS report [BiometricBackingLevel.hardware] — Secure
   /// Enclave binding is enforced via `SecAccessControl` with
   /// `.biometryCurrentSet` (see `BiometricKeyVault.iosOptions` /
   /// `macOsOptions`). Android rides on `flutter_secure_storage`'s
-  /// default EncryptedSharedPreferences until the dedicated Keystore
-  /// + `BiometricPrompt.CryptoObject` plugin lands (P1.2-android), so
-  /// the level is reported as [BiometricBackingLevel.software] today.
-  /// Windows is also reported as software until `KeyCredentialManager`
-  /// replaces DPAPI (P1.2-windows).
+  /// default EncryptedSharedPreferences until a dedicated Keystore
+  /// + `BiometricPrompt.CryptoObject` plugin lands, so the level is
+  /// reported as [BiometricBackingLevel.software] today. Windows is
+  /// also reported as software until `KeyCredentialManager` replaces
+  /// DPAPI.
   BiometricBackingLevel? backingLevel() {
     if (Platform.isIOS || Platform.isMacOS) {
       return BiometricBackingLevel.hardware;

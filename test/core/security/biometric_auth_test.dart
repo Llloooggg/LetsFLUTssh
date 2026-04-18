@@ -14,7 +14,7 @@ void main() {
     // those platforms before a release. The goal of this test is to
     // pin the **shape** of the contract — not to pretend we're mocking
     // the host platform.
-    test('returns null on Linux (wiring lands in P1.2-linux phases 2-3)', () {
+    test('returns null on Linux (wiring lands in follow-on commits)', () {
       if (!Platform.isLinux) {
         return; // Skip on non-Linux CI runners.
       }

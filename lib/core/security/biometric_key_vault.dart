@@ -23,8 +23,8 @@ import '../../utils/logger.dart';
 /// removing, or changing a fingerprint/Face ID invalidates the stored key
 /// and forces a master-password re-entry on the next unlock. Android still
 /// rides on the default `flutter_secure_storage` EncryptedSharedPreferences
-/// until the dedicated Keystore + `BiometricPrompt.CryptoObject` plugin
-/// lands (P1.2-android).
+/// until a dedicated Keystore + `BiometricPrompt.CryptoObject` plugin
+/// lands.
 class BiometricKeyVault {
   static const _keyName = 'letsflutssh_bio_db_key';
 
