@@ -244,7 +244,7 @@ class _Toggle extends StatelessWidget {
       tap = () =>
           Toast.show(context, message: disabledReason!, level: ToastLevel.info);
     }
-    Widget knob = Container(
+    final knob = Container(
       width: 32,
       height: 18,
       padding: const EdgeInsets.all(2),
@@ -265,18 +265,24 @@ class _Toggle extends StatelessWidget {
         ),
       ),
     );
-    if (!enabled && disabledReason != null) {
-      knob = Tooltip(message: disabledReason!, child: knob);
-    }
-    return _SettingsRow(
+    Widget row = _SettingsRow(
       label: label,
       subtitle: subtitle,
       icon: icon,
-      child: GestureDetector(
-        onTap: tap,
-        child: Opacity(opacity: enabled ? 1.0 : 0.5, child: knob),
-      ),
+      child: GestureDetector(onTap: tap, child: knob),
     );
+    // Fade the entire row (icon + label + subtitle + knob) when the
+    // toggle is disabled. Fading only the knob left the text at full
+    // opacity and the row read as active — the biometric-toggle bug
+    // that led to this rule: disabled state must visibly affect the
+    // whole container, not just the trailing control.
+    if (!enabled) {
+      row = Opacity(opacity: 0.5, child: row);
+      if (disabledReason != null) {
+        row = Tooltip(message: disabledReason!, child: row);
+      }
+    }
+    return row;
   }
 }
 

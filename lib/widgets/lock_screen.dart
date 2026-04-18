@@ -33,6 +33,14 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   bool _biometricTried = false;
   String? _bioError;
 
+  /// Whether biometric unlock is even possible on this device: vault
+  /// has a stashed key AND the platform reports a real sensor with
+  /// enrolled credentials. Null while the async probe is running.
+  /// The fingerprint button is only rendered when this is true —
+  /// the lock screen is an action surface, and an action the user
+  /// cannot perform should not have a dead button.
+  bool? _biometricOffered;
+
   @override
   void initState() {
     super.initState();
@@ -58,15 +66,17 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     _biometricTried = true;
     try {
       final vault = ref.read(biometricKeyVaultProvider);
-      if (!await vault.isStored()) {
-        if (mounted) _focusNode.requestFocus();
+      final stored = await vault.isStored();
+      if (!stored) {
+        _markBiometricUnavailable();
         return;
       }
       final bio = ref.read(biometricAuthProvider);
       if (!await bio.isAvailable()) {
-        if (mounted) _focusNode.requestFocus();
+        _markBiometricUnavailable();
         return;
       }
+      if (mounted) setState(() => _biometricOffered = true);
       if (!mounted) return;
       final reason = S.of(context).biometricUnlockPrompt;
       final ok = await bio.authenticate(reason);
@@ -95,6 +105,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
         mounted ? S.of(context).biometricUnlockFailed : null,
       );
     }
+  }
+
+  void _markBiometricUnavailable() {
+    if (!mounted) return;
+    setState(() => _biometricOffered = false);
+    _focusNode.requestFocus();
   }
 
   void _reportBiometricFailure(String? message) {
@@ -228,12 +244,14 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     onPressed: _busy ? null : _submitPassword,
                     child: Text(_busy ? '...' : l10n.unlock),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: _busy ? null : _retryBiometric,
-                    icon: const Icon(Icons.fingerprint, size: 18),
-                    label: Text(l10n.biometricUnlockTitle),
-                  ),
+                  if (_biometricOffered == true) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _busy ? null : _retryBiometric,
+                      icon: const Icon(Icons.fingerprint, size: 18),
+                      label: Text(l10n.biometricUnlockTitle),
+                    ),
+                  ],
                 ],
               ),
             ),
