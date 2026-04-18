@@ -2779,8 +2779,8 @@ All error messages are sanitized before logging to prevent accidental exposure o
 | `user@host` | `<user>@host` | `admin@example.com` → `<user>@example.com` |
 | IPv4 | `<ip>` | `192.168.1.100` → `<ip>` |
 | `host:port` | `host:<port>` | `example.com:2222` → `example.com:<port>` |
-| Windows paths | `<path>\` | `C:\Users\john\...` → `<path>\` |
-| Unix paths | `/<user>/` | `/Users/john/.ssh/...` → `/<user>/.ssh/...` |
+| Windows paths | `<path>` | `C:\Users\john\Documents\file.pem` → `<path>\Documents\file.pem`; bare `C:\Users\john` → `<path>` |
+| Unix paths | `/<user>` | `/Users/john/.ssh/id_rsa` → `/<user>/.ssh/id_rsa`; bare `/home/john` → `/<user>` |
 
 Usage: `sanitizeErrorMessage(message)` before logging any error that may contain connection details or file paths.
 

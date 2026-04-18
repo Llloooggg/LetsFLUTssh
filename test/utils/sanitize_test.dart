@@ -122,21 +122,43 @@ void main() {
     });
 
     test('redacts Windows file paths with usernames', () {
-      expect(
-        sanitizeErrorMessage('C:\\Users\\john\\Documents\\key.pem'),
-        contains('<path>\\'),
+      final withRest = sanitizeErrorMessage(
+        'C:\\Users\\john\\Documents\\key.pem',
       );
+      expect(withRest, contains('<path>\\'));
+      expect(withRest, isNot(contains('john')));
+    });
+
+    test('redacts bare Windows home path at end of log line', () {
+      // Real log leak observed in production: "[LocalFS] Initial dir:
+      // C:\Users\burzuf" — the home dir path with no trailing backslash
+      // was missed by the prior trailing-slash-required regex.
+      final result = sanitizeErrorMessage('Initial dir: C:\\Users\\burzuf');
+      expect(result, contains('<path>'));
+      expect(result, isNot(contains('burzuf')));
     });
 
     test('redacts Unix/macOS file paths with usernames', () {
-      expect(
-        sanitizeErrorMessage('/Users/john/.ssh/id_rsa'),
-        contains('/<user>/'),
-      );
-      expect(
-        sanitizeErrorMessage('/home/admin/.ssh/known_hosts'),
-        contains('/<user>/'),
-      );
+      final unix = sanitizeErrorMessage('/Users/john/.ssh/id_rsa');
+      expect(unix, contains('/<user>/'));
+      expect(unix, isNot(contains('john')));
+
+      final linux = sanitizeErrorMessage('/home/admin/.ssh/known_hosts');
+      expect(linux, contains('/<user>/'));
+      expect(linux, isNot(contains('admin')));
+    });
+
+    test('redacts bare Unix/macOS home path at end of log line', () {
+      // Symmetric to the Windows bare-path case: a log line that ends
+      // at the home dir itself (no trailing slash, no subpath) must
+      // still be redacted.
+      final linux = sanitizeErrorMessage('Initial dir: /home/bob');
+      expect(linux, contains('/<user>'));
+      expect(linux, isNot(contains('bob')));
+
+      final mac = sanitizeErrorMessage('Initial dir: /Users/alice');
+      expect(mac, contains('/<user>'));
+      expect(mac, isNot(contains('alice')));
     });
 
     test('handles complex error messages', () {
