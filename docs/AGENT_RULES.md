@@ -110,6 +110,25 @@ A weaker code path is a **downgrade of the guarantee**, not a neutral alternativ
 
 **Red flag when reading a proposed diff:** a fallback that is presented as "it's fine, we tell the user" without the ladder above being walked. Walk the ladder. If rungs 1–3 were dismissed, the dismissal reasoning must be in the diff's commit message or the backlog entry, not implicit.
 
+### Native Over Dart When Better (and Zero-Install)
+
+When a feature can be implemented either in pure Dart (`dart:ffi` against a runtime lib, a pub.dev package wrapping a protocol like D-Bus, etc.) **or** as a native platform plugin (Kotlin / Swift / Objective-C / C / Rust exposed via `MethodChannel` or `FFI`), **prefer the native path when it is measurably better on at least one of these axes**:
+
+- **Performance** — runtime speed, startup latency, memory, battery, binary size.
+- **Functionality** — the native path unlocks capabilities the Dart path simply cannot reach (direct access to an OS-provided hardware binding, a full biometric prompt with custom allow-fallback behaviour, a framework that has no Dart equivalent — Windows Hello `KeyCredentialManager`, Android `BiometricPrompt.CryptoObject`, iOS `SecAccessControl` flags the flutter-plugin wrapper doesn't expose, etc.).
+- **Integration depth** — hooks into OS lifecycle / IPC / sandboxing that Dart packages wrap thinly or not at all.
+
+"Better" means a concrete user-facing benefit the Dart path cannot match at reasonable cost — not a stack-preference argument. **The decision must still satisfy [§ Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) at rung 1 or 2 (end-user installs nothing by hand to launch the core app).** If the native path would push the feature into rung 3 (README snippet for a lib the user has to install), **stop and ask the user first** — the trade-off between "pure-Dart with fewer deps" and "native with better capability/perf but an optional install step" is a user call, not an agent call. Record the authorization (a "yes, do it" in the session or backlog entry) before writing the native path.
+
+Pure Dart / FFI / pub.dev-package is the right default when:
+- performance + functionality parity with native is good enough for the use case (majority of settings UI, config, light file I/O, glue code);
+- the native path would add N per-platform codepaths without a clear per-user win;
+- iteration speed matters more than marginal runtime — ship Dart first, benchmark, promote to native only if the numbers or a missing capability say it matters.
+
+When the decision is live (an authorized feature that could go either way), write the choice + the "why native" or "why Dart" into the commit message or the relevant backlog entry so future agents can see the reasoning instead of re-litigating it. Do **not** silently default to Dart because it is the shorter diff, and do **not** silently default to native because native is shinier.
+
+**Interaction with [§ Don't Escalate Working Baselines](#dont-escalate-working-baselines):** that rule blocks *unsolicited* escalation from a working Dart baseline to a native one. This rule is about choosing the implementation path for a feature the user has already authorised — once the work is greenlit, native-when-better-and-zero-install is the default, not a rewrite proposal.
+
 ### Don't Escalate Working Baselines
 The project ships across 5 platforms with **deliberately uneven guarantees** in many domains — credential storage, file pickers, notifications, biometrics, IPC, native UI affordances, hardware probes, you name it. Cross-platform packages typically cover the majority of users with known, documented limits on the weaker platforms. The project treats that asymmetry as the **chosen baseline**, not a deficiency to fix. The cost of N parallel native code paths (N× test surface, N× release fragility, N× maintenance) is rarely worth a marginal upgrade on one or two platforms.
 
