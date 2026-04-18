@@ -12,9 +12,19 @@ import UIKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  private let hardwareVault = HardwareVaultPlugin()
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerQrScanner(with: engineBridge)
+    registerHardwareVault(with: engineBridge)
+  }
+
+  private func registerHardwareVault(with engineBridge: FlutterImplicitEngineBridge) {
+    guard let messenger = engineBridge.pluginRegistry.registrar(
+      forPlugin: "com.letsflutssh.hardware_vault",
+    )?.messenger() else { return }
+    hardwareVault.register(with: messenger)
   }
 
   private func registerQrScanner(with engineBridge: FlutterImplicitEngineBridge) {

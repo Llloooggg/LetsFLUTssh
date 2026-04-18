@@ -18,6 +18,7 @@ class MainActivity : FlutterFragmentActivity() {
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private var pendingResult: MethodChannel.Result? = null
     private var pendingScanResult: MethodChannel.Result? = null
+    private var hardwareVault: HardwareVaultPlugin? = null
 
     companion object {
         private const val MANAGE_STORAGE_REQUEST = 1001
@@ -43,6 +44,15 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // L3 hardware-backed vault. The plugin owns its own
+        // MethodChannel name (`HardwareVaultPlugin.CHANNEL`) so the
+        // registration stays self-contained here.
+        val hwChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            HardwareVaultPlugin.CHANNEL
+        )
+        hardwareVault = HardwareVaultPlugin(this).also { it.register(hwChannel) }
     }
 
     private fun launchQrScanner(result: MethodChannel.Result) {
