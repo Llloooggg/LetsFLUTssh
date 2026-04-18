@@ -814,7 +814,7 @@ class SVi extends S {
   String get tierRecommendedBadge => 'Khuyến nghị';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'Hiện tại';
 
   @override
   String get tierAlternativeBranchLabel => 'Thay thế — không tin tưởng vào HĐH';
@@ -937,55 +937,53 @@ class SVi extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'Kho phần cứng không có sẵn trên cài đặt này.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'Chọn mật khẩu ngắn';
 
   @override
-  String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+  String get tierKeychainPassSetHint => 'Dùng như cổng chặn trước keychain';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => 'Chọn mã PIN 4–6 chữ số';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => 'Khóa phần cứng làm chậm việc đoán PIN';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'Xác nhận PIN';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN phải có 4–6 chữ số';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'Mã PIN không khớp';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'Cần mật khẩu';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => 'Nhập mật khẩu ngắn để tiếp tục';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'Sai mật khẩu';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'Nhập PIN';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => 'PIN ngắn mở khóa kho liên kết phần cứng';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'Sai PIN';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return 'Thử lại sau $seconds giây';
   }
 
   @override
@@ -2114,21 +2112,21 @@ class SVi extends S {
   String get manageMasterPasswordSubtitle => 'Đặt, đổi hoặc xóa mật khẩu chính';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'Đổi mức bảo mật';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'Mở thang mức và chuyển sang mức bảo mật khác';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'Đang mã hóa lại cơ sở dữ liệu với mức mới. Không thể dừng — giữ ứng dụng mở đến khi hoàn tất.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'Đã đổi mức bảo mật';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => 'Không thể đổi mức bảo mật';
 
   @override
   String get snippets => 'Snippet';

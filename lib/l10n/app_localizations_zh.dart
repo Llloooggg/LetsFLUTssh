@@ -799,7 +799,7 @@ class SZh extends S {
   String get tierRecommendedBadge => '推荐';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => '当前';
 
   @override
   String get tierAlternativeBranchLabel => '替代方案 — 不信任操作系统';
@@ -906,56 +906,53 @@ class SZh extends S {
   String get tierParanoidNotes => '此层级上的生物识别按设计禁用。';
 
   @override
-  String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+  String get tierHardwareUnavailable => '此安装不支持硬件保险库。';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => '设置一个短密码';
 
   @override
-  String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+  String get tierKeychainPassSetHint => '作为钥匙串前的屏障使用';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => '设置一个 4–6 位 PIN';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => '硬件锁定会减缓 PIN 猜测';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => '确认 PIN';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN 必须为 4–6 位数字';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'PIN 不匹配';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => '需要密码';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => '输入您的短密码以继续';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => '密码错误';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => '输入 PIN';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => '短 PIN 解锁硬件绑定的保险库';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'PIN 错误';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return '$seconds 秒后重试';
   }
 
   @override
@@ -2048,21 +2045,19 @@ class SZh extends S {
   String get manageMasterPasswordSubtitle => '设置、更改或移除主密码';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => '更改安全等级';
 
   @override
-  String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+  String get changeSecurityTierSubtitle => '打开等级梯并切换到其他安全等级';
 
   @override
-  String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+  String get changeSecurityTierConfirm => '正在用新等级重新加密数据库。此过程不可中断——请保持应用打开直到完成。';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => '安全等级已更改';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => '无法更改安全等级';
 
   @override
   String get snippets => '代码片段';

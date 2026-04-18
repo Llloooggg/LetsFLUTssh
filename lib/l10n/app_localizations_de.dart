@@ -823,7 +823,7 @@ class SDe extends S {
   String get tierRecommendedBadge => 'Empfohlen';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'Aktuell';
 
   @override
   String get tierAlternativeBranchLabel =>
@@ -949,55 +949,56 @@ class SDe extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'Hardware-Tresor in dieser Installation nicht verfügbar.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'Kurzes Passwort wählen';
 
   @override
   String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+      'Wird als Sperre vor dem Schlüsselbund verwendet';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => 'PIN aus 4–6 Ziffern wählen';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => 'Hardware-Sperre erschwert PIN-Erraten';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'PIN bestätigen';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN muss 4–6 Ziffern haben';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'PINs stimmen nicht überein';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'Passwort erforderlich';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint =>
+      'Geben Sie Ihr kurzes Passwort ein, um fortzufahren';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'Falsches Passwort';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'PIN eingeben';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint =>
+      'Kurzer PIN entsperrt den hardwaregebundenen Tresor';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'Falscher PIN';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return 'Erneut versuchen in $seconds s';
   }
 
   @override
@@ -2147,21 +2148,22 @@ class SDe extends S {
       'Master-Passwort festlegen, ändern oder entfernen';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'Sicherheitsstufe ändern';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'Stufenleiter öffnen und eine andere Sicherheitsstufe wählen';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'Datenbank wird mit der neuen Stufe neu verschlüsselt. Vorgang nicht unterbrechen — App bis zum Abschluss geöffnet halten.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'Sicherheitsstufe geändert';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed =>
+      'Sicherheitsstufe konnte nicht geändert werden';
 
   @override
   String get snippets => 'Snippets';

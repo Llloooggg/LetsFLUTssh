@@ -825,7 +825,7 @@ class SFr extends S {
   String get tierRecommendedBadge => 'Recommandé';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'Actuel';
 
   @override
   String get tierAlternativeBranchLabel =>
@@ -951,55 +951,58 @@ class SFr extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'Coffre matériel indisponible sur cette installation.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'Choisissez un mot de passe court';
 
   @override
   String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+      'Utilisé comme filtre devant le trousseau';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt =>
+      'Choisissez un code PIN à 4–6 chiffres';
 
   @override
   String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+      'Le verrouillage matériel ralentit les essais de PIN';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'Confirmer le PIN';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'Le PIN doit contenir 4–6 chiffres';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'Les PIN ne correspondent pas';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'Mot de passe requis';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint =>
+      'Saisissez votre mot de passe court pour continuer';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'Mot de passe incorrect';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'Saisir le PIN';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint =>
+      'Le PIN court déverrouille le coffre lié au matériel';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'PIN incorrect';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return 'Réessayer dans $seconds s';
   }
 
   @override
@@ -2150,21 +2153,22 @@ class SFr extends S {
       'Définir, modifier ou supprimer le mot de passe principal';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'Modifier le niveau de sécurité';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'Ouvrir l\'échelle des niveaux et passer à un autre niveau de sécurité';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'Re-chiffrement de la base avec le nouveau niveau. Ne pas interrompre — laissez l\'app ouverte jusqu\'à la fin.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'Niveau de sécurité modifié';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed =>
+      'Impossible de modifier le niveau de sécurité';
 
   @override
   String get snippets => 'Snippets';

@@ -820,7 +820,7 @@ class SId extends S {
   String get tierRecommendedBadge => 'Direkomendasikan';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'Saat ini';
 
   @override
   String get tierAlternativeBranchLabel =>
@@ -944,55 +944,57 @@ class SId extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'Brankas perangkat keras tidak tersedia pada instalasi ini.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'Pilih kata sandi pendek';
 
   @override
   String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+      'Digunakan sebagai gerbang di depan keychain';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => 'Pilih PIN 4–6 digit';
 
   @override
   String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+      'Penguncian perangkat keras memperlambat tebakan PIN';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'Konfirmasi PIN';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN harus 4–6 digit';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'PIN tidak cocok';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'Kata sandi diperlukan';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint =>
+      'Masukkan kata sandi pendek Anda untuk melanjutkan';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'Kata sandi salah';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'Masukkan PIN';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint =>
+      'PIN pendek membuka brankas terikat perangkat keras';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'PIN salah';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return 'Coba lagi dalam $seconds d';
   }
 
   @override
@@ -2125,21 +2127,22 @@ class SId extends S {
       'Atur, ubah, atau hapus kata sandi utama';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'Ubah Tingkat Keamanan';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'Buka tangga tingkat dan pindah ke tingkat keamanan lain';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'Mengenkripsi ulang basis data dengan tingkat baru. Tidak dapat diganggu — biarkan aplikasi terbuka hingga selesai.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'Tingkat keamanan diubah';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed =>
+      'Tidak dapat mengubah tingkat keamanan';
 
   @override
   String get snippets => 'Snippet';

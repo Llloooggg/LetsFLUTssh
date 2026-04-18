@@ -802,7 +802,7 @@ class SJa extends S {
   String get tierRecommendedBadge => '推奨';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => '現在';
 
   @override
   String get tierAlternativeBranchLabel => '代替 — OSを信頼しない';
@@ -910,56 +910,53 @@ class SJa extends S {
   String get tierParanoidNotes => 'この層では生体認証は設計上無効化されています。';
 
   @override
-  String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+  String get tierHardwareUnavailable => 'このインストールではハードウェアボールトを利用できません。';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => '短いパスワードを設定';
 
   @override
-  String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+  String get tierKeychainPassSetHint => 'キーチェーンの前のゲートとして使用';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => '4〜6 桁の PIN を設定';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => 'ハードウェアロックアウトにより PIN 推測が遅くなります';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'PIN の確認';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN は 4〜6 桁の数字である必要があります';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'PIN が一致しません';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'パスワードが必要です';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => '短いパスワードを入力して続行';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'パスワードが違います';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'PIN を入力';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => '短い PIN でハードウェア連携のボールトを解除';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'PIN が違います';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return '$seconds 秒後に再試行';
   }
 
   @override
@@ -2065,21 +2062,20 @@ class SJa extends S {
   String get manageMasterPasswordSubtitle => 'マスターパスワードの設定、変更、削除';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'セキュリティ階層を変更';
 
   @override
-  String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+  String get changeSecurityTierSubtitle => '階層ラダーを開き、別のセキュリティ階層に切り替え';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      '新しい階層でデータベースを再暗号化中。中断できません — 完了するまでアプリを開いたままにしてください。';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'セキュリティ階層が変更されました';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => 'セキュリティ階層を変更できませんでした';
 
   @override
   String get snippets => 'スニペット';

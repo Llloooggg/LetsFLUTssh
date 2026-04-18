@@ -823,7 +823,7 @@ class SAr extends S {
   String get tierRecommendedBadge => 'موصى به';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'الحالي';
 
   @override
   String get tierAlternativeBranchLabel => 'بديل — لا تثق بنظام التشغيل';
@@ -939,55 +939,53 @@ class SAr extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'خزينة الأجهزة غير متاحة في هذا التثبيت.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'اختر كلمة مرور قصيرة';
 
   @override
-  String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+  String get tierKeychainPassSetHint => 'تُستخدم كبوابة أمام سلسلة المفاتيح';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => 'اختر رمز PIN من 4–6 أرقام';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => 'إقفال الأجهزة يبطئ تخمين رمز PIN';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'تأكيد رمز PIN';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'يجب أن يتكون رمز PIN من 4–6 أرقام';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'رموز PIN غير متطابقة';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'كلمة المرور مطلوبة';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => 'أدخل كلمة المرور القصيرة للمتابعة';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'كلمة مرور خاطئة';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'أدخل رمز PIN';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => 'يفتح رمز PIN القصير الخزينة المرتبطة بالأجهزة';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'رمز PIN خاطئ';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return 'أعد المحاولة بعد $seconds ث';
   }
 
   @override
@@ -2122,21 +2120,21 @@ class SAr extends S {
       'تعيين أو تغيير أو إزالة كلمة المرور الرئيسية';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'تغيير مستوى الأمان';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'افتح سلم المستويات وانتقل إلى مستوى أمان مختلف';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'يتم إعادة تشفير قاعدة البيانات بالمستوى الجديد. لا يمكن المقاطعة — اترك التطبيق مفتوحًا حتى الانتهاء.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'تم تغيير مستوى الأمان';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => 'تعذر تغيير مستوى الأمان';
 
   @override
   String get snippets => 'المقتطفات';

@@ -817,7 +817,7 @@ class SHi extends S {
   String get tierRecommendedBadge => 'अनुशंसित';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'वर्तमान';
 
   @override
   String get tierAlternativeBranchLabel => 'विकल्प — OS पर भरोसा न करें';
@@ -939,55 +939,55 @@ class SHi extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'एक छोटा पासवर्ड चुनें';
 
   @override
   String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+      'कीचेन के आगे गेट के रूप में उपयोग किया जाता है';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => '4–6 अंकों का पिन चुनें';
 
   @override
   String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+      'हार्डवेयर लॉकआउट पिन अनुमान को धीमा करता है';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'पिन';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'पिन की पुष्टि करें';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'पिन 4–6 अंकों का होना चाहिए';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'पिन मेल नहीं खाते';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'पासवर्ड आवश्यक';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => 'जारी रखने के लिए अपना छोटा पासवर्ड दर्ज करें';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'गलत पासवर्ड';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'पिन दर्ज करें';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => 'छोटा पिन हार्डवेयर-बाउंड वॉल्ट खोलता है';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'गलत पिन';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return '$seconds सेकंड में फिर कोशिश करें';
   }
 
   @override
@@ -2126,21 +2126,21 @@ class SHi extends S {
       'मास्टर पासवर्ड सेट, बदलें या हटाएं';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'सुरक्षा स्तर बदलें';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'स्तर सीढ़ी खोलें और अलग सुरक्षा स्तर पर जाएँ';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'नए स्तर से डेटाबेस फिर से एन्क्रिप्ट हो रहा है। बीच में नहीं रोका जा सकता — समाप्त होने तक ऐप खुला रखें।';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'सुरक्षा स्तर बदला गया';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => 'सुरक्षा स्तर नहीं बदला जा सका';
 
   @override
   String get snippets => 'स्निपेट्स';

@@ -820,7 +820,7 @@ class STr extends S {
   String get tierRecommendedBadge => 'Önerilen';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'Mevcut';
 
   @override
   String get tierAlternativeBranchLabel =>
@@ -948,55 +948,55 @@ class STr extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'Bu kurulumda donanım kasası kullanılamıyor.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'Kısa bir şifre seçin';
 
   @override
   String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+      'Anahtarlığın önünde geçit olarak kullanılır';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => '4–6 haneli PIN seçin';
 
   @override
   String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+      'Donanım kilidi PIN tahminini yavaşlatır';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'PIN\'i onaylayın';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN 4–6 haneli olmalıdır';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'PIN\'ler eşleşmiyor';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'Şifre gerekli';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => 'Devam etmek için kısa şifrenizi girin';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'Yanlış şifre';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'PIN girin';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => 'Kısa PIN, donanıma bağlı kasanın kilidini açar';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'Yanlış PIN';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return '$seconds sn sonra tekrar deneyin';
   }
 
   @override
@@ -2134,21 +2134,21 @@ class STr extends S {
       'Ana şifreyi belirle, değiştir veya kaldır';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'Güvenlik düzeyini değiştir';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'Düzey merdivenini açın ve farklı bir güvenlik düzeyine geçin';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'Veritabanı yeni düzeyle yeniden şifreleniyor. Kesilmez — uygulamayı bitene kadar açık tutun.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'Güvenlik düzeyi değiştirildi';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => 'Güvenlik düzeyi değiştirilemedi';
 
   @override
   String get snippets => 'Snippet\'ler';

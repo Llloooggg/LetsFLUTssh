@@ -801,7 +801,7 @@ class SKo extends S {
   String get tierRecommendedBadge => '권장';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => '현재';
 
   @override
   String get tierAlternativeBranchLabel => '대안 — OS를 신뢰하지 마세요';
@@ -909,56 +909,53 @@ class SKo extends S {
   String get tierParanoidNotes => '이 계층에서는 생체 인식이 설계상 비활성화되어 있습니다.';
 
   @override
-  String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+  String get tierHardwareUnavailable => '이 설치에서는 하드웨어 금고를 사용할 수 없습니다.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => '짧은 비밀번호 설정';
 
   @override
-  String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+  String get tierKeychainPassSetHint => '키체인 앞의 게이트로 사용됩니다';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => '4–6자리 PIN 설정';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => '하드웨어 잠금이 PIN 추측을 지연시킵니다';
 
   @override
   String get pinLabel => 'PIN';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'PIN 확인';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'PIN은 4–6자리 숫자여야 합니다';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'PIN이 일치하지 않습니다';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => '비밀번호 필요';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => '계속하려면 짧은 비밀번호를 입력하세요';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => '잘못된 비밀번호';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'PIN 입력';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => '짧은 PIN으로 하드웨어 연결 금고 잠금 해제';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => '잘못된 PIN';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return '$seconds초 후 재시도';
   }
 
   @override
@@ -2062,21 +2059,20 @@ class SKo extends S {
   String get manageMasterPasswordSubtitle => '마스터 비밀번호 설정, 변경 또는 제거';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => '보안 등급 변경';
 
   @override
-  String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+  String get changeSecurityTierSubtitle => '등급 사다리를 열고 다른 보안 등급으로 전환';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      '새 등급으로 데이터베이스를 다시 암호화하는 중입니다. 중단할 수 없습니다 — 완료될 때까지 앱을 열어 두세요.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => '보안 등급이 변경되었습니다';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => '보안 등급을 변경할 수 없습니다';
 
   @override
   String get snippets => '스니펫';

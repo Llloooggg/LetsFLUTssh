@@ -815,7 +815,7 @@ class SFa extends S {
   String get tierRecommendedBadge => 'توصیه شده';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'فعلی';
 
   @override
   String get tierAlternativeBranchLabel =>
@@ -938,55 +938,55 @@ class SFa extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Hardware vault not available on this install.';
+      'گاوصندوق سخت‌افزاری در این نصب در دسترس نیست.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
+  String get tierKeychainPassSetPrompt => 'یک گذرواژه کوتاه انتخاب کنید';
 
   @override
   String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
+      'به عنوان دروازه پیش از کیچین استفاده می‌شود';
 
   @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+  String get tierHardwarePinSetPrompt => 'یک پین ۴ تا ۶ رقمی انتخاب کنید';
 
   @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
+  String get tierHardwarePinSetHint => 'قفل سخت‌افزاری حدس پین را کند می‌کند';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'پین';
 
   @override
-  String get confirmPin => 'Confirm PIN';
+  String get confirmPin => 'تایید پین';
 
   @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+  String get pinMustBe4To6Digits => 'پین باید ۴ تا ۶ رقم باشد';
 
   @override
-  String get pinsDoNotMatch => 'PINs do not match';
+  String get pinsDoNotMatch => 'پین‌ها مطابقت ندارند';
 
   @override
-  String get l2UnlockTitle => 'Password required';
+  String get l2UnlockTitle => 'گذرواژه لازم است';
 
   @override
-  String get l2UnlockHint => 'Enter your short password to continue';
+  String get l2UnlockHint => 'برای ادامه گذرواژه کوتاه خود را وارد کنید';
 
   @override
-  String get l2WrongPassword => 'Wrong password';
+  String get l2WrongPassword => 'گذرواژه اشتباه';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'پین را وارد کنید';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint =>
+      'پین کوتاه، گاوصندوق وابسته به سخت‌افزار را باز می‌کند';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'پین اشتباه';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Try again in ${seconds}s';
+    return '$seconds ثانیه دیگر تلاش کنید';
   }
 
   @override
@@ -2117,21 +2117,21 @@ class SFa extends S {
       'تنظیم، تغییر یا حذف رمز عبور اصلی';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'تغییر سطح امنیت';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'نردبان سطوح را باز کرده و به سطح امنیتی دیگر بروید';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'در حال رمزگذاری مجدد پایگاه داده با سطح جدید. قابل قطع نیست — تا پایان برنامه را باز نگه دارید.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'سطح امنیت تغییر کرد';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed => 'تغییر سطح امنیت ممکن نشد';
 
   @override
   String get snippets => 'قطعه‌ها';

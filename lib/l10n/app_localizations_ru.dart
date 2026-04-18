@@ -822,7 +822,7 @@ class SRu extends S {
   String get tierRecommendedBadge => 'Рекомендуется';
 
   @override
-  String get tierCurrentBadge => 'Current';
+  String get tierCurrentBadge => 'Текущий';
 
   @override
   String get tierAlternativeBranchLabel => 'Альтернатива — не доверять ОС';
