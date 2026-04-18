@@ -4,7 +4,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 ## Quick Navigation by Task
 
-### Within CLAUDE_RULES (this file)
+### Within AGENT_RULES (this file)
 
 | I'm about to... | Read this section |
 |---|---|

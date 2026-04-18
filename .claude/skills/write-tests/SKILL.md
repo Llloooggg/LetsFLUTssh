@@ -50,12 +50,12 @@ For each file to cover:
 
 ### Step 4: Write tests
 
-**Follow CLAUDE.md testing rules** — they cover the three hard-to-remember invariants:
+**Follow AGENT_RULES.md "Testing Methodology"** — it covers the three hard-to-remember invariants:
 - "Tests assert spec, not current output" — derive the oracle from intent, never from observing the code
 - "When test and code disagree, surface it" — stop and report to user, don't silently patch either side
 - "Uncovered lines are a marker, not a target" — articulate the contract a line encodes before writing an `expect` that reaches it
 
-When in doubt re-read those sections in CLAUDE.md verbatim; they are not paraphrased here on purpose.
+When in doubt re-read those sections in AGENT_RULES.md verbatim; they are not paraphrased here on purpose.
 
 Skill-specific additions:
 - **Find callers first** — before touching a test file, run `/find-impact <source_path>` to see what else the behavior surfaces in, so the new test covers the real contract, not just the single call site

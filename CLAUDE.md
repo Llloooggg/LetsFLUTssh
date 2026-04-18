@@ -4,8 +4,8 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 
 ## Documentation Map
 
-- **[`docs/CLAUDE_RULES.md`](docs/CLAUDE_RULES.md)** — all rules, conventions, doc-maintenance checklist, code-quality, testing methodology, commit/release flow. Read on demand via the navigation tables below — never cover-to-cover.
-- **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — module structure, APIs, data flows, design decisions. 3000+ lines — never read cover-to-cover, jump to specific § via [CLAUDE_RULES nav](docs/CLAUDE_RULES.md#within-architecturemd).
+- **[`docs/AGENT_RULES.md`](docs/AGENT_RULES.md)** — all rules, conventions, doc-maintenance checklist, code-quality, testing methodology, commit/release flow. Read on demand via the navigation tables below — never cover-to-cover.
+- **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — module structure, APIs, data flows, design decisions. 3000+ lines — never read cover-to-cover, jump to specific § via [AGENT_RULES nav](docs/AGENT_RULES.md#within-architecturemd).
 - **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** — build instructions, code style (for humans).
 
 ---
@@ -14,16 +14,16 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 
 | I'm about to... | MUST read first |
 |---|---|
-| Write/edit any Dart code | [CLAUDE_RULES § Code Quality — SonarCloud](docs/CLAUDE_RULES.md#code-quality--sonarcloud) + [§ Conventions](docs/CLAUDE_RULES.md#conventions) |
-| Write/update a test | [CLAUDE_RULES § Testing Methodology](docs/CLAUDE_RULES.md#testing-methodology) + [ARCHITECTURE §14](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
-| Add/change a user-facing string | [CLAUDE_RULES § Conventions → Localization](docs/CLAUDE_RULES.md#localization-i18n) — **all 15 `app_*.arb` files** must be updated |
-| Add a new widget / helper / mixin / style constant / store | [CLAUDE_RULES § Reuse First](docs/CLAUDE_RULES.md#reuse-first-project-wide-not-just-ui) — grep shared modules before creating |
-| Add/change a UI control | [CLAUDE_RULES § Reuse First](docs/CLAUDE_RULES.md#reuse-first-project-wide-not-just-ui) + [§ UI Components](docs/CLAUDE_RULES.md#ui-components) (disable-vs-hide) |
-| Touch theme / fonts / radii / heights | [CLAUDE_RULES § Theme & UI Constants](docs/CLAUDE_RULES.md#theme--ui-constants) — never hardcode |
-| Add a new file/class/widget/provider in `lib/` | [CLAUDE_RULES § Doc Maintenance](docs/CLAUDE_RULES.md#documentation-maintenance-checklist) — find the row, update the named ARCHITECTURE § |
-| Write a commit message | [CLAUDE_RULES § Commits & Versioning](docs/CLAUDE_RULES.md#commits--versioning) |
-| Open a PR / merge to main | [CLAUDE_RULES § Branching & Release Flow](docs/CLAUDE_RULES.md#branching--release-flow) |
-| Find something in ARCHITECTURE.md | [CLAUDE_RULES § Quick Navigation → Within ARCHITECTURE.md](docs/CLAUDE_RULES.md#within-architecturemd) |
+| Write/edit any Dart code | [AGENT_RULES § Code Quality — SonarCloud](docs/AGENT_RULES.md#code-quality--sonarcloud) + [§ Conventions](docs/AGENT_RULES.md#conventions) |
+| Write/update a test | [AGENT_RULES § Testing Methodology](docs/AGENT_RULES.md#testing-methodology) + [ARCHITECTURE §14](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
+| Add/change a user-facing string | [AGENT_RULES § Conventions → Localization](docs/AGENT_RULES.md#localization-i18n) — **all 15 `app_*.arb` files** must be updated |
+| Add a new widget / helper / mixin / style constant / store | [AGENT_RULES § Reuse First](docs/AGENT_RULES.md#reuse-first-project-wide-not-just-ui) — grep shared modules before creating |
+| Add/change a UI control | [AGENT_RULES § Reuse First](docs/AGENT_RULES.md#reuse-first-project-wide-not-just-ui) + [§ UI Components](docs/AGENT_RULES.md#ui-components) (disable-vs-hide) |
+| Touch theme / fonts / radii / heights | [AGENT_RULES § Theme & UI Constants](docs/AGENT_RULES.md#theme--ui-constants) — never hardcode |
+| Add a new file/class/widget/provider in `lib/` | [AGENT_RULES § Doc Maintenance](docs/AGENT_RULES.md#documentation-maintenance-checklist) — find the row, update the named ARCHITECTURE § |
+| Write a commit message | [AGENT_RULES § Commits & Versioning](docs/AGENT_RULES.md#commits--versioning) |
+| Open a PR / merge to main | [AGENT_RULES § Branching & Release Flow](docs/AGENT_RULES.md#branching--release-flow) |
+| Find something in ARCHITECTURE.md | [AGENT_RULES § Quick Navigation → Within ARCHITECTURE.md](docs/AGENT_RULES.md#within-architecturemd) |
 
 ---
 

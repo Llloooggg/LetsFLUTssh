@@ -7,7 +7,7 @@ description: Map the blast radius of changing a Dart file — find importers (ca
 
 Given a path like `lib/core/ssh/known_hosts.dart`, report:
 
-1. **Paired test file** — mirror path under `test/`. In this repo the rule is one test per source file (see CLAUDE.md).
+1. **Paired test file** — mirror path under `test/`. In this repo the rule is one test per source file (see AGENT_RULES.md "Testing Methodology").
 2. **Direct importers** — files that `import` the target. Uses both package-relative and relative-path forms.
 3. **Symbol references** — top-level class/function names defined in the target, grepped across `lib/` and `test/`.
 
@@ -22,7 +22,7 @@ Given a path like `lib/core/ssh/known_hosts.dart`, report:
 2. **Find paired test.**
    - Mirror path: `lib/X/Y/foo.dart` → `test/X/Y/foo_test.dart`.
    - Run a `Glob` with pattern `test/**/foo_test.dart` as a fallback in case the test lives under a slightly different path.
-   - Report whether the test exists; if not, flag it — per CLAUDE.md "all code must have tests".
+   - Report whether the test exists; if not, flag it — per AGENT_RULES.md "Testing Methodology" (target 100% coverage).
 
 3. **Find direct importers.**
    - Two import forms are used in this repo:

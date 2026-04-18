@@ -122,7 +122,7 @@ Run `make check` (analyzer + tests). Both must be green before commit — the pr
 
 ### 7. Documentation
 
-If your feature adds a new `core/` module or changes a public contract, add a subsection to [`ARCHITECTURE.md`](ARCHITECTURE.md) under §3 (core) or §5 (features). Tiny additions don't need their own section — extend the closest existing one. See the [doc maintenance checklist](CLAUDE_RULES.md#documentation-maintenance-checklist).
+If your feature adds a new `core/` module or changes a public contract, add a subsection to [`ARCHITECTURE.md`](ARCHITECTURE.md) under §3 (core) or §5 (features). Tiny additions don't need their own section — extend the closest existing one. See the [doc maintenance checklist](AGENT_RULES.md#documentation-maintenance-checklist).
 
 ### 8. Commit
 
@@ -161,7 +161,7 @@ LetsFLUTssh ships on Linux, Windows, macOS, Android, iOS. Before marking a featu
 
 ## Where to Ask
 
-- Architecture question — check the [navigation table](CLAUDE_RULES.md#quick-navigation-by-task) first
+- Architecture question — check the [navigation table](AGENT_RULES.md#quick-navigation-by-task) first
 - Found a bug — open an issue with the `bug` label
 - Want to discuss a larger change before coding — open an issue with `discussion` first
 

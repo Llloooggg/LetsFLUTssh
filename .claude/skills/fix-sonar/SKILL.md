@@ -38,7 +38,7 @@ Group by file. For each file, read the relevant code sections to understand cont
 For each issue:
 1. Read the file and understand the problem. Run `/find-impact <file>` when the flagged code is shared — refactors must not break call sites
 2. Fix the root cause — NEVER use `// ignore:`, `// NOSONAR`, or any suppression
-3. Follow CLAUDE.md "SonarCloud rules that bite most often" — the S3776/S3358/S1854/S1192 patterns and shaping rules live there. Don't paraphrase them here
+3. Follow AGENT_RULES.md "Code Quality — SonarCloud" — the S3776/S3358/S1854/S1192 patterns and shaping rules live there. Don't paraphrase them here
 4. If a fix changes public API or data flow, update docs (ARCHITECTURE.md)
 
 ### Step 4: Verify
@@ -49,4 +49,4 @@ Run `make analyze` to confirm no new issues were introduced.
 - Fix issues from highest severity to lowest: BLOCKER > CRITICAL > MAJOR > MINOR > INFO
 - One logical fix per commit — don't bundle unrelated fixes
 - Follow the HARD STOP rule: implement fix → tests → docs → `make analyze` → commit. Do NOT start the next fix until the current one is committed. Version bumps are automated by `scripts/bump-version.sh` during `/pr`
-- Never suppress — always fix the root cause (CLAUDE.md restates the ban verbatim)
+- Never suppress — always fix the root cause (CLAUDE.md and AGENT_RULES.md both restate the ban verbatim)
