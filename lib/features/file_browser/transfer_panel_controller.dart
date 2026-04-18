@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/transfer/transfer_task.dart';
+import 'column_widths.dart';
 
 /// Sort column options for the transfer history table.
 enum TransferSortColumn { name, local, remote, size, time }
@@ -34,9 +35,12 @@ class TransferPanelController extends ChangeNotifier {
   static const double timeColMin = 60;
   static const double timeColMax = 200;
 
-  /// Name column is not user-resizable — the flex slot absorbs all
-  /// extra horizontal space, so a fixed default is enough.
-  static const double nameColWidth = 150;
+  /// Name column is not user-resizable. Narrower than the legacy 150 so
+  /// the transfer-queue header visually matches the SFTP tab layout
+  /// where the Name cell is tighter — the user complaint was "name
+  /// слишком широкий". Local / Remote are wider because they show
+  /// full paths.
+  static const double nameColWidth = 110;
 
   // ---- State --------------------------------------------------------
 
@@ -46,8 +50,10 @@ class TransferPanelController extends ChangeNotifier {
 
   double _localColWidth = 110;
   double _remoteColWidth = 110;
-  double _sizeColWidth = 55;
-  double _timeColWidth = 105;
+  // Size and Time share defaults with FilePane so the two tables stay
+  // visually aligned — see [FileBrowserColumns].
+  double _sizeColWidth = FileBrowserColumns.size;
+  double _timeColWidth = FileBrowserColumns.modifiedOrTime;
 
   TransferSortColumn _sortColumn = TransferSortColumn.time;
   bool _sortAscending = false;

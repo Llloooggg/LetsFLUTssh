@@ -16,6 +16,7 @@ import '../../utils/format.dart';
 import '../../widgets/context_menu.dart';
 import '../../widgets/marquee_mixin.dart';
 import 'breadcrumb_path.dart';
+import 'column_widths.dart';
 import 'file_browser_controller.dart';
 import 'file_pane_dialogs.dart';
 import 'file_row.dart';
@@ -75,9 +76,11 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
   bool _editingPath = false;
   bool _osDragging = false;
 
-  // Resizable column widths (compact defaults so Name gets more space)
-  double _sizeColWidth = 55;
-  double _modifiedColWidth = 105;
+  // Resizable column widths (compact defaults so Name gets more space).
+  // Size and Modified share constants with the transfer queue so the
+  // two surfaces stay visually aligned — see [FileBrowserColumns].
+  double _sizeColWidth = FileBrowserColumns.size;
+  double _modifiedColWidth = FileBrowserColumns.modifiedOrTime;
   double _modeColWidth = 65;
   double _ownerColWidth = 50;
 

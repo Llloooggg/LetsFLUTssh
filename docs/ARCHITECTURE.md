@@ -1277,6 +1277,7 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_pane_dialogs.dart` | — | Dialogs: New Folder, Rename, Delete |
 | `file_row.dart` | `FileRow` | Row in the file table |
 | `breadcrumb_path.dart` | `BreadcrumbPath`, `parseBreadcrumbPath()`, `buildPathForSegment()` | Shared breadcrumb path parsing for desktop and mobile file browsers |
+| `column_widths.dart` | `FileBrowserColumns` | Shared default widths for Size + Modified/Time columns. `FilePane` and `TransferPanelController` both use these so the SFTP tab and transfer queue stay visually aligned |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_browser_mixin.dart` | `SftpBrowserMixin` | Shared mixin: SFTP init, upload, download — used by `FileBrowserTab` and `MobileFileBrowser` |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
