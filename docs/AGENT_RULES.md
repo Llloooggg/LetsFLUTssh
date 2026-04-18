@@ -98,13 +98,19 @@ When reviewing a diff that adds a new dependency: check `pubspec.yaml`, then che
 ### Don't Escalate Working Baselines
 The project ships across 5 platforms with **deliberately uneven guarantees** in many domains — credential storage, file pickers, notifications, biometrics, IPC, native UI affordances, hardware probes, you name it. Cross-platform packages typically cover the majority of users with known, documented limits on the weaker platforms. The project treats that asymmetry as the **chosen baseline**, not a deficiency to fix. The cost of N parallel native code paths (N× test surface, N× release fragility, N× maintenance) is rarely worth a marginal upgrade on one or two platforms.
 
-Rules for agent behaviour on working baselines:
+**Scope of this rule — read carefully, this is where agents usually trip:**
+This rule governs **unsolicited** agent proposals. It does **not** block work the user has already authorized. If the user has put a per-platform upgrade in the backlog, in a plan, in an earlier message this session, or in a direct "yes, do it" reply, that upgrade is **authorized** and the red-flag checks below do not apply to it — just execute. The rule exists so an agent does not invent a three-day native-plugin refactor in response to "fix the typo" — not so the agent second-guesses work the user already asked for.
+
+Before invoking this rule, check: *did the user ask for this per-platform upgrade, now or in a prior plan message?* If yes — proceed. If no, apply the rules below.
+
+Rules for **unsolicited** agent proposals on working baselines:
 1. **Don't escalate.** When an existing solution covers most platforms with known limits, leave it alone. The asymmetry is a feature of the budget, not a bug in the design.
 2. **Document the gap, don't fill it with code.** If you spot a missing capability, propose adding a row to the relevant per-platform table (`SECURITY.md`, [ARCHITECTURE §12 Platform-Specific](ARCHITECTURE.md#12-platform-specific-behavior), [§13 Security Model](ARCHITECTURE.md#13-security-model)). Don't open a refactor.
-3. **Treat phrases like "true X", "real X", "verified X", "proper X" as red flags** when applied to an existing working feature. They almost always translate to "more code, more rope". Confirm with the user that the upgrade is wanted before designing it.
-4. **User overrides this rule explicitly** by asking for the per-platform upgrade. Default = leave the working baseline alone.
+3. **Treat phrases like "true X", "real X", "verified X", "proper X" as red flags** when *you* feel tempted to use them to re-pitch a working feature. They almost always translate to "more code, more rope". Ask the user whether the upgrade is wanted before designing it — and if the user has already said yes in this or an earlier session, that ask is already answered.
 
-This is a **caveat on** [§ Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — that section's preference order ("bundle > fallback > optional dep") applies to **new** features. It is **not** a mandate to retroactively replace working optional-dep solutions with bundled or per-platform equivalents.
+The default is: leave the working baseline alone unless the user has authorized the upgrade. Once authorized, the upgrade is first-class work — design it, test it, ship it, same as any other feature.
+
+This is a **caveat on** [§ Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — that section's preference order ("bundle > fallback > optional dep") applies to **new** features. It is **not** a mandate to retroactively replace working optional-dep solutions with bundled or per-platform equivalents *without user authorization*. OS-specific native code is fully acceptable once the user has asked for it, provided the end-user still installs nothing (see Self-Contained Binary rules 1 & 2).
 
 ### External Libraries & APIs — Look Up, Don't Guess
 **Never invent method signatures, parameter names, default values, or behaviour of any external package from memory.** Hallucinated APIs compile-fail in the best case and silently misbehave in the worst (wrong default for a keepalive timer, missed `await`, dropped error class).
@@ -165,7 +171,9 @@ All user-facing strings MUST use `S.of(context).xxx`. Never hardcode strings in 
 
 ## Code Quality — SonarCloud
 
-All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden, always fix the root cause.
+All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit that touches Dart code. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden, always fix the root cause.
+
+**Skip manual `make analyze` / `make test` when the staged diff is doc-only** (Markdown, `.arb` strings that are also propagated to `app_localizations_*.dart`, images, READMEs, rule files under `docs/`). The pre-commit hook still runs `make check` automatically — running it manually first wastes time and slows the loop. The quick test: if `git diff --name-only --cached | grep -E '\.dart$|pubspec\.yaml'` returns nothing, skip the manual analyzer/test pass and let the hook do its job at commit time.
 
 ### Rules that bite most often
 
@@ -204,7 +212,9 @@ Target: 100% coverage (excluding integration tests and tests on the actual platf
 ## Commits & Versioning
 
 - **Agent does not commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
-- **HARD STOP between fixes** — implement fix → write tests → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exception:** when the user explicitly asks to fix everything at once ("fix all and push"), execute end-to-end without pausing between fixes.
+- **HARD STOP between fixes** — implement fix → write tests → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exceptions:**
+  - The user signals batch mode — "fix all and push", "don't ask", "go through the plan", "stop asking", or the same intent in any language. Execute end-to-end without pausing between fixes.
+  - A series of related doc, rule, or convention edits in a single session — batch into **one** commit at the natural end of the arc instead of firing `/commit` after every sub-chunk. Individual doc chunks each "complete on their own" do not warrant individual commits when the user is mentally treating the whole arc as one pass.
 - Format per [CONTRIBUTING.md](CONTRIBUTING.md#commit-messages). Messages drive auto-changelog — keep them user-readable.
 - **Use `type(scope):` with parenthesized scope** for commits that touch a specific module (e.g. `refactor(import): ...`, `test(known-hosts): ...`, `feat(installer): ...`). Drop the scope only when the change is genuinely cross-cutting and no single module name fits. Scope must be lowercase, alphanumeric + dashes.
 - **Version bumps are automatic.** The `/pr` skill runs `scripts/bump-version.sh` before creating PR — it parses conventional commits since the last tag and bumps `pubspec.yaml` (patch for fix/refactor/perf/build/deps, minor for feat, major for BREAKING CHANGE; chore/docs/test/ci/Revert = no bump). **Do NOT bump version manually** — just use correct conventional commit prefixes. Dependabot PRs are bumped by CI (`dependabot-auto.yml`).

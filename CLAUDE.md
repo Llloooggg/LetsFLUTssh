@@ -17,7 +17,7 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 | Write/edit any Dart code | [AGENT_RULES § Code Quality — SonarCloud](docs/AGENT_RULES.md#code-quality--sonarcloud) + [§ Conventions](docs/AGENT_RULES.md#conventions) |
 | Call API of an external package (dartssh2, drift, riverpod, xterm, …) | [AGENT_RULES § External Libraries & APIs](docs/AGENT_RULES.md#external-libraries--apis--look-up-dont-guess) — never guess signatures: grep repo → Context7 → web docs → pub-cache source |
 | Add a new dependency or feature needing an OS capability | [AGENT_RULES § Self-Contained Binary](docs/AGENT_RULES.md#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs (never hard-require user install) |
-| About to propose a per-platform native rewrite of a working feature | [AGENT_RULES § Don't Escalate Working Baselines](docs/AGENT_RULES.md#dont-escalate-working-baselines) — STOP, document the gap, ask user before writing code |
+| About to propose a per-platform native rewrite of a working feature | [AGENT_RULES § Don't Escalate Working Baselines](docs/AGENT_RULES.md#dont-escalate-working-baselines) — **first check: has the user already authorized this upgrade (plan, backlog, earlier message)? If yes, just execute.** The rule blocks UNSOLICITED escalations, not user-requested work |
 | Write/update a test | [AGENT_RULES § Testing Methodology](docs/AGENT_RULES.md#testing-methodology) + [ARCHITECTURE §14](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
 | Add/change a user-facing string | [AGENT_RULES § Conventions → Localization](docs/AGENT_RULES.md#localization-i18n) — **all 15 `app_*.arb` files** must be updated |
 | Add a new widget / helper / mixin / style constant / store | [AGENT_RULES § Reuse First](docs/AGENT_RULES.md#reuse-first-project-wide-not-just-ui) — grep shared modules before creating |
@@ -35,7 +35,7 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 These apply to every response without re-reading:
 
 - **Don't commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
-- **HARD STOP between fixes** — implement → tests → docs → **ask to commit**. Don't start the next fix until current is committed. Override: "fix all and push" / "не спрашивай" → batch end-to-end.
+- **HARD STOP between fixes** — implement → tests → docs → **ask to commit**. Don't start the next fix until current is committed. Overrides: (a) user signals batch mode ("fix all and push", "don't ask", "go through the plan", "stop asking", or the same intent in any language) → batch end-to-end; (b) series of related doc/rule/convention edits in one session → one commit at the arc's end, not per chunk.
 - **Default branch is `dev`.** Never push to `main` directly.
 - **All files in English only** — code, comments, commits, docs.
 - **Never suppress issues** — no `// ignore:`, `// NOSONAR`, `@SuppressWarnings`. Fix root cause.
@@ -43,6 +43,7 @@ These apply to every response without re-reading:
 - **Don't install packages without asking.** Latest stable only — no beta/dev/pre-release.
 - **End-user installs nothing.** Released app must run with zero manual setup. New OS-level deps allowed only if (1) bundled, or (2) a built-in fallback exists, or (3) the dep is optional with graceful in-UI degradation + per-platform install snippet in README. Full rule: [AGENT_RULES § Self-Contained Binary](docs/AGENT_RULES.md#self-contained-binary--end-user-installs-nothing).
 - **Always build via Makefile** — `make run/build-linux/test/analyze`. Never call `flutter` directly.
+- **Skip `make analyze` / `make test` for doc-only commits** — if the staged diff touches no `.dart` files and no `pubspec.yaml`, don't run analyzer or tests manually. The pre-commit hook runs `make check` automatically; running it first on a Markdown-only change is wasted loop time.
 - **Cross-platform verification** — Android change → also iOS; Windows change → also Linux + macOS.
 - **Best practices by default** — push back on hacky solutions, propose best-practice alternatives.
 - **Think systemically** — consider full scope and side effects, not just the literal instruction.
