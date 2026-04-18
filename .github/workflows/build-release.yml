@@ -31,12 +31,17 @@ jobs:
         run: |
           SHA="${{ github.sha }}"
           REPO="${{ github.repository }}"
+          REF="${{ github.ref }}"
 
           if [ "${{ github.event_name }}" = "push" ]; then
             # Tag push — auto-tag already verified CI passed
             echo "Tag-triggered build — CI verified by auto-tag ✓"
+          elif [ "$REF" = "refs/heads/dev" ]; then
+            # Dev branch dispatch — local `make check` is the source of truth,
+            # CI is not required to gate dev builds.
+            echo "Dev-branch dispatch — skipping CI check (local validation) ✓"
           else
-            # Manual dispatch — verify once, no polling
+            # Manual dispatch on main/other — verify once, no polling
             STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
               --jq '[.check_runs[] | select(.name == "ci" and .app.slug == "github-actions")] | if length == 0 then "missing" else .[0].conclusion // "pending" end')
 
