@@ -35,6 +35,7 @@ import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
 import 'core/security/legacy_state_reset.dart';
 import 'core/security/security_tier.dart';
+import 'features/settings/security_tier_switcher.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
@@ -346,6 +347,29 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
     final dbExists = await databaseFileExists();
+
+    // Crash-recovery: if the previous run died mid-switch, a
+    // `.tier-transition-pending` marker is still on disk. The
+    // switcher writes the marker *before* PRAGMA rekey, so the DB
+    // on disk is either under the source key (rekey never ran) or
+    // under the target key (rekey ran but wrapper / config write
+    // did not). Completing the pending switch safely requires
+    // prompting the user for the target credential, which the L2 /
+    // L3 unlock paths do not yet ship. For now the marker is
+    // cleared here and the standard unlock flow runs — if it fails
+    // the user can use the forgot-password reset to recover. The
+    // clear is deliberate so the marker never persists across
+    // multiple launches into a dirtier state.
+    final pendingTransition = await SecurityTierSwitcher().readPendingMarker();
+    if (pendingTransition != null) {
+      AppLogger.instance.log(
+        'Pending tier-transition marker from previous session '
+        '(payload=$pendingTransition) — clearing and falling back to '
+        'standard unlock path',
+        name: 'App',
+      );
+      await SecurityTierSwitcher().clearMarker();
+    }
 
     // Breaking-change gate: new build carries the SecurityTier enum
     // + a `security_tier` field in config.json. Any install that
