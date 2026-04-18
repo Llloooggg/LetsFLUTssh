@@ -779,40 +779,36 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [const SizedBox(height: 12), _buildTagsSection()],
+      children: [_buildTagsSection()],
     );
   }
 
-  /// Inline tags section — displays current assignments and a button
-  /// opening [TagAssignDialog].  Tagging is only available after the
-  /// session has been saved once (we need its id to write links).
+  /// Tags option row — label on the left, action on the right,
+  /// assigned chips on their own row below. Keeps the form's label +
+  /// control rhythm predictable so new option rows (dropdowns,
+  /// toggles) can be appended without the Options tab looking like a
+  /// list of centred orphan buttons. The old layout stacked the
+  /// label, chips and a full-width button vertically, which left a
+  /// lot of whitespace on the right and visually centred the button
+  /// against that whitespace — the "теги и кнопка висят по центру"
+  /// complaint.
   Widget _buildTagsSection() {
     final s = S.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          s.tags,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: AppFonts.sm,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.fg,
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (!_isEditing)
-          Text(
-            s.saveSessionToAssignTags,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: AppFonts.xs,
-              color: AppTheme.fgFaint,
+    return _OptionRow(
+      label: s.tags,
+      trailing: _isEditing
+          ? _ManageTagsButton(sessionId: widget.session!.id)
+          : null,
+      detail: _isEditing
+          ? _EditingSessionTagsChips(sessionId: widget.session!.id)
+          : Text(
+              s.saveSessionToAssignTags,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: AppFonts.xs,
+                color: AppTheme.fgFaint,
+              ),
             ),
-          )
-        else
-          _EditingSessionTags(sessionId: widget.session!.id),
-      ],
     );
   }
 
@@ -837,13 +833,86 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       (v) => v == null || v.trim().isEmpty ? S.of(context).required : null;
 }
 
-/// Chip list of tags currently assigned to a session, with a "Manage"
-/// button that opens [TagAssignDialog]. Rebuilds when the provider
-/// invalidates after the dialog applies its changes.
-class _EditingSessionTags extends ConsumerWidget {
+/// Form row for the Options tab. Label on the left, a trailing action
+/// widget on the right (typically a compact button), and an optional
+/// [detail] block rendered full-width below the label/action line.
+/// Adding a second option row (e.g. a dropdown) is a one-line drop-in
+/// that preserves the column alignment instead of stacking orphan
+/// buttons against the left edge.
+class _OptionRow extends StatelessWidget {
+  final String label;
+  final Widget? trailing;
+  final Widget? detail;
+
+  const _OptionRow({required this.label, this.trailing, this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.fg,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          if (detail != null) ...[
+            const SizedBox(height: 8),
+            Align(alignment: Alignment.centerLeft, child: detail!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact "Manage tags" button for the trailing slot of
+/// [_OptionRow]. Intrinsic width so it doesn't stretch to fill the
+/// row and look centred against whitespace.
+class _ManageTagsButton extends ConsumerWidget {
   final String sessionId;
 
-  const _EditingSessionTags({required this.sessionId});
+  const _ManageTagsButton({required this.sessionId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = S.of(context);
+    return OutlinedButton.icon(
+      icon: const Icon(Icons.label_outline, size: 16),
+      label: Text(s.manageTags, style: TextStyle(fontSize: AppFonts.sm)),
+      onPressed: () async {
+        await TagAssignDialog.showForSession(context, sessionId: sessionId);
+        // The dialog applies changes directly; invalidate to refresh.
+        ref.invalidate(sessionTagsProvider(sessionId));
+      },
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, AppTheme.controlHeightSm),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+    );
+  }
+}
+
+/// Chips-only render of the session's assigned tags — the trailing
+/// "Manage" control lives in the [_OptionRow] header so the chips
+/// take the full detail width without a competing button below them.
+class _EditingSessionTagsChips extends ConsumerWidget {
+  final String sessionId;
+
+  const _EditingSessionTagsChips({required this.sessionId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -851,53 +920,27 @@ class _EditingSessionTags extends ConsumerWidget {
     final tagsAsync = ref.watch(sessionTagsProvider(sessionId));
     return tagsAsync.when(
       loading: () => const SizedBox(
-        height: 32,
+        height: 16,
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
       error: (_, _) => const SizedBox.shrink(),
-      data: (tags) => _buildContent(context, ref, s, tags),
-    );
-  }
-
-  Widget _buildContent(
-    BuildContext context,
-    WidgetRef ref,
-    S s,
-    List<Tag> tags,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (tags.isEmpty)
-          Text(
+      data: (tags) {
+        if (tags.isEmpty) {
+          return Text(
             s.noTagsAssigned,
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: AppFonts.xs,
               color: AppTheme.fgFaint,
             ),
-          )
-        else
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [for (final tag in tags) _tagChip(tag)],
-          ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.label_outline, size: 18),
-          label: Text(s.manageTags),
-          onPressed: () async {
-            await TagAssignDialog.showForSession(context, sessionId: sessionId);
-            // The dialog applies changes directly; invalidate to refresh.
-            ref.invalidate(sessionTagsProvider(sessionId));
-          },
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, 36),
-            alignment: Alignment.centerLeft,
-          ),
-        ),
-      ],
+          );
+        }
+        return Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [for (final tag in tags) _tagChip(tag)],
+        );
+      },
     );
   }
 
