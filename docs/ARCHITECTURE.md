@@ -697,6 +697,26 @@ Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometr
 
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
+#### SQLCipher cipher choice — AES-CBC+HMAC vs AES-GCM vs ChaCha20-Poly1305 (decision doc, not a rewrite)
+
+SQLite3MultipleCiphers supports several cipher schemes for at-rest DB encryption. A review pass evaluated whether the project should migrate from the default `sqlcipher` scheme (AES-256-CBC + HMAC-SHA512, encrypt-then-MAC per page) to an AEAD construction (`aes256gcm` or `chacha20`).
+
+**Inputs to the decision:**
+
+- *Security posture.* The current `sqlcipher` scheme is encrypt-then-MAC under a 64-byte HMAC tag per 4 KiB page, with per-page random IVs derived from the page number + a database-wide random salt. This is structurally equivalent to an AEAD: confidentiality from AES-256-CBC, integrity + authenticity from HMAC-SHA512. No known cryptanalytic weakness justifies a migration on security grounds alone.
+- *Performance.* AES-256-CBC throughput on AES-NI silicon is ~2–3 GiB/s. AES-256-GCM can be ~30 % faster on the same silicon because GCM parallelises cleanly and avoids the HMAC pass. On non-AES-NI devices (Arm mobile without the crypto extensions — increasingly rare but still present) ChaCha20-Poly1305 outperforms both AES variants by 2–4×. The project is not CPU-bound on DB I/O at current workload — logs, sessions, snippets, known-hosts entries are all sub-100-KiB tables with low page-churn, so the wall-clock win from a cipher switch is in the millisecond range on typical user flows.
+- *Format compatibility.* Migration requires a full rekey under the new cipher (`PRAGMA cipher_migrate`-style flow): every page is re-encrypted on disk, the legacy cipher header is rewritten, and any existing `.lfs` archive exports produced under the old scheme decrypt *only* with the old code path (need a version-guarded reader).
+- *Binary size / build surface.* All three schemes are already compiled into the SQLite3MC binary the project bundles — no new C dependencies, no `pubspec.yaml` changes.
+- *Blast radius of a bad migration.* A crash mid-rekey corrupts every page that has been re-encrypted so far. Mitigation would require a tmp-file + atomic-rename flow (similar to `_reEncryptAll` in settings). Non-trivial.
+
+**Recommendation — stay on `sqlcipher` (AES-CBC+HMAC) for now.** The performance delta is small on current workloads, the security posture is equivalent, and the migration cost is real: a user-visible re-encryption step with a non-negligible crash window. Revisit if a concrete signal appears — a benchmark showing the DB I/O path is user-visible, or a CVE against the current scheme. If a switch does happen, **ChaCha20-Poly1305 beats AES-GCM** for the project's target device mix: it's faster on Arm-without-crypto-extensions (where Android mid-tiers still live) and the constant-time implementation is less footgun-prone than nonce-managed GCM.
+
+**Authorised follow-up** if and when the switch lands:
+1. Gate the new cipher behind a schema/version marker in the DB header, so `database_opener.dart` can pick the right `PRAGMA cipher` at open time;
+2. Reuse the `rekeyDatabase()` atomic-tmp flow already used for master-password rotation;
+3. Version-bump the `.lfs` archive format to mirror the new cipher header;
+4. Migration UI should be opt-in — never run on app startup by surprise.
+
 #### Password strength meter
 
 Informational-only indicator on every master-password set / change dialog (`_SetMasterPasswordDialog`, `_ChangeMasterPasswordDialog`, `SecuritySetupDialog`). Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`).
