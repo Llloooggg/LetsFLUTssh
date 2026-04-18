@@ -21,7 +21,10 @@ class _FakeMasterPassword extends MasterPasswordManager {
   int verifyAndDeriveCalls = 0;
 
   @override
-  Future<Uint8List?> verifyAndDerive(String password) async {
+  Future<Uint8List?> verifyAndDerive(
+    String password, {
+    bool useRateLimit = false,
+  }) async {
     verifyAndDeriveCalls++;
     if (password != expectedPassword) return null;
     return keyBytes;

@@ -192,9 +192,15 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
       _wrongPassword = false;
     });
 
-    // Single PBKDF2 run: verify + derive in one isolate spawn so
-    // unlock latency is not doubled on mid-tier mobiles.
-    final key = await widget.manager.verifyAndDerive(password);
+    // Single Argon2id run: verify + derive in one isolate spawn so
+    // unlock latency is not doubled on mid-tier mobiles. `useRateLimit`
+    // is on because this is the user-typed unlock path — the
+    // in-memory limiter slows down anyone poking at the dialog by
+    // hand (real brake against offline brute is still Argon2id).
+    final key = await widget.manager.verifyAndDerive(
+      password,
+      useRateLimit: true,
+    );
 
     if (!mounted) return;
 

@@ -463,7 +463,10 @@ class _StubMasterPasswordManager extends MasterPasswordManager {
       derivedKey ?? Uint8List(32);
 
   @override
-  Future<Uint8List?> verifyAndDerive(String password) async {
+  Future<Uint8List?> verifyAndDerive(
+    String password, {
+    bool useRateLimit = false,
+  }) async {
     if (!acceptPassword) return null;
     return derivedKey ?? Uint8List(32);
   }

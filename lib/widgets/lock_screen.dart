@@ -146,8 +146,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
     final manager = ref.read(masterPasswordProvider);
     try {
-      // Single PBKDF2: verify + derive in one isolate spawn.
-      final key = await manager.verifyAndDerive(password);
+      // Single Argon2id: verify + derive in one isolate spawn.
+      // `useRateLimit` on — mid-session lock screen is a user-typed
+      // path and should slow down a passerby the same way the
+      // first-launch UnlockDialog does.
+      final key = await manager.verifyAndDerive(password, useRateLimit: true);
       if (key == null) {
         setState(() {
           _busy = false;

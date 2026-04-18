@@ -10,6 +10,7 @@ import 'package:pointycastle/export.dart';
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'kdf_params.dart';
+import 'password_rate_limiter.dart';
 
 /// Manages optional master password protection.
 ///
@@ -64,8 +65,27 @@ class MasterPasswordManager {
 
   String? _basePath;
 
-  /// Inject base path for testing.
-  MasterPasswordManager({String? basePath}) : _basePath = basePath;
+  /// Per-instance rate limiter for [verifyAndDerive] attempts. In-
+  /// memory by design — the real brake against offline brute-force is
+  /// the Argon2id KDF's wall-clock cost; a persisted counter here
+  /// would be security theatre (attacker runs Argon2id directly
+  /// against `credentials.kdf` without ever touching our UI) and
+  /// user-hostile (forgot-password cooldown survives restart for no
+  /// extra protection). This limiter exists to frustrate a coworker
+  /// at the desk poking at the unlock dialog.
+  final PasswordRateLimiter _rateLimiter;
+
+  /// Inject base path + rate limiter for testing. Production code
+  /// passes neither; a fresh `InMemoryRateLimiter` lives per
+  /// [MasterPasswordManager] instance.
+  MasterPasswordManager({String? basePath, PasswordRateLimiter? rateLimiter})
+    : _basePath = basePath,
+      _rateLimiter = rateLimiter ?? InMemoryRateLimiter();
+
+  /// Current rate-limit status. UI reads this to render a cooldown
+  /// countdown in place of the password field when
+  /// [RateLimitStatus.isLocked] is true.
+  RateLimitStatus rateLimitStatus() => _rateLimiter.status();
 
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
@@ -123,7 +143,17 @@ class MasterPasswordManager {
   /// back — two isolate spawns + two KDF runs for each unlock. This
   /// combined variant runs the KDF once inside a single isolate and
   /// returns the same bytes the verifier was checked against.
-  Future<Uint8List?> verifyAndDerive(String password) async {
+  Future<Uint8List?> verifyAndDerive(
+    String password, {
+    bool useRateLimit = false,
+  }) async {
+    // Rate limit is opt-in for UI unlock paths (UnlockDialog,
+    // LockScreen). Internal call sites — changePassword, tests —
+    // keep the default false so a sequence of password verifications
+    // the user didn't type one by one never trips the bystander
+    // cooldown.
+    if (useRateLimit && _rateLimiter.status().isLocked) return null;
+
     final record = await _readKdfRecord();
     final basePath = await _getBasePath();
     final verifierFile = File('$basePath/$_verifierFileName');
@@ -134,11 +164,19 @@ class MasterPasswordManager {
     final params = record.params;
     final salt = record.salt;
 
-    return Isolate.run(() {
-      final key = _deriveKeySync(password, salt, params);
-      if (!_verifySync(key, verifierData)) return null;
-      return key;
+    final key = await Isolate.run(() {
+      final derived = _deriveKeySync(password, salt, params);
+      if (!_verifySync(derived, verifierData)) return null;
+      return derived;
     });
+    if (useRateLimit) {
+      if (key == null) {
+        _rateLimiter.recordFailure();
+      } else {
+        _rateLimiter.recordSuccess();
+      }
+    }
+    return key;
   }
 
   /// Enable master password protection.
