@@ -437,6 +437,47 @@ void main() {
         await tester.pumpAndSettle();
       });
     });
+
+    testWidgets(
+      'Enter in the last field submits when all three fields are valid',
+      (tester) async {
+        // User-reported: "при изменении мастер пароля интер не отлавливается
+        // как ввод". The Confirm-password field must accept TextInputAction.done
+        // and trigger the same submit path as tapping OK.
+        await tester.runAsync(() async {
+          await openManageOptionsAndTap(
+            tester,
+            option: 'Change Master Password',
+          );
+
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Current Password'),
+            'initialPass',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, 'New Password'),
+            'longvalidpassword',
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Confirm Password'),
+            'longvalidpassword',
+          );
+
+          // Focus the last field, then simulate the platform "done"
+          // keyboard action. The dialog should pop.
+          await tester.tap(find.widgetWithText(TextField, 'Confirm Password'));
+          await tester.pump();
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+
+          // Single pump + short settle: reencryption runs on an isolate
+          // which widget tests can't drive; we only care the dialog closed.
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 5));
+
+          expect(find.text('Change Master Password'), findsNothing);
+        });
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

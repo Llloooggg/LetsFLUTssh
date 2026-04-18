@@ -146,6 +146,7 @@ lib/
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
 │   ├── error_state.dart             # Error display with retry/secondary actions
 │   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
+│   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
 │   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
@@ -1595,6 +1596,20 @@ For complex dialogs (e.g. with tabs between header and content), compose from th
 - `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
+
+### FormSubmitChain
+
+```dart
+FormSubmitChain({required int length, required VoidCallback onSubmit});
+FocusNode nodeAt(int index);
+TextInputAction actionAt(int index);      // .next for non-last, .done for last
+ValueChanged<String> handlerAt(int index); // advances focus / submits on last
+void dispose();
+```
+
+Shared Enter-key wiring for any multi-field input dialog. Owns a fixed-length list of `FocusNode`s and returns the per-field `textInputAction` + `onSubmitted` callback that implement "Enter advances to the next field; Enter on the last field submits". Flutter `TextField`s intercept Enter before parent `CallbackShortcuts` can, so a dialog-level shortcut cannot implement dialog-wide Enter-submit; each field must wire `onSubmitted` individually. Centralising the wiring here keeps dialogs short and prevents per-dialog regressions (e.g. a field that silently fails to submit).
+
+Every password dialog in `features/settings/settings_dialogs.dart` uses it: `_SetMasterPasswordDialog`, `_ChangeMasterPasswordDialog`, `_RemoveMasterPasswordDialog`, `_EnableBiometricDialog`, `_ExportPasswordDialog`, `_ImportPasswordDialog`. Any new input dialog must use this helper instead of re-rolling `FocusNode`s and `TextInputAction` defaults by hand.
 
 ### AppBorderedBox
 
