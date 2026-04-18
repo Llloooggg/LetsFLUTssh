@@ -348,18 +348,30 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       // Existing v4 install — unlock with stored credentials.
 
       // 1. Master password — try biometric unlock first, fall back to dialog.
+      // Track whether we attempted biometrics so the fallback dialog knows
+      // not to auto-fire the prompt a second time (user would see two
+      // consecutive cancel/fail toasts otherwise).
+      var biometricAttempted = false;
       if (await manager.isEnabled()) {
-        final bioKey = await _tryBiometricUnlock();
-        if (bioKey != null) {
-          _injectDatabase(key: bioKey, level: SecurityLevel.masterPassword);
-          AppLogger.instance.log(
-            'Master password unlocked via biometrics',
-            name: 'App',
-          );
-          return;
+        final vault = ref.read(biometricKeyVaultProvider);
+        final bio = ref.read(biometricAuthProvider);
+        if (await vault.isStored() && await bio.isAvailable()) {
+          biometricAttempted = true;
+          final bioKey = await _tryBiometricUnlock();
+          if (bioKey != null) {
+            _injectDatabase(key: bioKey, level: SecurityLevel.masterPassword);
+            AppLogger.instance.log(
+              'Master password unlocked via biometrics',
+              name: 'App',
+            );
+            return;
+          }
         }
         if (!mounted) return;
-        final derivedKey = await _showUnlockDialog(manager);
+        final derivedKey = await _showUnlockDialog(
+          manager,
+          autoTriggerBiometric: !biometricAttempted,
+        );
         if (derivedKey != null) {
           _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
           AppLogger.instance.log('Master password unlocked', name: 'App');
@@ -459,18 +471,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     unawaited(ref.read(autoLockMinutesProvider.notifier).load());
   }
 
-  /// Attempt to unlock with biometrics. Returns the cached DB key on
-  /// success, null when biometric unlock isn't configured / device doesn't
-  /// support it / user cancelled — in which case the caller falls back to
-  /// the normal master-password dialog.
+  /// Attempt to unlock with biometrics. The caller has already checked
+  /// that the vault is stashed and the platform reports biometrics ready;
+  /// this method invokes the prompt and returns the cached DB key on
+  /// success, null on user cancel / auth failure.
   Future<Uint8List?> _tryBiometricUnlock() async {
-    final vault = ref.read(biometricKeyVaultProvider);
-    if (!await vault.isStored()) return null;
     final bio = ref.read(biometricAuthProvider);
-    if (!await bio.isAvailable()) return null;
     final reason = _localizedBiometricReason();
     final ok = await bio.authenticate(reason);
     if (!ok) return null;
+    final vault = ref.read(biometricKeyVaultProvider);
     return vault.read();
   }
 
@@ -487,10 +497,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// Separated to avoid the `use_build_context_synchronously` lint — the
   /// context is obtained synchronously within this method, not across an
   /// async gap.
-  Future<Uint8List?> _showUnlockDialog(MasterPasswordManager manager) {
+  Future<Uint8List?> _showUnlockDialog(
+    MasterPasswordManager manager, {
+    bool autoTriggerBiometric = true,
+  }) {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
-    return UnlockDialog.show(ctx, manager: manager);
+    return UnlockDialog.show(
+      ctx,
+      manager: manager,
+      autoTriggerBiometric: autoTriggerBiometric,
+    );
   }
 
   void _setupHostKeyCallbacks() {
