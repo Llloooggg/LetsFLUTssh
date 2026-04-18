@@ -277,20 +277,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   String _securityLevelLabel(S l10n, SecurityTier level) {
-    // L2 / L3 are not yet reachable from the existing tier switches;
-    // they fall through to their nearest equivalents so the Settings
-    // header stays non-empty if a tier marker from a future version
-    // shows up in config.json. Replaced by proper per-tier labels
-    // when the full wizard / settings rewrite lands.
     switch (level) {
       case SecurityTier.plaintext:
         return l10n.securityLevelPlaintext;
       case SecurityTier.keychain:
+        return l10n.tierKeychainLabel;
       case SecurityTier.keychainWithPassword:
+        return l10n.tierKeychainPassLabel;
       case SecurityTier.hardware:
-        return l10n.securityLevelKeychain;
+        return l10n.tierHardwareLabel;
       case SecurityTier.paranoid:
-        return l10n.securityLevelMasterPassword;
+        return l10n.tierParanoidLabel;
     }
   }
 
