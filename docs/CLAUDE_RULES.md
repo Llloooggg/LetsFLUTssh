@@ -1,6 +1,6 @@
-# Claude Rules — Reference Tables
+# Agent Rules — Reference Tables
 
-Reference material for Claude. Read the specific section you need, not the whole file.
+Reference material for any AI coding agent operating on this repo. Read the specific section you need, not the whole file.
 
 ## Quick Navigation by Task
 
@@ -13,7 +13,8 @@ Reference material for Claude. Read the specific section you need, not the whole
 | Write or refactor any Dart code | [§ Code Quality — SonarCloud](#code-quality--sonarcloud) + [§ Conventions](#conventions) |
 | Write or update a test | [§ Testing Methodology](#testing-methodology) |
 | Add/change a user-facing string | [§ Conventions → Localization](#localization-i18n) + [§ Doc Maintenance](#documentation-maintenance-checklist) row "user-facing string" |
-| Add/change a UI control | [§ Conventions → UI Components](#ui-components) (disable-vs-hide, shared widgets) |
+| Add a new widget / helper / mixin / style constant / store | [§ Conventions → Reuse First](#reuse-first-project-wide-not-just-ui) — search shared modules first |
+| Add/change a UI control | [§ Conventions → Reuse First](#reuse-first-project-wide-not-just-ui) + [§ UI Components](#ui-components) (disable-vs-hide) |
 | Add a new file in `lib/` | [§ Doc Maintenance](#documentation-maintenance-checklist) (which §s of ARCHITECTURE.md to update) |
 | Touch theme / fonts / radii / heights | [§ Conventions → Theme & UI Constants](#theme--ui-constants) |
 
@@ -76,6 +77,26 @@ Reference material for Claude. Read the specific section you need, not the whole
 
 ## Conventions
 
+### Reuse First (project-wide, not just UI)
+**Before adding any new widget, helper, mixin, style constant, or store: search `lib/widgets/`, `lib/theme/`, `lib/core/**` for an existing equivalent.** If behaviour is close but not identical, **extend** the shared primitive (add a parameter) instead of forking. A second caller is the trigger to extract a shared helper; a third caller makes it mandatory. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason must be obvious in code.
+
+What this rule covers (not just UI):
+- **Widgets** — `AppIconButton`, `AppDialog` (+ `AppDialogHeader`/`Footer`/`Action`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`, `AppShell`, `ModeButton`, `ConfirmDialog`, `ErrorState`.
+- **Theme constants** — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes, radii, heights, font sizes, padding scales = bug.
+- **Cross-feature mixins / helpers** — `SftpBrowserMixin`, `key_file_helper.dart`, `breadcrumb_path.dart`, `column_widths.dart`, `progress_writer.dart`, `shell_helper.dart`. New cross-cutting logic gets a `*_helper.dart` or mixin, not inline copies.
+- **Persistence** — every entity follows the same `Store → DAO` template ([§11 Persistence](ARCHITECTURE.md#11-persistence--storage)). Don't invent a new persistence pattern for a new entity.
+
+Non-negotiable triggers — if any of these appear in a diff, refactor before committing:
+1. Same string literal in ≥3 places (S1192) → constant or l10n key.
+2. Same widget tree (≥5 lines) in ≥2 files → extract widget.
+3. Same hardcoded numeric (radius, padding, width, height, fontSize) in ≥2 places → constant in `AppTheme` / `AppFonts`.
+4. Same `if/else` block or async pipeline in ≥2 callers → extract helper / mixin.
+5. New `*_dialog.dart` / `*_button.dart` / `*_row.dart` that doesn't extend an existing `App*` primitive → check first whether a parameter on the existing primitive solves it.
+
+**Premature-abstraction guard:** triggers above mean *consider extraction*, not *extract no matter what*. If the third caller would force a parameter that warps the first two (e.g. a flag toggling a whole different layout, or coupling unrelated concerns), leave the duplication and add a `// TODO(reuse): N callers — revisit when shape stabilises` comment instead. Reuse exists to reduce surface area, not to grow it.
+
+Reference: full project-wide formulation in [ARCHITECTURE §1 Reuse principle](ARCHITECTURE.md#1-high-level-overview).
+
 ### Architecture (non-obvious rules)
 - **No SCP** — dartssh2 doesn't support it; SFTP covers all use cases
 - SSH keys accepted **both as file and text** (paste PEM)
@@ -96,7 +117,7 @@ OneDark theme: centralized in `app_theme.dart`, semantic color constants, no har
 - **Text overflow protection** — localized text in `Row` or fixed-width — wrap with `Flexible`/`Expanded` + `overflow: TextOverflow.ellipsis`. For label columns use `ConstrainedBox(maxWidth:)` instead of fixed `SizedBox(width:)`
 - **Accessibility** — wrap interactive list items (session rows, file rows) and panel headers with `Semantics` widget. Use `label` for screen reader text, `button: true` for tappable items, `selected` for selection state, `header: true` for section headings. `StatusIndicator` includes built-in `Semantics`
 - **Disable vs hide unavailable controls — depends on surface type.** On *configuration surfaces* (Settings, session-edit forms, preference dialogs), always render the control as **disabled with a tooltip + tap-toast explaining the reason** — never hide it. The user is exploring what the app can do and needs to know the option exists (cross-device install, missing hardware, missing prerequisite). On *action surfaces* (lock screen, context menus, per-row action buttons, action dialogs), **hide** unavailable actions — the user is trying to do a specific task and a greyed button is noise, not information. Disabled state must visibly affect the whole row (opacity on the full container), not just the trailing knob
-- **Prefer shared components over one-off widgets.** Project is moving toward reuse — before adding a new widget/helper/style, search `lib/widgets/` and `lib/core/**` for an existing component. If behaviour is close but not identical, extend the shared component (add a param) rather than duplicating. Hardcoded column widths, button styles, padding scales, tile layouts, dialog shapes, form rows — all live in shared modules. Only introduce a local one-off when the shared pattern genuinely doesn't fit; then document why. Canonical examples: `AppIconButton`, `AppDialog`, `HoverRegion`, `AppTheme.radius*`, `AppFonts.*`, `AppTheme.*ColWidth` constants
+- **Prefer shared components** — full rule in [§ Reuse First](#reuse-first-project-wide-not-just-ui)
 
 ### Localization (i18n)
 All user-facing strings MUST use `S.of(context).xxx`. Never hardcode strings in widgets — treat this as a bug. Add keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, use `S.of(context).newKey`. Exceptions: constructor defaults (no context), log messages, `_AlreadyRunningApp`. Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See [§8.1 i18n](ARCHITECTURE.md#81-internationalization-i18n)
@@ -141,7 +162,7 @@ Target: 100% coverage (excluding integration tests and tests on the actual platf
 
 ## Commits & Versioning
 
-- **Claude does not commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
+- **Agent does not commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
 - **HARD STOP between fixes** — implement fix → write tests → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exception:** when the user explicitly asks to fix everything at once ("fix all and push"), execute end-to-end without pausing between fixes.
 - Format per [CONTRIBUTING.md](CONTRIBUTING.md#commit-messages). Messages drive auto-changelog — keep them user-readable.
 - **Use `type(scope):` with parenthesized scope** for commits that touch a specific module (e.g. `refactor(import): ...`, `test(known-hosts): ...`, `feat(installer): ...`). Drop the scope only when the change is genuinely cross-cutting and no single module name fits. Scope must be lowercase, alphanumeric + dashes.
@@ -151,7 +172,7 @@ Target: 100% coverage (excluding integration tests and tests on the actual platf
 
 ## Branching & Release Flow
 
-- **Claude default branch is `dev`.** Always work on `dev` unless explicitly told otherwise. Never push directly to `main`.
+- **Default working branch is `dev`.** Always work on `dev` unless explicitly told otherwise. Never push directly to `main`.
 - Repository is **public** on GitHub.
 
 | Scenario                    | What to do                                                          |

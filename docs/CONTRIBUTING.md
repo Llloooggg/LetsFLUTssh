@@ -139,6 +139,7 @@ For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — 
 
 ## Coding Conventions
 
+- **Reuse first** — before adding a new widget, helper, mixin, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent and extend it (add a parameter) instead of forking. Full rule and canonical primitives: [§1 Reuse principle](ARCHITECTURE.md#1-high-level-overview)
 - **Logging** — `AppLogger.instance.log(message, name: 'Tag')`, never `print()`/`debugPrint()` — [§7 Utilities API](ARCHITECTURE.md#7-utilities--public-api-reference)
 - **State** — shared / app-wide state via Riverpod providers (no global mutable state). Widget-local state (dialog / pane / panel) via `ChangeNotifier` + `AnimatedBuilder` — see `FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`. Use `.select()` on broad Riverpod providers to avoid unnecessary rebuilds — [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod)
 - **Models** — immutable with `copyWith`, `==`, `hashCode`, `toJson`/`fromJson` — [§10 Data Models](ARCHITECTURE.md#10-data-models)

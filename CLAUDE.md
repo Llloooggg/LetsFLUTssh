@@ -17,7 +17,8 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 | Write/edit any Dart code | [CLAUDE_RULES § Code Quality — SonarCloud](docs/CLAUDE_RULES.md#code-quality--sonarcloud) + [§ Conventions](docs/CLAUDE_RULES.md#conventions) |
 | Write/update a test | [CLAUDE_RULES § Testing Methodology](docs/CLAUDE_RULES.md#testing-methodology) + [ARCHITECTURE §14](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
 | Add/change a user-facing string | [CLAUDE_RULES § Conventions → Localization](docs/CLAUDE_RULES.md#localization-i18n) — **all 15 `app_*.arb` files** must be updated |
-| Add/change a UI control | [CLAUDE_RULES § UI Components](docs/CLAUDE_RULES.md#ui-components) (disable-vs-hide, shared widgets, AppIconButton/AppDialog) |
+| Add a new widget / helper / mixin / style constant / store | [CLAUDE_RULES § Reuse First](docs/CLAUDE_RULES.md#reuse-first-project-wide-not-just-ui) — grep shared modules before creating |
+| Add/change a UI control | [CLAUDE_RULES § Reuse First](docs/CLAUDE_RULES.md#reuse-first-project-wide-not-just-ui) + [§ UI Components](docs/CLAUDE_RULES.md#ui-components) (disable-vs-hide) |
 | Touch theme / fonts / radii / heights | [CLAUDE_RULES § Theme & UI Constants](docs/CLAUDE_RULES.md#theme--ui-constants) — never hardcode |
 | Add a new file/class/widget/provider in `lib/` | [CLAUDE_RULES § Doc Maintenance](docs/CLAUDE_RULES.md#documentation-maintenance-checklist) — find the row, update the named ARCHITECTURE § |
 | Write a commit message | [CLAUDE_RULES § Commits & Versioning](docs/CLAUDE_RULES.md#commits--versioning) |
