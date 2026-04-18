@@ -8,7 +8,6 @@ class _SecuritySection extends ConsumerStatefulWidget {
 }
 
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
-  bool? _masterPasswordEnabled;
   bool? _keychainAvailable;
   BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
@@ -22,21 +21,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _checkState() async {
-    // Master password + keychain probes first — _manageMasterPassword()
-    // branches on _masterPasswordEnabled and the wrong branch opens the
-    // "Set password" dialog instead of "Manage options". Biometric probes
-    // (slower, platform-dependent) are kept off this critical path and
-    // published in a second setState below.
-    final manager = ref.read(masterPasswordProvider);
+    // Keychain probe first — drives the keychain-status info tile.
+    // Biometric probes (slower, platform-dependent) land in a second
+    // setState so the first paint never blocks on an idle D-Bus call.
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final coreResults = await Future.wait([
-      manager.isEnabled(),
-      keyStorage.isAvailable(),
-    ]);
+    final keychainAvailable = await keyStorage.isAvailable();
     if (!mounted) return;
     setState(() {
-      _masterPasswordEnabled = coreResults[0];
-      _keychainAvailable = coreResults[1];
+      _keychainAvailable = keychainAvailable;
     });
 
     final bio = ref.read(biometricAuthProvider);
@@ -119,57 +111,36 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     return Column(
       children: [
-        // Security level info.
+        // Active tier (read-only display).
         _InfoTile(
           icon: Icons.shield,
           title: l10n.securityLevel,
           value: _securityLevelLabel(l10n, secState.level),
         ),
-        // Keychain status.
+        // Keychain status — display-only; the tier wizard handles any
+        // action that requires reading this value.
         _InfoTile(
           icon: Icons.key,
           title: l10n.keychainStatus,
           value: _keychainStatusLabel(l10n),
         ),
-        // Change-tier — reopens the tier wizard and routes the
-        // chosen config through the always-rekey switcher.
+        // Change-tier — single entry point for every security change.
+        // Replaces the legacy "Manage Master Password" tile and the
+        // "Use Keychain" toggle. Opens the tier wizard (pre-marked with
+        // the current tier) and routes the result through the atomic
+        // always-rekey switcher — including when the user picks the
+        // same tier with new credentials (Paranoid password rotation,
+        // L2 short-password rotation, L3 PIN rotation).
         _ActionTile(
           icon: Icons.shield_outlined,
           title: l10n.changeSecurityTier,
           subtitle: l10n.changeSecurityTierSubtitle,
           onTap: () => _changeSecurityTier(context),
         ),
-        // Manage master password — single tile. Kept alongside the
-        // tier wizard for users who only want to rotate the Paranoid
-        // password (wizard regenerates a fresh DB key; this tile just
-        // re-derives under the new password).
-        _ActionTile(
-          icon: _masterPasswordEnabled == true ? Icons.lock : Icons.lock_open,
-          title: l10n.manageMasterPassword,
-          subtitle: l10n.manageMasterPasswordSubtitle,
-          onTap: () => _manageMasterPassword(context),
-        ),
-        // Single keychain toggle — its label and behaviour flip with the
-        // current security level instead of two separate enable/disable
-        // rows. Greyed out when the platform has no keychain available or
-        // when the current mode is masterPassword (in which case the user
-        // changes mode through the master-password manager instead).
-        _Toggle(
-          label: l10n.useKeychain,
-          subtitle: l10n.useKeychainSubtitle,
-          icon: Icons.enhanced_encryption,
-          value: secState.level == SecurityTier.keychain,
-          onChanged:
-              _keychainAvailable == true &&
-                  secState.level != SecurityTier.paranoid
-              ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
-              : null,
-        ),
-        // Biometric unlock — always rendered so the user can see that
-        // the option exists and why it cannot be flipped right now.
-        // When disabled the [_Toggle] shows a tooltip + toast with the
-        // reason (no sensor, nothing enrolled, or no master password
-        // set yet) instead of silently disappearing.
+        // Biometric unlock — orthogonal modifier. The toggle stays
+        // visible on every tier so the reason it cannot be flipped is
+        // legible (no sensor, nothing enrolled, or tier does not
+        // support biometric cache yet).
         _Toggle(
           label: l10n.biometricUnlockTitle,
           subtitle: _biometricSubtitle(l10n),
@@ -180,10 +151,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
               : null,
           disabledReason: _biometricDisabledReason(l10n, secState.level),
         ),
-        // Auto-lock — meaningful only when a master password is set,
-        // but still rendered in every mode with a disabled look +
-        // reason so the user doesn't wonder where it went after
-        // disabling master-password mode.
+        // Auto-lock — orthogonal modifier. Only meaningful when the
+        // active tier holds a user-typed secret; disabled with reason
+        // tooltip otherwise.
         _AutoLockTile(
           disabledReason: _autoLockDisabledReason(l10n, secState.level),
         ),
@@ -416,398 +386,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  /// Single entry point for master password management.
-  ///
-  /// Not set → show set dialog.
-  /// Already set → show dialog with Change / Remove options.
-  Future<void> _manageMasterPassword(BuildContext context) async {
-    if (_masterPasswordEnabled != true) {
-      await _setMasterPassword(context);
-    } else {
-      await _showManageOptions(context);
-    }
-  }
-
-  Future<void> _showManageOptions(BuildContext context) async {
-    final l10n = S.of(context);
-    final action = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.manageMasterPassword),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'change'),
-            child: Text(l10n.changeMasterPassword),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'remove'),
-            child: Text(
-              l10n.removeMasterPassword,
-              style: TextStyle(color: AppTheme.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (action == null || !context.mounted) return;
-    if (action == 'change') {
-      await _changeMasterPassword(context);
-    } else {
-      await _removeMasterPassword(context);
-    }
-  }
-
-  Future<void> _setMasterPassword(BuildContext context) async {
-    final l10n = S.of(context);
-    final passwordCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-
-    try {
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _SetMasterPasswordDialog(
-          passwordCtrl: passwordCtrl,
-          confirmCtrl: confirmCtrl,
-        ),
-      );
-
-      if (password == null || !context.mounted) return;
-
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _enableMasterPassword(password);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.masterPasswordSet,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Set master password failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      passwordCtrl.wipeAndClear();
-      confirmCtrl.wipeAndClear();
-      passwordCtrl.dispose();
-      confirmCtrl.dispose();
-    }
-  }
-
-  Future<void> _enableMasterPassword(String password) async {
-    final manager = ref.read(masterPasswordProvider);
-
-    // Derive new key from password.
-    final newKey = await manager.enable(password);
-
-    // Sanity check: verify the password immediately to catch crypto issues.
-    final verified = await manager.verify(password);
-    if (!verified) {
-      await manager.disable();
-      throw const MasterPasswordException(
-        'Verification failed after enable — reverted',
-      );
-    }
-
-    // Re-encrypt all stores with the derived key.
-    await _reEncryptAll(newKey, SecurityTier.paranoid);
-
-    // Delete keychain key if it was used before.
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    await keyStorage.deleteKey();
-  }
-
-  Future<void> _changeMasterPassword(BuildContext context) async {
-    final l10n = S.of(context);
-    final currentCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-
-    try {
-      final result = await AppDialog.show<({String current, String newPw})>(
-        context,
-        builder: (ctx) => _ChangeMasterPasswordDialog(
-          currentCtrl: currentCtrl,
-          newCtrl: newCtrl,
-          confirmCtrl: confirmCtrl,
-        ),
-      );
-
-      if (result == null || !context.mounted) return;
-
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _doChangePassword(result.current, result.newPw);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.masterPasswordChanged,
-            level: ToastLevel.success,
-          );
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } on MasterPasswordException catch (e) {
-      if (context.mounted) {
-        Toast.show(context, message: e.message, level: ToastLevel.error);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Change master password failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      currentCtrl.wipeAndClear();
-      newCtrl.wipeAndClear();
-      confirmCtrl.wipeAndClear();
-      currentCtrl.dispose();
-      newCtrl.dispose();
-      confirmCtrl.dispose();
-    }
-  }
-
-  Future<void> _doChangePassword(String oldPassword, String newPassword) async {
-    final manager = ref.read(masterPasswordProvider);
-
-    // Change password — verifies old, generates new salt + verifier.
-    final newKey = await manager.changePassword(oldPassword, newPassword);
-
-    // Re-encrypt all stores with new key.
-    await _reEncryptAll(newKey, SecurityTier.paranoid);
-
-    // The cached biometric key (if any) was derived from the OLD password
-    // — it's now stale. Wipe it; user can re-enable biometric unlock from
-    // the toggle afterwards.
-    await ref.read(biometricKeyVaultProvider).clear();
-    if (mounted) setState(() => _biometricEnabled = false);
-  }
-
-  Future<void> _removeMasterPassword(BuildContext context) async {
-    final l10n = S.of(context);
-    final passwordCtrl = TextEditingController();
-
-    try {
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) =>
-            _RemoveMasterPasswordDialog(passwordCtrl: passwordCtrl),
-      );
-
-      if (password == null || !context.mounted) return;
-
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _doRemoveMasterPassword(password);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.masterPasswordRemoved,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } on MasterPasswordException catch (e) {
-      if (context.mounted) {
-        Toast.show(context, message: e.message, level: ToastLevel.error);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Remove master password failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      passwordCtrl.wipeAndClear();
-      passwordCtrl.dispose();
-    }
-  }
-
-  Future<void> _doRemoveMasterPassword(String password) async {
-    final manager = ref.read(masterPasswordProvider);
-
-    // Verify password first.
-    final isValid = await manager.verify(password);
-    if (!isValid) {
-      throw const MasterPasswordException('Current password is incorrect');
-    }
-
-    // Leaving MP mode — any biometric-cached key belongs to a secret that
-    // is about to stop existing. Drop it unconditionally so the user
-    // cannot silently fall back to biometrics that wrap a now-invalid
-    // credential.
-    await ref.read(biometricKeyVaultProvider).clear();
-    if (mounted) setState(() => _biometricEnabled = false);
-
-    // Try keychain first, fall back to plaintext.
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final keychainAvailable = await keyStorage.isAvailable();
-    if (keychainAvailable) {
-      final key = AesGcm.generateKey();
-      final stored = await keyStorage.writeKey(key);
-      if (stored) {
-        await _reEncryptAll(key, SecurityTier.keychain);
-        await manager.disable();
-        return;
-      }
-    }
-
-    // No keychain — fall back to plaintext.
-    await _reEncryptAll(null, SecurityTier.plaintext);
-    await manager.disable();
-  }
-
-  Future<void> _enableKeychain(BuildContext context) async {
-    final l10n = S.of(context);
-    final keyStorage = ref.read(secureKeyStorageProvider);
-
-    if (!context.mounted) return;
-
-    try {
-      final key = AesGcm.generateKey();
-      final stored = await keyStorage.writeKey(key);
-      if (!stored) {
-        throw Exception('Failed to store key in keychain');
-      }
-
-      if (!context.mounted) return;
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _reEncryptAll(key, SecurityTier.keychain);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.keychainEnabled,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Enable keychain failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    }
-  }
-
-  Future<void> _disableKeychain(BuildContext context) async {
-    final l10n = S.of(context);
-    final confirmed = await AppDialog.show<bool>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: l10n.disableKeychain,
-        content: Text(l10n.disableKeychainConfirm),
-        actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
-            label: l10n.disableKeychain,
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    try {
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await keyStorage.deleteKey();
-        await _reEncryptAll(null, SecurityTier.plaintext);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.keychainDisabled,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Disable keychain failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    }
-  }
 
   /// Re-encrypt the live database with a new key (or convert to plaintext
   /// when [key] is null), then update global security state.
