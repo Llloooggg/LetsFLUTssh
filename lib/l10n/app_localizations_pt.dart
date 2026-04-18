@@ -821,6 +821,9 @@ class SPt extends S {
   String get tierRecommendedBadge => 'Recomendado';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'Alternativa — não confie no SO';
 
   @override

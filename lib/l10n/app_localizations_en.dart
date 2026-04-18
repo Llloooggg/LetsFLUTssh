@@ -817,6 +817,9 @@ class SEn extends S {
   String get tierRecommendedBadge => 'Recommended';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'Alternative — don\'t trust the OS';
 
   @override

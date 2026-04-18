@@ -49,16 +49,23 @@ class SecuritySetupDialog extends StatefulWidget {
   final SecureKeyStorage keyStorage;
   final HardwareTierVault hardwareVault;
 
+  /// The currently-active tier, or null on first-launch. When
+  /// non-null, the matching row in the ladder renders a "Current"
+  /// badge so the user sees the starting point of any switch.
+  final SecurityTier? currentTier;
+
   const SecuritySetupDialog({
     super.key,
     required this.keyStorage,
     required this.hardwareVault,
+    this.currentTier,
   });
 
   static Future<SecuritySetupResult> show(
     BuildContext context, {
     required SecureKeyStorage keyStorage,
     HardwareTierVault? hardwareVault,
+    SecurityTier? currentTier,
   }) async {
     final result = await showDialog<SecuritySetupResult>(
       context: context,
@@ -66,6 +73,7 @@ class SecuritySetupDialog extends StatefulWidget {
       builder: (_) => SecuritySetupDialog(
         keyStorage: keyStorage,
         hardwareVault: hardwareVault ?? HardwareTierVault(),
+        currentTier: currentTier,
       ),
     );
     return result ?? const SecuritySetupResult();
@@ -267,6 +275,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           ],
           infoNotes: l10n.tierPlaintextNotes,
           accent: AppTheme.red,
+          current: widget.currentTier == SecurityTier.plaintext,
           onPick: _pickPlaintext,
         ),
 
@@ -282,6 +291,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           ],
           accent: AppTheme.accent,
           recommended: _keychainAvailable && !_hardwareAvailable,
+          current: widget.currentTier == SecurityTier.keychain,
           disabledReason: _keychainAvailable
               ? null
               : l10n.tierKeychainUnavailable,
@@ -302,6 +312,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             l10n.tierKeychainPassThreat2,
           ],
           accent: AppTheme.accent,
+          current: widget.currentTier == SecurityTier.keychainWithPassword,
           disabledReason: _keychainAvailable
               ? null
               : l10n.tierKeychainUnavailable,
@@ -320,6 +331,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           ],
           accent: AppTheme.green,
           recommended: _hardwareAvailable,
+          current: widget.currentTier == SecurityTier.hardware,
           disabledReason: _hardwareAvailable
               ? null
               : l10n.tierHardwareUnavailable,
@@ -352,6 +364,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           infoNotes: l10n.tierParanoidNotes,
           accent: AppTheme.purple,
           recommended: !_keychainAvailable && !_hardwareAvailable,
+          current: widget.currentTier == SecurityTier.paranoid,
           onPick: () => _showForm(_Form.paranoid),
         ),
       ],
@@ -530,6 +543,7 @@ class _TierRow extends StatelessWidget {
     required this.accent,
     this.infoNotes,
     this.recommended = false,
+    this.current = false,
     this.disabledReason,
     this.onPick,
   });
@@ -543,6 +557,7 @@ class _TierRow extends StatelessWidget {
   final String? infoNotes;
   final Color accent;
   final bool recommended;
+  final bool current;
   final String? disabledReason;
   final VoidCallback? onPick;
 
@@ -606,7 +621,10 @@ class _TierRow extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (recommended) ...[
+                    if (current) ...[
+                      const SizedBox(width: 6),
+                      _CurrentBadge(accent: accent),
+                    ] else if (recommended) ...[
                       const SizedBox(width: 6),
                       _RecommendedBadge(accent: accent),
                     ],
@@ -665,6 +683,30 @@ class _RecommendedBadge extends StatelessWidget {
       ),
       child: Text(
         S.of(context).tierRecommendedBadge,
+        style: TextStyle(
+          fontSize: AppFonts.xs,
+          fontWeight: FontWeight.w600,
+          color: accent,
+        ),
+      ),
+    );
+  }
+}
+
+class _CurrentBadge extends StatelessWidget {
+  const _CurrentBadge({required this.accent});
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        S.of(context).tierCurrentBadge,
         style: TextStyle(
           fontSize: AppFonts.xs,
           fontWeight: FontWeight.w600,

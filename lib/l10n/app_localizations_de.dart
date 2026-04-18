@@ -823,6 +823,9 @@ class SDe extends S {
   String get tierRecommendedBadge => 'Empfohlen';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel =>
       'Alternative — dem OS nicht vertrauen';
 

@@ -825,6 +825,9 @@ class SFr extends S {
   String get tierRecommendedBadge => 'Recommandé';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel =>
       'Alternative — ne pas faire confiance au SE';
 

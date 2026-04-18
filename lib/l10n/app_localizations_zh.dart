@@ -799,6 +799,9 @@ class SZh extends S {
   String get tierRecommendedBadge => '推荐';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => '替代方案 — 不信任操作系统';
 
   @override

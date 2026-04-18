@@ -310,10 +310,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   Future<void> _changeSecurityTier(BuildContext context) async {
     final l10n = S.of(context);
     final keyStorage = ref.read(secureKeyStorageProvider);
+    final currentTier = ref.read(securityStateProvider).level;
     final result = await SecuritySetupDialog.show(
       context,
       keyStorage: keyStorage,
       hardwareVault: ref.read(hardwareTierVaultProvider),
+      currentTier: currentTier,
     );
     if (!context.mounted) return;
 

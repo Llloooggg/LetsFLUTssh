@@ -822,6 +822,9 @@ class SEs extends S {
   String get tierRecommendedBadge => 'Recomendado';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'Alternativa — no confíes en el SO';
 
   @override

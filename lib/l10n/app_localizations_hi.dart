@@ -817,6 +817,9 @@ class SHi extends S {
   String get tierRecommendedBadge => 'अनुशंसित';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'विकल्प — OS पर भरोसा न करें';
 
   @override

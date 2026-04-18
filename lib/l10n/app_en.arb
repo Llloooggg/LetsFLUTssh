@@ -464,6 +464,7 @@
   "passwordStrengthStrong": "Strong",
   "passwordStrengthVeryStrong": "Very strong",
   "tierRecommendedBadge": "Recommended",
+  "tierCurrentBadge": "Current",
   "tierAlternativeBranchLabel": "Alternative — don't trust the OS",
   "tierUpcomingTooltip": "Ships in an upcoming version.",
   "tierUpcomingNotes": "This tier's underlying plumbing is not shipped yet. The row is visible so you know the option exists.",

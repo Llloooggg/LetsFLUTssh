@@ -822,6 +822,9 @@ class SRu extends S {
   String get tierRecommendedBadge => 'Рекомендуется';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'Альтернатива — не доверять ОС';
 
   @override
@@ -2130,21 +2133,22 @@ class SRu extends S {
       'Установить, изменить или удалить мастер-пароль';
 
   @override
-  String get changeSecurityTier => 'Change Security Tier';
+  String get changeSecurityTier => 'Сменить уровень безопасности';
 
   @override
   String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
+      'Открыть лестницу уровней и перейти на другой';
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+      'Переашифровываем базу новым уровнем. Не закрывайте приложение до завершения.';
 
   @override
-  String get changeSecurityTierDone => 'Security tier changed';
+  String get changeSecurityTierDone => 'Уровень безопасности изменён';
 
   @override
-  String get changeSecurityTierFailed => 'Could not change security tier';
+  String get changeSecurityTierFailed =>
+      'Не удалось сменить уровень безопасности';
 
   @override
   String get snippets => 'Сниппеты';

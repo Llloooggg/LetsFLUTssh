@@ -801,6 +801,9 @@ class SKo extends S {
   String get tierRecommendedBadge => '권장';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => '대안 — OS를 신뢰하지 마세요';
 
   @override

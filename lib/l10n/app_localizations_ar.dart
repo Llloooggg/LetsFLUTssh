@@ -823,6 +823,9 @@ class SAr extends S {
   String get tierRecommendedBadge => 'موصى به';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'بديل — لا تثق بنظام التشغيل';
 
   @override

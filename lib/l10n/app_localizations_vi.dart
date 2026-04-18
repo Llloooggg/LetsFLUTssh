@@ -814,6 +814,9 @@ class SVi extends S {
   String get tierRecommendedBadge => 'Khuyến nghị';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => 'Thay thế — không tin tưởng vào HĐH';
 
   @override

@@ -815,6 +815,9 @@ class SFa extends S {
   String get tierRecommendedBadge => 'توصیه شده';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel =>
       'گزینه جایگزین — به سیستم‌عامل اعتماد نکنید';
 

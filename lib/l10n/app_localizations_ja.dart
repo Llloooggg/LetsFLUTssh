@@ -802,6 +802,9 @@ class SJa extends S {
   String get tierRecommendedBadge => '推奨';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel => '代替 — OSを信頼しない';
 
   @override

@@ -820,6 +820,9 @@ class SId extends S {
   String get tierRecommendedBadge => 'Direkomendasikan';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel =>
       'Alternatif — jangan percaya pada OS';
 

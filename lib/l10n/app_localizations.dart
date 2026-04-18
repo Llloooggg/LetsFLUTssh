@@ -1557,6 +1557,12 @@ abstract class S {
   /// **'Recommended'**
   String get tierRecommendedBadge;
 
+  /// No description provided for @tierCurrentBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get tierCurrentBadge;
+
   /// No description provided for @tierAlternativeBranchLabel.
   ///
   /// In en, this message translates to:

@@ -820,6 +820,9 @@ class STr extends S {
   String get tierRecommendedBadge => 'Önerilen';
 
   @override
+  String get tierCurrentBadge => 'Current';
+
+  @override
   String get tierAlternativeBranchLabel =>
       'Alternatif — işletim sistemine güvenmeyin';
 
