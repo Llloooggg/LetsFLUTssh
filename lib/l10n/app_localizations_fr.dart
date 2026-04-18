@@ -822,6 +822,131 @@ class SFr extends S {
   String get passwordStrengthVeryStrong => 'Très fort';
 
   @override
+  String get tierRecommendedBadge => 'Recommandé';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternative — ne pas faire confiance au SE';
+
+  @override
+  String get tierUpcomingTooltip => 'Arrive dans une future version.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'L\'infrastructure sous-jacente de ce niveau n\'est pas encore livrée. La ligne est visible pour que vous sachiez que l\'option existe.';
+
+  @override
+  String get tierPlaintextLabel => 'Texte brut';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'Pas de chiffrement — uniquement les permissions de fichier';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Quiconque a accès au système de fichiers lit vos données';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Une synchro ou sauvegarde accidentelle révèle tout';
+
+  @override
+  String get tierPlaintextNotes =>
+      'À utiliser uniquement dans des environnements de confiance et isolés.';
+
+  @override
+  String get tierKeychainLabel => 'Trousseau';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'La clé vit dans $keychain — déverrouillage auto au lancement';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Autres utilisateurs sur la même machine';
+
+  @override
+  String get tierKeychainProtect2 => 'Disque volé sans la connexion du SE';
+
+  @override
+  String get tierKeychainThreat1 => 'Malware exécuté sous votre compte SE';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Un attaquant qui prend le contrôle de votre session SE';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Trousseau du SE indisponible sur cette installation.';
+
+  @override
+  String get tierKeychainPassLabel => 'Trousseau + mot de passe';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Mot de passe court devant le trousseau (barrière contre passants)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Collègue assis à votre bureau';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Un passant avec accès déverrouillé';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Attaquant hors-ligne avec le fichier sur disque';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Mêmes risques de compromission du SE que le trousseau';
+
+  @override
+  String get tierHardwareLabel => 'Matériel + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Coffre lié au matériel + PIN court avec verrouillage';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Force brute hors-ligne du PIN (limitation matérielle)';
+
+  @override
+  String get tierHardwareProtect2 => 'Vol du disque et du blob du trousseau';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE SE ou firmware sur le module sécurisé';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Déverrouillage biométrique forcé (si activé)';
+
+  @override
+  String get tierParanoidLabel => 'Mot de passe maître (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Long mot de passe + Argon2id. La clé n\'entre jamais dans le SE.';
+
+  @override
+  String get tierParanoidProtect1 => 'Compromission du trousseau SE';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Disque volé (tant que votre mot de passe est fort)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger capturant votre mot de passe';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'Mot de passe faible + cassage Argon2id hors-ligne';
+
+  @override
+  String get tierParanoidNotes =>
+      'La biométrie est désactivée par conception à ce niveau.';
+
+  @override
   String exportedTo(String path) {
     return 'Exporté vers : $path';
   }

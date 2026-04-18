@@ -799,6 +799,114 @@ class SJa extends S {
   String get passwordStrengthVeryStrong => '非常に強い';
 
   @override
+  String get tierRecommendedBadge => '推奨';
+
+  @override
+  String get tierAlternativeBranchLabel => '代替 — OSを信頼しない';
+
+  @override
+  String get tierUpcomingTooltip => '今後のバージョンで提供されます。';
+
+  @override
+  String get tierUpcomingNotes =>
+      'この層の基盤はまだ出荷されていません。オプションが存在することを知らせるために行は表示されています。';
+
+  @override
+  String get tierPlaintextLabel => 'プレーンテキスト';
+
+  @override
+  String get tierPlaintextSubtitle => '暗号化なし — ファイル権限のみ';
+
+  @override
+  String get tierPlaintextThreat1 => 'ファイルシステムにアクセスできる者が誰でもデータを読める';
+
+  @override
+  String get tierPlaintextThreat2 => '偶発的な同期またはバックアップがすべてを明らかにする';
+
+  @override
+  String get tierPlaintextNotes => '信頼された隔離環境でのみ使用してください。';
+
+  @override
+  String get tierKeychainLabel => 'キーチェーン';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'キーは $keychain に存在 — 起動時に自動ロック解除';
+  }
+
+  @override
+  String get tierKeychainProtect1 => '同じマシン上の他のユーザー';
+
+  @override
+  String get tierKeychainProtect2 => 'OSログインなしで盗まれたディスク';
+
+  @override
+  String get tierKeychainThreat1 => 'あなたのOSアカウントで動作するマルウェア';
+
+  @override
+  String get tierKeychainThreat2 => 'あなたのOSログインを乗っ取る攻撃者';
+
+  @override
+  String get tierKeychainUnavailable => 'このインストールではOSキーチェーンが利用できません。';
+
+  @override
+  String get tierKeychainPassLabel => 'キーチェーン + パスワード';
+
+  @override
+  String get tierKeychainPassSubtitle => 'キーチェーンの前に短いパスワード（通行人ゲート）';
+
+  @override
+  String get tierKeychainPassProtect1 => 'あなたの机に座る同僚';
+
+  @override
+  String get tierKeychainPassProtect2 => 'ロック解除アクセスを持つ通行人';
+
+  @override
+  String get tierKeychainPassThreat1 => 'ディスク上のファイルを持つオフライン攻撃者';
+
+  @override
+  String get tierKeychainPassThreat2 => 'キーチェーンと同じOS侵害リスク';
+
+  @override
+  String get tierHardwareLabel => 'ハードウェア + PIN';
+
+  @override
+  String get tierHardwareSubtitle => 'ハードウェアバウンドボルト + ロックアウト付き短いPIN';
+
+  @override
+  String get tierHardwareProtect1 => 'PINのオフラインブルートフォース（ハードウェアレート制限）';
+
+  @override
+  String get tierHardwareProtect2 => 'ディスクとキーチェーンブロブの盗難';
+
+  @override
+  String get tierHardwareThreat1 => 'セキュアモジュールのOSまたはファームウェアのCVE';
+
+  @override
+  String get tierHardwareThreat2 => '強制生体認証ロック解除（有効な場合）';
+
+  @override
+  String get tierParanoidLabel => 'マスターパスワード（Paranoid）';
+
+  @override
+  String get tierParanoidSubtitle => '長いパスワード + Argon2id。キーはOSに入りません。';
+
+  @override
+  String get tierParanoidProtect1 => 'OSキーチェーン侵害';
+
+  @override
+  String get tierParanoidProtect2 => '盗まれたディスク（パスワードが強い限り）';
+
+  @override
+  String get tierParanoidThreat1 => 'パスワードをキャプチャするキーロガー';
+
+  @override
+  String get tierParanoidThreat2 => '弱いパスワード + オフラインArgon2idクラッキング';
+
+  @override
+  String get tierParanoidNotes => 'この層では生体認証は設計上無効化されています。';
+
+  @override
   String exportedTo(String path) {
     return 'エクスポート先: $path';
   }

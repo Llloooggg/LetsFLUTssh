@@ -1551,6 +1551,216 @@ abstract class S {
   /// **'Very strong'**
   String get passwordStrengthVeryStrong;
 
+  /// No description provided for @tierRecommendedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get tierRecommendedBadge;
+
+  /// No description provided for @tierAlternativeBranchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative — don\'t trust the OS'**
+  String get tierAlternativeBranchLabel;
+
+  /// No description provided for @tierUpcomingTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Ships in an upcoming version.'**
+  String get tierUpcomingTooltip;
+
+  /// No description provided for @tierUpcomingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'This tier\'s underlying plumbing is not shipped yet. The row is visible so you know the option exists.'**
+  String get tierUpcomingNotes;
+
+  /// No description provided for @tierPlaintextLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plaintext'**
+  String get tierPlaintextLabel;
+
+  /// No description provided for @tierPlaintextSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No encryption — file permissions only'**
+  String get tierPlaintextSubtitle;
+
+  /// No description provided for @tierPlaintextThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with filesystem access reads your data'**
+  String get tierPlaintextThreat1;
+
+  /// No description provided for @tierPlaintextThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Accidental sync or backup reveals everything'**
+  String get tierPlaintextThreat2;
+
+  /// No description provided for @tierPlaintextNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only in trusted, isolated environments.'**
+  String get tierPlaintextNotes;
+
+  /// No description provided for @tierKeychainLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain'**
+  String get tierKeychainLabel;
+
+  /// No description provided for @tierKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key lives in {keychain} — auto-unlock on launch'**
+  String tierKeychainSubtitle(String keychain);
+
+  /// No description provided for @tierKeychainProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'Other users on the same machine'**
+  String get tierKeychainProtect1;
+
+  /// No description provided for @tierKeychainProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stolen disk without the OS login'**
+  String get tierKeychainProtect2;
+
+  /// No description provided for @tierKeychainThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Malware running under your OS account'**
+  String get tierKeychainThreat1;
+
+  /// No description provided for @tierKeychainThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker who takes over your OS login'**
+  String get tierKeychainThreat2;
+
+  /// No description provided for @tierKeychainUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'OS keychain not available on this install.'**
+  String get tierKeychainUnavailable;
+
+  /// No description provided for @tierKeychainPassLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain + password'**
+  String get tierKeychainPassLabel;
+
+  /// No description provided for @tierKeychainPassSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Short password in front of the keychain (bystander gate)'**
+  String get tierKeychainPassSubtitle;
+
+  /// No description provided for @tierKeychainPassProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'Coworker sitting at your desk'**
+  String get tierKeychainPassProtect1;
+
+  /// No description provided for @tierKeychainPassProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'A passerby with unlocked access'**
+  String get tierKeychainPassProtect2;
+
+  /// No description provided for @tierKeychainPassThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline attacker with the file on disk'**
+  String get tierKeychainPassThreat1;
+
+  /// No description provided for @tierKeychainPassThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Same OS-compromise risks as Keychain'**
+  String get tierKeychainPassThreat2;
+
+  /// No description provided for @tierHardwareLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware + PIN'**
+  String get tierHardwareLabel;
+
+  /// No description provided for @tierHardwareSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound vault + short PIN with lockout'**
+  String get tierHardwareSubtitle;
+
+  /// No description provided for @tierHardwareProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline brute force of the PIN (hardware rate-limit)'**
+  String get tierHardwareProtect1;
+
+  /// No description provided for @tierHardwareProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stealing the disk and the keychain blob'**
+  String get tierHardwareProtect2;
+
+  /// No description provided for @tierHardwareThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'OS or firmware CVE on the secure module'**
+  String get tierHardwareThreat1;
+
+  /// No description provided for @tierHardwareThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Forced biometric unlock (if enabled)'**
+  String get tierHardwareThreat2;
+
+  /// No description provided for @tierParanoidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password (Paranoid)'**
+  String get tierParanoidLabel;
+
+  /// No description provided for @tierParanoidSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Long password + Argon2id. Key never enters the OS.'**
+  String get tierParanoidSubtitle;
+
+  /// No description provided for @tierParanoidProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'OS keychain compromise'**
+  String get tierParanoidProtect1;
+
+  /// No description provided for @tierParanoidProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stolen disk (as long as your password is strong)'**
+  String get tierParanoidProtect2;
+
+  /// No description provided for @tierParanoidThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Keylogger capturing your password'**
+  String get tierParanoidThreat1;
+
+  /// No description provided for @tierParanoidThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak password + offline Argon2id cracking'**
+  String get tierParanoidThreat2;
+
+  /// No description provided for @tierParanoidNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric is disabled by design on this tier.'**
+  String get tierParanoidNotes;
+
   /// No description provided for @exportedTo.
   ///
   /// In en, this message translates to:

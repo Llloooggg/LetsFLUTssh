@@ -814,6 +814,127 @@ class SHi extends S {
   String get passwordStrengthVeryStrong => 'बहुत मज़बूत';
 
   @override
+  String get tierRecommendedBadge => 'अनुशंसित';
+
+  @override
+  String get tierAlternativeBranchLabel => 'विकल्प — OS पर भरोसा न करें';
+
+  @override
+  String get tierUpcomingTooltip => 'आगामी संस्करण में आएगा।';
+
+  @override
+  String get tierUpcomingNotes =>
+      'इस स्तर का अंतर्निहित ढाँचा अभी उपलब्ध नहीं है। पंक्ति दिखाई दे रही है ताकि आपको पता चले कि विकल्प मौजूद है।';
+
+  @override
+  String get tierPlaintextLabel => 'सादा टेक्स्ट';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'कोई एन्क्रिप्शन नहीं — केवल फ़ाइल अनुमतियाँ';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'फ़ाइल सिस्टम एक्सेस वाला कोई भी आपका डेटा पढ़ लेता है';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'गलती से सिंक या बैकअप सब कुछ उजागर कर देता है';
+
+  @override
+  String get tierPlaintextNotes =>
+      'केवल विश्वसनीय, पृथक वातावरण में उपयोग करें।';
+
+  @override
+  String get tierKeychainLabel => 'कीचेन';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'कुंजी $keychain में रहती है — लॉन्च पर ऑटो-अनलॉक';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'उसी मशीन पर अन्य उपयोगकर्ता';
+
+  @override
+  String get tierKeychainProtect2 => 'OS लॉगिन के बिना चुराई गई डिस्क';
+
+  @override
+  String get tierKeychainThreat1 => 'आपके OS खाते में चल रहा मैलवेयर';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'एक हमलावर जो आपके OS लॉगिन पर कब्ज़ा कर लेता है';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'इस इंस्टॉल पर OS कीचेन उपलब्ध नहीं है।';
+
+  @override
+  String get tierKeychainPassLabel => 'कीचेन + पासवर्ड';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'कीचेन के सामने छोटा पासवर्ड (राहगीर द्वार)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'आपके डेस्क पर बैठा सहकर्मी';
+
+  @override
+  String get tierKeychainPassProtect2 => 'अनलॉक एक्सेस वाला एक राहगीर';
+
+  @override
+  String get tierKeychainPassThreat1 => 'डिस्क पर फ़ाइल वाला ऑफ़लाइन हमलावर';
+
+  @override
+  String get tierKeychainPassThreat2 => 'कीचेन के समान OS-समझौते के जोखिम';
+
+  @override
+  String get tierHardwareLabel => 'हार्डवेयर + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'हार्डवेयर-बाध्य वॉल्ट + लॉकआउट के साथ छोटा PIN';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'PIN का ऑफ़लाइन ब्रूट फ़ोर्स (हार्डवेयर रेट-लिमिट)';
+
+  @override
+  String get tierHardwareProtect2 => 'डिस्क और कीचेन ब्लॉब चुराना';
+
+  @override
+  String get tierHardwareThreat1 => 'सुरक्षित मॉड्यूल पर OS या फ़र्मवेयर CVE';
+
+  @override
+  String get tierHardwareThreat2 => 'जबरन बायोमेट्रिक अनलॉक (यदि सक्षम हो)';
+
+  @override
+  String get tierParanoidLabel => 'मास्टर पासवर्ड (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'लंबा पासवर्ड + Argon2id। कुंजी कभी OS में प्रवेश नहीं करती।';
+
+  @override
+  String get tierParanoidProtect1 => 'OS कीचेन समझौता';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'चुराई गई डिस्क (जब तक आपका पासवर्ड मज़बूत है)';
+
+  @override
+  String get tierParanoidThreat1 => 'आपका पासवर्ड पकड़ने वाला कीलॉगर';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'कमज़ोर पासवर्ड + ऑफ़लाइन Argon2id क्रैकिंग';
+
+  @override
+  String get tierParanoidNotes =>
+      'इस स्तर पर बायोमेट्रिक डिज़ाइन द्वारा अक्षम है।';
+
+  @override
   String exportedTo(String path) {
     return 'निर्यात किया गया: $path';
   }

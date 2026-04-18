@@ -814,6 +814,125 @@ class SEn extends S {
   String get passwordStrengthVeryStrong => 'Very strong';
 
   @override
+  String get tierRecommendedBadge => 'Recommended';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Alternative — don\'t trust the OS';
+
+  @override
+  String get tierUpcomingTooltip => 'Ships in an upcoming version.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'This tier\'s underlying plumbing is not shipped yet. The row is visible so you know the option exists.';
+
+  @override
+  String get tierPlaintextLabel => 'Plaintext';
+
+  @override
+  String get tierPlaintextSubtitle => 'No encryption — file permissions only';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Anyone with filesystem access reads your data';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Accidental sync or backup reveals everything';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Use only in trusted, isolated environments.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Key lives in $keychain — auto-unlock on launch';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Other users on the same machine';
+
+  @override
+  String get tierKeychainProtect2 => 'Stolen disk without the OS login';
+
+  @override
+  String get tierKeychainThreat1 => 'Malware running under your OS account';
+
+  @override
+  String get tierKeychainThreat2 => 'An attacker who takes over your OS login';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'OS keychain not available on this install.';
+
+  @override
+  String get tierKeychainPassLabel => 'Keychain + password';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Short password in front of the keychain (bystander gate)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Coworker sitting at your desk';
+
+  @override
+  String get tierKeychainPassProtect2 => 'A passerby with unlocked access';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Offline attacker with the file on disk';
+
+  @override
+  String get tierKeychainPassThreat2 => 'Same OS-compromise risks as Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Hardware + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Hardware-bound vault + short PIN with lockout';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Offline brute force of the PIN (hardware rate-limit)';
+
+  @override
+  String get tierHardwareProtect2 => 'Stealing the disk and the keychain blob';
+
+  @override
+  String get tierHardwareThreat1 => 'OS or firmware CVE on the secure module';
+
+  @override
+  String get tierHardwareThreat2 => 'Forced biometric unlock (if enabled)';
+
+  @override
+  String get tierParanoidLabel => 'Master password (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Long password + Argon2id. Key never enters the OS.';
+
+  @override
+  String get tierParanoidProtect1 => 'OS keychain compromise';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Stolen disk (as long as your password is strong)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger capturing your password';
+
+  @override
+  String get tierParanoidThreat2 => 'Weak password + offline Argon2id cracking';
+
+  @override
+  String get tierParanoidNotes =>
+      'Biometric is disabled by design on this tier.';
+
+  @override
   String exportedTo(String path) {
     return 'Exported to: $path';
   }

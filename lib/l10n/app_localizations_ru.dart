@@ -819,6 +819,126 @@ class SRu extends S {
   String get passwordStrengthVeryStrong => 'Очень сильный';
 
   @override
+  String get tierRecommendedBadge => 'Рекомендуется';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Альтернатива — не доверять ОС';
+
+  @override
+  String get tierUpcomingTooltip => 'Появится в будущей версии.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Базовый механизм этого уровня ещё не реализован. Строка видна, чтобы вы знали, что опция существует.';
+
+  @override
+  String get tierPlaintextLabel => 'Без шифрования';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'Без шифрования — только права доступа к файлам';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Любой с доступом к файловой системе читает ваши данные';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Случайная синхронизация или бэкап раскрывают всё';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Использовать только в доверенных изолированных средах.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Ключ в $keychain — автоматическая разблокировка при запуске';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Другие пользователи на той же машине';
+
+  @override
+  String get tierKeychainProtect2 => 'Украденный диск без входа в ОС';
+
+  @override
+  String get tierKeychainThreat1 => 'Вредоносное ПО под вашей учёткой ОС';
+
+  @override
+  String get tierKeychainThreat2 => 'Злоумышленник, получивший ваш вход в ОС';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Keychain ОС недоступен в этой установке.';
+
+  @override
+  String get tierKeychainPassLabel => 'Keychain + пароль';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Короткий пароль перед keychain (защита от прохожих)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Коллега за вашим столом';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Прохожий с открытым доступом';
+
+  @override
+  String get tierKeychainPassThreat1 => 'Оффлайн-атакующий с файлом на диске';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Те же риски компрометации ОС, что и у Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Железо + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Хранилище, привязанное к железу + короткий PIN с блокировкой';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Оффлайн-брутфорс PIN (аппаратный rate-limit)';
+
+  @override
+  String get tierHardwareProtect2 => 'Кража диска и блоба keychain';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE ОС или прошивки безопасного модуля';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Принудительный биометрический unlock (если включён)';
+
+  @override
+  String get tierParanoidLabel => 'Мастер-пароль (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Длинный пароль + Argon2id. Ключ никогда не попадает в ОС.';
+
+  @override
+  String get tierParanoidProtect1 => 'Компрометация keychain ОС';
+
+  @override
+  String get tierParanoidProtect2 => 'Украденный диск (пока пароль надёжен)';
+
+  @override
+  String get tierParanoidThreat1 => 'Кейлоггер, перехватывающий ваш пароль';
+
+  @override
+  String get tierParanoidThreat2 => 'Слабый пароль + оффлайн-взлом Argon2id';
+
+  @override
+  String get tierParanoidNotes =>
+      'Биометрия отключена на этом уровне по замыслу.';
+
+  @override
   String exportedTo(String path) {
     return 'Экспортировано в: $path';
   }

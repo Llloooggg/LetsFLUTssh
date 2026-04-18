@@ -818,6 +818,130 @@ class SPt extends S {
   String get passwordStrengthVeryStrong => 'Muito forte';
 
   @override
+  String get tierRecommendedBadge => 'Recomendado';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Alternativa — não confie no SO';
+
+  @override
+  String get tierUpcomingTooltip => 'Chega em uma versão futura.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'A infraestrutura subjacente deste nível ainda não foi lançada. A linha está visível para que você saiba que a opção existe.';
+
+  @override
+  String get tierPlaintextLabel => 'Texto simples';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'Sem criptografia — apenas permissões de arquivo';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Qualquer um com acesso ao sistema de arquivos lê seus dados';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Sincronização ou backup acidental revela tudo';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Use apenas em ambientes confiáveis e isolados.';
+
+  @override
+  String get tierKeychainLabel => 'Chaveiro';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'A chave vive em $keychain — desbloqueio automático ao iniciar';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Outros usuários na mesma máquina';
+
+  @override
+  String get tierKeychainProtect2 => 'Disco roubado sem o login do SO';
+
+  @override
+  String get tierKeychainThreat1 => 'Malware rodando sob sua conta do SO';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Um atacante que toma o controle do seu login do SO';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Chaveiro do SO não disponível nesta instalação.';
+
+  @override
+  String get tierKeychainPassLabel => 'Chaveiro + senha';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Senha curta à frente do chaveiro (portão contra transeuntes)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Colega sentado em sua mesa';
+
+  @override
+  String get tierKeychainPassProtect2 =>
+      'Um transeunte com acesso desbloqueado';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Atacante offline com o arquivo no disco';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Mesmos riscos de comprometimento do SO que o chaveiro';
+
+  @override
+  String get tierHardwareLabel => 'Hardware + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Cofre vinculado ao hardware + PIN curto com bloqueio';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Força bruta offline do PIN (limite de taxa por hardware)';
+
+  @override
+  String get tierHardwareProtect2 => 'Roubo do disco e do blob do chaveiro';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE de SO ou firmware no módulo seguro';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Desbloqueio biométrico forçado (se habilitado)';
+
+  @override
+  String get tierParanoidLabel => 'Senha mestra (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Senha longa + Argon2id. A chave nunca entra no SO.';
+
+  @override
+  String get tierParanoidProtect1 => 'Comprometimento do chaveiro do SO';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Disco roubado (desde que sua senha seja forte)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger capturando sua senha';
+
+  @override
+  String get tierParanoidThreat2 => 'Senha fraca + quebra Argon2id offline';
+
+  @override
+  String get tierParanoidNotes =>
+      'A biometria está desativada por design neste nível.';
+
+  @override
   String exportedTo(String path) {
     return 'Exportado para: $path';
   }

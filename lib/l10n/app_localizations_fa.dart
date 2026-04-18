@@ -812,6 +812,128 @@ class SFa extends S {
   String get passwordStrengthVeryStrong => 'بسیار قوی';
 
   @override
+  String get tierRecommendedBadge => 'توصیه شده';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'گزینه جایگزین — به سیستم‌عامل اعتماد نکنید';
+
+  @override
+  String get tierUpcomingTooltip => 'در نسخه‌ای آینده ارائه می‌شود.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'زیرساخت این لایه هنوز ارائه نشده است. ردیف قابل مشاهده است تا بدانید این گزینه وجود دارد.';
+
+  @override
+  String get tierPlaintextLabel => 'متن ساده';
+
+  @override
+  String get tierPlaintextSubtitle => 'بدون رمزنگاری — فقط مجوزهای فایل';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'هر کسی با دسترسی به سیستم فایل داده‌های شما را می‌خواند';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'همگام‌سازی یا پشتیبان‌گیری تصادفی همه چیز را فاش می‌کند';
+
+  @override
+  String get tierPlaintextNotes =>
+      'فقط در محیط‌های مورد اعتماد و منزوی استفاده کنید.';
+
+  @override
+  String get tierKeychainLabel => 'زنجیره کلید';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'کلید در $keychain زندگی می‌کند — باز شدن خودکار هنگام راه‌اندازی';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'کاربران دیگر روی همان دستگاه';
+
+  @override
+  String get tierKeychainProtect2 => 'دیسک دزدیده شده بدون ورود به سیستم‌عامل';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'بدافزاری که تحت حساب سیستم‌عامل شما اجرا می‌شود';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'مهاجمی که ورود به سیستم‌عامل شما را به دست می‌گیرد';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'زنجیره کلید سیستم‌عامل در این نصب در دسترس نیست.';
+
+  @override
+  String get tierKeychainPassLabel => 'زنجیره کلید + رمز عبور';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'رمز عبور کوتاه در جلوی زنجیره کلید (دروازه رهگذر)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'همکاری که پشت میز شما می‌نشیند';
+
+  @override
+  String get tierKeychainPassProtect2 => 'رهگذری با دسترسی باز';
+
+  @override
+  String get tierKeychainPassThreat1 => 'مهاجم آفلاین با فایل روی دیسک';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'همان خطرات سازش سیستم‌عامل مانند زنجیره کلید';
+
+  @override
+  String get tierHardwareLabel => 'سخت‌افزار + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'خزانه مرتبط با سخت‌افزار + PIN کوتاه با قفل';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'حمله brute-force آفلاین روی PIN (محدودیت نرخ سخت‌افزاری)';
+
+  @override
+  String get tierHardwareProtect2 => 'سرقت دیسک و blob زنجیره کلید';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE سیستم‌عامل یا firmware روی ماژول امن';
+
+  @override
+  String get tierHardwareThreat2 => 'بازگشایی اجباری بیومتریک (اگر فعال باشد)';
+
+  @override
+  String get tierParanoidLabel => 'رمز عبور اصلی (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'رمز عبور طولانی + Argon2id. کلید هرگز وارد سیستم‌عامل نمی‌شود.';
+
+  @override
+  String get tierParanoidProtect1 => 'سازش زنجیره کلید سیستم‌عامل';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'دیسک دزدیده شده (تا زمانی که رمز عبور شما قوی باشد)';
+
+  @override
+  String get tierParanoidThreat1 => 'کیلاگری که رمز عبور شما را ضبط می‌کند';
+
+  @override
+  String get tierParanoidThreat2 => 'رمز عبور ضعیف + شکستن Argon2id آفلاین';
+
+  @override
+  String get tierParanoidNotes =>
+      'بیومتریک به طور طراحی در این لایه غیرفعال است.';
+
+  @override
   String exportedTo(String path) {
     return 'خروجی گرفته شد به: $path';
   }

@@ -798,6 +798,114 @@ class SKo extends S {
   String get passwordStrengthVeryStrong => '매우 강함';
 
   @override
+  String get tierRecommendedBadge => '권장';
+
+  @override
+  String get tierAlternativeBranchLabel => '대안 — OS를 신뢰하지 마세요';
+
+  @override
+  String get tierUpcomingTooltip => '향후 버전에서 제공됩니다.';
+
+  @override
+  String get tierUpcomingNotes =>
+      '이 계층의 기본 인프라가 아직 제공되지 않았습니다. 옵션이 존재함을 알 수 있도록 행이 표시됩니다.';
+
+  @override
+  String get tierPlaintextLabel => '일반 텍스트';
+
+  @override
+  String get tierPlaintextSubtitle => '암호화 없음 — 파일 권한만';
+
+  @override
+  String get tierPlaintextThreat1 => '파일 시스템에 접근할 수 있는 누구나 데이터를 읽음';
+
+  @override
+  String get tierPlaintextThreat2 => '우발적인 동기화 또는 백업이 모든 것을 드러냄';
+
+  @override
+  String get tierPlaintextNotes => '신뢰할 수 있는 격리된 환경에서만 사용하세요.';
+
+  @override
+  String get tierKeychainLabel => '키체인';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return '키가 $keychain에 있음 — 실행 시 자동 잠금 해제';
+  }
+
+  @override
+  String get tierKeychainProtect1 => '동일한 기기의 다른 사용자';
+
+  @override
+  String get tierKeychainProtect2 => 'OS 로그인 없이 도난당한 디스크';
+
+  @override
+  String get tierKeychainThreat1 => 'OS 계정으로 실행되는 멀웨어';
+
+  @override
+  String get tierKeychainThreat2 => 'OS 로그인을 탈취하는 공격자';
+
+  @override
+  String get tierKeychainUnavailable => '이 설치에서 OS 키체인을 사용할 수 없습니다.';
+
+  @override
+  String get tierKeychainPassLabel => '키체인 + 비밀번호';
+
+  @override
+  String get tierKeychainPassSubtitle => '키체인 앞 짧은 비밀번호(행인 게이트)';
+
+  @override
+  String get tierKeychainPassProtect1 => '당신의 책상에 앉은 동료';
+
+  @override
+  String get tierKeychainPassProtect2 => '잠금이 풀린 접근을 가진 행인';
+
+  @override
+  String get tierKeychainPassThreat1 => '디스크의 파일을 가진 오프라인 공격자';
+
+  @override
+  String get tierKeychainPassThreat2 => '키체인과 동일한 OS 침해 위험';
+
+  @override
+  String get tierHardwareLabel => '하드웨어 + PIN';
+
+  @override
+  String get tierHardwareSubtitle => '하드웨어 바운드 볼트 + 잠금 있는 짧은 PIN';
+
+  @override
+  String get tierHardwareProtect1 => 'PIN의 오프라인 무차별 대입(하드웨어 속도 제한)';
+
+  @override
+  String get tierHardwareProtect2 => '디스크와 키체인 블롭 탈취';
+
+  @override
+  String get tierHardwareThreat1 => '보안 모듈의 OS 또는 펌웨어 CVE';
+
+  @override
+  String get tierHardwareThreat2 => '강제 생체 인식 잠금 해제(활성화된 경우)';
+
+  @override
+  String get tierParanoidLabel => '마스터 비밀번호(Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle => '긴 비밀번호 + Argon2id. 키가 OS에 들어가지 않음.';
+
+  @override
+  String get tierParanoidProtect1 => 'OS 키체인 침해';
+
+  @override
+  String get tierParanoidProtect2 => '도난당한 디스크(비밀번호가 강한 한)';
+
+  @override
+  String get tierParanoidThreat1 => '비밀번호를 캡처하는 키로거';
+
+  @override
+  String get tierParanoidThreat2 => '약한 비밀번호 + 오프라인 Argon2id 크래킹';
+
+  @override
+  String get tierParanoidNotes => '이 계층에서는 생체 인식이 설계상 비활성화되어 있습니다.';
+
+  @override
   String exportedTo(String path) {
     return '내보내기 완료: $path';
   }

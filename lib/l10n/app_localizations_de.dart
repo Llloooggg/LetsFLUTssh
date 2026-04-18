@@ -820,6 +820,131 @@ class SDe extends S {
   String get passwordStrengthVeryStrong => 'Sehr stark';
 
   @override
+  String get tierRecommendedBadge => 'Empfohlen';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternative — dem OS nicht vertrauen';
+
+  @override
+  String get tierUpcomingTooltip => 'Kommt in einer späteren Version.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Die zugrundeliegende Infrastruktur dieser Stufe ist noch nicht ausgeliefert. Die Zeile ist sichtbar, damit Sie wissen, dass die Option existiert.';
+
+  @override
+  String get tierPlaintextLabel => 'Klartext';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'Keine Verschlüsselung — nur Dateiberechtigungen';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Jeder mit Dateisystemzugriff liest Ihre Daten';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Versehentliche Sync oder Backup legt alles offen';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Nur in vertrauenswürdigen, isolierten Umgebungen verwenden.';
+
+  @override
+  String get tierKeychainLabel => 'Schlüsselbund';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Schlüssel liegt in $keychain — Auto-Entsperrung beim Start';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Andere Benutzer auf derselben Maschine';
+
+  @override
+  String get tierKeychainProtect2 => 'Gestohlene Festplatte ohne OS-Login';
+
+  @override
+  String get tierKeychainThreat1 => 'Malware unter Ihrem OS-Konto';
+
+  @override
+  String get tierKeychainThreat2 => 'Angreifer, der Ihr OS-Login übernimmt';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'OS-Schlüsselbund auf dieser Installation nicht verfügbar.';
+
+  @override
+  String get tierKeychainPassLabel => 'Schlüsselbund + Passwort';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Kurzes Passwort vor dem Schlüsselbund (Passant-Gatter)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Kollege an Ihrem Schreibtisch';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Vorbeikommender mit offenem Zugriff';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Offline-Angreifer mit der Datei auf Festplatte';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Gleiche OS-Kompromittierungs-Risiken wie beim Schlüsselbund';
+
+  @override
+  String get tierHardwareLabel => 'Hardware + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Hardware-gebundener Tresor + kurze PIN mit Sperrung';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Offline-Brute-Force der PIN (Hardware-Ratenbegrenzung)';
+
+  @override
+  String get tierHardwareProtect2 =>
+      'Diebstahl von Festplatte und Schlüsselbund-Blob';
+
+  @override
+  String get tierHardwareThreat1 => 'OS- oder Firmware-CVE am Sicherheitsmodul';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Erzwungene Biometrie-Entsperrung (falls aktiviert)';
+
+  @override
+  String get tierParanoidLabel => 'Master-Passwort (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Langes Passwort + Argon2id. Schlüssel berührt OS nicht.';
+
+  @override
+  String get tierParanoidProtect1 => 'Kompromittierung des OS-Schlüsselbundes';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Gestohlene Festplatte (solange das Passwort stark ist)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger, der Ihr Passwort erfasst';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'Schwaches Passwort + Offline-Argon2id-Cracking';
+
+  @override
+  String get tierParanoidNotes =>
+      'Biometrie ist auf dieser Stufe per Design deaktiviert.';
+
+  @override
   String exportedTo(String path) {
     return 'Exportiert nach: $path';
   }

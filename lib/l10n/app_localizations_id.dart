@@ -817,6 +817,129 @@ class SId extends S {
   String get passwordStrengthVeryStrong => 'Sangat kuat';
 
   @override
+  String get tierRecommendedBadge => 'Direkomendasikan';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternatif — jangan percaya pada OS';
+
+  @override
+  String get tierUpcomingTooltip => 'Akan hadir di versi mendatang.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Infrastruktur di balik tingkat ini belum dirilis. Baris ini terlihat agar Anda tahu opsi tersebut ada.';
+
+  @override
+  String get tierPlaintextLabel => 'Teks biasa';
+
+  @override
+  String get tierPlaintextSubtitle => 'Tanpa enkripsi — hanya izin file';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Siapa pun dengan akses sistem file membaca data Anda';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Sinkronisasi atau cadangan tidak sengaja mengungkap semuanya';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Hanya gunakan di lingkungan tepercaya dan terisolasi.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Kunci ada di $keychain — buka otomatis saat peluncuran';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Pengguna lain pada mesin yang sama';
+
+  @override
+  String get tierKeychainProtect2 => 'Disk yang dicuri tanpa login OS';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'Malware yang berjalan di bawah akun OS Anda';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Penyerang yang mengambil alih login OS Anda';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Keychain OS tidak tersedia pada instalasi ini.';
+
+  @override
+  String get tierKeychainPassLabel => 'Keychain + kata sandi';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Kata sandi pendek di depan keychain (gerbang terhadap pelintas)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Rekan kerja yang duduk di meja Anda';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Pelintas dengan akses terbuka';
+
+  @override
+  String get tierKeychainPassThreat1 => 'Penyerang offline dengan file di disk';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Risiko kompromi OS yang sama seperti Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Hardware + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Brankas terikat hardware + PIN pendek dengan lockout';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Brute force offline pada PIN (rate-limit hardware)';
+
+  @override
+  String get tierHardwareProtect2 => 'Mencuri disk dan blob keychain';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE OS atau firmware pada modul aman';
+
+  @override
+  String get tierHardwareThreat2 => 'Buka biometrik paksa (jika diaktifkan)';
+
+  @override
+  String get tierParanoidLabel => 'Kata sandi utama (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Kata sandi panjang + Argon2id. Kunci tidak pernah masuk ke OS.';
+
+  @override
+  String get tierParanoidProtect1 => 'Kompromi keychain OS';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Disk dicuri (selama kata sandi Anda kuat)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger yang menangkap kata sandi Anda';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'Kata sandi lemah + peretasan Argon2id offline';
+
+  @override
+  String get tierParanoidNotes =>
+      'Biometrik dinonaktifkan secara desain pada tingkat ini.';
+
+  @override
   String exportedTo(String path) {
     return 'Diekspor ke: $path';
   }

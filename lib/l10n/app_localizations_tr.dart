@@ -817,6 +817,133 @@ class STr extends S {
   String get passwordStrengthVeryStrong => 'Çok güçlü';
 
   @override
+  String get tierRecommendedBadge => 'Önerilen';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternatif — işletim sistemine güvenmeyin';
+
+  @override
+  String get tierUpcomingTooltip => 'Yakında bir sürümde geliyor.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Bu katmanın temel altyapısı henüz yayınlanmadı. Satır, seçeneğin var olduğunu bilmeniz için görünür durumda.';
+
+  @override
+  String get tierPlaintextLabel => 'Düz metin';
+
+  @override
+  String get tierPlaintextSubtitle => 'Şifreleme yok — yalnızca dosya izinleri';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Dosya sistemine erişimi olan herkes verilerinizi okur';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Yanlışlıkla senkronizasyon veya yedekleme her şeyi açığa çıkarır';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Yalnızca güvenilir, yalıtılmış ortamlarda kullanın.';
+
+  @override
+  String get tierKeychainLabel => 'Anahtarlık';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Anahtar $keychain içinde — başlatıldığında otomatik kilit açma';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Aynı makinede diğer kullanıcılar';
+
+  @override
+  String get tierKeychainProtect2 =>
+      'İşletim sistemi oturumu olmadan çalınan disk';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'İşletim sistemi hesabınız altında çalışan kötü amaçlı yazılım';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'İşletim sistemi oturumunuzu ele geçiren saldırgan';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Bu kurulumda işletim sistemi anahtarlığı kullanılamıyor.';
+
+  @override
+  String get tierKeychainPassLabel => 'Anahtarlık + parola';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Anahtarlığın önünde kısa parola (yoldan geçen kapısı)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Masanızda oturan iş arkadaşı';
+
+  @override
+  String get tierKeychainPassProtect2 =>
+      'Kilidi açık erişimi olan bir yoldan geçen';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Diskte dosyayı olan çevrimdışı saldırgan';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Anahtarlık ile aynı işletim sistemi tehlikeleri';
+
+  @override
+  String get tierHardwareLabel => 'Donanım + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Donanıma bağlı kasa + kilitlemeli kısa PIN';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'PIN\'in çevrimdışı kaba kuvvet saldırısı (donanım hız sınırı)';
+
+  @override
+  String get tierHardwareProtect2 =>
+      'Diskin ve anahtarlık blob\'unun çalınması';
+
+  @override
+  String get tierHardwareThreat1 =>
+      'Güvenli modül üzerinde işletim sistemi veya bellenim CVE\'si';
+
+  @override
+  String get tierHardwareThreat2 => 'Zorla biyometrik kilit açma (etkinse)';
+
+  @override
+  String get tierParanoidLabel => 'Ana parola (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Uzun parola + Argon2id. Anahtar hiçbir zaman işletim sistemine girmez.';
+
+  @override
+  String get tierParanoidProtect1 => 'İşletim sistemi anahtarlığı ihlali';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Çalınan disk (parolanız güçlü olduğu sürece)';
+
+  @override
+  String get tierParanoidThreat1 => 'Parolanızı yakalayan keylogger';
+
+  @override
+  String get tierParanoidThreat2 => 'Zayıf parola + çevrimdışı Argon2id kırma';
+
+  @override
+  String get tierParanoidNotes =>
+      'Bu katmanda biyometri tasarım gereği devre dışıdır.';
+
+  @override
   String exportedTo(String path) {
     return 'Dışa aktarıldı: $path';
   }

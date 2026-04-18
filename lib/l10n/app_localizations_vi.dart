@@ -811,6 +811,128 @@ class SVi extends S {
   String get passwordStrengthVeryStrong => 'Rất mạnh';
 
   @override
+  String get tierRecommendedBadge => 'Khuyến nghị';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Thay thế — không tin tưởng vào HĐH';
+
+  @override
+  String get tierUpcomingTooltip => 'Sẽ có trong phiên bản sắp tới.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Cơ sở hạ tầng nền của tầng này chưa được phát hành. Hàng này hiển thị để bạn biết tùy chọn tồn tại.';
+
+  @override
+  String get tierPlaintextLabel => 'Văn bản thuần';
+
+  @override
+  String get tierPlaintextSubtitle => 'Không mã hóa — chỉ quyền tập tin';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Bất kỳ ai có quyền truy cập hệ thống tệp đều đọc được dữ liệu của bạn';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Đồng bộ hoặc sao lưu vô tình tiết lộ mọi thứ';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Chỉ sử dụng trong môi trường đáng tin cậy, cô lập.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Khóa nằm trong $keychain — tự động mở khóa khi khởi chạy';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Người dùng khác trên cùng máy';
+
+  @override
+  String get tierKeychainProtect2 =>
+      'Đĩa bị đánh cắp mà không có đăng nhập HĐH';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'Phần mềm độc hại chạy dưới tài khoản HĐH của bạn';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Kẻ tấn công chiếm đoạt đăng nhập HĐH của bạn';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Keychain của HĐH không khả dụng trên bản cài đặt này.';
+
+  @override
+  String get tierKeychainPassLabel => 'Keychain + mật khẩu';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'Mật khẩu ngắn trước Keychain (cổng chống người qua đường)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Đồng nghiệp ngồi tại bàn của bạn';
+
+  @override
+  String get tierKeychainPassProtect2 =>
+      'Người qua đường với quyền truy cập đã mở khóa';
+
+  @override
+  String get tierKeychainPassThreat1 => 'Kẻ tấn công offline với tệp trên đĩa';
+
+  @override
+  String get tierKeychainPassThreat2 => 'Cùng rủi ro xâm phạm HĐH như Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Phần cứng + PIN';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Két ràng buộc phần cứng + PIN ngắn có khóa';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Brute force offline PIN (giới hạn tốc độ phần cứng)';
+
+  @override
+  String get tierHardwareProtect2 => 'Đánh cắp đĩa và blob keychain';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE HĐH hoặc firmware trên mô-đun bảo mật';
+
+  @override
+  String get tierHardwareThreat2 => 'Mở khóa sinh trắc học cưỡng bức (nếu bật)';
+
+  @override
+  String get tierParanoidLabel => 'Mật khẩu chính (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Mật khẩu dài + Argon2id. Khóa không bao giờ đi vào HĐH.';
+
+  @override
+  String get tierParanoidProtect1 => 'Xâm phạm keychain HĐH';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Đĩa bị đánh cắp (miễn là mật khẩu của bạn mạnh)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger bắt mật khẩu của bạn';
+
+  @override
+  String get tierParanoidThreat2 => 'Mật khẩu yếu + bẻ khóa Argon2id offline';
+
+  @override
+  String get tierParanoidNotes =>
+      'Sinh trắc học bị tắt theo thiết kế ở tầng này.';
+
+  @override
   String exportedTo(String path) {
     return 'Đã xuất đến: $path';
   }

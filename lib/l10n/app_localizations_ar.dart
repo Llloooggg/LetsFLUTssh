@@ -820,6 +820,121 @@ class SAr extends S {
   String get passwordStrengthVeryStrong => 'قوية جدًا';
 
   @override
+  String get tierRecommendedBadge => 'موصى به';
+
+  @override
+  String get tierAlternativeBranchLabel => 'بديل — لا تثق بنظام التشغيل';
+
+  @override
+  String get tierUpcomingTooltip => 'يصدر في إصدار قادم.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'الأساس الفني لهذه الطبقة لم يُشحن بعد. الصف مرئي لتعلم أن الخيار موجود.';
+
+  @override
+  String get tierPlaintextLabel => 'نص عادي';
+
+  @override
+  String get tierPlaintextSubtitle => 'بدون تشفير — أذونات الملفات فقط';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'أي شخص لديه وصول لنظام الملفات يقرأ بياناتك';
+
+  @override
+  String get tierPlaintextThreat2 => 'مزامنة أو نسخ احتياطي عرضي يكشف كل شيء';
+
+  @override
+  String get tierPlaintextNotes => 'استخدم فقط في بيئات موثوقة ومعزولة.';
+
+  @override
+  String get tierKeychainLabel => 'سلسلة مفاتيح';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'يوجد المفتاح في $keychain — فتح تلقائي عند الإطلاق';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'مستخدمون آخرون على نفس الجهاز';
+
+  @override
+  String get tierKeychainProtect2 => 'قرص مسروق بدون تسجيل دخول النظام';
+
+  @override
+  String get tierKeychainThreat1 => 'برامج ضارة تعمل تحت حساب نظامك';
+
+  @override
+  String get tierKeychainThreat2 => 'مهاجم يستولي على تسجيل دخول النظام';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'سلسلة مفاتيح النظام غير متوفرة في هذه النسخة.';
+
+  @override
+  String get tierKeychainPassLabel => 'سلسلة مفاتيح + كلمة مرور';
+
+  @override
+  String get tierKeychainPassSubtitle =>
+      'كلمة مرور قصيرة أمام سلسلة المفاتيح (بوابة ضد المارّين)';
+
+  @override
+  String get tierKeychainPassProtect1 => 'زميل يجلس على مكتبك';
+
+  @override
+  String get tierKeychainPassProtect2 => 'عابر لديه وصول مفتوح';
+
+  @override
+  String get tierKeychainPassThreat1 => 'مهاجم غير متصل لديه الملف على القرص';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'نفس مخاطر اختراق نظام التشغيل كالسلسلة';
+
+  @override
+  String get tierHardwareLabel => 'جهاز + رمز PIN';
+
+  @override
+  String get tierHardwareSubtitle => 'خزينة مرتبطة بالجهاز + PIN قصير مع إقفال';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'القوة الغاشمة دون اتصال للـ PIN (حد معدل أجهزة)';
+
+  @override
+  String get tierHardwareProtect2 => 'سرقة القرص وكتلة سلسلة المفاتيح';
+
+  @override
+  String get tierHardwareThreat1 =>
+      'ثغرة في نظام التشغيل أو البرامج الثابتة للوحدة الآمنة';
+
+  @override
+  String get tierHardwareThreat2 => 'فتح قسري بالبيومتريا (إذا كان مفعّلًا)';
+
+  @override
+  String get tierParanoidLabel => 'كلمة المرور الرئيسية (جنون الارتياب)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'كلمة مرور طويلة + Argon2id. المفتاح لا يدخل نظام التشغيل.';
+
+  @override
+  String get tierParanoidProtect1 => 'اختراق سلسلة مفاتيح نظام التشغيل';
+
+  @override
+  String get tierParanoidProtect2 => 'قرص مسروق (طالما كلمة مرورك قوية)';
+
+  @override
+  String get tierParanoidThreat1 => 'كيلوجر يلتقط كلمة مرورك';
+
+  @override
+  String get tierParanoidThreat2 => 'كلمة مرور ضعيفة + كسر Argon2id دون اتصال';
+
+  @override
+  String get tierParanoidNotes => 'البيومتريا معطلة بالتصميم على هذه الطبقة.';
+
+  @override
   String exportedTo(String path) {
     return 'تم التصدير إلى: $path';
   }
