@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/master_password.dart';
+import '../core/security/password_rate_limiter.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
@@ -71,14 +73,38 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
   bool? _biometricOffered;
   String? _bioError;
 
+  /// Cooldown ticker — refreshes `_cooldown` every second so the
+  /// countdown shown under the password field stays accurate without
+  /// driving the whole dialog off a stream.
+  Timer? _cooldownTicker;
+  RateLimitStatus _cooldown = const RateLimitStatus(
+    failureCount: 0,
+    cooldownRemaining: Duration.zero,
+  );
+
   @override
   void initState() {
     super.initState();
+    _cooldown = widget.manager.rateLimitStatus();
+    if (_cooldown.isLocked) _startCooldownTicker();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.autoTriggerBiometric) {
         _tryBiometric();
       } else {
         _probeBiometricOffered();
+      }
+    });
+  }
+
+  void _startCooldownTicker() {
+    _cooldownTicker?.cancel();
+    _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final next = widget.manager.rateLimitStatus();
+      setState(() => _cooldown = next);
+      if (!next.isLocked) {
+        _cooldownTicker?.cancel();
+        _cooldownTicker = null;
       }
     });
   }
@@ -108,6 +134,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
 
   @override
   void dispose() {
+    _cooldownTicker?.cancel();
     _passwordCtrl.wipeAndClear();
     _passwordCtrl.dispose();
     _focusNode.dispose();
@@ -186,6 +213,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
   Future<void> _unlock() async {
     final password = _passwordCtrl.text;
     if (password.isEmpty) return;
+    if (_cooldown.isLocked) return;
 
     setState(() {
       _busy = true;
@@ -205,10 +233,13 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     if (!mounted) return;
 
     if (key == null) {
+      final status = widget.manager.rateLimitStatus();
       setState(() {
         _busy = false;
         _wrongPassword = true;
+        _cooldown = status;
       });
+      if (status.isLocked) _startCooldownTicker();
       _passwordCtrl.selection = TextSelection(
         baseOffset: 0,
         extentOffset: _passwordCtrl.text.length,
@@ -301,6 +332,18 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                   ),
                   const SizedBox(height: 8),
                 ],
+                if (_cooldown.isLocked) ...[
+                  Text(
+                    l10n.tierCooldownHint(
+                      _cooldown.cooldownRemaining!.inSeconds + 1,
+                    ),
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: AppFonts.sm,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 if (_bioError != null) ...[
                   Text(
                     _bioError!,
@@ -348,7 +391,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _unlock,
+                      onPressed: _cooldown.isLocked ? null : _unlock,
                       child: Text(l10n.unlock),
                     ),
                   ),
