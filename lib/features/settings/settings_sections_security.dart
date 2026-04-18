@@ -60,7 +60,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   ///  * "you need a master password first" when the app is not in
   ///    master-password mode (biometry caches the MP-derived key, so
   ///    without an MP there is no key to cache)
-  String? _biometricDisabledReason(S l10n, SecurityLevel level) {
+  String? _biometricDisabledReason(S l10n, SecurityTier level) {
     if (!_biometricProbed) return null;
     switch (_biometricUnavailable) {
       case BiometricUnavailableReason.platformUnsupported:
@@ -73,7 +73,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       case null:
         break;
     }
-    if (level != SecurityLevel.masterPassword) {
+    if (level != SecurityTier.paranoid) {
       return l10n.biometricRequiresMasterPassword;
     }
     return null;
@@ -101,14 +101,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   /// Whether the biometric toggle can be flipped. Returns false during
   /// the initial probe so the toggle doesn't momentarily look live.
-  bool _biometricToggleEnabled(SecurityLevel level) {
+  bool _biometricToggleEnabled(SecurityTier level) {
     if (!_biometricProbed) return false;
     if (_biometricUnavailable != null) return false;
-    return level == SecurityLevel.masterPassword;
+    return level == SecurityTier.paranoid;
   }
 
-  String? _autoLockDisabledReason(S l10n, SecurityLevel level) {
-    if (level == SecurityLevel.masterPassword) return null;
+  String? _autoLockDisabledReason(S l10n, SecurityTier level) {
+    if (level == SecurityTier.paranoid) return null;
     return l10n.autoLockRequiresMasterPassword;
   }
 
@@ -147,10 +147,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           label: l10n.useKeychain,
           subtitle: l10n.useKeychainSubtitle,
           icon: Icons.enhanced_encryption,
-          value: secState.level == SecurityLevel.keychain,
+          value: secState.level == SecurityTier.keychain,
           onChanged:
               _keychainAvailable == true &&
-                  secState.level != SecurityLevel.masterPassword
+                  secState.level != SecurityTier.paranoid
               ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
               : null,
         ),
@@ -276,13 +276,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     return '...';
   }
 
-  String _securityLevelLabel(S l10n, SecurityLevel level) {
+  String _securityLevelLabel(S l10n, SecurityTier level) {
+    // L2 / L3 are not yet reachable from the existing tier switches;
+    // they fall through to their nearest equivalents so the Settings
+    // header stays non-empty if a tier marker from a future version
+    // shows up in config.json. Replaced by proper per-tier labels
+    // when the full wizard / settings rewrite lands.
     switch (level) {
-      case SecurityLevel.plaintext:
+      case SecurityTier.plaintext:
         return l10n.securityLevelPlaintext;
-      case SecurityLevel.keychain:
+      case SecurityTier.keychain:
+      case SecurityTier.keychainWithPassword:
+      case SecurityTier.hardware:
         return l10n.securityLevelKeychain;
-      case SecurityLevel.masterPassword:
+      case SecurityTier.paranoid:
         return l10n.securityLevelMasterPassword;
     }
   }
@@ -400,7 +407,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
 
     // Re-encrypt all stores with the derived key.
-    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+    await _reEncryptAll(newKey, SecurityTier.paranoid);
 
     // Delete keychain key if it was used before.
     final keyStorage = ref.read(secureKeyStorageProvider);
@@ -477,7 +484,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final newKey = await manager.changePassword(oldPassword, newPassword);
 
     // Re-encrypt all stores with new key.
-    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
+    await _reEncryptAll(newKey, SecurityTier.paranoid);
 
     // The cached biometric key (if any) was derived from the OLD password
     // — it's now stale. Wipe it; user can re-enable biometric unlock from
@@ -564,14 +571,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       final key = AesGcm.generateKey();
       final stored = await keyStorage.writeKey(key);
       if (stored) {
-        await _reEncryptAll(key, SecurityLevel.keychain);
+        await _reEncryptAll(key, SecurityTier.keychain);
         await manager.disable();
         return;
       }
     }
 
     // No keychain — fall back to plaintext.
-    await _reEncryptAll(null, SecurityLevel.plaintext);
+    await _reEncryptAll(null, SecurityTier.plaintext);
     await manager.disable();
   }
 
@@ -592,7 +599,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       final reporter = ProgressReporter(l10n.progressReencrypting);
       AppProgressBarDialog.show(context, reporter);
       try {
-        await _reEncryptAll(key, SecurityLevel.keychain);
+        await _reEncryptAll(key, SecurityTier.keychain);
         if (context.mounted) {
           Navigator.of(context).pop();
           Toast.show(
@@ -648,7 +655,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       AppProgressBarDialog.show(context, reporter);
       try {
         await keyStorage.deleteKey();
-        await _reEncryptAll(null, SecurityLevel.plaintext);
+        await _reEncryptAll(null, SecurityTier.plaintext);
         if (context.mounted) {
           Navigator.of(context).pop();
           Toast.show(
@@ -688,7 +695,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   /// next app start the DB fails to open. The order is deliberate: run the
   /// `PRAGMA rekey` first; only flip the provider after it succeeded, so a
   /// crypto/disk failure leaves the old (working) state intact.
-  Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
+  Future<void> _reEncryptAll(Uint8List? key, SecurityTier level) async {
     final store = ref.read(sessionStoreProvider);
     final db = store.database;
     if (db != null) {

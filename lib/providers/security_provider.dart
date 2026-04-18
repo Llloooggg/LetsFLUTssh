@@ -6,7 +6,7 @@ import '../core/security/biometric_auth.dart';
 import '../core/security/biometric_key_vault.dart';
 import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
-import '../core/security/security_level.dart';
+import '../core/security/security_tier.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
@@ -26,7 +26,7 @@ final biometricKeyVaultProvider = Provider<BiometricKeyVault>(
 
 /// Current data protection level, detected at startup.
 ///
-/// Defaults to [SecurityLevel.plaintext]. Updated by the security
+/// Defaults to [SecurityTier.plaintext]. Updated by the security
 /// initialization flow in main.dart via [SecurityStateNotifier].
 final securityStateProvider =
     NotifierProvider<SecurityStateNotifier, SecurityState>(
@@ -43,10 +43,10 @@ final securityStateProvider =
 /// state, at which point the old buffer is disposed (zeroed + munlock +
 /// freed) by [SecurityStateNotifier].
 class SecurityState {
-  final SecurityLevel level;
+  final SecurityTier level;
   final SecretBuffer? _buffer;
 
-  SecurityState({this.level = SecurityLevel.plaintext, SecretBuffer? buffer})
+  SecurityState({this.level = SecurityTier.plaintext, SecretBuffer? buffer})
     : _buffer = buffer;
 
   /// Live `Uint8List` view into the locked buffer, or null in plaintext mode.
@@ -57,7 +57,7 @@ class SecurityState {
   SecretBuffer? get buffer => _buffer;
 
   /// Whether data stores should encrypt their contents.
-  bool get isEncrypted => level != SecurityLevel.plaintext;
+  bool get isEncrypted => level != SecurityTier.plaintext;
 }
 
 /// Notifier for security state — set once at startup, updated on
@@ -83,7 +83,7 @@ class SecurityStateNotifier extends Notifier<SecurityState> {
   /// Set the security level and encryption key. Copies [key] into a fresh
   /// page-locked buffer and disposes the previous one. The caller is
   /// responsible for zeroing its own `Uint8List` copy afterwards.
-  void set(SecurityLevel level, [Uint8List? key]) {
+  void set(SecurityTier level, [Uint8List? key]) {
     final previous = _owned;
     final buffer = key == null ? null : SecretBuffer.fromBytes(key);
     _owned = buffer;

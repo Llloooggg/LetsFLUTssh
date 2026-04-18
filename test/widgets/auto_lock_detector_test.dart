@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
-import 'package:letsflutssh/core/security/security_level.dart';
+import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
@@ -90,7 +90,7 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityLevel.masterPassword, Uint8List(32));
+            .set(SecurityTier.paranoid, Uint8List(32));
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -122,7 +122,7 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityLevel.masterPassword, Uint8List(32));
+            .set(SecurityTier.paranoid, Uint8List(32));
         expect(container.read(securityStateProvider).encryptionKey, isNotNull);
 
         await tester.pumpWidget(
@@ -175,7 +175,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityLevel.masterPassword, Uint8List(32));
+          .set(SecurityTier.paranoid, Uint8List(32));
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -218,7 +218,7 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityLevel.masterPassword, Uint8List(32));
+            .set(SecurityTier.paranoid, Uint8List(32));
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -255,7 +255,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityLevel.masterPassword, Uint8List(32));
+          .set(SecurityTier.paranoid, Uint8List(32));
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -291,7 +291,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityLevel.masterPassword, Uint8List(32));
+          .set(SecurityTier.paranoid, Uint8List(32));
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
-import '../core/security/security_level.dart';
+import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/master_password_provider.dart';
 import '../providers/security_provider.dart';
@@ -130,9 +130,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   }
 
   void _releaseLock(Uint8List key) {
-    ref
-        .read(securityStateProvider.notifier)
-        .set(SecurityLevel.masterPassword, key);
+    ref.read(securityStateProvider.notifier).set(SecurityTier.paranoid, key);
     ref.read(lockStateProvider.notifier).unlock();
   }
 

@@ -20,7 +20,7 @@ import '../../core/shortcut_registry.dart';
 import '../../core/security/aes_gcm.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/master_password.dart';
-import '../../core/security/security_level.dart';
+import '../../core/security/security_tier.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../providers/auto_lock_provider.dart';

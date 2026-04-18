@@ -19,7 +19,6 @@ import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
-import 'core/security/security_level.dart';
 import 'core/import/import_service.dart';
 import 'core/progress/progress_reporter.dart';
 import 'features/session_manager/session_connect.dart';
@@ -423,7 +422,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           biometricAttempted = true;
           final bioKey = await _tryBiometricUnlock();
           if (bioKey != null) {
-            _injectDatabase(key: bioKey, level: SecurityLevel.masterPassword);
+            _injectDatabase(key: bioKey, level: SecurityTier.paranoid);
             AppLogger.instance.log(
               'Master password unlocked via biometrics',
               name: 'App',
@@ -437,7 +436,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           autoTriggerBiometric: !biometricAttempted,
         );
         if (derivedKey != null) {
-          _injectDatabase(key: derivedKey, level: SecurityLevel.masterPassword);
+          _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
           AppLogger.instance.log('Master password unlocked', name: 'App');
         } else {
           _credentialsWereReset = true;
@@ -453,7 +452,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       // 2. Keychain key exists — use it.
       final keychainKey = await keyStorage.readKey();
       if (keychainKey != null) {
-        _injectDatabase(key: keychainKey, level: SecurityLevel.keychain);
+        _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
         AppLogger.instance.log('Keychain key loaded', name: 'App');
         return;
       }
@@ -482,7 +481,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     if (result.masterPassword != null) {
       final key = await manager.enable(result.masterPassword!);
-      _injectDatabase(key: key, level: SecurityLevel.masterPassword);
+      _injectDatabase(key: key, level: SecurityTier.paranoid);
       AppLogger.instance.log(
         'First launch: master password enabled',
         name: 'App',
@@ -491,7 +490,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       final key = AesGcm.generateKey();
       final stored = await keyStorage.writeKey(key);
       if (stored) {
-        _injectDatabase(key: key, level: SecurityLevel.keychain);
+        _injectDatabase(key: key, level: SecurityTier.keychain);
         AppLogger.instance.log(
           'First launch: keychain encryption enabled',
           name: 'App',
@@ -515,7 +514,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// Open the database (with optional encryption) and inject into all stores.
   void _injectDatabase({
     Uint8List? key,
-    SecurityLevel level = SecurityLevel.plaintext,
+    SecurityTier level = SecurityTier.plaintext,
   }) {
     final db = openDatabase(encryptionKey: key);
     ref.read(sessionStoreProvider).setDatabase(db);
@@ -571,17 +570,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     return TierResetDialog.show(ctx);
   }
 
-  /// Persist the new `SecurityTier` + modifiers into `config.json`
-  /// after each successful `_injectDatabase` call. Until the full
-  /// wizard / settings rewrite lands, the tier is derived from the
-  /// old `SecurityLevel` the rest of the codebase still drives:
-  /// `plaintext` → L0, `keychain` → L1, `masterPassword` → Paranoid.
-  /// L2 (keychain + password) and L3 (Hardware) are not yet reachable
-  /// from the current wizard — they become selectable once Phase E/F
-  /// ship. Writing the marker unconditionally keeps the tier-reset
-  /// dialog from re-firing on every launch.
-  Future<void> _persistSecurityTier(SecurityLevel level) async {
-    final tier = _tierForLegacyLevel(level);
+  /// Persist the active `SecurityTier` + modifiers into `config.json`
+  /// after each successful `_injectDatabase` call. Writing the marker
+  /// unconditionally keeps the tier-reset dialog from re-firing on
+  /// every launch. L2 (keychain + password) and L3 (Hardware) are
+  /// not yet reachable from the current wizard — they become
+  /// selectable when the full tier-switcher wiring lands.
+  Future<void> _persistSecurityTier(SecurityTier tier) async {
     final existing = ref.read(configProvider).security;
     if (existing != null && existing.tier == tier) return;
     final next = SecurityConfig(
@@ -591,17 +586,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     await ref
         .read(configProvider.notifier)
         .update((cfg) => cfg.copyWith(security: next));
-  }
-
-  SecurityTier _tierForLegacyLevel(SecurityLevel level) {
-    switch (level) {
-      case SecurityLevel.plaintext:
-        return SecurityTier.plaintext;
-      case SecurityLevel.keychain:
-        return SecurityTier.keychain;
-      case SecurityLevel.masterPassword:
-        return SecurityTier.paranoid;
-    }
   }
 
   /// Resolve the biometric prompt reason string synchronously. Kept

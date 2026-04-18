@@ -36,7 +36,7 @@ class SecuritySetupResult {
 ///
 /// Non-dismissible. Returns [SecuritySetupResult] so the legacy
 /// `main.dart._firstLaunchSetup` handler can continue to drive the
-/// existing `SecurityLevel` state — `main` mirrors the resolved
+/// existing `SecurityTier` state — `main` mirrors the resolved
 /// level into `config.json`'s `security_tier` field separately.
 class SecuritySetupDialog extends StatefulWidget {
   final SecureKeyStorage keyStorage;

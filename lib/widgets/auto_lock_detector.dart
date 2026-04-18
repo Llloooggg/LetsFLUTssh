@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
-import '../core/security/security_level.dart';
+import '../core/security/security_tier.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/security_provider.dart';
@@ -81,7 +81,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
       return;
     }
     final level = ref.read(securityStateProvider).level;
-    if (level != SecurityLevel.masterPassword) return;
+    if (level != SecurityTier.paranoid) return;
     final minutes = ref.read(autoLockMinutesProvider);
     if (minutes <= 0) return;
     _triggerLock();
@@ -131,8 +131,8 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     _syncTimer(minutes, level);
   }
 
-  void _syncTimer(int minutes, SecurityLevel level) {
-    final enabled = minutes > 0 && level == SecurityLevel.masterPassword;
+  void _syncTimer(int minutes, SecurityTier level) {
+    final enabled = minutes > 0 && level == SecurityTier.paranoid;
     if (!enabled) {
       _timer?.cancel();
       _timer = null;

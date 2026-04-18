@@ -8,7 +8,7 @@ import '../../utils/logger.dart';
 
 /// Breaking-change reset helper for the new tier model.
 ///
-/// The old model (SecurityLevel: plaintext / keychain / masterPassword)
+/// The old model (pre-tier: plaintext / keychain / masterPassword)
 /// inferred tier from file presence. The new model persists an
 /// explicit `security_tier` field inside `config.json`. Users on the
 /// new app binary who still have old-world files without that field
