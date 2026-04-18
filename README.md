@@ -50,17 +50,52 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 ## Installation
 
-### Pre-built Binaries
+Download the build for your platform from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases), then follow the per-platform steps below. To build from source instead, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
-Download from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases):
+### Linux
 
-- **Linux:** AppImage, .deb, tar.gz
-  > Optional: `libsecret-1-0` for OS keychain encryption (`sudo apt install libsecret-1-0`). Without it the app works fine — only plaintext and master password modes are available.
-- **Windows:** EXE installer, portable zip
-- **macOS:** dmg, tar.gz
-- **Android:** APK (arm64, arm, x64)
+Available formats: **AppImage**, **.deb**, **tar.gz**.
 
-To build from source, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
+```bash
+# AppImage — single self-contained file, no install
+chmod +x LetsFLUTssh-*.AppImage
+./LetsFLUTssh-*.AppImage
+
+# .deb — Debian / Ubuntu / Mint
+sudo apt install ./letsflutssh_*.deb
+
+# tar.gz — portable, extract anywhere
+tar xzf letsflutssh-*.tar.gz
+cd letsflutssh && ./letsflutssh
+```
+
+> Optional: `libsecret-1-0` for OS keychain encryption (`sudo apt install libsecret-1-0`). Without it the app works fine — only plaintext and master-password storage modes are available, no biometric.
+
+### Windows
+
+Available formats: **EXE installer** (Inno Setup), **portable zip**.
+
+- **Installer:** double-click the `.exe`, follow the wizard. Adds Start Menu entry and uninstaller.
+- **Portable:** extract the zip anywhere, run `letsflutssh.exe` directly. No install, no registry writes.
+
+### macOS
+
+Available formats: **.dmg**, **tar.gz**. Universal binary (Intel + Apple Silicon).
+
+- **.dmg:** open, drag `LetsFLUTssh.app` to `/Applications/`.
+- **tar.gz:** extract, move `LetsFLUTssh.app` to `/Applications/`.
+
+The build is **unsigned**. On first launch macOS Gatekeeper will block it — right-click the app and choose **Open**, then confirm. Or remove the quarantine attribute once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/LetsFLUTssh.app
+```
+
+### Android
+
+Available format: **APK** (split per ABI: `arm64-v8a`, `armeabi-v7a`, `x86_64`). Pick `arm64-v8a` for any modern device.
+
+In Android Settings, enable **Install unknown apps** for the file manager or browser you'll use to open the APK. Tap the `.apk` file and confirm. No Google Play Services required, no MLKit, no GPS dependency.
 
 ### Data Locations
 
@@ -78,6 +113,21 @@ Downloaded update binaries are cached separately under the same directory (`upda
 
 > [!WARNING]
 > Wiping the data directory deletes **all** saved sessions and any unexported credentials. Export your data first via **Settings → Export** if you want to keep it.
+
+### Uninstalling
+
+The app and the user-data directory live in separate places — removing the app does **not** wipe sessions, credentials, known hosts, etc. by design (protects against accidental loss on reinstall / upgrade). To remove user data, delete the path from the [Data Locations](#data-locations) table after uninstalling.
+
+| Platform | Uninstall app | User data also removed? |
+|---|---|---|
+| **Linux** (AppImage) | Delete the `.AppImage` file | No — wipe data path manually |
+| **Linux** (.deb) | `sudo apt remove letsflutssh` | No — wipe data path manually |
+| **Linux** (tar.gz) | Delete the extracted folder | No — wipe data path manually |
+| **Windows** (installer) | Settings → Apps → LetsFLUTssh → Uninstall (offers a "Also delete user data" checkbox, off by default) | Only if checkbox ticked |
+| **Windows** (portable) | Delete the extracted folder | No — wipe data path manually |
+| **macOS** | Drag `/Applications/LetsFLUTssh.app` to Trash | No — wipe data path manually |
+| **Android** | Long-press app icon → Uninstall (or Settings → Apps → LetsFLUTssh → Uninstall) | Yes — sandbox is wiped |
+| **iOS** | Long-press icon → Remove App → Delete App | Yes — sandbox is wiped |
 
 ## Security
 

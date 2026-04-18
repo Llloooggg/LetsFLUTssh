@@ -87,9 +87,9 @@ When a feature needs an OS capability, the preference order is:
 1. **Bundle it** — link statically, vendor the lib, use system frameworks already present on every supported version (`sqlite3` via `pubspec.yaml` build hooks, `AVFoundation` for iOS QR scan, `AndroidX CameraX + ZXing` for Android QR scan). This is the default; pick this unless impossible.
 2. **Built-in fallback** — if the OS capability is genuinely platform-specific (OS keychain, biometric API), provide a feature that works without it (master password instead of keychain). User keeps a usable app, the platform-only path is just a UX upgrade.
 3. **Optional OS dep with graceful degradation** — last resort. Allowed *only* if all three:
-   - The app detects the missing dep at runtime and surfaces a clear, localized in-UI message that names (a) what's missing, (b) what capability is lost, and (c) how to install it on the current platform — either an inline copy-pasteable command (e.g. `sudo apt install libsecret-1-0`) or a visible "Learn more" link to the README install snippet. No stack traces, no silent failures, no opaque "feature unavailable" with no path forward.
-   - The corresponding control in the UI is rendered as **disabled with a tooltip explaining the reason** on configuration surfaces (per [§ UI Components → Disable vs hide](#ui-components)), not hidden — the user must see the option exists and what to do to enable it.
-   - `README.md` "Installation" lists the same copy-pasteable install command per platform that needs it.
+   - The app detects the missing dep at runtime and shows a **short** localized message stating either "X is unavailable on this platform" or "X is unavailable because Y is not installed" — one line, no stack trace, no silent failure, no install commands or links inside the UI (those live in the README).
+   - The corresponding control on configuration surfaces is rendered as **disabled with a tooltip carrying the same short reason** (per [§ UI Components → Disable vs hide](#ui-components)), not hidden — the user must see the option exists and why it's off.
+   - `README.md` "Installation" lists the copy-pasteable install command per platform that needs it. The UI does not duplicate that text — users who want detail go to the README.
 
 Hard-requiring the user to install anything (a runtime, a service, a CLI, a native lib) is **forbidden**. If a proposed dependency can't satisfy one of the three rules above, redesign the feature or drop it.
 
