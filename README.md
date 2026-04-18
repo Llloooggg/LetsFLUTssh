@@ -97,37 +97,20 @@ Available format: **APK** (split per ABI: `arm64-v8a`, `armeabi-v7a`, `x86_64`).
 
 In Android Settings, enable **Install unknown apps** for the file manager or browser you'll use to open the APK. Tap the `.apk` file and confirm. No Google Play Services required, no MLKit, no GPS dependency.
 
-### Data Locations
+### User Data & Uninstalling
 
-Sessions, credentials, known hosts, snippets, tags, and app config are stored in the OS per-app data directory. Logs live in a `logs/` subfolder. Remove these paths for a clean reinstall (e.g. after a release-key rotation where auto-update refuses to cross the boundary, or to reset all state).
+Sessions, credentials, known hosts, snippets, tags, and app config live in the OS per-app data directory (`logs/` subfolder for logs, `updates/` subfolder for cached update binaries — deleted after install). The data directory is **separate from the app binary**, so removing the app does **not** wipe data by design (protects against accidental loss on reinstall / upgrade or release-key rotation). For a clean reset, delete the data path manually after uninstalling.
 
-| Platform | Path |
-|---|---|
-| **Linux** | `~/.local/share/com.llloooggg.letsflutssh/` |
-| **macOS** | `~/Library/Application Support/com.llloooggg.letsflutssh/` |
-| **Windows** | `%APPDATA%\com.llloooggg.letsflutssh\` (i.e. `C:\Users\<you>\AppData\Roaming\com.llloooggg.letsflutssh\`) |
-| **Android** | App uninstall removes everything (no user-reachable path) |
-| **iOS** | App uninstall removes everything (sandboxed) |
-
-Downloaded update binaries are cached separately under the same directory (`updates/` subfolder) and are deleted after install.
+| Platform | Data path | Uninstall app | Data wiped on uninstall? |
+|---|---|---|---|
+| **Linux** | `~/.local/share/com.llloooggg.letsflutssh/` | AppImage: delete the file • .deb: `sudo apt remove letsflutssh` • tar.gz: delete the extracted folder | No — wipe data path manually |
+| **macOS** | `~/Library/Application Support/com.llloooggg.letsflutssh/` | Drag `/Applications/LetsFLUTssh.app` to Trash | No — wipe data path manually |
+| **Windows** | `%APPDATA%\com.llloooggg.letsflutssh\` | Installer: Settings → Apps → LetsFLUTssh → Uninstall (offers an "Also delete user data" checkbox, off by default) • Portable: delete the extracted folder | Only if installer checkbox ticked |
+| **Android** | sandbox (no user-reachable path) | Long-press app icon → Uninstall (or Settings → Apps → LetsFLUTssh → Uninstall) | Yes — sandbox is wiped |
+| **iOS** | sandbox (no user-reachable path) | Long-press icon → Remove App → Delete App | Yes — sandbox is wiped |
 
 > [!WARNING]
 > Wiping the data directory deletes **all** saved sessions and any unexported credentials. Export your data first via **Settings → Export** if you want to keep it.
-
-### Uninstalling
-
-The app and the user-data directory live in separate places — removing the app does **not** wipe sessions, credentials, known hosts, etc. by design (protects against accidental loss on reinstall / upgrade). To remove user data, delete the path from the [Data Locations](#data-locations) table after uninstalling.
-
-| Platform | Uninstall app | User data also removed? |
-|---|---|---|
-| **Linux** (AppImage) | Delete the `.AppImage` file | No — wipe data path manually |
-| **Linux** (.deb) | `sudo apt remove letsflutssh` | No — wipe data path manually |
-| **Linux** (tar.gz) | Delete the extracted folder | No — wipe data path manually |
-| **Windows** (installer) | Settings → Apps → LetsFLUTssh → Uninstall (offers a "Also delete user data" checkbox, off by default) | Only if checkbox ticked |
-| **Windows** (portable) | Delete the extracted folder | No — wipe data path manually |
-| **macOS** | Drag `/Applications/LetsFLUTssh.app` to Trash | No — wipe data path manually |
-| **Android** | Long-press app icon → Uninstall (or Settings → Apps → LetsFLUTssh → Uninstall) | Yes — sandbox is wiped |
-| **iOS** | Long-press icon → Remove App → Delete App | Yes — sandbox is wiped |
 
 ## Security
 

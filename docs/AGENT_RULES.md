@@ -13,7 +13,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Write or refactor any Dart code | [§ Code Quality — SonarCloud](#code-quality--sonarcloud) + [§ Conventions](#conventions) |
 | Call API of an external package (dartssh2, drift, riverpod, xterm, …) | [§ Conventions → External Libraries & APIs](#external-libraries--apis--look-up-dont-guess) — grep repo first, then Context7 / web docs / pub-cache source |
 | Add a new dependency or feature that needs an OS capability | [§ Conventions → Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs |
-| Tempted to propose per-platform native rewrite of a working feature ("true hardware-backed", "real biometric", etc.) | [§ Conventions → Acceptable Per-Platform Asymmetry](#acceptable-per-platform-asymmetry--dont-escalate-working-baselines) — don't escalate; document the gap, don't fill it with code unless the user asks |
+| Tempted to propose per-platform native rewrite of a working feature ("true X", "real X", "verified X") | [§ Conventions → Don't Escalate Working Baselines](#dont-escalate-working-baselines) — don't escalate; document the gap, don't fill it with code unless the user asks |
 | Write or update a test | [§ Testing Methodology](#testing-methodology) |
 | Add/change a user-facing string | [§ Conventions → Localization](#localization-i18n) + [§ Doc Maintenance](#documentation-maintenance-checklist) row "user-facing string" |
 | Add a new widget / helper / mixin / style constant / store | [§ Conventions → Reuse First](#reuse-first-project-wide-not-just-ui) — search shared modules first |
@@ -95,21 +95,16 @@ Hard-requiring the user to install anything (a runtime, a service, a CLI, a nati
 
 When reviewing a diff that adds a new dependency: check `pubspec.yaml`, then check whether the dep pulls a transitive native requirement (look at the dep's README + `linux/`, `macos/`, `windows/`, `android/`, `ios/` plugin folders). If yes — verify the rule above before approving the change.
 
-### Acceptable Per-Platform Asymmetry — Don't Escalate Working Baselines
-The project ships across 5 platforms with **deliberately uneven security / UX guarantees**. Some platforms expose stronger native primitives (Android Keystore, iOS Secure Enclave, macOS Keychain), others weaker (Windows CredMan = LSA-software, Linux `libsecret` depends on session keyring). The project does **not** chase per-platform parity when a cross-platform baseline already covers the majority of users with known, documented limits — the cost of N parallel native code paths (N× test surface, N× release fragility, N× maintenance) is rarely worth turning a "probably hardware-backed" into a "verified hardware-backed" outcome.
-
-Canonical example — **biometric / hardware-backed credential storage**:
-- Current implementation: `flutter_secure_storage`, no explicit hardware probe.
-- Effective coverage: Keystore (Android), Keychain (iOS/macOS) → hardware-backed by default; Windows CredMan → LSA-software; Linux → no biometric, libsecret only.
-- **This is acceptable.** Do *not* propose rewriting to per-platform native channels (`KeyInfo.isInsideSecureHardware` probe, `SecAccessControl.biometryCurrentSet`, `KeyCredentialManager` / TPM, `fprintd` + `tpm2-tss`) unless the user explicitly asks for that upgrade.
+### Don't Escalate Working Baselines
+The project ships across 5 platforms with **deliberately uneven guarantees** in many domains — credential storage, file pickers, notifications, biometrics, IPC, native UI affordances, hardware probes, you name it. Cross-platform packages typically cover the majority of users with known, documented limits on the weaker platforms. The project treats that asymmetry as the **chosen baseline**, not a deficiency to fix. The cost of N parallel native code paths (N× test surface, N× release fragility, N× maintenance) is rarely worth a marginal upgrade on one or two platforms.
 
 Rules for agent behaviour on working baselines:
-1. **Don't escalate.** When an existing solution covers the majority of platforms with documented limits, treat that as the *chosen baseline*, not a deficiency to fix. The asymmetry is a feature of the budget, not a bug in the design.
-2. **Document the asymmetry instead of erasing it.** Per-platform downgrade tables live in `SECURITY.md` and [ARCHITECTURE §13 Security Model](ARCHITECTURE.md#13-security-model) / [§12 Platform-Specific Behavior](ARCHITECTURE.md#12-platform-specific-behavior). If you find a gap in the matrix, propose adding a row, not adding code.
-3. **Treat phrases like "true hardware-backed", "verified secure enclave", "real biometric" as red flags** when applied to an existing working feature. They almost always translate to "5× more code, 5× more rope". Confirm with the user that the upgrade is wanted before designing it.
-4. **User overrides this rule explicitly** by asking for the per-platform upgrade. Default behaviour is: leave the working baseline alone.
+1. **Don't escalate.** When an existing solution covers most platforms with known limits, leave it alone. The asymmetry is a feature of the budget, not a bug in the design.
+2. **Document the gap, don't fill it with code.** If you spot a missing capability, propose adding a row to the relevant per-platform table (`SECURITY.md`, [ARCHITECTURE §12 Platform-Specific](ARCHITECTURE.md#12-platform-specific-behavior), [§13 Security Model](ARCHITECTURE.md#13-security-model)). Don't open a refactor.
+3. **Treat phrases like "true X", "real X", "verified X", "proper X" as red flags** when applied to an existing working feature. They almost always translate to "more code, more rope". Confirm with the user that the upgrade is wanted before designing it.
+4. **User overrides this rule explicitly** by asking for the per-platform upgrade. Default = leave the working baseline alone.
 
-This rule is a **caveat on** [§ Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — that section's preference order ("bundle > fallback > optional dep") applies to **new** features and dependencies. It is **not** a mandate to retroactively replace working optional-dep solutions with bundled equivalents.
+This is a **caveat on** [§ Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — that section's preference order ("bundle > fallback > optional dep") applies to **new** features. It is **not** a mandate to retroactively replace working optional-dep solutions with bundled or per-platform equivalents.
 
 ### External Libraries & APIs — Look Up, Don't Guess
 **Never invent method signatures, parameter names, default values, or behaviour of any external package from memory.** Hallucinated APIs compile-fail in the best case and silently misbehave in the worst (wrong default for a keepalive timer, missed `await`, dropped error class).
