@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 
@@ -82,6 +83,34 @@ void main() {
       final vault = BiometricKeyVault();
       expect(await vault.read(), isNull);
       expect(await vault.isStored(), isFalse);
+    });
+
+    test('iOS options bind the key to Secure Enclave + biometryCurrentSet', () {
+      // Anchors the security invariant for P1.2-ios-macos: a change that
+      // removes the biometryCurrentSet flag (or downgrades the
+      // accessibility tier away from passcode-required) must break this
+      // test so the regression is caught before ship.
+      expect(
+        BiometricKeyVault.iosOptions.accessibility,
+        KeychainAccessibility.passcode,
+      );
+      expect(
+        BiometricKeyVault.iosOptions.accessControlFlags,
+        contains(AccessControlFlag.biometryCurrentSet),
+      );
+      expect(BiometricKeyVault.iosOptions.synchronizable, isFalse);
+    });
+
+    test('macOS options mirror iOS (Secure Enclave + biometryCurrentSet)', () {
+      expect(
+        BiometricKeyVault.macOsOptions.accessibility,
+        KeychainAccessibility.passcode,
+      );
+      expect(
+        BiometricKeyVault.macOsOptions.accessControlFlags,
+        contains(AccessControlFlag.biometryCurrentSet),
+      );
+      expect(BiometricKeyVault.macOsOptions.synchronizable, isFalse);
     });
   });
 }

@@ -16,12 +16,35 @@ import '../../utils/logger.dart';
 /// we hand it straight to drift and skip the PBKDF2 prompt, otherwise we
 /// fall back to the master-password dialog.
 ///
-/// This is weaker than a full BiometricPrompt-wrapped hardware-key but is
-/// what `flutter_secure_storage` exposes cross-platform today. A future
-/// pass can tighten iOS via `SecAccessControl` and Android via explicit
-/// `BiometricPrompt.CryptoObject`.
+/// Apple platforms (iOS + macOS): the key is wrapped with a `SecAccessControl`
+/// that requires [AccessControlFlag.biometryCurrentSet] on top of the
+/// `.whenPasscodeSetThisDeviceOnly` tier. This binds the stored DB key to
+/// the Secure Enclave and to the *current* biometric enrolment — adding,
+/// removing, or changing a fingerprint/Face ID invalidates the stored key
+/// and forces a master-password re-entry on the next unlock. Android still
+/// rides on the default `flutter_secure_storage` EncryptedSharedPreferences
+/// until the dedicated Keystore + `BiometricPrompt.CryptoObject` plugin
+/// lands (P1.2-android).
 class BiometricKeyVault {
   static const _keyName = 'letsflutssh_bio_db_key';
+
+  /// iOS options: Secure Enclave binding via `SecAccessControl` with
+  /// `.biometryCurrentSet`. Exposed as a constant so tests (and ports to
+  /// other call sites) can assert the exact access-control policy.
+  static const iosOptions = IOSOptions(
+    accessibility: KeychainAccessibility.passcode,
+    synchronizable: false,
+    accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+  );
+
+  /// macOS options: mirrors [iosOptions]. Keychain on macOS 12+ honours
+  /// the same access-control flags against the Secure Enclave on Apple
+  /// silicon and against the T2 chip on Intel Macs that ship with one.
+  static const macOsOptions = MacOsOptions(
+    accessibility: KeychainAccessibility.passcode,
+    synchronizable: false,
+    accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+  );
 
   final FlutterSecureStorage _storage;
 
@@ -30,15 +53,9 @@ class BiometricKeyVault {
 
   static FlutterSecureStorage _defaultStorage() {
     return const FlutterSecureStorage(
-      iOptions: IOSOptions(
-        accessibility: KeychainAccessibility.passcode,
-        synchronizable: false,
-      ),
+      iOptions: iosOptions,
       aOptions: AndroidOptions(),
-      mOptions: MacOsOptions(
-        accessibility: KeychainAccessibility.passcode,
-        synchronizable: false,
-      ),
+      mOptions: macOsOptions,
     );
   }
 
