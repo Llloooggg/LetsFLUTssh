@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/security/password_rate_limiter.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
@@ -26,6 +29,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
     this.numeric = false,
     this.maxLength,
     this.onReset,
+    this.rateLimiter,
   });
 
   final String title;
@@ -45,6 +49,12 @@ class TierSecretUnlockDialog extends StatefulWidget {
   /// wipe.
   final Future<void> Function()? onReset;
 
+  /// Optional rate limiter. When provided, the dialog refuses to
+  /// call [verify] while the limiter is locked, records success /
+  /// failure automatically, and renders a countdown over the submit
+  /// button. The caller owns the limiter's lifecycle.
+  final PasswordRateLimiter? rateLimiter;
+
   static Future<List<int>?> show(
     BuildContext context, {
     required String title,
@@ -55,6 +65,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
     bool numeric = false,
     int? maxLength,
     Future<void> Function()? onReset,
+    PasswordRateLimiter? rateLimiter,
   }) {
     return showDialog<List<int>?>(
       context: context,
@@ -68,6 +79,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
         numeric: numeric,
         maxLength: maxLength,
         onReset: onReset,
+        rateLimiter: rateLimiter,
       ),
     );
   }
@@ -82,9 +94,54 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   bool _busy = false;
   bool _wrong = false;
   bool _obscure = true;
+  Timer? _cooldownTicker;
+  RateLimitStatus _cooldown = const RateLimitStatus(
+    failureCount: 0,
+    cooldownRemaining: Duration.zero,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCooldown();
+  }
+
+  void _refreshCooldown() {
+    final limiter = widget.rateLimiter;
+    if (limiter == null) return;
+    final status = limiter is PersistedRateLimiter ? null : limiter.status();
+    if (status != null) {
+      _cooldown = status;
+      if (status.isLocked) _startTicker();
+    } else if (limiter is PersistedRateLimiter) {
+      limiter.statusAsync().then((s) {
+        if (!mounted) return;
+        setState(() => _cooldown = s);
+        if (s.isLocked) _startTicker();
+      });
+    }
+  }
+
+  void _startTicker() {
+    _cooldownTicker?.cancel();
+    _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      final limiter = widget.rateLimiter;
+      if (limiter == null || !mounted) {
+        _cooldownTicker?.cancel();
+        return;
+      }
+      final next = limiter.status();
+      setState(() => _cooldown = next);
+      if (!next.isLocked) {
+        _cooldownTicker?.cancel();
+        _cooldownTicker = null;
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _cooldownTicker?.cancel();
     _ctrl.wipeAndClear();
     _ctrl.dispose();
     _focus.dispose();
@@ -94,6 +151,8 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   Future<void> _submit() async {
     final secret = _ctrl.text;
     if (secret.isEmpty) return;
+    final limiter = widget.rateLimiter;
+    if (limiter != null && limiter.status().isLocked) return;
     setState(() {
       _busy = true;
       _wrong = false;
@@ -101,10 +160,14 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
     final key = await widget.verify(secret);
     if (!mounted) return;
     if (key == null) {
+      limiter?.recordFailure();
+      final status = limiter?.status();
       setState(() {
         _busy = false;
         _wrong = true;
+        if (status != null) _cooldown = status;
       });
+      if (status != null && status.isLocked) _startTicker();
       _ctrl.selection = TextSelection(
         baseOffset: 0,
         extentOffset: _ctrl.text.length,
@@ -112,6 +175,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
       _focus.requestFocus();
       return;
     }
+    limiter?.recordSuccess();
     Navigator.of(context).pop(key);
   }
 
@@ -191,6 +255,18 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   ),
                   const SizedBox(height: 8),
                 ],
+                if (_cooldown.isLocked) ...[
+                  Text(
+                    l10n.tierCooldownHint(
+                      _cooldown.cooldownRemaining!.inSeconds + 1,
+                    ),
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: AppFonts.sm,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 TextField(
                   controller: _ctrl,
                   focusNode: _focus,
@@ -228,7 +304,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _submit,
+                      onPressed: _cooldown.isLocked ? null : _submit,
                       child: Text(l10n.unlock),
                     ),
                   ),

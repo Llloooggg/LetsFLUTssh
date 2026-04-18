@@ -37,6 +37,7 @@ import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
 import 'core/security/keychain_password_gate.dart';
 import 'core/security/legacy_state_reset.dart';
+import 'core/security/password_rate_limiter.dart';
 import 'core/security/security_tier.dart';
 import 'features/settings/security_tier_switcher.dart';
 import 'widgets/lfs_import_dialog.dart';
@@ -567,6 +568,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<List<int>?> _showL2UnlockDialog(
     KeychainPasswordGate gate,
     SecureKeyStorage keyStorage,
+  ) async {
+    // Resolve the persisted rate limiter before touching any context —
+    // keeps the use_build_context_synchronously lint happy.
+    final limiter = await gate.rateLimiter();
+    if (!mounted) return null;
+    return _showL2DialogSync(gate, keyStorage, limiter);
+  }
+
+  Future<List<int>?> _showL2DialogSync(
+    KeychainPasswordGate gate,
+    SecureKeyStorage keyStorage,
+    PasswordRateLimiter? limiter,
   ) {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
@@ -577,6 +590,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       hint: l10n.l2UnlockHint,
       inputLabel: l10n.password,
       wrongSecretLabel: l10n.l2WrongPassword,
+      rateLimiter: limiter,
       verify: (password) async {
         if (!await gate.verify(password)) return null;
         return keyStorage.readKey();
@@ -621,6 +635,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
     final l10n = S.of(ctx);
+    // Hardware lockout is the real brake; `HardwareRateLimiter` is a
+    // software counter on top of it for defense-in-depth.
+    final limiter = HardwareRateLimiter();
     return TierSecretUnlockDialog.show(
       ctx,
       title: l10n.l3UnlockTitle,
@@ -629,6 +646,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       wrongSecretLabel: l10n.l3WrongPin,
       numeric: true,
       maxLength: 6,
+      rateLimiter: limiter,
       verify: (pin) async {
         final unsealed = await vault.read(pin);
         if (unsealed == null) return null;

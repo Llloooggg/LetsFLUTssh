@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import 'password_rate_limiter.dart';
 
 /// UX-only password gate for L2 (keychain + password).
 ///
@@ -135,6 +136,33 @@ class KeychainPasswordGate {
         name: 'KeychainPasswordGate',
       );
       return false;
+    }
+  }
+
+  /// Build a [PersistedRateLimiter] bound to the current stored HMAC.
+  /// The HMAC is the secret: anyone who can forge a tampered
+  /// rate-limit state file would need to also have both disk-hash +
+  /// keychain-pepper, i.e. already enough to decrypt the DB.
+  ///
+  /// Returns null when the gate has never been configured — caller
+  /// should fall through to "wrong password" without rate-limiting
+  /// (there is nothing to guard).
+  Future<PasswordRateLimiter?> rateLimiter() async {
+    try {
+      final file = await _hashFile();
+      if (!await file.exists()) return null;
+      final raw = await file.readAsBytes();
+      final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
+      final hmacB64 = decoded['hmac'];
+      if (hmacB64 is! String) return null;
+      final storedHmac = base64.decode(hmacB64);
+      return PersistedRateLimiter(hmacKey: Uint8List.fromList(storedHmac));
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeychainPasswordGate.rateLimiter failed: $e',
+        name: 'KeychainPasswordGate',
+      );
+      return null;
     }
   }
 
