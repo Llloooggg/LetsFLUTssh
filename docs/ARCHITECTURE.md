@@ -627,19 +627,31 @@ class ForegroundServiceManager {
 
 ### 3.6 Security & Encryption (`core/security/`)
 
-#### Three-Level Security Model
+#### Five-Tier Security Model (L0–L3 + Paranoid)
 
-All data is stored in a single drift (SQLite) database. Encryption is applied at the database level via SQLite3MultipleCiphers:
+All data lives in one drift (SQLite) database. Encryption runs at the database level through SQLite3MultipleCiphers. The user picks one of four **numbered tiers** on the linear ladder, plus one **alternative branch** ("Paranoid") shown separately for users who do not trust the OS at all:
 
-| Level | When | Database | Key source |
-|-------|------|----------|------------|
-| **Plaintext** | No keychain AND no master password | `letsflutssh.db` (unencrypted SQLite) | None |
-| **Keychain** | OS keychain available, no master password | `letsflutssh.db` (encrypted via PRAGMA key) | OS keychain via `flutter_secure_storage` |
-| **Master Password** | User set master password | `letsflutssh.db` (encrypted via PRAGMA key) + `credentials.kdf` + `credentials.verify` | Argon2id-derived |
+| Tier | Label | DB key location | User-typed secret | Where the secret is stored |
+|---|---|---|---|---|
+| **L0** | Plaintext | — | — | — |
+| **L1** | Keychain | OS keychain (Keychain / Credential Manager / libsecret / EncryptedSharedPreferences) | — | — |
+| **L2** | Keychain + password | OS keychain | Short password (UX gate) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain (`letsflutssh_l2_pepper`) |
+| **L3** | Hardware + PIN | Hardware-bound vault (Secure Enclave / StrongBox / TPM2 / Windows Hello) | 4–6 digit PIN | Hardware module itself; `hardware_vault.bin` on disk carries only the sealed blob + salt |
+| **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Long password | Argon2id salt + verifier in `credentials.kdf`; key material lives only in `SecretBuffer` |
 
-Stores (SessionStore, KeyStore, KnownHostsManager, SnippetStore, TagStore) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption.
+Each tier carries orthogonal modifiers (biometric shortcut on L1/L2/L3; PIN length for L3). `SecurityTier` enum values are deliberately unordered — no `<`/`>` comparisons anywhere in the codebase. Feature-gating uses predicates on `SecurityConfig` (`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`, `isPlaintext`).
 
-First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no database file).
+Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`, `SnippetStore`, `TagStore`) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption — the active tier is opaque to them.
+
+**Tier resolution at startup** (`main._initSecurity`):
+
+1. If the `SecurityTierSwitcher` pending marker exists → log + clear it (the previous run died mid-switch; the standard unlock path below will either succeed under the target credential or fall through to reset).
+2. Read `AppConfig.security` (persisted as `security_tier` + `security_modifiers` in `config.json`). When null **and** any legacy pre-tier state exists on disk → show `TierResetDialog` (breaking change: wipe-and-setup-fresh or quit).
+3. When the config has a tier, dispatch to the matching unlock path: `_unlockParanoid`, `_unlockKeychainWithPassword`, `_unlockHardware`, `_unlockKeychain`, or the plaintext short-circuit.
+4. When the DB file exists but the tier field does not (legacy installs between model iterations) → legacy-infer fall-through: PBKDF2-reject → master-password probe → keychain-key probe → plaintext.
+5. When no DB file exists → first-launch `SecuritySetupDialog` (the wizard), then persist the chosen `SecurityTier` into `config.json`.
+
+First launch is detected by the combination "no `config.security` **and** no DB file **and** no legacy state." Any single-signal detector was too fragile against partial installs and mid-switch crashes.
 
 **Key-derivation pipeline** (only the master-password branch derives; keychain stores the DB key directly, plaintext has no key):
 
@@ -675,9 +687,59 @@ The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.d
 
 Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two KDF runs, adding up to several seconds on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so this single-call optimisation matters even more than it did for PBKDF2.
 
-#### Switching modes on the fly
+#### Switching tiers on the fly — always-rekey invariant
 
-`_reEncryptAll()` in `settings_sections.dart` runs `PRAGMA rekey` through `rekeyDatabase()` in `lib/core/db/database_opener.dart` to re-encrypt every DB page under the new key *before* flipping `securityStateProvider`. A crypto / disk failure leaves the old working state intact instead of a half-migrated file. Removing master password or changing it wipes `BiometricKeyVault` since the cached key becomes stale.
+Every tier switch — L0↔L1↔L2↔L3↔Paranoid, **including modifier-only changes on the same tier** — generates a fresh random 32-byte DB key and rekeys the whole DB under it. The previous wrapper (keychain entry, hardware-sealed blob, Argon2id verifier) is invalidated by the rekey, so a previously leaked wrapper cannot decrypt post-switch data.
+
+[`SecurityTierSwitcher.switchTier`](../lib/features/settings/security_tier_switcher.dart) owns the orchestration order:
+
+1. Generate a fresh 32-byte key via `Random.secure()` (CSPRNG-backed — `/dev/urandom` on POSIX, `BCryptGenRandom` on Windows).
+2. Write `.tier-transition-pending` marker with the target tier's JSON payload. Marker lives in app-support, hardened to 0600.
+3. `rekeyDatabase(db, newKey)` — atomic `PRAGMA rekey` transaction. On failure the DB is still under the source key; the marker points at the unfinished target so startup notices.
+4. `applyWrapper(newKey)` — tier-specific: write to `SecureKeyStorage`, `HardwareTierVault.store`, `MasterPasswordManager.enable`, etc.
+5. `persistConfig(newKey)` — update `securityStateProvider` + mirror the new tier into `config.json`.
+6. `clearPrevious()` — tier-specific cleanup: delete the previous keychain entry, clear the hardware vault, clear the password gate, disable the master-password manager, clear the biometric vault.
+7. Delete the marker as the last step; its absence is the "all good" signal the next startup relies on.
+
+A crash between steps 3 and 7 leaves the marker on disk. `main._initSecurity` logs and clears the marker on the next launch; the standard unlock path then succeeds under whichever credential the user can supply (source or target), or falls through to reset. This tolerates the 25-pair tier-transition matrix without needing per-pair recovery logic.
+
+Settings exposes the switcher through a single "Change Security Tier" action that reopens the wizard pre-marked with the current tier and routes the result through `_applyTierChange` (`settings_sections_security.dart`) — every on-disk tier switch goes through the same orchestration path.
+
+#### L2 keychain-password gate (`KeychainPasswordGate`)
+
+L2 layers a UX-only short password in front of the L1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.
+
+State layout:
+
+- `security_pass_hash.bin` on disk holds `{salt, HMAC-SHA256(pepper, salt || password)}` as JSON.
+- OS keychain holds the pepper under `letsflutssh_l2_pepper`.
+
+`setPassword` rotates both salt and pepper atomically; a stale pepper without a fresh disk write (or vice versa) fails `verify` — the split storage is the tamper surface. `verify` uses constant-time compare. A persistent rate limiter (see below) is keyed by the stored HMAC, so any offline attempt to reset the limiter to zero-failures requires forging a HMAC whose key the attacker already has the pieces of.
+
+#### L3 hardware vault (`HardwareTierVault`)
+
+L3 seals the DB key inside a hardware module under an auth value derived as `HMAC-SHA256(pin, salt)`. The hardware module enforces rate-limiting and lockout after N failed attempts — that is what makes a 4–6 digit PIN cryptographically meaningful; dictionary attack against such a short secret is infeasible only because the hardware refuses retries.
+
+Current scope: **Linux TPM2 via [`TpmClient`](../lib/core/security/linux/tpm_client.dart)** — shells out to `tpm2-tools` to create a primary + seal the DB key under the derived auth value. Apple platforms (Secure Enclave), Android (StrongBox / Keystore), Windows (Hello via `KeyCredentialManager`) reuse the same `HardwareTierVault` contract; per-platform plugins fill in once they ship in their own sessions. Non-Linux platforms currently report `isAvailable() == false`, which disables the L3 wizard row with a tooltip reason — honest hide, no fake hardware label.
+
+Per-install salt is generated on `store()` and written alongside the sealed blob in `hardware_vault.bin`. Two devices with the same PIN never end up with the same sealed blob.
+
+#### Rate limiters — per-tier matrix
+
+[`PasswordRateLimiter`](../lib/core/security/password_rate_limiter.dart) is the abstract base; three concrete variants cover the tier matrix:
+
+| Tier | Limiter | Persistence | Rationale |
+|---|---|---|---|
+| **L0 / L1** | none | n/a | L0 has no user secret; L1 auto-unlocks via keychain, no retry surface |
+| **L2** | `PersistedRateLimiter` | disk, HMAC-authenticated | UX-gate password has no cryptographic strength; a process-restart reset would be free for an attacker |
+| **L3** | `HardwareRateLimiter` | in-memory | Thin software counter on top of the platform's hardware lockout — defense-in-depth if the hardware layer is misconfigured |
+| **Paranoid** | `InMemoryRateLimiter` | in-memory | Argon2id is the real brake; persisting a forgot-password wait across restarts is user-hostile for no extra safety |
+
+All three share the backoff schedule `[0, 1, 2, 4, 8, 16, 32, 60, 60, 60] s` — capped at 60 s so a legitimate user who genuinely forgot their password never waits more than a minute between retries.
+
+`PersistedRateLimiter` writes `{failureCount, nextRetryAtMillis}` to `rate_limit_state.bin` framed with an HMAC-SHA256 tag under the L2 gate's own stored HMAC as key. Tamper detection: a mismatch on load clamps the counter to the schedule cap and sets `nextRetryAt` to `now + 60 s`, so an attacker who overwrites the state file with garbage lands in max cooldown rather than zero-failures. Writes are serialised on a `Future` chain so back-to-back `recordFailure` / `recordSuccess` calls never race at the filesystem.
+
+The unlock dialogs (`UnlockDialog`, `TierSecretUnlockDialog`) consult `rateLimitStatus()` on mount, refuse `verify` while locked, start a 1-Hz `Timer.periodic` to refresh the countdown, and disable the submit button until the cooldown clears. The rendered label uses the `tierCooldownHint(seconds)` l10n key in all 15 locales.
 
 #### Biometric unlock
 

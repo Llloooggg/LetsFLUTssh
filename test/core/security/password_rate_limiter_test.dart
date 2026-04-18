@@ -61,6 +61,22 @@ void main() {
       expect(limiter.status().failureCount, 0);
       expect(limiter.status().isLocked, isFalse);
     });
+
+    test('new instance reports zero state — restart resets for Paranoid', () {
+      final clock = DateTime(2026, 1, 1, 12, 0, 0);
+      final first = InMemoryRateLimiter(now: () => clock);
+      for (var i = 0; i < 5; i++) {
+        first.recordFailure();
+      }
+      expect(first.status().failureCount, 5);
+
+      // A fresh instance represents a process restart — Paranoid
+      // tier deliberately drops the counter because Argon2id is the
+      // real brake against offline brute force.
+      final reborn = InMemoryRateLimiter(now: () => clock);
+      expect(reborn.status().failureCount, 0);
+      expect(reborn.status().isLocked, isFalse);
+    });
   });
 
   group('HardwareRateLimiter', () {
