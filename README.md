@@ -71,6 +71,22 @@ cd letsflutssh && ./letsflutssh
 
 > Optional: `libsecret-1-0` for OS keychain encryption (`sudo apt install libsecret-1-0`). Without it the app works fine — only plaintext and master-password storage modes are available, no biometric.
 
+> Optional: `fprintd` for biometric unlock in master-password mode (fingerprint reader required). Install + enrol one finger once, the Settings toggle picks it up on next launch. Without it the biometric toggle stays disabled with a clear reason; master-password unlock keeps working.
+>
+> ```bash
+> # Debian / Ubuntu / Mint
+> sudo apt install fprintd libpam-fprintd
+> # Fedora
+> sudo dnf install fprintd fprintd-pam
+> # Arch / Manjaro
+> sudo pacman -S fprintd
+> # openSUSE
+> sudo zypper install fprintd fprintd-pam
+>
+> # one-off: enrol a finger (any distro)
+> fprintd-enroll
+> ```
+
 ### Windows
 
 Available formats: **EXE installer** (Inno Setup), **portable zip**.

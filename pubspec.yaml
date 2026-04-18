@@ -71,6 +71,7 @@ dependencies:
   # Biometric authentication (Face ID / Touch ID / fingerprint) for the
   # optional biometric unlock of master-password mode.
   local_auth: ^2.3.0
+  dbus: ^0.7.12
 
 dev_dependencies:
   flutter_test:

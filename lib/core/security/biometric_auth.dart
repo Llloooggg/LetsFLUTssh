@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:local_auth/local_auth.dart';
 
 import '../../utils/logger.dart';
+import 'linux/fprintd_client.dart';
 
 /// Why biometric unlock is unavailable. Distinguishes "no hardware"
 /// from "hardware but nothing enrolled" so the UI can show a tooltip
@@ -63,9 +64,11 @@ typedef BiometricAvailability = BiometricUnavailableReason?;
 /// process.
 class BiometricAuth {
   final LocalAuthentication _auth;
+  final FprintdClient _fprintd;
 
-  BiometricAuth({LocalAuthentication? auth})
-    : _auth = auth ?? LocalAuthentication();
+  BiometricAuth({LocalAuthentication? auth, FprintdClient? fprintdClient})
+    : _auth = auth ?? LocalAuthentication(),
+      _fprintd = fprintdClient ?? FprintdClient();
 
   /// Convenience: true if [availability] returns null.
   Future<bool> isAvailable() async => (await availability()) == null;
@@ -90,7 +93,10 @@ class BiometricAuth {
     if (Platform.isIOS || Platform.isMacOS) {
       return BiometricBackingLevel.hardware;
     }
-    if (Platform.isAndroid || Platform.isWindows) {
+    if (Platform.isAndroid || Platform.isWindows || Platform.isLinux) {
+      // Linux currently rides on fprintd + libsecret — software-only.
+      // A TPM2 seal layer added later will flip this to hardware when
+      // the TPM path is actually wired into store/read.
       return BiometricBackingLevel.software;
     }
     return null;
@@ -108,7 +114,7 @@ class BiometricAuth {
   /// as [BiometricUnavailableReason.notEnrolled] instead of claiming
   /// biometrics work.
   Future<BiometricAvailability> availability() async {
-    if (Platform.isLinux) return BiometricUnavailableReason.platformUnsupported;
+    if (Platform.isLinux) return _linuxAvailability();
     try {
       final supported = await _auth.isDeviceSupported();
       if (!supported) return BiometricUnavailableReason.noSensor;
@@ -136,8 +142,11 @@ class BiometricAuth {
   /// Prompt the user for biometric confirmation. Returns true on success,
   /// false on cancel / fail / unavailable. [reason] is shown in the system
   /// prompt where the platform surfaces it (Android dialog, iOS Face ID
-  /// overlay).
+  /// overlay). Ignored on Linux — `fprintd` renders its own prompt via
+  /// whatever reader the kernel exposes; we only await the terminal
+  /// `VerifyStatus` signal.
   Future<bool> authenticate(String reason) async {
+    if (Platform.isLinux) return _fprintd.verify();
     try {
       return await _auth.authenticate(
         localizedReason: reason,
@@ -152,6 +161,33 @@ class BiometricAuth {
         name: 'BiometricAuth',
       );
       return false;
+    }
+  }
+
+  /// Linux availability probe: walks the [FprintdClient] ladder so the
+  /// Settings UI can surface a specific reason (daemon missing / reader
+  /// absent / no finger enrolled) instead of a generic "unsupported".
+  ///
+  /// Order matters — `isServiceReachable` must succeed before
+  /// `hasEnrolledFingers` is meaningful, and both of those run before
+  /// we claim biometrics are ready. Any D-Bus error along the way
+  /// collapses into `systemServiceMissing` so the README install
+  /// snippet is surfaced rather than a raw protocol error.
+  Future<BiometricAvailability> _linuxAvailability() async {
+    try {
+      if (!await _fprintd.isServiceReachable()) {
+        return BiometricUnavailableReason.systemServiceMissing;
+      }
+      if (!await _fprintd.hasEnrolledFingers()) {
+        return BiometricUnavailableReason.notEnrolled;
+      }
+      return null;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Linux biometric probe failed: $e',
+        name: 'BiometricAuth',
+      );
+      return BiometricUnavailableReason.systemServiceMissing;
     }
   }
 }
