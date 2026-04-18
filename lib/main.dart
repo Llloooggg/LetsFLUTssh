@@ -33,6 +33,9 @@ import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/legacy_kdf_dialog.dart';
+import 'widgets/tier_reset_dialog.dart';
+import 'core/security/legacy_state_reset.dart';
+import 'core/security/security_tier.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
@@ -345,6 +348,40 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final keyStorage = ref.read(secureKeyStorageProvider);
     final dbExists = await databaseFileExists();
 
+    // Breaking-change gate: new build carries the SecurityTier enum
+    // + a `security_tier` field in config.json. Any install that
+    // arrives here with legacy state (credentials.kdf / keychain
+    // marker / biometric vault / the DB itself) but no tier field
+    // belongs to the old model. No automatic migration — show the
+    // reset dialog, wipe everything on confirm, fall through to the
+    // first-launch wizard. Quit on refusal so the user can reinstall
+    // an older build to export first.
+    final currentSecurity = ref.read(configProvider).security;
+    if (currentSecurity == null) {
+      final reset = LegacyStateReset();
+      if (await reset.hasLegacyState()) {
+        if (!mounted) return;
+        final choice = await _showTierResetDialog();
+        if (choice == TierResetChoice.exitApp) {
+          AppLogger.instance.log(
+            'Legacy tier state detected — user chose to exit',
+            name: 'App',
+          );
+          await SystemNavigator.pop();
+          exit(0);
+        }
+        await reset.wipe();
+        AppLogger.instance.log(
+          'Legacy tier state detected — wiped, running fresh wizard',
+          name: 'App',
+        );
+        _credentialsWereReset = true;
+        // Fall through to first-launch setup with a clean slate.
+        await _firstLaunchSetup(manager, keyStorage);
+        return;
+      }
+    }
+
     if (dbExists) {
       // Existing v4 install — unlock with stored credentials.
 
@@ -490,6 +527,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
+    // Mirror the resolved level into `config.json` as the new
+    // `security_tier` field so the next launch's reset-detection
+    // predicate sees a non-null `SecurityConfig` and skips the
+    // TierResetDialog. Fire-and-forget: a failed persistence run is
+    // logged inside ConfigNotifier and never blocks unlock.
+    unawaited(_persistSecurityTier(level));
     // Load the persisted auto-lock timeout (and run the one-shot legacy
     // migration from config.json into the DB). Fire-and-forget — the
     // notifier publishes 0 until the load resolves, which matches the
@@ -518,6 +561,47 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(LegacyKdfChoice.exitApp);
     return LegacyKdfDialog.show(ctx);
+  }
+
+  /// Show the tier-reset dialog shown once per install to users
+  /// coming off the pre-tier security model.
+  Future<TierResetChoice> _showTierResetDialog() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(TierResetChoice.exitApp);
+    return TierResetDialog.show(ctx);
+  }
+
+  /// Persist the new `SecurityTier` + modifiers into `config.json`
+  /// after each successful `_injectDatabase` call. Until the full
+  /// wizard / settings rewrite lands, the tier is derived from the
+  /// old `SecurityLevel` the rest of the codebase still drives:
+  /// `plaintext` → L0, `keychain` → L1, `masterPassword` → Paranoid.
+  /// L2 (keychain + password) and L3 (Hardware) are not yet reachable
+  /// from the current wizard — they become selectable once Phase E/F
+  /// ship. Writing the marker unconditionally keeps the tier-reset
+  /// dialog from re-firing on every launch.
+  Future<void> _persistSecurityTier(SecurityLevel level) async {
+    final tier = _tierForLegacyLevel(level);
+    final existing = ref.read(configProvider).security;
+    if (existing != null && existing.tier == tier) return;
+    final next = SecurityConfig(
+      tier: tier,
+      modifiers: existing?.modifiers ?? SecurityTierModifiers.defaults,
+    );
+    await ref
+        .read(configProvider.notifier)
+        .update((cfg) => cfg.copyWith(security: next));
+  }
+
+  SecurityTier _tierForLegacyLevel(SecurityLevel level) {
+    switch (level) {
+      case SecurityLevel.plaintext:
+        return SecurityTier.plaintext;
+      case SecurityLevel.keychain:
+        return SecurityTier.keychain;
+      case SecurityLevel.masterPassword:
+        return SecurityTier.paranoid;
+    }
   }
 
   /// Resolve the biometric prompt reason string synchronously. Kept
