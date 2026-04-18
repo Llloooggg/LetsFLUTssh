@@ -800,6 +800,18 @@ class SPt extends S {
   String get passwordsDoNotMatch => 'As senhas não coincidem';
 
   @override
+  String get passwordStrengthWeak => 'Fraca';
+
+  @override
+  String get passwordStrengthModerate => 'Média';
+
+  @override
+  String get passwordStrengthStrong => 'Forte';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Muito forte';
+
+  @override
   String exportedTo(String path) {
     return 'Exportado para: $path';
   }

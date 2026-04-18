@@ -801,6 +801,18 @@ class SEs extends S {
   String get passwordsDoNotMatch => 'Las contraseñas no coinciden';
 
   @override
+  String get passwordStrengthWeak => 'Débil';
+
+  @override
+  String get passwordStrengthModerate => 'Media';
+
+  @override
+  String get passwordStrengthStrong => 'Fuerte';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Muy fuerte';
+
+  @override
   String exportedTo(String path) {
     return 'Exportado a: $path';
   }

@@ -802,6 +802,18 @@ class SAr extends S {
   String get passwordsDoNotMatch => 'كلمات المرور غير متطابقة';
 
   @override
+  String get passwordStrengthWeak => 'ضعيفة';
+
+  @override
+  String get passwordStrengthModerate => 'متوسطة';
+
+  @override
+  String get passwordStrengthStrong => 'قوية';
+
+  @override
+  String get passwordStrengthVeryStrong => 'قوية جدًا';
+
+  @override
   String exportedTo(String path) {
     return 'تم التصدير إلى: $path';
   }

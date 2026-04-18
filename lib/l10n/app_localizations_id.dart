@@ -799,6 +799,18 @@ class SId extends S {
   String get passwordsDoNotMatch => 'Kata sandi tidak cocok';
 
   @override
+  String get passwordStrengthWeak => 'Lemah';
+
+  @override
+  String get passwordStrengthModerate => 'Sedang';
+
+  @override
+  String get passwordStrengthStrong => 'Kuat';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Sangat kuat';
+
+  @override
   String exportedTo(String path) {
     return 'Diekspor ke: $path';
   }

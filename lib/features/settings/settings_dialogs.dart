@@ -328,6 +328,7 @@ class _SetMasterPasswordDialogState extends State<_SetMasterPasswordDialog> {
             textInputAction: _chain.actionAt(0),
             onSubmitted: _chain.handlerAt(0),
           ),
+          PasswordStrengthMeter(controller: widget.passwordCtrl),
           const SizedBox(height: 8),
           _passwordTextField(
             widget.confirmCtrl,
@@ -413,6 +414,7 @@ class _ChangeMasterPasswordDialogState
             textInputAction: _chain.actionAt(1),
             onSubmitted: _chain.handlerAt(1),
           ),
+          PasswordStrengthMeter(controller: widget.newCtrl),
           const SizedBox(height: 8),
           _passwordTextField(
             widget.confirmCtrl,

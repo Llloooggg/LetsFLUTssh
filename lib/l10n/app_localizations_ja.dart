@@ -781,6 +781,18 @@ class SJa extends S {
   String get passwordsDoNotMatch => 'パスワードが一致しません';
 
   @override
+  String get passwordStrengthWeak => '弱い';
+
+  @override
+  String get passwordStrengthModerate => '普通';
+
+  @override
+  String get passwordStrengthStrong => '強い';
+
+  @override
+  String get passwordStrengthVeryStrong => '非常に強い';
+
+  @override
   String exportedTo(String path) {
     return 'エクスポート先: $path';
   }

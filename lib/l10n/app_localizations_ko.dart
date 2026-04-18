@@ -780,6 +780,18 @@ class SKo extends S {
   String get passwordsDoNotMatch => '비밀번호가 일치하지 않습니다';
 
   @override
+  String get passwordStrengthWeak => '약함';
+
+  @override
+  String get passwordStrengthModerate => '보통';
+
+  @override
+  String get passwordStrengthStrong => '강함';
+
+  @override
+  String get passwordStrengthVeryStrong => '매우 강함';
+
+  @override
   String exportedTo(String path) {
     return '내보내기 완료: $path';
   }

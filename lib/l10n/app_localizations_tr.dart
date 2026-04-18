@@ -799,6 +799,18 @@ class STr extends S {
   String get passwordsDoNotMatch => 'Şifreler eşleşmiyor';
 
   @override
+  String get passwordStrengthWeak => 'Zayıf';
+
+  @override
+  String get passwordStrengthModerate => 'Orta';
+
+  @override
+  String get passwordStrengthStrong => 'Güçlü';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Çok güçlü';
+
+  @override
   String exportedTo(String path) {
     return 'Dışa aktarıldı: $path';
   }

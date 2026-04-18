@@ -1515,6 +1515,30 @@ abstract class S {
   /// **'Passwords do not match'**
   String get passwordsDoNotMatch;
 
+  /// No description provided for @passwordStrengthWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get passwordStrengthWeak;
+
+  /// No description provided for @passwordStrengthModerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Moderate'**
+  String get passwordStrengthModerate;
+
+  /// No description provided for @passwordStrengthStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get passwordStrengthStrong;
+
+  /// No description provided for @passwordStrengthVeryStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Very strong'**
+  String get passwordStrengthVeryStrong;
+
   /// No description provided for @exportedTo.
   ///
   /// In en, this message translates to:

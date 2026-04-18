@@ -6,6 +6,7 @@ import '../core/security/secure_key_storage.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'password_strength_meter.dart';
 import 'toast.dart';
 
 /// Result of the first-launch security setup wizard.
@@ -271,6 +272,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           decoration: AppTheme.inputDecoration(labelText: l10n.newPassword),
         ),
+        PasswordStrengthMeter(controller: _passwordCtrl),
         const SizedBox(height: 8),
         TextField(
           controller: _confirmCtrl,

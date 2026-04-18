@@ -796,6 +796,18 @@ class SHi extends S {
   String get passwordsDoNotMatch => 'पासवर्ड मेल नहीं खाते';
 
   @override
+  String get passwordStrengthWeak => 'कमज़ोर';
+
+  @override
+  String get passwordStrengthModerate => 'मध्यम';
+
+  @override
+  String get passwordStrengthStrong => 'मज़बूत';
+
+  @override
+  String get passwordStrengthVeryStrong => 'बहुत मज़बूत';
+
+  @override
   String exportedTo(String path) {
     return 'निर्यात किया गया: $path';
   }

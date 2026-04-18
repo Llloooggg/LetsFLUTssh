@@ -793,6 +793,18 @@ class SVi extends S {
   String get passwordsDoNotMatch => 'Mật khẩu không khớp';
 
   @override
+  String get passwordStrengthWeak => 'Yếu';
+
+  @override
+  String get passwordStrengthModerate => 'Trung bình';
+
+  @override
+  String get passwordStrengthStrong => 'Mạnh';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Rất mạnh';
+
+  @override
   String exportedTo(String path) {
     return 'Đã xuất đến: $path';
   }

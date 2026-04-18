@@ -801,6 +801,18 @@ class SRu extends S {
   String get passwordsDoNotMatch => 'Пароли не совпадают';
 
   @override
+  String get passwordStrengthWeak => 'Слабый';
+
+  @override
+  String get passwordStrengthModerate => 'Средний';
+
+  @override
+  String get passwordStrengthStrong => 'Сильный';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Очень сильный';
+
+  @override
   String exportedTo(String path) {
     return 'Экспортировано в: $path';
   }

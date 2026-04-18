@@ -794,6 +794,18 @@ class SFa extends S {
   String get passwordsDoNotMatch => 'رمزهای عبور مطابقت ندارند';
 
   @override
+  String get passwordStrengthWeak => 'ضعیف';
+
+  @override
+  String get passwordStrengthModerate => 'متوسط';
+
+  @override
+  String get passwordStrengthStrong => 'قوی';
+
+  @override
+  String get passwordStrengthVeryStrong => 'بسیار قوی';
+
+  @override
   String exportedTo(String path) {
     return 'خروجی گرفته شد به: $path';
   }

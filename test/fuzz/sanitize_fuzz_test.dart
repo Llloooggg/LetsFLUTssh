@@ -26,7 +26,7 @@ import 'package:letsflutssh/utils/sanitize.dart';
 void main() {
   const iterations = 10000;
 
-  final seed = 0xDEADBEEF;
+  const seed = 0xDEADBEEF;
   final rng = Random(seed);
 
   // Pre-compute regexes once — hot loop.

@@ -804,6 +804,18 @@ class SFr extends S {
   String get passwordsDoNotMatch => 'Les mots de passe ne correspondent pas';
 
   @override
+  String get passwordStrengthWeak => 'Faible';
+
+  @override
+  String get passwordStrengthModerate => 'Moyen';
+
+  @override
+  String get passwordStrengthStrong => 'Fort';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Très fort';
+
+  @override
   String exportedTo(String path) {
     return 'Exporté vers : $path';
   }

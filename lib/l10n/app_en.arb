@@ -457,6 +457,10 @@
   },
   "setMasterPasswordHint": "Set a master password to encrypt the archive.",
   "passwordsDoNotMatch": "Passwords do not match",
+  "passwordStrengthWeak": "Weak",
+  "passwordStrengthModerate": "Moderate",
+  "passwordStrengthStrong": "Strong",
+  "passwordStrengthVeryStrong": "Very strong",
   "exportedTo": "Exported to: {path}",
   "@exportedTo": {
     "placeholders": {

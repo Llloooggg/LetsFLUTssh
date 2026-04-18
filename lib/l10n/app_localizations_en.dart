@@ -796,6 +796,18 @@ class SEn extends S {
   String get passwordsDoNotMatch => 'Passwords do not match';
 
   @override
+  String get passwordStrengthWeak => 'Weak';
+
+  @override
+  String get passwordStrengthModerate => 'Moderate';
+
+  @override
+  String get passwordStrengthStrong => 'Strong';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Very strong';
+
+  @override
   String exportedTo(String path) {
     return 'Exported to: $path';
   }

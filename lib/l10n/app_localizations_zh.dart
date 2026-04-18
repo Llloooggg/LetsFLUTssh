@@ -778,6 +778,18 @@ class SZh extends S {
   String get passwordsDoNotMatch => '密码不匹配';
 
   @override
+  String get passwordStrengthWeak => '弱';
+
+  @override
+  String get passwordStrengthModerate => '中等';
+
+  @override
+  String get passwordStrengthStrong => '强';
+
+  @override
+  String get passwordStrengthVeryStrong => '很强';
+
+  @override
   String exportedTo(String path) {
     return '已导出至：$path';
   }

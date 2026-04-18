@@ -802,6 +802,18 @@ class SDe extends S {
   String get passwordsDoNotMatch => 'Passwörter stimmen nicht überein';
 
   @override
+  String get passwordStrengthWeak => 'Schwach';
+
+  @override
+  String get passwordStrengthModerate => 'Mittel';
+
+  @override
+  String get passwordStrengthStrong => 'Stark';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Sehr stark';
+
+  @override
   String exportedTo(String path) {
     return 'Exportiert nach: $path';
   }
