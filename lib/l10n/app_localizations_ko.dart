@@ -906,6 +906,59 @@ class SKo extends S {
   String get tierParanoidNotes => '이 계층에서는 생체 인식이 설계상 비활성화되어 있습니다.';
 
   @override
+  String get tierHardwareUnavailable =>
+      'Hardware vault not available on this install.';
+
+  @override
+  String get tierKeychainPassSetPrompt => 'Choose a short password';
+
+  @override
+  String get tierKeychainPassSetHint =>
+      'Used as a gate in front of the keychain';
+
+  @override
+  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
+
+  @override
+  String get tierHardwarePinSetHint =>
+      'Hardware lockout slows down PIN guessing';
+
+  @override
+  String get pinLabel => 'PIN';
+
+  @override
+  String get confirmPin => 'Confirm PIN';
+
+  @override
+  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
+
+  @override
+  String get pinsDoNotMatch => 'PINs do not match';
+
+  @override
+  String get l2UnlockTitle => 'Password required';
+
+  @override
+  String get l2UnlockHint => 'Enter your short password to continue';
+
+  @override
+  String get l2WrongPassword => 'Wrong password';
+
+  @override
+  String get l3UnlockTitle => 'Enter PIN';
+
+  @override
+  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+
+  @override
+  String get l3WrongPin => 'Wrong PIN';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Try again in ${seconds}s';
+  }
+
+  @override
   String exportedTo(String path) {
     return '내보내기 완료: $path';
   }

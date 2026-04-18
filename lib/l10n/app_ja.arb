@@ -278,7 +278,9 @@
   "tierKeychainSubtitle": "キーは {keychain} に存在 — 起動時に自動ロック解除",
   "@tierKeychainSubtitle": {
     "placeholders": {
-      "keychain": { "type": "String" }
+      "keychain": {
+        "type": "String"
+      }
     }
   },
   "tierKeychainProtect1": "同じマシン上の他のユーザー",
@@ -708,5 +710,28 @@
   "emptyFolder": "空のフォルダ",
   "exportWithoutPassword": "パスワードなしでエクスポートしますか？",
   "exportWithoutPasswordWarning": "アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。",
-  "continueWithoutPassword": "パスワードなしで続行"
+  "continueWithoutPassword": "パスワードなしで続行",
+  "tierHardwareUnavailable": "Hardware vault not available on this install.",
+  "tierKeychainPassSetPrompt": "Choose a short password",
+  "tierKeychainPassSetHint": "Used as a gate in front of the keychain",
+  "tierHardwarePinSetPrompt": "Choose a 4–6 digit PIN",
+  "tierHardwarePinSetHint": "Hardware lockout slows down PIN guessing",
+  "pinLabel": "PIN",
+  "confirmPin": "Confirm PIN",
+  "pinMustBe4To6Digits": "PIN must be 4–6 digits",
+  "pinsDoNotMatch": "PINs do not match",
+  "l2UnlockTitle": "Password required",
+  "l2UnlockHint": "Enter your short password to continue",
+  "l2WrongPassword": "Wrong password",
+  "l3UnlockTitle": "Enter PIN",
+  "l3UnlockHint": "Short PIN unlocks the hardware-bound vault",
+  "l3WrongPin": "Wrong PIN",
+  "tierCooldownHint": "Try again in {seconds}s",
+  "@tierCooldownHint": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

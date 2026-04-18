@@ -30,9 +30,12 @@ import 'widgets/passphrase_dialog.dart';
 import 'widgets/auto_lock_detector.dart';
 import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
+import 'widgets/tier_secret_unlock_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
+import 'core/security/hardware_tier_vault.dart';
+import 'core/security/keychain_password_gate.dart';
 import 'core/security/legacy_state_reset.dart';
 import 'core/security/security_tier.dart';
 import 'features/settings/security_tier_switcher.dart';
@@ -406,7 +409,31 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
 
     if (dbExists) {
-      // Existing v4 install — unlock with stored credentials.
+      // Existing install — prefer the explicit tier persisted in
+      // config.json when present; otherwise fall back to the legacy
+      // infer-from-state path for paranoid/keychain/plaintext.
+      if (currentSecurity != null) {
+        switch (currentSecurity.tier) {
+          case SecurityTier.hardware:
+            await _unlockHardware();
+            return;
+          case SecurityTier.keychainWithPassword:
+            await _unlockKeychainWithPassword(keyStorage);
+            return;
+          case SecurityTier.keychain:
+            await _unlockKeychain(keyStorage);
+            return;
+          case SecurityTier.paranoid:
+            await _unlockParanoid(manager);
+            return;
+          case SecurityTier.plaintext:
+            _injectDatabase();
+            AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
+            return;
+        }
+      }
+
+      // Legacy-inference path — no explicit tier field yet.
 
       // 0. Legacy PBKDF2 format — reject with a force-breaking migration
       // notice. The only paths forward are reset (wipes credentials) or
@@ -419,9 +446,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
             name: 'App',
           );
           await SystemNavigator.pop();
-          // Desktop does not honour SystemNavigator.pop — fall through to
-          // exit() as a belt-and-braces. No-op on mobile because the app
-          // is already backgrounded.
           exit(0);
         }
         await manager.reset();
@@ -434,46 +458,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return;
       }
 
-      // 1. Master password — try biometric unlock first, fall back to dialog.
-      // Track whether we attempted biometrics so the fallback dialog knows
-      // not to auto-fire the prompt a second time (user would see two
-      // consecutive cancel/fail toasts otherwise).
-      var biometricAttempted = false;
       if (await manager.isEnabled()) {
-        final vault = ref.read(biometricKeyVaultProvider);
-        final bio = ref.read(biometricAuthProvider);
-        if (await vault.isStored() && await bio.isAvailable()) {
-          biometricAttempted = true;
-          final bioKey = await _tryBiometricUnlock();
-          if (bioKey != null) {
-            _injectDatabase(key: bioKey, level: SecurityTier.paranoid);
-            AppLogger.instance.log(
-              'Master password unlocked via biometrics',
-              name: 'App',
-            );
-            return;
-          }
-        }
-        if (!mounted) return;
-        final derivedKey = await _showUnlockDialog(
-          manager,
-          autoTriggerBiometric: !biometricAttempted,
-        );
-        if (derivedKey != null) {
-          _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
-          AppLogger.instance.log('Master password unlocked', name: 'App');
-        } else {
-          _credentialsWereReset = true;
-          _injectDatabase(); // Open DB without encryption after reset
-          AppLogger.instance.log(
-            'Master password reset — credentials cleared',
-            name: 'App',
-          );
-        }
+        await _unlockParanoid(manager);
         return;
       }
 
-      // 2. Keychain key exists — use it.
+      // Keychain key exists — use it.
       final keychainKey = await keyStorage.readKey();
       if (keychainKey != null) {
         _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
@@ -481,7 +471,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return;
       }
 
-      // 3. DB exists but no encryption credentials — plaintext mode.
+      // DB exists but no encryption credentials — plaintext mode.
       _injectDatabase();
       AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
       return;
@@ -489,6 +479,167 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     // No DB file — first launch. Show security setup wizard.
     await _firstLaunchSetup(manager, keyStorage);
+  }
+
+  /// Paranoid (master password) unlock — biometric shortcut first,
+  /// then the dialog. Extracted so both the explicit-tier branch and
+  /// the legacy-infer fallback reach the same code path.
+  Future<void> _unlockParanoid(MasterPasswordManager manager) async {
+    var biometricAttempted = false;
+    if (await manager.isEnabled()) {
+      final vault = ref.read(biometricKeyVaultProvider);
+      final bio = ref.read(biometricAuthProvider);
+      if (await vault.isStored() && await bio.isAvailable()) {
+        biometricAttempted = true;
+        final bioKey = await _tryBiometricUnlock();
+        if (bioKey != null) {
+          _injectDatabase(key: bioKey, level: SecurityTier.paranoid);
+          AppLogger.instance.log(
+            'Master password unlocked via biometrics',
+            name: 'App',
+          );
+          return;
+        }
+      }
+    }
+    if (!mounted) return;
+    final derivedKey = await _showUnlockDialog(
+      manager,
+      autoTriggerBiometric: !biometricAttempted,
+    );
+    if (derivedKey != null) {
+      _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
+      AppLogger.instance.log('Master password unlocked', name: 'App');
+    } else {
+      _credentialsWereReset = true;
+      _injectDatabase();
+      AppLogger.instance.log(
+        'Master password reset — credentials cleared',
+        name: 'App',
+      );
+    }
+  }
+
+  Future<void> _unlockKeychain(SecureKeyStorage keyStorage) async {
+    final keychainKey = await keyStorage.readKey();
+    if (keychainKey != null) {
+      _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+      AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
+      return;
+    }
+    // Configured for L1 but the keychain entry is gone — fall back
+    // to plaintext so the user can still reach Settings and recover.
+    _credentialsWereReset = true;
+    _injectDatabase();
+    AppLogger.instance.log(
+      'L1 configured but keychain entry missing — plaintext fallback',
+      name: 'App',
+    );
+  }
+
+  /// L2 (keychain + short password) unlock: show the password gate,
+  /// verify via [KeychainPasswordGate], then read the DB key from
+  /// the OS keychain and inject.
+  Future<void> _unlockKeychainWithPassword(SecureKeyStorage keyStorage) async {
+    final gate = ref.read(keychainPasswordGateProvider);
+    if (!await gate.isConfigured()) {
+      _credentialsWereReset = true;
+      _injectDatabase();
+      AppLogger.instance.log(
+        'L2 configured but gate state missing — plaintext fallback',
+        name: 'App',
+      );
+      return;
+    }
+    final key = await _showL2UnlockDialog(gate, keyStorage);
+    if (key != null) {
+      _injectDatabase(
+        key: Uint8List.fromList(key),
+        level: SecurityTier.keychainWithPassword,
+      );
+      AppLogger.instance.log('L2 keychain+password unlocked', name: 'App');
+      return;
+    }
+    _injectDatabase();
+    AppLogger.instance.log('L2 reset — plaintext fallback', name: 'App');
+  }
+
+  Future<List<int>?> _showL2UnlockDialog(
+    KeychainPasswordGate gate,
+    SecureKeyStorage keyStorage,
+  ) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(null);
+    final l10n = S.of(ctx);
+    return TierSecretUnlockDialog.show(
+      ctx,
+      title: l10n.l2UnlockTitle,
+      hint: l10n.l2UnlockHint,
+      inputLabel: l10n.password,
+      wrongSecretLabel: l10n.l2WrongPassword,
+      verify: (password) async {
+        if (!await gate.verify(password)) return null;
+        return keyStorage.readKey();
+      },
+      onReset: () async {
+        final reset = LegacyStateReset();
+        await reset.wipe();
+        _credentialsWereReset = true;
+      },
+    );
+  }
+
+  /// L3 (hardware + PIN) unlock: show the PIN pad, call
+  /// [HardwareTierVault.read] which asks the hardware module to
+  /// unseal the DB key under `HMAC(salt, pin)`. Hardware rate-limit
+  /// is the real brake against brute force.
+  Future<void> _unlockHardware() async {
+    final vault = ref.read(hardwareTierVaultProvider);
+    if (!await vault.isStored()) {
+      _credentialsWereReset = true;
+      _injectDatabase();
+      AppLogger.instance.log(
+        'L3 configured but vault state missing — plaintext fallback',
+        name: 'App',
+      );
+      return;
+    }
+    final key = await _showL3UnlockDialog(vault);
+    if (key != null) {
+      _injectDatabase(
+        key: Uint8List.fromList(key),
+        level: SecurityTier.hardware,
+      );
+      AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
+      return;
+    }
+    _injectDatabase();
+    AppLogger.instance.log('L3 reset — plaintext fallback', name: 'App');
+  }
+
+  Future<List<int>?> _showL3UnlockDialog(HardwareTierVault vault) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(null);
+    final l10n = S.of(ctx);
+    return TierSecretUnlockDialog.show(
+      ctx,
+      title: l10n.l3UnlockTitle,
+      hint: l10n.l3UnlockHint,
+      inputLabel: l10n.pinLabel,
+      wrongSecretLabel: l10n.l3WrongPin,
+      numeric: true,
+      maxLength: 6,
+      verify: (pin) async {
+        final unsealed = await vault.read(pin);
+        if (unsealed == null) return null;
+        return unsealed;
+      },
+      onReset: () async {
+        final reset = LegacyStateReset();
+        await reset.wipe();
+        _credentialsWereReset = true;
+      },
+    );
   }
 
   /// First-launch flow: show wizard, configure security.
@@ -503,36 +654,108 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final result = await SecuritySetupDialog.show(ctx, keyStorage: keyStorage);
     if (!mounted) return;
 
-    if (result.masterPassword != null) {
-      final key = await manager.enable(result.masterPassword!);
-      _injectDatabase(key: key, level: SecurityTier.paranoid);
-      AppLogger.instance.log(
-        'First launch: master password enabled',
-        name: 'App',
-      );
-    } else if (result.keychainAvailable) {
-      final key = AesGcm.generateKey();
-      final stored = await keyStorage.writeKey(key);
-      if (stored) {
-        _injectDatabase(key: key, level: SecurityTier.keychain);
+    switch (result.tier) {
+      case SecurityTier.paranoid:
+        final password = result.masterPassword;
+        if (password == null) {
+          _injectDatabase();
+          return;
+        }
+        final key = await manager.enable(password);
+        _injectDatabase(key: key, level: SecurityTier.paranoid);
         AppLogger.instance.log(
-          'First launch: keychain encryption enabled',
+          'First launch: master password (Paranoid) enabled',
           name: 'App',
         );
-      } else {
+      case SecurityTier.hardware:
+        await _firstLaunchHardware(result.pin);
+      case SecurityTier.keychainWithPassword:
+        await _firstLaunchKeychainWithPassword(
+          keyStorage: keyStorage,
+          shortPassword: result.shortPassword,
+        );
+      case SecurityTier.keychain:
+        if (!result.keychainAvailable) {
+          _injectDatabase();
+          return;
+        }
+        final key = AesGcm.generateKey();
+        final stored = await keyStorage.writeKey(key);
+        if (stored) {
+          _injectDatabase(key: key, level: SecurityTier.keychain);
+          AppLogger.instance.log(
+            'First launch: keychain encryption enabled',
+            name: 'App',
+          );
+        } else {
+          _injectDatabase();
+          AppLogger.instance.log(
+            'First launch: keychain write failed, falling back to plaintext',
+            name: 'App',
+          );
+        }
+      case SecurityTier.plaintext:
         _injectDatabase();
         AppLogger.instance.log(
-          'First launch: keychain write failed, falling back to plaintext',
+          'First launch: plaintext mode (L0)',
           name: 'App',
         );
-      }
-    } else {
+    }
+  }
+
+  /// L2 first-launch: configure the keychain password gate, then write
+  /// a fresh DB key to the OS keychain.
+  Future<void> _firstLaunchKeychainWithPassword({
+    required SecureKeyStorage keyStorage,
+    required String? shortPassword,
+  }) async {
+    if (shortPassword == null || shortPassword.isEmpty) {
       _injectDatabase();
+      return;
+    }
+    final gate = ref.read(keychainPasswordGateProvider);
+    await gate.setPassword(shortPassword);
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (stored) {
+      _injectDatabase(key: key, level: SecurityTier.keychainWithPassword);
       AppLogger.instance.log(
-        'First launch: plaintext mode (no keychain, no master password)',
+        'First launch: keychain+password (L2) enabled',
         name: 'App',
       );
+      return;
     }
+    await gate.clear();
+    _injectDatabase();
+    AppLogger.instance.log(
+      'First launch: L2 keychain write failed — plaintext fallback',
+      name: 'App',
+    );
+  }
+
+  /// L3 first-launch: generate a DB key, seal it in the hardware vault
+  /// under `HMAC(salt, pin)`, and open the DB with that key.
+  Future<void> _firstLaunchHardware(String? pin) async {
+    if (pin == null || pin.isEmpty) {
+      _injectDatabase();
+      return;
+    }
+    final vault = ref.read(hardwareTierVaultProvider);
+    final key = AesGcm.generateKey();
+    final stored = await vault.store(dbKey: key, pin: pin);
+    if (stored) {
+      _injectDatabase(key: key, level: SecurityTier.hardware);
+      AppLogger.instance.log(
+        'First launch: hardware vault (L3) sealed',
+        name: 'App',
+      );
+      return;
+    }
+    _injectDatabase();
+    AppLogger.instance.log(
+      'First launch: hardware-vault seal failed — plaintext fallback',
+      name: 'App',
+    );
   }
 
   /// Open the database (with optional encryption) and inject into all stores.

@@ -1761,6 +1761,102 @@ abstract class S {
   /// **'Biometric is disabled by design on this tier.'**
   String get tierParanoidNotes;
 
+  /// No description provided for @tierHardwareUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware vault not available on this install.'**
+  String get tierHardwareUnavailable;
+
+  /// No description provided for @tierKeychainPassSetPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a short password'**
+  String get tierKeychainPassSetPrompt;
+
+  /// No description provided for @tierKeychainPassSetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Used as a gate in front of the keychain'**
+  String get tierKeychainPassSetHint;
+
+  /// No description provided for @tierHardwarePinSetPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a 4–6 digit PIN'**
+  String get tierHardwarePinSetPrompt;
+
+  /// No description provided for @tierHardwarePinSetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware lockout slows down PIN guessing'**
+  String get tierHardwarePinSetHint;
+
+  /// No description provided for @pinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get pinLabel;
+
+  /// No description provided for @confirmPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm PIN'**
+  String get confirmPin;
+
+  /// No description provided for @pinMustBe4To6Digits.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN must be 4–6 digits'**
+  String get pinMustBe4To6Digits;
+
+  /// No description provided for @pinsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs do not match'**
+  String get pinsDoNotMatch;
+
+  /// No description provided for @l2UnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password required'**
+  String get l2UnlockTitle;
+
+  /// No description provided for @l2UnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your short password to continue'**
+  String get l2UnlockHint;
+
+  /// No description provided for @l2WrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password'**
+  String get l2WrongPassword;
+
+  /// No description provided for @l3UnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter PIN'**
+  String get l3UnlockTitle;
+
+  /// No description provided for @l3UnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Short PIN unlocks the hardware-bound vault'**
+  String get l3UnlockHint;
+
+  /// No description provided for @l3WrongPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong PIN'**
+  String get l3WrongPin;
+
+  /// No description provided for @tierCooldownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again in {seconds}s'**
+  String tierCooldownHint(int seconds);
+
   /// No description provided for @exportedTo.
   ///
   /// In en, this message translates to:

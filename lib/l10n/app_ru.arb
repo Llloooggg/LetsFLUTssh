@@ -278,7 +278,9 @@
   "tierKeychainSubtitle": "Ключ в {keychain} — автоматическая разблокировка при запуске",
   "@tierKeychainSubtitle": {
     "placeholders": {
-      "keychain": { "type": "String" }
+      "keychain": {
+        "type": "String"
+      }
     }
   },
   "tierKeychainProtect1": "Другие пользователи на той же машине",
@@ -708,5 +710,28 @@
   "emptyFolder": "Папка пуста",
   "exportWithoutPassword": "Экспортировать без пароля?",
   "exportWithoutPasswordWarning": "Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.",
-  "continueWithoutPassword": "Продолжить без пароля"
+  "continueWithoutPassword": "Продолжить без пароля",
+  "tierHardwareUnavailable": "Аппаратное хранилище недоступно на этой установке.",
+  "tierKeychainPassSetPrompt": "Выберите короткий пароль",
+  "tierKeychainPassSetHint": "Используется как шлюз перед ключницей",
+  "tierHardwarePinSetPrompt": "Выберите PIN из 4–6 цифр",
+  "tierHardwarePinSetHint": "Аппаратная блокировка замедляет подбор PIN",
+  "pinLabel": "PIN",
+  "confirmPin": "Подтвердите PIN",
+  "pinMustBe4To6Digits": "PIN должен содержать 4–6 цифр",
+  "pinsDoNotMatch": "PIN-коды не совпадают",
+  "l2UnlockTitle": "Требуется пароль",
+  "l2UnlockHint": "Введите короткий пароль для продолжения",
+  "l2WrongPassword": "Неверный пароль",
+  "l3UnlockTitle": "Введите PIN",
+  "l3UnlockHint": "Короткий PIN разблокирует аппаратное хранилище",
+  "l3WrongPin": "Неверный PIN",
+  "tierCooldownHint": "Повтор через {seconds} с",
+  "@tierCooldownHint": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

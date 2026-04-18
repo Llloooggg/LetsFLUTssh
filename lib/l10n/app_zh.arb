@@ -278,7 +278,9 @@
   "tierKeychainSubtitle": "密钥存放于 {keychain} — 启动时自动解锁",
   "@tierKeychainSubtitle": {
     "placeholders": {
-      "keychain": { "type": "String" }
+      "keychain": {
+        "type": "String"
+      }
     }
   },
   "tierKeychainProtect1": "同一机器上的其他用户",
@@ -708,5 +710,28 @@
   "emptyFolder": "空文件夹",
   "exportWithoutPassword": "不设密码导出？",
   "exportWithoutPasswordWarning": "归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。",
-  "continueWithoutPassword": "不设密码继续"
+  "continueWithoutPassword": "不设密码继续",
+  "tierHardwareUnavailable": "Hardware vault not available on this install.",
+  "tierKeychainPassSetPrompt": "Choose a short password",
+  "tierKeychainPassSetHint": "Used as a gate in front of the keychain",
+  "tierHardwarePinSetPrompt": "Choose a 4–6 digit PIN",
+  "tierHardwarePinSetHint": "Hardware lockout slows down PIN guessing",
+  "pinLabel": "PIN",
+  "confirmPin": "Confirm PIN",
+  "pinMustBe4To6Digits": "PIN must be 4–6 digits",
+  "pinsDoNotMatch": "PINs do not match",
+  "l2UnlockTitle": "Password required",
+  "l2UnlockHint": "Enter your short password to continue",
+  "l2WrongPassword": "Wrong password",
+  "l3UnlockTitle": "Enter PIN",
+  "l3UnlockHint": "Short PIN unlocks the hardware-bound vault",
+  "l3WrongPin": "Wrong PIN",
+  "tierCooldownHint": "Try again in {seconds}s",
+  "@tierCooldownHint": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

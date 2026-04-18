@@ -939,6 +939,58 @@ class SRu extends S {
       'Биометрия отключена на этом уровне по замыслу.';
 
   @override
+  String get tierHardwareUnavailable =>
+      'Аппаратное хранилище недоступно на этой установке.';
+
+  @override
+  String get tierKeychainPassSetPrompt => 'Выберите короткий пароль';
+
+  @override
+  String get tierKeychainPassSetHint => 'Используется как шлюз перед ключницей';
+
+  @override
+  String get tierHardwarePinSetPrompt => 'Выберите PIN из 4–6 цифр';
+
+  @override
+  String get tierHardwarePinSetHint =>
+      'Аппаратная блокировка замедляет подбор PIN';
+
+  @override
+  String get pinLabel => 'PIN';
+
+  @override
+  String get confirmPin => 'Подтвердите PIN';
+
+  @override
+  String get pinMustBe4To6Digits => 'PIN должен содержать 4–6 цифр';
+
+  @override
+  String get pinsDoNotMatch => 'PIN-коды не совпадают';
+
+  @override
+  String get l2UnlockTitle => 'Требуется пароль';
+
+  @override
+  String get l2UnlockHint => 'Введите короткий пароль для продолжения';
+
+  @override
+  String get l2WrongPassword => 'Неверный пароль';
+
+  @override
+  String get l3UnlockTitle => 'Введите PIN';
+
+  @override
+  String get l3UnlockHint => 'Короткий PIN разблокирует аппаратное хранилище';
+
+  @override
+  String get l3WrongPin => 'Неверный PIN';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Повтор через $seconds с';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Экспортировано в: $path';
   }

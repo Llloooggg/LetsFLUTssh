@@ -2,7 +2,9 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 
+import '../core/security/hardware_tier_vault.dart';
 import '../core/security/secure_key_storage.dart';
+import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
@@ -12,59 +14,75 @@ import 'toast.dart';
 
 /// Result of the first-launch security setup wizard.
 class SecuritySetupResult {
-  /// The master password chosen by the user, or null if they skipped.
+  /// Tier picked by the user. `plaintext` is the fallback when the
+  /// wizard never resolves (barrier-dismiss on desktop shutdown).
+  final SecurityTier tier;
+
+  /// Master password (tier == paranoid) chosen by the user.
   final String? masterPassword;
+
+  /// Short password for the L2 keychain gate.
+  final String? shortPassword;
+
+  /// PIN digits chosen for the L3 hardware tier.
+  final String? pin;
 
   /// Whether the OS keychain is available.
   final bool keychainAvailable;
 
   const SecuritySetupResult({
+    this.tier = SecurityTier.plaintext,
     this.masterPassword,
-    required this.keychainAvailable,
+    this.shortPassword,
+    this.pin,
+    this.keychainAvailable = false,
   });
 }
 
 /// First-launch tier wizard.
 ///
-/// Renders a numbered ladder (L0–L3) + a separate **Paranoid**
-/// alternative branch. L2 (keychain + password) and L3 (hardware +
-/// PIN) rows are disabled with an "Unlock in a future version"
-/// tooltip — the underlying vault / PIN plumbing ships in follow-on
-/// commits. Every row has an `(i)` info button that opens an
-/// [AppInfoDialog] explaining what that tier protects against and
-/// what it does not.
-///
-/// Non-dismissible. Returns [SecuritySetupResult] so the legacy
-/// `main.dart._firstLaunchSetup` handler can continue to drive the
-/// existing `SecurityTier` state — `main` mirrors the resolved
-/// level into `config.json`'s `security_tier` field separately.
+/// Numbered ladder (L0–L3) + separate Paranoid branch. Every row has
+/// an `(i)` info button that opens an `AppInfoDialog` explaining what
+/// the tier does and does not protect against. Tiers that the current
+/// platform cannot satisfy render greyed with a tooltip explaining why.
 class SecuritySetupDialog extends StatefulWidget {
   final SecureKeyStorage keyStorage;
+  final HardwareTierVault hardwareVault;
 
-  const SecuritySetupDialog({super.key, required this.keyStorage});
+  const SecuritySetupDialog({
+    super.key,
+    required this.keyStorage,
+    required this.hardwareVault,
+  });
 
   static Future<SecuritySetupResult> show(
     BuildContext context, {
     required SecureKeyStorage keyStorage,
+    HardwareTierVault? hardwareVault,
   }) async {
     final result = await showDialog<SecuritySetupResult>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => SecuritySetupDialog(keyStorage: keyStorage),
+      builder: (_) => SecuritySetupDialog(
+        keyStorage: keyStorage,
+        hardwareVault: hardwareVault ?? HardwareTierVault(),
+      ),
     );
-    return result ?? const SecuritySetupResult(keychainAvailable: false);
+    return result ?? const SecuritySetupResult();
   }
 
   @override
   State<SecuritySetupDialog> createState() => _SecuritySetupDialogState();
 }
 
+enum _Form { none, paranoid, l2Password, l3Pin }
+
 class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   bool _probing = true;
   bool _keychainAvailable = false;
+  bool _hardwareAvailable = false;
 
-  // Master password form state.
-  bool _showPasswordForm = false;
+  _Form _form = _Form.none;
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   final _passwordFocus = FocusNode();
@@ -72,7 +90,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   @override
   void initState() {
     super.initState();
-    _probeKeychain();
+    _probe();
   }
 
   @override
@@ -85,36 +103,47 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     super.dispose();
   }
 
-  Future<void> _probeKeychain() async {
-    final available = await widget.keyStorage.isAvailable();
-    if (mounted) {
-      setState(() {
-        _keychainAvailable = available;
-        _probing = false;
-      });
-    }
-  }
-
-  void _pickKeychain() {
-    Navigator.of(
-      context,
-    ).pop(const SecuritySetupResult(keychainAvailable: true));
+  Future<void> _probe() async {
+    final results = await Future.wait([
+      widget.keyStorage.isAvailable(),
+      widget.hardwareVault.isAvailable(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _keychainAvailable = results[0];
+      _hardwareAvailable = results[1];
+      _probing = false;
+    });
   }
 
   void _pickPlaintext() {
-    Navigator.of(
-      context,
-    ).pop(const SecuritySetupResult(keychainAvailable: false));
+    Navigator.of(context).pop(
+      const SecuritySetupResult(
+        tier: SecurityTier.plaintext,
+        keychainAvailable: false,
+      ),
+    );
   }
 
-  void _pickParanoid() {
-    setState(() => _showPasswordForm = true);
+  void _pickKeychain() {
+    Navigator.of(context).pop(
+      SecuritySetupResult(
+        tier: SecurityTier.keychain,
+        keychainAvailable: _keychainAvailable,
+      ),
+    );
+  }
+
+  void _showForm(_Form form) {
+    _passwordCtrl.wipeAndClear();
+    _confirmCtrl.wipeAndClear();
+    setState(() => _form = form);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _passwordFocus.requestFocus();
     });
   }
 
-  void _submitMasterPassword() {
+  void _submitParanoid() {
     final l10n = S.of(context);
     final password = _passwordCtrl.text;
     if (password.isEmpty) return;
@@ -124,10 +153,53 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     }
     Navigator.of(context).pop(
       SecuritySetupResult(
+        tier: SecurityTier.paranoid,
         masterPassword: password,
         keychainAvailable: _keychainAvailable,
       ),
     );
+  }
+
+  void _submitL2() {
+    final l10n = S.of(context);
+    final password = _passwordCtrl.text;
+    if (password.isEmpty) return;
+    if (password != _confirmCtrl.text) {
+      Toast.show(context, message: l10n.passwordsDoNotMatch);
+      return;
+    }
+    Navigator.of(context).pop(
+      SecuritySetupResult(
+        tier: SecurityTier.keychainWithPassword,
+        shortPassword: password,
+        keychainAvailable: _keychainAvailable,
+      ),
+    );
+  }
+
+  void _submitL3() {
+    final l10n = S.of(context);
+    final pin = _passwordCtrl.text;
+    if (!_isValidPin(pin)) {
+      Toast.show(context, message: l10n.pinMustBe4To6Digits);
+      return;
+    }
+    if (pin != _confirmCtrl.text) {
+      Toast.show(context, message: l10n.pinsDoNotMatch);
+      return;
+    }
+    Navigator.of(context).pop(
+      SecuritySetupResult(
+        tier: SecurityTier.hardware,
+        pin: pin,
+        keychainAvailable: _keychainAvailable,
+      ),
+    );
+  }
+
+  bool _isValidPin(String pin) {
+    if (pin.length < 4 || pin.length > 6) return false;
+    return RegExp(r'^\d+$').hasMatch(pin);
   }
 
   @override
@@ -157,8 +229,16 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ],
       );
     }
-    if (_showPasswordForm) return _buildPasswordForm(l10n);
-    return _buildTierLadder(l10n);
+    switch (_form) {
+      case _Form.paranoid:
+        return _buildParanoidForm(l10n);
+      case _Form.l2Password:
+        return _buildL2Form(l10n);
+      case _Form.l3Pin:
+        return _buildL3Form(l10n);
+      case _Form.none:
+        return _buildTierLadder(l10n);
+    }
   }
 
   Widget _buildTierLadder(S l10n) {
@@ -175,8 +255,6 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ),
         const SizedBox(height: 18),
 
-        // L0 — Plaintext. Always available; shown with a red warning
-        // because it is the only tier that offers no crypto at all.
         _TierRow(
           badge: 'L0',
           label: l10n.tierPlaintextLabel,
@@ -192,10 +270,6 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           onPick: _pickPlaintext,
         ),
 
-        // L1 — Keychain. Recommended default when an OS keychain is
-        // available (iOS/macOS Secure Enclave, Android Keystore,
-        // Windows DPAPI, Linux libsecret). On platforms without it
-        // the row is disabled and Paranoid becomes the obvious pick.
         _TierRow(
           badge: 'L1',
           label: l10n.tierKeychainLabel,
@@ -207,17 +281,13 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             l10n.tierKeychainThreat2,
           ],
           accent: AppTheme.accent,
-          recommended: _keychainAvailable,
+          recommended: _keychainAvailable && !_hardwareAvailable,
           disabledReason: _keychainAvailable
               ? null
               : l10n.tierKeychainUnavailable,
           onPick: _keychainAvailable ? _pickKeychain : null,
         ),
 
-        // L2 — Keychain + short password. Wizard row is a placeholder
-        // until the pass-on-open + persisted rate-limit plumbing
-        // ships; disabled with an "upcoming" tooltip so the user sees
-        // the option exists and knows why it's off.
         _TierRow(
           badge: 'L2',
           label: l10n.tierKeychainPassLabel,
@@ -231,16 +301,13 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             l10n.tierKeychainPassThreat1,
             l10n.tierKeychainPassThreat2,
           ],
-          infoNotes: l10n.tierUpcomingNotes,
           accent: AppTheme.accent,
-          disabledReason: l10n.tierUpcomingTooltip,
-          onPick: null,
+          disabledReason: _keychainAvailable
+              ? null
+              : l10n.tierKeychainUnavailable,
+          onPick: _keychainAvailable ? () => _showForm(_Form.l2Password) : null,
         ),
 
-        // L3 — Hardware + PIN. Same upcoming-feature placeholder.
-        // The underlying hardware-vault + PIN-rate-limit wiring is
-        // scoped for a dedicated commit; wizard row is disabled with
-        // an honest reason tooltip today.
         _TierRow(
           badge: 'L3',
           label: l10n.tierHardwareLabel,
@@ -251,10 +318,12 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             l10n.tierHardwareThreat1,
             l10n.tierHardwareThreat2,
           ],
-          infoNotes: l10n.tierUpcomingNotes,
           accent: AppTheme.green,
-          disabledReason: l10n.tierUpcomingTooltip,
-          onPick: null,
+          recommended: _hardwareAvailable,
+          disabledReason: _hardwareAvailable
+              ? null
+              : l10n.tierHardwareUnavailable,
+          onPick: _hardwareAvailable ? () => _showForm(_Form.l3Pin) : null,
         ),
 
         const SizedBox(height: 14),
@@ -270,9 +339,6 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ),
         const SizedBox(height: 8),
 
-        // Paranoid — no number, alternative branch. Always
-        // available; recommended when L1 is not available on the
-        // host (no OS keychain).
         _TierRow(
           badge: null,
           label: l10n.tierParanoidLabel,
@@ -285,39 +351,24 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           ],
           infoNotes: l10n.tierParanoidNotes,
           accent: AppTheme.purple,
-          recommended: !_keychainAvailable,
-          onPick: _pickParanoid,
+          recommended: !_keychainAvailable && !_hardwareAvailable,
+          onPick: () => _showForm(_Form.paranoid),
         ),
       ],
     );
   }
 
-  Widget _buildPasswordForm(S l10n) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Icon(Icons.lock, size: 40, color: AppTheme.accent),
-        const SizedBox(height: 12),
-        Text(
-          l10n.tierParanoidLabel,
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          l10n.masterPasswordWarning,
-          style: TextStyle(
-            fontSize: AppFonts.sm,
-            color: Theme.of(context).colorScheme.error,
-          ),
-        ),
-        const SizedBox(height: 16),
+  Widget _buildParanoidForm(S l10n) {
+    return _FormShell(
+      icon: Icons.lock,
+      title: l10n.tierParanoidLabel,
+      warning: l10n.masterPasswordWarning,
+      primaryFields: [
         TextField(
           controller: _passwordCtrl,
           focusNode: _passwordFocus,
           obscureText: true,
-          onSubmitted: (_) => _submitMasterPassword(),
+          onSubmitted: (_) => _submitParanoid(),
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           decoration: AppTheme.inputDecoration(labelText: l10n.newPassword),
         ),
@@ -326,18 +377,83 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         TextField(
           controller: _confirmCtrl,
           obscureText: true,
-          onSubmitted: (_) => _submitMasterPassword(),
+          onSubmitted: (_) => _submitParanoid(),
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           decoration: AppTheme.inputDecoration(labelText: l10n.confirmPassword),
         ),
-        const SizedBox(height: 24),
-        FilledButton(onPressed: _submitMasterPassword, child: Text(l10n.ok)),
+      ],
+      onOk: _submitParanoid,
+      onCancel: () => setState(() => _form = _Form.none),
+    );
+  }
+
+  Widget _buildL2Form(S l10n) {
+    return _FormShell(
+      icon: Icons.lock_outline,
+      title: l10n.tierKeychainPassLabel,
+      warning: l10n.tierKeychainPassSetHint,
+      primaryFields: [
+        Text(
+          l10n.tierKeychainPassSetPrompt,
+          style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _passwordCtrl,
+          focusNode: _passwordFocus,
+          obscureText: true,
+          onSubmitted: (_) => _submitL2(),
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          decoration: AppTheme.inputDecoration(labelText: l10n.newPassword),
+        ),
         const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => setState(() => _showPasswordForm = false),
-          child: Text(l10n.cancel, style: TextStyle(color: AppTheme.fgDim)),
+        TextField(
+          controller: _confirmCtrl,
+          obscureText: true,
+          onSubmitted: (_) => _submitL2(),
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          decoration: AppTheme.inputDecoration(labelText: l10n.confirmPassword),
         ),
       ],
+      onOk: _submitL2,
+      onCancel: () => setState(() => _form = _Form.none),
+    );
+  }
+
+  Widget _buildL3Form(S l10n) {
+    return _FormShell(
+      icon: Icons.pin,
+      title: l10n.tierHardwareLabel,
+      warning: l10n.tierHardwarePinSetHint,
+      primaryFields: [
+        Text(
+          l10n.tierHardwarePinSetPrompt,
+          style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _passwordCtrl,
+          focusNode: _passwordFocus,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          onSubmitted: (_) => _submitL3(),
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          decoration: AppTheme.inputDecoration(labelText: l10n.pinLabel),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _confirmCtrl,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          onSubmitted: (_) => _submitL3(),
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          decoration: AppTheme.inputDecoration(labelText: l10n.confirmPin),
+        ),
+      ],
+      onOk: _submitL3,
+      onCancel: () => setState(() => _form = _Form.none),
     );
   }
 
@@ -346,6 +462,56 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     if (Platform.isWindows) return 'Credential Manager';
     if (Platform.isAndroid) return 'EncryptedSharedPreferences';
     return 'libsecret'; // Linux
+  }
+}
+
+class _FormShell extends StatelessWidget {
+  const _FormShell({
+    required this.icon,
+    required this.title,
+    required this.warning,
+    required this.primaryFields,
+    required this.onOk,
+    required this.onCancel,
+  });
+
+  final IconData icon;
+  final String title;
+  final String warning;
+  final List<Widget> primaryFields;
+  final VoidCallback onOk;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Icon(icon, size: 40, color: AppTheme.accent),
+        const SizedBox(height: 12),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          warning,
+          style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+        ),
+        const SizedBox(height: 16),
+        ...primaryFields,
+        const SizedBox(height: 24),
+        FilledButton(onPressed: onOk, child: Text(l10n.ok)),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: onCancel,
+          child: Text(l10n.cancel, style: TextStyle(color: AppTheme.fgDim)),
+        ),
+      ],
+    );
   }
 }
 

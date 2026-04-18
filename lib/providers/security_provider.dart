@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/biometric_auth.dart';
 import '../core/security/biometric_key_vault.dart';
+import '../core/security/hardware_tier_vault.dart';
+import '../core/security/keychain_password_gate.dart';
 import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
 import '../core/security/security_tier.dart';
@@ -22,6 +24,18 @@ final biometricAuthProvider = Provider<BiometricAuth>((_) => BiometricAuth());
 /// master-password dialog.
 final biometricKeyVaultProvider = Provider<BiometricKeyVault>(
   (_) => BiometricKeyVault(),
+);
+
+/// L2 keychain-password gate. Split-storage salted HMAC; fronts the
+/// keychain-stored DB key with a short-password check dialog.
+final keychainPasswordGateProvider = Provider<KeychainPasswordGate>(
+  (_) => KeychainPasswordGate(),
+);
+
+/// L3 hardware-bound DB key vault (TPM2 on Linux, stubbed elsewhere
+/// until per-platform plugins land).
+final hardwareTierVaultProvider = Provider<HardwareTierVault>(
+  (_) => HardwareTierVault(),
 );
 
 /// Current data protection level, detected at startup.

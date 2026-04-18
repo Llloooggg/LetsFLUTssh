@@ -278,7 +278,9 @@
   "tierKeychainSubtitle": "Schlüssel liegt in {keychain} — Auto-Entsperrung beim Start",
   "@tierKeychainSubtitle": {
     "placeholders": {
-      "keychain": { "type": "String" }
+      "keychain": {
+        "type": "String"
+      }
     }
   },
   "tierKeychainProtect1": "Andere Benutzer auf derselben Maschine",
@@ -708,5 +710,28 @@
   "emptyFolder": "Leerer Ordner",
   "exportWithoutPassword": "Ohne Passwort exportieren?",
   "exportWithoutPasswordWarning": "Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.",
-  "continueWithoutPassword": "Ohne Passwort fortfahren"
+  "continueWithoutPassword": "Ohne Passwort fortfahren",
+  "tierHardwareUnavailable": "Hardware vault not available on this install.",
+  "tierKeychainPassSetPrompt": "Choose a short password",
+  "tierKeychainPassSetHint": "Used as a gate in front of the keychain",
+  "tierHardwarePinSetPrompt": "Choose a 4–6 digit PIN",
+  "tierHardwarePinSetHint": "Hardware lockout slows down PIN guessing",
+  "pinLabel": "PIN",
+  "confirmPin": "Confirm PIN",
+  "pinMustBe4To6Digits": "PIN must be 4–6 digits",
+  "pinsDoNotMatch": "PINs do not match",
+  "l2UnlockTitle": "Password required",
+  "l2UnlockHint": "Enter your short password to continue",
+  "l2WrongPassword": "Wrong password",
+  "l3UnlockTitle": "Enter PIN",
+  "l3UnlockHint": "Short PIN unlocks the hardware-bound vault",
+  "l3WrongPin": "Wrong PIN",
+  "tierCooldownHint": "Try again in {seconds}s",
+  "@tierCooldownHint": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

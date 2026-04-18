@@ -1,6 +1,11 @@
+import 'dart:io' show File;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
+import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
@@ -65,6 +70,31 @@ class _FakeStorage implements FlutterSecureStorage {
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Minimal TpmClient double so the wizard's `HardwareTierVault`
+/// probe finishes instantly instead of shelling out to `tpm2-tools`.
+class _FakeTpm implements TpmClient {
+  final bool available;
+  _FakeTpm({this.available = true});
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Future<Uint8List?> seal(
+    Uint8List secret, {
+    required Uint8List authValue,
+  }) async => Uint8List.fromList([...authValue, ...secret]);
+
+  @override
+  Future<Uint8List?> unseal(
+    Uint8List blob, {
+    required Uint8List authValue,
+  }) async => blob;
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
   supportedLocales: S.supportedLocales,
@@ -77,9 +107,14 @@ void main() {
   Future<SecuritySetupResult?> openDialog(
     WidgetTester tester, {
     required bool keychainAvailable,
+    bool hardwareAvailable = false,
   }) async {
     final storage = _FakeStorage(shouldThrow: !keychainAvailable);
     final keyStorage = SecureKeyStorage(storage: storage);
+    final hardwareVault = HardwareTierVault(
+      tpmClient: _FakeTpm(available: hardwareAvailable),
+      stateFileFactory: () async => File('/tmp/ignored_hw_vault.bin'),
+    );
     SecuritySetupResult? result;
 
     await tester.pumpWidget(
@@ -91,6 +126,7 @@ void main() {
               result = await SecuritySetupDialog.show(
                 ctx,
                 keyStorage: keyStorage,
+                hardwareVault: hardwareVault,
               );
             },
           ),
@@ -111,36 +147,45 @@ void main() {
       expect(find.text('L1'), findsOneWidget);
       expect(find.text('L2'), findsOneWidget);
       expect(find.text('L3'), findsOneWidget);
-      // Paranoid has no badge — find it by its label.
       expect(find.text('Master password (Paranoid)'), findsOneWidget);
     });
 
-    testWidgets('keychain row is Recommended when OS keychain probe succeeds', (
+    testWidgets(
+      'L1 is Recommended when keychain available and hardware is not',
+      (tester) async {
+        await openDialog(tester, keychainAvailable: true);
+        expect(find.text('Recommended'), findsWidgets);
+      },
+    );
+
+    testWidgets('L3 is Recommended when hardware probe succeeds', (
       tester,
     ) async {
-      await openDialog(tester, keychainAvailable: true);
-      // Recommended badge appears next to the default pick.
+      await openDialog(
+        tester,
+        keychainAvailable: true,
+        hardwareAvailable: true,
+      );
+      // L3 row present AND Recommended badge somewhere near L3.
+      expect(find.text('L3'), findsOneWidget);
       expect(find.text('Recommended'), findsWidgets);
     });
 
-    testWidgets('Paranoid row is Recommended when keychain probe fails', (
+    testWidgets('Paranoid is Recommended when no keychain + no hardware', (
       tester,
     ) async {
       await openDialog(tester, keychainAvailable: false);
       expect(find.text('Recommended'), findsWidgets);
-      // L1 row still rendered but its action must be disabled.
       expect(find.text('L1'), findsOneWidget);
     });
 
-    testWidgets(
-      'L2 and L3 rows are always disabled for now (upcoming tooltip)',
-      (tester) async {
-        await openDialog(tester, keychainAvailable: true);
-        // A tooltip can't be hit-tested without a long-press gesture,
-        // but the subtitle copy is a proxy for the row being shown.
-        expect(find.text('Keychain + password'), findsOneWidget);
-        expect(find.text('Hardware + PIN'), findsOneWidget);
-      },
-    );
+    testWidgets('L2 row disabled tooltip when keychain missing', (
+      tester,
+    ) async {
+      await openDialog(tester, keychainAvailable: false);
+      // Both rows rendered; label copy is the proxy for the row showing.
+      expect(find.text('Keychain + password'), findsOneWidget);
+      expect(find.text('Hardware + PIN'), findsOneWidget);
+    });
   });
 }

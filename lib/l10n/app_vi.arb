@@ -278,7 +278,9 @@
   "tierKeychainSubtitle": "Khóa nằm trong {keychain} — tự động mở khóa khi khởi chạy",
   "@tierKeychainSubtitle": {
     "placeholders": {
-      "keychain": { "type": "String" }
+      "keychain": {
+        "type": "String"
+      }
     }
   },
   "tierKeychainProtect1": "Người dùng khác trên cùng máy",
@@ -708,5 +710,28 @@
   "emptyFolder": "Thư mục trống",
   "exportWithoutPassword": "Xuất không có mật khẩu?",
   "exportWithoutPasswordWarning": "Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.",
-  "continueWithoutPassword": "Tiếp tục không dùng mật khẩu"
+  "continueWithoutPassword": "Tiếp tục không dùng mật khẩu",
+  "tierHardwareUnavailable": "Hardware vault not available on this install.",
+  "tierKeychainPassSetPrompt": "Choose a short password",
+  "tierKeychainPassSetHint": "Used as a gate in front of the keychain",
+  "tierHardwarePinSetPrompt": "Choose a 4–6 digit PIN",
+  "tierHardwarePinSetHint": "Hardware lockout slows down PIN guessing",
+  "pinLabel": "PIN",
+  "confirmPin": "Confirm PIN",
+  "pinMustBe4To6Digits": "PIN must be 4–6 digits",
+  "pinsDoNotMatch": "PINs do not match",
+  "l2UnlockTitle": "Password required",
+  "l2UnlockHint": "Enter your short password to continue",
+  "l2WrongPassword": "Wrong password",
+  "l3UnlockTitle": "Enter PIN",
+  "l3UnlockHint": "Short PIN unlocks the hardware-bound vault",
+  "l3WrongPin": "Wrong PIN",
+  "tierCooldownHint": "Try again in {seconds}s",
+  "@tierCooldownHint": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }
