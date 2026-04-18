@@ -2023,6 +2023,23 @@ class SEn extends S {
   String get legacyKdfExit => 'Quit LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'Database cannot be opened';
+
+  @override
+  String get dbCorruptBody =>
+      'The encrypted database on disk does not match the security level recorded for this install. This usually means a previous setup was interrupted, or the data is from a build that used a different cipher.\n\nLetsFLUTssh cannot proceed until the database is either opened with the right credentials by a matching build, or wiped and set up fresh.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Reset will permanently delete the encrypted database and every security-related file. No data will be recovered.';
+
+  @override
+  String get dbCorruptResetContinue => 'Reset & Setup Fresh';
+
+  @override
+  String get dbCorruptExit => 'Quit LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Security reset required';
 
   @override

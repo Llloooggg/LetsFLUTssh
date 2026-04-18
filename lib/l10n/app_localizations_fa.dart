@@ -2022,6 +2022,23 @@ class SFa extends S {
   String get legacyKdfExit => 'خروج از LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'باز کردن پایگاه داده ممکن نیست';
+
+  @override
+  String get dbCorruptBody =>
+      'پایگاه داده رمزگذاری‌شده روی دیسک با سطح امنیتی ثبت‌شده برای این نصب مطابقت ندارد. معمولاً به این معناست که راه‌اندازی قبلی قطع شده یا داده‌ها از یک ساخت با رمز متفاوت هستند.\n\nLetsFLUTssh تا زمانی که پایگاه داده با اعتبارنامه‌های درست ساخت مطابق باز نشود یا پاک و دوباره راه‌اندازی نشود، نمی‌تواند ادامه دهد.';
+
+  @override
+  String get dbCorruptWarning =>
+      'بازنشانی، پایگاه داده رمزگذاری‌شده و تمام فایل‌های مربوط به امنیت را برای همیشه حذف می‌کند. هیچ داده‌ای بازیابی نخواهد شد.';
+
+  @override
+  String get dbCorruptResetContinue => 'بازنشانی و راه‌اندازی تازه';
+
+  @override
+  String get dbCorruptExit => 'خروج از LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'بازنشانی امنیتی لازم است';
 
   @override

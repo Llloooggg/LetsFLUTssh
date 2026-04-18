@@ -2025,6 +2025,23 @@ class SAr extends S {
   String get legacyKdfExit => 'إنهاء LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'تعذر فتح قاعدة البيانات';
+
+  @override
+  String get dbCorruptBody =>
+      'قاعدة البيانات المشفرة على القرص لا تتطابق مع مستوى الأمان المسجل لهذا التثبيت. يعني ذلك عادةً أن الإعداد السابق انقطع أو أن البيانات من بناء استخدم تشفيرًا مختلفًا.\n\nلا يمكن لـ LetsFLUTssh المتابعة حتى يتم فتح قاعدة البيانات بالبيانات الصحيحة لبناء مطابق أو مسحها وإعادة إعدادها من الصفر.';
+
+  @override
+  String get dbCorruptWarning =>
+      'سيؤدي الإعادة إلى حذف قاعدة البيانات المشفرة وجميع الملفات المتعلقة بالأمان نهائيًا. لن تتم استعادة أي بيانات.';
+
+  @override
+  String get dbCorruptResetContinue => 'إعادة تعيين وإعداد جديد';
+
+  @override
+  String get dbCorruptExit => 'الخروج من LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'مطلوب إعادة تعيين أمني';
 
   @override

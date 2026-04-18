@@ -2050,6 +2050,23 @@ class SEs extends S {
   String get legacyKdfExit => 'Salir de LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'No se puede abrir la base de datos';
+
+  @override
+  String get dbCorruptBody =>
+      'La base de datos cifrada en el disco no coincide con el nivel de seguridad registrado para esta instalación. Normalmente significa que una configuración anterior se interrumpió o los datos son de una compilación con otro cifrado.\n\nLetsFLUTssh no puede continuar hasta que la base se abra con las credenciales correctas de una compilación compatible o se borre y configure de nuevo.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Restablecer eliminará permanentemente la base de datos cifrada y todos los archivos relacionados con la seguridad. No se recuperará ningún dato.';
+
+  @override
+  String get dbCorruptResetContinue => 'Restablecer y configurar';
+
+  @override
+  String get dbCorruptExit => 'Salir de LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Se requiere restablecer la seguridad';
 
   @override

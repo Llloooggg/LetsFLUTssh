@@ -2018,6 +2018,23 @@ class SVi extends S {
   String get legacyKdfExit => 'Thoát LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'Không thể mở cơ sở dữ liệu';
+
+  @override
+  String get dbCorruptBody =>
+      'Cơ sở dữ liệu đã mã hóa trên đĩa không khớp với mức bảo mật được ghi lại cho cài đặt này. Thường có nghĩa là cài đặt trước đó bị gián đoạn hoặc dữ liệu thuộc bản dựng dùng cipher khác.\n\nLetsFLUTssh không thể tiếp tục cho đến khi cơ sở dữ liệu được mở bằng thông tin xác thực đúng của bản dựng tương ứng hoặc bị xóa và thiết lập lại.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Đặt lại sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tệp liên quan đến bảo mật. Không có dữ liệu nào được khôi phục.';
+
+  @override
+  String get dbCorruptResetContinue => 'Đặt lại & Cài đặt mới';
+
+  @override
+  String get dbCorruptExit => 'Thoát LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Cần đặt lại bảo mật';
 
   @override

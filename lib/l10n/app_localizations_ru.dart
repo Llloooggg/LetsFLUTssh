@@ -2038,6 +2038,23 @@ class SRu extends S {
   String get legacyKdfExit => 'Выйти из LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'Не удалось открыть базу данных';
+
+  @override
+  String get dbCorruptBody =>
+      'Зашифрованная база на диске не соответствует уровню безопасности, записанному для этой установки. Обычно это значит, что предыдущая настройка была прервана или данные остались от сборки с другим шифром.\n\nLetsFLUTssh не может продолжить, пока база либо не будет открыта правильными учётными данными соответствующей сборки, либо не будет стёрта и настроена заново.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Сброс навсегда удалит зашифрованную базу данных и все связанные с безопасностью файлы. Восстановить данные будет невозможно.';
+
+  @override
+  String get dbCorruptResetContinue => 'Сбросить и настроить заново';
+
+  @override
+  String get dbCorruptExit => 'Выйти из LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Требуется сброс безопасности';
 
   @override

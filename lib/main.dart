@@ -13,6 +13,7 @@ import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/session/qr_codec.dart';
+import 'core/db/database.dart';
 import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
 import 'core/security/lock_state.dart';
@@ -32,6 +33,7 @@ import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/tier_secret_unlock_dialog.dart';
 import 'widgets/unlock_dialog.dart';
+import 'widgets/db_corrupt_dialog.dart';
 import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
@@ -298,6 +300,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
       await _initSecurity();
+      // Integrity probe: if the DB file on disk cannot be read under
+      // the cipher we just opened it with, the chosen tier does not
+      // match the actual file — fall into the reset dialog instead of
+      // surfacing drift's "file is not a database" from a later async
+      // gap. The user is the only one who can consent to a wipe;
+      // `_handleDatabaseCorruption` shows the non-dismissible reset /
+      // quit choice and never auto-deletes anything.
+      await _handleDatabaseCorruption();
       await ref.read(sessionProvider.notifier).load();
       if (_credentialsWereReset) {
         _credentialsWereReset = false;
@@ -776,12 +786,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
   }
 
+  /// Tracks the AppDatabase currently installed in the stores, so the
+  /// post-`_initSecurity` readability probe can close it cleanly if
+  /// the on-disk file turns out to be unreadable under the chosen
+  /// tier's cipher (e.g. `config.security == plaintext` on a DB that
+  /// is still encrypted from a pre-tier install).
+  AppDatabase? _activeDatabase;
+
   /// Open the database (with optional encryption) and inject into all stores.
   void _injectDatabase({
     Uint8List? key,
     SecurityTier level = SecurityTier.plaintext,
   }) {
     final db = openDatabase(encryptionKey: key);
+    _activeDatabase = db;
     ref.read(sessionStoreProvider).setDatabase(db);
     ref.read(keyStoreProvider).setDatabase(db);
     ref.read(knownHostsProvider).setDatabase(db);
@@ -833,6 +851,63 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(TierResetChoice.exitApp);
     return TierResetDialog.show(ctx);
+  }
+
+  /// Show the DB-corruption reset dialog via the synchronously-resolved
+  /// navigator context so the BuildContext never escapes an async gap.
+  Future<DbCorruptChoice> _showDbCorruptDialog() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return Future.value(DbCorruptChoice.exitApp);
+    return DbCorruptDialog.show(ctx);
+  }
+
+  /// Post-`_initSecurity` integrity probe. Runs one trivial SELECT
+  /// against the DB we just attached; on failure (wrong cipher,
+  /// corrupt file, stale tier marker) asks the user whether to wipe
+  /// and start fresh or quit. Never deletes anything without
+  /// explicit consent — the dialog is the only code path that
+  /// triggers the destructive reset.
+  Future<void> _handleDatabaseCorruption() async {
+    final db = _activeDatabase;
+    if (db == null) return;
+    if (await verifyDatabaseReadable(db)) return;
+
+    AppLogger.instance.log(
+      'Database readability probe failed — offering reset dialog',
+      name: 'App',
+    );
+    final choice = await _showDbCorruptDialog();
+    if (choice == DbCorruptChoice.exitApp) {
+      AppLogger.instance.log(
+        'DB corruption detected — user chose to exit',
+        name: 'App',
+      );
+      await SystemNavigator.pop();
+      exit(0);
+    }
+
+    // Destructive path — user consented. Close the broken handle,
+    // wipe every security + DB artefact, force-clear the persisted
+    // tier marker so the reset-on-next-launch flow cannot loop, then
+    // re-run first-launch setup so the wizard draws on a clean slate.
+    try {
+      await db.close();
+    } catch (e) {
+      AppLogger.instance.log(
+        'DB close after corruption failed (continuing wipe): $e',
+        name: 'App',
+      );
+    }
+    _activeDatabase = null;
+    await LegacyStateReset().wipe();
+    await ref
+        .read(configProvider.notifier)
+        .update((c) => c.copyWith(security: null));
+    _credentialsWereReset = true;
+    if (!mounted) return;
+    final manager = ref.read(masterPasswordProvider);
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    await _firstLaunchSetup(manager, keyStorage);
   }
 
   /// Persist the active `SecurityTier` + modifiers into `config.json`

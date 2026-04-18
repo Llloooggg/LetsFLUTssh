@@ -720,7 +720,18 @@ State layout:
 
 L3 seals the DB key inside a hardware module under an auth value derived as `HMAC-SHA256(pin, salt)`. The hardware module enforces rate-limiting and lockout after N failed attempts — that is what makes a 4–6 digit PIN cryptographically meaningful; dictionary attack against such a short secret is infeasible only because the hardware refuses retries.
 
-Current scope: **Linux TPM2 via [`TpmClient`](../lib/core/security/linux/tpm_client.dart)** — shells out to `tpm2-tools` to create a primary + seal the DB key under the derived auth value. Apple platforms (Secure Enclave), Android (StrongBox / Keystore), Windows (Hello via `KeyCredentialManager`) reuse the same `HardwareTierVault` contract; per-platform plugins fill in once they ship in their own sessions. Non-Linux platforms currently report `isAvailable() == false`, which disables the L3 wizard row with a tooltip reason — honest hide, no fake hardware label.
+Per-platform dispatch:
+
+| Platform | Binding | File | PIN channel |
+|---|---|---|---|
+| **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p hex:<digest>` as the unseal auth value — TPM lockout is the rate limiter |
+| **iOS / macOS** | P-256 in Secure Enclave (`kSecAttrTokenIDSecureEnclave`) with `.biometryCurrentSet` via [`HardwareVaultPlugin.swift`](../ios/Runner/HardwareVaultPlugin.swift) / [`macos/Runner/HardwareVaultPlugin.swift`](../macos/Runner/HardwareVaultPlugin.swift) | `hardware_vault_apple.bin` (native side) + `hardware_vault_salt.bin` (Dart side) | PIN HMAC is an external gate — SE accepts only biometrics for release |
+| **Android** | AES-256-GCM in Keystore with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` + StrongBox preferred, via [`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) | `hardware_vault_android.bin` + salt file | PIN HMAC is an external gate — Keystore requires `BiometricPrompt.CryptoObject` for release |
+| **Windows** | `KeyCredentialManager` (Windows Hello) with `RequestSignAsync` wrapping, via [`hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp) | `hardware_vault_windows.bin` + salt file | PIN HMAC is an external gate — Hello prompts for the user's gesture before signing |
+
+The PIN is the user-facing secret on every platform, but the binding path diverges: Linux alone is hardware-auth-value-native (TPM accepts arbitrary HMAC bytes as the unseal password). Apple / Android / Windows APIs gate the hardware key release on biometrics / Hello, so the PIN runs as a local HMAC gate that is checked *before* the biometric prompt fires; a wrong PIN fails without waking the user's sensor. Salt lives in Dart-owned `hardware_vault_salt.bin` so two installs with the same PIN produce different gates.
+
+Native plugin code is shipped but has not been validated on real hardware — the plan's "manual device-testing pass" acceptance is still outstanding. CI compiles each plugin on its own runner (macos-latest / windows-latest / ubuntu-latest + Android SDK) but cannot exercise biometric / Hello / StrongBox prompts. iOS is not in the release matrix; the project file carries the entries so `flutter build ios` works when invoked on a developer's Mac.
 
 Per-install salt is generated on `store()` and written alongside the sealed blob in `hardware_vault.bin`. Two devices with the same PIN never end up with the same sealed blob.
 
@@ -759,29 +770,25 @@ Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometr
 
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
-#### Android hardware-backed biometric vault (deferred — needs device-testing pass)
+#### Android hardware-backed L3 vault (shipped; device-testing pass pending)
 
-The current Android path is `local_auth` + `flutter_secure_storage` (`EncryptedSharedPreferences` under the hood). That is software-labelled in the Settings subtitle because the DB key never sits inside the Android Keystore — EncryptedSharedPreferences uses Keystore to wrap its master key but the wrapped key is re-used across every read, regardless of biometric presence. The target design upgrades this to a genuinely hardware-backed flow that matches the Apple Secure-Enclave binding already shipped:
+[`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) exposes the Keystore-backed L3 path over the `com.letsflutssh/hardware_vault` MethodChannel. `MainActivity` registers the plugin in `configureFlutterEngine`; `build.gradle.kts` pins `androidx.biometric:1.1.0` + `androidx.fragment:1.6.2` so the `BiometricPrompt` + `FragmentActivity` surfaces compile cleanly.
 
 1. **Key creation.** `KeyGenParameterSpec.Builder` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` — the key *must* be presented inside a `BiometricPrompt.CryptoObject` session, and any change to the device's enrolled biometrics atomically invalidates the key. This is the Android-native equivalent of `.biometryCurrentSet`.
-2. **Storage backing.** `setIsStrongBoxBacked(true)` when the device reports a StrongBox (Pixel 3+, recent Samsung flagships); gracefully fall through to TEE-backed Keystore when it does not. `KeyInfo.isInsideSecureHardware` + `isStrongBoxBacked` drive the backing-level label the Settings row already renders (`Hardware-backed (StrongBox)` vs `Hardware-backed (TEE)`).
-3. **Wrapping.** The DB key is AES-GCM-encrypted under the CryptoObject key on enable, ciphertext written to EncryptedSharedPreferences. Unlock presents `BiometricPrompt` → receives the `CryptoObject` → decrypts the ciphertext.
+2. **Storage backing.** `setIsStrongBoxBacked(true)` is attempted on SDK ≥ 28; the Keystore silently falls through to TEE-backed storage on devices that do not expose a StrongBox chip. `KeyInfo.securityLevel` (SDK ≥ 31) + `isInsideSecureHardware` (pre-31) drive the `backingLevel` return value — `hardware_strongbox` / `hardware_tee` / `software`.
+3. **Wrapping.** The DB key is AES-GCM-encrypted under the CryptoObject key on `store`; the IV + ciphertext + PIN-HMAC frame lands in `hardware_vault_android.bin` under the app's files dir, 0600. Unlock presents `BiometricPrompt` → receives the authed `Cipher` → decrypts.
 
-**Why it is deferred, not shipped:** the work is a native Kotlin plugin (custom or forked `flutter_secure_storage`) and must be validated on a real Android 9+ device matrix — StrongBox presence varies by OEM, the `setInvalidatedByBiometricEnrollment` contract is subtly different on pre-Android-11 builds, and the `FragmentActivity` host dependency of `BiometricPrompt` interacts with Flutter's `MainActivity` in ways that the emulator matrix does not exercise. The guardrail from [§ Doing tasks — UI testing](AGENT_RULES.md#code-quality--sonarcloud) (and from plain common sense) is not to ship a native authentication plugin untested. Resumes in a dedicated session with an Android device attached.
+**Outstanding device-testing pass:** StrongBox presence varies by OEM (Pixel 3+, recent Samsung flagships), the `setInvalidatedByBiometricEnrollment` contract is subtly different on pre-Android-11 builds, and the `FragmentActivity` host dependency of `BiometricPrompt` interacts with Flutter's `MainActivity` in ways that the emulator matrix does not exercise. The unit-test suite covers the Dart dispatch contract (see `test/core/security/hardware_tier_vault_test.dart`); runtime validation on real hardware is the remaining acceptance item.
 
-Scaffolding ready to consume when the work resumes: the `BiometricBackingLevel` enum, the subtitle wiring, and the `systemServiceMissing` / `notEnrolled` ladder already handle StrongBox / TEE / no-sensor / no-enrolment outcomes without UI churn.
+#### Windows Hello `KeyCredentialManager` integration (shipped; device-testing pass pending)
 
-#### Windows Hello `KeyCredentialManager` integration (deferred — needs Windows-host testing pass)
+[`windows/runner/hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp) binds the same MethodChannel contract to WinRT Hello via `winrt::Windows::Security::Credentials::KeyCredentialManager`. Registered from `flutter_window.cpp` alongside the generated plugin registrant; `CMakeLists.txt` links `WindowsApp.lib` for the WinRT projection and adds the plugin source to the runner target.
 
-Today's Windows backing is DPAPI via `flutter_secure_storage` — `CryptProtectData` under the user's login key, the same mechanism that protects browser cookies. Serviceable, but the key is not biometric-gated and the backing label is honestly `software`. The target upgrade is WinRT `KeyCredentialManager` (Windows Hello):
+1. On `store(dbKey)`, `KeyCredentialManager::RequestCreateAsync` returns a credential keyed by the stable identifier `letsflutssh_hw_vault_l3`. `KeyCredential::RequestSignAsync(dbKey)` signs the payload; the signature serves as the wrapped ciphertext, stored alongside the PIN-HMAC in `hardware_vault_windows.bin` under `%LOCALAPPDATA%\LetsFLUTssh`.
+2. Unseal presents the Hello gesture → `RequestSignAsync(payload)` produces the same signature (deterministic per credential) → comparison against the stored signature yields the unwrapped DB key.
+3. `backingLevel` calls `GetAttestationAsync` — `KeyCredentialAttestationStatus::Success` reports `hardware_tpm`, a `TemporaryFailure` / `NotSupported` outcome reports `software`, and a host without Hello configured at all reports `unavailable` through the earlier `KeyCredentialManager::IsSupportedAsync` probe.
 
-1. On `store(dbKey)`, call `KeyCredentialManager.RequestCreateAsync` with a stable identifier per install and the user's Hello gesture as policy. The platform returns a `KeyCredential` whose public key is bound to the TPM (or the Windows Hello "software" enclave when the device has only a PIN — Microsoft reports both paths through the same API, with the `Attestation` step telling us which one).
-2. `KeyCredential.RequestSignAsync(dbKey)` produces a signature we can wrap the DB key with, stored to disk. Unseal presents the Hello gesture → `RequestSignAsync` produces the same wrapping → key decrypted.
-3. Backing label: `Hardware-backed (TPM via Hello)` when `KeyCredentialAttestationStatus.Success` on a TPM-bearing host, `Software-backed (Hello)` when the attestation falls through to software, `Software-backed (DPAPI)` as the rung-2 fallback when Hello is not configured at all.
-
-Like Android, this is a custom native plugin — either a Windows C++ MethodChannel handler or a Dart FFI wrapper over `WinRT`. The project's self-contained-binary rule accepts it (Hello itself ships in every Windows 10+ SKU; nothing to install), but validation requires a Windows 10 / 11 host with Hello configured plus a Windows device *without* Hello to exercise the DPAPI fallback. Shipping a native Windows plugin untested would be as irresponsible as the Android case.
-
-Scaffolding ready on the same footing as the Android path: `BiometricBackingLevel.hardware` vs `software` is already surfaced in Settings and all 15 locales.
+**Outstanding device-testing pass:** the WinRT `.get()` calls currently block the calling thread; the CI compiler is happy but a real Hello prompt on the platform thread may hang the UI — the fix is to move each WinRT await onto a `std::thread` and post the `MethodResult` back from there. Plus a Windows 10 / 11 host *with* Hello + TPM has to exercise `backingLevel == hardware_tpm`, and a host *without* Hello needs to verify that `IsSupportedAsync` correctly disables the L3 wizard row.
 
 #### FIDO2 / hardware-security-key unlock (deferred — upstream library gap)
 

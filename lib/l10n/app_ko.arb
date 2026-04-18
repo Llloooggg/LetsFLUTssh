@@ -739,5 +739,10 @@
   "changeSecurityTierConfirm": "새 등급으로 데이터베이스를 다시 암호화하는 중입니다. 중단할 수 없습니다 — 완료될 때까지 앱을 열어 두세요.",
   "changeSecurityTierDone": "보안 등급이 변경되었습니다",
   "changeSecurityTierFailed": "보안 등급을 변경할 수 없습니다",
-  "tierCurrentBadge": "현재"
+  "tierCurrentBadge": "현재",
+  "dbCorruptTitle": "데이터베이스를 열 수 없습니다",
+  "dbCorruptBody": "디스크의 암호화된 데이터베이스가 이 설치에 기록된 보안 등급과 일치하지 않습니다. 일반적으로 이전 설정이 중단되었거나 데이터가 다른 암호를 사용한 빌드에서 온 것을 의미합니다.\n\n일치하는 빌드의 올바른 자격 증명으로 데이터베이스를 열거나 삭제 후 새로 설정할 때까지 LetsFLUTssh는 계속할 수 없습니다.",
+  "dbCorruptWarning": "재설정은 암호화된 데이터베이스와 모든 보안 관련 파일을 영구적으로 삭제합니다. 데이터는 복구되지 않습니다.",
+  "dbCorruptResetContinue": "재설정 후 새로 설정",
+  "dbCorruptExit": "LetsFLUTssh 종료"
 }

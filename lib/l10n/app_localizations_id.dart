@@ -2032,6 +2032,23 @@ class SId extends S {
   String get legacyKdfExit => 'Keluar dari LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'Basis data tidak dapat dibuka';
+
+  @override
+  String get dbCorruptBody =>
+      'Basis data terenkripsi di disk tidak cocok dengan tingkat keamanan yang tercatat untuk instalasi ini. Biasanya ini berarti setup sebelumnya terganggu atau data berasal dari build dengan cipher berbeda.\n\nLetsFLUTssh tidak dapat melanjutkan sampai basis data dibuka dengan kredensial yang benar dari build yang cocok atau dihapus dan disiapkan ulang.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Reset akan menghapus basis data terenkripsi dan semua file terkait keamanan secara permanen. Tidak ada data yang dipulihkan.';
+
+  @override
+  String get dbCorruptResetContinue => 'Reset & Siapkan Ulang';
+
+  @override
+  String get dbCorruptExit => 'Keluar dari LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Perlu atur ulang keamanan';
 
   @override

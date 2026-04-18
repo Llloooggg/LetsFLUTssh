@@ -739,5 +739,10 @@
   "changeSecurityTierConfirm": "Mengenkripsi ulang basis data dengan tingkat baru. Tidak dapat diganggu — biarkan aplikasi terbuka hingga selesai.",
   "changeSecurityTierDone": "Tingkat keamanan diubah",
   "changeSecurityTierFailed": "Tidak dapat mengubah tingkat keamanan",
-  "tierCurrentBadge": "Saat ini"
+  "tierCurrentBadge": "Saat ini",
+  "dbCorruptTitle": "Basis data tidak dapat dibuka",
+  "dbCorruptBody": "Basis data terenkripsi di disk tidak cocok dengan tingkat keamanan yang tercatat untuk instalasi ini. Biasanya ini berarti setup sebelumnya terganggu atau data berasal dari build dengan cipher berbeda.\n\nLetsFLUTssh tidak dapat melanjutkan sampai basis data dibuka dengan kredensial yang benar dari build yang cocok atau dihapus dan disiapkan ulang.",
+  "dbCorruptWarning": "Reset akan menghapus basis data terenkripsi dan semua file terkait keamanan secara permanen. Tidak ada data yang dipulihkan.",
+  "dbCorruptResetContinue": "Reset & Siapkan Ulang",
+  "dbCorruptExit": "Keluar dari LetsFLUTssh"
 }

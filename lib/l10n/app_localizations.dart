@@ -3609,6 +3609,36 @@ abstract class S {
   /// **'Quit LetsFLUTssh'**
   String get legacyKdfExit;
 
+  /// No description provided for @dbCorruptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Database cannot be opened'**
+  String get dbCorruptTitle;
+
+  /// No description provided for @dbCorruptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The encrypted database on disk does not match the security level recorded for this install. This usually means a previous setup was interrupted, or the data is from a build that used a different cipher.\n\nLetsFLUTssh cannot proceed until the database is either opened with the right credentials by a matching build, or wiped and set up fresh.'**
+  String get dbCorruptBody;
+
+  /// No description provided for @dbCorruptWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset will permanently delete the encrypted database and every security-related file. No data will be recovered.'**
+  String get dbCorruptWarning;
+
+  /// No description provided for @dbCorruptResetContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & Setup Fresh'**
+  String get dbCorruptResetContinue;
+
+  /// No description provided for @dbCorruptExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit LetsFLUTssh'**
+  String get dbCorruptExit;
+
   /// No description provided for @tierResetTitle.
   ///
   /// In en, this message translates to:

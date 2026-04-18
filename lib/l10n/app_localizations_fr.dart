@@ -2058,6 +2058,23 @@ class SFr extends S {
   String get legacyKdfExit => 'Quitter LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'Impossible d\'ouvrir la base de données';
+
+  @override
+  String get dbCorruptBody =>
+      'La base de données chiffrée sur le disque ne correspond pas au niveau de sécurité enregistré pour cette installation. Cela signifie généralement qu\'une configuration précédente a été interrompue ou que les données proviennent d\'une version avec un chiffrement différent.\n\nLetsFLUTssh ne peut pas continuer tant que la base n\'est pas ouverte avec les bons identifiants d\'une version compatible, ou effacée et reconfigurée.';
+
+  @override
+  String get dbCorruptWarning =>
+      'La réinitialisation supprimera définitivement la base chiffrée et tous les fichiers liés à la sécurité. Aucune donnée ne sera récupérée.';
+
+  @override
+  String get dbCorruptResetContinue => 'Réinitialiser et configurer';
+
+  @override
+  String get dbCorruptExit => 'Quitter LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Réinitialisation de sécurité requise';
 
   @override

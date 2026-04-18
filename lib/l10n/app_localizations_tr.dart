@@ -2039,6 +2039,23 @@ class STr extends S {
   String get legacyKdfExit => 'LetsFLUTssh\'tan Çık';
 
   @override
+  String get dbCorruptTitle => 'Veritabanı açılamıyor';
+
+  @override
+  String get dbCorruptBody =>
+      'Diskteki şifrelenmiş veritabanı, bu kurulum için kaydedilen güvenlik düzeyiyle eşleşmiyor. Bu genellikle önceki bir kurulumun kesintiye uğradığı veya verilerin farklı şifreli bir yapıdan kaldığı anlamına gelir.\n\nLetsFLUTssh, veritabanı uygun yapının doğru kimlik bilgileriyle açılana veya silinip yeniden kurulana kadar devam edemez.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Sıfırlama şifrelenmiş veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Hiçbir veri geri getirilmez.';
+
+  @override
+  String get dbCorruptResetContinue => 'Sıfırla ve yeniden kur';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh\'den çık';
+
+  @override
   String get tierResetTitle => 'Güvenlik sıfırlaması gerekli';
 
   @override

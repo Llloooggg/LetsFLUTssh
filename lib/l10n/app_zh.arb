@@ -739,5 +739,10 @@
   "changeSecurityTierConfirm": "正在用新等级重新加密数据库。此过程不可中断——请保持应用打开直到完成。",
   "changeSecurityTierDone": "安全等级已更改",
   "changeSecurityTierFailed": "无法更改安全等级",
-  "tierCurrentBadge": "当前"
+  "tierCurrentBadge": "当前",
+  "dbCorruptTitle": "无法打开数据库",
+  "dbCorruptBody": "磁盘上的加密数据库与此安装记录的安全等级不匹配。这通常意味着之前的设置被中断,或者数据来自使用不同密码的构建。\n\nLetsFLUTssh 无法继续,直到数据库被匹配构建的正确凭据打开,或被清除并重新设置。",
+  "dbCorruptWarning": "重置将永久删除加密数据库和所有安全相关文件。不会恢复任何数据。",
+  "dbCorruptResetContinue": "重置并重新设置",
+  "dbCorruptExit": "退出 LetsFLUTssh"
 }

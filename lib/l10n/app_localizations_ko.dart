@@ -1966,6 +1966,23 @@ class SKo extends S {
   String get legacyKdfExit => 'LetsFLUTssh 종료';
 
   @override
+  String get dbCorruptTitle => '데이터베이스를 열 수 없습니다';
+
+  @override
+  String get dbCorruptBody =>
+      '디스크의 암호화된 데이터베이스가 이 설치에 기록된 보안 등급과 일치하지 않습니다. 일반적으로 이전 설정이 중단되었거나 데이터가 다른 암호를 사용한 빌드에서 온 것을 의미합니다.\n\n일치하는 빌드의 올바른 자격 증명으로 데이터베이스를 열거나 삭제 후 새로 설정할 때까지 LetsFLUTssh는 계속할 수 없습니다.';
+
+  @override
+  String get dbCorruptWarning =>
+      '재설정은 암호화된 데이터베이스와 모든 보안 관련 파일을 영구적으로 삭제합니다. 데이터는 복구되지 않습니다.';
+
+  @override
+  String get dbCorruptResetContinue => '재설정 후 새로 설정';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh 종료';
+
+  @override
   String get tierResetTitle => '보안 재설정 필요';
 
   @override

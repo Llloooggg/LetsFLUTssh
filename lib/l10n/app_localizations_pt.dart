@@ -2043,6 +2043,23 @@ class SPt extends S {
   String get legacyKdfExit => 'Sair do LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => 'Não é possível abrir o banco de dados';
+
+  @override
+  String get dbCorruptBody =>
+      'O banco de dados criptografado no disco não corresponde ao nível de segurança registrado para esta instalação. Geralmente significa que uma configuração anterior foi interrompida ou que os dados são de uma versão com cifra diferente.\n\nLetsFLUTssh não pode continuar até que o banco seja aberto com as credenciais corretas de uma versão compatível ou seja apagado e configurado novamente.';
+
+  @override
+  String get dbCorruptWarning =>
+      'A redefinição apagará permanentemente o banco criptografado e todos os arquivos relacionados à segurança. Nenhum dado será recuperado.';
+
+  @override
+  String get dbCorruptResetContinue => 'Redefinir e configurar';
+
+  @override
+  String get dbCorruptExit => 'Sair do LetsFLUTssh';
+
+  @override
   String get tierResetTitle => 'Redefinição de segurança necessária';
 
   @override

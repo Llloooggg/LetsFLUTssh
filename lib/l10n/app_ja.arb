@@ -739,5 +739,10 @@
   "changeSecurityTierConfirm": "新しい階層でデータベースを再暗号化中。中断できません — 完了するまでアプリを開いたままにしてください。",
   "changeSecurityTierDone": "セキュリティ階層が変更されました",
   "changeSecurityTierFailed": "セキュリティ階層を変更できませんでした",
-  "tierCurrentBadge": "現在"
+  "tierCurrentBadge": "現在",
+  "dbCorruptTitle": "データベースを開けません",
+  "dbCorruptBody": "ディスク上の暗号化データベースが、このインストールに記録されているセキュリティ階層と一致しません。通常、以前のセットアップが中断されたか、データが別の暗号を使用したビルドのものであることを意味します。\n\n一致するビルドの正しい認証情報でデータベースを開くか、消去して新規にセットアップするまで、LetsFLUTssh は続行できません。",
+  "dbCorruptWarning": "リセットすると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データは復元されません。",
+  "dbCorruptResetContinue": "リセットして新規セットアップ",
+  "dbCorruptExit": "LetsFLUTssh を終了"
 }

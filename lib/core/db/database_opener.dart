@@ -34,6 +34,30 @@ AppDatabase openDatabase({Uint8List? encryptionKey}) {
   return AppDatabase(_openConnection(encryptionKey: encryptionKey));
 }
 
+/// Cheap integrity probe. Runs a trivial `SELECT` against the newly
+/// opened [db]; returns true when the file is a valid SQLite database
+/// under the current cipher key, false when SQLite rejects it as
+/// corrupt / wrong-key / "file is not a database".
+///
+/// The probe is required because a half-migrated install can carry a
+/// stale `config.json` tier marker that no longer matches the DB
+/// cipher on disk — e.g. `security_tier: plaintext` on a file still
+/// encrypted from the pre-tier era. Without this probe the first
+/// drift query (usually `PRAGMA user_version` during migration)
+/// throws from an async gap and stack-traces into the error boundary.
+Future<bool> verifyDatabaseReadable(AppDatabase db) async {
+  try {
+    await db.customSelect('SELECT 1').get();
+    return true;
+  } catch (e) {
+    AppLogger.instance.log(
+      'Database readability probe failed: ${e.runtimeType}',
+      name: 'DatabaseOpener',
+    );
+    return false;
+  }
+}
+
 /// Convert a 32-byte key to the hex-blob literal SQLite3MultipleCiphers
 /// expects in `PRAGMA key` / `PRAGMA rekey` statements (`x'...'`).
 String encryptionKeyToSqlLiteral(Uint8List key) {

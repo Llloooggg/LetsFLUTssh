@@ -739,5 +739,10 @@
   "changeSecurityTierConfirm": "Re-chiffrement de la base avec le nouveau niveau. Ne pas interrompre — laissez l'app ouverte jusqu'à la fin.",
   "changeSecurityTierDone": "Niveau de sécurité modifié",
   "changeSecurityTierFailed": "Impossible de modifier le niveau de sécurité",
-  "tierCurrentBadge": "Actuel"
+  "tierCurrentBadge": "Actuel",
+  "dbCorruptTitle": "Impossible d'ouvrir la base de données",
+  "dbCorruptBody": "La base de données chiffrée sur le disque ne correspond pas au niveau de sécurité enregistré pour cette installation. Cela signifie généralement qu'une configuration précédente a été interrompue ou que les données proviennent d'une version avec un chiffrement différent.\n\nLetsFLUTssh ne peut pas continuer tant que la base n'est pas ouverte avec les bons identifiants d'une version compatible, ou effacée et reconfigurée.",
+  "dbCorruptWarning": "La réinitialisation supprimera définitivement la base chiffrée et tous les fichiers liés à la sécurité. Aucune donnée ne sera récupérée.",
+  "dbCorruptResetContinue": "Réinitialiser et configurer",
+  "dbCorruptExit": "Quitter LetsFLUTssh"
 }

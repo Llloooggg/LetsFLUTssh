@@ -2053,6 +2053,23 @@ class SDe extends S {
   String get legacyKdfExit => 'LetsFLUTssh beenden';
 
   @override
+  String get dbCorruptTitle => 'Datenbank kann nicht geöffnet werden';
+
+  @override
+  String get dbCorruptBody =>
+      'Die verschlüsselte Datenbank auf der Festplatte passt nicht zur aufgezeichneten Sicherheitsstufe dieser Installation. Meist bedeutet das, dass eine vorherige Einrichtung unterbrochen wurde oder die Daten aus einem Build mit anderem Cipher stammen.\n\nLetsFLUTssh kann nicht fortfahren, bis die Datenbank entweder mit den richtigen Anmeldedaten eines passenden Builds geöffnet oder gelöscht und neu eingerichtet wird.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Zurücksetzen löscht die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft. Keine Daten werden wiederhergestellt.';
+
+  @override
+  String get dbCorruptResetContinue => 'Zurücksetzen & neu einrichten';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh beenden';
+
+  @override
   String get tierResetTitle => 'Sicherheits-Reset erforderlich';
 
   @override

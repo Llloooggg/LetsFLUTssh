@@ -1955,6 +1955,22 @@ class SZh extends S {
   String get legacyKdfExit => '退出 LetsFLUTssh';
 
   @override
+  String get dbCorruptTitle => '无法打开数据库';
+
+  @override
+  String get dbCorruptBody =>
+      '磁盘上的加密数据库与此安装记录的安全等级不匹配。这通常意味着之前的设置被中断,或者数据来自使用不同密码的构建。\n\nLetsFLUTssh 无法继续,直到数据库被匹配构建的正确凭据打开,或被清除并重新设置。';
+
+  @override
+  String get dbCorruptWarning => '重置将永久删除加密数据库和所有安全相关文件。不会恢复任何数据。';
+
+  @override
+  String get dbCorruptResetContinue => '重置并重新设置';
+
+  @override
+  String get dbCorruptExit => '退出 LetsFLUTssh';
+
+  @override
   String get tierResetTitle => '需要重置安全设置';
 
   @override

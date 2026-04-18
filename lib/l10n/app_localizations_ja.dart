@@ -1970,6 +1970,23 @@ class SJa extends S {
   String get legacyKdfExit => 'LetsFLUTsshを終了';
 
   @override
+  String get dbCorruptTitle => 'データベースを開けません';
+
+  @override
+  String get dbCorruptBody =>
+      'ディスク上の暗号化データベースが、このインストールに記録されているセキュリティ階層と一致しません。通常、以前のセットアップが中断されたか、データが別の暗号を使用したビルドのものであることを意味します。\n\n一致するビルドの正しい認証情報でデータベースを開くか、消去して新規にセットアップするまで、LetsFLUTssh は続行できません。';
+
+  @override
+  String get dbCorruptWarning =>
+      'リセットすると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データは復元されません。';
+
+  @override
+  String get dbCorruptResetContinue => 'リセットして新規セットアップ';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh を終了';
+
+  @override
   String get tierResetTitle => 'セキュリティリセットが必要です';
 
   @override
