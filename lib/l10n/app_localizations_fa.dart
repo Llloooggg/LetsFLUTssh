@@ -1844,6 +1844,23 @@ class SFa extends S {
   String get legacyKdfExit => 'خروج از LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'بازنشانی امنیتی لازم است';
+
+  @override
+  String get tierResetBody =>
+      'این نصب شامل داده‌های امنیتی از نسخه‌ای قدیمی از LetsFLUTssh است که از مدل لایه‌های متفاوتی استفاده می‌کرد. مدل جدید یک تغییر ناسازگار است — مسیر مهاجرت خودکار وجود ندارد. برای ادامه، همه جلسات ذخیره‌شده، اعتبارنامه‌ها، کلیدهای SSH و میزبان‌های شناخته‌شده در این نصب باید پاک شوند و راهنمای راه‌اندازی اولیه دوباره اجرا شود.';
+
+  @override
+  String get tierResetWarning =>
+      'انتخاب «بازنشانی و راه‌اندازی جدید» پایگاه داده رمزگذاری‌شده و تمام فایل‌های مرتبط با امنیت را برای همیشه حذف می‌کند. اگر نیاز به بازیابی داده‌های خود دارید، اکنون از برنامه خارج شوید و نسخه قبلی LetsFLUTssh را دوباره نصب کنید تا ابتدا صادر شوند.';
+
+  @override
+  String get tierResetResetContinue => 'بازنشانی و راه‌اندازی جدید';
+
+  @override
+  String get tierResetExit => 'خروج از LetsFLUTssh';
+
+  @override
   String get derivingKey => 'در حال ساخت کلید رمزنگاری...';
 
   @override

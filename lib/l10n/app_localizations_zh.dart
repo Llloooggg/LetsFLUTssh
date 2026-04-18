@@ -1795,6 +1795,23 @@ class SZh extends S {
   String get legacyKdfExit => '退出 LetsFLUTssh';
 
   @override
+  String get tierResetTitle => '需要重置安全设置';
+
+  @override
+  String get tierResetBody =>
+      '此安装携带使用不同层级模型的早期版本 LetsFLUTssh 的安全数据。新模型是不兼容的变更 — 没有自动迁移路径。要继续，必须清除此安装中的所有已保存会话、凭据、SSH 密钥和已知主机，并从头运行首次启动设置向导。';
+
+  @override
+  String get tierResetWarning =>
+      '选择「重置并重新设置」将永久删除加密数据库和所有与安全相关的文件。如果您需要恢复数据，请立即退出应用并重新安装旧版本的 LetsFLUTssh 以先导出数据。';
+
+  @override
+  String get tierResetResetContinue => '重置并重新设置';
+
+  @override
+  String get tierResetExit => '退出 LetsFLUTssh';
+
+  @override
   String get derivingKey => '正在生成加密密钥...';
 
   @override

@@ -3297,6 +3297,36 @@ abstract class S {
   /// **'Quit LetsFLUTssh'**
   String get legacyKdfExit;
 
+  /// No description provided for @tierResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Security reset required'**
+  String get tierResetTitle;
+
+  /// No description provided for @tierResetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This install carries security data from an older version of LetsFLUTssh that used a different tier model. The new model is a breaking change — there is no automatic migration path. To continue, every saved session, credential, SSH key, and known-host entry on this install must be wiped and the first-launch setup wizard run fresh.'**
+  String get tierResetBody;
+
+  /// No description provided for @tierResetWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Choosing Reset & Setup Fresh will permanently delete the encrypted database and every security-related file. If you need to recover your data, quit the app now and reinstall the previous version of LetsFLUTssh to export first.'**
+  String get tierResetWarning;
+
+  /// No description provided for @tierResetResetContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & Setup Fresh'**
+  String get tierResetResetContinue;
+
+  /// No description provided for @tierResetExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit LetsFLUTssh'**
+  String get tierResetExit;
+
   /// No description provided for @derivingKey.
   ///
   /// In en, this message translates to:

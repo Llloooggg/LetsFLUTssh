@@ -1856,6 +1856,23 @@ class STr extends S {
   String get legacyKdfExit => 'LetsFLUTssh\'tan Çık';
 
   @override
+  String get tierResetTitle => 'Güvenlik sıfırlaması gerekli';
+
+  @override
+  String get tierResetBody =>
+      'Bu kurulum, farklı bir katman modeli kullanan LetsFLUTssh\'un önceki sürümünden güvenlik verileri taşıyor. Yeni model geriye dönük uyumsuz bir değişikliktir — otomatik geçiş yolu yoktur. Devam etmek için bu kurulumda kayıtlı tüm oturumlar, kimlik bilgileri, SSH anahtarları ve bilinen sunucular silinmeli ve ilk kurulum sihirbazı baştan çalıştırılmalıdır.';
+
+  @override
+  String get tierResetWarning =>
+      '«Sıfırla ve Yeniden Kur» seçeneği şifreli veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Verilerinizi kurtarmanız gerekiyorsa, uygulamadan şimdi çıkın ve önce dışa aktarmak için LetsFLUTssh\'un önceki sürümünü yeniden yükleyin.';
+
+  @override
+  String get tierResetResetContinue => 'Sıfırla ve Yeniden Kur';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh\'tan Çık';
+
+  @override
   String get derivingKey => 'Şifreleme anahtarı türetiliyor...';
 
   @override

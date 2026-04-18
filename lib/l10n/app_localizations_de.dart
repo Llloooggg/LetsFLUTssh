@@ -1871,6 +1871,23 @@ class SDe extends S {
   String get legacyKdfExit => 'LetsFLUTssh beenden';
 
   @override
+  String get tierResetTitle => 'Sicherheits-Reset erforderlich';
+
+  @override
+  String get tierResetBody =>
+      'Diese Installation enthält Sicherheitsdaten aus einer älteren Version von LetsFLUTssh, die ein anderes Stufenmodell verwendete. Das neue Modell ist eine inkompatible Änderung — es gibt keinen automatischen Migrationspfad. Um fortzufahren, müssen alle gespeicherten Sitzungen, Anmeldedaten, SSH-Schlüssel und bekannten Hosts dieser Installation gelöscht und der Ersteinrichtungsassistent neu ausgeführt werden.';
+
+  @override
+  String get tierResetWarning =>
+      'Mit „Zurücksetzen & Neu einrichten“ werden die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft gelöscht. Wenn Sie Ihre Daten wiederherstellen müssen, beenden Sie die App jetzt und installieren Sie die vorherige Version von LetsFLUTssh erneut, um zunächst zu exportieren.';
+
+  @override
+  String get tierResetResetContinue => 'Zurücksetzen & Neu einrichten';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh beenden';
+
+  @override
   String get derivingKey => 'Verschlüsselungsschlüssel wird abgeleitet...';
 
   @override

@@ -1874,6 +1874,23 @@ class SFr extends S {
   String get legacyKdfExit => 'Quitter LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'Réinitialisation de sécurité requise';
+
+  @override
+  String get tierResetBody =>
+      'Cette installation contient des données de sécurité d\'une ancienne version de LetsFLUTssh qui utilisait un modèle de niveaux différent. Le nouveau modèle introduit une rupture — il n\'y a pas de chemin de migration automatique. Pour continuer, toutes les sessions enregistrées, identifiants, clés SSH et hôtes connus de cette installation doivent être effacés et l\'assistant de configuration initiale exécuté à nouveau.';
+
+  @override
+  String get tierResetWarning =>
+      'Choisir « Réinitialiser et reconfigurer » supprimera définitivement la base de données chiffrée et tous les fichiers liés à la sécurité. Si vous devez récupérer vos données, quittez l\'application maintenant et réinstallez la version précédente de LetsFLUTssh pour d\'abord les exporter.';
+
+  @override
+  String get tierResetResetContinue => 'Réinitialiser et reconfigurer';
+
+  @override
+  String get tierResetExit => 'Quitter LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Dérivation de la clé de chiffrement...';
 
   @override

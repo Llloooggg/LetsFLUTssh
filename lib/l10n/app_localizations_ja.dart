@@ -1809,6 +1809,23 @@ class SJa extends S {
   String get legacyKdfExit => 'LetsFLUTsshを終了';
 
   @override
+  String get tierResetTitle => 'セキュリティリセットが必要です';
+
+  @override
+  String get tierResetBody =>
+      'このインストールには、異なる層モデルを使用していた以前のバージョンのLetsFLUTsshのセキュリティデータが含まれています。新しいモデルは互換性のない変更であり、自動移行パスはありません。続行するには、このインストールに保存されているすべてのセッション、認証情報、SSHキー、既知のホストを消去し、初回起動のセットアップウィザードをゼロから実行する必要があります。';
+
+  @override
+  String get tierResetWarning =>
+      '「リセットして新規セットアップ」を選択すると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データを復元する必要がある場合は、今アプリを終了し、まず以前のバージョンのLetsFLUTsshを再インストールしてエクスポートしてください。';
+
+  @override
+  String get tierResetResetContinue => 'リセットして新規セットアップ';
+
+  @override
+  String get tierResetExit => 'LetsFLUTsshを終了';
+
+  @override
   String get derivingKey => '暗号化キーを生成中...';
 
   @override

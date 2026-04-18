@@ -1851,6 +1851,23 @@ class SId extends S {
   String get legacyKdfExit => 'Keluar dari LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'Perlu atur ulang keamanan';
+
+  @override
+  String get tierResetBody =>
+      'Instalasi ini membawa data keamanan dari versi LetsFLUTssh lama yang menggunakan model tingkatan berbeda. Model baru merupakan perubahan tidak kompatibel — tidak ada jalur migrasi otomatis. Untuk melanjutkan, semua sesi tersimpan, kredensial, kunci SSH, dan host yang dikenal pada instalasi ini harus dihapus dan wisaya pengaturan pertama dijalankan dari awal.';
+
+  @override
+  String get tierResetWarning =>
+      'Memilih «Atur Ulang & Siapkan Baru» akan menghapus permanen basis data terenkripsi dan setiap berkas terkait keamanan. Jika Anda perlu memulihkan data, keluar dari aplikasi sekarang dan instal ulang versi sebelumnya dari LetsFLUTssh untuk mengekspor terlebih dahulu.';
+
+  @override
+  String get tierResetResetContinue => 'Atur Ulang & Siapkan Baru';
+
+  @override
+  String get tierResetExit => 'Keluar dari LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Membuat kunci enkripsi...';
 
   @override

@@ -1867,6 +1867,23 @@ class SEs extends S {
   String get legacyKdfExit => 'Salir de LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'Se requiere restablecer la seguridad';
+
+  @override
+  String get tierResetBody =>
+      'Esta instalación contiene datos de seguridad de una versión anterior de LetsFLUTssh que usaba un modelo de niveles diferente. El nuevo modelo es un cambio incompatible — no existe ruta de migración automática. Para continuar, todas las sesiones guardadas, credenciales, claves SSH y hosts conocidos de esta instalación deben borrarse y el asistente de configuración inicial debe ejecutarse de nuevo.';
+
+  @override
+  String get tierResetWarning =>
+      'Elegir «Restablecer y configurar de nuevo» eliminará permanentemente la base de datos cifrada y todos los archivos de seguridad. Si necesita recuperar sus datos, cierre la aplicación ahora y reinstale la versión anterior de LetsFLUTssh para exportarlos primero.';
+
+  @override
+  String get tierResetResetContinue => 'Restablecer y configurar de nuevo';
+
+  @override
+  String get tierResetExit => 'Salir de LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Derivando clave de cifrado...';
 
   @override

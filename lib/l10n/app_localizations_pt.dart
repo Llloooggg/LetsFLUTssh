@@ -1863,6 +1863,23 @@ class SPt extends S {
   String get legacyKdfExit => 'Sair do LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'Redefinição de segurança necessária';
+
+  @override
+  String get tierResetBody =>
+      'Esta instalação contém dados de segurança de uma versão anterior do LetsFLUTssh que usava um modelo de níveis diferente. O novo modelo é uma mudança incompatível — não há caminho de migração automática. Para continuar, todas as sessões salvas, credenciais, chaves SSH e hosts conhecidos nesta instalação precisam ser apagados e o assistente de configuração inicial executado do zero.';
+
+  @override
+  String get tierResetWarning =>
+      'Escolher «Redefinir e configurar novamente» excluirá permanentemente o banco de dados criptografado e todos os arquivos relacionados à segurança. Se precisar recuperar seus dados, saia do aplicativo agora e reinstale a versão anterior do LetsFLUTssh para exportá-los primeiro.';
+
+  @override
+  String get tierResetResetContinue => 'Redefinir e configurar novamente';
+
+  @override
+  String get tierResetExit => 'Sair do LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Derivando chave de criptografia...';
 
   @override

@@ -1854,6 +1854,23 @@ class SHi extends S {
   String get legacyKdfExit => 'LetsFLUTssh बंद करें';
 
   @override
+  String get tierResetTitle => 'सुरक्षा रीसेट आवश्यक';
+
+  @override
+  String get tierResetBody =>
+      'इस इंस्टॉल में LetsFLUTssh के पुराने संस्करण से सुरक्षा डेटा मौजूद है जो अलग टियर मॉडल का उपयोग करता था। नया मॉडल एक असंगत परिवर्तन है — कोई स्वचालित माइग्रेशन पथ नहीं है। जारी रखने के लिए, इस इंस्टॉल के सभी सहेजे गए सत्र, क्रेडेंशियल, SSH कुंजियाँ और ज्ञात होस्ट मिटाने होंगे और पहले-लॉन्च सेटअप विज़ार्ड नए सिरे से चलाना होगा।';
+
+  @override
+  String get tierResetWarning =>
+      '«रीसेट करें और नए सिरे से सेटअप करें» चुनने से एन्क्रिप्टेड डेटाबेस और हर सुरक्षा-संबंधित फ़ाइल स्थायी रूप से हट जाएगी। यदि आपको अपना डेटा पुनर्प्राप्त करने की आवश्यकता है, तो अभी ऐप बंद करें और पहले निर्यात करने के लिए LetsFLUTssh का पिछला संस्करण पुनः इंस्टॉल करें।';
+
+  @override
+  String get tierResetResetContinue => 'रीसेट करें और नए सिरे से सेटअप करें';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh बंद करें';
+
+  @override
   String get derivingKey => 'एन्क्रिप्शन कुंजी बनाई जा रही है...';
 
   @override

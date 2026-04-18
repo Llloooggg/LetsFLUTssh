@@ -1842,6 +1842,23 @@ class SVi extends S {
   String get legacyKdfExit => 'Thoát LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'Cần đặt lại bảo mật';
+
+  @override
+  String get tierResetBody =>
+      'Bản cài đặt này mang theo dữ liệu bảo mật từ phiên bản LetsFLUTssh cũ hơn sử dụng mô hình tầng khác. Mô hình mới là thay đổi không tương thích — không có đường dẫn di chuyển tự động. Để tiếp tục, tất cả phiên đã lưu, thông tin đăng nhập, khóa SSH và máy chủ đã biết trên bản cài đặt này phải bị xóa và chạy lại trình hướng dẫn thiết lập lần đầu từ đầu.';
+
+  @override
+  String get tierResetWarning =>
+      'Chọn «Đặt lại & Thiết lập mới» sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tập tin liên quan đến bảo mật. Nếu bạn cần khôi phục dữ liệu, hãy thoát ứng dụng ngay và cài lại phiên bản trước của LetsFLUTssh để xuất trước.';
+
+  @override
+  String get tierResetResetContinue => 'Đặt lại & Thiết lập mới';
+
+  @override
+  String get tierResetExit => 'Thoát LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Đang tạo khóa mã hóa...';
 
   @override

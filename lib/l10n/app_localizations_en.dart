@@ -1848,6 +1848,23 @@ class SEn extends S {
   String get legacyKdfExit => 'Quit LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'Security reset required';
+
+  @override
+  String get tierResetBody =>
+      'This install carries security data from an older version of LetsFLUTssh that used a different tier model. The new model is a breaking change — there is no automatic migration path. To continue, every saved session, credential, SSH key, and known-host entry on this install must be wiped and the first-launch setup wizard run fresh.';
+
+  @override
+  String get tierResetWarning =>
+      'Choosing Reset & Setup Fresh will permanently delete the encrypted database and every security-related file. If you need to recover your data, quit the app now and reinstall the previous version of LetsFLUTssh to export first.';
+
+  @override
+  String get tierResetResetContinue => 'Reset & Setup Fresh';
+
+  @override
+  String get tierResetExit => 'Quit LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Deriving encryption key...';
 
   @override

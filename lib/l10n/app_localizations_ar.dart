@@ -1856,6 +1856,23 @@ class SAr extends S {
   String get legacyKdfExit => 'إنهاء LetsFLUTssh';
 
   @override
+  String get tierResetTitle => 'مطلوب إعادة تعيين أمني';
+
+  @override
+  String get tierResetBody =>
+      'يحتوي هذا التثبيت على بيانات أمنية من إصدار سابق من LetsFLUTssh كان يستخدم نموذج طبقات مختلفًا. النموذج الجديد يعتبر تغييرًا غير متوافق مع السابق — لا يوجد مسار ترحيل تلقائي. للمتابعة، يجب حذف كل الجلسات المحفوظة وبيانات الاعتماد ومفاتيح SSH والمضيفين المعروفين، وتشغيل معالج الإعداد الأولي من جديد.';
+
+  @override
+  String get tierResetWarning =>
+      'سيؤدي اختيار «إعادة تعيين وإعداد جديد» إلى حذف قاعدة البيانات المشفرة وجميع الملفات الأمنية بشكل دائم. إذا كنت بحاجة إلى استرداد بياناتك، فأغلق التطبيق الآن وأعد تثبيت الإصدار السابق من LetsFLUTssh لتصدير بياناتك أولًا.';
+
+  @override
+  String get tierResetResetContinue => 'إعادة تعيين وإعداد جديد';
+
+  @override
+  String get tierResetExit => 'إنهاء LetsFLUTssh';
+
+  @override
   String get derivingKey => 'جارٍ اشتقاق مفتاح التشفير...';
 
   @override

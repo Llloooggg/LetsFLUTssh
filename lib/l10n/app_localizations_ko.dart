@@ -1805,6 +1805,23 @@ class SKo extends S {
   String get legacyKdfExit => 'LetsFLUTssh 종료';
 
   @override
+  String get tierResetTitle => '보안 재설정 필요';
+
+  @override
+  String get tierResetBody =>
+      '이 설치본에는 다른 계층 모델을 사용하던 이전 버전의 LetsFLUTssh에서 가져온 보안 데이터가 포함되어 있습니다. 새 모델은 호환되지 않는 변경 사항이며 자동 마이그레이션 경로가 없습니다. 계속하려면 이 설치본에 저장된 모든 세션, 자격 증명, SSH 키, 알려진 호스트를 삭제하고 첫 실행 설정 마법사를 처음부터 다시 실행해야 합니다.';
+
+  @override
+  String get tierResetWarning =>
+      '「재설정 및 새로 설정」을 선택하면 암호화된 데이터베이스와 모든 보안 관련 파일이 영구적으로 삭제됩니다. 데이터를 복구해야 하는 경우 지금 앱을 종료하고 LetsFLUTssh의 이전 버전을 다시 설치하여 먼저 내보내세요.';
+
+  @override
+  String get tierResetResetContinue => '재설정 및 새로 설정';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh 종료';
+
+  @override
   String get derivingKey => '암호화 키 생성 중...';
 
   @override
