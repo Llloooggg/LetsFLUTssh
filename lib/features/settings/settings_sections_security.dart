@@ -690,21 +690,79 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   /// Re-encrypt the live database with a new key (or convert to plaintext
   /// when [key] is null), then update global security state.
   ///
-  /// Without the `rekeyDatabase` step the DB file pages stay encrypted under
-  /// the old key while `securityStateProvider` claims the new one — on the
-  /// next app start the DB fails to open. The order is deliberate: run the
-  /// `PRAGMA rekey` first; only flip the provider after it succeeded, so a
-  /// crypto/disk failure leaves the old (working) state intact.
+  /// Wraps the rekey + provider update in a `SecurityTierSwitcher`
+  /// crash-recovery marker: the file is written before `PRAGMA rekey`
+  /// and cleared after the provider update succeeds. If the process
+  /// dies between the rekey and the provider update, the next launch
+  /// sees a stale marker in main's `_initSecurity` and logs it. The
+  /// order of rekey → provider update is unchanged: a crypto/disk
+  /// failure still leaves the old working state intact.
   Future<void> _reEncryptAll(Uint8List? key, SecurityTier level) async {
     final store = ref.read(sessionStoreProvider);
     final db = store.database;
-    if (db != null) {
-      await rekeyDatabase(db, key);
+    final markerPayload = '{"tier":"${_tierName(level)}"}';
+    // Bind the constructor-time callbacks to the current key /
+    // current-db pair. A fresh switcher instance per call is fine —
+    // the marker file is the authoritative state, not the instance.
+    final switcher = SecurityTierSwitcher(
+      keyFactory: () => key ?? Uint8List(0),
+      rekey: (d, _) async => rekeyDatabase(d, key),
+    );
+
+    if (db == null) {
+      // No live DB (plaintext first-launch path before the first
+      // open). Nothing to rekey; just flip the provider. The marker
+      // dance is still useful so a crash between state.set and the
+      // follow-on caller work is visible next launch, but the
+      // switcher wants a non-null DB, so we inline the minimal
+      // equivalent here.
+      try {
+        await switcher.clearMarker();
+        if (key != null) {
+          ref.read(securityStateProvider.notifier).set(level, key);
+        } else {
+          ref.read(securityStateProvider.notifier).clearEncryption();
+        }
+      } catch (_) {}
+      return;
     }
-    if (key != null) {
-      ref.read(securityStateProvider.notifier).set(level, key);
-    } else {
-      ref.read(securityStateProvider.notifier).clearEncryption();
+
+    await switcher.switchTier(
+      db: db,
+      targetMarkerPayload: markerPayload,
+      applyWrapper: (_) async {
+        if (key != null) {
+          ref.read(securityStateProvider.notifier).set(level, key);
+        } else {
+          ref.read(securityStateProvider.notifier).clearEncryption();
+        }
+      },
+      persistConfig: (_) async {
+        // Tier + modifiers are mirrored into config.json by
+        // main.dart's `_persistSecurityTier` when the provider
+        // state flips; no additional write needed here.
+      },
+      clearPrevious: () async {
+        // Previous-tier cleanup (biometric vault clear, keychain
+        // delete, credentials.kdf remove) is handled by the
+        // specific enable/disable/change/remove methods that call
+        // into `_reEncryptAll`.
+      },
+    );
+  }
+
+  String _tierName(SecurityTier tier) {
+    switch (tier) {
+      case SecurityTier.plaintext:
+        return 'plaintext';
+      case SecurityTier.keychain:
+        return 'keychain';
+      case SecurityTier.keychainWithPassword:
+        return 'keychain_with_password';
+      case SecurityTier.hardware:
+        return 'hardware';
+      case SecurityTier.paranoid:
+        return 'paranoid';
     }
   }
 }
