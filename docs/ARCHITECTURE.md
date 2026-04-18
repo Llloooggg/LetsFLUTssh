@@ -137,6 +137,7 @@ lib/
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
 │   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
 │   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
+│   ├── app_data_search_bar.dart     # Shared search input for list / table dialogs (known hosts, snippets, tags)
 │   ├── app_divider.dart             # Standardized 1px divider
 │   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
 │   ├── clipped_row.dart             # Overflow-clipping Row replacement

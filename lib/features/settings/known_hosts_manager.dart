@@ -12,6 +12,7 @@ import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/platform.dart' as plat;
+import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
@@ -100,42 +101,9 @@ class _KnownHostsManagerPanelState
       child: Row(
         children: [
           Expanded(
-            child: SizedBox(
-              height: AppTheme.controlHeightSm,
-              child: TextField(
-                onChanged: (v) => setState(() => _filter = v),
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fg,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: s.search,
-                  hintStyle: TextStyle(
-                    color: AppTheme.fgDim,
-                    fontSize: AppFonts.sm,
-                  ),
-                  prefixIcon: const Icon(Icons.search, size: 16),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 0,
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.bg3,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: AppTheme.radiusSm,
-                    borderSide: BorderSide(color: AppTheme.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: AppTheme.radiusSm,
-                    borderSide: BorderSide(color: AppTheme.accent),
-                  ),
-                ),
-              ),
+            child: AppDataSearchBar(
+              onChanged: (v) => setState(() => _filter = v),
+              hintText: s.search,
             ),
           ),
           const SizedBox(width: 8),
