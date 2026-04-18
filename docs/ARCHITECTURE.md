@@ -697,6 +697,30 @@ Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometr
 
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
+#### Android hardware-backed biometric vault (deferred — needs device-testing pass)
+
+The current Android path is `local_auth` + `flutter_secure_storage` (`EncryptedSharedPreferences` under the hood). That is software-labelled in the Settings subtitle because the DB key never sits inside the Android Keystore — EncryptedSharedPreferences uses Keystore to wrap its master key but the wrapped key is re-used across every read, regardless of biometric presence. The target design upgrades this to a genuinely hardware-backed flow that matches the Apple Secure-Enclave binding already shipped:
+
+1. **Key creation.** `KeyGenParameterSpec.Builder` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` — the key *must* be presented inside a `BiometricPrompt.CryptoObject` session, and any change to the device's enrolled biometrics atomically invalidates the key. This is the Android-native equivalent of `.biometryCurrentSet`.
+2. **Storage backing.** `setIsStrongBoxBacked(true)` when the device reports a StrongBox (Pixel 3+, recent Samsung flagships); gracefully fall through to TEE-backed Keystore when it does not. `KeyInfo.isInsideSecureHardware` + `isStrongBoxBacked` drive the backing-level label the Settings row already renders (`Hardware-backed (StrongBox)` vs `Hardware-backed (TEE)`).
+3. **Wrapping.** The DB key is AES-GCM-encrypted under the CryptoObject key on enable, ciphertext written to EncryptedSharedPreferences. Unlock presents `BiometricPrompt` → receives the `CryptoObject` → decrypts the ciphertext.
+
+**Why it is deferred, not shipped:** the work is a native Kotlin plugin (custom or forked `flutter_secure_storage`) and must be validated on a real Android 9+ device matrix — StrongBox presence varies by OEM, the `setInvalidatedByBiometricEnrollment` contract is subtly different on pre-Android-11 builds, and the `FragmentActivity` host dependency of `BiometricPrompt` interacts with Flutter's `MainActivity` in ways that the emulator matrix does not exercise. The guardrail from [§ Doing tasks — UI testing](AGENT_RULES.md#code-quality--sonarcloud) (and from plain common sense) is not to ship a native authentication plugin untested. Resumes in a dedicated session with an Android device attached.
+
+Scaffolding ready to consume when the work resumes: the `BiometricBackingLevel` enum, the subtitle wiring, and the `systemServiceMissing` / `notEnrolled` ladder already handle StrongBox / TEE / no-sensor / no-enrolment outcomes without UI churn.
+
+#### Windows Hello `KeyCredentialManager` integration (deferred — needs Windows-host testing pass)
+
+Today's Windows backing is DPAPI via `flutter_secure_storage` — `CryptProtectData` under the user's login key, the same mechanism that protects browser cookies. Serviceable, but the key is not biometric-gated and the backing label is honestly `software`. The target upgrade is WinRT `KeyCredentialManager` (Windows Hello):
+
+1. On `store(dbKey)`, call `KeyCredentialManager.RequestCreateAsync` with a stable identifier per install and the user's Hello gesture as policy. The platform returns a `KeyCredential` whose public key is bound to the TPM (or the Windows Hello "software" enclave when the device has only a PIN — Microsoft reports both paths through the same API, with the `Attestation` step telling us which one).
+2. `KeyCredential.RequestSignAsync(dbKey)` produces a signature we can wrap the DB key with, stored to disk. Unseal presents the Hello gesture → `RequestSignAsync` produces the same wrapping → key decrypted.
+3. Backing label: `Hardware-backed (TPM via Hello)` when `KeyCredentialAttestationStatus.Success` on a TPM-bearing host, `Software-backed (Hello)` when the attestation falls through to software, `Software-backed (DPAPI)` as the rung-2 fallback when Hello is not configured at all.
+
+Like Android, this is a custom native plugin — either a Windows C++ MethodChannel handler or a Dart FFI wrapper over `WinRT`. The project's self-contained-binary rule accepts it (Hello itself ships in every Windows 10+ SKU; nothing to install), but validation requires a Windows 10 / 11 host with Hello configured plus a Windows device *without* Hello to exercise the DPAPI fallback. Shipping a native Windows plugin untested would be as irresponsible as the Android case.
+
+Scaffolding ready on the same footing as the Android path: `BiometricBackingLevel.hardware` vs `software` is already surfaced in Settings and all 15 locales.
+
 #### FIDO2 / hardware-security-key unlock (deferred — upstream library gap)
 
 A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the master password: plug / tap the key, the app takes that as proof-of-presence and decrypts the DB. The intent was multiplatform from day one — Android USB/NFC, iOS Lightning/NFC, desktops via USB HID.
