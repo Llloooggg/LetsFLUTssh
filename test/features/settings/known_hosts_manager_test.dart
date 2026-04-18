@@ -10,7 +10,6 @@ import 'package:letsflutssh/features/settings/known_hosts_manager.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/app_dialog.dart';
 
 void main() {
@@ -448,90 +447,6 @@ void main() {
           base64Decode(validKeyB64),
         );
         expect(clipboardText, expected);
-      },
-    );
-
-    testWidgets(
-      'export on mobile copies content to clipboard instead of saving',
-      // Spec (L318-335): mobile platforms don't get a save-file picker,
-      // so export must fall back to putting the full known_hosts text
-      // on the clipboard — the user's only portable "get this off the
-      // phone" path.
-      (tester) async {
-        plat.debugDesktopPlatformOverride = false;
-        addTearDown(() => plat.debugDesktopPlatformOverride = null);
-
-        String? clipboardText;
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-              if (call.method == 'Clipboard.setData') {
-                final args = call.arguments as Map<Object?, Object?>?;
-                clipboardText = args?['text'] as String?;
-              }
-              return null;
-            });
-        addTearDown(() {
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-              .setMockMethodCallHandler(SystemChannels.platform, null);
-        });
-
-        await populate(tester, manager);
-        await tester.pumpWidget(buildApp(manager));
-        await openDialogAfterPopulate(tester);
-
-        final exportBtn = find.byWidgetPredicate(
-          (w) =>
-              w is IconButton &&
-              w.icon is Icon &&
-              (w.icon as Icon).icon == Icons.file_upload_outlined,
-        );
-        await tester.tap(exportBtn);
-        // _exportHosts awaits exportToString() and Clipboard.setData — both
-        // resolve in microtasks, but only in the real zone (FakeAsync sees
-        // them as pending). runAsync forces the real zone so the awaits
-        // complete, then pump past the 3s Toast timer.
-        await tester.runAsync(() => Future<void>.value());
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 4));
-
-        expect(clipboardText, isNotNull);
-        expect(clipboardText, contains('example.com:22'));
-        expect(clipboardText, contains('other.net:2222'));
-      },
-    );
-
-    testWidgets(
-      'export with zero hosts shows "nothing to export" and does not touch clipboard',
-      (tester) async {
-        plat.debugDesktopPlatformOverride = false;
-        addTearDown(() => plat.debugDesktopPlatformOverride = null);
-
-        var clipboardCalls = 0;
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-              if (call.method == 'Clipboard.setData') clipboardCalls++;
-              return null;
-            });
-        addTearDown(() {
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-              .setMockMethodCallHandler(SystemChannels.platform, null);
-        });
-
-        // manager has no hosts (setUp didn't populate beyond load()).
-        await tester.pumpWidget(buildApp(manager));
-        await openDialogAfterPopulate(tester);
-
-        final exportBtn = find.byWidgetPredicate(
-          (w) =>
-              w is IconButton &&
-              w.icon is Icon &&
-              (w.icon as Icon).icon == Icons.file_upload_outlined,
-        );
-        await tester.tap(exportBtn);
-        await tester.pump();
-        await tester.pump(const Duration(seconds: 4));
-
-        expect(clipboardCalls, 0, reason: 'empty export must be a no-op');
       },
     );
   });

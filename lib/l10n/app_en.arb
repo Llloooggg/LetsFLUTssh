@@ -1044,17 +1044,7 @@
   },
   "clearAllKnownHosts": "Clear All Known Hosts",
   "clearAllKnownHostsConfirm": "Remove all known hosts? You will be prompted to verify each server key again.",
-  "importKnownHosts": "Import Known Hosts",
   "importKnownHostsSubtitle": "Import from OpenSSH known_hosts file",
-  "exportKnownHosts": "Export Known Hosts",
-  "importedHosts": "Imported {count} new hosts",
-  "@importedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "clearedAllHosts": "Cleared all known hosts",
   "removedHost": "Removed {host}",
   "@removedHost": {
@@ -1064,7 +1054,6 @@
       }
     }
   },
-  "noHostsToExport": "No known hosts to export",
   "tools": "Tools",
   "sshKeys": "SSH Keys",
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",

@@ -1636,26 +1636,7 @@ class SRu extends S {
       'Удалить все известные хосты? При подключении к каждому серверу потребуется повторная проверка ключа.';
 
   @override
-  String get importKnownHosts => 'Импорт известных хостов';
-
-  @override
   String get importKnownHostsSubtitle => 'Импорт из файла OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Экспорт известных хостов';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Импортировано $count новых хостов',
-      few: 'Импортировано $count новых хоста',
-      one: 'Импортирован 1 новый хост',
-      zero: 'Не добавлено новых хостов',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Все известные хосты очищены';
@@ -1664,9 +1645,6 @@ class SRu extends S {
   String removedHost(String host) {
     return 'Удалён $host';
   }
-
-  @override
-  String get noHostsToExport => 'Нет хостов для экспорта';
 
   @override
   String get tools => 'Инструменты';

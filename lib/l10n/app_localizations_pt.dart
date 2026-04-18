@@ -1634,26 +1634,8 @@ class SPt extends S {
       'Remover todos os hosts conhecidos? Cada chave de servidor precisará ser verificada novamente.';
 
   @override
-  String get importKnownHosts => 'Importar hosts conhecidos';
-
-  @override
   String get importKnownHostsSubtitle =>
       'Importar de arquivo OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Exportar hosts conhecidos';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count hosts novos importados',
-      one: '1 host novo importado',
-      zero: 'Nenhum host novo importado',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Todos os hosts conhecidos foram limpos';
@@ -1662,9 +1644,6 @@ class SPt extends S {
   String removedHost(String host) {
     return '$host removido';
   }
-
-  @override
-  String get noHostsToExport => 'Nenhum host para exportar';
 
   @override
   String get tools => 'Ferramentas';

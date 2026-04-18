@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +8,6 @@ import '../../core/ssh/known_hosts.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/format.dart';
-import '../../utils/platform.dart' as plat;
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
@@ -112,16 +108,6 @@ class _KnownHostsManagerPanelState
             style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           ),
           const SizedBox(width: 8),
-          _ToolbarButton(
-            icon: Icons.file_download_outlined,
-            tooltip: s.importKnownHosts,
-            onTap: _importHosts,
-          ),
-          _ToolbarButton(
-            icon: Icons.file_upload_outlined,
-            tooltip: s.exportKnownHosts,
-            onTap: _exportHosts,
-          ),
           _ToolbarButton(
             icon: Icons.delete_sweep,
             tooltip: s.clearAllKnownHosts,
@@ -246,87 +232,6 @@ class _KnownHostsManagerPanelState
       setState(() {});
       Toast.show(context, message: s.clearedAllHosts);
     }
-  }
-
-  Future<void> _importHosts() async {
-    final s = S.of(context);
-    final result = await FilePicker.pickFiles(
-      dialogTitle: s.importKnownHosts,
-      type: FileType.any,
-    );
-    if (result == null || result.files.isEmpty || !mounted) return;
-    final path = result.files.single.path;
-    if (path == null) return;
-
-    final count = await _manager.importFromFile(path);
-    if (mounted) {
-      setState(() {});
-      Toast.show(
-        context,
-        message: s.importedHosts(count),
-        level: ToastLevel.success,
-      );
-    }
-  }
-
-  Future<void> _exportHosts() async {
-    final s = S.of(context);
-    if (_manager.count == 0) {
-      Toast.show(
-        context,
-        message: s.noHostsToExport,
-        level: ToastLevel.warning,
-      );
-      return;
-    }
-
-    final content = await _manager.exportToString();
-    if (!mounted) return;
-
-    if (plat.isDesktopPlatform) {
-      final outputPath = await FilePicker.saveFile(
-        dialogTitle: s.exportKnownHosts,
-        fileName: 'known_hosts',
-      );
-      if (outputPath == null || !mounted) return;
-      await _writeExport(outputPath, content);
-    } else {
-      // Mobile: copy to clipboard
-      await Clipboard.setData(ClipboardData(text: content));
-      if (mounted) {
-        Toast.show(
-          context,
-          message: s.exportKnownHosts,
-          level: ToastLevel.success,
-        );
-      }
-    }
-  }
-
-  Future<void> _writeExport(String path, String content) async {
-    try {
-      await _writeFile(path, content);
-      if (mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).exportedTo(path),
-          level: ToastLevel.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    }
-  }
-
-  Future<void> _writeFile(String path, String content) async {
-    final file = File(path);
-    await file.writeAsString(content);
   }
 }
 

@@ -2907,29 +2907,11 @@ abstract class S {
   /// **'Remove all known hosts? You will be prompted to verify each server key again.'**
   String get clearAllKnownHostsConfirm;
 
-  /// No description provided for @importKnownHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Import Known Hosts'**
-  String get importKnownHosts;
-
   /// No description provided for @importKnownHostsSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Import from OpenSSH known_hosts file'**
   String get importKnownHostsSubtitle;
-
-  /// No description provided for @exportKnownHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Known Hosts'**
-  String get exportKnownHosts;
-
-  /// No description provided for @importedHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported {count} new hosts'**
-  String importedHosts(int count);
 
   /// No description provided for @clearedAllHosts.
   ///
@@ -2942,12 +2924,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Removed {host}'**
   String removedHost(String host);
-
-  /// No description provided for @noHostsToExport.
-  ///
-  /// In en, this message translates to:
-  /// **'No known hosts to export'**
-  String get noHostsToExport;
 
   /// No description provided for @tools.
   ///

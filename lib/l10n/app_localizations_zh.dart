@@ -1576,24 +1576,7 @@ class SZh extends S {
   String get clearAllKnownHostsConfirm => '移除所有已知主机？每个服务器密钥都需要重新验证。';
 
   @override
-  String get importKnownHosts => '导入已知主机';
-
-  @override
   String get importKnownHostsSubtitle => '从 OpenSSH known_hosts 文件导入';
-
-  @override
-  String get exportKnownHosts => '导出已知主机';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '已导入 $count 个新主机',
-      zero: '未导入新主机',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => '已清除所有已知主机';
@@ -1602,9 +1585,6 @@ class SZh extends S {
   String removedHost(String host) {
     return '已移除 $host';
   }
-
-  @override
-  String get noHostsToExport => '没有可导出的主机';
 
   @override
   String get tools => '工具';

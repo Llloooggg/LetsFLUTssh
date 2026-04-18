@@ -1636,26 +1636,8 @@ class SEs extends S {
       '¿Eliminar todos los hosts conocidos? Cada clave de servidor deberá ser verificada de nuevo.';
 
   @override
-  String get importKnownHosts => 'Importar hosts conocidos';
-
-  @override
   String get importKnownHostsSubtitle =>
       'Importar desde archivo OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Exportar hosts conocidos';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count hosts nuevos importados',
-      one: '1 host nuevo importado',
-      zero: 'No se importaron hosts nuevos',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Todos los hosts conocidos eliminados';
@@ -1664,9 +1646,6 @@ class SEs extends S {
   String removedHost(String host) {
     return '$host eliminado';
   }
-
-  @override
-  String get noHostsToExport => 'No hay hosts para exportar';
 
   @override
   String get tools => 'Herramientas';

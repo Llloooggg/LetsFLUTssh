@@ -1627,24 +1627,7 @@ class SId extends S {
       'Hapus semua host dikenal? Setiap kunci server perlu diverifikasi ulang.';
 
   @override
-  String get importKnownHosts => 'Impor host dikenal';
-
-  @override
   String get importKnownHostsSubtitle => 'Impor dari file OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Ekspor host dikenal';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count host baru diimpor',
-      zero: 'Tidak ada host baru diimpor',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Semua host dikenal telah dihapus';
@@ -1653,9 +1636,6 @@ class SId extends S {
   String removedHost(String host) {
     return '$host dihapus';
   }
-
-  @override
-  String get noHostsToExport => 'Tidak ada host untuk diekspor';
 
   @override
   String get tools => 'Alat';

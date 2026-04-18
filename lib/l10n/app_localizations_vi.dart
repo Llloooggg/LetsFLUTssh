@@ -1617,24 +1617,7 @@ class SVi extends S {
       'Xóa tất cả máy chủ đã biết? Mỗi khóa máy chủ sẽ cần xác minh lại.';
 
   @override
-  String get importKnownHosts => 'Nhập máy chủ đã biết';
-
-  @override
   String get importKnownHostsSubtitle => 'Nhập từ tệp OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Xuất máy chủ đã biết';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Đã nhập $count máy chủ mới',
-      zero: 'Không nhập máy chủ mới',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Đã xóa tất cả máy chủ đã biết';
@@ -1643,9 +1626,6 @@ class SVi extends S {
   String removedHost(String host) {
     return 'Đã xóa $host';
   }
-
-  @override
-  String get noHostsToExport => 'Không có máy chủ để xuất';
 
   @override
   String get tools => 'Công cụ';

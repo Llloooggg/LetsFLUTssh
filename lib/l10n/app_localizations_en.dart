@@ -1622,18 +1622,7 @@ class SEn extends S {
       'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
-
-  @override
   String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
-
-  @override
-  String get exportKnownHosts => 'Export Known Hosts';
-
-  @override
-  String importedHosts(int count) {
-    return 'Imported $count new hosts';
-  }
 
   @override
   String get clearedAllHosts => 'Cleared all known hosts';
@@ -1642,9 +1631,6 @@ class SEn extends S {
   String removedHost(String host) {
     return 'Removed $host';
   }
-
-  @override
-  String get noHostsToExport => 'No known hosts to export';
 
   @override
   String get tools => 'Tools';

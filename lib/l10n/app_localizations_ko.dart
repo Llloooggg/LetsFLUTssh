@@ -1585,24 +1585,7 @@ class SKo extends S {
       '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
 
   @override
-  String get importKnownHosts => '알려진 호스트 가져오기';
-
-  @override
   String get importKnownHostsSubtitle => 'OpenSSH known_hosts 파일에서 가져오기';
-
-  @override
-  String get exportKnownHosts => '알려진 호스트 내보내기';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '새 호스트 $count개 가져옴',
-      zero: '새 호스트를 가져오지 않음',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => '모든 알려진 호스트를 삭제했습니다';
@@ -1611,9 +1594,6 @@ class SKo extends S {
   String removedHost(String host) {
     return '$host 제거됨';
   }
-
-  @override
-  String get noHostsToExport => '내보낼 호스트가 없습니다';
 
   @override
   String get tools => '도구';

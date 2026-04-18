@@ -1589,24 +1589,7 @@ class SJa extends S {
       'すべての既知のホストを削除しますか？各サーバーキーの再確認が必要になります。';
 
   @override
-  String get importKnownHosts => '既知のホストをインポート';
-
-  @override
   String get importKnownHostsSubtitle => 'OpenSSH known_hosts ファイルからインポート';
-
-  @override
-  String get exportKnownHosts => '既知のホストをエクスポート';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count 件の新しいホストをインポートしました',
-      zero: '新しいホストはインポートされませんでした',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'すべての既知のホストを削除しました';
@@ -1615,9 +1598,6 @@ class SJa extends S {
   String removedHost(String host) {
     return '$host を削除しました';
   }
-
-  @override
-  String get noHostsToExport => 'エクスポートするホストがありません';
 
   @override
   String get tools => 'ツール';

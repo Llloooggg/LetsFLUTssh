@@ -1629,26 +1629,8 @@ class STr extends S {
       'Tüm bilinen sunucular kaldırılsın mı? Her sunucu anahtarı yeniden doğrulanmalı.';
 
   @override
-  String get importKnownHosts => 'Bilinen sunucuları içe aktar';
-
-  @override
   String get importKnownHostsSubtitle =>
       'OpenSSH known_hosts dosyasından içe aktar';
-
-  @override
-  String get exportKnownHosts => 'Bilinen sunucuları dışa aktar';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count yeni sunucu içe aktarıldı',
-      one: '1 yeni sunucu içe aktarıldı',
-      zero: 'Yeni sunucu içe aktarılmadı',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Tüm bilinen sunucular temizlendi';
@@ -1657,9 +1639,6 @@ class STr extends S {
   String removedHost(String host) {
     return '$host kaldırıldı';
   }
-
-  @override
-  String get noHostsToExport => 'Dışa aktarılacak sunucu yok';
 
   @override
   String get tools => 'Araçlar';

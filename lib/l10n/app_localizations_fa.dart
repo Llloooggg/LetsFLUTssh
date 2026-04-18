@@ -1618,25 +1618,8 @@ class SFa extends S {
       'همه میزبان‌های شناخته شده حذف شوند؟ کلید هر سرور باید دوباره تأیید شود.';
 
   @override
-  String get importKnownHosts => 'وارد کردن میزبان‌های شناخته شده';
-
-  @override
   String get importKnownHostsSubtitle =>
       'وارد کردن از فایل OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'صادر کردن میزبان‌های شناخته شده';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count میزبان جدید وارد شد',
-      zero: 'میزبان جدیدی وارد نشد',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'همه میزبان‌های شناخته شده پاک شدند';
@@ -1645,9 +1628,6 @@ class SFa extends S {
   String removedHost(String host) {
     return '$host حذف شد';
   }
-
-  @override
-  String get noHostsToExport => 'میزبانی برای صادر کردن وجود ندارد';
 
   @override
   String get tools => 'ابزارها';

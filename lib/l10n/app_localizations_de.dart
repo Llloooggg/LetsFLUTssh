@@ -1639,25 +1639,7 @@ class SDe extends S {
       'Alle bekannten Hosts entfernen? Jeder Serverschlüssel muss erneut bestätigt werden.';
 
   @override
-  String get importKnownHosts => 'Bekannte Hosts importieren';
-
-  @override
   String get importKnownHostsSubtitle => 'Import aus OpenSSH known_hosts-Datei';
-
-  @override
-  String get exportKnownHosts => 'Bekannte Hosts exportieren';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count neue Hosts importiert',
-      one: '1 neuer Host importiert',
-      zero: 'Keine neuen Hosts importiert',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Alle bekannten Hosts gelöscht';
@@ -1666,9 +1648,6 @@ class SDe extends S {
   String removedHost(String host) {
     return '$host entfernt';
   }
-
-  @override
-  String get noHostsToExport => 'Keine Hosts zum Exportieren';
 
   @override
   String get tools => 'Werkzeuge';

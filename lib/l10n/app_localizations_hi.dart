@@ -1626,26 +1626,8 @@ class SHi extends S {
       'सभी ज्ञात होस्ट हटाएं? प्रत्येक सर्वर कुंजी की पुनः पुष्टि करनी होगी।';
 
   @override
-  String get importKnownHosts => 'ज्ञात होस्ट आयात करें';
-
-  @override
   String get importKnownHostsSubtitle =>
       'OpenSSH known_hosts फ़ाइल से आयात करें';
-
-  @override
-  String get exportKnownHosts => 'ज्ञात होस्ट निर्यात करें';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count नए होस्ट आयात हुए',
-      one: '1 नया होस्ट आयात हुआ',
-      zero: 'कोई नया होस्ट आयात नहीं हुआ',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'सभी ज्ञात होस्ट साफ़ किए गए';
@@ -1654,9 +1636,6 @@ class SHi extends S {
   String removedHost(String host) {
     return '$host हटाया गया';
   }
-
-  @override
-  String get noHostsToExport => 'निर्यात करने के लिए कोई होस्ट नहीं';
 
   @override
   String get tools => 'उपकरण';

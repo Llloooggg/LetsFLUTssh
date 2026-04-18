@@ -1631,25 +1631,7 @@ class SAr extends S {
       'إزالة جميع المضيفين المعروفين؟ سيحتاج كل مفتاح خادم إلى إعادة التحقق.';
 
   @override
-  String get importKnownHosts => 'استيراد المضيفين المعروفين';
-
-  @override
   String get importKnownHostsSubtitle => 'استيراد من ملف OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'تصدير المضيفين المعروفين';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'تم استيراد $count مضيف جديد',
-      one: 'تم استيراد مضيف جديد واحد',
-      zero: 'لم يتم استيراد مضيفين جدد',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'تم مسح جميع المضيفين المعروفين';
@@ -1658,9 +1640,6 @@ class SAr extends S {
   String removedHost(String host) {
     return 'تمت إزالة $host';
   }
-
-  @override
-  String get noHostsToExport => 'لا يوجد مضيفون للتصدير';
 
   @override
   String get tools => 'أدوات';

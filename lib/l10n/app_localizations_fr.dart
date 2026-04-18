@@ -1642,26 +1642,8 @@ class SFr extends S {
       'Supprimer tous les hôtes connus ? Chaque clé de serveur devra être re-vérifiée.';
 
   @override
-  String get importKnownHosts => 'Importer les hôtes connus';
-
-  @override
   String get importKnownHostsSubtitle =>
       'Import depuis un fichier OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Exporter les hôtes connus';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count nouveaux hôtes importés',
-      one: '1 nouvel hôte importé',
-      zero: 'Aucun nouvel hôte importé',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Tous les hôtes connus supprimés';
@@ -1670,9 +1652,6 @@ class SFr extends S {
   String removedHost(String host) {
     return '$host supprimé';
   }
-
-  @override
-  String get noHostsToExport => 'Aucun hôte à exporter';
 
   @override
   String get tools => 'Outils';
