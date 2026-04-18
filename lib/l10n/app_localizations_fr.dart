@@ -180,6 +180,9 @@ class SFr extends S {
   String get checkForUpdates => 'Vérifier les mises à jour';
 
   @override
+  String get checkNow => 'Vérifier';
+
+  @override
   String get checkForUpdatesOnStartup =>
       'Vérifier les mises à jour au démarrage';
 

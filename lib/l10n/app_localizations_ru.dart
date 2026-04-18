@@ -179,6 +179,9 @@ class SRu extends S {
   String get checkForUpdates => 'Проверить обновления';
 
   @override
+  String get checkNow => 'Проверить';
+
+  @override
   String get checkForUpdatesOnStartup => 'Проверять обновления при запуске';
 
   @override

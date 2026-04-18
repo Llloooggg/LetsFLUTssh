@@ -179,6 +179,9 @@ class SDe extends S {
   String get checkForUpdates => 'Nach Updates suchen';
 
   @override
+  String get checkNow => 'Jetzt prüfen';
+
+  @override
   String get checkForUpdatesOnStartup => 'Beim Start nach Updates suchen';
 
   @override

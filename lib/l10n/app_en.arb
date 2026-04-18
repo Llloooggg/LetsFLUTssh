@@ -71,6 +71,7 @@
   "openInBrowser": "Open in Browser",
   "couldNotOpenBrowser": "Could not open browser — URL copied to clipboard",
   "checkForUpdates": "Check for Updates",
+  "checkNow": "Check now",
   "checkForUpdatesOnStartup": "Check for Updates on Startup",
   "checking": "Checking...",
   "youreUpToDate": "You're up to date",

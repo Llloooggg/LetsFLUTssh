@@ -175,6 +175,9 @@ class SZh extends S {
   String get checkForUpdates => '检查更新';
 
   @override
+  String get checkNow => '立即检查';
+
+  @override
   String get checkForUpdatesOnStartup => '启动时检查更新';
 
   @override

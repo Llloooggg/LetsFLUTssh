@@ -52,6 +52,7 @@
   "openInBrowser": "Buka di Browser",
   "couldNotOpenBrowser": "Tidak dapat membuka browser — URL disalin ke clipboard",
   "checkForUpdates": "Periksa Pembaruan",
+  "checkNow": "Periksa sekarang",
   "checkForUpdatesOnStartup": "Periksa Pembaruan Saat Memulai",
   "checking": "Memeriksa...",
   "youreUpToDate": "Anda sudah menggunakan versi terbaru",

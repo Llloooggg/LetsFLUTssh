@@ -179,6 +179,9 @@ class SEn extends S {
   String get checkForUpdates => 'Check for Updates';
 
   @override
+  String get checkNow => 'Check now';
+
+  @override
   String get checkForUpdatesOnStartup => 'Check for Updates on Startup';
 
   @override

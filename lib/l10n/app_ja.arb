@@ -52,6 +52,7 @@
   "openInBrowser": "ブラウザで開く",
   "couldNotOpenBrowser": "ブラウザを開けませんでした — URLをクリップボードにコピーしました",
   "checkForUpdates": "アップデートを確認",
+  "checkNow": "今すぐ確認",
   "checkForUpdatesOnStartup": "起動時にアップデートを確認",
   "checking": "確認中...",
   "youreUpToDate": "最新バージョンです",

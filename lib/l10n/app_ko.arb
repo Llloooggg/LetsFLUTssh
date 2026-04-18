@@ -52,6 +52,7 @@
   "openInBrowser": "브라우저에서 열기",
   "couldNotOpenBrowser": "브라우저를 열 수 없습니다 — URL이 클립보드에 복사되었습니다",
   "checkForUpdates": "업데이트 확인",
+  "checkNow": "지금 확인",
   "checkForUpdatesOnStartup": "시작 시 업데이트 확인",
   "checking": "확인 중...",
   "youreUpToDate": "최신 버전입니다",

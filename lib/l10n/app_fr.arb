@@ -52,6 +52,7 @@
   "openInBrowser": "Ouvrir dans le navigateur",
   "couldNotOpenBrowser": "Impossible d'ouvrir le navigateur — URL copiée dans le presse-papiers",
   "checkForUpdates": "Vérifier les mises à jour",
+  "checkNow": "Vérifier",
   "checkForUpdatesOnStartup": "Vérifier les mises à jour au démarrage",
   "checking": "Vérification...",
   "youreUpToDate": "Vous êtes à jour",

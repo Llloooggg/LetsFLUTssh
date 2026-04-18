@@ -52,6 +52,7 @@
   "openInBrowser": "ब्राउज़र में खोलें",
   "couldNotOpenBrowser": "ब्राउज़र नहीं खुल सका — URL क्लिपबोर्ड पर कॉपी किया गया",
   "checkForUpdates": "अपडेट जांचें",
+  "checkNow": "अभी जांचें",
   "checkForUpdatesOnStartup": "शुरू होने पर अपडेट जांचें",
   "checking": "जांच रहे हैं...",
   "youreUpToDate": "आप अप टू डेट हैं",

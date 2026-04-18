@@ -175,6 +175,9 @@ class SKo extends S {
   String get checkForUpdates => '업데이트 확인';
 
   @override
+  String get checkNow => '지금 확인';
+
+  @override
   String get checkForUpdatesOnStartup => '시작 시 업데이트 확인';
 
   @override

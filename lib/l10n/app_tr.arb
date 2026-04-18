@@ -52,6 +52,7 @@
   "openInBrowser": "Tarayıcıda Aç",
   "couldNotOpenBrowser": "Tarayıcı açılamadı — URL panoya kopyalandı",
   "checkForUpdates": "Güncellemeleri Kontrol Et",
+  "checkNow": "Şimdi kontrol et",
   "checkForUpdatesOnStartup": "Başlangıçta Güncellemeleri Kontrol Et",
   "checking": "Kontrol ediliyor...",
   "youreUpToDate": "Güncelsiniz",

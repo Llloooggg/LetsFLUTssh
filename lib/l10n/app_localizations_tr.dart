@@ -180,6 +180,9 @@ class STr extends S {
   String get checkForUpdates => 'Güncellemeleri Kontrol Et';
 
   @override
+  String get checkNow => 'Şimdi kontrol et';
+
+  @override
   String get checkForUpdatesOnStartup =>
       'Başlangıçta Güncellemeleri Kontrol Et';
 

@@ -52,6 +52,7 @@
   "openInBrowser": "Открыть в браузере",
   "couldNotOpenBrowser": "Не удалось открыть браузер — URL скопирован в буфер обмена",
   "checkForUpdates": "Проверить обновления",
+  "checkNow": "Проверить",
   "checkForUpdatesOnStartup": "Проверять обновления при запуске",
   "checking": "Проверка...",
   "youreUpToDate": "У вас последняя версия",

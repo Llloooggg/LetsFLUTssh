@@ -37,53 +37,59 @@ class _UpdateSection extends ConsumerWidget {
     UpdateState updateState,
   ) {
     final isChecking = updateState.status == UpdateStatus.checking;
-    return ListTile(
-      leading: isChecking
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.refresh, size: 20),
-      title: Text(
-        isChecking ? S.of(context).checking : S.of(context).checkForUpdates,
+    final version = ref.watch(appVersionProvider);
+    return _SettingsRow(
+      icon: Icons.refresh,
+      label: S.of(context).checkForUpdates,
+      subtitle: S.of(context).currentVersion(version),
+      child: OutlinedButton.icon(
+        onPressed: isChecking ? null : () => _runCheck(context, ref),
+        icon: isChecking
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.refresh, size: 14),
+        label: Text(
+          isChecking ? S.of(context).checking : S.of(context).checkNow,
+          style: TextStyle(fontSize: AppFonts.sm),
+        ),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, AppTheme.controlHeightSm),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
       ),
-      contentPadding: EdgeInsets.zero,
-      onTap: isChecking
-          ? null
-          : () async {
-              await ref.read(updateProvider.notifier).check();
-              if (!context.mounted) return;
-              final state = ref.read(updateProvider);
-              if (state.status == UpdateStatus.upToDate) {
-                Toast.show(
-                  context,
-                  message: S.of(context).youreRunningLatest,
-                  level: ToastLevel.success,
-                );
-              } else if (state.status == UpdateStatus.updateAvailable) {
-                Toast.show(
-                  context,
-                  message: S
-                      .of(context)
-                      .versionAvailable(state.info!.latestVersion),
-                  level: ToastLevel.info,
-                );
-              } else if (state.status == UpdateStatus.error) {
-                Toast.show(
-                  context,
-                  message: state.error != null
-                      ? S
-                            .of(context)
-                            .errDownloadFailed(
-                              localizeError(S.of(context), state.error!),
-                            )
-                      : S.of(context).updateCheckFailed,
-                  level: ToastLevel.error,
-                );
-              }
-            },
     );
+  }
+
+  Future<void> _runCheck(BuildContext context, WidgetRef ref) async {
+    await ref.read(updateProvider.notifier).check();
+    if (!context.mounted) return;
+    final state = ref.read(updateProvider);
+    if (state.status == UpdateStatus.upToDate) {
+      Toast.show(
+        context,
+        message: S.of(context).youreRunningLatest,
+        level: ToastLevel.success,
+      );
+    } else if (state.status == UpdateStatus.updateAvailable) {
+      Toast.show(
+        context,
+        message: S.of(context).versionAvailable(state.info!.latestVersion),
+        level: ToastLevel.info,
+      );
+    } else if (state.status == UpdateStatus.error) {
+      Toast.show(
+        context,
+        message: state.error != null
+            ? S
+                  .of(context)
+                  .errDownloadFailed(localizeError(S.of(context), state.error!))
+            : S.of(context).updateCheckFailed,
+        level: ToastLevel.error,
+      );
+    }
   }
 
   Widget _buildStatusWidget(

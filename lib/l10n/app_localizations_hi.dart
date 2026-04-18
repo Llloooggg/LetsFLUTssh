@@ -180,6 +180,9 @@ class SHi extends S {
   String get checkForUpdates => 'अपडेट जांचें';
 
   @override
+  String get checkNow => 'अभी जांचें';
+
+  @override
   String get checkForUpdatesOnStartup => 'शुरू होने पर अपडेट जांचें';
 
   @override

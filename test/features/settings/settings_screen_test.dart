@@ -1288,8 +1288,9 @@ void main() {
       );
       expect(find.text('About'), findsOneWidget);
       expect(find.text('LetsFLUTssh'), findsOneWidget);
-      // Version string — check format, not a hardcoded number
-      expect(find.textContaining(RegExp(r'v\d+\.\d+\.\d+')), findsOneWidget);
+      // Version string — check format, not a hardcoded number. Appears in
+      // both the About tile and the Updates section's subtitle.
+      expect(find.textContaining(RegExp(r'v\d+\.\d+\.\d+')), findsWidgets);
       expect(find.textContaining('SSH/SFTP client'), findsOneWidget);
       // info_outline appears in both the section header and the About tile
       expect(find.byIcon(Icons.info_outline), findsWidgets);
@@ -2168,7 +2169,9 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Version 2.0.0 available'), findsOneWidget);
-      expect(find.text('Current: v1.5.0'), findsOneWidget);
+      // Current version now appears in both the Updates row subtitle and
+      // the "update available" status tile — either one is fine.
+      expect(find.text('Current: v1.5.0'), findsWidgets);
     });
 
     testWidgets('shows error state', (tester) async {
@@ -2317,7 +2320,7 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Check for Updates'));
+      await tester.tap(find.text('Check now'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -2362,7 +2365,7 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Check for Updates'));
+      await tester.tap(find.text('Check now'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -2405,7 +2408,7 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Check for Updates'));
+      await tester.tap(find.text('Check now'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
@@ -2484,11 +2487,13 @@ void main() {
         ),
       );
       await tester.scrollUntilVisible(
-        find.text('Current: v1.5.0'),
+        find.text('Version 2.0.0 available'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Current: v1.5.0'), findsOneWidget);
+      // Current version label appears in both the Updates row subtitle and
+      // the "update available" status tile — either one satisfies the spec.
+      expect(find.text('Current: v1.5.0'), findsWidgets);
       expect(find.textContaining('skipped'), findsNothing);
     });
 

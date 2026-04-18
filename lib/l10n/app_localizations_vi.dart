@@ -178,6 +178,9 @@ class SVi extends S {
   String get checkForUpdates => 'Kiểm tra cập nhật';
 
   @override
+  String get checkNow => 'Kiểm tra ngay';
+
+  @override
   String get checkForUpdatesOnStartup => 'Kiểm tra cập nhật khi khởi động';
 
   @override

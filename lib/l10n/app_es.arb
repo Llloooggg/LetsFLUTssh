@@ -52,6 +52,7 @@
   "openInBrowser": "Abrir en el navegador",
   "couldNotOpenBrowser": "No se pudo abrir el navegador — URL copiada al portapapeles",
   "checkForUpdates": "Buscar actualizaciones",
+  "checkNow": "Comprobar ahora",
   "checkForUpdatesOnStartup": "Buscar actualizaciones al iniciar",
   "checking": "Comprobando...",
   "youreUpToDate": "Estás al día",

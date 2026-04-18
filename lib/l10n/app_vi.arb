@@ -52,6 +52,7 @@
   "openInBrowser": "Mở trong trình duyệt",
   "couldNotOpenBrowser": "Không thể mở trình duyệt — URL đã được sao chép vào bộ nhớ tạm",
   "checkForUpdates": "Kiểm tra cập nhật",
+  "checkNow": "Kiểm tra ngay",
   "checkForUpdatesOnStartup": "Kiểm tra cập nhật khi khởi động",
   "checking": "Đang kiểm tra...",
   "youreUpToDate": "Bạn đang dùng phiên bản mới nhất",

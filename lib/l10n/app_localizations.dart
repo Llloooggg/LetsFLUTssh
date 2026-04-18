@@ -447,6 +447,12 @@ abstract class S {
   /// **'Check for Updates'**
   String get checkForUpdates;
 
+  /// No description provided for @checkNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get checkNow;
+
   /// No description provided for @checkForUpdatesOnStartup.
   ///
   /// In en, this message translates to:

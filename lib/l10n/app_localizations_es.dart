@@ -180,6 +180,9 @@ class SEs extends S {
   String get checkForUpdates => 'Buscar actualizaciones';
 
   @override
+  String get checkNow => 'Comprobar ahora';
+
+  @override
   String get checkForUpdatesOnStartup => 'Buscar actualizaciones al iniciar';
 
   @override

@@ -179,6 +179,9 @@ class SFa extends S {
   String get checkForUpdates => 'بررسی به‌روزرسانی';
 
   @override
+  String get checkNow => 'اکنون بررسی کن';
+
+  @override
   String get checkForUpdatesOnStartup => 'بررسی به‌روزرسانی هنگام راه‌اندازی';
 
   @override

@@ -177,6 +177,9 @@ class SAr extends S {
   String get checkForUpdates => 'التحقق من التحديثات';
 
   @override
+  String get checkNow => 'تحقق الآن';
+
+  @override
   String get checkForUpdatesOnStartup => 'التحقق من التحديثات عند بدء التشغيل';
 
   @override

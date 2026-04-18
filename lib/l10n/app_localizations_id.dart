@@ -180,6 +180,9 @@ class SId extends S {
   String get checkForUpdates => 'Periksa Pembaruan';
 
   @override
+  String get checkNow => 'Periksa sekarang';
+
+  @override
   String get checkForUpdatesOnStartup => 'Periksa Pembaruan Saat Memulai';
 
   @override

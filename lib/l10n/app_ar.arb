@@ -52,6 +52,7 @@
   "openInBrowser": "فتح في المتصفح",
   "couldNotOpenBrowser": "تعذر فتح المتصفح — تم نسخ الرابط إلى الحافظة",
   "checkForUpdates": "التحقق من التحديثات",
+  "checkNow": "تحقق الآن",
   "checkForUpdatesOnStartup": "التحقق من التحديثات عند بدء التشغيل",
   "checking": "جارٍ التحقق...",
   "youreUpToDate": "أنت تستخدم أحدث إصدار",

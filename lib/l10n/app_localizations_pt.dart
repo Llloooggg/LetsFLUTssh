@@ -180,6 +180,9 @@ class SPt extends S {
   String get checkForUpdates => 'Verificar Atualizações';
 
   @override
+  String get checkNow => 'Verificar agora';
+
+  @override
   String get checkForUpdatesOnStartup => 'Verificar Atualizações ao Iniciar';
 
   @override

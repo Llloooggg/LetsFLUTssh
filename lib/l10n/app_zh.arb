@@ -52,6 +52,7 @@
   "openInBrowser": "在浏览器中打开",
   "couldNotOpenBrowser": "无法打开浏览器 — URL 已复制到剪贴板",
   "checkForUpdates": "检查更新",
+  "checkNow": "立即检查",
   "checkForUpdatesOnStartup": "启动时检查更新",
   "checking": "检查中...",
   "youreUpToDate": "已是最新版本",

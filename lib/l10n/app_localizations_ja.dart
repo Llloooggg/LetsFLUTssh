@@ -175,6 +175,9 @@ class SJa extends S {
   String get checkForUpdates => 'アップデートを確認';
 
   @override
+  String get checkNow => '今すぐ確認';
+
+  @override
   String get checkForUpdatesOnStartup => '起動時にアップデートを確認';
 
   @override

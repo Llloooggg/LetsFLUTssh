@@ -52,6 +52,7 @@
   "openInBrowser": "باز کردن در مرورگر",
   "couldNotOpenBrowser": "مرورگر باز نشد — آدرس در کلیپ‌بورد کپی شد",
   "checkForUpdates": "بررسی به‌روزرسانی",
+  "checkNow": "اکنون بررسی کن",
   "checkForUpdatesOnStartup": "بررسی به‌روزرسانی هنگام راه‌اندازی",
   "checking": "در حال بررسی...",
   "youreUpToDate": "نسخه شما به‌روز است",
