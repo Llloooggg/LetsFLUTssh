@@ -135,6 +135,9 @@ class STr extends S {
   String get search => 'Ara...';
 
   @override
+  String get noResults => 'Sonuç yok';
+
+  @override
   String get filter => 'Filtrele...';
 
   @override

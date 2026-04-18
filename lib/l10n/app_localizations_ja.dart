@@ -131,6 +131,9 @@ class SJa extends S {
   String get search => '検索...';
 
   @override
+  String get noResults => '結果なし';
+
+  @override
   String get filter => 'フィルター...';
 
   @override

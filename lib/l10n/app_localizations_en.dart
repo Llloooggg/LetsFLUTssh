@@ -134,6 +134,9 @@ class SEn extends S {
   String get search => 'Search...';
 
   @override
+  String get noResults => 'No results';
+
+  @override
   String get filter => 'Filter...';
 
   @override

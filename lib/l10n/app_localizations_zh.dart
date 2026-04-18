@@ -131,6 +131,9 @@ class SZh extends S {
   String get search => '搜索...';
 
   @override
+  String get noResults => '无结果';
+
+  @override
   String get filter => '筛选...';
 
   @override

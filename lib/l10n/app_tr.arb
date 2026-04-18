@@ -38,6 +38,7 @@
   "transfer": "Transfer",
   "open": "Aç",
   "search": "Ara...",
+  "noResults": "Sonuç yok",
   "filter": "Filtrele...",
   "merge": "Birleştir",
   "replace": "Değiştir",

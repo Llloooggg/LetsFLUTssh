@@ -38,6 +38,7 @@
   "transfer": "Transferência",
   "open": "Abrir",
   "search": "Buscar...",
+  "noResults": "Sem resultados",
   "filter": "Filtrar...",
   "merge": "Mesclar",
   "replace": "Substituir",

@@ -363,6 +363,12 @@ abstract class S {
   /// **'Search...'**
   String get search;
 
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get noResults;
+
   /// No description provided for @filter.
   ///
   /// In en, this message translates to:

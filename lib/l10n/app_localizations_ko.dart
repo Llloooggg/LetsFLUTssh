@@ -131,6 +131,9 @@ class SKo extends S {
   String get search => '검색...';
 
   @override
+  String get noResults => '결과 없음';
+
+  @override
   String get filter => '필터...';
 
   @override

@@ -135,6 +135,9 @@ class SEs extends S {
   String get search => 'Buscar...';
 
   @override
+  String get noResults => 'Sin resultados';
+
+  @override
   String get filter => 'Filtrar...';
 
   @override

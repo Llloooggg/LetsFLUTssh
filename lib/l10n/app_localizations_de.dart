@@ -134,6 +134,9 @@ class SDe extends S {
   String get search => 'Suchen...';
 
   @override
+  String get noResults => 'Keine Ergebnisse';
+
+  @override
   String get filter => 'Filtern...';
 
   @override

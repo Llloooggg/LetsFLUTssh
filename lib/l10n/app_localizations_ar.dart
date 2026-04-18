@@ -132,6 +132,9 @@ class SAr extends S {
   String get search => 'بحث...';
 
   @override
+  String get noResults => 'لا توجد نتائج';
+
+  @override
   String get filter => 'تصفية...';
 
   @override

@@ -135,6 +135,9 @@ class SHi extends S {
   String get search => 'खोजें...';
 
   @override
+  String get noResults => 'कोई परिणाम नहीं';
+
+  @override
   String get filter => 'फ़िल्टर...';
 
   @override

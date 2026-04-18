@@ -135,6 +135,9 @@ class SFr extends S {
   String get search => 'Rechercher...';
 
   @override
+  String get noResults => 'Aucun résultat';
+
+  @override
   String get filter => 'Filtrer...';
 
   @override

@@ -38,6 +38,7 @@
   "transfer": "전송",
   "open": "열기",
   "search": "검색...",
+  "noResults": "결과 없음",
   "filter": "필터...",
   "merge": "병합",
   "replace": "교체",

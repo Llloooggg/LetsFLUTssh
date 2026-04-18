@@ -135,6 +135,9 @@ class SPt extends S {
   String get search => 'Buscar...';
 
   @override
+  String get noResults => 'Sem resultados';
+
+  @override
   String get filter => 'Filtrar...';
 
   @override

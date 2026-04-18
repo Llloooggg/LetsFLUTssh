@@ -38,6 +38,7 @@
   "transfer": "Truyền tệp",
   "open": "Mở",
   "search": "Tìm kiếm...",
+  "noResults": "Không có kết quả",
   "filter": "Lọc...",
   "merge": "Gộp",
   "replace": "Thay thế",

@@ -38,6 +38,7 @@
   "transfer": "النقل",
   "open": "فتح",
   "search": "بحث...",
+  "noResults": "لا توجد نتائج",
   "filter": "تصفية...",
   "merge": "دمج",
   "replace": "استبدال",

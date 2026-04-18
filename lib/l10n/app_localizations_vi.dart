@@ -133,6 +133,9 @@ class SVi extends S {
   String get search => 'Tìm kiếm...';
 
   @override
+  String get noResults => 'Không có kết quả';
+
+  @override
   String get filter => 'Lọc...';
 
   @override

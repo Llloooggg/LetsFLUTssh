@@ -134,6 +134,9 @@ class SRu extends S {
   String get search => 'Поиск...';
 
   @override
+  String get noResults => 'Ничего не найдено';
+
+  @override
   String get filter => 'Фильтр...';
 
   @override

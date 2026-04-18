@@ -38,6 +38,7 @@
   "transfer": "転送",
   "open": "開く",
   "search": "検索...",
+  "noResults": "結果なし",
   "filter": "フィルター...",
   "merge": "マージ",
   "replace": "置換",

@@ -135,6 +135,9 @@ class SFa extends S {
   String get search => 'جستجو...';
 
   @override
+  String get noResults => 'نتیجه‌ای نیست';
+
+  @override
   String get filter => 'فیلتر...';
 
   @override

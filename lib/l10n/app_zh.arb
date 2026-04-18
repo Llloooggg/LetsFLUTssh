@@ -38,6 +38,7 @@
   "transfer": "传输",
   "open": "打开",
   "search": "搜索...",
+  "noResults": "无结果",
   "filter": "筛选...",
   "merge": "合并",
   "replace": "替换",

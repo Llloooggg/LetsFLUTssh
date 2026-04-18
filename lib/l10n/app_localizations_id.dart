@@ -135,6 +135,9 @@ class SId extends S {
   String get search => 'Cari...';
 
   @override
+  String get noResults => 'Tidak ada hasil';
+
+  @override
   String get filter => 'Filter...';
 
   @override

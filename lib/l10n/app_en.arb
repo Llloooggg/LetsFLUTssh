@@ -47,6 +47,7 @@
   "transfer": "Transfer",
   "open": "Open",
   "search": "Search...",
+  "noResults": "No results",
   "filter": "Filter...",
   "merge": "Merge",
   "replace": "Replace",

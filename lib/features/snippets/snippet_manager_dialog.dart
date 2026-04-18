@@ -7,6 +7,8 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_data_row.dart';
+import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
@@ -25,6 +27,7 @@ class SnippetManagerPanel extends ConsumerStatefulWidget {
 class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   List<Snippet> _snippets = [];
   bool _loading = true;
+  String _filter = '';
 
   @override
   void initState() {
@@ -41,6 +44,16 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
         _loading = false;
       });
     }
+  }
+
+  List<Snippet> _filtered() {
+    if (_filter.isEmpty) return _snippets;
+    final needle = _filter.toLowerCase();
+    return _snippets.where((sn) {
+      return sn.title.toLowerCase().contains(needle) ||
+          sn.command.toLowerCase().contains(needle) ||
+          sn.description.toLowerCase().contains(needle);
+    }).toList();
   }
 
   @override
@@ -60,11 +73,18 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
+          Expanded(
+            child: AppDataSearchBar(
+              onChanged: (v) => setState(() => _filter = v),
+              hintText: s.search,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(
             s.snippetCount(_snippets.length),
             style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           TextButton.icon(
             onPressed: _addSnippet,
             icon: const Icon(Icons.add, size: 16),
@@ -87,80 +107,52 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
         ),
       );
     }
+    final visible = _filtered();
+    if (visible.isEmpty) {
+      return Center(
+        child: Text(
+          s.noResults,
+          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
+        ),
+      );
+    }
     return ListView.separated(
-      itemCount: _snippets.length,
+      itemCount: visible.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(s, _snippets[index]),
+      itemBuilder: (context, index) => _buildEntry(s, visible[index]),
     );
   }
 
   Widget _buildEntry(S s, Snippet snippet) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Icon(Icons.code, size: 16, color: AppTheme.accent),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  snippet.title,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.sm,
-                    color: AppTheme.fg,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  snippet.command,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.mono(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-                if (snippet.description.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    snippet.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgFaint,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.content_copy, size: 14),
-            tooltip: s.copy,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _copyCommand(snippet),
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 14),
-            tooltip: s.editSnippet,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _editSnippet(snippet),
-          ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
-            tooltip: s.deleteSnippet,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _deleteSnippet(snippet),
-          ),
-        ],
-      ),
+    return AppDataRow(
+      icon: Icons.code,
+      title: snippet.title,
+      secondary: snippet.command,
+      secondaryMono: true,
+      tertiary: snippet.description.isEmpty ? null : snippet.description,
+      trailing: [
+        IconButton(
+          icon: const Icon(Icons.content_copy, size: 14),
+          tooltip: s.copy,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          onPressed: () => _copyCommand(snippet),
+        ),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, size: 14),
+          tooltip: s.editSnippet,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          onPressed: () => _editSnippet(snippet),
+        ),
+        IconButton(
+          icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+          tooltip: s.deleteSnippet,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          onPressed: () => _deleteSnippet(snippet),
+        ),
+      ],
     );
   }
 
