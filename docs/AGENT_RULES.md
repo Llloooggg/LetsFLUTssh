@@ -95,6 +95,19 @@ Hard-requiring the user to install anything (a runtime, a service, a CLI, a nati
 
 When reviewing a diff that adds a new dependency: check `pubspec.yaml`, then check whether the dep pulls a transitive native requirement (look at the dep's README + `linux/`, `macos/`, `windows/`, `android/`, `ios/` plugin folders). If yes — verify the rule above before approving the change.
 
+### Fallbacks Are Last Resort, Not Default
+
+A weaker code path is a **downgrade of the guarantee**, not a neutral alternative that just needs a label. The ladder when a feature's primary path is unavailable on a platform:
+
+1. **Bundle** (per § Self-Contained Binary above) — if the capability can ship inside the app, ship it. No fallback needed.
+2. **Implement per platform** — if a native implementation that meets the bar is achievable at reasonable cost-per-user-served, build it. Authorisation per [§ Don't Escalate Working Baselines](#dont-escalate-working-baselines).
+3. **Honestly hide** — if the platform cannot meet the bar at any reasonable cost (no unified API, fragmented drivers, vendor matrix too wide — Linux biometric binding is the canonical example), render the control as **disabled with a reason** (per [§ UI Components](#ui-components)). A hidden-but-honest "Not available on Linux" row is **better** than a weaker path that looks strong.
+4. **Weaker path with honest label** — a materially weaker code path (e.g. software-gated where another platform has hardware-gated) is acceptable only when (a) the ladder above has no better answer, (b) the weaker path still delivers non-trivial value on its own, and (c) the UI states exactly what the user got — e.g. labels like `Software-gated`, `DPAPI (software-backed)`, `Keyring (no biometric binding)`. **Never label a weaker path with the same words as the stronger one.**
+
+"No silent fallbacks" (phrased in `SECURITY_BACKLOG.md` cross-cutting ground rules and elsewhere) is the last clause of this rule, not the whole of it. The full rule is: *a fallback that ships without a visible downgrade label is forbidden, **and** a fallback that ships instead of a feasible stronger path is forbidden — label or no label.* "We can just label it" is not a justification for picking a weaker path when a better one is achievable.
+
+**Red flag when reading a proposed diff:** a fallback that is presented as "it's fine, we tell the user" without the ladder above being walked. Walk the ladder. If rungs 1–3 were dismissed, the dismissal reasoning must be in the diff's commit message or the backlog entry, not implicit.
+
 ### Don't Escalate Working Baselines
 The project ships across 5 platforms with **deliberately uneven guarantees** in many domains — credential storage, file pickers, notifications, biometrics, IPC, native UI affordances, hardware probes, you name it. Cross-platform packages typically cover the majority of users with known, documented limits on the weaker platforms. The project treats that asymmetry as the **chosen baseline**, not a deficiency to fix. The cost of N parallel native code paths (N× test surface, N× release fragility, N× maintenance) is rarely worth a marginal upgrade on one or two platforms.
 
