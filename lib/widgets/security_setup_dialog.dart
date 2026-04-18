@@ -112,10 +112,9 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     final l10n = S.of(context);
     final password = _passwordCtrl.text;
 
-    if (password.length < 8) {
-      Toast.show(context, message: l10n.passwordTooShort);
-      return;
-    }
+    // Master password must be non-empty — everything else (length,
+    // character classes, etc.) is the user's call.
+    if (password.isEmpty) return;
     if (password != _confirmCtrl.text) {
       Toast.show(context, message: l10n.passwordsDoNotMatch);
       return;

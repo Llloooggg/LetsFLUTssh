@@ -135,6 +135,9 @@ class STr extends S {
   String get search => 'Ara...';
 
   @override
+  String get noResults => 'Sonuç yok';
+
+  @override
   String get filter => 'Filtrele...';
 
   @override
@@ -175,6 +178,9 @@ class STr extends S {
 
   @override
   String get checkForUpdates => 'Güncellemeleri Kontrol Et';
+
+  @override
+  String get checkNow => 'Şimdi kontrol et';
 
   @override
   String get checkForUpdatesOnStartup =>
@@ -1198,6 +1204,29 @@ class STr extends S {
   String get biometricDisabled => 'Biyometrik kilit açma devre dışı';
 
   @override
+  String get biometricUnlockFailed =>
+      'Biyometrik kilit açma başarısız. Ana parolanızı girin.';
+
+  @override
+  String get biometricUnlockCancelled => 'Biyometrik kilit açma iptal edildi.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Bu cihazda kayıtlı biyometrik kimlik bilgisi yok.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Biyometrik kilit açmayı etkinleştirmek için önce bir ana parola belirleyin.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Bu cihazın biyometrik sensörü yok.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Otomatik kilidi etkinleştirmek için önce bir ana parola belirleyin.';
+
+  @override
   String get currentPasswordIncorrect => 'Mevcut parola yanlış';
 
   @override
@@ -1603,26 +1632,8 @@ class STr extends S {
       'Tüm bilinen sunucular kaldırılsın mı? Her sunucu anahtarı yeniden doğrulanmalı.';
 
   @override
-  String get importKnownHosts => 'Bilinen sunucuları içe aktar';
-
-  @override
   String get importKnownHostsSubtitle =>
       'OpenSSH known_hosts dosyasından içe aktar';
-
-  @override
-  String get exportKnownHosts => 'Bilinen sunucuları dışa aktar';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count yeni sunucu içe aktarıldı',
-      one: '1 yeni sunucu içe aktarıldı',
-      zero: 'Yeni sunucu içe aktarılmadı',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Tüm bilinen sunucular temizlendi';
@@ -1631,9 +1642,6 @@ class STr extends S {
   String removedHost(String host) {
     return '$host kaldırıldı';
   }
-
-  @override
-  String get noHostsToExport => 'Dışa aktarılacak sunucu yok';
 
   @override
   String get tools => 'Araçlar';
@@ -1774,9 +1782,6 @@ class STr extends S {
 
   @override
   String get currentPassword => 'Mevcut şifre';
-
-  @override
-  String get passwordTooShort => 'Şifre en az 8 karakter olmalı';
 
   @override
   String get masterPasswordSet => 'Ana şifre etkinleştirildi';

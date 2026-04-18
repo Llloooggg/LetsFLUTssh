@@ -10,8 +10,9 @@ class _SecuritySection extends ConsumerStatefulWidget {
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   bool? _masterPasswordEnabled;
   bool? _keychainAvailable;
-  bool? _biometricAvailable;
+  BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
+  bool _biometricProbed = false;
 
   @override
   void initState() {
@@ -39,15 +40,51 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final bio = ref.read(biometricAuthProvider);
     final bioVault = ref.read(biometricKeyVaultProvider);
-    final bioResults = await Future.wait([
-      bio.isAvailable(),
-      bioVault.isStored(),
-    ]);
+    final availability = await bio.availability();
+    final stored = await bioVault.isStored();
     if (!mounted) return;
     setState(() {
-      _biometricAvailable = bioResults[0];
-      _biometricEnabled = bioResults[1];
+      _biometricUnavailable = availability;
+      _biometricEnabled = stored;
+      _biometricProbed = true;
     });
+  }
+
+  /// Localized explanation for why the biometric toggle is disabled —
+  /// null means "either fully enabled, or still probing". Caller pairs
+  /// this with [_biometricEnabledFor] to decide. Two layers:
+  ///  * platform/hardware reason from [BiometricAuth.availability]
+  ///  * "you need a master password first" when the app is not in
+  ///    master-password mode (biometry caches the MP-derived key, so
+  ///    without an MP there is no key to cache)
+  String? _biometricDisabledReason(S l10n, SecurityLevel level) {
+    if (!_biometricProbed) return null;
+    switch (_biometricUnavailable) {
+      case BiometricUnavailableReason.platformUnsupported:
+      case BiometricUnavailableReason.noSensor:
+        return l10n.biometricSensorNotAvailable;
+      case BiometricUnavailableReason.notEnrolled:
+        return l10n.biometricNotEnrolled;
+      case null:
+        break;
+    }
+    if (level != SecurityLevel.masterPassword) {
+      return l10n.biometricRequiresMasterPassword;
+    }
+    return null;
+  }
+
+  /// Whether the biometric toggle can be flipped. Returns false during
+  /// the initial probe so the toggle doesn't momentarily look live.
+  bool _biometricToggleEnabled(SecurityLevel level) {
+    if (!_biometricProbed) return false;
+    if (_biometricUnavailable != null) return false;
+    return level == SecurityLevel.masterPassword;
+  }
+
+  String? _autoLockDisabledReason(S l10n, SecurityLevel level) {
+    if (level == SecurityLevel.masterPassword) return null;
+    return l10n.autoLockRequiresMasterPassword;
   }
 
   @override
@@ -92,25 +129,28 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
               ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
               : null,
         ),
-        // Biometric unlock — only rendered when the device actually has
-        // biometric hardware. Hidden on headless/Linux so the settings
-        // layout stays compact (and so our existing tests that tap by
-        // absolute offset still land on the right widgets).
-        if (_biometricAvailable == true)
-          _Toggle(
-            label: l10n.biometricUnlockTitle,
-            subtitle: l10n.biometricUnlockSubtitle,
-            icon: Icons.fingerprint,
-            value: _biometricEnabled == true,
-            onChanged: secState.level == SecurityLevel.masterPassword
-                ? (v) => _toggleBiometricUnlock(context, v)
-                : null,
-          ),
-        // Auto-lock — only meaningful in masterPassword mode, since lock
-        // zeroes the DB key and relies on the MP prompt (or biometrics)
-        // to restore it. In plaintext/keychain there is no secret to
-        // re-prove, so the row is hidden.
-        if (secState.level == SecurityLevel.masterPassword) _AutoLockTile(),
+        // Biometric unlock — always rendered so the user can see that
+        // the option exists and why it cannot be flipped right now.
+        // When disabled the [_Toggle] shows a tooltip + toast with the
+        // reason (no sensor, nothing enrolled, or no master password
+        // set yet) instead of silently disappearing.
+        _Toggle(
+          label: l10n.biometricUnlockTitle,
+          subtitle: l10n.biometricUnlockSubtitle,
+          icon: Icons.fingerprint,
+          value: _biometricEnabled == true,
+          onChanged: _biometricToggleEnabled(secState.level)
+              ? (v) => _toggleBiometricUnlock(context, v)
+              : null,
+          disabledReason: _biometricDisabledReason(l10n, secState.level),
+        ),
+        // Auto-lock — meaningful only when a master password is set,
+        // but still rendered in every mode with a disabled look +
+        // reason so the user doesn't wonder where it went after
+        // disabling master-password mode.
+        _AutoLockTile(
+          disabledReason: _autoLockDisabledReason(l10n, secState.level),
+        ),
       ],
     );
   }
@@ -137,7 +177,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (password == null || !context.mounted) return;
 
     final manager = ref.read(masterPasswordProvider);
-    if (!await manager.verify(password)) {
+    // Single PBKDF2: verify + derive at once so the enable flow
+    // doesn't double the 600k-iteration wait on mobile.
+    final key = await manager.verifyAndDerive(password);
+    if (key == null) {
       if (context.mounted) {
         Toast.show(
           context,
@@ -149,9 +192,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
 
     final bio = ref.read(biometricAuthProvider);
-    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) return;
-
-    final key = await manager.deriveKey(password);
+    if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
+      // Cancel / lockout / biometricOnly-without-enrollment all land
+      // here as a silent `false` from local_auth. Surface a toast so
+      // the user knows why the toggle didn't flip — the prior code
+      // returned quietly and looked like the tap did nothing.
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: l10n.biometricUnlockCancelled,
+          level: ToastLevel.warning,
+        );
+      }
+      return;
+    }
     final vault = ref.read(biometricKeyVaultProvider);
     final stored = await vault.store(key);
     if (!mounted) return;
@@ -624,68 +678,107 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 }
 
 class _AutoLockTile extends ConsumerWidget {
-  static const _presets = [0, 5, 15, 30, 60];
+  static const _presets = [0, 1, 5, 15, 30, 60];
+
+  /// Non-null means the tile is disabled: the dropdown trigger is
+  /// visibly muted, wrapped in a tooltip, and any tap surfaces the
+  /// reason through a toast instead of opening the menu.
+  final String? disabledReason;
+
+  const _AutoLockTile({this.disabledReason});
+
+  String _label(S l10n, int minutes) =>
+      minutes == 0 ? l10n.autoLockOff : l10n.autoLockMinutesValue(minutes);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = S.of(context);
     final current = ref.watch(autoLockMinutesProvider);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final enabled = disabledReason == null;
+    final trigger = _buildTrigger(l10n, current);
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: _SettingsRow(
+        label: l10n.autoLockTitle,
+        subtitle: l10n.autoLockSubtitle,
+        icon: Icons.timer_outlined,
+        child: enabled
+            ? PopupMenuButton<int>(
+                onSelected: (v) =>
+                    ref.read(autoLockMinutesProvider.notifier).set(v),
+                tooltip: '',
+                offset: const Offset(0, AppTheme.controlHeightSm),
+                constraints: const BoxConstraints(
+                  minWidth: 140,
+                  maxHeight: AppTheme.popupMaxHeight,
+                ),
+                color: AppTheme.bg2,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppTheme.radiusMd,
+                ),
+                itemBuilder: (_) => _presets
+                    .map(
+                      (m) => PopupMenuItem<int>(
+                        value: m,
+                        child: Text(
+                          _label(l10n, m),
+                          style: TextStyle(
+                            fontSize: AppFonts.sm,
+                            color: m == current ? AppTheme.accent : AppTheme.fg,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                child: trigger,
+              )
+            : _DisabledDropdownTrigger(reason: disabledReason!, child: trigger),
+      ),
+    );
+  }
+
+  Widget _buildTrigger(S l10n, int current) {
+    return Container(
+      height: AppTheme.controlHeightSm,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.bg3,
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.borderLight),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(Icons.timer_outlined, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.autoLockTitle,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.sm,
-                        color: AppTheme.fg,
-                      ),
-                    ),
-                    Text(
-                      l10n.autoLockSubtitle,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgFaint,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            _label(l10n, current),
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            children: _presets.map((m) {
-              final label = m == 0
-                  ? l10n.autoLockOff
-                  : l10n.autoLockMinutesValue(m);
-              final selected = m == current;
-              return ChoiceChip(
-                label: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: selected ? AppTheme.onAccent : AppTheme.fg,
-                  ),
-                ),
-                selected: selected,
-                selectedColor: AppTheme.accent,
-                onSelected: (_) =>
-                    ref.read(autoLockMinutesProvider.notifier).set(m),
-              );
-            }).toList(),
-          ),
+          const SizedBox(width: 4),
+          Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
         ],
+      ),
+    );
+  }
+}
+
+/// Visual stand-in for a disabled [PopupMenuButton] trigger: hover
+/// tooltip plus an info toast on tap explaining why the control is
+/// frozen. Keeps the same visual box so the dropdown doesn't appear
+/// to "disappear" in disabled states.
+class _DisabledDropdownTrigger extends StatelessWidget {
+  final String reason;
+  final Widget child;
+
+  const _DisabledDropdownTrigger({required this.reason, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: reason,
+      child: GestureDetector(
+        onTap: () =>
+            Toast.show(context, message: reason, level: ToastLevel.info),
+        child: child,
       ),
     );
   }

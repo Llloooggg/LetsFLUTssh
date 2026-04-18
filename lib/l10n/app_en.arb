@@ -47,6 +47,7 @@
   "transfer": "Transfer",
   "open": "Open",
   "search": "Search...",
+  "noResults": "No results",
   "filter": "Filter...",
   "merge": "Merge",
   "replace": "Replace",
@@ -70,6 +71,7 @@
   "openInBrowser": "Open in Browser",
   "couldNotOpenBrowser": "Could not open browser — URL copied to clipboard",
   "checkForUpdates": "Check for Updates",
+  "checkNow": "Check now",
   "checkForUpdatesOnStartup": "Check for Updates on Startup",
   "checking": "Checking...",
   "youreUpToDate": "You're up to date",
@@ -699,6 +701,12 @@
   "biometricEnableFailed": "Could not enable biometric unlock.",
   "biometricEnabled": "Biometric unlock enabled",
   "biometricDisabled": "Biometric unlock disabled",
+  "biometricUnlockFailed": "Biometric unlock failed. Enter your master password.",
+  "biometricUnlockCancelled": "Biometric unlock cancelled.",
+  "biometricNotEnrolled": "No biometric credentials enrolled on this device.",
+  "biometricRequiresMasterPassword": "Set a master password first to enable biometric unlock.",
+  "biometricSensorNotAvailable": "This device has no biometric sensor.",
+  "autoLockRequiresMasterPassword": "Set a master password first to enable auto-lock.",
   "currentPasswordIncorrect": "Current password is incorrect",
   "wrongPassword": "Wrong password",
   "useKeychain": "Encrypt with OS keychain",
@@ -1037,17 +1045,7 @@
   },
   "clearAllKnownHosts": "Clear All Known Hosts",
   "clearAllKnownHostsConfirm": "Remove all known hosts? You will be prompted to verify each server key again.",
-  "importKnownHosts": "Import Known Hosts",
   "importKnownHostsSubtitle": "Import from OpenSSH known_hosts file",
-  "exportKnownHosts": "Export Known Hosts",
-  "importedHosts": "Imported {count} new hosts",
-  "@importedHosts": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "clearedAllHosts": "Cleared all known hosts",
   "removedHost": "Removed {host}",
   "@removedHost": {
@@ -1057,7 +1055,6 @@
       }
     }
   },
-  "noHostsToExport": "No known hosts to export",
   "tools": "Tools",
   "sshKeys": "SSH Keys",
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",
@@ -1139,7 +1136,6 @@
   "wrongMasterPassword": "Wrong password. Please try again.",
   "newPassword": "New Password",
   "currentPassword": "Current Password",
-  "passwordTooShort": "Password must be at least 8 characters",
   "masterPasswordSet": "Master password enabled",
   "masterPasswordChanged": "Master password changed",
   "masterPasswordRemoved": "Master password removed",

@@ -192,24 +192,19 @@ void main() {
       expect(find.text('OK'), findsOneWidget);
     });
 
-    testWidgets('master password too short shows toast', (tester) async {
+    testWidgets('empty master password does not submit', (tester) async {
+      // Length restrictions were removed: only the non-empty check
+      // gates submit. An empty password must silently keep the form open.
       await openDialog(tester, keyStorage: keyStorage);
 
       await tester.tap(find.text('Set Master Password'));
       await tester.pumpAndSettle();
 
-      // Enter short password.
-      await tester.enterText(find.byType(TextField).first, 'short');
-      await tester.enterText(find.byType(TextField).last, 'short');
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
 
-      // Dialog should still be open (password form visible).
+      // Dialog should still be open (password form still visible).
       expect(find.byType(TextField), findsNWidgets(2));
-
-      // Flush the toast auto-dismiss timer and removal animation.
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
     });
 
     testWidgets('mismatched passwords shows toast', (tester) async {

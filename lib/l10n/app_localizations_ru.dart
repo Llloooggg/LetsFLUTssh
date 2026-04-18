@@ -134,6 +134,9 @@ class SRu extends S {
   String get search => 'Поиск...';
 
   @override
+  String get noResults => 'Ничего не найдено';
+
+  @override
   String get filter => 'Фильтр...';
 
   @override
@@ -174,6 +177,9 @@ class SRu extends S {
 
   @override
   String get checkForUpdates => 'Проверить обновления';
+
+  @override
+  String get checkNow => 'Проверить';
 
   @override
   String get checkForUpdatesOnStartup => 'Проверять обновления при запуске';
@@ -1200,6 +1206,29 @@ class SRu extends S {
   String get biometricDisabled => 'Биометрическая разблокировка отключена';
 
   @override
+  String get biometricUnlockFailed =>
+      'Разблокировка по биометрии не удалась. Введите мастер-пароль.';
+
+  @override
+  String get biometricUnlockCancelled => 'Разблокировка по биометрии отменена.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'На этом устройстве не зарегистрированы биометрические данные.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Сначала задайте мастер-пароль, чтобы включить разблокировку по биометрии.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'На этом устройстве нет биометрического датчика.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Сначала задайте мастер-пароль, чтобы включить авто-блокировку.';
+
+  @override
   String get currentPasswordIncorrect => 'Неверный текущий пароль';
 
   @override
@@ -1610,26 +1639,7 @@ class SRu extends S {
       'Удалить все известные хосты? При подключении к каждому серверу потребуется повторная проверка ключа.';
 
   @override
-  String get importKnownHosts => 'Импорт известных хостов';
-
-  @override
   String get importKnownHostsSubtitle => 'Импорт из файла OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Экспорт известных хостов';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Импортировано $count новых хостов',
-      few: 'Импортировано $count новых хоста',
-      one: 'Импортирован 1 новый хост',
-      zero: 'Не добавлено новых хостов',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Все известные хосты очищены';
@@ -1638,9 +1648,6 @@ class SRu extends S {
   String removedHost(String host) {
     return 'Удалён $host';
   }
-
-  @override
-  String get noHostsToExport => 'Нет хостов для экспорта';
 
   @override
   String get tools => 'Инструменты';
@@ -1782,9 +1789,6 @@ class SRu extends S {
 
   @override
   String get currentPassword => 'Текущий пароль';
-
-  @override
-  String get passwordTooShort => 'Пароль должен содержать минимум 8 символов';
 
   @override
   String get masterPasswordSet => 'Мастер-пароль установлен';

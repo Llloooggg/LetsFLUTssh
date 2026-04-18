@@ -99,6 +99,28 @@ void main() {
       );
     });
 
+    test('verifyAndDerive returns the same key as deriveKey on success, null '
+        'on wrong password — one PBKDF2 run instead of two', () async {
+      final originalKey = await manager.enable('secretpass');
+
+      final fresh = MasterPasswordManager(basePath: tempDir.path);
+      final derivedOk = await fresh.verifyAndDerive('secretpass');
+      expect(derivedOk, isNotNull);
+      expect(derivedOk, equals(originalKey));
+
+      expect(await fresh.verifyAndDerive('wrongpass'), isNull);
+    });
+
+    test(
+      'verifyAndDerive throws when master password is not enabled',
+      () async {
+        expect(
+          () => manager.verifyAndDerive('anything'),
+          throwsA(isA<MasterPasswordException>()),
+        );
+      },
+    );
+
     test('changePassword verifies old password', () async {
       await manager.enable('oldpass12');
       expect(

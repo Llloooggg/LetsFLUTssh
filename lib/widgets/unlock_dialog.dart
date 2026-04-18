@@ -67,11 +67,13 @@ class _UnlockDialogState extends State<UnlockDialog> {
       _wrongPassword = false;
     });
 
-    final isValid = await widget.manager.verify(password);
+    // Single PBKDF2 run: verify + derive in one isolate spawn so
+    // unlock latency is not doubled on mid-tier mobiles.
+    final key = await widget.manager.verifyAndDerive(password);
 
     if (!mounted) return;
 
-    if (!isValid) {
+    if (key == null) {
       setState(() {
         _busy = false;
         _wrongPassword = true;
@@ -84,11 +86,7 @@ class _UnlockDialogState extends State<UnlockDialog> {
       return;
     }
 
-    // Derive key with same password
-    final key = await widget.manager.deriveKey(password);
-    if (mounted) {
-      Navigator.of(context).pop(key);
-    }
+    Navigator.of(context).pop(key);
   }
 
   Future<void> _forgotPassword() async {

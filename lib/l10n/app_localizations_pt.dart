@@ -135,6 +135,9 @@ class SPt extends S {
   String get search => 'Buscar...';
 
   @override
+  String get noResults => 'Sem resultados';
+
+  @override
   String get filter => 'Filtrar...';
 
   @override
@@ -175,6 +178,9 @@ class SPt extends S {
 
   @override
   String get checkForUpdates => 'Verificar Atualizações';
+
+  @override
+  String get checkNow => 'Verificar agora';
 
   @override
   String get checkForUpdatesOnStartup => 'Verificar Atualizações ao Iniciar';
@@ -1200,6 +1206,29 @@ class SPt extends S {
   String get biometricDisabled => 'Desbloqueio biométrico desativado';
 
   @override
+  String get biometricUnlockFailed =>
+      'Falha no desbloqueio biométrico. Digite sua senha mestra.';
+
+  @override
+  String get biometricUnlockCancelled => 'Desbloqueio biométrico cancelado.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Nenhuma credencial biométrica registrada neste dispositivo.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Defina uma senha mestra primeiro para habilitar o desbloqueio biométrico.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Este dispositivo não tem sensor biométrico.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Defina uma senha mestra primeiro para habilitar o bloqueio automático.';
+
+  @override
   String get currentPasswordIncorrect => 'A senha atual está incorreta';
 
   @override
@@ -1608,26 +1637,8 @@ class SPt extends S {
       'Remover todos os hosts conhecidos? Cada chave de servidor precisará ser verificada novamente.';
 
   @override
-  String get importKnownHosts => 'Importar hosts conhecidos';
-
-  @override
   String get importKnownHostsSubtitle =>
       'Importar de arquivo OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Exportar hosts conhecidos';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count hosts novos importados',
-      one: '1 host novo importado',
-      zero: 'Nenhum host novo importado',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Todos os hosts conhecidos foram limpos';
@@ -1636,9 +1647,6 @@ class SPt extends S {
   String removedHost(String host) {
     return '$host removido';
   }
-
-  @override
-  String get noHostsToExport => 'Nenhum host para exportar';
 
   @override
   String get tools => 'Ferramentas';
@@ -1781,9 +1789,6 @@ class SPt extends S {
 
   @override
   String get currentPassword => 'Senha atual';
-
-  @override
-  String get passwordTooShort => 'A senha deve ter pelo menos 8 caracteres';
 
   @override
   String get masterPasswordSet => 'Senha mestra ativada';

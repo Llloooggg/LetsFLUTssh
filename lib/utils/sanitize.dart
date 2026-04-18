@@ -69,16 +69,22 @@ String sanitizeErrorMessage(String message) {
     (m) => '${m.group(1) ?? '<host>'}:<port>',
   );
 
-  // Redact Windows file paths with usernames (C:\Users\Name\...)
+  // Redact Windows file paths with usernames (C:\Users\Name or
+  // C:\Users\Name\rest). The username segment stops at the next backslash
+  // or newline, so trailing-slash-less paths (log lines ending at the
+  // home dir itself, e.g. "Initial dir: C:\Users\bob") are also caught.
   message = message.replaceAllMapped(
-    RegExp(r'[A-Z]:\\Users\\[^\\]+\\'),
-    (_) => '<path>\\',
+    RegExp(r'[A-Z]:\\Users\\[^\\\r\n]+'),
+    (_) => '<path>',
   );
 
-  // Redact Unix/macOS file paths with usernames (/Users/Name/..., /home/name/...)
+  // Redact Unix/macOS file paths with usernames (/Users/Name,
+  // /home/name, and any extension path). Same rationale: match the
+  // username segment only, so a bare home-dir path at end-of-line is
+  // still redacted without needing a trailing slash.
   message = message.replaceAllMapped(
-    RegExp(r'/(Users|home)/[^/]+/'),
-    (_) => '/<user>/',
+    RegExp(r'/(?:Users|home)/[^/\s]+'),
+    (_) => '/<user>',
   );
 
   return message;

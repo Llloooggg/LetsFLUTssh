@@ -363,6 +363,12 @@ abstract class S {
   /// **'Search...'**
   String get search;
 
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get noResults;
+
   /// No description provided for @filter.
   ///
   /// In en, this message translates to:
@@ -440,6 +446,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Check for Updates'**
   String get checkForUpdates;
+
+  /// No description provided for @checkNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get checkNow;
 
   /// No description provided for @checkForUpdatesOnStartup.
   ///
@@ -2223,6 +2235,42 @@ abstract class S {
   /// **'Biometric unlock disabled'**
   String get biometricDisabled;
 
+  /// No description provided for @biometricUnlockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock failed. Enter your master password.'**
+  String get biometricUnlockFailed;
+
+  /// No description provided for @biometricUnlockCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric unlock cancelled.'**
+  String get biometricUnlockCancelled;
+
+  /// No description provided for @biometricNotEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'No biometric credentials enrolled on this device.'**
+  String get biometricNotEnrolled;
+
+  /// No description provided for @biometricRequiresMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a master password first to enable biometric unlock.'**
+  String get biometricRequiresMasterPassword;
+
+  /// No description provided for @biometricSensorNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has no biometric sensor.'**
+  String get biometricSensorNotAvailable;
+
+  /// No description provided for @autoLockRequiresMasterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a master password first to enable auto-lock.'**
+  String get autoLockRequiresMasterPassword;
+
   /// No description provided for @currentPasswordIncorrect.
   ///
   /// In en, this message translates to:
@@ -2865,29 +2913,11 @@ abstract class S {
   /// **'Remove all known hosts? You will be prompted to verify each server key again.'**
   String get clearAllKnownHostsConfirm;
 
-  /// No description provided for @importKnownHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Import Known Hosts'**
-  String get importKnownHosts;
-
   /// No description provided for @importKnownHostsSubtitle.
   ///
   /// In en, this message translates to:
   /// **'Import from OpenSSH known_hosts file'**
   String get importKnownHostsSubtitle;
-
-  /// No description provided for @exportKnownHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Known Hosts'**
-  String get exportKnownHosts;
-
-  /// No description provided for @importedHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported {count} new hosts'**
-  String importedHosts(int count);
 
   /// No description provided for @clearedAllHosts.
   ///
@@ -2900,12 +2930,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Removed {host}'**
   String removedHost(String host);
-
-  /// No description provided for @noHostsToExport.
-  ///
-  /// In en, this message translates to:
-  /// **'No known hosts to export'**
-  String get noHostsToExport;
 
   /// No description provided for @tools.
   ///
@@ -3140,12 +3164,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Current Password'**
   String get currentPassword;
-
-  /// No description provided for @passwordTooShort.
-  ///
-  /// In en, this message translates to:
-  /// **'Password must be at least 8 characters'**
-  String get passwordTooShort;
 
   /// No description provided for @masterPasswordSet.
   ///

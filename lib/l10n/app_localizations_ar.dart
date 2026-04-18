@@ -132,6 +132,9 @@ class SAr extends S {
   String get search => 'بحث...';
 
   @override
+  String get noResults => 'لا توجد نتائج';
+
+  @override
   String get filter => 'تصفية...';
 
   @override
@@ -172,6 +175,9 @@ class SAr extends S {
 
   @override
   String get checkForUpdates => 'التحقق من التحديثات';
+
+  @override
+  String get checkNow => 'تحقق الآن';
 
   @override
   String get checkForUpdatesOnStartup => 'التحقق من التحديثات عند بدء التشغيل';
@@ -1197,6 +1203,30 @@ class SAr extends S {
   String get biometricDisabled => 'تم تعطيل الفتح بالمقاييس الحيوية';
 
   @override
+  String get biometricUnlockFailed =>
+      'فشل فتح القفل بالبيانات الحيوية. أدخل كلمة المرور الرئيسية.';
+
+  @override
+  String get biometricUnlockCancelled =>
+      'تم إلغاء فتح القفل بالبيانات الحيوية.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'لا توجد بيانات حيوية مسجلة على هذا الجهاز.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين فتح القفل بالبيانات الحيوية.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'لا يحتوي هذا الجهاز على مستشعر بيومتري.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين القفل التلقائي.';
+
+  @override
   String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
 
   @override
@@ -1604,25 +1634,7 @@ class SAr extends S {
       'إزالة جميع المضيفين المعروفين؟ سيحتاج كل مفتاح خادم إلى إعادة التحقق.';
 
   @override
-  String get importKnownHosts => 'استيراد المضيفين المعروفين';
-
-  @override
   String get importKnownHostsSubtitle => 'استيراد من ملف OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'تصدير المضيفين المعروفين';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'تم استيراد $count مضيف جديد',
-      one: 'تم استيراد مضيف جديد واحد',
-      zero: 'لم يتم استيراد مضيفين جدد',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'تم مسح جميع المضيفين المعروفين';
@@ -1631,9 +1643,6 @@ class SAr extends S {
   String removedHost(String host) {
     return 'تمت إزالة $host';
   }
-
-  @override
-  String get noHostsToExport => 'لا يوجد مضيفون للتصدير';
 
   @override
   String get tools => 'أدوات';
@@ -1774,9 +1783,6 @@ class SAr extends S {
 
   @override
   String get currentPassword => 'كلمة المرور الحالية';
-
-  @override
-  String get passwordTooShort => 'يجب أن تكون كلمة المرور 8 أحرف على الأقل';
 
   @override
   String get masterPasswordSet => 'تم تفعيل كلمة المرور الرئيسية';

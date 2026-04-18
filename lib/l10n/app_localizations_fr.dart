@@ -135,6 +135,9 @@ class SFr extends S {
   String get search => 'Rechercher...';
 
   @override
+  String get noResults => 'Aucun résultat';
+
+  @override
   String get filter => 'Filtrer...';
 
   @override
@@ -175,6 +178,9 @@ class SFr extends S {
 
   @override
   String get checkForUpdates => 'Vérifier les mises à jour';
+
+  @override
+  String get checkNow => 'Vérifier';
 
   @override
   String get checkForUpdatesOnStartup =>
@@ -1207,6 +1213,29 @@ class SFr extends S {
   String get biometricDisabled => 'Déverrouillage biométrique désactivé';
 
   @override
+  String get biometricUnlockFailed =>
+      'Échec du déverrouillage biométrique. Saisissez votre mot de passe principal.';
+
+  @override
+  String get biometricUnlockCancelled => 'Déverrouillage biométrique annulé.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Aucune donnée biométrique enregistrée sur cet appareil.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Définissez d\'abord un mot de passe principal pour activer le déverrouillage biométrique.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Cet appareil n\'a pas de capteur biométrique.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Définissez d\'abord un mot de passe principal pour activer le verrouillage automatique.';
+
+  @override
   String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';
 
   @override
@@ -1616,26 +1645,8 @@ class SFr extends S {
       'Supprimer tous les hôtes connus ? Chaque clé de serveur devra être re-vérifiée.';
 
   @override
-  String get importKnownHosts => 'Importer les hôtes connus';
-
-  @override
   String get importKnownHostsSubtitle =>
       'Import depuis un fichier OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Exporter les hôtes connus';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count nouveaux hôtes importés',
-      one: '1 nouvel hôte importé',
-      zero: 'Aucun nouvel hôte importé',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Tous les hôtes connus supprimés';
@@ -1644,9 +1655,6 @@ class SFr extends S {
   String removedHost(String host) {
     return '$host supprimé';
   }
-
-  @override
-  String get noHostsToExport => 'Aucun hôte à exporter';
 
   @override
   String get tools => 'Outils';
@@ -1790,10 +1798,6 @@ class SFr extends S {
 
   @override
   String get currentPassword => 'Mot de passe actuel';
-
-  @override
-  String get passwordTooShort =>
-      'Le mot de passe doit contenir au moins 8 caractères';
 
   @override
   String get masterPasswordSet => 'Mot de passe principal activé';

@@ -131,6 +131,9 @@ class SKo extends S {
   String get search => '검색...';
 
   @override
+  String get noResults => '결과 없음';
+
+  @override
   String get filter => '필터...';
 
   @override
@@ -170,6 +173,9 @@ class SKo extends S {
 
   @override
   String get checkForUpdates => '업데이트 확인';
+
+  @override
+  String get checkNow => '지금 확인';
 
   @override
   String get checkForUpdatesOnStartup => '시작 시 업데이트 확인';
@@ -1169,6 +1175,26 @@ class SKo extends S {
   String get biometricDisabled => '생체 인식 잠금 해제가 비활성화되었습니다';
 
   @override
+  String get biometricUnlockFailed => '생체 인증 잠금 해제에 실패했습니다. 마스터 비밀번호를 입력하세요.';
+
+  @override
+  String get biometricUnlockCancelled => '생체 인증 잠금 해제가 취소되었습니다.';
+
+  @override
+  String get biometricNotEnrolled => '이 기기에 등록된 생체 정보가 없습니다.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      '생체 인증 잠금 해제를 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
+
+  @override
+  String get biometricSensorNotAvailable => '이 기기에는 생체 인식 센서가 없습니다.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      '자동 잠금을 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
+
+  @override
   String get currentPasswordIncorrect => '현재 비밀번호가 올바르지 않습니다';
 
   @override
@@ -1562,24 +1588,7 @@ class SKo extends S {
       '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
 
   @override
-  String get importKnownHosts => '알려진 호스트 가져오기';
-
-  @override
   String get importKnownHostsSubtitle => 'OpenSSH known_hosts 파일에서 가져오기';
-
-  @override
-  String get exportKnownHosts => '알려진 호스트 내보내기';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '새 호스트 $count개 가져옴',
-      zero: '새 호스트를 가져오지 않음',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => '모든 알려진 호스트를 삭제했습니다';
@@ -1588,9 +1597,6 @@ class SKo extends S {
   String removedHost(String host) {
     return '$host 제거됨';
   }
-
-  @override
-  String get noHostsToExport => '내보낼 호스트가 없습니다';
 
   @override
   String get tools => '도구';
@@ -1726,9 +1732,6 @@ class SKo extends S {
 
   @override
   String get currentPassword => '현재 비밀번호';
-
-  @override
-  String get passwordTooShort => '비밀번호는 최소 8자 이상이어야 합니다';
 
   @override
   String get masterPasswordSet => '마스터 비밀번호가 활성화되었습니다';

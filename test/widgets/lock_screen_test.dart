@@ -18,22 +18,26 @@ class _FakeMasterPassword extends MasterPasswordManager {
 
   final String expectedPassword;
   final Uint8List keyBytes;
-  int verifyCalls = 0;
-  int deriveCalls = 0;
+  int verifyAndDeriveCalls = 0;
 
   @override
-  Future<bool> verify(String password) async {
-    verifyCalls++;
-    return password == expectedPassword;
+  Future<Uint8List?> verifyAndDerive(String password) async {
+    verifyAndDeriveCalls++;
+    if (password != expectedPassword) return null;
+    return keyBytes;
   }
 
   @override
+  Future<bool> verify(String password) async =>
+      (await verifyAndDerive(password)) != null;
+
+  @override
   Future<Uint8List> deriveKey(String password) async {
-    deriveCalls++;
-    if (password != expectedPassword) {
+    final key = await verifyAndDerive(password);
+    if (key == null) {
       throw const MasterPasswordException('wrong password');
     }
-    return keyBytes;
+    return key;
   }
 }
 
@@ -48,6 +52,10 @@ class _NoBiometricVault extends BiometricKeyVault {
 class _NoBiometricAuth extends BiometricAuth {
   @override
   Future<bool> isAvailable() async => false;
+
+  @override
+  Future<BiometricAvailability> availability() async =>
+      BiometricUnavailableReason.platformUnsupported;
 
   @override
   Future<bool> authenticate(String reason) async => false;
@@ -94,8 +102,13 @@ void main() {
       await tester.tap(find.byType(FilledButton));
       await tester.pumpAndSettle();
 
-      expect(mp.verifyCalls, 1);
-      expect(mp.deriveCalls, 1);
+      expect(
+        mp.verifyAndDeriveCalls,
+        1,
+        reason:
+            'unlock must run PBKDF2 exactly once — the old verify() + '
+            'deriveKey() pair doubled unlock latency on mobile',
+      );
       expect(
         container.read(lockStateProvider),
         false,
@@ -147,12 +160,7 @@ void main() {
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
-    expect(mp.verifyCalls, 1);
-    expect(
-      mp.deriveCalls,
-      0,
-      reason: 'no key derivation until verify() succeeds',
-    );
+    expect(mp.verifyAndDeriveCalls, 1);
     expect(container.read(lockStateProvider), true);
 
     // The localised error label must appear. We don't pin the exact
@@ -193,7 +201,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        mp.verifyCalls,
+        mp.verifyAndDeriveCalls,
         0,
         reason: 'empty input must not trigger a verify round-trip',
       );

@@ -122,6 +122,9 @@ class _FakeBiometricAuth implements BiometricAuth {
   @override
   Future<bool> isAvailable() async => false;
   @override
+  Future<BiometricAvailability> availability() async =>
+      BiometricUnavailableReason.platformUnsupported;
+  @override
   Future<bool> authenticate(String reason) async => false;
 }
 

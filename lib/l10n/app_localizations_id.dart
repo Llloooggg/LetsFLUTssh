@@ -135,6 +135,9 @@ class SId extends S {
   String get search => 'Cari...';
 
   @override
+  String get noResults => 'Tidak ada hasil';
+
+  @override
   String get filter => 'Filter...';
 
   @override
@@ -175,6 +178,9 @@ class SId extends S {
 
   @override
   String get checkForUpdates => 'Periksa Pembaruan';
+
+  @override
+  String get checkNow => 'Periksa sekarang';
 
   @override
   String get checkForUpdatesOnStartup => 'Periksa Pembaruan Saat Memulai';
@@ -1198,6 +1204,29 @@ class SId extends S {
   String get biometricDisabled => 'Buka kunci biometrik dinonaktifkan';
 
   @override
+  String get biometricUnlockFailed =>
+      'Buka kunci biometrik gagal. Masukkan kata sandi utama Anda.';
+
+  @override
+  String get biometricUnlockCancelled => 'Buka kunci biometrik dibatalkan.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Tidak ada kredensial biometrik yang terdaftar di perangkat ini.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan buka kunci biometrik.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Perangkat ini tidak memiliki sensor biometrik.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan kunci otomatis.';
+
+  @override
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
 
   @override
@@ -1601,24 +1630,7 @@ class SId extends S {
       'Hapus semua host dikenal? Setiap kunci server perlu diverifikasi ulang.';
 
   @override
-  String get importKnownHosts => 'Impor host dikenal';
-
-  @override
   String get importKnownHostsSubtitle => 'Impor dari file OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Ekspor host dikenal';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count host baru diimpor',
-      zero: 'Tidak ada host baru diimpor',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Semua host dikenal telah dihapus';
@@ -1627,9 +1639,6 @@ class SId extends S {
   String removedHost(String host) {
     return '$host dihapus';
   }
-
-  @override
-  String get noHostsToExport => 'Tidak ada host untuk diekspor';
 
   @override
   String get tools => 'Alat';
@@ -1768,9 +1777,6 @@ class SId extends S {
 
   @override
   String get currentPassword => 'Kata sandi saat ini';
-
-  @override
-  String get passwordTooShort => 'Kata sandi minimal 8 karakter';
 
   @override
   String get masterPasswordSet => 'Kata sandi utama diaktifkan';

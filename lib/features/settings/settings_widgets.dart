@@ -217,50 +217,72 @@ class _Toggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
 
+  /// Shown as a hover tooltip and surfaced via a toast when the user
+  /// taps the disabled toggle — only used when [onChanged] is null.
+  /// The intent is "never hide security options" (see CLAUDE.md): the
+  /// toggle is always visible and the reason it can't flip is always
+  /// one gesture away.
+  final String? disabledReason;
+
   const _Toggle({
     required this.label,
     required this.value,
     required this.onChanged,
     this.subtitle,
     this.icon,
+    this.disabledReason,
   });
 
   @override
   Widget build(BuildContext context) {
     final enabled = onChanged != null;
     final accent = enabled ? AppTheme.accent : AppTheme.bg4;
-    return _SettingsRow(
-      label: label,
-      subtitle: subtitle,
-      icon: icon,
-      child: GestureDetector(
-        onTap: enabled ? () => onChanged!(!value) : null,
-        child: Opacity(
-          opacity: enabled ? 1.0 : 0.5,
-          child: Container(
-            width: 32,
-            height: 18,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: value ? accent : AppTheme.bg4,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: AnimatedAlign(
-              duration: const Duration(milliseconds: 120),
-              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: AppTheme.onAccent,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
+    VoidCallback? tap;
+    if (enabled) {
+      tap = () => onChanged!(!value);
+    } else if (disabledReason != null) {
+      tap = () =>
+          Toast.show(context, message: disabledReason!, level: ToastLevel.info);
+    }
+    final knob = Container(
+      width: 32,
+      height: 18,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: value ? accent : AppTheme.bg4,
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: AnimatedAlign(
+        duration: const Duration(milliseconds: 120),
+        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: AppTheme.onAccent,
+            shape: BoxShape.circle,
           ),
         ),
       ),
     );
+    Widget row = _SettingsRow(
+      label: label,
+      subtitle: subtitle,
+      icon: icon,
+      child: GestureDetector(onTap: tap, child: knob),
+    );
+    // Fade the entire row (icon + label + subtitle + knob) when the
+    // toggle is disabled. Fading only the knob left the text at full
+    // opacity and the row read as active — the biometric-toggle bug
+    // that led to this rule: disabled state must visibly affect the
+    // whole container, not just the trailing control.
+    if (!enabled) {
+      row = Opacity(opacity: 0.5, child: row);
+      if (disabledReason != null) {
+        row = Tooltip(message: disabledReason!, child: row);
+      }
+    }
+    return row;
   }
 }
 

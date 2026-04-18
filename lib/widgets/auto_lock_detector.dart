@@ -69,17 +69,22 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Treat any backgrounding (paused/inactive/hidden) the same as an idle
-    // timeout so the lock screen is already overlaid by the time the OS
-    // lock dismisses. detached just means the engine is shutting down.
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden) {
-      final level = ref.read(securityStateProvider).level;
-      if (level == SecurityLevel.masterPassword) {
-        _triggerLock();
-      }
+    // Lock on backgrounding (paused / inactive / hidden) only when the
+    // user has opted in to auto-lock at all — i.e. the timer is not
+    // "Off". Locking unconditionally on every window focus change was
+    // the #1 user complaint: "блокировка срабатывает, если свернуть
+    // приложение" even with the timer off. The session-count gate
+    // inside [_triggerLock] still protects active SSH/SFTP sessions.
+    if (state != AppLifecycleState.paused &&
+        state != AppLifecycleState.inactive &&
+        state != AppLifecycleState.hidden) {
+      return;
     }
+    final level = ref.read(securityStateProvider).level;
+    if (level != SecurityLevel.masterPassword) return;
+    final minutes = ref.read(autoLockMinutesProvider);
+    if (minutes <= 0) return;
+    _triggerLock();
   }
 
   @override

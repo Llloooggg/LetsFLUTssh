@@ -135,6 +135,9 @@ class SHi extends S {
   String get search => 'खोजें...';
 
   @override
+  String get noResults => 'कोई परिणाम नहीं';
+
+  @override
   String get filter => 'फ़िल्टर...';
 
   @override
@@ -175,6 +178,9 @@ class SHi extends S {
 
   @override
   String get checkForUpdates => 'अपडेट जांचें';
+
+  @override
+  String get checkNow => 'अभी जांचें';
 
   @override
   String get checkForUpdatesOnStartup => 'शुरू होने पर अपडेट जांचें';
@@ -1196,6 +1202,29 @@ class SHi extends S {
   String get biometricDisabled => 'बायोमेट्रिक अनलॉक अक्षम';
 
   @override
+  String get biometricUnlockFailed =>
+      'बायोमेट्रिक अनलॉक विफल रहा। अपना मास्टर पासवर्ड दर्ज करें।';
+
+  @override
+  String get biometricUnlockCancelled => 'बायोमेट्रिक अनलॉक रद्द कर दिया गया।';
+
+  @override
+  String get biometricNotEnrolled =>
+      'इस डिवाइस पर कोई बायोमेट्रिक क्रेडेंशियल पंजीकृत नहीं है।';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'बायोमेट्रिक अनलॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'इस डिवाइस पर कोई बायोमेट्रिक सेंसर नहीं है।';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'ऑटो-लॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
+
+  @override
   String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
 
   @override
@@ -1600,26 +1629,8 @@ class SHi extends S {
       'सभी ज्ञात होस्ट हटाएं? प्रत्येक सर्वर कुंजी की पुनः पुष्टि करनी होगी।';
 
   @override
-  String get importKnownHosts => 'ज्ञात होस्ट आयात करें';
-
-  @override
   String get importKnownHostsSubtitle =>
       'OpenSSH known_hosts फ़ाइल से आयात करें';
-
-  @override
-  String get exportKnownHosts => 'ज्ञात होस्ट निर्यात करें';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count नए होस्ट आयात हुए',
-      one: '1 नया होस्ट आयात हुआ',
-      zero: 'कोई नया होस्ट आयात नहीं हुआ',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'सभी ज्ञात होस्ट साफ़ किए गए';
@@ -1628,9 +1639,6 @@ class SHi extends S {
   String removedHost(String host) {
     return '$host हटाया गया';
   }
-
-  @override
-  String get noHostsToExport => 'निर्यात करने के लिए कोई होस्ट नहीं';
 
   @override
   String get tools => 'उपकरण';
@@ -1772,9 +1780,6 @@ class SHi extends S {
 
   @override
   String get currentPassword => 'वर्तमान पासवर्ड';
-
-  @override
-  String get passwordTooShort => 'पासवर्ड कम से कम 8 अक्षर का होना चाहिए';
 
   @override
   String get masterPasswordSet => 'मास्टर पासवर्ड सक्रिय किया गया';

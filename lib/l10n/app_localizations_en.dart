@@ -134,6 +134,9 @@ class SEn extends S {
   String get search => 'Search...';
 
   @override
+  String get noResults => 'No results';
+
+  @override
   String get filter => 'Filter...';
 
   @override
@@ -174,6 +177,9 @@ class SEn extends S {
 
   @override
   String get checkForUpdates => 'Check for Updates';
+
+  @override
+  String get checkNow => 'Check now';
 
   @override
   String get checkForUpdatesOnStartup => 'Check for Updates on Startup';
@@ -1192,6 +1198,29 @@ class SEn extends S {
   String get biometricDisabled => 'Biometric unlock disabled';
 
   @override
+  String get biometricUnlockFailed =>
+      'Biometric unlock failed. Enter your master password.';
+
+  @override
+  String get biometricUnlockCancelled => 'Biometric unlock cancelled.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'No biometric credentials enrolled on this device.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Set a master password first to enable biometric unlock.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'This device has no biometric sensor.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Set a master password first to enable auto-lock.';
+
+  @override
   String get currentPasswordIncorrect => 'Current password is incorrect';
 
   @override
@@ -1596,18 +1625,7 @@ class SEn extends S {
       'Remove all known hosts? You will be prompted to verify each server key again.';
 
   @override
-  String get importKnownHosts => 'Import Known Hosts';
-
-  @override
   String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
-
-  @override
-  String get exportKnownHosts => 'Export Known Hosts';
-
-  @override
-  String importedHosts(int count) {
-    return 'Imported $count new hosts';
-  }
 
   @override
   String get clearedAllHosts => 'Cleared all known hosts';
@@ -1616,9 +1634,6 @@ class SEn extends S {
   String removedHost(String host) {
     return 'Removed $host';
   }
-
-  @override
-  String get noHostsToExport => 'No known hosts to export';
 
   @override
   String get tools => 'Tools';
@@ -1759,9 +1774,6 @@ class SEn extends S {
 
   @override
   String get currentPassword => 'Current Password';
-
-  @override
-  String get passwordTooShort => 'Password must be at least 8 characters';
 
   @override
   String get masterPasswordSet => 'Master password enabled';

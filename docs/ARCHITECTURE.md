@@ -137,6 +137,8 @@ lib/
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
 │   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
 │   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
+│   ├── app_data_row.dart            # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions, min-height-padded
+│   ├── app_data_search_bar.dart     # Shared search input for list / table dialogs (known hosts, snippets, tags)
 │   ├── app_divider.dart             # Standardized 1px divider
 │   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
 │   ├── clipped_row.dart             # Overflow-clipping Row replacement
@@ -146,6 +148,7 @@ lib/
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
 │   ├── error_state.dart             # Error display with retry/secondary actions
 │   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
+│   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
 │   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
@@ -638,6 +641,10 @@ flowchart LR
 
 The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the PBKDF2-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
 
+#### Unlock-path single PBKDF2
+
+Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two 600k-iteration PBKDF2 runs, adding up to 3-5 s on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm).
+
 #### Switching modes on the fly
 
 `_reEncryptAll()` in `settings_sections.dart` runs `PRAGMA rekey` through `rekeyDatabase()` in `lib/core/db/database_opener.dart` to re-encrypt every DB page under the new key *before* flipping `securityStateProvider`. A crypto / disk failure leaves the old working state intact instead of a half-migrated file. Removing master password or changing it wipes `BiometricKeyVault` since the cached key becomes stale.
@@ -646,11 +653,15 @@ The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.d
 
 Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) wraps `local_auth` for the availability probe + prompt; [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key in `flutter_secure_storage` under a platform keychain slot (iOS/macOS Keychain, Windows Credential Manager, Android EncryptedSharedPreferences). At startup, `_tryBiometricUnlock()` in `main.dart` runs the biometric prompt first and skips the master-password dialog on success; fall back is the normal `UnlockDialog`.
 
+`BiometricAuth.availability()` returns a `BiometricUnavailableReason?` (null when biometrics work). The probe goes beyond `canCheckBiometrics + getAvailableBiometrics().isNotEmpty` — a Windows Hello PIN alone satisfies those two checks and would falsely report biometrics as ready. The probe additionally filters the enrolled list for a real bio type (`fingerprint` / `face` / `iris` / `strong`) so PIN-only Hello is correctly reported as `notEnrolled`. The settings UI uses this three-state result to show a reason tooltip on a disabled toggle instead of hiding the option.
+
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
 #### Auto-lock
 
-Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`, schema v2) — moving it out of plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. A one-shot migration on first DB unlock copies any pre-existing value from the legacy `config.json` field into the DB. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). Only visible in master-password mode — plaintext/keychain has no secret to re-prove.
+Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`, schema v2) — moving it out of plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. A one-shot migration on first DB unlock copies any pre-existing value from the legacy `config.json` field into the DB. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not in master-password mode — so the option never silently disappears.
+
+**Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
 **Known scope**: the drift database handle is *not* closed on lock. SQLite3MultipleCiphers keeps its cipher key in internal page-cipher state, so DB reads continue to work after lock. Closing + reopening the DB would require disconnecting every live SSH/SFTP session. The auto-lock zeroes the explicit public handle used by rekey / export / config code paths and blocks UI input; it does not fully purge the SQLCipher runtime state.
 
@@ -1276,6 +1287,7 @@ Session clipboard stores a session ID. Ctrl+V duplicates that session via `Sessi
 | `file_pane_dialogs.dart` | — | Dialogs: New Folder, Rename, Delete |
 | `file_row.dart` | `FileRow` | Row in the file table |
 | `breadcrumb_path.dart` | `BreadcrumbPath`, `parseBreadcrumbPath()`, `buildPathForSegment()` | Shared breadcrumb path parsing for desktop and mobile file browsers |
+| `column_widths.dart` | `FileBrowserColumns` | Shared default widths for Size + Modified/Time columns. `FilePane` and `TransferPanelController` both use these so the SFTP tab and transfer queue stay visually aligned |
 | `file_browser_controller.dart` | `FilePaneController` | Pane state: listing, navigation, selection, sort |
 | `sftp_browser_mixin.dart` | `SftpBrowserMixin` | Shared mixin: SFTP init, upload, download — used by `FileBrowserTab` and `MobileFileBrowser` |
 | `sftp_initializer.dart` | `SFTPInitializer` | SFTP initialization factory (injectable) |
@@ -1595,6 +1607,20 @@ For complex dialogs (e.g. with tabs between header and content), compose from th
 - `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
+
+### FormSubmitChain
+
+```dart
+FormSubmitChain({required int length, required VoidCallback onSubmit});
+FocusNode nodeAt(int index);
+TextInputAction actionAt(int index);      // .next for non-last, .done for last
+ValueChanged<String> handlerAt(int index); // advances focus / submits on last
+void dispose();
+```
+
+Shared Enter-key wiring for any multi-field input dialog. Owns a fixed-length list of `FocusNode`s and returns the per-field `textInputAction` + `onSubmitted` callback that implement "Enter advances to the next field; Enter on the last field submits". Flutter `TextField`s intercept Enter before parent `CallbackShortcuts` can, so a dialog-level shortcut cannot implement dialog-wide Enter-submit; each field must wire `onSubmitted` individually. Centralising the wiring here keeps dialogs short and prevents per-dialog regressions (e.g. a field that silently fails to submit).
+
+Every password dialog in `features/settings/settings_dialogs.dart` uses it: `_SetMasterPasswordDialog`, `_ChangeMasterPasswordDialog`, `_RemoveMasterPasswordDialog`, `_EnableBiometricDialog`, `_ExportPasswordDialog`, `_ImportPasswordDialog`. Any new input dialog must use this helper instead of re-rolling `FocusNode`s and `TextInputAction` defaults by hand.
 
 ### AppBorderedBox
 
@@ -2779,8 +2805,8 @@ All error messages are sanitized before logging to prevent accidental exposure o
 | `user@host` | `<user>@host` | `admin@example.com` → `<user>@example.com` |
 | IPv4 | `<ip>` | `192.168.1.100` → `<ip>` |
 | `host:port` | `host:<port>` | `example.com:2222` → `example.com:<port>` |
-| Windows paths | `<path>\` | `C:\Users\john\...` → `<path>\` |
-| Unix paths | `/<user>/` | `/Users/john/.ssh/...` → `/<user>/.ssh/...` |
+| Windows paths | `<path>` | `C:\Users\john\Documents\file.pem` → `<path>\Documents\file.pem`; bare `C:\Users\john` → `<path>` |
+| Unix paths | `/<user>` | `/Users/john/.ssh/id_rsa` → `/<user>/.ssh/id_rsa`; bare `/home/john` → `/<user>` |
 
 Usage: `sanitizeErrorMessage(message)` before logging any error that may contain connection details or file paths.
 

@@ -133,6 +133,9 @@ class SVi extends S {
   String get search => 'Tìm kiếm...';
 
   @override
+  String get noResults => 'Không có kết quả';
+
+  @override
   String get filter => 'Lọc...';
 
   @override
@@ -173,6 +176,9 @@ class SVi extends S {
 
   @override
   String get checkForUpdates => 'Kiểm tra cập nhật';
+
+  @override
+  String get checkNow => 'Kiểm tra ngay';
 
   @override
   String get checkForUpdatesOnStartup => 'Kiểm tra cập nhật khi khởi động';
@@ -1190,6 +1196,29 @@ class SVi extends S {
   String get biometricDisabled => 'Đã tắt mở khóa sinh trắc học';
 
   @override
+  String get biometricUnlockFailed =>
+      'Mở khóa bằng sinh trắc học thất bại. Nhập mật khẩu chính của bạn.';
+
+  @override
+  String get biometricUnlockCancelled => 'Đã hủy mở khóa bằng sinh trắc học.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'Không có thông tin sinh trắc học nào được đăng ký trên thiết bị này.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Hãy đặt mật khẩu chính trước để bật mở khóa bằng sinh trắc học.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Thiết bị này không có cảm biến sinh trắc học.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Hãy đặt mật khẩu chính trước để bật tự động khóa.';
+
+  @override
   String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';
 
   @override
@@ -1591,24 +1620,7 @@ class SVi extends S {
       'Xóa tất cả máy chủ đã biết? Mỗi khóa máy chủ sẽ cần xác minh lại.';
 
   @override
-  String get importKnownHosts => 'Nhập máy chủ đã biết';
-
-  @override
   String get importKnownHostsSubtitle => 'Nhập từ tệp OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Xuất máy chủ đã biết';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Đã nhập $count máy chủ mới',
-      zero: 'Không nhập máy chủ mới',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Đã xóa tất cả máy chủ đã biết';
@@ -1617,9 +1629,6 @@ class SVi extends S {
   String removedHost(String host) {
     return 'Đã xóa $host';
   }
-
-  @override
-  String get noHostsToExport => 'Không có máy chủ để xuất';
 
   @override
   String get tools => 'Công cụ';
@@ -1759,9 +1768,6 @@ class SVi extends S {
 
   @override
   String get currentPassword => 'Mật khẩu hiện tại';
-
-  @override
-  String get passwordTooShort => 'Mật khẩu phải có ít nhất 8 ký tự';
 
   @override
   String get masterPasswordSet => 'Đã bật mật khẩu chính';

@@ -131,6 +131,9 @@ class SJa extends S {
   String get search => '検索...';
 
   @override
+  String get noResults => '結果なし';
+
+  @override
   String get filter => 'フィルター...';
 
   @override
@@ -170,6 +173,9 @@ class SJa extends S {
 
   @override
   String get checkForUpdates => 'アップデートを確認';
+
+  @override
+  String get checkNow => '今すぐ確認';
 
   @override
   String get checkForUpdatesOnStartup => '起動時にアップデートを確認';
@@ -1170,6 +1176,26 @@ class SJa extends S {
   String get biometricDisabled => '生体認証によるロック解除を無効にしました';
 
   @override
+  String get biometricUnlockFailed => '生体認証によるロック解除に失敗しました。マスターパスワードを入力してください。';
+
+  @override
+  String get biometricUnlockCancelled => '生体認証によるロック解除がキャンセルされました。';
+
+  @override
+  String get biometricNotEnrolled => 'このデバイスには生体情報が登録されていません。';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      '生体認証によるロック解除を有効にするには、まずマスターパスワードを設定してください。';
+
+  @override
+  String get biometricSensorNotAvailable => 'このデバイスには生体センサーがありません。';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      '自動ロックを有効にするには、まずマスターパスワードを設定してください。';
+
+  @override
   String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
 
   @override
@@ -1566,24 +1592,7 @@ class SJa extends S {
       'すべての既知のホストを削除しますか？各サーバーキーの再確認が必要になります。';
 
   @override
-  String get importKnownHosts => '既知のホストをインポート';
-
-  @override
   String get importKnownHostsSubtitle => 'OpenSSH known_hosts ファイルからインポート';
-
-  @override
-  String get exportKnownHosts => '既知のホストをエクスポート';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count 件の新しいホストをインポートしました',
-      zero: '新しいホストはインポートされませんでした',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'すべての既知のホストを削除しました';
@@ -1592,9 +1601,6 @@ class SJa extends S {
   String removedHost(String host) {
     return '$host を削除しました';
   }
-
-  @override
-  String get noHostsToExport => 'エクスポートするホストがありません';
 
   @override
   String get tools => 'ツール';
@@ -1730,9 +1736,6 @@ class SJa extends S {
 
   @override
   String get currentPassword => '現在のパスワード';
-
-  @override
-  String get passwordTooShort => 'パスワードは 8 文字以上必要です';
 
   @override
   String get masterPasswordSet => 'マスターパスワードを有効にしました';

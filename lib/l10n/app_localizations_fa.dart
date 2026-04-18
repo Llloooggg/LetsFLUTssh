@@ -135,6 +135,9 @@ class SFa extends S {
   String get search => 'جستجو...';
 
   @override
+  String get noResults => 'نتیجه‌ای نیست';
+
+  @override
   String get filter => 'فیلتر...';
 
   @override
@@ -174,6 +177,9 @@ class SFa extends S {
 
   @override
   String get checkForUpdates => 'بررسی به‌روزرسانی';
+
+  @override
+  String get checkNow => 'اکنون بررسی کن';
 
   @override
   String get checkForUpdatesOnStartup => 'بررسی به‌روزرسانی هنگام راه‌اندازی';
@@ -1191,6 +1197,28 @@ class SFa extends S {
   String get biometricDisabled => 'باز کردن قفل زیست‌سنجی غیرفعال شد';
 
   @override
+  String get biometricUnlockFailed =>
+      'باز کردن قفل با زیست‌سنجی ناموفق بود. رمز عبور اصلی خود را وارد کنید.';
+
+  @override
+  String get biometricUnlockCancelled => 'باز کردن قفل با زیست‌سنجی لغو شد.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'هیچ اطلاعات زیست‌سنجی روی این دستگاه ثبت نشده است.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'ابتدا یک رمز عبور اصلی تنظیم کنید تا باز کردن قفل با زیست‌سنجی فعال شود.';
+
+  @override
+  String get biometricSensorNotAvailable => 'این دستگاه سنسور زیست‌سنجی ندارد.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'ابتدا یک رمز عبور اصلی تنظیم کنید تا قفل خودکار فعال شود.';
+
+  @override
   String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
 
   @override
@@ -1593,25 +1621,8 @@ class SFa extends S {
       'همه میزبان‌های شناخته شده حذف شوند؟ کلید هر سرور باید دوباره تأیید شود.';
 
   @override
-  String get importKnownHosts => 'وارد کردن میزبان‌های شناخته شده';
-
-  @override
   String get importKnownHostsSubtitle =>
       'وارد کردن از فایل OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'صادر کردن میزبان‌های شناخته شده';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count میزبان جدید وارد شد',
-      zero: 'میزبان جدیدی وارد نشد',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'همه میزبان‌های شناخته شده پاک شدند';
@@ -1620,9 +1631,6 @@ class SFa extends S {
   String removedHost(String host) {
     return '$host حذف شد';
   }
-
-  @override
-  String get noHostsToExport => 'میزبانی برای صادر کردن وجود ندارد';
 
   @override
   String get tools => 'ابزارها';
@@ -1762,9 +1770,6 @@ class SFa extends S {
 
   @override
   String get currentPassword => 'رمز عبور فعلی';
-
-  @override
-  String get passwordTooShort => 'رمز عبور باید حداقل ۸ کاراکتر باشد';
 
   @override
   String get masterPasswordSet => 'رمز عبور اصلی فعال شد';

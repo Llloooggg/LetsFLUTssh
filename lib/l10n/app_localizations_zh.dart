@@ -131,6 +131,9 @@ class SZh extends S {
   String get search => '搜索...';
 
   @override
+  String get noResults => '无结果';
+
+  @override
   String get filter => '筛选...';
 
   @override
@@ -170,6 +173,9 @@ class SZh extends S {
 
   @override
   String get checkForUpdates => '检查更新';
+
+  @override
+  String get checkNow => '立即检查';
 
   @override
   String get checkForUpdatesOnStartup => '启动时检查更新';
@@ -1164,6 +1170,24 @@ class SZh extends S {
   String get biometricDisabled => '已停用生物识别解锁';
 
   @override
+  String get biometricUnlockFailed => '生物识别解锁失败。请输入主密码。';
+
+  @override
+  String get biometricUnlockCancelled => '生物识别解锁已取消。';
+
+  @override
+  String get biometricNotEnrolled => '此设备未注册任何生物识别凭据。';
+
+  @override
+  String get biometricRequiresMasterPassword => '请先设置主密码以启用生物识别解锁。';
+
+  @override
+  String get biometricSensorNotAvailable => '此设备没有生物识别传感器。';
+
+  @override
+  String get autoLockRequiresMasterPassword => '请先设置主密码以启用自动锁定。';
+
+  @override
   String get currentPasswordIncorrect => '当前密码不正确';
 
   @override
@@ -1555,24 +1579,7 @@ class SZh extends S {
   String get clearAllKnownHostsConfirm => '移除所有已知主机？每个服务器密钥都需要重新验证。';
 
   @override
-  String get importKnownHosts => '导入已知主机';
-
-  @override
   String get importKnownHostsSubtitle => '从 OpenSSH known_hosts 文件导入';
-
-  @override
-  String get exportKnownHosts => '导出已知主机';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '已导入 $count 个新主机',
-      zero: '未导入新主机',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => '已清除所有已知主机';
@@ -1581,9 +1588,6 @@ class SZh extends S {
   String removedHost(String host) {
     return '已移除 $host';
   }
-
-  @override
-  String get noHostsToExport => '没有可导出的主机';
 
   @override
   String get tools => '工具';
@@ -1719,9 +1723,6 @@ class SZh extends S {
 
   @override
   String get currentPassword => '当前密码';
-
-  @override
-  String get passwordTooShort => '密码至少需要 8 个字符';
 
   @override
   String get masterPasswordSet => '主密码已启用';

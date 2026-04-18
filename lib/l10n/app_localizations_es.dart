@@ -135,6 +135,9 @@ class SEs extends S {
   String get search => 'Buscar...';
 
   @override
+  String get noResults => 'Sin resultados';
+
+  @override
   String get filter => 'Filtrar...';
 
   @override
@@ -175,6 +178,9 @@ class SEs extends S {
 
   @override
   String get checkForUpdates => 'Buscar actualizaciones';
+
+  @override
+  String get checkNow => 'Comprobar ahora';
 
   @override
   String get checkForUpdatesOnStartup => 'Buscar actualizaciones al iniciar';
@@ -1202,6 +1208,29 @@ class SEs extends S {
   String get biometricDisabled => 'Desbloqueo biométrico desactivado';
 
   @override
+  String get biometricUnlockFailed =>
+      'Falló el desbloqueo biométrico. Introduzca su contraseña maestra.';
+
+  @override
+  String get biometricUnlockCancelled => 'Desbloqueo biométrico cancelado.';
+
+  @override
+  String get biometricNotEnrolled =>
+      'No hay credenciales biométricas registradas en este dispositivo.';
+
+  @override
+  String get biometricRequiresMasterPassword =>
+      'Primero establezca una contraseña maestra para habilitar el desbloqueo biométrico.';
+
+  @override
+  String get biometricSensorNotAvailable =>
+      'Este dispositivo no tiene sensor biométrico.';
+
+  @override
+  String get autoLockRequiresMasterPassword =>
+      'Primero establezca una contraseña maestra para habilitar el bloqueo automático.';
+
+  @override
   String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';
 
   @override
@@ -1610,26 +1639,8 @@ class SEs extends S {
       '¿Eliminar todos los hosts conocidos? Cada clave de servidor deberá ser verificada de nuevo.';
 
   @override
-  String get importKnownHosts => 'Importar hosts conocidos';
-
-  @override
   String get importKnownHostsSubtitle =>
       'Importar desde archivo OpenSSH known_hosts';
-
-  @override
-  String get exportKnownHosts => 'Exportar hosts conocidos';
-
-  @override
-  String importedHosts(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count hosts nuevos importados',
-      one: '1 host nuevo importado',
-      zero: 'No se importaron hosts nuevos',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get clearedAllHosts => 'Todos los hosts conocidos eliminados';
@@ -1638,9 +1649,6 @@ class SEs extends S {
   String removedHost(String host) {
     return '$host eliminado';
   }
-
-  @override
-  String get noHostsToExport => 'No hay hosts para exportar';
 
   @override
   String get tools => 'Herramientas';
@@ -1784,10 +1792,6 @@ class SEs extends S {
 
   @override
   String get currentPassword => 'Contraseña actual';
-
-  @override
-  String get passwordTooShort =>
-      'La contraseña debe tener al menos 8 caracteres';
 
   @override
   String get masterPasswordSet => 'Contraseña maestra activada';
