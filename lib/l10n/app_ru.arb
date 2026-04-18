@@ -733,5 +733,10 @@
         "type": "int"
       }
     }
-  }
+  },
+  "changeSecurityTier": "Сменить уровень безопасности",
+  "changeSecurityTierSubtitle": "Открыть лестницу уровней и перейти на другой",
+  "changeSecurityTierConfirm": "Переашифровываем базу новым уровнем. Не закрывайте приложение до завершения.",
+  "changeSecurityTierDone": "Уровень безопасности изменён",
+  "changeSecurityTierFailed": "Не удалось сменить уровень безопасности"
 }

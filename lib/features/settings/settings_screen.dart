@@ -60,6 +60,7 @@ import '../../widgets/link_import_preview_dialog.dart';
 import '../../widgets/local_directory_picker.dart';
 import '../../widgets/password_strength_meter.dart';
 import '../../widgets/paste_import_link_dialog.dart';
+import '../../widgets/security_setup_dialog.dart';
 import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';

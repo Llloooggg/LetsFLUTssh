@@ -2135,6 +2135,23 @@ class SPt extends S {
       'Definir, alterar ou remover senha mestra';
 
   @override
+  String get changeSecurityTier => 'Change Security Tier';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Open the tier ladder and switch to a different security level';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.';
+
+  @override
+  String get changeSecurityTierDone => 'Security tier changed';
+
+  @override
+  String get changeSecurityTierFailed => 'Could not change security tier';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

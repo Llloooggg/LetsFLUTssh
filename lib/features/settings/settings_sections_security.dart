@@ -131,7 +131,18 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           title: l10n.keychainStatus,
           value: _keychainStatusLabel(l10n),
         ),
-        // Manage master password — single tile.
+        // Change-tier — reopens the tier wizard and routes the
+        // chosen config through the always-rekey switcher.
+        _ActionTile(
+          icon: Icons.shield_outlined,
+          title: l10n.changeSecurityTier,
+          subtitle: l10n.changeSecurityTierSubtitle,
+          onTap: () => _changeSecurityTier(context),
+        ),
+        // Manage master password — single tile. Kept alongside the
+        // tier wizard for users who only want to rotate the Paranoid
+        // password (wizard regenerates a fresh DB key; this tile just
+        // re-derives under the new password).
         _ActionTile(
           icon: _masterPasswordEnabled == true ? Icons.lock : Icons.lock_open,
           title: l10n.manageMasterPassword,
@@ -288,6 +299,118 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         return l10n.tierHardwareLabel;
       case SecurityTier.paranoid:
         return l10n.tierParanoidLabel;
+    }
+  }
+
+  /// Open the tier wizard and route the result through the atomic
+  /// [SecurityTierSwitcher]. Fresh random DB key on every switch —
+  /// the previous wrapper is invalidated and the DB is rekeyed in
+  /// a single PRAGMA rekey, so any leaked old wrapper cannot
+  /// decrypt the post-switch data.
+  Future<void> _changeSecurityTier(BuildContext context) async {
+    final l10n = S.of(context);
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final result = await SecuritySetupDialog.show(
+      context,
+      keyStorage: keyStorage,
+      hardwareVault: ref.read(hardwareTierVaultProvider),
+    );
+    if (!context.mounted) return;
+
+    final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
+    AppProgressBarDialog.show(context, reporter);
+    try {
+      await _applyTierChange(result);
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        Toast.show(
+          context,
+          message: l10n.changeSecurityTierDone,
+          level: ToastLevel.success,
+        );
+        _checkState();
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Change security tier failed: $e',
+        name: 'Security',
+        error: e,
+      );
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        Toast.show(
+          context,
+          message: l10n.changeSecurityTierFailed,
+          level: ToastLevel.error,
+        );
+      }
+    } finally {
+      reporter.dispose();
+    }
+  }
+
+  Future<void> _applyTierChange(SecuritySetupResult result) async {
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final gate = ref.read(keychainPasswordGateProvider);
+    final hwVault = ref.read(hardwareTierVaultProvider);
+    final manager = ref.read(masterPasswordProvider);
+    final bioVault = ref.read(biometricKeyVaultProvider);
+
+    switch (result.tier) {
+      case SecurityTier.plaintext:
+        await _reEncryptAll(null, SecurityTier.plaintext);
+        await keyStorage.deleteKey();
+        await gate.clear();
+        await hwVault.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.keychain:
+        final key = AesGcm.generateKey();
+        final stored = await keyStorage.writeKey(key);
+        if (!stored) throw StateError('keychain write failed');
+        await _reEncryptAll(key, SecurityTier.keychain);
+        await gate.clear();
+        await hwVault.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.keychainWithPassword:
+        final short = result.shortPassword;
+        if (short == null || short.isEmpty) {
+          throw StateError('short password missing');
+        }
+        await gate.setPassword(short);
+        final key = AesGcm.generateKey();
+        final stored = await keyStorage.writeKey(key);
+        if (!stored) {
+          await gate.clear();
+          throw StateError('keychain write failed');
+        }
+        await _reEncryptAll(key, SecurityTier.keychainWithPassword);
+        await hwVault.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.hardware:
+        final pin = result.pin;
+        if (pin == null || pin.isEmpty) throw StateError('pin missing');
+        final key = AesGcm.generateKey();
+        final sealed = await hwVault.store(dbKey: key, pin: pin);
+        if (!sealed) throw StateError('hardware seal failed');
+        await _reEncryptAll(key, SecurityTier.hardware);
+        await keyStorage.deleteKey();
+        await gate.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.paranoid:
+        final pw = result.masterPassword;
+        if (pw == null || pw.isEmpty) {
+          throw StateError('master password missing');
+        }
+        final key = await manager.enable(pw);
+        await _reEncryptAll(key, SecurityTier.paranoid);
+        await keyStorage.deleteKey();
+        await gate.clear();
+        await hwVault.clear();
+        await bioVault.clear();
     }
   }
 

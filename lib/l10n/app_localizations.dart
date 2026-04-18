@@ -3771,6 +3771,36 @@ abstract class S {
   /// **'Set, change, or remove master password'**
   String get manageMasterPasswordSubtitle;
 
+  /// No description provided for @changeSecurityTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Security Tier'**
+  String get changeSecurityTier;
+
+  /// No description provided for @changeSecurityTierSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the tier ladder and switch to a different security level'**
+  String get changeSecurityTierSubtitle;
+
+  /// No description provided for @changeSecurityTierConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.'**
+  String get changeSecurityTierConfirm;
+
+  /// No description provided for @changeSecurityTierDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Security tier changed'**
+  String get changeSecurityTierDone;
+
+  /// No description provided for @changeSecurityTierFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change security tier'**
+  String get changeSecurityTierFailed;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:
