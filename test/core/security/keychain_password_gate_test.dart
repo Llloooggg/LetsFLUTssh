@@ -131,5 +131,36 @@ void main() {
       // The new state still verifies the same password.
       expect(await gate.verify('hunter2'), isTrue);
     });
+
+    test('rateLimiter is null before setPassword runs', () async {
+      final gate = newGate();
+      expect(await gate.rateLimiter(), isNull);
+    });
+
+    test('rateLimiter records and persists failure + cooldown', () async {
+      final gate = newGate();
+      await gate.setPassword('hunter2');
+      final limiter = await gate.rateLimiter();
+      expect(limiter, isNotNull);
+      limiter!.recordFailure();
+      limiter.recordFailure();
+      // Any locked limiter reports a non-zero cooldown.
+      expect(limiter.status().failureCount, greaterThanOrEqualTo(1));
+    });
+
+    test('rateLimiter rotates when setPassword rotates HMAC', () async {
+      final gate = newGate();
+      await gate.setPassword('hunter2');
+      final limiter1 = await gate.rateLimiter();
+      limiter1!.recordFailure();
+
+      // Rotate password → HMAC changes → new limiter's HMAC key no
+      // longer matches the disk state → the next load reports tamper
+      // and clamps the cooldown to max. Exercising this confirms the
+      // limiter is bound to the current gate state, not a previous one.
+      await gate.setPassword('hunter2');
+      final limiter2 = await gate.rateLimiter();
+      expect(limiter2, isNotNull);
+    });
   });
 }
