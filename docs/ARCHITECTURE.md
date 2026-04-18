@@ -880,19 +880,34 @@ payload = ZIP archive:
   session_snippets.json   ← session→snippet links
 
 Encryption: AES-256-GCM
-Key: PBKDF2-SHA256(password, salt, 600000 iterations)
+Key: Argon2id(password, salt, m=46 MiB, t=2, p=1) — see
+  [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart)
 
-Wire format for v2 encrypted archives:
-  [ 'LFSE' (4) | version u8 | iterations u32 BE | salt (32) | iv (12) |
-    ciphertext + GCM tag ]
+Wire format for v3 encrypted archives (current writer):
+  [ 'LFSE' (4) | version = 0x02 (1) | KdfParams block (≤ 16) |
+    salt (32) | iv (12) | ciphertext + GCM tag ]
 
-The 9-byte header lets the reader pick up the exact PBKDF2 cost that was
-used to write the archive — so a future release can raise iterations
-without having to break or re-encrypt existing files. Archives written
-before the header existed start straight with the 32-byte salt (no
-detectable magic) and are still decrypted via the legacy fall-back path
-using `ExportImport.defaultPbkdf2Iterations`. Unencrypted ZIP archives
-keep their `PK\x03\x04` magic and are handled separately.
+The KdfParams block carries the algorithm id (1 byte, `0x01` = Argon2id)
+followed by the algorithm-specific parameters (for Argon2id: memoryKiB
+u32 BE + iterations u32 BE + parallelism u8 = 9 bytes). The reader picks
+up the exact cost used to write the archive — a future release can tune
+parameters without having to break or re-encrypt existing files.
+
+Read-only legacy paths remain for archives produced by pre-Argon2id
+builds:
+
+| On-disk form | Version byte | KDF | Notes |
+|---|---|---|---|
+| v1 (headerless) | — | PBKDF2 @ `defaultPbkdf2Iterations` | Starts straight with 32-byte salt, no magic. |
+| v2 (LFSE) | `0x01` | PBKDF2 @ header iterations | `[LFSE][0x01][iters u32 BE][salt][iv][ct]` |
+| v3 (LFSE) | `0x02` | Argon2id @ header params | Current writer. |
+
+Import caps bound Argon2id params from an untrusted header
+(`maxImportArgon2idMemoryKiB = 1 GiB`, `maxImportArgon2idIterations =
+20`, `maxImportArgon2idParallelism = 16`) so a hostile archive cannot
+pin the isolate into swap. `maxImportIterations = 6,000,000` keeps the
+legacy PBKDF2 read path bounded too. Unencrypted ZIP archives keep
+their `PK\x03\x04` magic and are handled separately.
 
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
@@ -2517,7 +2532,7 @@ All files live in the platform's app-support directory (see **Location** below).
 | `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
 | `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
 | `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout has been moved to the encrypted DB; the field is kept here only for one-shot migration | First config save |
-| `credentials.salt` | No | 32 raw bytes | PBKDF2 salt for master-password key derivation. Presence = master password is enabled | Master password setup |
+| `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled. Legacy `credentials.salt` (PBKDF2, pre-migration) is detected by `MasterPasswordManager.hasLegacyFormat()` and routes through `LegacyKdfDialog` — no runtime read of PBKDF2 material | Master password setup |
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
 | `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
 | `logs/letsflutssh.log.1`…`.3` | No | Text | Rotated log files | After log rotation |
@@ -2664,7 +2679,7 @@ All data stores support three security levels (see §3.6):
 |-------|-----------|---------------------|
 | Plaintext | None | `letsflutssh.db` — unencrypted SQLite |
 | Keychain | OS keychain (`flutter_secure_storage`) | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) |
-| Master Password | PBKDF2-derived | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) + `credentials.salt` + `credentials.verify` |
+| Master Password | Argon2id-derived | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) + `credentials.kdf` + `credentials.verify` |
 
 Encryption is applied at the database level via SQLite3MultipleCiphers — a single encrypted DB file replaces the old per-store AES-256-GCM files.
 
@@ -2678,28 +2693,29 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 ### Startup security flow
 
 `_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs (no legacy file detection):
-1. DB file exists + `credentials.salt` exists → show `UnlockDialog` → derive key
-2. DB file exists + keychain has key → read from keychain
-3. DB file exists but no encryption → plaintext mode
-4. No DB file → first launch → show `SecuritySetupDialog` wizard
-5. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
+1. DB file exists + `hasLegacyFormat()` → show `LegacyKdfDialog` → reset or quit
+2. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
+3. DB file exists + keychain has key → read from keychain
+4. DB file exists but no encryption → plaintext mode
+5. No DB file → first launch → show `SecuritySetupDialog` wizard
+6. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
 ### Master password
 
 ```
-User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
-                                                                   │
-                                                                   ▼
-                                                          letsflutssh.db
-                                                     (PRAGMA key = "x'hex'")
+User password → Argon2id(m=46 MiB, t=2, p=1, 32-byte salt) → 256-bit key
+                                                                  │
+                                                                  ▼
+                                                         letsflutssh.db
+                                                    (PRAGMA key = "x'hex'")
 ```
 
-- **Detection:** `credentials.salt` exists = master password enabled
+- **Detection:** `credentials.kdf` exists (or legacy `credentials.salt` — routes through `LegacyKdfDialog`)
 - **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
 - **Enable flow:** derive key → re-open database with new key → delete keychain key if present
-- **Disable flow:** try keychain → generate random key → re-open database → delete salt/verifier. No keychain → plaintext fallback
+- **Disable flow:** try keychain → generate random key → re-open database → delete `credentials.kdf` (+ any residual legacy salt) + verifier. No keychain → plaintext fallback
 - **Change flow:** verify old → derive new → re-open database with new key
-- **Forgot password:** deletes encrypted database + salt/verifier files
+- **Forgot password:** deletes encrypted database + kdf/salt/verifier files
 
 ### Update channel integrity
 
@@ -2751,10 +2767,17 @@ transport layer on top of the release signature.
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
+v3 header (current writer):
+  ['LFSE' 4] [0x02 version 1] [KdfParams block ≤16] [salt 32B] [IV 12B]
+  [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
 
-Key = PBKDF2-SHA256(password, salt, 600000 iterations)
+Key = Argon2id(password, salt, m=46 MiB, t=2, p=1)
 ```
+
+Read-only legacy paths: v2 archives (`[LFSE][0x01][iters][salt][iv][ct]`)
+and v1 headerless archives (raw salt, no magic) still decrypt via
+PBKDF2-SHA256 for backward compatibility with user backups. See the
+.lfs format table in §3.7 for the full layout.
 
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
@@ -3079,7 +3102,9 @@ Manual build
 
 | Decision | Rationale |
 |----------|-----------|
-| PBKDF2 600k iterations | OWASP 2024 recommendation |
+| Argon2id m=46 MiB t=2 p=1 | OWASP 2024 recommended floor — memory-hard, resists GPU/ASIC cracking much better than PBKDF2 |
+| Force-breaking DB KDF migration | No backward compat for `credentials.salt`: `LegacyKdfDialog` forces reset-or-exit. Keeps the attack surface to a single KDF at runtime |
+| .lfs import keeps PBKDF2 read path | User backups can't be regenerated; new writes use Argon2id |
 | chmod 600 | Minimal permissions on sensitive files |
 | TOFU reject without callback | Fail-safe: if no UI → reject |
 | `CredentialStoreException` with two types | Distinguish "no credentials" from "corrupt key" |

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/progress/progress_reporter.dart';
+import 'package:letsflutssh/core/security/kdf_params.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
@@ -307,73 +308,76 @@ void main() {
     });
   });
 
-  group('ExportImport — encryption header (v2 LFSE)', () {
-    test('new archives start with LFSE magic', () async {
-      final outputPath = '${tempDir.path}/lfse.lfs';
-      await ExportImport.export(
-        masterPassword: 'pw',
-        outputPath: outputPath,
-        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
-      );
-      final bytes = await File(outputPath).readAsBytes();
-      // 'L','F','S','E' ASCII — the version marker the v2 writer emits.
-      expect(
-        [bytes[0], bytes[1], bytes[2], bytes[3]],
-        [0x4C, 0x46, 0x53, 0x45],
-      );
-      // version byte == 1
-      expect(bytes[4], 1);
-    });
-
-    test('roundtrip uses the iteration count stored in the header', () async {
-      // Export with a non-default iteration count and decrypt without
-      // supplying it — the reader must pick the value out of the header
-      // instead of falling back to the global default.
-      final outputPath = '${tempDir.path}/iters.lfs';
-      await ExportImport.export(
-        masterPassword: 'pw',
-        outputPath: outputPath,
-        input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
-        iterations: 4321,
-      );
-      // Header iteration big-endian u32 at offset 5..9.
-      final bytes = await File(outputPath).readAsBytes();
-      final iters =
-          (bytes[5] << 24) | (bytes[6] << 16) | (bytes[7] << 8) | bytes[8];
-      expect(iters, 4321);
-
-      // Decrypt without passing `iterations` — the reader must honour
-      // the header value (which is the lower test count), not fall back
-      // to defaultPbkdf2Iterations (which in tests is typically lower
-      // too but unrelated).
-      final result = await ExportImport.import_(
-        filePath: outputPath,
-        masterPassword: 'pw',
-        mode: ImportMode.merge,
-        options: const ExportOptions(includeConfig: true),
-      );
-      expect(result.config, isNotNull);
-    });
+  group('ExportImport — encryption header (v3 LFSE / Argon2id)', () {
+    test(
+      'new archives start with LFSE magic and v3 Argon2id version',
+      () async {
+        final outputPath = '${tempDir.path}/lfse.lfs';
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        );
+        final bytes = await File(outputPath).readAsBytes();
+        // 'L','F','S','E' ASCII.
+        expect(
+          [bytes[0], bytes[1], bytes[2], bytes[3]],
+          [0x4C, 0x46, 0x53, 0x45],
+        );
+        // version byte == 2 (v3 Argon2id)
+        expect(bytes[4], 2);
+        // Byte 5 is the KDF algorithm id (mirrored in the KdfParams block).
+        expect(bytes[5], KdfAlgorithm.argon2id.id);
+      },
+    );
 
     test(
-      'maliciously huge iterations in header are rejected with LfsMalformedHeaderException',
+      'roundtrip honours the custom Argon2id params in the header',
       () async {
-        // Write a real archive, then corrupt its iteration field in-place to a
-        // value far above the cap. Importing must abort with a structured
-        // header error instead of hanging PBKDF2.
-        final outputPath = '${tempDir.path}/huge-iters.lfs';
+        final outputPath = '${tempDir.path}/argon-params.lfs';
+        // Slightly different memory cost than the test default so we can
+        // confirm the reader picked params from the header rather than from
+        // the mutable `defaultKdfParams`.
+        const params = KdfParams.argon2id(
+          memoryKiB: 16,
+          iterations: 1,
+          parallelism: 1,
+        );
+        await ExportImport.export(
+          masterPassword: 'pw',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+          kdfParams: params,
+        );
+
+        // Decrypt without supplying params — reader must honour the header.
+        final result = await ExportImport.import_(
+          filePath: outputPath,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeConfig: true),
+        );
+        expect(result.config, isNotNull);
+      },
+    );
+
+    test(
+      'Argon2id params above the import cap are rejected as malformed',
+      () async {
+        final outputPath = '${tempDir.path}/huge-argon.lfs';
         await ExportImport.export(
           masterPassword: 'pw',
           outputPath: outputPath,
           input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
         );
         final bytes = (await File(outputPath).readAsBytes()).toList();
-        // Bytes 5..8 hold the big-endian iteration count.
-        bytes[5] = 0xFF;
+        // Layout: magic(4) + ver(1) + algoId(1) + memoryKiB u32BE (4) ...
+        // Overwrite memory cost with 0xFFFFFFFF — well above maxImportArgon2idMemoryKiB.
         bytes[6] = 0xFF;
         bytes[7] = 0xFF;
         bytes[8] = 0xFF;
-        final hostilePath = '${tempDir.path}/huge-iters-mut.lfs';
+        bytes[9] = 0xFF;
+        final hostilePath = '${tempDir.path}/huge-argon-mut.lfs';
         await File(hostilePath).writeAsBytes(bytes);
 
         await expectLater(
@@ -383,24 +387,25 @@ void main() {
             mode: ImportMode.merge,
             options: const ExportOptions(includeConfig: true),
           ),
-          throwsA(isA<LfsDecryptionFailedException>()),
+          throwsA(isA<LfsMalformedHeaderException>()),
         );
       },
     );
 
-    test('zero iterations in header are rejected', () async {
-      final outputPath = '${tempDir.path}/zero-iters.lfs';
+    test('zero-valued Argon2id params are rejected as malformed', () async {
+      final outputPath = '${tempDir.path}/zero-argon.lfs';
       await ExportImport.export(
         masterPassword: 'pw',
         outputPath: outputPath,
         input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
       );
       final bytes = (await File(outputPath).readAsBytes()).toList();
-      bytes[5] = 0;
+      // Zero out memory cost (bytes 6..9).
       bytes[6] = 0;
       bytes[7] = 0;
       bytes[8] = 0;
-      final hostilePath = '${tempDir.path}/zero-iters-mut.lfs';
+      bytes[9] = 0;
+      final hostilePath = '${tempDir.path}/zero-argon-mut.lfs';
       await File(hostilePath).writeAsBytes(bytes);
 
       await expectLater(
@@ -410,25 +415,47 @@ void main() {
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),
         ),
-        throwsA(isA<LfsDecryptionFailedException>()),
+        throwsA(isA<LfsMalformedHeaderException>()),
       );
+    });
+  });
+
+  group('ExportImport — legacy PBKDF2 read path', () {
+    test('v2 PBKDF2 archives produced by older builds still decrypt', () async {
+      // Build a real ZIP payload via the current export path, then re-wrap
+      // it with the legacy v2 PBKDF2 writer so we get a real archive that
+      // reads exactly like one produced by a pre-Argon2id build.
+      final zipBytes = _buildTestZip();
+      final legacyBytes = ExportImport.encryptLegacyPbkdf2ForTesting(
+        zipBytes,
+        'pw',
+        iterations: 1,
+      );
+      final legacyPath = '${tempDir.path}/pbkdf2-legacy.lfs';
+      await File(legacyPath).writeAsBytes(legacyBytes);
+
+      final result = await ExportImport.import_(
+        filePath: legacyPath,
+        masterPassword: 'pw',
+        mode: ImportMode.merge,
+        options: const ExportOptions(includeConfig: true),
+      );
+      expect(result.config, isNotNull);
     });
 
     test(
-      'legacy headerless archive still decrypts with default iterations',
+      'legacy headerless PBKDF2 archive decrypts via fallback path',
       () async {
-        // Strip the 9-byte header off a freshly written archive; the reader
-        // must fall back to the caller-supplied iteration count.
-        final outputPath = '${tempDir.path}/legacy.lfs';
-        await ExportImport.export(
-          masterPassword: 'pw',
-          outputPath: outputPath,
-          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        final zipBytes = _buildTestZip();
+        final v2Bytes = ExportImport.encryptLegacyPbkdf2ForTesting(
+          zipBytes,
+          'pw',
+          iterations: ExportImport.defaultPbkdf2Iterations,
         );
-        final bytes = await File(outputPath).readAsBytes();
-        // Drop the LFSE + version + u32 iterations prefix (9 bytes).
-        final stripped = bytes.sublist(9);
-        final legacyPath = '${tempDir.path}/legacy-stripped.lfs';
+        // Drop the 9-byte LFSE/version/iters prefix to produce the original
+        // v1 layout (raw salt + iv + ct).
+        final stripped = v2Bytes.sublist(9);
+        final legacyPath = '${tempDir.path}/pbkdf2-headerless.lfs';
         await File(legacyPath).writeAsBytes(stripped);
 
         final result = await ExportImport.import_(
@@ -436,13 +463,64 @@ void main() {
           masterPassword: 'pw',
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),
-          // Use the same iteration count the export wrote so the legacy
-          // fallback path has something meaningful to derive the key with.
-          iterations: ExportImport.defaultPbkdf2Iterations,
         );
         expect(result.config, isNotNull);
       },
     );
+
+    test(
+      'v2 header with maliciously huge iterations is rejected as malformed',
+      () async {
+        final zipBytes = _buildTestZip();
+        final legacyBytes = ExportImport.encryptLegacyPbkdf2ForTesting(
+          zipBytes,
+          'pw',
+          iterations: 1,
+        ).toList();
+        // Bytes 5..8 hold the u32 iterations field.
+        legacyBytes[5] = 0xFF;
+        legacyBytes[6] = 0xFF;
+        legacyBytes[7] = 0xFF;
+        legacyBytes[8] = 0xFF;
+        final hostilePath = '${tempDir.path}/pbkdf2-hostile.lfs';
+        await File(hostilePath).writeAsBytes(legacyBytes);
+
+        await expectLater(
+          ExportImport.import_(
+            filePath: hostilePath,
+            masterPassword: 'pw',
+            mode: ImportMode.merge,
+            options: const ExportOptions(includeConfig: true),
+          ),
+          throwsA(isA<LfsMalformedHeaderException>()),
+        );
+      },
+    );
+
+    test('v2 header with zero iterations is rejected as malformed', () async {
+      final zipBytes = _buildTestZip();
+      final legacyBytes = ExportImport.encryptLegacyPbkdf2ForTesting(
+        zipBytes,
+        'pw',
+        iterations: 1,
+      ).toList();
+      legacyBytes[5] = 0;
+      legacyBytes[6] = 0;
+      legacyBytes[7] = 0;
+      legacyBytes[8] = 0;
+      final hostilePath = '${tempDir.path}/pbkdf2-zero.lfs';
+      await File(hostilePath).writeAsBytes(legacyBytes);
+
+      await expectLater(
+        ExportImport.import_(
+          filePath: hostilePath,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeConfig: true),
+        ),
+        throwsA(isA<LfsMalformedHeaderException>()),
+      );
+    });
   });
 
   group('ExportImport — empty folders roundtrip', () {
@@ -943,7 +1021,6 @@ void main() {
         await ExportImport.export(
           masterPassword: 'pw',
           outputPath: outputPath,
-          iterations: 1,
           input: LfsExportInput(
             sessions: const [],
             config: AppConfig.defaults,
@@ -958,7 +1035,6 @@ void main() {
             masterPassword: 'pw',
             mode: ImportMode.merge,
             options: const ExportOptions(includeKnownHosts: true),
-            iterations: 1,
           ),
           throwsA(isA<LfsKnownHostsTooLargeException>()),
         );
@@ -1079,7 +1155,6 @@ void main() {
           outputPath: '${tempDir.path}/phases.lfs',
           input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
           progress: reporter,
-          iterations: 100,
         );
 
         expect(
@@ -1124,7 +1199,6 @@ void main() {
           masterPassword: 'pw',
           outputPath: outputPath,
           input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
-          iterations: 100,
         );
 
         final reporter = _RecordingProgress('initial');
@@ -1136,7 +1210,6 @@ void main() {
           mode: ImportMode.merge,
           options: const ExportOptions(),
           progress: reporter,
-          iterations: 100,
         );
 
         expect(
@@ -1593,4 +1666,21 @@ class _RecordingProgress extends ProgressReporter {
     phases.add(label);
     super.phase(label);
   }
+}
+
+/// Minimal LFS-shaped ZIP payload — a manifest entry is enough for the
+/// reader to treat it as "ours" without needing a real export run. Used
+/// to feed the legacy PBKDF2 writer so we can verify the read path.
+Uint8List _buildTestZip() {
+  final archive = Archive();
+  final manifest = utf8.encode(
+    jsonEncode({
+      'schema_version': 1,
+      'created_at': DateTime.utc(2026).toIso8601String(),
+    }),
+  );
+  archive.addFile(ArchiveFile('manifest.json', manifest.length, manifest));
+  final config = utf8.encode(jsonEncode(AppConfig.defaults.toJson()));
+  archive.addFile(ArchiveFile('config.json', config.length, config));
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
