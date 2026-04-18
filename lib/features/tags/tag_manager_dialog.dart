@@ -6,6 +6,8 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_data_row.dart';
+import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/toast.dart';
 
@@ -23,6 +25,7 @@ class TagManagerPanel extends ConsumerStatefulWidget {
 class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   List<Tag> _tags = [];
   bool _loading = true;
+  String _filter = '';
 
   @override
   void initState() {
@@ -39,6 +42,12 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
         _loading = false;
       });
     }
+  }
+
+  List<Tag> _filtered() {
+    if (_filter.isEmpty) return _tags;
+    final needle = _filter.toLowerCase();
+    return _tags.where((t) => t.name.toLowerCase().contains(needle)).toList();
   }
 
   @override
@@ -58,11 +67,18 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
+          Expanded(
+            child: AppDataSearchBar(
+              onChanged: (v) => setState(() => _filter = v),
+              hintText: s.search,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(
             s.tagCount(_tags.length),
             style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           TextButton.icon(
             onPressed: _addTag,
             icon: const Icon(Icons.add, size: 16),
@@ -85,45 +101,41 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
         ),
       );
     }
+    final visible = _filtered();
+    if (visible.isEmpty) {
+      return Center(
+        child: Text(
+          s.noResults,
+          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
+        ),
+      );
+    }
     return ListView.separated(
-      itemCount: _tags.length,
+      itemCount: visible.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(_tags[index]),
+      itemBuilder: (context, index) => _buildEntry(visible[index]),
     );
   }
 
   Widget _buildEntry(Tag tag) {
     final s = S.of(context);
     final color = tag.colorValue ?? AppTheme.fgDim;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              tag.name,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fg,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
-            tooltip: s.deleteTag,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _deleteTag(tag),
-          ),
-        ],
+    return AppDataRow(
+      leading: Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
+      title: tag.name,
+      trailing: [
+        IconButton(
+          icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+          tooltip: s.deleteTag,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          onPressed: () => _deleteTag(tag),
+        ),
+      ],
     );
   }
 
