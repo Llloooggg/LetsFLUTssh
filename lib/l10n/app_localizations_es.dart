@@ -1227,6 +1227,17 @@ class SEs extends S {
       'Este dispositivo no tiene sensor biométrico.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'El servicio de huella dactilar (fprintd) no está instalado. Ver README → Instalación.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Respaldado por hardware (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Respaldado por software';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Primero establezca una contraseña maestra para habilitar el bloqueo automático.';
 

@@ -13,6 +13,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
   bool _biometricProbed = false;
+  BiometricBackingLevel? _biometricBackingLevel;
 
   @override
   void initState() {
@@ -42,11 +43,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
     final stored = await bioVault.isStored();
+    final backing = bio.backingLevel();
     if (!mounted) return;
     setState(() {
       _biometricUnavailable = availability;
       _biometricEnabled = stored;
       _biometricProbed = true;
+      _biometricBackingLevel = backing;
     });
   }
 
@@ -65,6 +68,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         return l10n.biometricSensorNotAvailable;
       case BiometricUnavailableReason.notEnrolled:
         return l10n.biometricNotEnrolled;
+      case BiometricUnavailableReason.systemServiceMissing:
+        return l10n.biometricSystemServiceMissing;
       case null:
         break;
     }
@@ -72,6 +77,26 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       return l10n.biometricRequiresMasterPassword;
     }
     return null;
+  }
+
+  /// Subtitle shown under the biometric toggle. Appends the current
+  /// backing-level label when biometrics are active so the user can
+  /// tell hardware-bound storage (Secure Enclave, StrongBox, TPM2)
+  /// from software-only (OS keystore). Falls back to the plain
+  /// subtitle when biometrics are off or the backing level is
+  /// unknown.
+  String _biometricSubtitle(S l10n) {
+    final base = l10n.biometricUnlockSubtitle;
+    if (_biometricEnabled != true || _biometricUnavailable != null) {
+      return base;
+    }
+    final backing = _biometricBackingLevel;
+    if (backing == null) return base;
+    final label = switch (backing) {
+      BiometricBackingLevel.hardware => l10n.biometricBackingHardware,
+      BiometricBackingLevel.software => l10n.biometricBackingSoftware,
+    };
+    return '$base — $label';
   }
 
   /// Whether the biometric toggle can be flipped. Returns false during
@@ -136,7 +161,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // set yet) instead of silently disappearing.
         _Toggle(
           label: l10n.biometricUnlockTitle,
-          subtitle: l10n.biometricUnlockSubtitle,
+          subtitle: _biometricSubtitle(l10n),
           icon: Icons.fingerprint,
           value: _biometricEnabled == true,
           onChanged: _biometricToggleEnabled(secState.level)

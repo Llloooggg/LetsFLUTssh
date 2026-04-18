@@ -1223,6 +1223,16 @@ class SAr extends S {
       'لا يحتوي هذا الجهاز على مستشعر بيومتري.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'خدمة بصمة الإصبع (fprintd) غير مثبتة. راجع README ← التثبيت.';
+
+  @override
+  String get biometricBackingHardware => 'مدعوم بالعتاد (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'مدعوم بالبرنامج';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين القفل التلقائي.';
 

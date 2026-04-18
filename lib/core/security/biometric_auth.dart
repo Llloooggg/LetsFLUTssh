@@ -9,16 +9,44 @@ import '../../utils/logger.dart';
 /// that tells the user what to fix — instead of just hiding the
 /// option and leaving them guessing.
 enum BiometricUnavailableReason {
-  /// OS has no biometric backend at all (Linux, or `local_auth` threw).
+  /// OS has no biometric backend at all, or `local_auth` threw.
   platformUnsupported,
 
   /// Device reports no biometric hardware (most Windows desktops,
-  /// older Android tablets).
+  /// older Android tablets, Linux without a supported fingerprint
+  /// reader).
   noSensor,
 
   /// Hardware is present but the user hasn't enrolled a fingerprint
-  /// or face — e.g. a Windows Hello PIN without a bio credential.
+  /// or face — e.g. a Windows Hello PIN without a bio credential, or
+  /// a Linux reader with no fingers registered via `fprintd-enroll`.
   notEnrolled,
+
+  /// The OS-level service that brokers biometric access is not
+  /// installed or not reachable. Specific to Linux — `fprintd` is a
+  /// system D-Bus daemon packaged separately from the kernel and is
+  /// not present on minimal installs. Triggers the rung-3 (optional
+  /// OS dep) install snippet in README.
+  systemServiceMissing,
+}
+
+/// How the platform is protecting the cached DB key when biometrics
+/// are active. Surfaced to the Settings UI so the user can tell
+/// whether the key is bound to dedicated hardware (Secure Enclave /
+/// Titan M / TPM) or to an OS software keystore.
+///
+/// This is orthogonal to [BiometricAvailability]: a non-null level is
+/// only meaningful when availability is `null` (biometrics are active).
+enum BiometricBackingLevel {
+  /// Key is wrapped by dedicated crypto hardware — Secure Enclave on
+  /// Apple, StrongBox / TEE on Android, TPM2 on Linux/Windows.
+  hardware,
+
+  /// Key is held by an OS software keystore (no dedicated hardware,
+  /// or hardware present but not used for this key). Honestly labelled
+  /// so the user understands the guarantee is weaker than a hardware
+  /// backing on a peer platform.
+  software,
 }
 
 /// Availability probe result — either [BiometricUnavailableReason] or
@@ -41,6 +69,32 @@ class BiometricAuth {
 
   /// Convenience: true if [availability] returns null.
   Future<bool> isAvailable() async => (await availability()) == null;
+
+  /// Describe how the current platform protects the cached DB key.
+  ///
+  /// Returns `null` when biometrics are unavailable on this platform
+  /// entirely (Linux in the current build — wiring lands in P1.2-linux
+  /// phases 2/3). Otherwise returns the backing level that Settings
+  /// surfaces next to the active biometric toggle.
+  ///
+  /// iOS / macOS report [BiometricBackingLevel.hardware] — Secure
+  /// Enclave binding is enforced via `SecAccessControl` with
+  /// `.biometryCurrentSet` (see `BiometricKeyVault.iosOptions` /
+  /// `macOsOptions`). Android rides on `flutter_secure_storage`'s
+  /// default EncryptedSharedPreferences until the dedicated Keystore
+  /// + `BiometricPrompt.CryptoObject` plugin lands (P1.2-android), so
+  /// the level is reported as [BiometricBackingLevel.software] today.
+  /// Windows is also reported as software until `KeyCredentialManager`
+  /// replaces DPAPI (P1.2-windows).
+  BiometricBackingLevel? backingLevel() {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return BiometricBackingLevel.hardware;
+    }
+    if (Platform.isAndroid || Platform.isWindows) {
+      return BiometricBackingLevel.software;
+    }
+    return null;
+  }
 
   /// Probe the platform for biometric hardware + enrollment. Returns
   /// null when biometric unlock is ready to use, or a

@@ -1232,6 +1232,17 @@ class SFr extends S {
       'Cet appareil n\'a pas de capteur biométrique.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Le service d\'empreintes digitales (fprintd) n\'est pas installé. Voir README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Sauvegardé par le matériel (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Sauvegardé par logiciel';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Définissez d\'abord un mot de passe principal pour activer le verrouillage automatique.';
 

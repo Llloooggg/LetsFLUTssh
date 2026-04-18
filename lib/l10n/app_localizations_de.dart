@@ -1231,6 +1231,17 @@ class SDe extends S {
       'Dieses Gerät verfügt über keinen biometrischen Sensor.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Fingerabdruckdienst (fprintd) ist nicht installiert. Siehe README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Hardware-gestützt (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Software-gestützt';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Legen Sie zuerst ein Masterpasswort fest, um die Auto-Sperre zu aktivieren.';
 

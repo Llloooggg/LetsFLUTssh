@@ -1225,6 +1225,17 @@ class SPt extends S {
       'Este dispositivo não tem sensor biométrico.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'O serviço de impressão digital (fprintd) não está instalado. Ver README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Suporte em hardware (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Suporte em software';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Defina uma senha mestra primeiro para habilitar o bloqueio automático.';
 

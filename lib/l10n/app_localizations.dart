@@ -2265,6 +2265,24 @@ abstract class S {
   /// **'This device has no biometric sensor.'**
   String get biometricSensorNotAvailable;
 
+  /// No description provided for @biometricSystemServiceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprint service (fprintd) is not installed. See README → Installation.'**
+  String get biometricSystemServiceMissing;
+
+  /// No description provided for @biometricBackingHardware.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed (Secure Enclave / TPM)'**
+  String get biometricBackingHardware;
+
+  /// No description provided for @biometricBackingSoftware.
+  ///
+  /// In en, this message translates to:
+  /// **'Software-backed'**
+  String get biometricBackingSoftware;
+
   /// No description provided for @autoLockRequiresMasterPassword.
   ///
   /// In en, this message translates to:

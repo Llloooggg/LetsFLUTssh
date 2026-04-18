@@ -1185,6 +1185,16 @@ class SZh extends S {
   String get biometricSensorNotAvailable => '此设备没有生物识别传感器。';
 
   @override
+  String get biometricSystemServiceMissing =>
+      '指纹服务 (fprintd) 未安装。请参阅 README → Installation。';
+
+  @override
+  String get biometricBackingHardware => '硬件支持 (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => '软件支持';
+
+  @override
   String get autoLockRequiresMasterPassword => '请先设置主密码以启用自动锁定。';
 
   @override

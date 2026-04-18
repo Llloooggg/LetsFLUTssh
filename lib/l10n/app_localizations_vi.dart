@@ -1215,6 +1215,17 @@ class SVi extends S {
       'Thiết bị này không có cảm biến sinh trắc học.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Dịch vụ vân tay (fprintd) chưa được cài đặt. Xem README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Hỗ trợ phần cứng (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Hỗ trợ phần mềm';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Hãy đặt mật khẩu chính trước để bật tự động khóa.';
 

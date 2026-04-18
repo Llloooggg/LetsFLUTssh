@@ -1217,6 +1217,17 @@ class SEn extends S {
       'This device has no biometric sensor.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Fingerprint service (fprintd) is not installed. See README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Hardware-backed (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Software-backed';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Set a master password first to enable auto-lock.';
 

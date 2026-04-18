@@ -1221,6 +1221,17 @@ class SHi extends S {
       'इस डिवाइस पर कोई बायोमेट्रिक सेंसर नहीं है।';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'फ़िंगरप्रिंट सेवा (fprintd) स्थापित नहीं है। README → Installation देखें।';
+
+  @override
+  String get biometricBackingHardware =>
+      'हार्डवेयर-समर्थित (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'सॉफ़्टवेयर-समर्थित';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'ऑटो-लॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
 

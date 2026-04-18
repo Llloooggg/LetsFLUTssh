@@ -1223,6 +1223,17 @@ class STr extends S {
       'Bu cihazın biyometrik sensörü yok.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Parmak izi hizmeti (fprintd) yüklü değil. README → Installation bölümüne bakın.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Donanım destekli (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Yazılım destekli';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Otomatik kilidi etkinleştirmek için önce bir ana parola belirleyin.';
 

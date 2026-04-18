@@ -1223,6 +1223,17 @@ class SId extends S {
       'Perangkat ini tidak memiliki sensor biometrik.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Layanan sidik jari (fprintd) belum terpasang. Lihat README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Didukung perangkat keras (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Didukung perangkat lunak';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Atur kata sandi utama terlebih dahulu untuk mengaktifkan kunci otomatis.';
 

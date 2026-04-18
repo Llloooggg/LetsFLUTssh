@@ -1191,6 +1191,16 @@ class SKo extends S {
   String get biometricSensorNotAvailable => '이 기기에는 생체 인식 센서가 없습니다.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      '지문 서비스(fprintd)가 설치되어 있지 않습니다. README → Installation을 참조하세요.';
+
+  @override
+  String get biometricBackingHardware => '하드웨어 기반 (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => '소프트웨어 기반';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       '자동 잠금을 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
 

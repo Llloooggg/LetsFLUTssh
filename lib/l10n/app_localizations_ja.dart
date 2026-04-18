@@ -1192,6 +1192,16 @@ class SJa extends S {
   String get biometricSensorNotAvailable => 'このデバイスには生体センサーがありません。';
 
   @override
+  String get biometricSystemServiceMissing =>
+      '指紋サービス (fprintd) がインストールされていません。README → Installation を参照してください。';
+
+  @override
+  String get biometricBackingHardware => 'ハードウェア保護 (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'ソフトウェア保護';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       '自動ロックを有効にするには、まずマスターパスワードを設定してください。';
 

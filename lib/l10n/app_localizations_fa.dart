@@ -1215,6 +1215,17 @@ class SFa extends S {
   String get biometricSensorNotAvailable => 'این دستگاه سنسور زیست‌سنجی ندارد.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'سرویس اثر انگشت (fprintd) نصب نشده است. README ← نصب را ببینید.';
+
+  @override
+  String get biometricBackingHardware =>
+      'پشتیبانی سخت‌افزاری (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'پشتیبانی نرم‌افزاری';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'ابتدا یک رمز عبور اصلی تنظیم کنید تا قفل خودکار فعال شود.';
 

@@ -1225,6 +1225,17 @@ class SRu extends S {
       'На этом устройстве нет биометрического датчика.';
 
   @override
+  String get biometricSystemServiceMissing =>
+      'Служба отпечатков пальцев (fprintd) не установлена. См. README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Аппаратная защита (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Программная защита';
+
+  @override
   String get autoLockRequiresMasterPassword =>
       'Сначала задайте мастер-пароль, чтобы включить авто-блокировку.';
 
