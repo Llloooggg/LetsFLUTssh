@@ -742,6 +742,8 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 
 **Known scope**: the drift database handle is *not* closed on lock. SQLite3MultipleCiphers keeps its cipher key in internal page-cipher state, so DB reads continue to work after lock. Closing + reopening the DB would require disconnecting every live SSH/SFTP session. The auto-lock zeroes the explicit public handle used by rekey / export / config code paths and blocks UI input; it does not fully purge the SQLCipher runtime state.
 
+**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 500 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
+
 #### Process hardening
 
 [`ProcessHardening.applyOnStartup()`](../lib/core/security/process_hardening.dart) is called from `main.dart` before any secrets touch RAM:
