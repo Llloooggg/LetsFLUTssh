@@ -3082,6 +3082,7 @@ Manual build
 | Config stays file-based | Theme/locale needed before DB opens (chicken-and-egg with encryption key) |
 | `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
 | Three-level security (plaintext/keychain/master password) | Honest security: DB-level encryption via PRAGMA key. OS keychain optional with graceful fallback |
+| Cross-platform `flutter_secure_storage` baseline (no explicit hardware probe) | Accept per-platform asymmetry rather than ship 5 native code paths. Effective: Keystore (Android), Keychain (iOS/macOS) hardware-backed; CredMan (Windows) LSA-software; Linux libsecret only, no biometric. Documented in `SECURITY.md` / [§13 Security Model](#13-security-model). Per-platform native rewrites (`KeyInfo.isInsideSecureHardware`, `SecAccessControl.biometryCurrentSet`, `KeyCredentialManager`, `fprintd`+`tpm2-tss`) are explicitly out of scope — chosen "good enough" baseline, not a deficiency |
 | `flutter_secure_storage` as optional dep | OS keychain for automatic encryption; app works without it (libsecret on Linux is optional) |
 | `app_links` instead of `uni_links` | Desktop support |
 | Widget-local controllers (`FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`) use `ChangeNotifier` | Match tool to scope: app-state lives in Riverpod `NotifierProvider`, dialog / pane / panel state that takes constructor args or owns caches uses `ChangeNotifier + AnimatedBuilder` — side-channel Riverpod overrides would be pure ceremony |
