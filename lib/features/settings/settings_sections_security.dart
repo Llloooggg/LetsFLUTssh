@@ -385,6 +385,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       SecurityTier.hardware => l10n.colT2,
       SecurityTier.paranoid => l10n.colParanoid,
     };
+
+    // Backing-level suffix: surfaces what the OS / hardware is
+    // actually doing to protect the key on this host (Secure Enclave,
+    // TEE, TPM 2.0, software libsecret, etc). Without this subtitle
+    // a user on Linux sees the same "T1 Keychain" label as a user
+    // on iOS and assumes parity — T1 on Linux is software-only.
+    final backing = classifyTierBacking(level);
+    final backingLabel = backing == TierBackingLevel.none
+        ? null
+        : backing.shortName;
+
     // Paranoid carries an implicit password modifier; no suffix
     // needed for it. Plaintext has no modifiers by definition.
     if (level == SecurityTier.plaintext || level == SecurityTier.paranoid) {
@@ -393,12 +404,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final hasPassword =
         modifiers.password || level == SecurityTier.keychainWithPassword;
     final hasBiometric = modifiers.biometric;
-    if (!hasPassword && !hasBiometric) return base;
-    final suffix = <String>[
+    final parts = <String>[
+      ?backingLabel,
       if (hasPassword) l10n.modifierPasswordLabel.toLowerCase(),
       if (hasBiometric) l10n.modifierBiometricLabel.toLowerCase(),
-    ].join(', ');
-    return '$base — $suffix';
+    ];
+    if (parts.isEmpty) return base;
+    return '$base — ${parts.join(', ')}';
   }
 
   /// Open the tier wizard and route the result through the atomic
