@@ -1965,6 +1965,9 @@ class SZh extends S {
   String get dbCorruptWarning => '重置将永久删除加密数据库和所有安全相关文件。不会恢复任何数据。';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => '重置并重新设置';
 
   @override

@@ -340,9 +340,28 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 
   void _reloadSessions() {
+    // Lifecycle `onResume` fires before `_initSecurity` finishes on
+    // cold-start + early re-foreground flows. Gating on the explicit
+    // ready flag avoids issuing drift queries against a DB whose
+    // cipher key is either not yet set or turned out to be wrong —
+    // the DB-corruption dialog in `_handleDatabaseCorruption` is the
+    // single entry point that authorises unlocked reads.
+    if (!_securityReady) return;
     AppLogger.instance.log('App resumed — reloading sessions', name: 'App');
     ref.read(sessionProvider.notifier).load();
   }
+
+  /// True once `_handleDatabaseCorruption` has observed a successful
+  /// readability probe on the currently-attached AppDatabase. Gates
+  /// every follow-on query path — session reloads, auto-lock load —
+  /// so nothing hits the DB before the cipher is validated.
+  bool _securityReady = false;
+
+  /// Counts how many times the corruption dialog has fired with the
+  /// "try other credentials" option. Limits the recursion so a
+  /// genuinely broken file cannot loop forever.
+  int _corruptionRetries = 0;
+  static const _maxCorruptionRetries = 2;
 
   /// True when the user chose "forgot password" — used to show a toast
   /// after sessions load (needs l10n context).
@@ -815,12 +834,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // TierResetDialog. Fire-and-forget: a failed persistence run is
     // logged inside ConfigNotifier and never blocks unlock.
     unawaited(_persistSecurityTier(level));
-    // Load the persisted auto-lock timeout (and run the one-shot legacy
-    // migration from config.json into the DB). Fire-and-forget — the
-    // notifier publishes 0 until the load resolves, which matches the
-    // behaviour of "auto-lock disabled" and is the safe default during
-    // the brief window between DB open and first read.
-    unawaited(ref.read(autoLockMinutesProvider.notifier).load());
+    // Auto-lock is loaded only after `_handleDatabaseCorruption`
+    // confirms the DB is readable — firing it here would race the
+    // probe and surface "file is not a database" through the global
+    // error boundary before the user ever sees the corruption dialog.
   }
 
   /// Attempt to unlock with biometrics. The caller has already checked
@@ -862,41 +879,93 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 
   /// Post-`_initSecurity` integrity probe. Runs one trivial SELECT
-  /// against the DB we just attached; on failure (wrong cipher,
-  /// corrupt file, stale tier marker) asks the user whether to wipe
-  /// and start fresh or quit. Never deletes anything without
-  /// explicit consent — the dialog is the only code path that
-  /// triggers the destructive reset.
+  /// against the DB we just attached; on failure asks the user
+  /// whether to try a different unlock path, wipe and start fresh,
+  /// or quit. Never deletes anything without explicit consent — the
+  /// destructive branch runs only when the user picks "Reset".
   Future<void> _handleDatabaseCorruption() async {
     final db = _activeDatabase;
-    if (db == null) return;
-    if (await verifyDatabaseReadable(db)) return;
+    if (db == null) {
+      _markSecurityReady();
+      return;
+    }
+    if (await verifyDatabaseReadable(db)) {
+      _markSecurityReady();
+      return;
+    }
 
     AppLogger.instance.log(
       'Database readability probe failed — offering reset dialog',
       name: 'App',
     );
     final choice = await _showDbCorruptDialog();
-    if (choice == DbCorruptChoice.exitApp) {
-      AppLogger.instance.log(
-        'DB corruption detected — user chose to exit',
-        name: 'App',
-      );
-      await SystemNavigator.pop();
-      exit(0);
+    switch (choice) {
+      case DbCorruptChoice.exitApp:
+        AppLogger.instance.log(
+          'DB corruption detected — user chose to exit',
+          name: 'App',
+        );
+        await SystemNavigator.pop();
+        exit(0);
+      case DbCorruptChoice.tryOtherTier:
+        await _retryUnlockUnderDifferentTier();
+      case DbCorruptChoice.resetAndSetupFresh:
+        await _wipeAndRestartFromScratch();
     }
+  }
 
-    // Destructive path — user consented. Close the broken handle,
-    // wipe every security + DB artefact, force-clear the persisted
-    // tier marker so the reset-on-next-launch flow cannot loop, then
-    // re-run first-launch setup so the wizard draws on a clean slate.
-    try {
-      await db.close();
-    } catch (e) {
-      AppLogger.instance.log(
-        'DB close after corruption failed (continuing wipe): $e',
-        name: 'App',
-      );
+  /// Clear `config.security` so the legacy-infer branch of
+  /// `_initSecurity` (master password probe → keychain probe →
+  /// plaintext fall-through) gets a second chance. Capped to
+  /// [_maxCorruptionRetries] to avoid a loop when every path is
+  /// broken; after the cap the corruption dialog re-fires without
+  /// the "try other" button effectively available.
+  Future<void> _retryUnlockUnderDifferentTier() async {
+    _corruptionRetries++;
+    final db = _activeDatabase;
+    if (db != null) {
+      try {
+        await db.close();
+      } catch (e) {
+        AppLogger.instance.log('DB close before retry failed: $e', name: 'App');
+      }
+    }
+    _activeDatabase = null;
+    await ref
+        .read(configProvider.notifier)
+        .update((c) => c.copyWith(security: null));
+    AppLogger.instance.log(
+      'DB corruption: retrying unlock under legacy-infer path '
+      '(attempt $_corruptionRetries/$_maxCorruptionRetries)',
+      name: 'App',
+    );
+    if (!mounted) return;
+    await _initSecurity();
+    if (_corruptionRetries > _maxCorruptionRetries) {
+      // Ran out of retries — any further probe failure must go to
+      // the destructive / quit branches, so force the dialog without
+      // the tryOtherTier option being useful again.
+      await _wipeAndRestartFromScratch();
+      return;
+    }
+    await _handleDatabaseCorruption();
+  }
+
+  /// Destructive path — user consented to a full wipe. Closes the
+  /// broken handle, drops every security artefact via
+  /// `LegacyStateReset`, zeroes `config.security`, and re-runs the
+  /// first-launch wizard from a clean slate.
+  Future<void> _wipeAndRestartFromScratch() async {
+    final db = _activeDatabase;
+    if (db != null) {
+      try {
+        await db.close();
+      } catch (e) {
+        AppLogger.instance.log(
+          'DB close before wipe failed (continuing): $e',
+          name: 'App',
+        );
+      }
     }
     _activeDatabase = null;
     await LegacyStateReset().wipe();
@@ -904,10 +973,27 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         .read(configProvider.notifier)
         .update((c) => c.copyWith(security: null));
     _credentialsWereReset = true;
+    _corruptionRetries = 0;
     if (!mounted) return;
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
     await _firstLaunchSetup(manager, keyStorage);
+    // Freshly-opened DB after the wizard — run the probe one more
+    // time so the ready flag can flip and lifecycle callbacks can
+    // start issuing queries.
+    final fresh = _activeDatabase;
+    if (fresh != null && await verifyDatabaseReadable(fresh)) {
+      _markSecurityReady();
+    }
+  }
+
+  /// Called exactly once per successful unlock path to flip the
+  /// gate that permits DB-backed work: auto-lock loads the persisted
+  /// timeout, session lifecycle reloads are no longer short-circuited.
+  void _markSecurityReady() {
+    if (_securityReady) return;
+    _securityReady = true;
+    unawaited(ref.read(autoLockMinutesProvider.notifier).load());
   }
 
   /// Persist the active `SecurityTier` + modifiers into `config.json`

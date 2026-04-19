@@ -1981,6 +1981,9 @@ class SJa extends S {
       'リセットすると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データは復元されません。';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'リセットして新規セットアップ';
 
   @override

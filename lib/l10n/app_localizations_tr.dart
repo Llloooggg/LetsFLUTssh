@@ -2050,6 +2050,9 @@ class STr extends S {
       'Sıfırlama şifrelenmiş veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Hiçbir veri geri getirilmez.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Sıfırla ve yeniden kur';
 
   @override

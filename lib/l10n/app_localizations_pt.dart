@@ -2054,6 +2054,9 @@ class SPt extends S {
       'A redefinição apagará permanentemente o banco criptografado e todos os arquivos relacionados à segurança. Nenhum dado será recuperado.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Redefinir e configurar';
 
   @override

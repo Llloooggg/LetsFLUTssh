@@ -2042,6 +2042,9 @@ class SHi extends S {
       'रीसेट एन्क्रिप्टेड डेटाबेस और सुरक्षा संबंधी सभी फ़ाइलें स्थायी रूप से हटा देगा। कोई डेटा पुनर्प्राप्त नहीं होगा।';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'रीसेट और नया सेटअप';
 
   @override

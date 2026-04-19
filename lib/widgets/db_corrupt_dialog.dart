@@ -6,6 +6,13 @@ import 'app_dialog.dart';
 
 /// Outcome of the DB-corruption reset dialog.
 enum DbCorruptChoice {
+  /// User wants to retry the unlock path — config.security gets
+  /// cleared so the legacy-infer branch of `_initSecurity` runs
+  /// (master password / keychain / plaintext probe in sequence).
+  /// Caller is responsible for capping retries so a genuinely
+  /// corrupt file cannot loop forever.
+  tryOtherTier,
+
   /// User accepted the destructive reset — caller wipes every
   /// security file + DB + keychain entries, then drops into the
   /// first-launch wizard.
@@ -60,6 +67,10 @@ class DbCorruptDialog extends StatelessWidget {
         AppDialogAction.secondary(
           label: l10n.dbCorruptExit,
           onTap: () => Navigator.of(context).pop(DbCorruptChoice.exitApp),
+        ),
+        AppDialogAction.secondary(
+          label: l10n.dbCorruptTryOther,
+          onTap: () => Navigator.of(context).pop(DbCorruptChoice.tryOtherTier),
         ),
         AppDialogAction.destructive(
           label: l10n.dbCorruptResetContinue,

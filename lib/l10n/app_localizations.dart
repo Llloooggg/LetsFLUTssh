@@ -3627,6 +3627,12 @@ abstract class S {
   /// **'Reset will permanently delete the encrypted database and every security-related file. No data will be recovered.'**
   String get dbCorruptWarning;
 
+  /// No description provided for @dbCorruptTryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Try different credentials'**
+  String get dbCorruptTryOther;
+
   /// No description provided for @dbCorruptResetContinue.
   ///
   /// In en, this message translates to:

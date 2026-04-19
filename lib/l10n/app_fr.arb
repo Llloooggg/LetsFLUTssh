@@ -744,5 +744,6 @@
   "dbCorruptBody": "La base de données chiffrée sur le disque ne correspond pas au niveau de sécurité enregistré pour cette installation. Cela signifie généralement qu'une configuration précédente a été interrompue ou que les données proviennent d'une version avec un chiffrement différent.\n\nLetsFLUTssh ne peut pas continuer tant que la base n'est pas ouverte avec les bons identifiants d'une version compatible, ou effacée et reconfigurée.",
   "dbCorruptWarning": "La réinitialisation supprimera définitivement la base chiffrée et tous les fichiers liés à la sécurité. Aucune donnée ne sera récupérée.",
   "dbCorruptResetContinue": "Réinitialiser et configurer",
-  "dbCorruptExit": "Quitter LetsFLUTssh"
+  "dbCorruptExit": "Quitter LetsFLUTssh",
+  "dbCorruptTryOther": "Essayer d'autres identifiants"
 }

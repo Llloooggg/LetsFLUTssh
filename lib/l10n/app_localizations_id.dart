@@ -2043,6 +2043,9 @@ class SId extends S {
       'Reset akan menghapus basis data terenkripsi dan semua file terkait keamanan secara permanen. Tidak ada data yang dipulihkan.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Reset & Siapkan Ulang';
 
   @override

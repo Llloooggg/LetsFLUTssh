@@ -1977,6 +1977,9 @@ class SKo extends S {
       '재설정은 암호화된 데이터베이스와 모든 보안 관련 파일을 영구적으로 삭제합니다. 데이터는 복구되지 않습니다.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => '재설정 후 새로 설정';
 
   @override

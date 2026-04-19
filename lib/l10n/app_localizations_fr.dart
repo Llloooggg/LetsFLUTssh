@@ -2069,6 +2069,9 @@ class SFr extends S {
       'La réinitialisation supprimera définitivement la base chiffrée et tous les fichiers liés à la sécurité. Aucune donnée ne sera récupérée.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Réinitialiser et configurer';
 
   @override

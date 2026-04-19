@@ -2033,6 +2033,9 @@ class SFa extends S {
       'بازنشانی، پایگاه داده رمزگذاری‌شده و تمام فایل‌های مربوط به امنیت را برای همیشه حذف می‌کند. هیچ داده‌ای بازیابی نخواهد شد.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'بازنشانی و راه‌اندازی تازه';
 
   @override

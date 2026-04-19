@@ -2061,6 +2061,9 @@ class SEs extends S {
       'Restablecer eliminará permanentemente la base de datos cifrada y todos los archivos relacionados con la seguridad. No se recuperará ningún dato.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Restablecer y configurar';
 
   @override

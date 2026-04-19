@@ -2036,6 +2036,9 @@ class SAr extends S {
       'سيؤدي الإعادة إلى حذف قاعدة البيانات المشفرة وجميع الملفات المتعلقة بالأمان نهائيًا. لن تتم استعادة أي بيانات.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'إعادة تعيين وإعداد جديد';
 
   @override

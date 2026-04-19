@@ -2034,6 +2034,9 @@ class SEn extends S {
       'Reset will permanently delete the encrypted database and every security-related file. No data will be recovered.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Reset & Setup Fresh';
 
   @override

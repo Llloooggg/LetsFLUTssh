@@ -2064,6 +2064,9 @@ class SDe extends S {
       'Zurücksetzen löscht die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft. Keine Daten werden wiederhergestellt.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Zurücksetzen & neu einrichten';
 
   @override

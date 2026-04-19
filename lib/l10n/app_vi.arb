@@ -744,5 +744,6 @@
   "dbCorruptBody": "Cơ sở dữ liệu đã mã hóa trên đĩa không khớp với mức bảo mật được ghi lại cho cài đặt này. Thường có nghĩa là cài đặt trước đó bị gián đoạn hoặc dữ liệu thuộc bản dựng dùng cipher khác.\n\nLetsFLUTssh không thể tiếp tục cho đến khi cơ sở dữ liệu được mở bằng thông tin xác thực đúng của bản dựng tương ứng hoặc bị xóa và thiết lập lại.",
   "dbCorruptWarning": "Đặt lại sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tệp liên quan đến bảo mật. Không có dữ liệu nào được khôi phục.",
   "dbCorruptResetContinue": "Đặt lại & Cài đặt mới",
-  "dbCorruptExit": "Thoát LetsFLUTssh"
+  "dbCorruptExit": "Thoát LetsFLUTssh",
+  "dbCorruptTryOther": "Thử thông tin xác thực khác"
 }

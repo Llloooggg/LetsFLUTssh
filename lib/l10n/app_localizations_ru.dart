@@ -2049,6 +2049,9 @@ class SRu extends S {
       'Сброс навсегда удалит зашифрованную базу данных и все связанные с безопасностью файлы. Восстановить данные будет невозможно.';
 
   @override
+  String get dbCorruptTryOther => 'Try different credentials';
+
+  @override
   String get dbCorruptResetContinue => 'Сбросить и настроить заново';
 
   @override
