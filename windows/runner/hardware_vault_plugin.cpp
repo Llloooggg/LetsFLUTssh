@@ -19,7 +19,6 @@ using flutter::EncodableValue;
 using winrt::Windows::Foundation::IAsyncOperation;
 using winrt::Windows::Security::Credentials::KeyCredential;
 using winrt::Windows::Security::Credentials::KeyCredentialAttestationStatus;
-using winrt::Windows::Security::Credentials::KeyCredentialAvailability;
 using winrt::Windows::Security::Credentials::KeyCredentialCreationOption;
 using winrt::Windows::Security::Credentials::KeyCredentialManager;
 using winrt::Windows::Security::Credentials::KeyCredentialRetrievalResult;

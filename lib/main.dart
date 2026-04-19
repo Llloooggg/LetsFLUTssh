@@ -457,7 +457,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
             await _unlockParanoid(manager);
             return;
           case SecurityTier.plaintext:
-            _injectDatabase();
+            await _injectDatabase();
             AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
             return;
         }
@@ -484,7 +484,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           name: 'App',
         );
         _credentialsWereReset = true;
-        _injectDatabase();
+        await _injectDatabase();
         return;
       }
 
@@ -496,13 +496,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       // Keychain key exists — use it.
       final keychainKey = await keyStorage.readKey();
       if (keychainKey != null) {
-        _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+        await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
         AppLogger.instance.log('Keychain key loaded', name: 'App');
         return;
       }
 
       // DB exists but no encryption credentials — plaintext mode.
-      _injectDatabase();
+      await _injectDatabase();
       AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
       return;
     }
@@ -523,7 +523,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         biometricAttempted = true;
         final bioKey = await _tryBiometricUnlock();
         if (bioKey != null) {
-          _injectDatabase(key: bioKey, level: SecurityTier.paranoid);
+          await _injectDatabase(key: bioKey, level: SecurityTier.paranoid);
           AppLogger.instance.log(
             'Master password unlocked via biometrics',
             name: 'App',
@@ -538,11 +538,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       autoTriggerBiometric: !biometricAttempted,
     );
     if (derivedKey != null) {
-      _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
+      await _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
       AppLogger.instance.log('Master password unlocked', name: 'App');
     } else {
       _credentialsWereReset = true;
-      _injectDatabase();
+      await _injectDatabase();
       AppLogger.instance.log(
         'Master password reset — credentials cleared',
         name: 'App',
@@ -553,14 +553,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _unlockKeychain(SecureKeyStorage keyStorage) async {
     final keychainKey = await keyStorage.readKey();
     if (keychainKey != null) {
-      _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+      await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
       AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
       return;
     }
     // Configured for L1 but the keychain entry is gone — fall back
     // to plaintext so the user can still reach Settings and recover.
     _credentialsWereReset = true;
-    _injectDatabase();
+    await _injectDatabase();
     AppLogger.instance.log(
       'L1 configured but keychain entry missing — plaintext fallback',
       name: 'App',
@@ -574,7 +574,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.isConfigured()) {
       _credentialsWereReset = true;
-      _injectDatabase();
+      await _injectDatabase();
       AppLogger.instance.log(
         'L2 configured but gate state missing — plaintext fallback',
         name: 'App',
@@ -583,14 +583,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
     final key = await _showL2UnlockDialog(gate, keyStorage);
     if (key != null) {
-      _injectDatabase(
+      await _injectDatabase(
         key: Uint8List.fromList(key),
         level: SecurityTier.keychainWithPassword,
       );
       AppLogger.instance.log('L2 keychain+password unlocked', name: 'App');
       return;
     }
-    _injectDatabase();
+    await _injectDatabase();
     AppLogger.instance.log('L2 reset — plaintext fallback', name: 'App');
   }
 
@@ -640,7 +640,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final vault = ref.read(hardwareTierVaultProvider);
     if (!await vault.isStored()) {
       _credentialsWereReset = true;
-      _injectDatabase();
+      await _injectDatabase();
       AppLogger.instance.log(
         'L3 configured but vault state missing — plaintext fallback',
         name: 'App',
@@ -649,14 +649,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
     final key = await _showL3UnlockDialog(vault);
     if (key != null) {
-      _injectDatabase(
+      await _injectDatabase(
         key: Uint8List.fromList(key),
         level: SecurityTier.hardware,
       );
       AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
       return;
     }
-    _injectDatabase();
+    await _injectDatabase();
     AppLogger.instance.log('L3 reset — plaintext fallback', name: 'App');
   }
 
@@ -705,11 +705,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       case SecurityTier.paranoid:
         final password = result.masterPassword;
         if (password == null) {
-          _injectDatabase();
+          await _injectDatabase();
           return;
         }
         final key = await manager.enable(password);
-        _injectDatabase(key: key, level: SecurityTier.paranoid);
+        await _injectDatabase(key: key, level: SecurityTier.paranoid);
         AppLogger.instance.log(
           'First launch: master password (Paranoid) enabled',
           name: 'App',
@@ -723,26 +723,26 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         );
       case SecurityTier.keychain:
         if (!result.keychainAvailable) {
-          _injectDatabase();
+          await _injectDatabase();
           return;
         }
         final key = AesGcm.generateKey();
         final stored = await keyStorage.writeKey(key);
         if (stored) {
-          _injectDatabase(key: key, level: SecurityTier.keychain);
+          await _injectDatabase(key: key, level: SecurityTier.keychain);
           AppLogger.instance.log(
             'First launch: keychain encryption enabled',
             name: 'App',
           );
         } else {
-          _injectDatabase();
+          await _injectDatabase();
           AppLogger.instance.log(
             'First launch: keychain write failed, falling back to plaintext',
             name: 'App',
           );
         }
       case SecurityTier.plaintext:
-        _injectDatabase();
+        await _injectDatabase();
         AppLogger.instance.log(
           'First launch: plaintext mode (L0)',
           name: 'App',
@@ -757,7 +757,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     required String? shortPassword,
   }) async {
     if (shortPassword == null || shortPassword.isEmpty) {
-      _injectDatabase();
+      await _injectDatabase();
       return;
     }
     final gate = ref.read(keychainPasswordGateProvider);
@@ -765,7 +765,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final key = AesGcm.generateKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
-      _injectDatabase(key: key, level: SecurityTier.keychainWithPassword);
+      await _injectDatabase(key: key, level: SecurityTier.keychainWithPassword);
       AppLogger.instance.log(
         'First launch: keychain+password (L2) enabled',
         name: 'App',
@@ -773,7 +773,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       return;
     }
     await gate.clear();
-    _injectDatabase();
+    await _injectDatabase();
     AppLogger.instance.log(
       'First launch: L2 keychain write failed — plaintext fallback',
       name: 'App',
@@ -784,21 +784,21 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// under `HMAC(salt, pin)`, and open the DB with that key.
   Future<void> _firstLaunchHardware(String? pin) async {
     if (pin == null || pin.isEmpty) {
-      _injectDatabase();
+      await _injectDatabase();
       return;
     }
     final vault = ref.read(hardwareTierVaultProvider);
     final key = AesGcm.generateKey();
     final stored = await vault.store(dbKey: key, pin: pin);
     if (stored) {
-      _injectDatabase(key: key, level: SecurityTier.hardware);
+      await _injectDatabase(key: key, level: SecurityTier.hardware);
       AppLogger.instance.log(
         'First launch: hardware vault (L3) sealed',
         name: 'App',
       );
       return;
     }
-    _injectDatabase();
+    await _injectDatabase();
     AppLogger.instance.log(
       'First launch: hardware-vault seal failed — plaintext fallback',
       name: 'App',
@@ -813,10 +813,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   AppDatabase? _activeDatabase;
 
   /// Open the database (with optional encryption) and inject into all stores.
-  void _injectDatabase({
+  ///
+  /// Awaits `_persistSecurityTier` before returning so the next launch
+  /// always sees the resolved tier in `config.json`. A previous
+  /// fire-and-forget version raced the OS lifecycle on Android: the
+  /// app could be backgrounded after the first-launch wizard before
+  /// the atomic config write hit disk, leaving `security_tier`
+  /// missing on next launch and the unlock path silently downgrading
+  /// to plaintext.
+  Future<void> _injectDatabase({
     Uint8List? key,
     SecurityTier level = SecurityTier.plaintext,
-  }) {
+  }) async {
     final db = openDatabase(encryptionKey: key);
     _activeDatabase = db;
     ref.read(sessionStoreProvider).setDatabase(db);
@@ -828,12 +836,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
-    // Mirror the resolved level into `config.json` as the new
-    // `security_tier` field so the next launch's reset-detection
-    // predicate sees a non-null `SecurityConfig` and skips the
-    // TierResetDialog. Fire-and-forget: a failed persistence run is
-    // logged inside ConfigNotifier and never blocks unlock.
-    unawaited(_persistSecurityTier(level));
+    await _persistSecurityTier(level);
     // Auto-lock is loaded only after `_handleDatabaseCorruption`
     // confirms the DB is readable — firing it here would race the
     // probe and surface "file is not a database" through the global
