@@ -14,7 +14,7 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 
 | I'm about to... | MUST read first |
 |---|---|
-| Edit code in any module (before opening the file) | [AGENT_RULES § Docs First](docs/AGENT_RULES.md#docs-first--read-before-fix-drift-update-after) — read the mapped ARCHITECTURE § first; fix code-doc drift in the same commit |
+| Plan or edit code in any module (before drafting the plan or opening the file) | [AGENT_RULES § Docs First](docs/AGENT_RULES.md#docs-first--read-before-fix-drift-update-after) — read the mapped ARCHITECTURE § first; applies at planning too; fix code-doc drift in the same commit |
 | Write/edit any Dart code | [AGENT_RULES § Code Quality — SonarCloud](docs/AGENT_RULES.md#code-quality--sonarcloud) + [§ Conventions](docs/AGENT_RULES.md#conventions) |
 | Call API of an external package (dartssh2, drift, riverpod, xterm, …) | [AGENT_RULES § External Libraries & APIs](docs/AGENT_RULES.md#external-libraries--apis--look-up-dont-guess) — never guess signatures: grep repo → Context7 → web docs → pub-cache source |
 | Add a new dependency or feature needing an OS capability | [AGENT_RULES § Self-Contained Binary](docs/AGENT_RULES.md#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs (rung 3 permits opt-in end-user install) |
@@ -53,5 +53,5 @@ These apply to every response without re-reading:
 - **Think systemically** — consider full scope and side effects, not just the literal instruction.
 - **Ask before guessing UI placement** — if ambiguous, ask once upfront.
 - **Every change ships with docs + tests + translations** — incomplete commit otherwise.
-- **Docs first** — before editing code in a module, read the mapped `ARCHITECTURE §` via [AGENT_RULES § Within ARCHITECTURE.md](docs/AGENT_RULES.md#within-architecturemd). If you find code-doc drift, fix the doc in the same commit that reveals it — never extend a stale § with matching stale additions. Full rule: [AGENT_RULES § Docs First](docs/AGENT_RULES.md#docs-first--read-before-fix-drift-update-after).
+- **Docs first — planning and editing both** — before drafting a plan or editing code in a module, read the mapped `ARCHITECTURE §` via [AGENT_RULES § Within ARCHITECTURE.md](docs/AGENT_RULES.md#within-architecturemd). A plan written from grep-only knowledge is a plan that fights the architecture. If you find code-doc drift, fix the doc in the same commit that reveals it — never extend a stale § with matching stale additions. Full rule: [AGENT_RULES § Docs First](docs/AGENT_RULES.md#docs-first--read-before-fix-drift-update-after).
 - **Parallel agents** — only `git add` files YOU changed. Do NOT run tests — testing is the main process's job.
