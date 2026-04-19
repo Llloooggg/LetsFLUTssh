@@ -2397,39 +2397,20 @@ Text(S.of(context).nSessions(count))  // parameterized
 
 ### 9.1 SSH Connection Flow
 
-```
-User clicks session
-         │
-         ▼
-SessionConnect.connectTerminal(session)
-         │
-         ├── Session → SSHConfig (with credentials from CredentialStore)
-         │
-         ▼
-connectionManager.connectAsync(config)
-         │
-         ├── Creates Connection (state: connecting)
-         ├── Launches async _doConnect() in background
-         └── Returns Connection → UI
-                                      │
-_doConnect():                         │
-  1. SSHConnection.connect(onProgress) │
-     ├── onProgress(socketConnect.inProgress)
-     ├── TCP socket                   ▼
-     ├── onProgress(socketConnect.success)
-     ├── onProgress(hostKeyVerify.inProgress)
-     ├── Host key verify     UI: tabProvider.addTerminalTab(connection)
-     ├── onProgress(hostKeyVerify.success)         │
-     ├── onProgress(authenticate.inProgress)       ▼
-     ├── Auth chain          TerminalPane subscribes to progressStream
-     └── onProgress(authenticate.success)          │
-  2. Success:                          ▼
-     ├── state = connected   TerminalPane: clear terminal → openShell()
-     └── completeReady()                            → xterm pipe
-  3. Failure:
-     ├── connectionError     TerminalPane: progress log stays visible
-     ├── state = disconnected         with error text in terminal buffer
-     └── completeReady()
+```mermaid
+flowchart TD
+    u[User clicks session]
+    u --> sc["SessionConnect.connectTerminal(session)<br/>Session → SSHConfig (credentials from CredentialStore)"]
+    sc --> cm["connectionManager.connectAsync(config)<br/>Creates Connection (state: connecting)<br/>Launches async _doConnect()<br/>Returns Connection → UI"]
+    cm --> tab["UI: tabProvider.addTerminalTab(connection)<br/>TerminalPane subscribes to progressStream"]
+    cm --> dc["_doConnect() async:<br/>SSHConnection.connect(onProgress)<br/>emits steps: socketConnect → hostKeyVerify → authenticate"]
+    dc --> r{outcome}
+    r -->|success| ok["state = connected + completeReady()"]
+    r -->|failure| err["connectionError, state = disconnected<br/>+ completeReady()"]
+    ok --> okui["TerminalPane: clear terminal → openShell() → xterm pipe"]
+    err --> errui["TerminalPane: progress log stays visible with error"]
+    tab -.->|via progressStream| okui
+    tab -.->|via progressStream| errui
 ```
 
 **Progress pipeline:** `SSHConnection.connect()` accepts an `onProgress` callback that emits `ConnectionStep` events at each phase boundary. `ConnectionManager._doConnect()` forwards these to `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
@@ -2438,83 +2419,46 @@ _doConnect():                         │
 
 ### 9.2 SFTP Init Flow
 
-```
-FileBrowserTab.initState()
-         │
-         ├── Shows ConnectionProgress widget (subscribes to progressStream)
-         ├── await connection.waitUntilReady()
-         │
-         ▼
-SFTPInitializer.init(connection)
-         │
-         ├── [Android] _requestStoragePermission()
-         │     ├── Quick-check /storage/emulated/0
-         │     └── MethodChannel → MainActivity.kt
-         │           ├── API 30+: ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
-         │           └── API <30: READ/WRITE_EXTERNAL_STORAGE runtime dialog
-         │
-         ├── connection.sshConnection.client.sftp()  → SftpClient
-         │
-         ├── LocalFS(homeDirectory)  → FilePaneController (local)
-         └── RemoteFS(SFTPService)   → FilePaneController (remote)
-                                              │
-                                              ▼
-                                     FilePane(controller) × 2
+```mermaid
+flowchart TD
+    fb["FileBrowserTab.initState()<br/>Shows ConnectionProgress widget<br/>await connection.waitUntilReady()"]
+    fb --> init["SFTPInitializer.init(connection)"]
+    init -->|Android only| perm["_requestStoragePermission()<br/>Quick-check /storage/emulated/0<br/>MethodChannel → MainActivity.kt"]
+    perm --> api["API 30+: MANAGE_APP_ALL_FILES_ACCESS_PERMISSION<br/>API &lt;30: READ/WRITE_EXTERNAL_STORAGE dialog"]
+    init --> cli["connection.sshConnection.client.sftp() → SftpClient"]
+    cli --> local["LocalFS(homeDirectory) → FilePaneController (local)"]
+    cli --> remote["RemoteFS(SFTPService) → FilePaneController (remote)"]
+    local --> pane["FilePane(controller) × 2"]
+    remote --> pane
 ```
 
 ### 9.3 Session CRUD Flow
 
-```
-UI → sessionProvider.add(session)
-         │
-         ├── SessionStore.add(session)
-         │     ├── Adds to list
-         │     └── SessionStore.save()
-         │           ├── sessions.json (metadata, atomic write)
-         │           └── credentials.enc (AES-256-GCM, atomic write)
-         │
-         ├── SessionHistory.push(snapshot)  ← undo support
-         │
-         └── state = [...state, session]
-                      │
-                      ▼
-              sessionTreeProvider recomputes
-              filteredSessionsProvider recomputes
-              UI rebuilds
+```mermaid
+flowchart TD
+    ui["UI → sessionProvider.add(session)"]
+    ui --> add["SessionStore.add(session)<br/>Adds to list → SessionStore.save()"]
+    add --> meta["sessions.json<br/>metadata, atomic write"]
+    add --> creds["credentials.enc<br/>AES-256-GCM, atomic write"]
+    ui --> hist["SessionHistory.push(snapshot)<br/>undo support"]
+    ui --> st["state = [...state, session]"]
+    st --> rc["sessionTreeProvider recomputes<br/>filteredSessionsProvider recomputes<br/>UI rebuilds"]
 ```
 
 ### 9.4 File Transfer Flow
 
-```
-User drags file between panes
-         │
-         ▼
-FileActions.transfer(source, target, direction)
-         │
-         ├── Creates TransferTask(name, direction, paths, size, run)
-         │     run = async (progressCallback) {
-         │       SFTPService.uploadFile/downloadFile(from, to, progressCallback)
-         │     }
-         │
-         ▼
-transferManager.enqueue(task)
-         │
-         ├── Adds to queue
-         ├── If workers < max → starts a worker
-         │
-         ▼
-Worker:
-  ├── task.state = running
-  ├── task.run(progressCallback)
-  │     progressCallback checks:
-  │       - cancelled? → throw CancelException
-  │       - timeout? → throw TimeoutException
-  │       - updates progress %
-  ├── Success → HistoryEntry(completed)
-  └── Failure → HistoryEntry(failed, error)
-         │
-         ▼
-Streams → UI updates (TransferPanel)
+```mermaid
+flowchart TD
+    drag["User drags file between panes"]
+    drag --> fa["FileActions.transfer(source, target, direction)<br/>Creates TransferTask(name, direction, paths, size, run)<br/>run wraps SFTPService.uploadFile/downloadFile"]
+    fa --> enq["transferManager.enqueue(task)<br/>Adds to queue<br/>If workers &lt; max → starts a worker"]
+    enq --> w["Worker:<br/>task.state = running<br/>task.run(progressCallback)"]
+    w --> cb["progressCallback checks:<br/>cancelled? → CancelException<br/>timeout? → TimeoutException<br/>updates progress %"]
+    cb --> r{outcome}
+    r -->|success| ok["HistoryEntry(completed)"]
+    r -->|failure| err["HistoryEntry(failed, error)"]
+    ok --> strm["Streams → UI updates (TransferPanel)"]
+    err --> strm
 ```
 
 ---
@@ -2836,12 +2780,12 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 
 ### Master password
 
-```
-User password → Argon2id(m=46 MiB, t=2, p=1, 32-byte salt) → 256-bit key
-                                                                  │
-                                                                  ▼
-                                                         letsflutssh.db
-                                                    (PRAGMA key = "x'hex'")
+```mermaid
+flowchart LR
+    pw["User password"]
+    pw --> kdf["Argon2id<br/>m=46 MiB, t=2, p=1<br/>32-byte salt"]
+    kdf --> k["256-bit key"]
+    k --> db["letsflutssh.db<br/>PRAGMA key = x'hex'"]
 ```
 
 - **Detection:** `credentials.kdf` exists (or legacy `credentials.salt` — routes through `LegacyKdfDialog`)
@@ -3086,44 +3030,25 @@ Two branches: **`dev`** (daily work) and **`main`** (releases only).
 
 ### 15.2 Workflow Graph
 
-```
-push to dev/main or PR
-  │
-  ├─► ci.yml                 (always runs — no path filters)
-  │     analyze + test + coverage
-  │           │
-  │           ├─► ci-sonarcloud.yml   (workflow_run[CI], non-fork only)
-  │           │     quality + coverage scan
-  │           │
-  │           └─► ci-auto-tag.yml     (workflow_run[CI], main only)
-  │                 reads version from pubspec.yaml
-  │                 tag exists → skip / new version → create tag
-  │                       │
-  │                       └─► build-release.yml    "Build & Release"  (tags: v*)
-  │                             build all platforms
-  │                             → GitHub Release + SLSA attestation
-  │
-  ├─► cfl-fuzz.yml             (push main / PR to main)
-  │     cfl-fuzz
-  │
-  ├─► osv.yml                 (main push + PR + weekly)
-  ├─► codeql.yml              (main push + PR + weekly)
-  ├─► semgrep.yml             (main push + PR + weekly)
-  └─► scorecard.yml            (main push + weekly)
+```mermaid
+flowchart TD
+    p["push to dev/main or PR"]
+    p --> ci["ci.yml<br/>always runs — no path filters<br/>analyze + test + coverage"]
+    ci --> sonar["ci-sonarcloud.yml<br/>workflow_run[CI], non-fork only<br/>quality + coverage scan"]
+    ci --> tag["ci-auto-tag.yml<br/>workflow_run[CI], main only<br/>reads version from pubspec.yaml<br/>tag exists → skip / new version → create tag"]
+    tag --> rel["build-release.yml (tags: v*)<br/>build all platforms<br/>GitHub Release + SLSA attestation"]
+    p --> fuzz["cfl-fuzz.yml<br/>push main / PR to main"]
+    p --> sec["osv.yml / codeql.yml / semgrep.yml<br/>main push + PR + weekly"]
+    p --> sco["scorecard.yml<br/>main push + weekly"]
 
-Dependabot PR (into main)
-  │
-  └─► dependabot-auto.yml → bump version in PR branch → auto-merge
-        └─► ci.yml → ci-auto-tag.yml → build-release.yml → Release
+    dep["Dependabot PR (into main)"]
+    dep --> da["dependabot-auto.yml<br/>bump version in PR branch → auto-merge<br/>→ ci.yml → ci-auto-tag.yml → build-release.yml → Release"]
 
-Version bump (on dev, before PR)
-  │
-  └─► scripts/bump-version.sh → parse commits → bump pubspec.yaml → commit
+    bump["Version bump (on dev, before PR)"]
+    bump --> bs["scripts/bump-version.sh<br/>parse commits → bump pubspec.yaml → commit"]
 
-Manual build
-  │
-  └─► gh workflow run build-release.yml
-        CI not passed? → fail immediately (no polling)
+    man["Manual build"]
+    man --> mb["gh workflow run build-release.yml<br/>CI not passed? → fail immediately (no polling)"]
 ```
 
 ### 15.3 Workflow Catalog

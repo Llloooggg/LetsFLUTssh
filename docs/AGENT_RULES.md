@@ -203,6 +203,20 @@ OneDark theme: centralized in `app_theme.dart`, semantic color constants, no har
 ### Localization (i18n)
 All user-facing strings MUST use `S.of(context).xxx`. Never hardcode strings in widgets — treat this as a bug. Add keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, use `S.of(context).newKey`. Exceptions: constructor defaults (no context), log messages, `_AlreadyRunningApp`. Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See [§8.1 i18n](ARCHITECTURE.md#81-internationalization-i18n)
 
+### Diagrams in Docs — Mermaid, Not ASCII Box-Art
+Every diagram in `docs/**/*.md`, `README.md`, `SECURITY.md` and any other git-tracked markdown MUST be a ` ```mermaid ` fenced block (`flowchart`, `stateDiagram-v2`, `sequenceDiagram`, `classDiagram`, etc.). GitHub renders these as SVG; plain ASCII `┌─┐`/`└─┘` box-art gets dumped as monospace and breaks on narrow viewports — do not write new ones. When editing an existing ASCII diagram, convert it to Mermaid in the same commit.
+
+**Scope — what this rule covers:**
+- **Diagrams** (nodes + arrows, layered boxes, state graphs, flows) → Mermaid.
+- **Single-box info cards** (just "here are the fields of this object") → plain markdown bullets, not a box.
+
+**Scope — what this rule does NOT cover:**
+- **Directory trees** (`├── core/` / `└── utils/`) — keep as plain fenced blocks. They read fine in monospace and Mermaid is worse for deep trees.
+- **Pipe tables** (`| col | col |`) — GitHub already renders these as HTML tables; leave them alone.
+- **Code blocks** (`` ```dart ``, `` ```bash ``, output dumps) — unchanged.
+
+The raw-text trade-off is accepted: a Mermaid source block is readable as a node+edge listing in `cat`/`less`/IDE, the SVG is the GitHub-web benefit. Do not add ASCII "fallbacks" via `<details>` — that doubles the source and rots under edits.
+
 ## Code Quality — SonarCloud
 
 All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit that touches Dart code. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden, always fix the root cause.
