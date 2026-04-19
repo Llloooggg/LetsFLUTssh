@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Сбросить всё",
   "resetAllDataInProgress": "Сброс…",
   "resetAllDataDone": "Все данные сброшены",
-  "resetAllDataFailed": "Не удалось выполнить сброс"
+  "resetAllDataFailed": "Не удалось выполнить сброс",
+
+  "securitySetupContinue": "Продолжить",
+  "currentTierBadge": "ТЕКУЩИЙ",
+  "paranoidAlternativeHeader": "АЛЬТЕРНАТИВА",
+
+  "modifierPasswordLabel": "Пароль",
+  "modifierPasswordSubtitle": "Вводимый секрет — барьер перед разблокировкой хранилища.",
+  "modifierBiometricLabel": "Биометрический ярлык",
+  "modifierBiometricSubtitle": "Получение пароля из биометрически защищённого слота ОС вместо ввода вручную.",
+  "biometricRequiresPassword": "Сначала включите пароль — биометрия это ярлык для его ввода.",
+  "biometricForbiddenParanoid": "Paranoid не допускает биометрию по замыслу.",
+  "fprintdNotAvailable": "fprintd не установлен или нет зарегистрированного отпечатка.",
+
+  "linuxTpmWithoutPasswordNote": "TPM без пароля обеспечивает изоляцию, но не аутентификацию. Любой, кто может запустить это приложение, сможет разблокировать данные.",
+  "paranoidMasterPasswordNote": "Настоятельно рекомендуется длинная парольная фраза — Argon2id лишь замедляет перебор, но не блокирует его.",
+
+  "plaintextWarningTitle": "Открытый текст: без шифрования",
+  "plaintextWarningBody": "Сессии, ключи и known hosts будут храниться без шифрования. Любой, у кого есть доступ к файловой системе этого компьютера, сможет их прочитать.",
+  "plaintextAcknowledge": "Я понимаю, что мои данные не будут зашифрованы",
+  "plaintextAcknowledgeRequired": "Подтвердите понимание, прежде чем продолжить.",
+
+  "passwordLabel": "Пароль",
+  "masterPasswordLabel": "Мастер-пароль"
 }

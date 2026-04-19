@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "إعادة تعيين كل شيء",
   "resetAllDataInProgress": "جارٍ إعادة التعيين…",
   "resetAllDataDone": "تمت إعادة تعيين جميع البيانات",
-  "resetAllDataFailed": "فشلت إعادة التعيين"
+  "resetAllDataFailed": "فشلت إعادة التعيين",
+
+  "securitySetupContinue": "متابعة",
+  "currentTierBadge": "الحالي",
+  "paranoidAlternativeHeader": "بديل",
+
+  "modifierPasswordLabel": "كلمة المرور",
+  "modifierPasswordSubtitle": "حاجز سري يُكتب قبل فتح القبو.",
+  "modifierBiometricLabel": "اختصار بصمة",
+  "modifierBiometricSubtitle": "إخراج كلمة المرور من فتحة نظام محمية ببصمة بدلاً من كتابتها يدويًا.",
+  "biometricRequiresPassword": "فعّل كلمة مرور أولاً — البصمة مجرد اختصار لإدخالها.",
+  "biometricForbiddenParanoid": "مستوى Paranoid لا يسمح بالبصمة بحكم التصميم.",
+  "fprintdNotAvailable": "لم يتم تثبيت fprintd أو لا توجد بصمة مسجلة.",
+
+  "linuxTpmWithoutPasswordNote": "يوفر TPM بدون كلمة مرور عزلًا وليس مصادقة. أي شخص يستطيع تشغيل هذا التطبيق يمكنه فتح البيانات.",
+  "paranoidMasterPasswordNote": "يُنصح بشدة بعبارة مرور طويلة — Argon2id يبطئ القوة الغاشمة فقط ولا يمنعها.",
+
+  "plaintextWarningTitle": "نص صريح: بدون تشفير",
+  "plaintextWarningBody": "ستُخزَّن الجلسات والمفاتيح و known hosts بدون تشفير. أي شخص لديه وصول إلى نظام ملفات هذا الحاسوب يمكنه قراءتها.",
+  "plaintextAcknowledge": "أفهم أن بياناتي لن تكون مشفّرة",
+  "plaintextAcknowledgeRequired": "أكّد فهمك قبل المتابعة.",
+
+  "passwordLabel": "كلمة المرور",
+  "masterPasswordLabel": "كلمة المرور الرئيسية"
 }

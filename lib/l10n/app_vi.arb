@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Đặt lại tất cả",
   "resetAllDataInProgress": "Đang đặt lại…",
   "resetAllDataDone": "Đã đặt lại toàn bộ dữ liệu",
-  "resetAllDataFailed": "Đặt lại thất bại"
+  "resetAllDataFailed": "Đặt lại thất bại",
+
+  "securitySetupContinue": "Tiếp tục",
+  "currentTierBadge": "HIỆN TẠI",
+  "paranoidAlternativeHeader": "THAY THẾ",
+
+  "modifierPasswordLabel": "Mật khẩu",
+  "modifierPasswordSubtitle": "Cổng bí mật cần gõ trước khi mở két dữ liệu.",
+  "modifierBiometricLabel": "Lối tắt sinh trắc",
+  "modifierBiometricSubtitle": "Lấy mật khẩu từ một khe hệ điều hành được bảo vệ bằng sinh trắc học, thay vì gõ nó.",
+  "biometricRequiresPassword": "Hãy bật mật khẩu trước — sinh trắc chỉ là lối tắt để nhập mật khẩu.",
+  "biometricForbiddenParanoid": "Mức Paranoid không cho phép sinh trắc theo thiết kế.",
+  "fprintdNotAvailable": "fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.",
+
+  "linuxTpmWithoutPasswordNote": "TPM không có mật khẩu chỉ cung cấp sự cô lập, không phải xác thực. Bất kỳ ai có thể chạy ứng dụng này đều có thể mở khóa dữ liệu.",
+  "paranoidMasterPasswordNote": "Rất khuyến nghị dùng cụm mật khẩu dài — Argon2id chỉ làm chậm tấn công vét cạn, không ngăn chặn được.",
+
+  "plaintextWarningTitle": "Văn bản thuần: không mã hóa",
+  "plaintextWarningBody": "Phiên, khóa và known hosts sẽ được lưu mà không mã hóa. Bất kỳ ai có quyền truy cập vào hệ thống tệp của máy tính này đều có thể đọc chúng.",
+  "plaintextAcknowledge": "Tôi hiểu rằng dữ liệu của tôi sẽ không được mã hóa",
+  "plaintextAcknowledgeRequired": "Xác nhận bạn đã hiểu trước khi tiếp tục.",
+
+  "passwordLabel": "Mật khẩu",
+  "masterPasswordLabel": "Mật khẩu chính"
 }

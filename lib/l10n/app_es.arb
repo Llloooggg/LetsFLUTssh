@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Restablecer todo",
   "resetAllDataInProgress": "Restableciendo…",
   "resetAllDataDone": "Todos los datos restablecidos",
-  "resetAllDataFailed": "Error al restablecer"
+  "resetAllDataFailed": "Error al restablecer",
+
+  "securitySetupContinue": "Continuar",
+  "currentTierBadge": "ACTUAL",
+  "paranoidAlternativeHeader": "ALTERNATIVA",
+
+  "modifierPasswordLabel": "Contraseña",
+  "modifierPasswordSubtitle": "Barrera de secreto escrito antes de desbloquear la bóveda.",
+  "modifierBiometricLabel": "Atajo biométrico",
+  "modifierBiometricSubtitle": "Liberar la contraseña de una ranura del sistema protegida por biometría, en lugar de escribirla.",
+  "biometricRequiresPassword": "Active primero una contraseña — la biometría es un atajo para introducirla.",
+  "biometricForbiddenParanoid": "Paranoid no permite biometría por diseño.",
+  "fprintdNotAvailable": "fprintd no instalado o sin huellas registradas.",
+
+  "linuxTpmWithoutPasswordNote": "El TPM sin contraseña proporciona aislamiento, no autenticación. Cualquier persona que pueda ejecutar esta aplicación puede desbloquear los datos.",
+  "paranoidMasterPasswordNote": "Se recomienda encarecidamente una frase de contraseña larga — Argon2id solo ralentiza la fuerza bruta, no la impide.",
+
+  "plaintextWarningTitle": "Texto plano: sin cifrado",
+  "plaintextWarningBody": "Las sesiones, claves y known hosts se almacenarán sin cifrar. Cualquier persona con acceso al sistema de archivos de este equipo podrá leerlos.",
+  "plaintextAcknowledge": "Entiendo que mis datos no estarán cifrados",
+  "plaintextAcknowledgeRequired": "Confirme que lo entiende antes de continuar.",
+
+  "passwordLabel": "Contraseña",
+  "masterPasswordLabel": "Contraseña maestra"
 }

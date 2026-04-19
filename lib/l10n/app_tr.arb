@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Her şeyi sıfırla",
   "resetAllDataInProgress": "Sıfırlanıyor…",
   "resetAllDataDone": "Tüm veriler sıfırlandı",
-  "resetAllDataFailed": "Sıfırlama başarısız"
+  "resetAllDataFailed": "Sıfırlama başarısız",
+
+  "securitySetupContinue": "Devam",
+  "currentTierBadge": "GEÇERLİ",
+  "paranoidAlternativeHeader": "ALTERNATİF",
+
+  "modifierPasswordLabel": "Parola",
+  "modifierPasswordSubtitle": "Kasa açılmadan önce yazılan gizli geçiş kapısı.",
+  "modifierBiometricLabel": "Biyometrik kısayol",
+  "modifierBiometricSubtitle": "Parolayı yazmak yerine biyometrik korumalı bir OS yuvasından alır.",
+  "biometricRequiresPassword": "Önce bir parola etkinleştirin — biyometri yalnızca onu girmek için bir kısayoldur.",
+  "biometricForbiddenParanoid": "Paranoid seviyesi tasarım gereği biyometriye izin vermez.",
+  "fprintdNotAvailable": "fprintd kurulu değil veya kayıtlı parmak izi yok.",
+
+  "linuxTpmWithoutPasswordNote": "Parolasız TPM izolasyon sağlar, kimlik doğrulama sağlamaz. Bu uygulamayı çalıştırabilen herkes veriyi açabilir.",
+  "paranoidMasterPasswordNote": "Uzun bir parola ifadesi kesinlikle önerilir — Argon2id kaba kuvvet saldırısını yalnızca yavaşlatır, engellemez.",
+
+  "plaintextWarningTitle": "Düz metin: şifreleme yok",
+  "plaintextWarningBody": "Oturumlar, anahtarlar ve known hosts şifrelenmeden saklanacak. Bu bilgisayarın dosya sistemine erişebilen herkes bunları okuyabilir.",
+  "plaintextAcknowledge": "Verilerimin şifrelenmeyeceğini anlıyorum",
+  "plaintextAcknowledgeRequired": "Devam etmeden önce anladığınızı onaylayın.",
+
+  "passwordLabel": "Parola",
+  "masterPasswordLabel": "Ana parola"
 }

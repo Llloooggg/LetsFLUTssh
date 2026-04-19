@@ -2523,4 +2523,68 @@ class SVi extends S {
 
   @override
   String get resetAllDataFailed => 'Đặt lại thất bại';
+
+  @override
+  String get securitySetupContinue => 'Tiếp tục';
+
+  @override
+  String get currentTierBadge => 'HIỆN TẠI';
+
+  @override
+  String get paranoidAlternativeHeader => 'THAY THẾ';
+
+  @override
+  String get modifierPasswordLabel => 'Mật khẩu';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Cổng bí mật cần gõ trước khi mở két dữ liệu.';
+
+  @override
+  String get modifierBiometricLabel => 'Lối tắt sinh trắc';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Lấy mật khẩu từ một khe hệ điều hành được bảo vệ bằng sinh trắc học, thay vì gõ nó.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Hãy bật mật khẩu trước — sinh trắc chỉ là lối tắt để nhập mật khẩu.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Mức Paranoid không cho phép sinh trắc theo thiết kế.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM không có mật khẩu chỉ cung cấp sự cô lập, không phải xác thực. Bất kỳ ai có thể chạy ứng dụng này đều có thể mở khóa dữ liệu.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Rất khuyến nghị dùng cụm mật khẩu dài — Argon2id chỉ làm chậm tấn công vét cạn, không ngăn chặn được.';
+
+  @override
+  String get plaintextWarningTitle => 'Văn bản thuần: không mã hóa';
+
+  @override
+  String get plaintextWarningBody =>
+      'Phiên, khóa và known hosts sẽ được lưu mà không mã hóa. Bất kỳ ai có quyền truy cập vào hệ thống tệp của máy tính này đều có thể đọc chúng.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Tôi hiểu rằng dữ liệu của tôi sẽ không được mã hóa';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Xác nhận bạn đã hiểu trước khi tiếp tục.';
+
+  @override
+  String get passwordLabel => 'Mật khẩu';
+
+  @override
+  String get masterPasswordLabel => 'Mật khẩu chính';
 }

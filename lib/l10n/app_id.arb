@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Reset semuanya",
   "resetAllDataInProgress": "Mereset…",
   "resetAllDataDone": "Semua data telah direset",
-  "resetAllDataFailed": "Reset gagal"
+  "resetAllDataFailed": "Reset gagal",
+
+  "securitySetupContinue": "Lanjutkan",
+  "currentTierBadge": "SAAT INI",
+  "paranoidAlternativeHeader": "ALTERNATIF",
+
+  "modifierPasswordLabel": "Kata sandi",
+  "modifierPasswordSubtitle": "Gerbang rahasia yang diketik sebelum brankas dibuka.",
+  "modifierBiometricLabel": "Pintasan biometrik",
+  "modifierBiometricSubtitle": "Melepas kata sandi dari slot OS yang dilindungi biometrik, alih-alih mengetiknya.",
+  "biometricRequiresPassword": "Aktifkan kata sandi terlebih dahulu — biometrik hanya pintasan untuk memasukkannya.",
+  "biometricForbiddenParanoid": "Paranoid tidak mengizinkan biometrik secara desain.",
+  "fprintdNotAvailable": "fprintd belum diinstal atau tidak ada sidik jari terdaftar.",
+
+  "linuxTpmWithoutPasswordNote": "TPM tanpa kata sandi menyediakan isolasi, bukan autentikasi. Siapa pun yang dapat menjalankan aplikasi ini dapat membuka data.",
+  "paranoidMasterPasswordNote": "Sangat disarankan menggunakan frasa sandi yang panjang — Argon2id hanya memperlambat serangan brute force, bukan memblokirnya.",
+
+  "plaintextWarningTitle": "Teks polos: tanpa enkripsi",
+  "plaintextWarningBody": "Sesi, kunci, dan known hosts akan disimpan tanpa enkripsi. Siapa pun yang memiliki akses ke sistem file komputer ini dapat membacanya.",
+  "plaintextAcknowledge": "Saya memahami bahwa data saya tidak akan dienkripsi",
+  "plaintextAcknowledgeRequired": "Konfirmasikan pemahaman Anda sebelum melanjutkan.",
+
+  "passwordLabel": "Kata sandi",
+  "masterPasswordLabel": "Kata sandi utama"
 }

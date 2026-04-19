@@ -2564,4 +2564,68 @@ class SDe extends S {
 
   @override
   String get resetAllDataFailed => 'Zurücksetzen fehlgeschlagen';
+
+  @override
+  String get securitySetupContinue => 'Weiter';
+
+  @override
+  String get currentTierBadge => 'AKTUELL';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIVE';
+
+  @override
+  String get modifierPasswordLabel => 'Passwort';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Eingetippte Geheimnis-Schranke vor dem Entsperren des Tresors.';
+
+  @override
+  String get modifierBiometricLabel => 'Biometrische Verknüpfung';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Das Passwort aus einem biometrisch gesicherten OS-Slot entnehmen, statt es einzutippen.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Aktivieren Sie zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid erlaubt Biometrie per Design nicht.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd ist nicht installiert oder kein Finger registriert.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'Ein TPM ohne Passwort bietet Isolation, keine Authentifizierung. Wer diese App ausführen kann, kann die Daten entsperren.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Eine lange Passphrase wird dringend empfohlen — Argon2id verlangsamt Brute-Force nur, blockiert es aber nicht.';
+
+  @override
+  String get plaintextWarningTitle => 'Klartext: keine Verschlüsselung';
+
+  @override
+  String get plaintextWarningBody =>
+      'Sitzungen, Schlüssel und known hosts werden ohne Verschlüsselung gespeichert. Jeder mit Zugriff auf das Dateisystem dieses Computers kann sie lesen.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Ich verstehe, dass meine Daten nicht verschlüsselt werden';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Bestätigen Sie, dass Sie es verstanden haben, bevor Sie fortfahren.';
+
+  @override
+  String get passwordLabel => 'Passwort';
+
+  @override
+  String get masterPasswordLabel => 'Master-Passwort';
 }

@@ -2439,4 +2439,61 @@ class SZh extends S {
 
   @override
   String get resetAllDataFailed => '重置失败';
+
+  @override
+  String get securitySetupContinue => '继续';
+
+  @override
+  String get currentTierBadge => '当前';
+
+  @override
+  String get paranoidAlternativeHeader => '备选';
+
+  @override
+  String get modifierPasswordLabel => '密码';
+
+  @override
+  String get modifierPasswordSubtitle => '解锁保险库前需要输入的密钥门槛。';
+
+  @override
+  String get modifierBiometricLabel => '生物识别快捷方式';
+
+  @override
+  String get modifierBiometricSubtitle => '从受生物识别保护的系统槽位中获取密码，无需手动输入。';
+
+  @override
+  String get biometricRequiresPassword => '请先启用密码——生物识别只是输入密码的快捷方式。';
+
+  @override
+  String get biometricForbiddenParanoid => 'Paranoid 级别按设计不允许使用生物识别。';
+
+  @override
+  String get fprintdNotAvailable => '未安装 fprintd 或未登记指纹。';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      '没有密码的 TPM 仅提供隔离，而非身份验证。任何能运行此应用的人都可以解锁数据。';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      '强烈建议使用较长的口令——Argon2id 只能减慢暴力破解，无法阻止它。';
+
+  @override
+  String get plaintextWarningTitle => '明文：无加密';
+
+  @override
+  String get plaintextWarningBody =>
+      '会话、密钥和 known hosts 将以未加密方式保存。任何能访问本机文件系统的人都可以读取它们。';
+
+  @override
+  String get plaintextAcknowledge => '我了解我的数据不会被加密';
+
+  @override
+  String get plaintextAcknowledgeRequired => '在继续之前请确认您已了解。';
+
+  @override
+  String get passwordLabel => '密码';
+
+  @override
+  String get masterPasswordLabel => '主密码';
 }

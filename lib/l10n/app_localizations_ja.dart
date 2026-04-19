@@ -2461,4 +2461,63 @@ class SJa extends S {
 
   @override
   String get resetAllDataFailed => 'リセットに失敗しました';
+
+  @override
+  String get securitySetupContinue => '続行';
+
+  @override
+  String get currentTierBadge => '現在';
+
+  @override
+  String get paranoidAlternativeHeader => '代替';
+
+  @override
+  String get modifierPasswordLabel => 'パスワード';
+
+  @override
+  String get modifierPasswordSubtitle => 'ボールト解錠前に入力する秘密のゲート。';
+
+  @override
+  String get modifierBiometricLabel => '生体認証ショートカット';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'パスワードを入力する代わりに、生体認証で保護されたOSスロットから取り出します。';
+
+  @override
+  String get biometricRequiresPassword =>
+      '先にパスワードを有効にしてください — 生体認証は入力のショートカットです。';
+
+  @override
+  String get biometricForbiddenParanoid => 'Paranoid は設計上、生体認証を許可しません。';
+
+  @override
+  String get fprintdNotAvailable => 'fprintd がインストールされていないか、指紋が登録されていません。';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを解錠できます。';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      '長いパスフレーズを強く推奨します — Argon2id は総当たり攻撃を遅らせるだけで、阻止はできません。';
+
+  @override
+  String get plaintextWarningTitle => '平文：暗号化なし';
+
+  @override
+  String get plaintextWarningBody =>
+      'セッション、鍵、known hosts は暗号化されずに保存されます。このコンピュータのファイルシステムにアクセスできる人なら誰でも読み取れます。';
+
+  @override
+  String get plaintextAcknowledge => 'データが暗号化されないことを理解しました';
+
+  @override
+  String get plaintextAcknowledgeRequired => '続行する前に理解したことを確認してください。';
+
+  @override
+  String get passwordLabel => 'パスワード';
+
+  @override
+  String get masterPasswordLabel => 'マスターパスワード';
 }

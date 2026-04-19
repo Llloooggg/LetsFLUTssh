@@ -42,37 +42,66 @@ enum SecurityTier {
   paranoid,
 }
 
-/// Orthogonal per-tier switches. Not every modifier applies to every
-/// tier: `biometricShortcut` is ignored on `plaintext` and `paranoid`.
+/// Orthogonal per-tier switches.
+///
+/// The bank-style modifier shape that Phase E/F lands on: `password`
+/// and `biometric` are the two orthogonal switches the wizard
+/// presents. `biometric` requires `password` (biometric is a shortcut
+/// for entering the password, never its replacement).
+///
+/// `biometricShortcut` + `pinLength` are retained for the transition
+/// window: existing persisted configs carry those fields, and some
+/// call sites still read them. `biometricShortcut` is kept in sync
+/// with `biometric` by the wizard so both readers see the same flag.
 class SecurityTierModifiers {
-  /// Enable biometric as an alternative unlock path on L1/L2/L3.
-  /// Hardware tier treats it as "replace PIN entry with a biometric
-  /// prompt for the current unlock attempt"; keychain tiers treat it
-  /// as "use biometric-gated keychain read instead of bare read".
-  /// Requires the platform to actually have biometric hardware
-  /// enrolled — the Settings row is disabled with a reason tooltip
-  /// when the probe fails.
+  /// User-typed password gate on the unlock path. Bank-style primary
+  /// auth. Structurally irrelevant on `plaintext`; on `paranoid` the
+  /// password is mandatory (the whole tier is derived from it) and
+  /// this flag is implied-true.
+  final bool password;
+
+  /// Biometric shortcut that releases the stored password from a
+  /// biometric-gated OS slot. Invariant: `biometric → password`
+  /// (biometric cannot replace the typed password, only spare the
+  /// user from typing it). Disabled in the UI when `password` is off.
+  final bool biometric;
+
+  /// Deprecated alias for [biometric]. Kept so existing call sites
+  /// that read `biometricShortcut` continue to work until Phase F
+  /// rewrites them. The wizard keeps both fields in sync on write.
   final bool biometricShortcut;
 
-  /// PIN length for the Hardware tier. 4, 5, or 6 digits. Ignored by
-  /// every other tier. Stored so the wizard and Settings can render
-  /// the right number of input cells.
+  /// PIN length for the hardware tier in the v1 model (4-6 digits).
+  /// In the bank-style model passwords are arbitrary text, so this
+  /// value is advisory — the wizard in the current transition window
+  /// still renders a digit cell grid at this length when the user
+  /// picks T2.
   final int pinLength;
 
   const SecurityTierModifiers({
+    this.password = false,
+    this.biometric = false,
     this.biometricShortcut = false,
     this.pinLength = 6,
   });
 
   static const defaults = SecurityTierModifiers();
 
-  SecurityTierModifiers copyWith({bool? biometricShortcut, int? pinLength}) =>
-      SecurityTierModifiers(
-        biometricShortcut: biometricShortcut ?? this.biometricShortcut,
-        pinLength: pinLength ?? this.pinLength,
-      );
+  SecurityTierModifiers copyWith({
+    bool? password,
+    bool? biometric,
+    bool? biometricShortcut,
+    int? pinLength,
+  }) => SecurityTierModifiers(
+    password: password ?? this.password,
+    biometric: biometric ?? this.biometric,
+    biometricShortcut: biometricShortcut ?? this.biometricShortcut,
+    pinLength: pinLength ?? this.pinLength,
+  );
 
   Map<String, dynamic> toJson() => {
+    'password': password,
+    'biometric': biometric,
     'biometric_shortcut': biometricShortcut,
     'pin_length': pinLength,
   };
@@ -80,9 +109,15 @@ class SecurityTierModifiers {
   factory SecurityTierModifiers.fromJson(Map<String, dynamic> json) {
     const d = SecurityTierModifiers.defaults;
     final rawPin = (json['pin_length'] as num?)?.toInt() ?? d.pinLength;
+    final biometricShortcut =
+        json['biometric_shortcut'] as bool? ?? d.biometricShortcut;
     return SecurityTierModifiers(
-      biometricShortcut:
-          json['biometric_shortcut'] as bool? ?? d.biometricShortcut,
+      password: json['password'] as bool? ?? d.password,
+      // `biometric` falls back to `biometric_shortcut` on legacy
+      // configs so a v1-persisted install reads as bank-style after
+      // reload without a migration step.
+      biometric: json['biometric'] as bool? ?? biometricShortcut,
+      biometricShortcut: biometricShortcut,
       // Defensive: clamp to the supported range so a tampered config
       // cannot crash the PIN widget with an out-of-range cell count.
       pinLength: rawPin < 4 || rawPin > 8 ? d.pinLength : rawPin,
@@ -93,11 +128,14 @@ class SecurityTierModifiers {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SecurityTierModifiers &&
+          password == other.password &&
+          biometric == other.biometric &&
           biometricShortcut == other.biometricShortcut &&
           pinLength == other.pinLength;
 
   @override
-  int get hashCode => Object.hash(biometricShortcut, pinLength);
+  int get hashCode =>
+      Object.hash(password, biometric, biometricShortcut, pinLength);
 }
 
 /// Complete security configuration — tier + modifiers.

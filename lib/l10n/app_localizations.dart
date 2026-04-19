@@ -4490,6 +4490,114 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Reset failed'**
   String get resetAllDataFailed;
+
+  /// No description provided for @securitySetupContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get securitySetupContinue;
+
+  /// No description provided for @currentTierBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'CURRENT'**
+  String get currentTierBadge;
+
+  /// No description provided for @paranoidAlternativeHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'ALTERNATIVE'**
+  String get paranoidAlternativeHeader;
+
+  /// No description provided for @modifierPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get modifierPasswordLabel;
+
+  /// No description provided for @modifierPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Typed secret gate before the vault unlocks.'**
+  String get modifierPasswordSubtitle;
+
+  /// No description provided for @modifierBiometricLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric shortcut'**
+  String get modifierBiometricLabel;
+
+  /// No description provided for @modifierBiometricSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Release the password from a biometric-gated OS slot instead of typing it.'**
+  String get modifierBiometricSubtitle;
+
+  /// No description provided for @biometricRequiresPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable a password first — biometric is a shortcut for entering it.'**
+  String get biometricRequiresPassword;
+
+  /// No description provided for @biometricForbiddenParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paranoid does not allow biometric by design.'**
+  String get biometricForbiddenParanoid;
+
+  /// No description provided for @fprintdNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'fprintd not installed or no enrolled finger.'**
+  String get fprintdNotAvailable;
+
+  /// No description provided for @linuxTpmWithoutPasswordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.'**
+  String get linuxTpmWithoutPasswordNote;
+
+  /// No description provided for @paranoidMasterPasswordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A long passphrase is strongly recommended — Argon2id only slows brute force, it does not block it.'**
+  String get paranoidMasterPasswordNote;
+
+  /// No description provided for @plaintextWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plaintext: no encryption'**
+  String get plaintextWarningTitle;
+
+  /// No description provided for @plaintextWarningBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions, keys, and known hosts will be stored without encryption. Anyone with access to this computer\'s filesystem can read them.'**
+  String get plaintextWarningBody;
+
+  /// No description provided for @plaintextAcknowledge.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand my data will not be encrypted'**
+  String get plaintextAcknowledge;
+
+  /// No description provided for @plaintextAcknowledgeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm you understand before continuing.'**
+  String get plaintextAcknowledgeRequired;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// No description provided for @masterPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password'**
+  String get masterPasswordLabel;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

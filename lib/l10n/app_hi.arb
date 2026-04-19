@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "सब कुछ रीसेट करें",
   "resetAllDataInProgress": "रीसेट हो रहा है…",
   "resetAllDataDone": "सभी डेटा रीसेट हो गया",
-  "resetAllDataFailed": "रीसेट विफल"
+  "resetAllDataFailed": "रीसेट विफल",
+
+  "securitySetupContinue": "जारी रखें",
+  "currentTierBadge": "वर्तमान",
+  "paranoidAlternativeHeader": "विकल्प",
+
+  "modifierPasswordLabel": "पासवर्ड",
+  "modifierPasswordSubtitle": "वॉल्ट खुलने से पहले टाइप किया गया गुप्त द्वार।",
+  "modifierBiometricLabel": "बायोमेट्रिक शॉर्टकट",
+  "modifierBiometricSubtitle": "पासवर्ड टाइप करने के बजाय बायोमेट्रिक-संरक्षित OS स्लॉट से उसे प्राप्त करें।",
+  "biometricRequiresPassword": "पहले पासवर्ड सक्षम करें — बायोमेट्रिक उसे दर्ज करने का केवल एक शॉर्टकट है।",
+  "biometricForbiddenParanoid": "Paranoid डिज़ाइन के अनुसार बायोमेट्रिक की अनुमति नहीं देता।",
+  "fprintdNotAvailable": "fprintd संस्थापित नहीं है या कोई फिंगरप्रिंट पंजीकृत नहीं है।",
+
+  "linuxTpmWithoutPasswordNote": "पासवर्ड के बिना TPM पृथक्करण प्रदान करता है, प्रमाणीकरण नहीं। जो कोई भी इस ऐप को चला सकता है, वह डेटा को अनलॉक कर सकता है।",
+  "paranoidMasterPasswordNote": "एक लंबे पासफ़्रेज़ की दृढ़ता से अनुशंसा की जाती है — Argon2id केवल ब्रूट फ़ोर्स को धीमा करता है, रोकता नहीं।",
+
+  "plaintextWarningTitle": "सादा पाठ: कोई एन्क्रिप्शन नहीं",
+  "plaintextWarningBody": "सत्र, कुंजियाँ और known hosts एन्क्रिप्शन के बिना संग्रहीत किए जाएँगे। इस कंप्यूटर के फ़ाइल सिस्टम तक पहुँच रखने वाला कोई भी व्यक्ति उन्हें पढ़ सकता है।",
+  "plaintextAcknowledge": "मुझे समझ है कि मेरा डेटा एन्क्रिप्ट नहीं किया जाएगा",
+  "plaintextAcknowledgeRequired": "जारी रखने से पहले पुष्टि करें कि आप समझ गए हैं।",
+
+  "passwordLabel": "पासवर्ड",
+  "masterPasswordLabel": "मास्टर पासवर्ड"
 }

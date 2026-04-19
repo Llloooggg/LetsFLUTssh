@@ -2551,4 +2551,68 @@ class SRu extends S {
 
   @override
   String get resetAllDataFailed => 'Не удалось выполнить сброс';
+
+  @override
+  String get securitySetupContinue => 'Продолжить';
+
+  @override
+  String get currentTierBadge => 'ТЕКУЩИЙ';
+
+  @override
+  String get paranoidAlternativeHeader => 'АЛЬТЕРНАТИВА';
+
+  @override
+  String get modifierPasswordLabel => 'Пароль';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Вводимый секрет — барьер перед разблокировкой хранилища.';
+
+  @override
+  String get modifierBiometricLabel => 'Биометрический ярлык';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Получение пароля из биометрически защищённого слота ОС вместо ввода вручную.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Сначала включите пароль — биометрия это ярлык для его ввода.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid не допускает биометрию по замыслу.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd не установлен или нет зарегистрированного отпечатка.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM без пароля обеспечивает изоляцию, но не аутентификацию. Любой, кто может запустить это приложение, сможет разблокировать данные.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Настоятельно рекомендуется длинная парольная фраза — Argon2id лишь замедляет перебор, но не блокирует его.';
+
+  @override
+  String get plaintextWarningTitle => 'Открытый текст: без шифрования';
+
+  @override
+  String get plaintextWarningBody =>
+      'Сессии, ключи и known hosts будут храниться без шифрования. Любой, у кого есть доступ к файловой системе этого компьютера, сможет их прочитать.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Я понимаю, что мои данные не будут зашифрованы';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Подтвердите понимание, прежде чем продолжить.';
+
+  @override
+  String get passwordLabel => 'Пароль';
+
+  @override
+  String get masterPasswordLabel => 'Мастер-пароль';
 }

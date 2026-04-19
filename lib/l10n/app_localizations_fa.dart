@@ -2529,4 +2529,68 @@ class SFa extends S {
 
   @override
   String get resetAllDataFailed => 'بازنشانی ناموفق بود';
+
+  @override
+  String get securitySetupContinue => 'ادامه';
+
+  @override
+  String get currentTierBadge => 'فعلی';
+
+  @override
+  String get paranoidAlternativeHeader => 'جایگزین';
+
+  @override
+  String get modifierPasswordLabel => 'رمز عبور';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'دروازهٔ مخفیِ تایپ‌شده پیش از باز شدن گاوصندوق.';
+
+  @override
+  String get modifierBiometricLabel => 'میان‌برِ بیومتریک';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'گرفتن رمز عبور از یک اسلات سیستم‌عامل با حفاظ بیومتریک به جای تایپ آن.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'ابتدا یک رمز عبور فعال کنید — بیومتریک تنها میان‌بری برای وارد کردن آن است.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'سطح Paranoid به‌طور طراحی‌شده اجازهٔ بیومتریک را نمی‌دهد.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd نصب نشده یا هیچ اثر انگشتی ثبت نشده است.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM بدون رمز عبور فقط جداسازی فراهم می‌کند، نه احراز هویت. هر کسی که بتواند این برنامه را اجرا کند می‌تواند داده‌ها را باز کند.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'یک عبارت عبور طولانی به شدت توصیه می‌شود — Argon2id فقط حملهٔ جستجوی فراگیر را کند می‌کند، جلوی آن را نمی‌گیرد.';
+
+  @override
+  String get plaintextWarningTitle => 'متن ساده: بدون رمزگذاری';
+
+  @override
+  String get plaintextWarningBody =>
+      'جلسه‌ها، کلیدها و known hosts بدون رمزگذاری ذخیره خواهند شد. هر کسی که به سیستم فایل این رایانه دسترسی داشته باشد می‌تواند آنها را بخواند.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'می‌دانم که داده‌های من رمزگذاری نخواهند شد';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'پیش از ادامه، درک خود را تأیید کنید.';
+
+  @override
+  String get passwordLabel => 'رمز عبور';
+
+  @override
+  String get masterPasswordLabel => 'رمز عبور اصلی';
 }

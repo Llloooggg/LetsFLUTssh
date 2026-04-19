@@ -2529,4 +2529,68 @@ class SEn extends S {
 
   @override
   String get resetAllDataFailed => 'Reset failed';
+
+  @override
+  String get securitySetupContinue => 'Continue';
+
+  @override
+  String get currentTierBadge => 'CURRENT';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIVE';
+
+  @override
+  String get modifierPasswordLabel => 'Password';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Typed secret gate before the vault unlocks.';
+
+  @override
+  String get modifierBiometricLabel => 'Biometric shortcut';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Release the password from a biometric-gated OS slot instead of typing it.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Enable a password first — biometric is a shortcut for entering it.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid does not allow biometric by design.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd not installed or no enrolled finger.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'A long passphrase is strongly recommended — Argon2id only slows brute force, it does not block it.';
+
+  @override
+  String get plaintextWarningTitle => 'Plaintext: no encryption';
+
+  @override
+  String get plaintextWarningBody =>
+      'Sessions, keys, and known hosts will be stored without encryption. Anyone with access to this computer\'s filesystem can read them.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'I understand my data will not be encrypted';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Confirm you understand before continuing.';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get masterPasswordLabel => 'Master password';
 }

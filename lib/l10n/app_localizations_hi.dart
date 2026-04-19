@@ -2535,4 +2535,68 @@ class SHi extends S {
 
   @override
   String get resetAllDataFailed => 'रीसेट विफल';
+
+  @override
+  String get securitySetupContinue => 'जारी रखें';
+
+  @override
+  String get currentTierBadge => 'वर्तमान';
+
+  @override
+  String get paranoidAlternativeHeader => 'विकल्प';
+
+  @override
+  String get modifierPasswordLabel => 'पासवर्ड';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'वॉल्ट खुलने से पहले टाइप किया गया गुप्त द्वार।';
+
+  @override
+  String get modifierBiometricLabel => 'बायोमेट्रिक शॉर्टकट';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'पासवर्ड टाइप करने के बजाय बायोमेट्रिक-संरक्षित OS स्लॉट से उसे प्राप्त करें।';
+
+  @override
+  String get biometricRequiresPassword =>
+      'पहले पासवर्ड सक्षम करें — बायोमेट्रिक उसे दर्ज करने का केवल एक शॉर्टकट है।';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid डिज़ाइन के अनुसार बायोमेट्रिक की अनुमति नहीं देता।';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd संस्थापित नहीं है या कोई फिंगरप्रिंट पंजीकृत नहीं है।';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'पासवर्ड के बिना TPM पृथक्करण प्रदान करता है, प्रमाणीकरण नहीं। जो कोई भी इस ऐप को चला सकता है, वह डेटा को अनलॉक कर सकता है।';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'एक लंबे पासफ़्रेज़ की दृढ़ता से अनुशंसा की जाती है — Argon2id केवल ब्रूट फ़ोर्स को धीमा करता है, रोकता नहीं।';
+
+  @override
+  String get plaintextWarningTitle => 'सादा पाठ: कोई एन्क्रिप्शन नहीं';
+
+  @override
+  String get plaintextWarningBody =>
+      'सत्र, कुंजियाँ और known hosts एन्क्रिप्शन के बिना संग्रहीत किए जाएँगे। इस कंप्यूटर के फ़ाइल सिस्टम तक पहुँच रखने वाला कोई भी व्यक्ति उन्हें पढ़ सकता है।';
+
+  @override
+  String get plaintextAcknowledge =>
+      'मुझे समझ है कि मेरा डेटा एन्क्रिप्ट नहीं किया जाएगा';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'जारी रखने से पहले पुष्टि करें कि आप समझ गए हैं।';
+
+  @override
+  String get passwordLabel => 'पासवर्ड';
+
+  @override
+  String get masterPasswordLabel => 'मास्टर पासवर्ड';
 }

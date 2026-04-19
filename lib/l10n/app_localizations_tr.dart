@@ -2553,4 +2553,67 @@ class STr extends S {
 
   @override
   String get resetAllDataFailed => 'Sıfırlama başarısız';
+
+  @override
+  String get securitySetupContinue => 'Devam';
+
+  @override
+  String get currentTierBadge => 'GEÇERLİ';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATİF';
+
+  @override
+  String get modifierPasswordLabel => 'Parola';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Kasa açılmadan önce yazılan gizli geçiş kapısı.';
+
+  @override
+  String get modifierBiometricLabel => 'Biyometrik kısayol';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Parolayı yazmak yerine biyometrik korumalı bir OS yuvasından alır.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Önce bir parola etkinleştirin — biyometri yalnızca onu girmek için bir kısayoldur.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid seviyesi tasarım gereği biyometriye izin vermez.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd kurulu değil veya kayıtlı parmak izi yok.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'Parolasız TPM izolasyon sağlar, kimlik doğrulama sağlamaz. Bu uygulamayı çalıştırabilen herkes veriyi açabilir.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Uzun bir parola ifadesi kesinlikle önerilir — Argon2id kaba kuvvet saldırısını yalnızca yavaşlatır, engellemez.';
+
+  @override
+  String get plaintextWarningTitle => 'Düz metin: şifreleme yok';
+
+  @override
+  String get plaintextWarningBody =>
+      'Oturumlar, anahtarlar ve known hosts şifrelenmeden saklanacak. Bu bilgisayarın dosya sistemine erişebilen herkes bunları okuyabilir.';
+
+  @override
+  String get plaintextAcknowledge => 'Verilerimin şifrelenmeyeceğini anlıyorum';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Devam etmeden önce anladığınızı onaylayın.';
+
+  @override
+  String get passwordLabel => 'Parola';
+
+  @override
+  String get masterPasswordLabel => 'Ana parola';
 }

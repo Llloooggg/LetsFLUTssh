@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Tout réinitialiser",
   "resetAllDataInProgress": "Réinitialisation…",
   "resetAllDataDone": "Toutes les données réinitialisées",
-  "resetAllDataFailed": "Échec de la réinitialisation"
+  "resetAllDataFailed": "Échec de la réinitialisation",
+
+  "securitySetupContinue": "Continuer",
+  "currentTierBadge": "ACTUEL",
+  "paranoidAlternativeHeader": "ALTERNATIVE",
+
+  "modifierPasswordLabel": "Mot de passe",
+  "modifierPasswordSubtitle": "Barrière de secret saisi avant le déverrouillage du coffre.",
+  "modifierBiometricLabel": "Raccourci biométrique",
+  "modifierBiometricSubtitle": "Récupérer le mot de passe depuis un emplacement du système protégé par biométrie au lieu de le saisir.",
+  "biometricRequiresPassword": "Activez d'abord un mot de passe — la biométrie n'est qu'un raccourci pour le saisir.",
+  "biometricForbiddenParanoid": "Paranoid n'autorise pas la biométrie par conception.",
+  "fprintdNotAvailable": "fprintd non installé ou aucune empreinte enregistrée.",
+
+  "linuxTpmWithoutPasswordNote": "Un TPM sans mot de passe fournit de l'isolation, pas de l'authentification. Quiconque peut exécuter cette application peut déverrouiller les données.",
+  "paranoidMasterPasswordNote": "Une phrase de passe longue est fortement recommandée — Argon2id ne fait que ralentir la force brute, il ne la bloque pas.",
+
+  "plaintextWarningTitle": "Texte brut : pas de chiffrement",
+  "plaintextWarningBody": "Les sessions, clés et known hosts seront stockés sans chiffrement. Toute personne ayant accès au système de fichiers de cet ordinateur pourra les lire.",
+  "plaintextAcknowledge": "Je comprends que mes données ne seront pas chiffrées",
+  "plaintextAcknowledgeRequired": "Confirmez votre compréhension avant de continuer.",
+
+  "passwordLabel": "Mot de passe",
+  "masterPasswordLabel": "Mot de passe maître"
 }

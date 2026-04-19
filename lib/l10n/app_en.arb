@@ -1434,5 +1434,28 @@
   "resetAllDataConfirmAction": "Reset everything",
   "resetAllDataInProgress": "Resetting…",
   "resetAllDataDone": "All data reset",
-  "resetAllDataFailed": "Reset failed"
+  "resetAllDataFailed": "Reset failed",
+
+  "securitySetupContinue": "Continue",
+  "currentTierBadge": "CURRENT",
+  "paranoidAlternativeHeader": "ALTERNATIVE",
+
+  "modifierPasswordLabel": "Password",
+  "modifierPasswordSubtitle": "Typed secret gate before the vault unlocks.",
+  "modifierBiometricLabel": "Biometric shortcut",
+  "modifierBiometricSubtitle": "Release the password from a biometric-gated OS slot instead of typing it.",
+  "biometricRequiresPassword": "Enable a password first — biometric is a shortcut for entering it.",
+  "biometricForbiddenParanoid": "Paranoid does not allow biometric by design.",
+  "fprintdNotAvailable": "fprintd not installed or no enrolled finger.",
+
+  "linuxTpmWithoutPasswordNote": "TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.",
+  "paranoidMasterPasswordNote": "A long passphrase is strongly recommended — Argon2id only slows brute force, it does not block it.",
+
+  "plaintextWarningTitle": "Plaintext: no encryption",
+  "plaintextWarningBody": "Sessions, keys, and known hosts will be stored without encryption. Anyone with access to this computer's filesystem can read them.",
+  "plaintextAcknowledge": "I understand my data will not be encrypted",
+  "plaintextAcknowledgeRequired": "Confirm you understand before continuing.",
+
+  "passwordLabel": "Password",
+  "masterPasswordLabel": "Master password"
 }

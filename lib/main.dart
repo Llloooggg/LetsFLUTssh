@@ -757,17 +757,22 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           return;
         }
         final key = await manager.enable(password);
-        await _injectDatabase(key: key, level: SecurityTier.paranoid);
+        await _injectDatabase(
+          key: key,
+          level: SecurityTier.paranoid,
+          modifiers: result.modifiers,
+        );
         AppLogger.instance.log(
           'First launch: master password (Paranoid) enabled',
           name: 'App',
         );
       case SecurityTier.hardware:
-        await _firstLaunchHardware(result.pin);
+        await _firstLaunchHardware(result.pin, result.modifiers);
       case SecurityTier.keychainWithPassword:
         await _firstLaunchKeychainWithPassword(
           keyStorage: keyStorage,
           shortPassword: result.shortPassword,
+          modifiers: result.modifiers,
         );
       case SecurityTier.keychain:
         if (!result.keychainAvailable) {
@@ -777,7 +782,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         final key = AesGcm.generateKey();
         final stored = await keyStorage.writeKey(key);
         if (stored) {
-          await _injectDatabase(key: key, level: SecurityTier.keychain);
+          await _injectDatabase(
+            key: key,
+            level: SecurityTier.keychain,
+            modifiers: result.modifiers,
+          );
           AppLogger.instance.log(
             'First launch: keychain encryption enabled',
             name: 'App',
@@ -803,6 +812,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _firstLaunchKeychainWithPassword({
     required SecureKeyStorage keyStorage,
     required String? shortPassword,
+    SecurityTierModifiers? modifiers,
   }) async {
     if (shortPassword == null || shortPassword.isEmpty) {
       await _injectDatabase();
@@ -813,7 +823,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final key = AesGcm.generateKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
-      await _injectDatabase(key: key, level: SecurityTier.keychainWithPassword);
+      await _injectDatabase(
+        key: key,
+        level: SecurityTier.keychainWithPassword,
+        modifiers: modifiers,
+      );
       AppLogger.instance.log(
         'First launch: keychain+password (L2) enabled',
         name: 'App',
@@ -830,7 +844,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
   /// L3 first-launch: generate a DB key, seal it in the hardware vault
   /// under `HMAC(salt, pin)`, and open the DB with that key.
-  Future<void> _firstLaunchHardware(String? pin) async {
+  Future<void> _firstLaunchHardware(
+    String? pin, [
+    SecurityTierModifiers? modifiers,
+  ]) async {
     if (pin == null || pin.isEmpty) {
       await _injectDatabase();
       return;
@@ -839,7 +856,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final key = AesGcm.generateKey();
     final stored = await vault.store(dbKey: key, pin: pin);
     if (stored) {
-      await _injectDatabase(key: key, level: SecurityTier.hardware);
+      await _injectDatabase(
+        key: key,
+        level: SecurityTier.hardware,
+        modifiers: modifiers,
+      );
       AppLogger.instance.log(
         'First launch: hardware vault (L3) sealed',
         name: 'App',
@@ -872,6 +893,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _injectDatabase({
     Uint8List? key,
     SecurityTier level = SecurityTier.plaintext,
+    SecurityTierModifiers? modifiers,
   }) async {
     final db = openDatabase(encryptionKey: key);
     _activeDatabase = db;
@@ -884,7 +906,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
-    await _persistSecurityTier(level);
+    await _persistSecurityTier(level, modifiers);
     // Auto-lock is loaded only after `_handleDatabaseCorruption`
     // confirms the DB is readable — firing it here would race the
     // probe and surface "file is not a database" through the global
@@ -1053,13 +1075,19 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// every launch. L2 (keychain + password) and L3 (Hardware) are
   /// not yet reachable from the current wizard — they become
   /// selectable when the full tier-switcher wiring lands.
-  Future<void> _persistSecurityTier(SecurityTier tier) async {
+  Future<void> _persistSecurityTier(
+    SecurityTier tier, [
+    SecurityTierModifiers? modifiers,
+  ]) async {
     final existing = ref.read(configProvider).security;
-    if (existing != null && existing.tier == tier) return;
-    final next = SecurityConfig(
-      tier: tier,
-      modifiers: existing?.modifiers ?? SecurityTierModifiers.defaults,
-    );
+    final resolved =
+        modifiers ?? existing?.modifiers ?? SecurityTierModifiers.defaults;
+    if (existing != null &&
+        existing.tier == tier &&
+        existing.modifiers == resolved) {
+      return;
+    }
+    final next = SecurityConfig(tier: tier, modifiers: resolved);
     await ref
         .read(configProvider.notifier)
         .update((cfg) => cfg.copyWith(security: next));

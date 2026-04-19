@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "すべてリセット",
   "resetAllDataInProgress": "リセット中…",
   "resetAllDataDone": "すべてのデータをリセットしました",
-  "resetAllDataFailed": "リセットに失敗しました"
+  "resetAllDataFailed": "リセットに失敗しました",
+
+  "securitySetupContinue": "続行",
+  "currentTierBadge": "現在",
+  "paranoidAlternativeHeader": "代替",
+
+  "modifierPasswordLabel": "パスワード",
+  "modifierPasswordSubtitle": "ボールト解錠前に入力する秘密のゲート。",
+  "modifierBiometricLabel": "生体認証ショートカット",
+  "modifierBiometricSubtitle": "パスワードを入力する代わりに、生体認証で保護されたOSスロットから取り出します。",
+  "biometricRequiresPassword": "先にパスワードを有効にしてください — 生体認証は入力のショートカットです。",
+  "biometricForbiddenParanoid": "Paranoid は設計上、生体認証を許可しません。",
+  "fprintdNotAvailable": "fprintd がインストールされていないか、指紋が登録されていません。",
+
+  "linuxTpmWithoutPasswordNote": "パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを解錠できます。",
+  "paranoidMasterPasswordNote": "長いパスフレーズを強く推奨します — Argon2id は総当たり攻撃を遅らせるだけで、阻止はできません。",
+
+  "plaintextWarningTitle": "平文：暗号化なし",
+  "plaintextWarningBody": "セッション、鍵、known hosts は暗号化されずに保存されます。このコンピュータのファイルシステムにアクセスできる人なら誰でも読み取れます。",
+  "plaintextAcknowledge": "データが暗号化されないことを理解しました",
+  "plaintextAcknowledgeRequired": "続行する前に理解したことを確認してください。",
+
+  "passwordLabel": "パスワード",
+  "masterPasswordLabel": "マスターパスワード"
 }

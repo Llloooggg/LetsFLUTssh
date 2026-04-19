@@ -2458,4 +2458,63 @@ class SKo extends S {
 
   @override
   String get resetAllDataFailed => '재설정 실패';
+
+  @override
+  String get securitySetupContinue => '계속';
+
+  @override
+  String get currentTierBadge => '현재';
+
+  @override
+  String get paranoidAlternativeHeader => '대안';
+
+  @override
+  String get modifierPasswordLabel => '비밀번호';
+
+  @override
+  String get modifierPasswordSubtitle => '볼트 잠금 해제 전에 입력하는 비밀 관문.';
+
+  @override
+  String get modifierBiometricLabel => '생체 인증 단축';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      '비밀번호를 직접 입력하는 대신 생체 인증으로 보호된 OS 슬롯에서 가져옵니다.';
+
+  @override
+  String get biometricRequiresPassword =>
+      '먼저 비밀번호를 활성화하세요 — 생체 인증은 비밀번호 입력을 위한 단축 방식입니다.';
+
+  @override
+  String get biometricForbiddenParanoid => 'Paranoid 단계는 설계상 생체 인증을 허용하지 않습니다.';
+
+  @override
+  String get fprintdNotAvailable => 'fprintd가 설치되지 않았거나 등록된 지문이 없습니다.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      '비밀번호 없는 TPM은 격리는 제공하지만 인증은 제공하지 않습니다. 이 앱을 실행할 수 있는 사람은 누구나 데이터의 잠금을 해제할 수 있습니다.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      '긴 암호문을 강력히 권장합니다 — Argon2id는 무차별 대입 공격을 늦출 뿐 막지는 못합니다.';
+
+  @override
+  String get plaintextWarningTitle => '평문: 암호화 없음';
+
+  @override
+  String get plaintextWarningBody =>
+      '세션, 키, known hosts가 암호화 없이 저장됩니다. 이 컴퓨터의 파일 시스템에 접근할 수 있는 사람은 누구나 읽을 수 있습니다.';
+
+  @override
+  String get plaintextAcknowledge => '내 데이터가 암호화되지 않는다는 것을 이해합니다';
+
+  @override
+  String get plaintextAcknowledgeRequired => '계속하기 전에 이해했음을 확인하세요.';
+
+  @override
+  String get passwordLabel => '비밀번호';
+
+  @override
+  String get masterPasswordLabel => '마스터 비밀번호';
 }

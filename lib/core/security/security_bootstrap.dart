@@ -1,0 +1,212 @@
+import 'dart:io';
+
+import 'biometric_auth.dart';
+import 'hardware_tier_vault.dart';
+import 'linux/fprintd_client.dart';
+import 'secure_key_storage.dart';
+import 'security_tier.dart';
+
+/// Snapshot of every OS / hardware capability the wizard needs to
+/// decide which tiers + modifier combinations to offer on this
+/// device. Probed once on wizard open and cached in the dialog
+/// state; the wizard renders against the snapshot without further
+/// async calls.
+///
+/// Pure data — no platform channels. Produced by [probeCapabilities];
+/// consumed by the setup dialog + tests.
+class SecurityCapabilities {
+  /// OS keychain is reachable (Keychain / Credential Manager /
+  /// libsecret / EncryptedSharedPreferences depending on platform).
+  final bool keychainAvailable;
+
+  /// Hardware vault slot is reachable — Secure Enclave on iOS /
+  /// macOS with T2, StrongBox / TEE on Android, TPM 2.0 on Windows /
+  /// Linux. Governs whether T2 is offered.
+  final bool hardwareVaultAvailable;
+
+  /// Biometric API returns SUCCESS (sensor present + at least one
+  /// enrolment). Governs the biometric modifier toggle.
+  final bool biometricAvailable;
+
+  /// On Linux, `fprintd` is installed + has at least one enrolled
+  /// finger. The biometric modifier on Linux flows through
+  /// [FprintdClient] and fails silently when this is false.
+  final bool fprintdAvailable;
+
+  /// True on Linux only. Wizard uses this to surface the "Linux TPM
+  /// without password gives isolation, not authentication" honesty
+  /// note when the user picks T2 without the password modifier.
+  final bool isLinuxHost;
+
+  const SecurityCapabilities({
+    this.keychainAvailable = false,
+    this.hardwareVaultAvailable = false,
+    this.biometricAvailable = false,
+    this.fprintdAvailable = false,
+    this.isLinuxHost = false,
+  });
+
+  SecurityCapabilities copyWith({
+    bool? keychainAvailable,
+    bool? hardwareVaultAvailable,
+    bool? biometricAvailable,
+    bool? fprintdAvailable,
+    bool? isLinuxHost,
+  }) {
+    return SecurityCapabilities(
+      keychainAvailable: keychainAvailable ?? this.keychainAvailable,
+      hardwareVaultAvailable:
+          hardwareVaultAvailable ?? this.hardwareVaultAvailable,
+      biometricAvailable: biometricAvailable ?? this.biometricAvailable,
+      fprintdAvailable: fprintdAvailable ?? this.fprintdAvailable,
+      isLinuxHost: isLinuxHost ?? this.isLinuxHost,
+    );
+  }
+
+  /// True when biometric modifier is at all offerable on this host —
+  /// on Linux this also requires fprintd+enrolment, on every other
+  /// platform the platform biometric API suffices. Password-dependency
+  /// ("biometric requires password") is enforced separately by the
+  /// wizard UI because it is a UX rule, not a capability fact.
+  bool get canOfferBiometricModifier => isLinuxHost
+      ? (biometricAvailable || fprintdAvailable)
+      : biometricAvailable;
+}
+
+/// Asynchronously probe every OS / hardware capability the wizard
+/// needs. Returns a [SecurityCapabilities] with sensible defaults on
+/// any probe failure so a stuck D-Bus call (common on Linux test
+/// boxes) never leaves the user staring at a spinner.
+Future<SecurityCapabilities> probeCapabilities({
+  required SecureKeyStorage keyStorage,
+  required HardwareTierVault hardwareVault,
+  BiometricAuth? biometricAuth,
+  FprintdClient? fprintdClient,
+  bool? isLinuxHostOverride,
+}) async {
+  final linux = isLinuxHostOverride ?? Platform.isLinux;
+  final bio = biometricAuth ?? BiometricAuth();
+  final fprintd = fprintdClient ?? FprintdClient();
+
+  Future<T> safely<T>(Future<T> Function() fn, T fallback) async {
+    try {
+      return await fn();
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  final results = await Future.wait<Object>([
+    safely(keyStorage.isAvailable, false),
+    safely(hardwareVault.isAvailable, false),
+    safely(() async {
+      final res = await bio.availability();
+      return res == null;
+    }, false),
+    linux
+        ? safely(() async {
+            final hash = await fprintd.getEnrolmentHash();
+            return hash != null && hash.isNotEmpty;
+          }, false)
+        : Future.value(false),
+  ]);
+
+  return SecurityCapabilities(
+    keychainAvailable: results[0] as bool,
+    hardwareVaultAvailable: results[1] as bool,
+    biometricAvailable: results[2] as bool,
+    fprintdAvailable: results[3] as bool,
+    isLinuxHost: linux,
+  );
+}
+
+/// Pure mapping (tier selected in wizard + modifier flags) → the
+/// existing `SecurityTier` enum value plus the secret field the
+/// downstream `_applyTierChange` / `_firstLaunchSetup` code paths
+/// look up. Keeps the wizard UI decoupled from the current persistence
+/// shape while the Phase F enum-collapse lands.
+///
+/// T2 + password → `hardware` tier with the password routed into the
+/// `pin` field. The HardwareTierVault's HMAC gate does not care about
+/// length or digit-only-ness; a full textual password works there
+/// identically to a 6-digit PIN.
+///
+/// T2 without any password is NOT accepted at this transitional
+/// phase: downstream code still requires a secret for
+/// HardwareTierVault.store. The wizard disables the "no password" T2
+/// option with a tooltip until Phase F wires the passwordless code
+/// path end-to-end.
+class MappedSetupChoice {
+  final SecurityTier tier;
+  final SecurityTierModifiers modifiers;
+
+  /// The user-typed secret the downstream caller needs, routed into
+  /// whichever of `masterPassword` / `shortPassword` / `pin` the
+  /// legacy switch-case expects for the chosen tier.
+  final String? masterPassword;
+  final String? shortPassword;
+  final String? pin;
+
+  const MappedSetupChoice({
+    required this.tier,
+    required this.modifiers,
+    this.masterPassword,
+    this.shortPassword,
+    this.pin,
+  });
+}
+
+/// Translate the wizard's (T0/T1/T2/Paranoid + password + biometric +
+/// typed secret) shape into the persistence-layer `SecurityTier` +
+/// typed secret the current `_applyTierChange` cascade expects. The
+/// Phase F refactor will drop this adapter and let the wizard return
+/// `SecurityConfig` directly.
+MappedSetupChoice mapWizardChoice({
+  required WizardTier chosen,
+  required bool password,
+  required bool biometric,
+  String? typedSecret,
+}) {
+  final modifiers = SecurityTierModifiers(
+    password: password,
+    biometric: biometric,
+    biometricShortcut: biometric,
+  );
+  switch (chosen) {
+    case WizardTier.plaintext:
+      return MappedSetupChoice(
+        tier: SecurityTier.plaintext,
+        modifiers: modifiers,
+      );
+    case WizardTier.keychain:
+      if (password) {
+        return MappedSetupChoice(
+          tier: SecurityTier.keychainWithPassword,
+          modifiers: modifiers,
+          shortPassword: typedSecret,
+        );
+      }
+      return MappedSetupChoice(
+        tier: SecurityTier.keychain,
+        modifiers: modifiers,
+      );
+    case WizardTier.hardware:
+      return MappedSetupChoice(
+        tier: SecurityTier.hardware,
+        modifiers: modifiers,
+        pin: typedSecret,
+      );
+    case WizardTier.paranoid:
+      return MappedSetupChoice(
+        tier: SecurityTier.paranoid,
+        modifiers: modifiers,
+        masterPassword: typedSecret,
+      );
+  }
+}
+
+/// Normalised tier id the wizard radio-set exposes. Lives in bootstrap
+/// so tests can exercise [mapWizardChoice] without pulling the widget
+/// layer; never leaks to persistence (the mapper turns it back into a
+/// `SecurityTier` before the result leaves the dialog).
+enum WizardTier { plaintext, keychain, hardware, paranoid }

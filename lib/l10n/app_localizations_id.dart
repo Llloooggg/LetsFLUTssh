@@ -2543,4 +2543,68 @@ class SId extends S {
 
   @override
   String get resetAllDataFailed => 'Reset gagal';
+
+  @override
+  String get securitySetupContinue => 'Lanjutkan';
+
+  @override
+  String get currentTierBadge => 'SAAT INI';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIF';
+
+  @override
+  String get modifierPasswordLabel => 'Kata sandi';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Gerbang rahasia yang diketik sebelum brankas dibuka.';
+
+  @override
+  String get modifierBiometricLabel => 'Pintasan biometrik';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Melepas kata sandi dari slot OS yang dilindungi biometrik, alih-alih mengetiknya.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Aktifkan kata sandi terlebih dahulu — biometrik hanya pintasan untuk memasukkannya.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid tidak mengizinkan biometrik secara desain.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd belum diinstal atau tidak ada sidik jari terdaftar.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM tanpa kata sandi menyediakan isolasi, bukan autentikasi. Siapa pun yang dapat menjalankan aplikasi ini dapat membuka data.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Sangat disarankan menggunakan frasa sandi yang panjang — Argon2id hanya memperlambat serangan brute force, bukan memblokirnya.';
+
+  @override
+  String get plaintextWarningTitle => 'Teks polos: tanpa enkripsi';
+
+  @override
+  String get plaintextWarningBody =>
+      'Sesi, kunci, dan known hosts akan disimpan tanpa enkripsi. Siapa pun yang memiliki akses ke sistem file komputer ini dapat membacanya.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Saya memahami bahwa data saya tidak akan dienkripsi';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Konfirmasikan pemahaman Anda sebelum melanjutkan.';
+
+  @override
+  String get passwordLabel => 'Kata sandi';
+
+  @override
+  String get masterPasswordLabel => 'Kata sandi utama';
 }

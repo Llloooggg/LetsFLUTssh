@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "全部重置",
   "resetAllDataInProgress": "正在重置…",
   "resetAllDataDone": "所有数据已重置",
-  "resetAllDataFailed": "重置失败"
+  "resetAllDataFailed": "重置失败",
+
+  "securitySetupContinue": "继续",
+  "currentTierBadge": "当前",
+  "paranoidAlternativeHeader": "备选",
+
+  "modifierPasswordLabel": "密码",
+  "modifierPasswordSubtitle": "解锁保险库前需要输入的密钥门槛。",
+  "modifierBiometricLabel": "生物识别快捷方式",
+  "modifierBiometricSubtitle": "从受生物识别保护的系统槽位中获取密码，无需手动输入。",
+  "biometricRequiresPassword": "请先启用密码——生物识别只是输入密码的快捷方式。",
+  "biometricForbiddenParanoid": "Paranoid 级别按设计不允许使用生物识别。",
+  "fprintdNotAvailable": "未安装 fprintd 或未登记指纹。",
+
+  "linuxTpmWithoutPasswordNote": "没有密码的 TPM 仅提供隔离，而非身份验证。任何能运行此应用的人都可以解锁数据。",
+  "paranoidMasterPasswordNote": "强烈建议使用较长的口令——Argon2id 只能减慢暴力破解，无法阻止它。",
+
+  "plaintextWarningTitle": "明文：无加密",
+  "plaintextWarningBody": "会话、密钥和 known hosts 将以未加密方式保存。任何能访问本机文件系统的人都可以读取它们。",
+  "plaintextAcknowledge": "我了解我的数据不会被加密",
+  "plaintextAcknowledgeRequired": "在继续之前请确认您已了解。",
+
+  "passwordLabel": "密码",
+  "masterPasswordLabel": "主密码"
 }

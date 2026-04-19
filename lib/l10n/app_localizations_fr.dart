@@ -2575,4 +2575,68 @@ class SFr extends S {
 
   @override
   String get resetAllDataFailed => 'Échec de la réinitialisation';
+
+  @override
+  String get securitySetupContinue => 'Continuer';
+
+  @override
+  String get currentTierBadge => 'ACTUEL';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIVE';
+
+  @override
+  String get modifierPasswordLabel => 'Mot de passe';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Barrière de secret saisi avant le déverrouillage du coffre.';
+
+  @override
+  String get modifierBiometricLabel => 'Raccourci biométrique';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Récupérer le mot de passe depuis un emplacement du système protégé par biométrie au lieu de le saisir.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Activez d\'abord un mot de passe — la biométrie n\'est qu\'un raccourci pour le saisir.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid n\'autorise pas la biométrie par conception.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd non installé ou aucune empreinte enregistrée.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'Un TPM sans mot de passe fournit de l\'isolation, pas de l\'authentification. Quiconque peut exécuter cette application peut déverrouiller les données.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Une phrase de passe longue est fortement recommandée — Argon2id ne fait que ralentir la force brute, il ne la bloque pas.';
+
+  @override
+  String get plaintextWarningTitle => 'Texte brut : pas de chiffrement';
+
+  @override
+  String get plaintextWarningBody =>
+      'Les sessions, clés et known hosts seront stockés sans chiffrement. Toute personne ayant accès au système de fichiers de cet ordinateur pourra les lire.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Je comprends que mes données ne seront pas chiffrées';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Confirmez votre compréhension avant de continuer.';
+
+  @override
+  String get passwordLabel => 'Mot de passe';
+
+  @override
+  String get masterPasswordLabel => 'Mot de passe maître';
 }

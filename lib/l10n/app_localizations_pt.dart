@@ -2555,4 +2555,68 @@ class SPt extends S {
 
   @override
   String get resetAllDataFailed => 'Falha ao redefinir';
+
+  @override
+  String get securitySetupContinue => 'Continuar';
+
+  @override
+  String get currentTierBadge => 'ATUAL';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIVA';
+
+  @override
+  String get modifierPasswordLabel => 'Senha';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Barreira de segredo digitado antes do desbloqueio do cofre.';
+
+  @override
+  String get modifierBiometricLabel => 'Atalho biométrico';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Liberar a senha de um slot do sistema protegido por biometria, em vez de digitá-la.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Ative primeiro uma senha — a biometria é um atalho para digitá-la.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'O nível Paranoid não permite biometria por design.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd não instalado ou nenhuma impressão digital registrada.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'O TPM sem senha oferece isolamento, não autenticação. Qualquer pessoa que consiga executar este aplicativo pode desbloquear os dados.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Uma senha longa é fortemente recomendada — o Argon2id apenas torna o ataque por força bruta mais lento, não o impede.';
+
+  @override
+  String get plaintextWarningTitle => 'Texto simples: sem criptografia';
+
+  @override
+  String get plaintextWarningBody =>
+      'Sessões, chaves e known hosts serão armazenados sem criptografia. Qualquer pessoa com acesso ao sistema de arquivos deste computador poderá lê-los.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Entendo que meus dados não serão criptografados';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Confirme que entendeu antes de continuar.';
+
+  @override
+  String get passwordLabel => 'Senha';
+
+  @override
+  String get masterPasswordLabel => 'Senha mestra';
 }

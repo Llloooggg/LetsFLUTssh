@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Redefinir tudo",
   "resetAllDataInProgress": "Redefinindo…",
   "resetAllDataDone": "Todos os dados redefinidos",
-  "resetAllDataFailed": "Falha ao redefinir"
+  "resetAllDataFailed": "Falha ao redefinir",
+
+  "securitySetupContinue": "Continuar",
+  "currentTierBadge": "ATUAL",
+  "paranoidAlternativeHeader": "ALTERNATIVA",
+
+  "modifierPasswordLabel": "Senha",
+  "modifierPasswordSubtitle": "Barreira de segredo digitado antes do desbloqueio do cofre.",
+  "modifierBiometricLabel": "Atalho biométrico",
+  "modifierBiometricSubtitle": "Liberar a senha de um slot do sistema protegido por biometria, em vez de digitá-la.",
+  "biometricRequiresPassword": "Ative primeiro uma senha — a biometria é um atalho para digitá-la.",
+  "biometricForbiddenParanoid": "O nível Paranoid não permite biometria por design.",
+  "fprintdNotAvailable": "fprintd não instalado ou nenhuma impressão digital registrada.",
+
+  "linuxTpmWithoutPasswordNote": "O TPM sem senha oferece isolamento, não autenticação. Qualquer pessoa que consiga executar este aplicativo pode desbloquear os dados.",
+  "paranoidMasterPasswordNote": "Uma senha longa é fortemente recomendada — o Argon2id apenas torna o ataque por força bruta mais lento, não o impede.",
+
+  "plaintextWarningTitle": "Texto simples: sem criptografia",
+  "plaintextWarningBody": "Sessões, chaves e known hosts serão armazenados sem criptografia. Qualquer pessoa com acesso ao sistema de arquivos deste computador poderá lê-los.",
+  "plaintextAcknowledge": "Entendo que meus dados não serão criptografados",
+  "plaintextAcknowledgeRequired": "Confirme que entendeu antes de continuar.",
+
+  "passwordLabel": "Senha",
+  "masterPasswordLabel": "Senha mestra"
 }

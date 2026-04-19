@@ -2537,4 +2537,65 @@ class SAr extends S {
 
   @override
   String get resetAllDataFailed => 'فشلت إعادة التعيين';
+
+  @override
+  String get securitySetupContinue => 'متابعة';
+
+  @override
+  String get currentTierBadge => 'الحالي';
+
+  @override
+  String get paranoidAlternativeHeader => 'بديل';
+
+  @override
+  String get modifierPasswordLabel => 'كلمة المرور';
+
+  @override
+  String get modifierPasswordSubtitle => 'حاجز سري يُكتب قبل فتح القبو.';
+
+  @override
+  String get modifierBiometricLabel => 'اختصار بصمة';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'إخراج كلمة المرور من فتحة نظام محمية ببصمة بدلاً من كتابتها يدويًا.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'فعّل كلمة مرور أولاً — البصمة مجرد اختصار لإدخالها.';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'مستوى Paranoid لا يسمح بالبصمة بحكم التصميم.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'لم يتم تثبيت fprintd أو لا توجد بصمة مسجلة.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'يوفر TPM بدون كلمة مرور عزلًا وليس مصادقة. أي شخص يستطيع تشغيل هذا التطبيق يمكنه فتح البيانات.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'يُنصح بشدة بعبارة مرور طويلة — Argon2id يبطئ القوة الغاشمة فقط ولا يمنعها.';
+
+  @override
+  String get plaintextWarningTitle => 'نص صريح: بدون تشفير';
+
+  @override
+  String get plaintextWarningBody =>
+      'ستُخزَّن الجلسات والمفاتيح و known hosts بدون تشفير. أي شخص لديه وصول إلى نظام ملفات هذا الحاسوب يمكنه قراءتها.';
+
+  @override
+  String get plaintextAcknowledge => 'أفهم أن بياناتي لن تكون مشفّرة';
+
+  @override
+  String get plaintextAcknowledgeRequired => 'أكّد فهمك قبل المتابعة.';
+
+  @override
+  String get passwordLabel => 'كلمة المرور';
+
+  @override
+  String get masterPasswordLabel => 'كلمة المرور الرئيسية';
 }

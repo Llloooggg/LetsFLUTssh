@@ -788,5 +788,28 @@
   "resetAllDataConfirmAction": "Alles zurücksetzen",
   "resetAllDataInProgress": "Wird zurückgesetzt…",
   "resetAllDataDone": "Alle Daten zurückgesetzt",
-  "resetAllDataFailed": "Zurücksetzen fehlgeschlagen"
+  "resetAllDataFailed": "Zurücksetzen fehlgeschlagen",
+
+  "securitySetupContinue": "Weiter",
+  "currentTierBadge": "AKTUELL",
+  "paranoidAlternativeHeader": "ALTERNATIVE",
+
+  "modifierPasswordLabel": "Passwort",
+  "modifierPasswordSubtitle": "Eingetippte Geheimnis-Schranke vor dem Entsperren des Tresors.",
+  "modifierBiometricLabel": "Biometrische Verknüpfung",
+  "modifierBiometricSubtitle": "Das Passwort aus einem biometrisch gesicherten OS-Slot entnehmen, statt es einzutippen.",
+  "biometricRequiresPassword": "Aktivieren Sie zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.",
+  "biometricForbiddenParanoid": "Paranoid erlaubt Biometrie per Design nicht.",
+  "fprintdNotAvailable": "fprintd ist nicht installiert oder kein Finger registriert.",
+
+  "linuxTpmWithoutPasswordNote": "Ein TPM ohne Passwort bietet Isolation, keine Authentifizierung. Wer diese App ausführen kann, kann die Daten entsperren.",
+  "paranoidMasterPasswordNote": "Eine lange Passphrase wird dringend empfohlen — Argon2id verlangsamt Brute-Force nur, blockiert es aber nicht.",
+
+  "plaintextWarningTitle": "Klartext: keine Verschlüsselung",
+  "plaintextWarningBody": "Sitzungen, Schlüssel und known hosts werden ohne Verschlüsselung gespeichert. Jeder mit Zugriff auf das Dateisystem dieses Computers kann sie lesen.",
+  "plaintextAcknowledge": "Ich verstehe, dass meine Daten nicht verschlüsselt werden",
+  "plaintextAcknowledgeRequired": "Bestätigen Sie, dass Sie es verstanden haben, bevor Sie fortfahren.",
+
+  "passwordLabel": "Passwort",
+  "masterPasswordLabel": "Master-Passwort"
 }

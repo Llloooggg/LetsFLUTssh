@@ -7,18 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
 import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
-/// In-memory fake that mirrors `FlutterSecureStorage` API. The
-/// `shouldThrow` flag simulates "no keychain on this host" — the
-/// probe uses write → read → delete, so one throw is enough.
 class _FakeStorage implements FlutterSecureStorage {
-  final Map<String, String> _store = {};
-  bool shouldThrow;
-
-  _FakeStorage({this.shouldThrow = false});
-
   @override
   Future<void> write({
     required String key,
@@ -29,14 +22,7 @@ class _FakeStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async {
-    if (shouldThrow) throw Exception('Keychain unavailable');
-    if (value != null) {
-      _store[key] = value;
-    } else {
-      _store.remove(key);
-    }
-  }
+  }) async {}
 
   @override
   Future<String?> read({
@@ -47,10 +33,7 @@ class _FakeStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async {
-    if (shouldThrow) throw Exception('Keychain unavailable');
-    return _store[key];
-  }
+  }) async => null;
 
   @override
   Future<void> delete({
@@ -61,23 +44,15 @@ class _FakeStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async {
-    if (shouldThrow) throw Exception('Keychain unavailable');
-    _store.remove(key);
-  }
+  }) async {}
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Minimal TpmClient double so the wizard's `HardwareTierVault`
-/// probe finishes instantly instead of shelling out to `tpm2-tools`.
 class _FakeTpm implements TpmClient {
-  final bool available;
-  _FakeTpm({this.available = true});
-
   @override
-  Future<bool> isAvailable() async => available;
+  Future<bool> isAvailable() async => true;
 
   @override
   Future<Uint8List?> seal(
@@ -104,18 +79,15 @@ Widget _wrap(Widget child) => MaterialApp(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<SecuritySetupResult?> openDialog(
+  Future<void> openDialog(
     WidgetTester tester, {
-    required bool keychainAvailable,
-    bool hardwareAvailable = false,
+    required SecurityCapabilities caps,
   }) async {
-    final storage = _FakeStorage(shouldThrow: !keychainAvailable);
-    final keyStorage = SecureKeyStorage(storage: storage);
+    final keyStorage = SecureKeyStorage(storage: _FakeStorage());
     final hardwareVault = HardwareTierVault(
-      tpmClient: _FakeTpm(available: hardwareAvailable),
+      tpmClient: _FakeTpm(),
       stateFileFactory: () async => File('/tmp/ignored_hw_vault.bin'),
     );
-    SecuritySetupResult? result;
 
     await tester.pumpWidget(
       _wrap(
@@ -123,10 +95,11 @@ void main() {
           builder: (ctx) => TextButton(
             child: const Text('Open'),
             onPressed: () async {
-              result = await SecuritySetupDialog.show(
+              await SecuritySetupDialog.show(
                 ctx,
                 keyStorage: keyStorage,
                 hardwareVault: hardwareVault,
+                capabilitiesOverride: caps,
               );
             },
           ),
@@ -135,57 +108,59 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    return Future.value(result);
   }
 
-  group('SecuritySetupDialog — tier ladder', () {
-    testWidgets('renders every tier badge + Paranoid alternative', (
+  const allCaps = SecurityCapabilities(
+    keychainAvailable: true,
+    hardwareVaultAvailable: true,
+    biometricAvailable: true,
+  );
+  const noKeychain = SecurityCapabilities(hardwareVaultAvailable: true);
+  const noHardware = SecurityCapabilities(keychainAvailable: true);
+
+  group('SecuritySetupDialog — 3-tier ladder', () {
+    testWidgets('renders T0/T1/T2 badges + Paranoid alternative section', (
       tester,
     ) async {
-      await openDialog(tester, keychainAvailable: true);
-      expect(find.text('L0'), findsOneWidget);
-      expect(find.text('L1'), findsOneWidget);
-      expect(find.text('L2'), findsOneWidget);
-      expect(find.text('L3'), findsOneWidget);
-      expect(find.text('Master password (Paranoid)'), findsOneWidget);
+      await openDialog(tester, caps: allCaps);
+      expect(find.text('T0'), findsOneWidget);
+      expect(find.text('T1'), findsOneWidget);
+      expect(find.text('T2'), findsOneWidget);
+      expect(find.text('P'), findsOneWidget);
+    });
+
+    testWidgets('"Compare all tiers" button is present in the header', (
+      tester,
+    ) async {
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(context).compareAllTiers), findsWidgets);
+    });
+
+    testWidgets('T1 row disabled-subtitle text when keychain missing', (
+      tester,
+    ) async {
+      await openDialog(tester, caps: noKeychain);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(context).tierKeychainUnavailable), findsOneWidget);
     });
 
     testWidgets(
-      'L1 is Recommended when keychain available and hardware is not',
+      'T2 row disabled-subtitle text when hardware vault unavailable',
       (tester) async {
-        await openDialog(tester, keychainAvailable: true);
-        expect(find.text('Recommended'), findsWidgets);
+        await openDialog(tester, caps: noHardware);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        expect(
+          find.text(S.of(context).tierHardwareUnavailable),
+          findsOneWidget,
+        );
       },
     );
 
-    testWidgets('L3 is Recommended when hardware probe succeeds', (
-      tester,
-    ) async {
-      await openDialog(
-        tester,
-        keychainAvailable: true,
-        hardwareAvailable: true,
-      );
-      // L3 row present AND Recommended badge somewhere near L3.
-      expect(find.text('L3'), findsOneWidget);
-      expect(find.text('Recommended'), findsWidgets);
-    });
-
-    testWidgets('Paranoid is Recommended when no keychain + no hardware', (
-      tester,
-    ) async {
-      await openDialog(tester, keychainAvailable: false);
-      expect(find.text('Recommended'), findsWidgets);
-      expect(find.text('L1'), findsOneWidget);
-    });
-
-    testWidgets('L2 row disabled tooltip when keychain missing', (
-      tester,
-    ) async {
-      await openDialog(tester, keychainAvailable: false);
-      // Both rows rendered; label copy is the proxy for the row showing.
-      expect(find.text('Keychain + password'), findsOneWidget);
-      expect(find.text('Hardware + PIN'), findsOneWidget);
+    testWidgets('Continue button renders', (tester) async {
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(context).securitySetupContinue), findsOneWidget);
     });
   });
 }

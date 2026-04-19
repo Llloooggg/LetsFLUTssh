@@ -4,27 +4,41 @@ import 'package:flutter/material.dart';
 
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/secure_key_storage.dart';
+import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
-import 'app_info_button.dart';
 import 'password_strength_meter.dart';
+import 'security_comparison_table.dart';
 import 'toast.dart';
 
 /// Result of the first-launch security setup wizard.
+///
+/// Carries both the legacy (tier + typed-secret-field) shape and the
+/// new bank-style (tier + modifiers) shape. Downstream call sites
+/// still read the legacy fields (`masterPassword`, `shortPassword`,
+/// `pin`); the `modifiers` field is populated for code paths that
+/// already consume the new shape (Phase F wiring).
 class SecuritySetupResult {
   /// Tier picked by the user. `plaintext` is the fallback when the
   /// wizard never resolves (barrier-dismiss on desktop shutdown).
   final SecurityTier tier;
 
-  /// Master password (tier == paranoid) chosen by the user.
+  /// Bank-style modifier flags — password + biometric.
+  final SecurityTierModifiers modifiers;
+
+  /// Master password chosen for Paranoid.
   final String? masterPassword;
 
-  /// Short password for the L2 keychain gate.
+  /// Bank-style password chosen for T1 + password.
   final String? shortPassword;
 
-  /// PIN digits chosen for the L3 hardware tier.
+  /// Secret routed into the hardware-tier PIN slot. When the user
+  /// picks T2 + password (bank-style shape), the typed password lands
+  /// here — `HardwareTierVault.store` treats it as arbitrary bytes
+  /// and HMAC-hashes it with the per-install salt, so a full password
+  /// works identically to a 4-6 digit PIN.
   final String? pin;
 
   /// Whether the OS keychain is available.
@@ -32,6 +46,7 @@ class SecuritySetupResult {
 
   const SecuritySetupResult({
     this.tier = SecurityTier.plaintext,
+    this.modifiers = SecurityTierModifiers.defaults,
     this.masterPassword,
     this.shortPassword,
     this.pin,
@@ -41,24 +56,30 @@ class SecuritySetupResult {
 
 /// First-launch tier wizard.
 ///
-/// Numbered ladder (L0–L3) + separate Paranoid branch. Every row has
-/// an `(i)` info button that opens an `AppInfoDialog` explaining what
-/// the tier does and does not protect against. Tiers that the current
-/// platform cannot satisfy render greyed with a tooltip explaining why.
+/// 3-row numbered ladder (T0, T1, T2) + a separated "Paranoid
+/// alternative" section below. Orthogonal password / biometric
+/// modifiers expand inline under the selected row. A single
+/// "Compare all tiers" link opens the [SecurityComparisonTable]
+/// — the per-tier info popups from the v1 wizard are replaced by
+/// this single matrix so the user reads one source of truth.
 class SecuritySetupDialog extends StatefulWidget {
   final SecureKeyStorage keyStorage;
   final HardwareTierVault hardwareVault;
-
-  /// The currently-active tier, or null on first-launch. When
-  /// non-null, the matching row in the ladder renders a "Current"
-  /// badge so the user sees the starting point of any switch.
   final SecurityTier? currentTier;
+
+  /// DI hook — when non-null the wizard skips the platform capability
+  /// probe and renders against the injected caps. Production call
+  /// sites never set this; tests supply a fixed [SecurityCapabilities]
+  /// so `pumpAndSettle` does not time out on real D-Bus / biometric
+  /// probes that never return inside a unit-test harness.
+  final SecurityCapabilities? capabilitiesOverride;
 
   const SecuritySetupDialog({
     super.key,
     required this.keyStorage,
     required this.hardwareVault,
     this.currentTier,
+    this.capabilitiesOverride,
   });
 
   static Future<SecuritySetupResult> show(
@@ -66,6 +87,7 @@ class SecuritySetupDialog extends StatefulWidget {
     required SecureKeyStorage keyStorage,
     HardwareTierVault? hardwareVault,
     SecurityTier? currentTier,
+    SecurityCapabilities? capabilitiesOverride,
   }) async {
     final result = await showDialog<SecuritySetupResult>(
       context: context,
@@ -74,6 +96,7 @@ class SecuritySetupDialog extends StatefulWidget {
         keyStorage: keyStorage,
         hardwareVault: hardwareVault ?? HardwareTierVault(),
         currentTier: currentTier,
+        capabilitiesOverride: capabilitiesOverride,
       ),
     );
     return result ?? const SecuritySetupResult();
@@ -83,17 +106,21 @@ class SecuritySetupDialog extends StatefulWidget {
   State<SecuritySetupDialog> createState() => _SecuritySetupDialogState();
 }
 
-enum _Form { none, paranoid, l2Password, l3Pin }
-
 class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
-  bool _probing = true;
-  bool _keychainAvailable = false;
-  bool _hardwareAvailable = false;
+  SecurityCapabilities? _caps;
+  WizardTier _selected = WizardTier.keychain;
 
-  _Form _form = _Form.none;
-  final _passwordCtrl = TextEditingController();
+  // Modifier toggles. Password is implied-on for Paranoid, but the
+  // flag is tracked so the invariant `biometric → password` can be
+  // enforced uniformly across every tier.
+  bool _password = false;
+  bool _biometric = false;
+
+  final _secretCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _passwordFocus = FocusNode();
+  final _secretFocus = FocusNode();
+
+  bool _plaintextAcknowledged = false;
 
   @override
   void initState() {
@@ -103,111 +130,125 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
 
   @override
   void dispose() {
-    _passwordCtrl.wipeAndClear();
+    _secretCtrl.wipeAndClear();
     _confirmCtrl.wipeAndClear();
-    _passwordCtrl.dispose();
+    _secretCtrl.dispose();
     _confirmCtrl.dispose();
-    _passwordFocus.dispose();
+    _secretFocus.dispose();
     super.dispose();
   }
 
   Future<void> _probe() async {
-    final results = await Future.wait([
-      widget.keyStorage.isAvailable(),
-      widget.hardwareVault.isAvailable(),
-    ]);
+    final caps =
+        widget.capabilitiesOverride ??
+        await probeCapabilities(
+          keyStorage: widget.keyStorage,
+          hardwareVault: widget.hardwareVault,
+        );
     if (!mounted) return;
     setState(() {
-      _keychainAvailable = results[0];
-      _hardwareAvailable = results[1];
-      _probing = false;
+      _caps = caps;
+      // Pre-select the current tier when settings opened this wizard
+      // so the user sees where they are.
+      _selected = _initialSelection(caps);
     });
   }
 
-  void _pickPlaintext() {
-    Navigator.of(context).pop(
-      const SecuritySetupResult(
-        tier: SecurityTier.plaintext,
-        keychainAvailable: false,
-      ),
-    );
+  WizardTier _initialSelection(SecurityCapabilities caps) {
+    switch (widget.currentTier) {
+      case SecurityTier.plaintext:
+        return WizardTier.plaintext;
+      case SecurityTier.keychain:
+      case SecurityTier.keychainWithPassword:
+        _password = widget.currentTier == SecurityTier.keychainWithPassword;
+        return WizardTier.keychain;
+      case SecurityTier.hardware:
+        _password = true;
+        return WizardTier.hardware;
+      case SecurityTier.paranoid:
+        _password = true;
+        return WizardTier.paranoid;
+      case null:
+        if (caps.hardwareVaultAvailable) return WizardTier.hardware;
+        if (caps.keychainAvailable) return WizardTier.keychain;
+        return WizardTier.plaintext;
+    }
   }
 
-  void _pickKeychain() {
-    Navigator.of(context).pop(
-      SecuritySetupResult(
-        tier: SecurityTier.keychain,
-        keychainAvailable: _keychainAvailable,
-      ),
-    );
+  bool get _biometricToggleEnabled {
+    final caps = _caps;
+    if (caps == null) return false;
+    if (!caps.canOfferBiometricModifier) return false;
+    // Invariant: biometric requires password.
+    if (!_password) return false;
+    // Paranoid forbids biometric by design.
+    if (_selected == WizardTier.paranoid) return false;
+    // Plaintext has nothing to gate.
+    if (_selected == WizardTier.plaintext) return false;
+    return true;
   }
 
-  void _showForm(_Form form) {
-    _passwordCtrl.wipeAndClear();
-    _confirmCtrl.wipeAndClear();
-    setState(() => _form = form);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _passwordFocus.requestFocus();
-    });
+  bool get _passwordToggleEnabled {
+    // Paranoid has mandatory password; the toggle is not interactive.
+    if (_selected == WizardTier.paranoid) return false;
+    // Plaintext has no secret to add.
+    if (_selected == WizardTier.plaintext) return false;
+    // T1 + password and T2 + password are both valid. T2 passwordless
+    // is offered in this UI but the submission path asks the user to
+    // either type a secret or fall back to T1 (hardware-tier without
+    // a secret still needs wire through Phase F).
+    return true;
   }
 
-  void _submitParanoid() {
+  bool _needsSecretInput() {
+    // Paranoid always asks for a master password.
+    if (_selected == WizardTier.paranoid) return true;
+    // T1/T2 + password asks for the bank-style secret.
+    if ((_selected == WizardTier.keychain ||
+            _selected == WizardTier.hardware) &&
+        _password) {
+      return true;
+    }
+    return false;
+  }
+
+  void _submit() {
     final l10n = S.of(context);
-    final password = _passwordCtrl.text;
-    if (password.isEmpty) return;
-    if (password != _confirmCtrl.text) {
-      Toast.show(context, message: l10n.passwordsDoNotMatch);
+    if (_selected == WizardTier.plaintext && !_plaintextAcknowledged) {
+      Toast.show(context, message: l10n.plaintextAcknowledgeRequired);
       return;
     }
+    if (_needsSecretInput()) {
+      if (_secretCtrl.text.isEmpty) {
+        _secretFocus.requestFocus();
+        return;
+      }
+      if (_secretCtrl.text != _confirmCtrl.text) {
+        Toast.show(context, message: l10n.passwordsDoNotMatch);
+        return;
+      }
+    }
+
+    // Enforce invariant before mapping.
+    if (_biometric && !_password) _biometric = false;
+
+    final mapped = mapWizardChoice(
+      chosen: _selected,
+      password: _password,
+      biometric: _biometric,
+      typedSecret: _needsSecretInput() ? _secretCtrl.text : null,
+    );
+
     Navigator.of(context).pop(
       SecuritySetupResult(
-        tier: SecurityTier.paranoid,
-        masterPassword: password,
-        keychainAvailable: _keychainAvailable,
+        tier: mapped.tier,
+        modifiers: mapped.modifiers,
+        masterPassword: mapped.masterPassword,
+        shortPassword: mapped.shortPassword,
+        pin: mapped.pin,
+        keychainAvailable: _caps?.keychainAvailable ?? false,
       ),
     );
-  }
-
-  void _submitL2() {
-    final l10n = S.of(context);
-    final password = _passwordCtrl.text;
-    if (password.isEmpty) return;
-    if (password != _confirmCtrl.text) {
-      Toast.show(context, message: l10n.passwordsDoNotMatch);
-      return;
-    }
-    Navigator.of(context).pop(
-      SecuritySetupResult(
-        tier: SecurityTier.keychainWithPassword,
-        shortPassword: password,
-        keychainAvailable: _keychainAvailable,
-      ),
-    );
-  }
-
-  void _submitL3() {
-    final l10n = S.of(context);
-    final pin = _passwordCtrl.text;
-    if (!_isValidPin(pin)) {
-      Toast.show(context, message: l10n.pinMustBe4To6Digits);
-      return;
-    }
-    if (pin != _confirmCtrl.text) {
-      Toast.show(context, message: l10n.pinsDoNotMatch);
-      return;
-    }
-    Navigator.of(context).pop(
-      SecuritySetupResult(
-        tier: SecurityTier.hardware,
-        pin: pin,
-        keychainAvailable: _keychainAvailable,
-      ),
-    );
-  }
-
-  bool _isValidPin(String pin) {
-    if (pin.length < 4 || pin.length > 6) return false;
-    return RegExp(r'^\d+$').hasMatch(pin);
   }
 
   @override
@@ -216,7 +257,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       canPop: false,
       child: Dialog(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
+          constraints: const BoxConstraints(maxWidth: 520),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: _buildContent(S.of(context)),
@@ -227,7 +268,8 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   }
 
   Widget _buildContent(S l10n) {
-    if (_probing) {
+    final caps = _caps;
+    if (caps == null) {
       return const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -237,19 +279,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ],
       );
     }
-    switch (_form) {
-      case _Form.paranoid:
-        return _buildParanoidForm(l10n);
-      case _Form.l2Password:
-        return _buildL2Form(l10n);
-      case _Form.l3Pin:
-        return _buildL3Form(l10n);
-      case _Form.none:
-        return _buildTierLadder(l10n);
-    }
-  }
 
-  Widget _buildTierLadder(S l10n) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -261,457 +291,515 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
         ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton.icon(
+            icon: const Icon(Icons.table_chart_outlined, size: 16),
+            label: Text(l10n.compareAllTiers),
+            onPressed: () => SecurityComparisonTable.show(context),
+          ),
+        ),
         const SizedBox(height: 18),
 
         _TierRow(
-          badge: 'L0',
+          badge: 'T0',
           label: l10n.tierPlaintextLabel,
           subtitle: l10n.tierPlaintextSubtitle,
-          infoTitle: l10n.tierPlaintextLabel,
-          infoProtects: const [],
-          infoDoesNotProtect: [
-            l10n.tierPlaintextThreat1,
-            l10n.tierPlaintextThreat2,
-          ],
-          infoNotes: l10n.tierPlaintextNotes,
           accent: AppTheme.red,
+          selected: _selected == WizardTier.plaintext,
           current: widget.currentTier == SecurityTier.plaintext,
-          onPick: _pickPlaintext,
+          onSelect: () => setState(() => _selected = WizardTier.plaintext),
         ),
-
         _TierRow(
-          badge: 'L1',
+          badge: 'T1',
           label: l10n.tierKeychainLabel,
           subtitle: l10n.tierKeychainSubtitle(_keychainName),
-          infoTitle: l10n.tierKeychainLabel,
-          infoProtects: [l10n.tierKeychainProtect1, l10n.tierKeychainProtect2],
-          infoDoesNotProtect: [
-            l10n.tierKeychainThreat1,
-            l10n.tierKeychainThreat2,
-          ],
           accent: AppTheme.accent,
-          recommended: _keychainAvailable && !_hardwareAvailable,
-          current: widget.currentTier == SecurityTier.keychain,
-          disabledReason: _keychainAvailable
+          selected: _selected == WizardTier.keychain,
+          current:
+              widget.currentTier == SecurityTier.keychain ||
+              widget.currentTier == SecurityTier.keychainWithPassword,
+          disabledReason: caps.keychainAvailable
               ? null
               : l10n.tierKeychainUnavailable,
-          onPick: _keychainAvailable ? _pickKeychain : null,
+          onSelect: caps.keychainAvailable
+              ? () => setState(() => _selected = WizardTier.keychain)
+              : null,
         ),
-
         _TierRow(
-          badge: 'L2',
-          label: l10n.tierKeychainPassLabel,
-          subtitle: l10n.tierKeychainPassSubtitle,
-          infoTitle: l10n.tierKeychainPassLabel,
-          infoProtects: [
-            l10n.tierKeychainPassProtect1,
-            l10n.tierKeychainPassProtect2,
-          ],
-          infoDoesNotProtect: [
-            l10n.tierKeychainPassThreat1,
-            l10n.tierKeychainPassThreat2,
-          ],
-          accent: AppTheme.accent,
-          current: widget.currentTier == SecurityTier.keychainWithPassword,
-          disabledReason: _keychainAvailable
-              ? null
-              : l10n.tierKeychainUnavailable,
-          onPick: _keychainAvailable ? () => _showForm(_Form.l2Password) : null,
-        ),
-
-        _TierRow(
-          badge: 'L3',
+          badge: 'T2',
           label: l10n.tierHardwareLabel,
           subtitle: l10n.tierHardwareSubtitle,
-          infoTitle: l10n.tierHardwareLabel,
-          infoProtects: [l10n.tierHardwareProtect1, l10n.tierHardwareProtect2],
-          infoDoesNotProtect: [
-            l10n.tierHardwareThreat1,
-            l10n.tierHardwareThreat2,
-          ],
-          accent: AppTheme.green,
-          recommended: _hardwareAvailable,
+          accent: AppTheme.accent,
+          selected: _selected == WizardTier.hardware,
           current: widget.currentTier == SecurityTier.hardware,
-          disabledReason: _hardwareAvailable
+          disabledReason: caps.hardwareVaultAvailable
               ? null
               : l10n.tierHardwareUnavailable,
-          onPick: _hardwareAvailable ? () => _showForm(_Form.l3Pin) : null,
+          onSelect: caps.hardwareVaultAvailable
+              ? () => setState(() => _selected = WizardTier.hardware)
+              : null,
         ),
 
-        const SizedBox(height: 14),
-        Divider(color: AppTheme.border),
         const SizedBox(height: 10),
-        Text(
-          l10n.tierAlternativeBranchLabel,
-          style: TextStyle(
-            fontSize: AppFonts.sm,
-            color: AppTheme.fgDim,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
+        const _SectionDivider(),
+        const SizedBox(height: 10),
 
         _TierRow(
-          badge: null,
+          badge: 'P',
           label: l10n.tierParanoidLabel,
           subtitle: l10n.tierParanoidSubtitle,
-          infoTitle: l10n.tierParanoidLabel,
-          infoProtects: [l10n.tierParanoidProtect1, l10n.tierParanoidProtect2],
-          infoDoesNotProtect: [
-            l10n.tierParanoidThreat1,
-            l10n.tierParanoidThreat2,
-          ],
-          infoNotes: l10n.tierParanoidNotes,
           accent: AppTheme.purple,
-          recommended: !_keychainAvailable && !_hardwareAvailable,
+          selected: _selected == WizardTier.paranoid,
           current: widget.currentTier == SecurityTier.paranoid,
-          onPick: () => _showForm(_Form.paranoid),
+          onSelect: () => setState(() {
+            _selected = WizardTier.paranoid;
+            _password = true; // Paranoid is always password-gated.
+            _biometric = false; // Forbidden by design.
+          }),
+        ),
+
+        const SizedBox(height: 18),
+        _buildModifierPanel(l10n, caps),
+
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              child: Text(l10n.cancel),
+            ),
+            const Spacer(),
+            FilledButton(
+              onPressed: _submit,
+              child: Text(l10n.securitySetupContinue),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildParanoidForm(S l10n) {
-    return _FormShell(
-      icon: Icons.lock,
-      title: l10n.tierParanoidLabel,
-      warning: l10n.masterPasswordWarning,
-      primaryFields: [
-        TextField(
-          controller: _passwordCtrl,
-          focusNode: _passwordFocus,
-          obscureText: true,
-          onSubmitted: (_) => _submitParanoid(),
-          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          decoration: AppTheme.inputDecoration(labelText: l10n.newPassword),
-        ),
-        PasswordStrengthMeter(controller: _passwordCtrl),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _confirmCtrl,
-          obscureText: true,
-          onSubmitted: (_) => _submitParanoid(),
-          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          decoration: AppTheme.inputDecoration(labelText: l10n.confirmPassword),
-        ),
-      ],
-      onOk: _submitParanoid,
-      onCancel: () => setState(() => _form = _Form.none),
+  Widget _buildModifierPanel(S l10n, SecurityCapabilities caps) {
+    switch (_selected) {
+      case WizardTier.plaintext:
+        return _PlaintextAckPanel(
+          acknowledged: _plaintextAcknowledged,
+          onChanged: (v) => setState(() => _plaintextAcknowledged = v),
+        );
+      case WizardTier.keychain:
+      case WizardTier.hardware:
+        final linuxNote =
+            caps.isLinuxHost && _selected == WizardTier.hardware && !_password;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ModifierToggle(
+              label: l10n.modifierPasswordLabel,
+              subtitle: l10n.modifierPasswordSubtitle,
+              icon: Icons.password,
+              value: _password,
+              enabled: _passwordToggleEnabled,
+              onChanged: (v) => setState(() {
+                _password = v;
+                if (!v) _biometric = false;
+                if (!v) {
+                  _secretCtrl.wipeAndClear();
+                  _confirmCtrl.wipeAndClear();
+                }
+              }),
+            ),
+            _ModifierToggle(
+              label: l10n.modifierBiometricLabel,
+              subtitle: l10n.modifierBiometricSubtitle,
+              icon: Icons.fingerprint,
+              value: _biometric,
+              enabled: _biometricToggleEnabled,
+              disabledReason: _biometric
+                  ? null
+                  : _biometricDisabledReason(l10n, caps),
+              onChanged: (v) => setState(() => _biometric = v),
+            ),
+            if (linuxNote) ...[
+              const SizedBox(height: 8),
+              _HonestyNote(text: l10n.linuxTpmWithoutPasswordNote),
+            ],
+            if (_needsSecretInput()) _buildSecretForm(l10n),
+          ],
+        );
+      case WizardTier.paranoid:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _HonestyNote(text: l10n.paranoidMasterPasswordNote),
+            _buildSecretForm(l10n, strengthMeter: true),
+          ],
+        );
+    }
+  }
+
+  Widget _buildSecretForm(S l10n, {bool strengthMeter = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _secretCtrl,
+            focusNode: _secretFocus,
+            obscureText: true,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: _selected == WizardTier.paranoid
+                  ? l10n.masterPasswordLabel
+                  : l10n.passwordLabel,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          if (strengthMeter) ...[
+            const SizedBox(height: 6),
+            PasswordStrengthMeter(controller: _secretCtrl),
+          ],
+          const SizedBox(height: 8),
+          TextField(
+            controller: _confirmCtrl,
+            obscureText: true,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: l10n.confirmPassword,
+              border: const OutlineInputBorder(),
+              errorText:
+                  _confirmCtrl.text.isNotEmpty &&
+                      _confirmCtrl.text != _secretCtrl.text
+                  ? l10n.passwordsDoNotMatch
+                  : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildL2Form(S l10n) {
-    return _FormShell(
-      icon: Icons.lock_outline,
-      title: l10n.tierKeychainPassLabel,
-      warning: l10n.tierKeychainPassSetHint,
-      primaryFields: [
-        Text(
-          l10n.tierKeychainPassSetPrompt,
-          style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _passwordCtrl,
-          focusNode: _passwordFocus,
-          obscureText: true,
-          onSubmitted: (_) => _submitL2(),
-          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          decoration: AppTheme.inputDecoration(labelText: l10n.newPassword),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _confirmCtrl,
-          obscureText: true,
-          onSubmitted: (_) => _submitL2(),
-          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          decoration: AppTheme.inputDecoration(labelText: l10n.confirmPassword),
-        ),
-      ],
-      onOk: _submitL2,
-      onCancel: () => setState(() => _form = _Form.none),
-    );
+  String? _biometricDisabledReason(S l10n, SecurityCapabilities caps) {
+    if (!_password) return l10n.biometricRequiresPassword;
+    if (_selected == WizardTier.paranoid) {
+      return l10n.biometricForbiddenParanoid;
+    }
+    if (_selected == WizardTier.plaintext) return null;
+    if (caps.isLinuxHost && !caps.fprintdAvailable) {
+      return l10n.fprintdNotAvailable;
+    }
+    if (!caps.biometricAvailable) {
+      return l10n.biometricSensorNotAvailable;
+    }
+    return null;
   }
 
-  Widget _buildL3Form(S l10n) {
-    return _FormShell(
-      icon: Icons.pin,
-      title: l10n.tierHardwareLabel,
-      warning: l10n.tierHardwarePinSetHint,
-      primaryFields: [
-        Text(
-          l10n.tierHardwarePinSetPrompt,
-          style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _passwordCtrl,
-          focusNode: _passwordFocus,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          onSubmitted: (_) => _submitL3(),
-          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          decoration: AppTheme.inputDecoration(labelText: l10n.pinLabel),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _confirmCtrl,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          onSubmitted: (_) => _submitL3(),
-          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          decoration: AppTheme.inputDecoration(labelText: l10n.confirmPin),
-        ),
-      ],
-      onOk: _submitL3,
-      onCancel: () => setState(() => _form = _Form.none),
-    );
-  }
-
-  static String get _keychainName {
+  String get _keychainName {
     if (Platform.isMacOS || Platform.isIOS) return 'Keychain';
     if (Platform.isWindows) return 'Credential Manager';
     if (Platform.isAndroid) return 'EncryptedSharedPreferences';
-    return 'libsecret'; // Linux
+    return 'libsecret';
   }
 }
 
-class _FormShell extends StatelessWidget {
-  const _FormShell({
-    required this.icon,
-    required this.title,
-    required this.warning,
-    required this.primaryFields,
-    required this.onOk,
-    required this.onCancel,
-  });
-
-  final IconData icon;
-  final String title;
-  final String warning;
-  final List<Widget> primaryFields;
-  final VoidCallback onOk;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Icon(icon, size: 40, color: AppTheme.accent),
-        const SizedBox(height: 12),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          warning,
-          style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-        const SizedBox(height: 16),
-        ...primaryFields,
-        const SizedBox(height: 24),
-        FilledButton(onPressed: onOk, child: Text(l10n.ok)),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: onCancel,
-          child: Text(l10n.cancel, style: TextStyle(color: AppTheme.fgDim)),
-        ),
-      ],
-    );
-  }
-}
-
-/// Single row in the tier ladder. Keeps the wizard layout readable —
-/// the only non-trivial piece is the disabled-with-reason pattern
-/// (fade + tooltip + toast on tap), which mirrors the canonical
-/// `_Toggle` implementation in settings.
 class _TierRow extends StatelessWidget {
+  final String badge;
+  final String label;
+  final String subtitle;
+  final Color accent;
+  final bool selected;
+  final bool current;
+  final String? disabledReason;
+  final VoidCallback? onSelect;
+
   const _TierRow({
     required this.badge,
     required this.label,
     required this.subtitle,
-    required this.infoTitle,
-    required this.infoProtects,
-    required this.infoDoesNotProtect,
     required this.accent,
-    this.infoNotes,
-    this.recommended = false,
-    this.current = false,
+    required this.selected,
+    required this.current,
+    required this.onSelect,
     this.disabledReason,
-    this.onPick,
   });
-
-  final String? badge;
-  final String label;
-  final String subtitle;
-  final String infoTitle;
-  final List<String> infoProtects;
-  final List<String> infoDoesNotProtect;
-  final String? infoNotes;
-  final Color accent;
-  final bool recommended;
-  final bool current;
-  final String? disabledReason;
-  final VoidCallback? onPick;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onPick != null;
-    VoidCallback? tap;
-    if (enabled) {
-      tap = onPick;
-    } else if (disabledReason != null) {
-      tap = () =>
-          Toast.show(context, message: disabledReason!, level: ToastLevel.info);
-    }
-
-    Widget row = Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.bg2,
-        border: Border.all(
-          color: recommended ? accent : AppTheme.border,
-          width: recommended ? 1.5 : 1,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    final disabled = onSelect == null;
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (badge != null) ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                badge!,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: AppFonts.md,
-                  fontWeight: FontWeight.w700,
-                ),
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            size: 18,
+            color: disabled
+                ? AppTheme.fgFaint
+                : (selected ? accent : AppTheme.fgDim),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              badge,
+              style: TextStyle(
+                fontSize: AppFonts.xs,
+                fontWeight: FontWeight.w600,
+                color: accent,
               ),
             ),
-            const SizedBox(width: 12),
-          ],
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Flexible(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: AppFonts.md,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.fg,
-                        ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        fontWeight: FontWeight.w600,
+                        color: disabled ? AppTheme.fgFaint : AppTheme.fg,
                       ),
                     ),
                     if (current) ...[
-                      const SizedBox(width: 6),
-                      _CurrentBadge(accent: accent),
-                    ] else if (recommended) ...[
-                      const SizedBox(width: 6),
-                      _RecommendedBadge(accent: accent),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.fgDim.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          S.of(context).currentTierBadge,
+                          style: TextStyle(
+                            fontSize: AppFonts.xxs,
+                            color: AppTheme.fgDim,
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  subtitle,
+                  disabledReason ?? subtitle,
                   style: TextStyle(
-                    fontSize: AppFonts.sm,
-                    color: AppTheme.fgDim,
+                    fontSize: AppFonts.xs,
+                    color: disabled ? AppTheme.fgFaint : AppTheme.fgDim,
                   ),
                 ),
               ],
             ),
           ),
-          AppInfoButton(
-            title: infoTitle,
-            protectsAgainst: infoProtects,
-            doesNotProtectAgainst: infoDoesNotProtect,
-            extraNotes: infoNotes,
+        ],
+      ),
+    );
+
+    return GestureDetector(
+      onTap: disabled ? null : onSelect,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: selected ? accent : AppTheme.borderLight,
+            width: selected ? 1.5 : 1,
           ),
-          IconButton(
-            tooltip: enabled ? null : disabledReason,
-            onPressed: tap,
-            icon: Icon(
-              enabled ? Icons.arrow_forward_ios : Icons.lock_clock,
-              size: 16,
-              color: enabled ? accent : AppTheme.fgFaint,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Opacity(opacity: disabled ? 0.55 : 1.0, child: content),
+      ),
+    );
+  }
+}
+
+class _ModifierToggle extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final bool value;
+  final bool enabled;
+  final String? disabledReason;
+  final ValueChanged<bool> onChanged;
+
+  const _ModifierToggle({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+    this.disabledReason,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.fgDim),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppFonts.sm,
+                    color: enabled ? AppTheme.fg : AppTheme.fgFaint,
+                  ),
+                ),
+                Text(
+                  disabledReason ?? subtitle,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: enabled ? AppTheme.fgDim : AppTheme.fgFaint,
+                  ),
+                ),
+              ],
             ),
+          ),
+          Switch(value: value, onChanged: enabled ? onChanged : null),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Container(height: 1, color: AppTheme.borderLight)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text(
+            S.of(context).paranoidAlternativeHeader,
+            style: TextStyle(
+              fontSize: AppFonts.xs,
+              color: AppTheme.fgDim,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ),
+        Expanded(child: Container(height: 1, color: AppTheme.borderLight)),
+      ],
+    );
+  }
+}
+
+class _PlaintextAckPanel extends StatelessWidget {
+  final bool acknowledged;
+  final ValueChanged<bool> onChanged;
+
+  const _PlaintextAckPanel({
+    required this.acknowledged,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.red.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(6),
+        color: AppTheme.red.withValues(alpha: 0.05),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber, size: 18, color: AppTheme.red),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.plaintextWarningTitle,
+                  style: TextStyle(
+                    fontSize: AppFonts.sm,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.red,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.plaintextWarningBody,
+            style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Checkbox(
+                value: acknowledged,
+                onChanged: (v) => onChanged(v ?? false),
+              ),
+              Expanded(
+                child: Text(
+                  l10n.plaintextAcknowledge,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgDim,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-    if (!enabled) {
-      row = Opacity(opacity: 0.55, child: row);
-      if (disabledReason != null) {
-        row = Tooltip(message: disabledReason!, child: row);
-      }
-    }
-    return row;
   }
 }
 
-class _RecommendedBadge extends StatelessWidget {
-  const _RecommendedBadge({required this.accent});
-  final Color accent;
+class _HonestyNote extends StatelessWidget {
+  final String text;
+
+  const _HonestyNote({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppTheme.yellow.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(6),
+        color: AppTheme.yellow.withValues(alpha: 0.05),
       ),
-      child: Text(
-        S.of(context).tierRecommendedBadge,
-        style: TextStyle(
-          fontSize: AppFonts.xs,
-          fontWeight: FontWeight.w600,
-          color: accent,
-        ),
-      ),
-    );
-  }
-}
-
-class _CurrentBadge extends StatelessWidget {
-  const _CurrentBadge({required this.accent});
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        S.of(context).tierCurrentBadge,
-        style: TextStyle(
-          fontSize: AppFonts.xs,
-          fontWeight: FontWeight.w600,
-          color: accent,
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 16, color: AppTheme.yellow),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+            ),
+          ),
+        ],
       ),
     );
   }
