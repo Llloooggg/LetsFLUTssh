@@ -39,8 +39,10 @@ import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
 import 'core/security/keychain_password_gate.dart';
 import 'core/security/wipe_all_service.dart';
+import 'core/migration/artefacts/config_artefact.dart';
 import 'core/migration/migration_runner.dart';
 import 'core/migration/registry.dart';
+import 'core/migration/schema_versions.dart';
 import 'core/security/password_rate_limiter.dart';
 import 'core/security/security_tier.dart';
 import 'features/settings/security_tier_switcher.dart';
@@ -466,12 +468,31 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       _credentialsWereReset = true;
     }
 
-    if (currentSecurity == null && await wiper.hasAnyState()) {
+    // Two legacy-state detection gates, both route through the same
+    // tier-reset dialog + WipeAllService path:
+    //
+    //   (1) no persisted `security` in config but on-disk artefacts
+    //       exist — an upgrade from a pre-tier build that inferred
+    //       security from file presence alone.
+    //   (2) config exists but its `config_schema_version` is older
+    //       than the current build's target — an upgrade from the v1
+    //       tier model (pre-bank-style-modifier refactor) where the
+    //       native hw-vault ACL shape changes incompatibly. Detecting
+    //       via schema version instead of inspecting individual
+    //       fields keeps the gate simple and tamper-resistant.
+    final configArtefact = ConfigArtefact();
+    final configVersion = await configArtefact.readVersion();
+    final legacyConfig =
+        configVersion >= 0 && configVersion < SchemaVersions.config;
+    final orphanArtefacts =
+        currentSecurity == null && await wiper.hasAnyState();
+    if (legacyConfig || orphanArtefacts) {
       if (!mounted) return;
       final choice = await _showTierResetDialog();
       if (choice == TierResetChoice.exitApp) {
         AppLogger.instance.log(
-          'Pre-v1 state detected — user chose to exit',
+          'Legacy state detected (configVersion=$configVersion, '
+          'orphan=$orphanArtefacts) — user chose to exit',
           name: 'App',
         );
         await SystemNavigator.pop();
@@ -479,7 +500,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       }
       await wiper.wipeAll();
       AppLogger.instance.log(
-        'Pre-v1 state detected — wiped, running fresh wizard',
+        'Legacy state detected (configVersion=$configVersion, '
+        'orphan=$orphanArtefacts) — wiped, running fresh wizard',
         name: 'App',
       );
       _credentialsWereReset = true;

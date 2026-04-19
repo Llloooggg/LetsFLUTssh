@@ -29,11 +29,37 @@ void main() {
       expect(await a.readVersion(), -1);
     });
 
-    test('reports targetVersion when config.json exists', () async {
-      File(p.join(tempDir.path, 'config.json')).writeAsStringSync('{}');
-      final a = ConfigArtefact(supportDir: dirFactory);
-      expect(await a.readVersion(), SchemaVersions.config);
-    });
+    test(
+      'reports version 1 when config.json exists without the schema_version field '
+      '(legacy config written before the field was introduced)',
+      () async {
+        File(p.join(tempDir.path, 'config.json')).writeAsStringSync('{}');
+        final a = ConfigArtefact(supportDir: dirFactory);
+        expect(await a.readVersion(), 1);
+      },
+    );
+
+    test(
+      'reports the stamped schema_version when the field is present',
+      () async {
+        File(
+          p.join(tempDir.path, 'config.json'),
+        ).writeAsStringSync('{"config_schema_version": 2}');
+        final a = ConfigArtefact(supportDir: dirFactory);
+        expect(await a.readVersion(), 2);
+      },
+    );
+
+    test(
+      'reports 1 when the file is corrupt — runner routes through the reset path',
+      () async {
+        File(
+          p.join(tempDir.path, 'config.json'),
+        ).writeAsStringSync('{ not json');
+        final a = ConfigArtefact(supportDir: dirFactory);
+        expect(await a.readVersion(), 1);
+      },
+    );
 
     test('id is the file name', () {
       expect(ConfigArtefact(supportDir: dirFactory).id, 'config.json');

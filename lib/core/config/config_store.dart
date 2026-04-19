@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import '../migration/schema_versions.dart';
 import 'app_config.dart';
 
 /// Loads/saves AppConfig as JSON in the app support directory.
@@ -57,7 +58,15 @@ class ConfigStore {
   Future<void> save(AppConfig config) async {
     await init();
     _config = config;
-    final content = const JsonEncoder.withIndent('  ').convert(config.toJson());
+    // Stamp the current schema version on every write so the
+    // migration runner on the next launch can route a legacy config
+    // (no field → version 1) through the reset path and a fresh
+    // config through untouched.
+    final payload = <String, dynamic>{
+      'config_schema_version': SchemaVersions.config,
+      ...config.toJson(),
+    };
+    final content = const JsonEncoder.withIndent('  ').convert(payload);
     await writeFileAtomic(_filePath, content);
   }
 

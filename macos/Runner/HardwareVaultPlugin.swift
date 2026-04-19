@@ -70,16 +70,19 @@ final class HardwareVaultPlugin: NSObject {
   }
 
   private func isAvailable() -> Bool {
+    // Silent primary key — passcode-only policy is enough, biometric
+    // Touch ID on Mac is an optional modifier overlay handled
+    // separately.
     let ctx = LAContext()
     var err: NSError?
     let canEval = ctx.canEvaluatePolicy(
-      .deviceOwnerAuthenticationWithBiometrics, error: &err
+      .deviceOwnerAuthentication, error: &err
     )
     guard canEval else { return false }
     return SecAccessControlCreateWithFlags(
       nil,
       kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-      [.privateKeyUsage, .biometryCurrentSet],
+      [.privateKeyUsage],
       nil
     ) != nil
   }
@@ -290,10 +293,12 @@ final class HardwareVaultPlugin: NSObject {
 
   private func ensureKey() throws -> SecKey {
     if let existing = try? loadPublicKey() { return existing }
+    // Primary SE key is silent on macOS too — biometric (Touch ID)
+    // lives on the overlay key, not here.
     guard let access = SecAccessControlCreateWithFlags(
       nil,
       kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-      [.privateKeyUsage, .biometryCurrentSet],
+      [.privateKeyUsage],
       nil
     ) else {
       throw NSError(domain: "HardwareVaultPlugin", code: -1)

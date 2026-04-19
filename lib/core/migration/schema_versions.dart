@@ -18,11 +18,18 @@
 /// DB and KDF stay at their existing internal versions — they already
 /// track schema themselves.
 class SchemaVersions {
-  /// `config.json` payload format. v1 = post-3-tier collapse
-  /// (drops `keychainWithPassword`, folds into modifiers).
-  /// Bumped to 2 when the v1→v2 config migration lands alongside
-  /// the tier-cutover wipe.
-  static const int config = 1;
+  /// `config.json` payload format.
+  ///
+  /// v1 — pre-3-tier-refactor; no explicit `config_schema_version`
+  ///      field in the JSON. Detected as legacy on upgrade; routed
+  ///      through the tier-reset dialog + [WipeAllService] so the
+  ///      post-refactor install starts from a clean slate under the
+  ///      new native-plugin ACL shape.
+  /// v2 — current. `config_schema_version: 2` is written into every
+  ///      `config.json` by `ConfigStore.save`. `SecurityConfig`
+  ///      modifiers carry `password` + `biometric` fields in their
+  ///      final shape.
+  static const int config = 2;
 
   /// `credentials.kdf` (Argon2id params). Already self-versioned via
   /// `KdfParams` magic; tracked here so the migration framework knows

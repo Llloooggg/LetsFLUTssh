@@ -147,14 +147,14 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         }
         try {
             ensureKey()
+            // Primary key is silent — no promptBiometric on the data
+            // path. doFinal runs synchronously on the calling thread.
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.ENCRYPT_MODE, loadKey())
-            promptBiometric(cipher, "Set up hardware vault", onAuth = { authed ->
-                val ciphertext = authed.doFinal(dbKey)
-                val iv = authed.iv
-                writeVault(pinHmac, iv, ciphertext)
-                result.success(true)
-            }, onFail = { code, msg -> result.error(code, msg, null) })
+            val ciphertext = cipher.doFinal(dbKey)
+            val iv = cipher.iv
+            writeVault(pinHmac, iv, ciphertext)
+            result.success(true)
         } catch (e: Throwable) {
             result.error("STORE", e.message, null)
         }
@@ -178,10 +178,9 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
                 loadKey(),
                 GCMParameterSpec(GCM_TAG_BITS, parsed.iv)
             )
-            promptBiometric(cipher, "Unlock hardware vault", onAuth = { authed ->
-                val plain = authed.doFinal(parsed.ciphertext)
-                result.success(plain)
-            }, onFail = { code, msg -> result.error(code, msg, null) })
+            // Primary key is silent — doFinal runs synchronously.
+            val plain = cipher.doFinal(parsed.ciphertext)
+            result.success(plain)
         } catch (e: Throwable) {
             result.error("READ", e.message, null)
         }
@@ -326,6 +325,14 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         val kg = KeyGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
         )
+        // Primary key is SILENT — no setUserAuthenticationRequired.
+        // The bank-style primary data key is hardware-bound but does
+        // not gate on biometric / LSKF. Gating lives on the Dart-side
+        // HMAC compare (when the password modifier is on) and on the
+        // SECONDARY biometric-password-overlay key (when the biometric
+        // modifier is on). Layering biometric on the primary too would
+        // force a biometric prompt on every read even when the user
+        // did not ask for it.
         val builder = KeyGenParameterSpec.Builder(
             KEY_ALIAS,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
@@ -333,8 +340,6 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setKeySize(256)
-            .setUserAuthenticationRequired(true)
-            .setInvalidatedByBiometricEnrollment(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 builder.setIsStrongBoxBacked(true)

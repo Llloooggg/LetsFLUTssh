@@ -81,13 +81,16 @@ final class HardwareVaultPlugin: NSObject {
   }
 
   private func isAvailable() -> Bool {
-    // Secure Enclave is available iff the device reports a biometric
-    // policy that can evaluate. Apple reports "no biometrics" on
-    // simulators — keep L3 disabled there.
+    // Secure Enclave is available iff the device supports the
+    // passcode-backed authentication policy. Using
+    // `.deviceOwnerAuthentication` (not `...WithBiometrics`) because
+    // the primary SE key no longer gates on biometric — a device
+    // without Face / Touch ID but with a passcode can still use T2.
+    // The biometric modifier overlay has its own separate probe.
     let ctx = LAContext()
     var err: NSError?
     let canEval = ctx.canEvaluatePolicy(
-      .deviceOwnerAuthenticationWithBiometrics, error: &err
+      .deviceOwnerAuthentication, error: &err
     )
     guard canEval else { return false }
     // Sanity check: ensure the device is SEP-capable by attempting a
@@ -96,7 +99,7 @@ final class HardwareVaultPlugin: NSObject {
     return SecAccessControlCreateWithFlags(
       nil,
       kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-      [.privateKeyUsage, .biometryCurrentSet],
+      [.privateKeyUsage],
       nil
     ) != nil
   }
@@ -319,11 +322,16 @@ final class HardwareVaultPlugin: NSObject {
     if let existing = try? loadPublicKey() {
       return existing
     }
+    // Primary SE key is SILENT — no `.biometryCurrentSet`. Access is
+    // gated by `.privateKeyUsage` + device passcode only. Biometric
+    // gating lives on the SECONDARY password-overlay key (see
+    // `ensureBioPasswordKey`) so the data path does not fire a
+    // biometric prompt on every read when the user did not opt in.
     guard
       let access = SecAccessControlCreateWithFlags(
         nil,
         kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-        [.privateKeyUsage, .biometryCurrentSet],
+        [.privateKeyUsage],
         nil
       )
     else {
