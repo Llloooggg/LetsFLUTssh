@@ -56,7 +56,20 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
     companion object {
         const val CHANNEL = "com.letsflutssh/hardware_vault"
         private const val KEY_ALIAS = "letsflutssh_hw_vault_l3"
+        // Secondary Keystore alias used by the bank-style biometric
+        // overlay: holds the user's password bytes, gated by biometric
+        // auth via BiometricPrompt.CryptoObject. Read/written via the
+        // storeBiometricPassword / readBiometricPassword methods. The
+        // primary data key stays under KEY_ALIAS; this alias never
+        // touches the DB wrapping key.
+        private const val BIO_PASSWORD_KEY_ALIAS = "letsflutssh_hw_password_overlay"
         private const val VAULT_FILE_NAME = "hardware_vault_android.bin"
+        // Password-overlay blob: wrapped password bytes released by a
+        // biometric-gated Keystore key. Filename intentionally distinct
+        // from the primary vault so a clear() can wipe either side
+        // independently.
+        private const val BIO_PASSWORD_FILE_NAME =
+            "hardware_vault_password_overlay_android.bin"
         private const val GCM_TAG_BITS = 128
     }
 
@@ -75,6 +88,14 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
                 clearInternal()
                 result.success(true)
             }
+            "storeBiometricPassword" -> storeBiometricPassword(call, result)
+            "readBiometricPassword" -> readBiometricPassword(result)
+            "clearBiometricPassword" -> {
+                clearBiometricPasswordInternal()
+                result.success(true)
+            }
+            "isBiometricPasswordStored" ->
+                result.success(biometricPasswordFile().exists())
             else -> result.notImplemented()
         }
     }
@@ -115,9 +136,13 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
 
     private fun store(call: MethodCall, result: MethodChannel.Result) {
         val dbKey = call.argument<ByteArray>("dbKey")
-        val pinHmac = call.argument<ByteArray>("pinHmac")
-        if (dbKey == null || pinHmac == null) {
-            result.error("ARG", "dbKey and pinHmac required", null)
+        // pinHmac is now optional. When supplied it acts as the
+        // pre-unseal HMAC gate (bank-style password layer); when null
+        // the primary key is the only gate and no in-band secret is
+        // compared. Callers that want passwordless T2 pass null.
+        val pinHmac = call.argument<ByteArray>("pinHmac") ?: ByteArray(0)
+        if (dbKey == null) {
+            result.error("ARG", "dbKey required", null)
             return
         }
         try {
@@ -136,11 +161,7 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
     }
 
     private fun read(call: MethodCall, result: MethodChannel.Result) {
-        val pinHmac = call.argument<ByteArray>("pinHmac")
-        if (pinHmac == null) {
-            result.error("ARG", "pinHmac required", null)
-            return
-        }
+        val pinHmac = call.argument<ByteArray>("pinHmac") ?: ByteArray(0)
         val parsed = readVault()
         if (parsed == null) {
             result.success(null)
@@ -164,6 +185,139 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         } catch (e: Throwable) {
             result.error("READ", e.message, null)
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Biometric password overlay — bank-style "biometric shortcut"
+    //  that releases the user's typed password from a biometric-gated
+    //  Keystore entry. Never touches the DB wrapping key; caller feeds
+    //  the released password into the normal password-gated read()
+    //  path.
+    // ─────────────────────────────────────────────────────────────
+
+    private fun storeBiometricPassword(call: MethodCall, result: MethodChannel.Result) {
+        val passwordBytes = call.argument<ByteArray>("passwordBytes")
+        if (passwordBytes == null) {
+            result.error("ARG", "passwordBytes required", null)
+            return
+        }
+        try {
+            ensureBiometricPasswordKey()
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, loadBiometricPasswordKey())
+            promptBiometric(cipher, "Save password for biometric unlock", onAuth = { authed ->
+                val ciphertext = authed.doFinal(passwordBytes)
+                val iv = authed.iv
+                writeBiometricPasswordBlob(iv, ciphertext)
+                result.success(true)
+            }, onFail = { code, msg -> result.error(code, msg, null) })
+        } catch (e: Throwable) {
+            result.error("STORE_BIO_PW", e.message, null)
+        }
+    }
+
+    private fun readBiometricPassword(result: MethodChannel.Result) {
+        val parsed = readBiometricPasswordBlob()
+        if (parsed == null) {
+            result.success(null)
+            return
+        }
+        try {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                loadBiometricPasswordKey(),
+                GCMParameterSpec(GCM_TAG_BITS, parsed.iv)
+            )
+            promptBiometric(cipher, "Unlock with biometrics", onAuth = { authed ->
+                val plain = authed.doFinal(parsed.ciphertext)
+                result.success(plain)
+            }, onFail = { code, msg -> result.error(code, msg, null) })
+        } catch (e: Throwable) {
+            result.error("READ_BIO_PW", e.message, null)
+        }
+    }
+
+    private fun ensureBiometricPasswordKey() {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        if (ks.containsAlias(BIO_PASSWORD_KEY_ALIAS)) return
+        val kg = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore"
+        )
+        val builder = KeyGenParameterSpec.Builder(
+            BIO_PASSWORD_KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256)
+            .setUserAuthenticationRequired(true)
+            .setInvalidatedByBiometricEnrollment(true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                builder.setIsStrongBoxBacked(true)
+            } catch (_: Throwable) {
+                // StrongBox not present — fall through to TEE-backed.
+            }
+        }
+        kg.init(builder.build())
+        kg.generateKey()
+    }
+
+    private fun loadBiometricPasswordKey(): SecretKey {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        return ks.getKey(BIO_PASSWORD_KEY_ALIAS, null) as SecretKey
+    }
+
+    private fun biometricPasswordFile(): File =
+        File(activity.filesDir, BIO_PASSWORD_FILE_NAME)
+
+    private fun writeBiometricPasswordBlob(iv: ByteArray, ciphertext: ByteArray) {
+        val out = ByteArrayOutputStream()
+        out.write(intToBytes(iv.size))
+        out.write(iv)
+        out.write(intToBytes(ciphertext.size))
+        out.write(ciphertext)
+        val file = biometricPasswordFile()
+        file.writeBytes(out.toByteArray())
+        file.setReadable(false, false)
+        file.setReadable(true, true)
+        file.setWritable(false, false)
+        file.setWritable(true, true)
+    }
+
+    private data class BiometricPasswordBlob(
+        val iv: ByteArray,
+        val ciphertext: ByteArray,
+    )
+
+    private fun readBiometricPasswordBlob(): BiometricPasswordBlob? {
+        val file = biometricPasswordFile()
+        if (!file.exists()) return null
+        return try {
+            val raw = file.readBytes()
+            var pos = 0
+            fun next(): ByteArray {
+                val len = bytesToInt(raw, pos); pos += 4
+                val slice = raw.sliceArray(pos until pos + len)
+                pos += len
+                return slice
+            }
+            BiometricPasswordBlob(next(), next())
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun clearBiometricPasswordInternal() {
+        try {
+            val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            if (ks.containsAlias(BIO_PASSWORD_KEY_ALIAS)) {
+                ks.deleteEntry(BIO_PASSWORD_KEY_ALIAS)
+            }
+        } catch (_: Throwable) {
+        }
+        biometricPasswordFile().delete()
     }
 
     private fun ensureKey() {
@@ -289,6 +443,10 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         } catch (_: Throwable) {
         }
         vaultFile().delete()
+        // Clear the biometric overlay too — tier transitions wipe both
+        // halves, so the overlay never outlives its paired primary
+        // vault.
+        clearBiometricPasswordInternal()
     }
 
     private fun intToBytes(i: Int): ByteArray = byteArrayOf(
