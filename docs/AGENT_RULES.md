@@ -8,6 +8,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 | I'm about to... | Read this section |
 |---|---|
+| Edit code in any module | [§ Docs First — Read Before, Fix Drift, Update After](#docs-first--read-before-fix-drift-update-after) + map the module to its ARCHITECTURE § via [Within ARCHITECTURE.md nav](#within-architecturemd) |
 | Write a commit message / bump version | [§ Commits & Versioning](#commits--versioning) + [§ Plan-Item IDs Stay Internal](#plan-item-ids-stay-internal) |
 | Open a PR / merge to main | [§ Branching & Release Flow](#branching--release-flow) |
 | Add/edit a diagram in docs | [§ Diagrams in Docs](#diagrams-in-docs--mermaid-not-ascii-box-art) — Mermaid only, no ASCII box-art |
@@ -52,6 +53,18 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Check design decisions / gotchas | [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) |
 | Check dependencies / versions | [§17 Dependencies](ARCHITECTURE.md#17-dependencies) |
 | Write tests / understand DI | [§14 Testing Patterns](ARCHITECTURE.md#14-testing-patterns--di-hooks) |
+
+## Docs First — Read Before, Fix Drift, Update After
+
+Three-step discipline for any code edit that touches a module documented in `ARCHITECTURE.md`:
+
+1. **Read the relevant § before touching code.** Open `ARCHITECTURE.md` via the [Within ARCHITECTURE.md nav](#within-architecturemd) and read the § that maps to the module — `§3.x` for `core/`, `§5.x` for `features/`, `§6` for widgets, `§9` for data flows, `§10` for data models, `§11` for persistence, `§13` for the security model, and so on. The nav is the intended entry point. Do not skip it and grep the code blindly: docs capture *intent* (what invariants the module preserves, what failure modes are accepted, why the shape is what it is); code captures only the current state. You need both to edit safely.
+
+2. **If you find code-doc drift, fix the doc in the same commit that reveals it.** Code is the source of truth on current behaviour. If the §X description no longer matches what the file actually does, rewrite the drifted lines so the § matches reality — *before* adding new content on top. Never extend a stale § with matching stale additions; that compounds the drift. If the code looks like it drifted *away* from the intended design (a commented-out invariant, a TODO that contradicts the § description, a code path the § calls "forbidden"), flag it and ask the user — do not silently paper over the mismatch in either direction.
+
+3. **After your edits, walk the [Documentation Maintenance Checklist](#documentation-maintenance-checklist) below.** Find every row the diff triggers and update the named §. Ship the doc update in the same commit as the code change — a code change without its matching doc update is an incomplete commit (full rule in [§ Always-On Rules](../CLAUDE.md#always-on-rules-gate-every-action)).
+
+This rule binds every code edit, not just "big" ones. "Forgot to check docs" is not a valid reason; the nav + checklist name every surface that could drift.
 
 ## Documentation Maintenance Checklist
 
