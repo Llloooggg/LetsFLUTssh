@@ -1062,21 +1062,23 @@ u32 BE + iterations u32 BE + parallelism u8 = 9 bytes). The reader picks
 up the exact cost used to write the archive — a future release can tune
 parameters without having to break or re-encrypt existing files.
 
-Read-only legacy paths remain for archives produced by pre-Argon2id
-builds:
+Argon2id is the only supported KDF since the pre-v1 back-compat drop.
+Pre-v1 archives (headerless PBKDF2 and `0x01` v2 PBKDF2 header) are
+rejected at import with `UnsupportedLfsVersionException` — users on
+those archives must re-export from the current app version. Future
+breaking format changes ship a `Migration` registered in
+`lib/core/migration/archive_registry.dart` (see §3.7) rather than
+another read-only back-compat path.
 
 | On-disk form | Version byte | KDF | Notes |
 |---|---|---|---|
-| v1 (headerless) | — | PBKDF2 @ `defaultPbkdf2Iterations` | Starts straight with 32-byte salt, no magic. |
-| v2 (LFSE) | `0x01` | PBKDF2 @ header iterations | `[LFSE][0x01][iters u32 BE][salt][iv][ct]` |
-| v3 (LFSE) | `0x02` | Argon2id @ header params | Current writer. |
+| v1 (LFSE) | `0x02` | Argon2id @ header params | Current writer and the only supported reader. |
 
 Import caps bound Argon2id params from an untrusted header
 (`maxImportArgon2idMemoryKiB = 1 GiB`, `maxImportArgon2idIterations =
 20`, `maxImportArgon2idParallelism = 16`) so a hostile archive cannot
-pin the isolate into swap. `maxImportIterations = 6,000,000` keeps the
-legacy PBKDF2 read path bounded too. Unencrypted ZIP archives keep
-their `PK\x03\x04` magic and are handled separately.
+pin the isolate into swap. Unencrypted ZIP archives keep their
+`PK\x03\x04` magic and are handled separately.
 
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
@@ -2218,7 +2220,7 @@ All long operations surface progress through this type — `ExportImport.export/
 
 `LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before PBKDF2 + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
 
-`UnsupportedLfsVersionException` fires when `manifest.schema_version` is newer than `ExportImport.currentSchemaVersion`. Legacy archives without a `manifest.json` fall back to `LfsManifest.legacy()` (schema v1, null appVersion) so pre-manifest exports still import cleanly.
+`UnsupportedLfsVersionException` fires in three cases: missing `manifest.json`, malformed `schema_version`, and a `schema_version` that does not match `ExportImport.currentSchemaVersion`. Pre-v1 archives (headerless PBKDF2, v2 PBKDF2 header, missing manifest) all route through this one exception — users re-export from the current app version to recover.
 
 `.lfs` writes use a tmp-then-rename pattern (`<path>.tmp` → `<path>`) so an I/O failure mid-export can't leave a partially-written file that would fail decryption on next import.
 
@@ -2952,7 +2954,7 @@ Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import ret
 
 Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
 
-The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`), optional `app_version`, and `created_at`. Archives with a future `schema_version` are rejected with `UnsupportedLfsVersionException` to avoid silently dropping unknown fields; missing manifest is treated as legacy v1.
+The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`, sourced from `SchemaVersions.archive`), optional `app_version`, and `created_at`. Archives whose `schema_version` is missing, malformed, or does not match the current build are rejected with `UnsupportedLfsVersionException` — the user re-exports from the current app version. Future format bumps ship a `Migration` registered in `lib/core/migration/archive_registry.dart` (see §3.7) instead of a permanent read-only fallback.
 
 ### TOFU (Trust On First Use)
 

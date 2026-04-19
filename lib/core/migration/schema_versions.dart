@@ -46,6 +46,13 @@ class SchemaVersions {
   /// `hardware_vault_salt.bin` — raw 32-byte salt. Phase A1: legacy
   /// (version 0). Phase D migration wraps in envelope (version 1).
   static const int hwSalt = 0;
+
+  /// `.lfs` archive schema carried in `manifest.json`. Phase A3 drops
+  /// pre-v1 back-compat (legacy headerless PBKDF2, v2 PBKDF2 header,
+  /// missing manifest) and establishes v1 as the permanent floor —
+  /// future breaking format changes ship a proper archive-side
+  /// `Migration` registered in `archive_registry.dart`.
+  static const int archive = 1;
 }
 
 /// Stable 1-byte ids written into the [VersionedBlob] header. Never
@@ -60,4 +67,5 @@ class ArtefactIds {
   static const int config = 0x07;
   static const int kdf = 0x08;
   static const int db = 0x09;
+  static const int archive = 0x0A;
 }

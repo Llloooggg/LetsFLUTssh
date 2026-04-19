@@ -420,105 +420,91 @@ void main() {
     });
   });
 
-  group('ExportImport — legacy PBKDF2 read path', () {
-    test('v2 PBKDF2 archives produced by older builds still decrypt', () async {
-      // Build a real ZIP payload via the current export path, then re-wrap
-      // it with the legacy v2 PBKDF2 writer so we get a real archive that
-      // reads exactly like one produced by a pre-Argon2id build.
+  group('ExportImport — pre-v1 archive rejection', () {
+    test('legacy headerless PBKDF2 archive is rejected', () async {
       final zipBytes = _buildTestZip();
-      final legacyBytes = ExportImport.encryptLegacyPbkdf2ForTesting(
+      final headerless = ExportImport.encryptLegacyHeaderlessForTesting(
         zipBytes,
         'pw',
-        iterations: 1,
       );
-      final legacyPath = '${tempDir.path}/pbkdf2-legacy.lfs';
-      await File(legacyPath).writeAsBytes(legacyBytes);
+      final legacyPath = '${tempDir.path}/pbkdf2-headerless.lfs';
+      await File(legacyPath).writeAsBytes(headerless);
 
-      final result = await ExportImport.import_(
-        filePath: legacyPath,
-        masterPassword: 'pw',
-        mode: ImportMode.merge,
-        options: const ExportOptions(includeConfig: true),
-      );
-      expect(result.config, isNotNull);
-    });
-
-    test(
-      'legacy headerless PBKDF2 archive decrypts via fallback path',
-      () async {
-        final zipBytes = _buildTestZip();
-        final v2Bytes = ExportImport.encryptLegacyPbkdf2ForTesting(
-          zipBytes,
-          'pw',
-          iterations: ExportImport.defaultPbkdf2Iterations,
-        );
-        // Drop the 9-byte LFSE/version/iters prefix to produce the original
-        // v1 layout (raw salt + iv + ct).
-        final stripped = v2Bytes.sublist(9);
-        final legacyPath = '${tempDir.path}/pbkdf2-headerless.lfs';
-        await File(legacyPath).writeAsBytes(stripped);
-
-        final result = await ExportImport.import_(
+      await expectLater(
+        ExportImport.import_(
           filePath: legacyPath,
           masterPassword: 'pw',
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),
-        );
-        expect(result.config, isNotNull);
-      },
-    );
+        ),
+        throwsA(
+          isA<UnsupportedLfsVersionException>()
+              .having((e) => e.found, 'found', 0)
+              .having(
+                (e) => e.supported,
+                'supported',
+                ExportImport.currentSchemaVersion,
+              ),
+        ),
+      );
+    });
 
-    test(
-      'v2 header with maliciously huge iterations is rejected as malformed',
-      () async {
-        final zipBytes = _buildTestZip();
-        final legacyBytes = ExportImport.encryptLegacyPbkdf2ForTesting(
-          zipBytes,
-          'pw',
-          iterations: 1,
-        ).toList();
-        // Bytes 5..8 hold the u32 iterations field.
-        legacyBytes[5] = 0xFF;
-        legacyBytes[6] = 0xFF;
-        legacyBytes[7] = 0xFF;
-        legacyBytes[8] = 0xFF;
-        final hostilePath = '${tempDir.path}/pbkdf2-hostile.lfs';
-        await File(hostilePath).writeAsBytes(legacyBytes);
-
-        await expectLater(
-          ExportImport.import_(
-            filePath: hostilePath,
-            masterPassword: 'pw',
-            mode: ImportMode.merge,
-            options: const ExportOptions(includeConfig: true),
-          ),
-          throwsA(isA<LfsMalformedHeaderException>()),
-        );
-      },
-    );
-
-    test('v2 header with zero iterations is rejected as malformed', () async {
+    test('v2 PBKDF2 header (0x01) archive is rejected', () async {
       final zipBytes = _buildTestZip();
-      final legacyBytes = ExportImport.encryptLegacyPbkdf2ForTesting(
+      final v2Bytes = ExportImport.encryptLegacyPbkdf2ForTesting(
         zipBytes,
         'pw',
         iterations: 1,
-      ).toList();
-      legacyBytes[5] = 0;
-      legacyBytes[6] = 0;
-      legacyBytes[7] = 0;
-      legacyBytes[8] = 0;
-      final hostilePath = '${tempDir.path}/pbkdf2-zero.lfs';
-      await File(hostilePath).writeAsBytes(legacyBytes);
+      );
+      final v2Path = '${tempDir.path}/pbkdf2-v2.lfs';
+      await File(v2Path).writeAsBytes(v2Bytes);
 
       await expectLater(
         ExportImport.import_(
-          filePath: hostilePath,
+          filePath: v2Path,
           masterPassword: 'pw',
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),
         ),
-        throwsA(isA<LfsMalformedHeaderException>()),
+        throwsA(
+          isA<UnsupportedLfsVersionException>()
+              .having((e) => e.found, 'found', 1)
+              .having(
+                (e) => e.supported,
+                'supported',
+                ExportImport.currentSchemaVersion,
+              ),
+        ),
+      );
+    });
+
+    test('archive with unknown version byte is rejected', () async {
+      final zipBytes = _buildTestZip();
+      // LFSE magic + unknown 0x7A byte + salt + iv + payload.
+      final bytes = <int>[
+        0x4C, 0x46, 0x53, 0x45, // LFSE
+        0x7A, // unknown version
+        ...List<int>.generate(32, (i) => i), // salt
+        ...List<int>.generate(12, (i) => i + 100), // iv
+        ...zipBytes,
+      ];
+      final path = '${tempDir.path}/unknown-version.lfs';
+      await File(path).writeAsBytes(bytes);
+
+      await expectLater(
+        ExportImport.import_(
+          filePath: path,
+          masterPassword: 'pw',
+          mode: ImportMode.merge,
+          options: const ExportOptions(includeConfig: true),
+        ),
+        throwsA(
+          isA<UnsupportedLfsVersionException>().having(
+            (e) => e.found,
+            'found',
+            0x7A,
+          ),
+        ),
       );
     });
   });
@@ -967,11 +953,11 @@ void main() {
       expect(ex.toString(), contains('v1'));
     });
 
-    test('legacy manifest (missing file) is treated as v1', () {
-      const legacy = LfsManifest.legacy();
-      expect(legacy.schemaVersion, 1);
-      expect(legacy.appVersion, isNull);
-      expect(legacy.createdAt, isNull);
+    test('placeholder manifest pins schemaVersion to current', () {
+      const placeholder = LfsManifest.placeholder;
+      expect(placeholder.schemaVersion, ExportImport.currentSchemaVersion);
+      expect(placeholder.appVersion, isNull);
+      expect(placeholder.createdAt, isNull);
     });
   });
 

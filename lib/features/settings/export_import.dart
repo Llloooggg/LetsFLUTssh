@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/migration/schema_versions.dart';
 import '../../core/progress/progress_reporter.dart';
 import '../../core/security/kdf_params.dart';
 import '../../core/security/key_store.dart';
@@ -19,7 +20,8 @@ import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
 
-/// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM.
+/// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM
+/// under an Argon2id-derived key.
 ///
 /// Structure inside ZIP:
 ///   manifest.json  — schema + app version, created_at (see [currentSchemaVersion])
@@ -27,55 +29,36 @@ import '../../utils/logger.dart';
 ///   config.json    — app configuration
 ///   known_hosts    — TOFU host key database
 ///
-/// The ZIP bytes are encrypted with AES-256-GCM using a key derived from
-/// a master password via PBKDF2 (600k iterations, SHA-256). GCM's auth tag
-/// already protects archive integrity end-to-end, so the manifest carries
-/// metadata only — no redundant content hash.
+/// Wire format:
+///   `[LFSE 4][0x02 1][KdfParams N][salt 32][iv 12][ct+tag]`
+///
+/// GCM's auth tag protects archive integrity end-to-end, so the manifest
+/// carries metadata only — no redundant content hash. v1 is the permanent
+/// floor; pre-v1 formats (legacy headerless PBKDF2, v2 PBKDF2 header,
+/// missing manifest) are rejected with [UnsupportedLfsVersionException].
+/// Future format changes ship a [Migration] registered in
+/// `archive_registry.dart` rather than another read-only back-compat path.
 class ExportImport {
-  /// Current .lfs schema version. Bump on format-breaking changes.
-  ///
-  /// - v1 (2026-04): initial manifest introduction. Archives without a
-  ///   manifest are treated as legacy v1 for backward compatibility.
-  static const int currentSchemaVersion = 1;
+  /// Current .lfs schema version. Bump on format-breaking changes; every
+  /// bump ships a corresponding archive `Migration`. Sourced from
+  /// [SchemaVersions.archive] so the migration framework and the archive
+  /// share a single source of truth.
+  static const int currentSchemaVersion = SchemaVersions.archive;
 
   static const _saltLen = 32;
   static const _ivLen = 12;
 
-  /// Header magic for all v2+ encrypted archives. Version byte that
-  /// follows distinguishes KDF:
-  ///   `0x01` → v2 legacy PBKDF2 (read-only; new exports never write this)
-  ///   `0x02` → v3 Argon2id (current default)
+  /// Header magic + single supported version byte. Argon2id-only after
+  /// the pre-v1 back-compat drop.
   ///
-  /// Layouts:
-  ///   v2 PBKDF2:  [LFSE 4][0x01 1][iters u32BE 4][salt 32][iv 12][ct+tag]
-  ///   v3 Argon2id:[LFSE 4][0x02 1][KdfParams N]  [salt 32][iv 12][ct+tag]
-  ///
-  /// Archives written before any header existed start straight with the
-  /// 32-byte random salt (no detectable magic); those are treated as
-  /// legacy v1 payloads and decrypted with [productionPbkdf2Iterations].
-  /// Unencrypted ZIP archives still expose the `PK\x03\x04` magic and are
-  /// handled separately.
+  ///   `0x02` → Argon2id (the only accepted version).
   static const List<int> _encHeaderMagic = [0x4C, 0x46, 0x53, 0x45]; // 'LFSE'
-  static const int _encVersionPbkdf2 = 0x01;
   static const int _encVersionArgon2id = 0x02;
 
-  /// Byte count for the legacy PBKDF2 header: magic + version + iters.
-  static const int _pbkdf2HeaderBaseLen = 4 + 1 + 4;
-
-  /// Upper bound on the fixed part of the v3 Argon2id header
+  /// Upper bound on the fixed part of the Argon2id header
   /// (magic + version + KdfParams). Used by preflight size estimation;
   /// the actual length depends on KdfParams.encodedLength at write time.
   static const int _argon2idHeaderMaxLen = 4 + 1 + 16;
-
-  /// Production PBKDF2-SHA256 iteration count. Retained because legacy
-  /// headerless archives (pre-v2) still need a fallback cost when the
-  /// caller does not supply one. New exports no longer use PBKDF2.
-  static const int productionPbkdf2Iterations = 600000;
-
-  /// Default PBKDF2 iteration count for the legacy headerless read path.
-  /// Mutable so the test bootstrap can lower it.
-  @visibleForTesting
-  static int defaultPbkdf2Iterations = productionPbkdf2Iterations;
 
   /// Default Argon2id profile used when [export] is called without an
   /// explicit `kdfParams`. Mutable so the test bootstrap can drop cost
@@ -164,10 +147,9 @@ class ExportImport {
         data[3] == 0x04;
   }
 
-  /// True when [data] starts with the `LFSE` magic — i.e. a v2+ encrypted
-  /// archive that carries its KDF descriptor in the header ahead of the
-  /// salt. The byte immediately after the magic is the version (see
-  /// [_encVersionPbkdf2] / [_encVersionArgon2id]).
+  /// True when [data] starts with the `LFSE` magic. Pre-magic archives
+  /// are rejected as [UnsupportedLfsVersionException] in the decrypt
+  /// path — this predicate just drives the version-byte lookup.
   static bool _hasEncryptionHeader(Uint8List data) {
     if (data.length < _encHeaderMagic.length + 1) return false;
     for (var i = 0; i < _encHeaderMagic.length; i++) {
@@ -175,18 +157,6 @@ class ExportImport {
     }
     return true;
   }
-
-  /// Hard ceiling on the PBKDF2 iteration count we are willing to honour
-  /// from a legacy v2 archive header. Anything above this is clamped so a
-  /// hostile / corrupt archive cannot embed `0xFFFFFFFF` and pin PBKDF2
-  /// in the import isolate for hours.
-  ///
-  /// Legitimate values land at or below [productionPbkdf2Iterations]
-  /// (currently 600 000); the cap sits 10× above that to leave headroom
-  /// for builds that exported with a tuned-up PBKDF2 cost before the
-  /// Argon2id migration.
-  @visibleForTesting
-  static const int maxImportIterations = 6000000;
 
   /// Probe an `.lfs` candidate file and decide what the import flow
   /// should do with it before asking for a password.
@@ -666,19 +636,20 @@ class ExportImport {
       zipBytes = encData;
     } else {
       progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
-      // Decrypt in isolate — Argon2id is CPU + memory-heavy, PBKDF2
-      // legacy path is CPU-heavy. GCM auth-tag failure (wrong password
-      // or tampered archive) surfaces as InvalidCipherTextException
-      // from pointycastle. ZipDecoder will also throw on
-      // successfully-decrypted-but-non-ZIP bytes (truncated file). Both
-      // cases collapse to LfsDecryptionFailedException so the UI can
-      // show a single localized message.
-      final legacyIters = defaultPbkdf2Iterations;
+      // Decrypt in isolate — Argon2id is CPU + memory-heavy. GCM
+      // auth-tag failure (wrong password or tampered archive) surfaces
+      // as InvalidCipherTextException from pointycastle. ZipDecoder
+      // will also throw on successfully-decrypted-but-non-ZIP bytes
+      // (truncated file). Both cases collapse to
+      // LfsDecryptionFailedException so the UI can show a single
+      // localized message.
       try {
         zipBytes = await Isolate.run(
-          () => _decryptWithPassword(encData, masterPassword, legacyIters),
+          () => _decryptWithPassword(encData, masterPassword),
         );
       } on LfsMalformedHeaderException {
+        rethrow;
+      } on UnsupportedLfsVersionException {
         rethrow;
       } catch (e) {
         throw LfsDecryptionFailedException(cause: e);
@@ -696,7 +667,13 @@ class ExportImport {
     enforceDecompressedSizeCap(archive);
 
     final manifest = _parseManifest(archive);
-    if (manifest.schemaVersion > currentSchemaVersion) {
+    // Archive format is Argon2id-only since the pre-v1 drop. Any
+    // schema_version that is not exactly [currentSchemaVersion]
+    // (future OR past) is rejected — future archives can't be read
+    // by this build, past archives were dropped with the rest of the
+    // legacy KDF paths. Future format bumps add migrations to
+    // archive_registry.dart instead.
+    if (manifest.schemaVersion != currentSchemaVersion) {
       throw UnsupportedLfsVersionException(
         found: manifest.schemaVersion,
         supported: currentSchemaVersion,
@@ -750,16 +727,28 @@ class ExportImport {
     );
   }
 
-  /// Parse the manifest entry. Absence or malformed content is treated as a
-  /// legacy v1 archive (no manifest was written before [currentSchemaVersion]
-  /// introduction).
+  /// Parse the manifest entry. Manifest is mandatory after the pre-v1
+  /// back-compat drop — absence or malformed content throws
+  /// [UnsupportedLfsVersionException] so the caller surfaces a clear
+  /// "archive from an older app version; re-export" error. `found: 0`
+  /// is the sentinel for "manifest missing or unreadable".
   static LfsManifest _parseManifest(Archive archive) {
     final file = archive.findFile(_manifestFile);
-    if (file == null) return const LfsManifest.legacy();
+    if (file == null) {
+      throw const UnsupportedLfsVersionException(
+        found: 0,
+        supported: currentSchemaVersion,
+      );
+    }
     try {
       final json = utf8.decode(file.content as List<int>);
       final decoded = jsonDecode(json);
-      if (decoded is! Map<String, dynamic>) return const LfsManifest.legacy();
+      if (decoded is! Map<String, dynamic>) {
+        throw const UnsupportedLfsVersionException(
+          found: 0,
+          supported: currentSchemaVersion,
+        );
+      }
       final versionRaw = decoded['schema_version'];
       final int schemaVersion;
       if (versionRaw is int) {
@@ -767,7 +756,10 @@ class ExportImport {
       } else if (versionRaw is num) {
         schemaVersion = versionRaw.toInt();
       } else {
-        schemaVersion = 1;
+        throw const UnsupportedLfsVersionException(
+          found: 0,
+          supported: currentSchemaVersion,
+        );
       }
       return LfsManifest(
         schemaVersion: schemaVersion,
@@ -778,8 +770,13 @@ class ExportImport {
             ? DateTime.tryParse(decoded['created_at'] as String)
             : null,
       );
+    } on UnsupportedLfsVersionException {
+      rethrow;
     } catch (_) {
-      return const LfsManifest.legacy();
+      throw const UnsupportedLfsVersionException(
+        found: 0,
+        supported: currentSchemaVersion,
+      );
     }
   }
 
@@ -941,91 +938,28 @@ class ExportImport {
 
   /// Decrypt bytes with a password-derived key.
   ///
-  /// Branches on the on-disk format:
-  ///   * no magic (legacy v1) → raw-salt PBKDF2 using [legacyPbkdf2Iterations]
-  ///   * magic + version `0x01` → v2 PBKDF2, iterations from header
-  ///   * magic + version `0x02` → v3 Argon2id, params from header
-  ///
-  /// The PBKDF2 paths are retained for read-only backwards compatibility
-  /// with archives users exported before the Argon2id migration.
-  static Uint8List _decryptWithPassword(
-    Uint8List data,
-    String password,
-    int legacyPbkdf2Iterations,
-  ) {
+  /// Argon2id-only since the pre-v1 back-compat drop. Pre-magic archives
+  /// (legacy headerless PBKDF2) and `0x01` (v2 PBKDF2 header) are
+  /// rejected with [UnsupportedLfsVersionException]. Any other version
+  /// byte surfaces the same exception with the observed byte as `found`.
+  static Uint8List _decryptWithPassword(Uint8List data, String password) {
     final bytes = Uint8List.fromList(data);
 
     if (!_hasEncryptionHeader(bytes)) {
-      // Legacy v1: raw 32-byte salt straight off the wire.
-      return _decryptPbkdf2(
-        bytes,
-        password,
-        saltStart: 0,
-        iterations: legacyPbkdf2Iterations,
+      throw const UnsupportedLfsVersionException(
+        found: 0,
+        supported: currentSchemaVersion,
       );
     }
 
     final version = bytes[_encHeaderMagic.length];
-    switch (version) {
-      case _encVersionPbkdf2:
-        if (bytes.length < _pbkdf2HeaderBaseLen) {
-          throw const LfsMalformedHeaderException(
-            reason: 'truncated v2 header',
-          );
-        }
-        final headerIters = _readPbkdf2HeaderIterations(bytes);
-        return _decryptPbkdf2(
-          bytes,
-          password,
-          saltStart: _pbkdf2HeaderBaseLen,
-          iterations: headerIters,
-        );
-      case _encVersionArgon2id:
-        return _decryptArgon2id(bytes, password);
-      default:
-        throw LfsMalformedHeaderException(
-          reason:
-              'unknown header version 0x'
-              '${version.toRadixString(16).padLeft(2, '0')}',
-        );
-    }
-  }
-
-  /// Read iteration count from a v2 PBKDF2 header and DoS-guard it.
-  static int _readPbkdf2HeaderIterations(Uint8List data) {
-    final raw = (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
-    if (raw <= 0 || raw > maxImportIterations) {
-      throw LfsMalformedHeaderException(
-        reason: 'iterations=$raw is outside [1, $maxImportIterations]',
+    if (version != _encVersionArgon2id) {
+      throw UnsupportedLfsVersionException(
+        found: version,
+        supported: currentSchemaVersion,
       );
     }
-    return raw;
-  }
-
-  /// Decrypt with PBKDF2-derived key. `saltStart` selects between the
-  /// raw-salt legacy (0) and v2 header format (after the 9-byte prefix).
-  static Uint8List _decryptPbkdf2(
-    Uint8List bytes,
-    String password, {
-    required int saltStart,
-    required int iterations,
-  }) {
-    final salt = bytes.sublist(saltStart, saltStart + _saltLen);
-    final ivStart = saltStart + _saltLen;
-    final iv = bytes.sublist(ivStart, ivStart + _ivLen);
-    final ciphertext = bytes.sublist(ivStart + _ivLen);
-
-    final keyBuf = _derivePbkdf2KeyLocked(password, salt, iterations);
-    try {
-      final cipher = GCMBlockCipher(AESEngine())
-        ..init(
-          false,
-          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
-        );
-      return cipher.process(ciphertext);
-    } finally {
-      keyBuf.dispose();
-    }
+    return _decryptArgon2id(bytes, password);
   }
 
   /// Decrypt a v3 Argon2id archive. Parses params from the header and
@@ -1122,39 +1056,21 @@ class ExportImport {
     }
   }
 
-  /// Legacy PBKDF2 key derivation for reading v1 raw-salt and v2 PBKDF2
-  /// archives only. No write path uses this in production — new exports
-  /// always go through Argon2id.
-  static SecretBuffer _derivePbkdf2KeyLocked(
-    String password,
-    Uint8List salt,
-    int iterations,
-  ) {
-    final passwordBytes = Uint8List.fromList(utf8.encode(password));
-    final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, iterations, 32));
-    final derived = pbkdf2.process(passwordBytes);
-    try {
-      return SecretBuffer.fromBytes(derived);
-    } finally {
-      for (var i = 0; i < derived.length; i++) {
-        derived[i] = 0;
-      }
-      for (var i = 0; i < passwordBytes.length; i++) {
-        passwordBytes[i] = 0;
-      }
-    }
-  }
-
-  /// Write a legacy v2 PBKDF2 archive. Used only by tests that exercise
-  /// the backward-compatible read path for archives produced by older
-  /// builds. Production code never calls this.
+  /// Build a v2 PBKDF2 archive (LFSE magic + 0x01). Used only by
+  /// tests that exercise the rejection path — production code never
+  /// writes this format. Kept as a test helper so the rejection path
+  /// can be exercised without having to handcraft binary buffers.
   @visibleForTesting
   static Uint8List encryptLegacyPbkdf2ForTesting(
     Uint8List data,
     String password, {
     required int iterations,
   }) {
+    // The body is intentionally not a real PBKDF2 encryption — the
+    // rejection happens on the version byte long before the cipher
+    // runs. Returning a well-formed header with garbage payload is
+    // sufficient for every test that asserts
+    // [UnsupportedLfsVersionException] is thrown on `0x01`.
     final random = Random.secure();
     final salt = Uint8List.fromList(
       List.generate(_saltLen, (_) => random.nextInt(256)),
@@ -1162,26 +1078,33 @@ class ExportImport {
     final iv = Uint8List.fromList(
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
-    final keyBuf = _derivePbkdf2KeyLocked(password, salt, iterations);
-    try {
-      final cipher = GCMBlockCipher(AESEngine())
-        ..init(
-          true,
-          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
-        );
-      final output = cipher.process(data);
-      final header = <int>[
-        ..._encHeaderMagic,
-        _encVersionPbkdf2,
-        (iterations >> 24) & 0xFF,
-        (iterations >> 16) & 0xFF,
-        (iterations >> 8) & 0xFF,
-        iterations & 0xFF,
-      ];
-      return Uint8List.fromList([...header, ...salt, ...iv, ...output]);
-    } finally {
-      keyBuf.dispose();
-    }
+    final header = <int>[
+      ..._encHeaderMagic,
+      0x01, // legacy PBKDF2 version — rejected by _decryptWithPassword
+      (iterations >> 24) & 0xFF,
+      (iterations >> 16) & 0xFF,
+      (iterations >> 8) & 0xFF,
+      iterations & 0xFF,
+    ];
+    return Uint8List.fromList([...header, ...salt, ...iv, ...data]);
+  }
+
+  /// Build a legacy raw-salt PBKDF2 archive (no magic header). Used
+  /// only by tests that assert the rejection path for pre-v1
+  /// archives.
+  @visibleForTesting
+  static Uint8List encryptLegacyHeaderlessForTesting(
+    Uint8List data,
+    String password,
+  ) {
+    final random = Random.secure();
+    final salt = Uint8List.fromList(
+      List.generate(_saltLen, (_) => random.nextInt(256)),
+    );
+    final iv = Uint8List.fromList(
+      List.generate(_ivLen, (_) => random.nextInt(256)),
+    );
+    return Uint8List.fromList([...salt, ...iv, ...data]);
   }
 }
 
@@ -1226,11 +1149,13 @@ class LfsManifest {
     this.createdAt,
   });
 
-  /// Constructs a sentinel manifest for legacy archives (pre-manifest).
-  const LfsManifest.legacy()
-    : schemaVersion = 1,
-      appVersion = null,
-      createdAt = null;
+  /// Placeholder manifest used by code paths that need a
+  /// `LfsManifest` instance before the real one is parsed (e.g. the
+  /// default value on `LfsPreview.manifest`). Always carries the
+  /// current schema version and null metadata — never persisted.
+  static const LfsManifest placeholder = LfsManifest(
+    schemaVersion: ExportImport.currentSchemaVersion,
+  );
 }
 
 /// Classification of a file offered to the import flow. Produced by
@@ -1346,7 +1271,7 @@ class LfsPreview {
     this.managerKeyCount = 0,
     this.tagCount = 0,
     this.snippetCount = 0,
-    this.manifest = const LfsManifest.legacy(),
+    this.manifest = LfsManifest.placeholder,
     this.skippedSessions = 0,
   });
 
