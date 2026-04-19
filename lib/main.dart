@@ -38,7 +38,7 @@ import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
 import 'core/security/keychain_password_gate.dart';
-import 'core/security/legacy_state_reset.dart';
+import 'core/security/wipe_all_service.dart';
 import 'core/migration/migration_runner.dart';
 import 'core/migration/registry.dart';
 import 'core/security/password_rate_limiter.dart';
@@ -452,29 +452,40 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // first-launch wizard. Quit on refusal so the user can reinstall
     // an older build to export first.
     final currentSecurity = ref.read(configProvider).security;
-    if (currentSecurity == null) {
-      final reset = LegacyStateReset();
-      if (await reset.hasLegacyState()) {
-        if (!mounted) return;
-        final choice = await _showTierResetDialog();
-        if (choice == TierResetChoice.exitApp) {
-          AppLogger.instance.log(
-            'Legacy tier state detected — user chose to exit',
-            name: 'App',
-          );
-          await SystemNavigator.pop();
-          exit(0);
-        }
-        await reset.wipe();
+    final wiper = WipeAllService();
+
+    // Crash-safety: if the previous run started a wipe that did not
+    // finish, re-run the full sweep idempotently before anything else
+    // touches the app-support dir.
+    if (await wiper.hasPendingWipe()) {
+      AppLogger.instance.log(
+        'Resuming unfinished wipe from previous launch',
+        name: 'App',
+      );
+      await wiper.wipeAll();
+      _credentialsWereReset = true;
+    }
+
+    if (currentSecurity == null && await wiper.hasAnyState()) {
+      if (!mounted) return;
+      final choice = await _showTierResetDialog();
+      if (choice == TierResetChoice.exitApp) {
         AppLogger.instance.log(
-          'Legacy tier state detected — wiped, running fresh wizard',
+          'Pre-v1 state detected — user chose to exit',
           name: 'App',
         );
-        _credentialsWereReset = true;
-        // Fall through to first-launch setup with a clean slate.
-        await _firstLaunchSetup(manager, keyStorage);
-        return;
+        await SystemNavigator.pop();
+        exit(0);
       }
+      await wiper.wipeAll();
+      AppLogger.instance.log(
+        'Pre-v1 state detected — wiped, running fresh wizard',
+        name: 'App',
+      );
+      _credentialsWereReset = true;
+      // Fall through to first-launch setup with a clean slate.
+      await _firstLaunchSetup(manager, keyStorage);
+      return;
     }
 
     if (dbExists) {
@@ -664,8 +675,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return keyStorage.readKey();
       },
       onReset: () async {
-        final reset = LegacyStateReset();
-        await reset.wipe();
+        await WipeAllService().wipeAll();
         _credentialsWereReset = true;
       },
     );
@@ -721,8 +731,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return unsealed;
       },
       onReset: () async {
-        final reset = LegacyStateReset();
-        await reset.wipe();
+        await WipeAllService().wipeAll();
         _credentialsWereReset = true;
       },
     );
@@ -995,7 +1004,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
   /// Destructive path — user consented to a full wipe. Closes the
   /// broken handle, drops every security artefact via
-  /// `LegacyStateReset`, zeroes `config.security`, and re-runs the
+  /// [WipeAllService], zeroes `config.security`, and re-runs the
   /// first-launch wizard from a clean slate.
   Future<void> _wipeAndRestartFromScratch() async {
     final db = _activeDatabase;
@@ -1010,7 +1019,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       }
     }
     _activeDatabase = null;
-    await LegacyStateReset().wipe();
+    await WipeAllService().wipeAll();
     await ref
         .read(configProvider.notifier)
         .update((c) => c.copyWith(security: null));

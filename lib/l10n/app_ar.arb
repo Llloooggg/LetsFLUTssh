@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "مستويات الأمان — مقارنة جنباً إلى جنب",
   "securityComparisonTableThreatColumn": "التهديد",
-  "compareAllTiers": "مقارنة جميع المستويات"
+  "compareAllTiers": "مقارنة جميع المستويات",
+
+  "resetAllDataTitle": "إعادة تعيين جميع البيانات",
+  "resetAllDataSubtitle": "حذف جميع الجلسات والمفاتيح والإعدادات ومكونات الأمان. يتم أيضاً مسح إدخالات سلسلة المفاتيح وفتحات الخزنة الصلبة.",
+  "resetAllDataConfirmTitle": "إعادة تعيين جميع البيانات؟",
+  "resetAllDataConfirmBody": "سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (إدخالات سلسلة المفاتيح، بيانات الخزنة الصلبة، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
+  "resetAllDataConfirmAction": "إعادة تعيين كل شيء",
+  "resetAllDataInProgress": "جارٍ إعادة التعيين…",
+  "resetAllDataDone": "تمت إعادة تعيين جميع البيانات",
+  "resetAllDataFailed": "فشلت إعادة التعيين"
 }

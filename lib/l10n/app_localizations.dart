@@ -4442,6 +4442,54 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Compare all tiers'**
   String get compareAllTiers;
+
+  /// No description provided for @resetAllDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all data'**
+  String get resetAllDataTitle;
+
+  /// No description provided for @resetAllDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete every session, key, config and security artefact. Clears keychain entries and hardware-vault slots too.'**
+  String get resetAllDataSubtitle;
+
+  /// No description provided for @resetAllDataConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all data?'**
+  String get resetAllDataConfirmTitle;
+
+  /// No description provided for @resetAllDataConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All sessions, SSH keys, known hosts, snippets, tags, preferences, and every security artefact (keychain entries, hardware-vault blobs, biometric overlay) will be permanently deleted. This cannot be undone.'**
+  String get resetAllDataConfirmBody;
+
+  /// No description provided for @resetAllDataConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset everything'**
+  String get resetAllDataConfirmAction;
+
+  /// No description provided for @resetAllDataInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Resetting…'**
+  String get resetAllDataInProgress;
+
+  /// No description provided for @resetAllDataDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All data reset'**
+  String get resetAllDataDone;
+
+  /// No description provided for @resetAllDataFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset failed'**
+  String get resetAllDataFailed;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

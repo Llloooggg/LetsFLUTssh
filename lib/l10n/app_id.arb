@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Tier keamanan — perbandingan berdampingan",
   "securityComparisonTableThreatColumn": "Ancaman",
-  "compareAllTiers": "Bandingkan semua tier"
+  "compareAllTiers": "Bandingkan semua tier",
+
+  "resetAllDataTitle": "Reset semua data",
+  "resetAllDataSubtitle": "Hapus semua sesi, kunci, konfigurasi, dan artefak keamanan. Juga membersihkan entri keychain dan slot brankas perangkat keras.",
+  "resetAllDataConfirmTitle": "Reset semua data?",
+  "resetAllDataConfirmBody": "Semua sesi, kunci SSH, known hosts, snippet, tag, preferensi, dan semua artefak keamanan (entri keychain, data brankas perangkat keras, lapisan biometrik) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.",
+  "resetAllDataConfirmAction": "Reset semuanya",
+  "resetAllDataInProgress": "Mereset…",
+  "resetAllDataDone": "Semua data telah direset",
+  "resetAllDataFailed": "Reset gagal"
 }

@@ -2517,4 +2517,30 @@ class SId extends S {
 
   @override
   String get compareAllTiers => 'Bandingkan semua tier';
+
+  @override
+  String get resetAllDataTitle => 'Reset semua data';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Hapus semua sesi, kunci, konfigurasi, dan artefak keamanan. Juga membersihkan entri keychain dan slot brankas perangkat keras.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Reset semua data?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Semua sesi, kunci SSH, known hosts, snippet, tag, preferensi, dan semua artefak keamanan (entri keychain, data brankas perangkat keras, lapisan biometrik) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Reset semuanya';
+
+  @override
+  String get resetAllDataInProgress => 'Mereset…';
+
+  @override
+  String get resetAllDataDone => 'Semua data telah direset';
+
+  @override
+  String get resetAllDataFailed => 'Reset gagal';
 }

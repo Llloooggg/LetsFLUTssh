@@ -2549,4 +2549,30 @@ class SFr extends S {
 
   @override
   String get compareAllTiers => 'Comparer tous les niveaux';
+
+  @override
+  String get resetAllDataTitle => 'Réinitialiser toutes les données';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Supprimer toutes les sessions, clés, configurations et artefacts de sécurité. Efface également les entrées du trousseau et les emplacements du coffre matériel.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Réinitialiser toutes les données ?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Toutes les sessions, clés SSH, known hosts, extraits, étiquettes, préférences et tous les artefacts de sécurité (entrées du trousseau, données du coffre matériel, surcouche biométrique) seront définitivement supprimés. Cette action est irréversible.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Tout réinitialiser';
+
+  @override
+  String get resetAllDataInProgress => 'Réinitialisation…';
+
+  @override
+  String get resetAllDataDone => 'Toutes les données réinitialisées';
+
+  @override
+  String get resetAllDataFailed => 'Échec de la réinitialisation';
 }

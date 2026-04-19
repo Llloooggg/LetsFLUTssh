@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Уровни безопасности — сравнение бок о бок",
   "securityComparisonTableThreatColumn": "Угроза",
-  "compareAllTiers": "Сравнить все уровни"
+  "compareAllTiers": "Сравнить все уровни",
+
+  "resetAllDataTitle": "Сбросить все данные",
+  "resetAllDataSubtitle": "Удалить все сессии, ключи, конфигурации и артефакты безопасности. Также очищает записи в связке ключей ОС и слоты аппаратного хранилища.",
+  "resetAllDataConfirmTitle": "Сбросить все данные?",
+  "resetAllDataConfirmBody": "Все сессии, SSH ключи, known hosts, сниппеты, теги, настройки и все артефакты безопасности (записи связки ключей, данные аппаратного хранилища, биометрическая оболочка) будут безвозвратно удалены. Это действие нельзя отменить.",
+  "resetAllDataConfirmAction": "Сбросить всё",
+  "resetAllDataInProgress": "Сброс…",
+  "resetAllDataDone": "Все данные сброшены",
+  "resetAllDataFailed": "Не удалось выполнить сброс"
 }

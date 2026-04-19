@@ -2527,4 +2527,30 @@ class STr extends S {
 
   @override
   String get compareAllTiers => 'Tüm katmanları karşılaştır';
+
+  @override
+  String get resetAllDataTitle => 'Tüm verileri sıfırla';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Tüm oturumları, anahtarları, yapılandırmaları ve güvenlik bileşenlerini siler. Anahtar zinciri kayıtlarını ve donanım kasası yuvalarını da temizler.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Tüm veriler sıfırlansın mı?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Tüm oturumlar, SSH anahtarları, known hosts, parçacıklar, etiketler, tercihler ve tüm güvenlik bileşenleri (anahtar zinciri kayıtları, donanım kasası verileri, biyometrik katman) kalıcı olarak silinecektir. Bu işlem geri alınamaz.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Her şeyi sıfırla';
+
+  @override
+  String get resetAllDataInProgress => 'Sıfırlanıyor…';
+
+  @override
+  String get resetAllDataDone => 'Tüm veriler sıfırlandı';
+
+  @override
+  String get resetAllDataFailed => 'Sıfırlama başarısız';
 }

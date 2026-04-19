@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Níveis de segurança — comparação lado a lado",
   "securityComparisonTableThreatColumn": "Ameaça",
-  "compareAllTiers": "Comparar todos os níveis"
+  "compareAllTiers": "Comparar todos os níveis",
+
+  "resetAllDataTitle": "Redefinir todos os dados",
+  "resetAllDataSubtitle": "Excluir todas as sessões, chaves, configurações e artefatos de segurança. Também limpa entradas do keychain e slots do cofre de hardware.",
+  "resetAllDataConfirmTitle": "Redefinir todos os dados?",
+  "resetAllDataConfirmBody": "Todas as sessões, chaves SSH, known hosts, snippets, tags, preferências e todos os artefatos de segurança (entradas do keychain, dados do cofre de hardware, sobreposição biométrica) serão excluídos permanentemente. Esta ação não pode ser desfeita.",
+  "resetAllDataConfirmAction": "Redefinir tudo",
+  "resetAllDataInProgress": "Redefinindo…",
+  "resetAllDataDone": "Todos os dados redefinidos",
+  "resetAllDataFailed": "Falha ao redefinir"
 }

@@ -2529,4 +2529,30 @@ class SPt extends S {
 
   @override
   String get compareAllTiers => 'Comparar todos os níveis';
+
+  @override
+  String get resetAllDataTitle => 'Redefinir todos os dados';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Excluir todas as sessões, chaves, configurações e artefatos de segurança. Também limpa entradas do keychain e slots do cofre de hardware.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Redefinir todos os dados?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Todas as sessões, chaves SSH, known hosts, snippets, tags, preferências e todos os artefatos de segurança (entradas do keychain, dados do cofre de hardware, sobreposição biométrica) serão excluídos permanentemente. Esta ação não pode ser desfeita.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Redefinir tudo';
+
+  @override
+  String get resetAllDataInProgress => 'Redefinindo…';
+
+  @override
+  String get resetAllDataDone => 'Todos os dados redefinidos';
+
+  @override
+  String get resetAllDataFailed => 'Falha ao redefinir';
 }

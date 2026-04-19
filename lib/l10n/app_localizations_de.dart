@@ -2538,4 +2538,30 @@ class SDe extends S {
 
   @override
   String get compareAllTiers => 'Alle Stufen vergleichen';
+
+  @override
+  String get resetAllDataTitle => 'Alle Daten zurücksetzen';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Alle Sitzungen, Schlüssel, Konfigurationen und Sicherheitsartefakte löschen. Entfernt auch Schlüsselbund-Einträge und Hardware-Vault-Slots.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Alle Daten zurücksetzen?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Alle Sitzungen, SSH-Schlüssel, Known-Hosts, Snippets, Tags, Einstellungen und alle Sicherheitsartefakte (Schlüsselbund-Einträge, Hardware-Vault-Daten, biometrisches Overlay) werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Alles zurücksetzen';
+
+  @override
+  String get resetAllDataInProgress => 'Wird zurückgesetzt…';
+
+  @override
+  String get resetAllDataDone => 'Alle Daten zurückgesetzt';
+
+  @override
+  String get resetAllDataFailed => 'Zurücksetzen fehlgeschlagen';
 }

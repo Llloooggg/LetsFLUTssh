@@ -2414,4 +2414,29 @@ class SZh extends S {
 
   @override
   String get compareAllTiers => '比较所有等级';
+
+  @override
+  String get resetAllDataTitle => '重置所有数据';
+
+  @override
+  String get resetAllDataSubtitle => '删除所有会话、密钥、配置和安全构件。同时清除钥匙串条目和硬件保险库插槽。';
+
+  @override
+  String get resetAllDataConfirmTitle => '重置所有数据？';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      '所有会话、SSH 密钥、known hosts、代码片段、标签、偏好设置以及所有安全构件（钥匙串条目、硬件保险库数据、生物识别覆盖层）都将被永久删除。此操作无法撤销。';
+
+  @override
+  String get resetAllDataConfirmAction => '全部重置';
+
+  @override
+  String get resetAllDataInProgress => '正在重置…';
+
+  @override
+  String get resetAllDataDone => '所有数据已重置';
+
+  @override
+  String get resetAllDataFailed => '重置失败';
 }

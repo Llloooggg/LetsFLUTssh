@@ -2525,4 +2525,30 @@ class SRu extends S {
 
   @override
   String get compareAllTiers => 'Сравнить все уровни';
+
+  @override
+  String get resetAllDataTitle => 'Сбросить все данные';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Удалить все сессии, ключи, конфигурации и артефакты безопасности. Также очищает записи в связке ключей ОС и слоты аппаратного хранилища.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Сбросить все данные?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Все сессии, SSH ключи, known hosts, сниппеты, теги, настройки и все артефакты безопасности (записи связки ключей, данные аппаратного хранилища, биометрическая оболочка) будут безвозвратно удалены. Это действие нельзя отменить.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Сбросить всё';
+
+  @override
+  String get resetAllDataInProgress => 'Сброс…';
+
+  @override
+  String get resetAllDataDone => 'Все данные сброшены';
+
+  @override
+  String get resetAllDataFailed => 'Не удалось выполнить сброс';
 }

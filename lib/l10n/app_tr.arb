@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Güvenlik katmanları — yan yana karşılaştırma",
   "securityComparisonTableThreatColumn": "Tehdit",
-  "compareAllTiers": "Tüm katmanları karşılaştır"
+  "compareAllTiers": "Tüm katmanları karşılaştır",
+
+  "resetAllDataTitle": "Tüm verileri sıfırla",
+  "resetAllDataSubtitle": "Tüm oturumları, anahtarları, yapılandırmaları ve güvenlik bileşenlerini siler. Anahtar zinciri kayıtlarını ve donanım kasası yuvalarını da temizler.",
+  "resetAllDataConfirmTitle": "Tüm veriler sıfırlansın mı?",
+  "resetAllDataConfirmBody": "Tüm oturumlar, SSH anahtarları, known hosts, parçacıklar, etiketler, tercihler ve tüm güvenlik bileşenleri (anahtar zinciri kayıtları, donanım kasası verileri, biyometrik katman) kalıcı olarak silinecektir. Bu işlem geri alınamaz.",
+  "resetAllDataConfirmAction": "Her şeyi sıfırla",
+  "resetAllDataInProgress": "Sıfırlanıyor…",
+  "resetAllDataDone": "Tüm veriler sıfırlandı",
+  "resetAllDataFailed": "Sıfırlama başarısız"
 }

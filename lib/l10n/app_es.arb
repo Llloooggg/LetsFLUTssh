@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Niveles de seguridad — comparación lado a lado",
   "securityComparisonTableThreatColumn": "Amenaza",
-  "compareAllTiers": "Comparar todos los niveles"
+  "compareAllTiers": "Comparar todos los niveles",
+
+  "resetAllDataTitle": "Restablecer todos los datos",
+  "resetAllDataSubtitle": "Eliminar todas las sesiones, claves, configuraciones y artefactos de seguridad. También borra las entradas del llavero y las ranuras del almacén de hardware.",
+  "resetAllDataConfirmTitle": "¿Restablecer todos los datos?",
+  "resetAllDataConfirmBody": "Todas las sesiones, claves SSH, known hosts, fragmentos, etiquetas, preferencias y todos los artefactos de seguridad (entradas del llavero, datos del almacén de hardware, superposición biométrica) se eliminarán de forma permanente. Esto no se puede deshacer.",
+  "resetAllDataConfirmAction": "Restablecer todo",
+  "resetAllDataInProgress": "Restableciendo…",
+  "resetAllDataDone": "Todos los datos restablecidos",
+  "resetAllDataFailed": "Error al restablecer"
 }

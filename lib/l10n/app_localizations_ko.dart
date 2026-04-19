@@ -2432,4 +2432,30 @@ class SKo extends S {
 
   @override
   String get compareAllTiers => '모든 티어 비교';
+
+  @override
+  String get resetAllDataTitle => '모든 데이터 재설정';
+
+  @override
+  String get resetAllDataSubtitle =>
+      '모든 세션, 키, 구성 및 보안 아티팩트를 삭제합니다. 키체인 항목과 하드웨어 볼트 슬롯도 함께 지웁니다.';
+
+  @override
+  String get resetAllDataConfirmTitle => '모든 데이터를 재설정할까요?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      '모든 세션, SSH 키, known hosts, 스니펫, 태그, 환경설정 및 모든 보안 아티팩트(키체인 항목, 하드웨어 볼트 데이터, 생체 인증 오버레이)가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.';
+
+  @override
+  String get resetAllDataConfirmAction => '모두 재설정';
+
+  @override
+  String get resetAllDataInProgress => '재설정 중…';
+
+  @override
+  String get resetAllDataDone => '모든 데이터가 재설정되었습니다';
+
+  @override
+  String get resetAllDataFailed => '재설정 실패';
 }

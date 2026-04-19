@@ -2497,4 +2497,30 @@ class SVi extends S {
 
   @override
   String get compareAllTiers => 'So sánh tất cả các bậc';
+
+  @override
+  String get resetAllDataTitle => 'Đặt lại toàn bộ dữ liệu';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Xóa tất cả phiên, khóa, cấu hình và tạo tác bảo mật. Đồng thời xóa các mục trong keychain và các khe của kho phần cứng.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Đặt lại toàn bộ dữ liệu?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Tất cả phiên, khóa SSH, known hosts, đoạn mã, thẻ, tùy chọn và mọi tạo tác bảo mật (mục keychain, dữ liệu kho phần cứng, lớp phủ sinh trắc học) sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Đặt lại tất cả';
+
+  @override
+  String get resetAllDataInProgress => 'Đang đặt lại…';
+
+  @override
+  String get resetAllDataDone => 'Đã đặt lại toàn bộ dữ liệu';
+
+  @override
+  String get resetAllDataFailed => 'Đặt lại thất bại';
 }

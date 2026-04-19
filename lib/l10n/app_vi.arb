@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Các bậc bảo mật — so sánh cạnh nhau",
   "securityComparisonTableThreatColumn": "Mối đe dọa",
-  "compareAllTiers": "So sánh tất cả các bậc"
+  "compareAllTiers": "So sánh tất cả các bậc",
+
+  "resetAllDataTitle": "Đặt lại toàn bộ dữ liệu",
+  "resetAllDataSubtitle": "Xóa tất cả phiên, khóa, cấu hình và tạo tác bảo mật. Đồng thời xóa các mục trong keychain và các khe của kho phần cứng.",
+  "resetAllDataConfirmTitle": "Đặt lại toàn bộ dữ liệu?",
+  "resetAllDataConfirmBody": "Tất cả phiên, khóa SSH, known hosts, đoạn mã, thẻ, tùy chọn và mọi tạo tác bảo mật (mục keychain, dữ liệu kho phần cứng, lớp phủ sinh trắc học) sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.",
+  "resetAllDataConfirmAction": "Đặt lại tất cả",
+  "resetAllDataInProgress": "Đang đặt lại…",
+  "resetAllDataDone": "Đã đặt lại toàn bộ dữ liệu",
+  "resetAllDataFailed": "Đặt lại thất bại"
 }

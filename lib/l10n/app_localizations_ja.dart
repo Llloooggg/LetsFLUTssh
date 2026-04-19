@@ -2435,4 +2435,30 @@ class SJa extends S {
 
   @override
   String get compareAllTiers => '全階層を比較';
+
+  @override
+  String get resetAllDataTitle => 'すべてのデータをリセット';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'すべてのセッション、鍵、設定、セキュリティアーティファクトを削除します。キーチェーンのエントリとハードウェアボールトのスロットもクリアします。';
+
+  @override
+  String get resetAllDataConfirmTitle => 'すべてのデータをリセットしますか？';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'すべてのセッション、SSH 鍵、known hosts、スニペット、タグ、設定、およびすべてのセキュリティアーティファクト（キーチェーンエントリ、ハードウェアボールトのデータ、生体認証オーバーレイ）が完全に削除されます。この操作は取り消せません。';
+
+  @override
+  String get resetAllDataConfirmAction => 'すべてリセット';
+
+  @override
+  String get resetAllDataInProgress => 'リセット中…';
+
+  @override
+  String get resetAllDataDone => 'すべてのデータをリセットしました';
+
+  @override
+  String get resetAllDataFailed => 'リセットに失敗しました';
 }

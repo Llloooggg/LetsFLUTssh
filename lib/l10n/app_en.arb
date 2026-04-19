@@ -1425,5 +1425,14 @@
 
   "securityComparisonTableTitle": "Security tiers — side-by-side comparison",
   "securityComparisonTableThreatColumn": "Threat",
-  "compareAllTiers": "Compare all tiers"
+  "compareAllTiers": "Compare all tiers",
+
+  "resetAllDataTitle": "Reset all data",
+  "resetAllDataSubtitle": "Delete every session, key, config and security artefact. Clears keychain entries and hardware-vault slots too.",
+  "resetAllDataConfirmTitle": "Reset all data?",
+  "resetAllDataConfirmBody": "All sessions, SSH keys, known hosts, snippets, tags, preferences, and every security artefact (keychain entries, hardware-vault blobs, biometric overlay) will be permanently deleted. This cannot be undone.",
+  "resetAllDataConfirmAction": "Reset everything",
+  "resetAllDataInProgress": "Resetting…",
+  "resetAllDataDone": "All data reset",
+  "resetAllDataFailed": "Reset failed"
 }

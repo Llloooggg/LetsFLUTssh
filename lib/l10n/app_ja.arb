@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "セキュリティ階層 — 横並び比較",
   "securityComparisonTableThreatColumn": "脅威",
-  "compareAllTiers": "全階層を比較"
+  "compareAllTiers": "全階層を比較",
+
+  "resetAllDataTitle": "すべてのデータをリセット",
+  "resetAllDataSubtitle": "すべてのセッション、鍵、設定、セキュリティアーティファクトを削除します。キーチェーンのエントリとハードウェアボールトのスロットもクリアします。",
+  "resetAllDataConfirmTitle": "すべてのデータをリセットしますか？",
+  "resetAllDataConfirmBody": "すべてのセッション、SSH 鍵、known hosts、スニペット、タグ、設定、およびすべてのセキュリティアーティファクト（キーチェーンエントリ、ハードウェアボールトのデータ、生体認証オーバーレイ）が完全に削除されます。この操作は取り消せません。",
+  "resetAllDataConfirmAction": "すべてリセット",
+  "resetAllDataInProgress": "リセット中…",
+  "resetAllDataDone": "すべてのデータをリセットしました",
+  "resetAllDataFailed": "リセットに失敗しました"
 }

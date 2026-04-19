@@ -2511,4 +2511,30 @@ class SAr extends S {
 
   @override
   String get compareAllTiers => 'مقارنة جميع المستويات';
+
+  @override
+  String get resetAllDataTitle => 'إعادة تعيين جميع البيانات';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'حذف جميع الجلسات والمفاتيح والإعدادات ومكونات الأمان. يتم أيضاً مسح إدخالات سلسلة المفاتيح وفتحات الخزنة الصلبة.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'إعادة تعيين جميع البيانات؟';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (إدخالات سلسلة المفاتيح، بيانات الخزنة الصلبة، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String get resetAllDataConfirmAction => 'إعادة تعيين كل شيء';
+
+  @override
+  String get resetAllDataInProgress => 'جارٍ إعادة التعيين…';
+
+  @override
+  String get resetAllDataDone => 'تمت إعادة تعيين جميع البيانات';
+
+  @override
+  String get resetAllDataFailed => 'فشلت إعادة التعيين';
 }

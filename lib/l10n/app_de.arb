@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Sicherheitsstufen — Direktvergleich",
   "securityComparisonTableThreatColumn": "Bedrohung",
-  "compareAllTiers": "Alle Stufen vergleichen"
+  "compareAllTiers": "Alle Stufen vergleichen",
+
+  "resetAllDataTitle": "Alle Daten zurücksetzen",
+  "resetAllDataSubtitle": "Alle Sitzungen, Schlüssel, Konfigurationen und Sicherheitsartefakte löschen. Entfernt auch Schlüsselbund-Einträge und Hardware-Vault-Slots.",
+  "resetAllDataConfirmTitle": "Alle Daten zurücksetzen?",
+  "resetAllDataConfirmBody": "Alle Sitzungen, SSH-Schlüssel, Known-Hosts, Snippets, Tags, Einstellungen und alle Sicherheitsartefakte (Schlüsselbund-Einträge, Hardware-Vault-Daten, biometrisches Overlay) werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+  "resetAllDataConfirmAction": "Alles zurücksetzen",
+  "resetAllDataInProgress": "Wird zurückgesetzt…",
+  "resetAllDataDone": "Alle Daten zurückgesetzt",
+  "resetAllDataFailed": "Zurücksetzen fehlgeschlagen"
 }

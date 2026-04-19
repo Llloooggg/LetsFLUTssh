@@ -2540,4 +2540,30 @@ class SEs extends S {
 
   @override
   String get compareAllTiers => 'Comparar todos los niveles';
+
+  @override
+  String get resetAllDataTitle => 'Restablecer todos los datos';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Eliminar todas las sesiones, claves, configuraciones y artefactos de seguridad. También borra las entradas del llavero y las ranuras del almacén de hardware.';
+
+  @override
+  String get resetAllDataConfirmTitle => '¿Restablecer todos los datos?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Todas las sesiones, claves SSH, known hosts, fragmentos, etiquetas, preferencias y todos los artefactos de seguridad (entradas del llavero, datos del almacén de hardware, superposición biométrica) se eliminarán de forma permanente. Esto no se puede deshacer.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Restablecer todo';
+
+  @override
+  String get resetAllDataInProgress => 'Restableciendo…';
+
+  @override
+  String get resetAllDataDone => 'Todos los datos restablecidos';
+
+  @override
+  String get resetAllDataFailed => 'Error al restablecer';
 }

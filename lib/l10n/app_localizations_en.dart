@@ -2503,4 +2503,30 @@ class SEn extends S {
 
   @override
   String get compareAllTiers => 'Compare all tiers';
+
+  @override
+  String get resetAllDataTitle => 'Reset all data';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Delete every session, key, config and security artefact. Clears keychain entries and hardware-vault slots too.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Reset all data?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'All sessions, SSH keys, known hosts, snippets, tags, preferences, and every security artefact (keychain entries, hardware-vault blobs, biometric overlay) will be permanently deleted. This cannot be undone.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Reset everything';
+
+  @override
+  String get resetAllDataInProgress => 'Resetting…';
+
+  @override
+  String get resetAllDataDone => 'All data reset';
+
+  @override
+  String get resetAllDataFailed => 'Reset failed';
 }

@@ -2509,4 +2509,30 @@ class SHi extends S {
 
   @override
   String get compareAllTiers => 'सभी टीयर की तुलना करें';
+
+  @override
+  String get resetAllDataTitle => 'सभी डेटा रीसेट करें';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'सभी सत्र, कुंजियाँ, कॉन्फ़िगरेशन और सुरक्षा आर्टिफ़ैक्ट हटाएँ। कीचेन प्रविष्टियाँ और हार्डवेयर-वॉल्ट स्लॉट भी साफ़ करता है।';
+
+  @override
+  String get resetAllDataConfirmTitle => 'सभी डेटा रीसेट करें?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'सभी सत्र, SSH कुंजियाँ, known hosts, स्निपेट, टैग, वरीयताएँ और सभी सुरक्षा आर्टिफ़ैक्ट (कीचेन प्रविष्टियाँ, हार्डवेयर-वॉल्ट डेटा, बायोमेट्रिक ओवरले) स्थायी रूप से हटा दिए जाएँगे। इसे पूर्ववत नहीं किया जा सकता।';
+
+  @override
+  String get resetAllDataConfirmAction => 'सब कुछ रीसेट करें';
+
+  @override
+  String get resetAllDataInProgress => 'रीसेट हो रहा है…';
+
+  @override
+  String get resetAllDataDone => 'सभी डेटा रीसेट हो गया';
+
+  @override
+  String get resetAllDataFailed => 'रीसेट विफल';
 }

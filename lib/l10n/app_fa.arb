@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "سطوح امنیتی — مقایسهٔ کنار هم",
   "securityComparisonTableThreatColumn": "تهدید",
-  "compareAllTiers": "مقایسهٔ همهٔ سطوح"
+  "compareAllTiers": "مقایسهٔ همهٔ سطوح",
+
+  "resetAllDataTitle": "بازنشانی همهٔ داده‌ها",
+  "resetAllDataSubtitle": "حذف همهٔ نشست‌ها، کلیدها، پیکربندی‌ها و مؤلفه‌های امنیتی. ورودی‌های کی‌چین و اسلات‌های خزانهٔ سخت‌افزاری نیز پاک می‌شوند.",
+  "resetAllDataConfirmTitle": "همهٔ داده‌ها بازنشانی شود؟",
+  "resetAllDataConfirmBody": "همهٔ نشست‌ها، کلیدهای SSH، فهرست known hosts، قطعه‌کدها، برچسب‌ها، تنظیمات و همهٔ مؤلفه‌های امنیتی (ورودی‌های کی‌چین، دادهٔ خزانهٔ سخت‌افزاری، لایهٔ زیست‌سنجی) برای همیشه حذف خواهند شد. این عمل قابل بازگشت نیست.",
+  "resetAllDataConfirmAction": "بازنشانی همه",
+  "resetAllDataInProgress": "در حال بازنشانی…",
+  "resetAllDataDone": "همهٔ داده‌ها بازنشانی شدند",
+  "resetAllDataFailed": "بازنشانی ناموفق بود"
 }

@@ -779,5 +779,14 @@
 
   "securityComparisonTableTitle": "Niveaux de sécurité — comparaison côte à côte",
   "securityComparisonTableThreatColumn": "Menace",
-  "compareAllTiers": "Comparer tous les niveaux"
+  "compareAllTiers": "Comparer tous les niveaux",
+
+  "resetAllDataTitle": "Réinitialiser toutes les données",
+  "resetAllDataSubtitle": "Supprimer toutes les sessions, clés, configurations et artefacts de sécurité. Efface également les entrées du trousseau et les emplacements du coffre matériel.",
+  "resetAllDataConfirmTitle": "Réinitialiser toutes les données ?",
+  "resetAllDataConfirmBody": "Toutes les sessions, clés SSH, known hosts, extraits, étiquettes, préférences et tous les artefacts de sécurité (entrées du trousseau, données du coffre matériel, surcouche biométrique) seront définitivement supprimés. Cette action est irréversible.",
+  "resetAllDataConfirmAction": "Tout réinitialiser",
+  "resetAllDataInProgress": "Réinitialisation…",
+  "resetAllDataDone": "Toutes les données réinitialisées",
+  "resetAllDataFailed": "Échec de la réinitialisation"
 }

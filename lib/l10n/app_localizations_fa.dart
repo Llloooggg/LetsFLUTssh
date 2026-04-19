@@ -2503,4 +2503,30 @@ class SFa extends S {
 
   @override
   String get compareAllTiers => 'مقایسهٔ همهٔ سطوح';
+
+  @override
+  String get resetAllDataTitle => 'بازنشانی همهٔ داده‌ها';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'حذف همهٔ نشست‌ها، کلیدها، پیکربندی‌ها و مؤلفه‌های امنیتی. ورودی‌های کی‌چین و اسلات‌های خزانهٔ سخت‌افزاری نیز پاک می‌شوند.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'همهٔ داده‌ها بازنشانی شود؟';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'همهٔ نشست‌ها، کلیدهای SSH، فهرست known hosts، قطعه‌کدها، برچسب‌ها، تنظیمات و همهٔ مؤلفه‌های امنیتی (ورودی‌های کی‌چین، دادهٔ خزانهٔ سخت‌افزاری، لایهٔ زیست‌سنجی) برای همیشه حذف خواهند شد. این عمل قابل بازگشت نیست.';
+
+  @override
+  String get resetAllDataConfirmAction => 'بازنشانی همه';
+
+  @override
+  String get resetAllDataInProgress => 'در حال بازنشانی…';
+
+  @override
+  String get resetAllDataDone => 'همهٔ داده‌ها بازنشانی شدند';
+
+  @override
+  String get resetAllDataFailed => 'بازنشانی ناموفق بود';
 }
