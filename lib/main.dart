@@ -39,6 +39,8 @@ import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
 import 'core/security/keychain_password_gate.dart';
 import 'core/security/legacy_state_reset.dart';
+import 'core/migration/migration_runner.dart';
+import 'core/migration/registry.dart';
 import 'core/security/password_rate_limiter.dart';
 import 'core/security/security_tier.dart';
 import 'features/settings/security_tier_switcher.dart';
@@ -299,6 +301,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
+      await _runMigrations();
       await _initSecurity();
       // Integrity probe: if the DB file on disk cannot be read under
       // the cipher we just opened it with, the chosen tier does not
@@ -366,6 +369,42 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// True when the user chose "forgot password" — used to show a toast
   /// after sessions load (needs l10n context).
   bool _credentialsWereReset = false;
+
+  /// Walk every framework-registered artefact and bring its on-disk
+  /// state up to the current build's [SchemaVersions]. Runs BEFORE
+  /// `_initSecurity` so the unlock path always reads the post-migration
+  /// shape. Phase A2: empty migration list — runner is a no-op on every
+  /// install where on-disk state already matches the constants. Future
+  /// phases register concrete migrations; user-facing failure surfaces
+  /// (toast, blocking dialog) land alongside the first real migration.
+  Future<void> _runMigrations() async {
+    try {
+      final registry = buildAppMigrationRegistry();
+      final report = await MigrationRunner(registry).runOnStartup();
+      if (report.noOp) return;
+      if (report.hasFailures) {
+        AppLogger.instance.log(
+          'MigrationRunner reported failures '
+          '(steps=${report.steps.length}, '
+          'futureVersions=${report.futureVersions.length}, '
+          'fatal=${report.fatalError}) — continuing into _initSecurity',
+          name: 'App',
+        );
+        return;
+      }
+      AppLogger.instance.log(
+        'MigrationRunner: ${report.migratedCount} artefact(s) migrated',
+        name: 'App',
+      );
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'MigrationRunner threw uncaught: $e',
+        name: 'App',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
 
   /// Determine security level on startup.
   ///
