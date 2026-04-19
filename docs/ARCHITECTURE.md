@@ -128,6 +128,7 @@ lib/
 │   ├── session/                      # Session model, persistence, tree, QR, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
 │   ├── security/                     # AES-256-GCM, master password, keychain
+│   ├── migration/                    # Versioned-artefact migration framework (runner, Artefact/Migration interfaces, VersionedBlob envelope, SchemaVersions). Full description: §3.7
 │   ├── config/                       # App configuration (file-based, loaded before DB)
 │   ├── snippets/                     # Snippet model + SnippetStore
 │   ├── tags/                         # Tag model + TagStore
