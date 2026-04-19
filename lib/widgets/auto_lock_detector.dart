@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/security/lock_state.dart';
 import '../core/security/security_tier.dart';
 import '../providers/auto_lock_provider.dart';
+import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/security_provider.dart';
 import '../utils/logger.dart';
@@ -80,11 +81,24 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
         state != AppLifecycleState.hidden) {
       return;
     }
-    final level = ref.read(securityStateProvider).level;
-    if (level != SecurityTier.paranoid) return;
+    if (!_hasTypedSecret()) return;
     final minutes = ref.read(autoLockMinutesProvider);
     if (minutes <= 0) return;
     _triggerLock();
+  }
+
+  /// True when the active tier has a user-typed secret (either
+  /// Paranoid, or any tier with the password modifier on). Auto-lock
+  /// is meaningful only on these tiers — a tier without a typed
+  /// secret has nothing to re-prompt for after the lock.
+  bool _hasTypedSecret() {
+    final level = ref.read(securityStateProvider).level;
+    if (level == SecurityTier.paranoid) return true;
+    if (level == SecurityTier.keychainWithPassword) return true;
+    final modifiers =
+        ref.read(configProvider).security?.modifiers ??
+        SecurityTierModifiers.defaults;
+    return modifiers.password;
   }
 
   @override
@@ -132,7 +146,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   }
 
   void _syncTimer(int minutes, SecurityTier level) {
-    final enabled = minutes > 0 && level == SecurityTier.paranoid;
+    final enabled = minutes > 0 && _hasTypedSecret();
     if (!enabled) {
       _timer?.cancel();
       _timer = null;

@@ -318,5 +318,42 @@ void main() {
             'otherwise an actively-used app would auto-lock mid-work',
       );
     });
+
+    testWidgets(
+      'T1 + password tier arms the timer the same way Paranoid does',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
+            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            connectionManagerProvider.overrideWithValue(
+              _StubConnectionManager(const []),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychainWithPassword, Uint8List(32));
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: _host(const AutoLockDetector(child: Text('content'))),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.pump(const Duration(minutes: 1, seconds: 1));
+
+        expect(
+          container.read(lockStateProvider),
+          true,
+          reason:
+              'keychainWithPassword carries a user-typed secret so the '
+              'auto-lock timer must fire — generalisation off Paranoid-only',
+        );
+      },
+    );
   });
 }
