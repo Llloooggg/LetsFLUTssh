@@ -84,7 +84,32 @@ lint-workflows: $(ACTIONLINT_BIN) ## Lint .github/workflows/*.yml with actionlin
 	@$(ACTIONLINT_BIN) -color
 	@echo "Workflows OK"
 
-check: analyze lint-workflows ## Run analyzer + workflow lint + tests (sequential — analyze + lint must pass first)
+lint-release-hardening: ## Guard against debuggable release builds + dSYM-embedding regressions
+	@echo "Checking release-build hardening..."
+	@# Android: AndroidManifest.xml must NOT contain debuggable="true".
+	@# Flutter default in release is false, but a manual edit for
+	@# local debugging (sometimes committed by accident) re-enables
+	@# ptrace attach + run-as access to app data on devices without
+	@# root. Fail the build rather than ship a release that accepts
+	@# `adb shell run-as <pkg>`.
+	@if grep -rn 'android:debuggable="true"' android/ 2>/dev/null; then \
+		echo "ERROR: android:debuggable=\"true\" found in AndroidManifest — release builds must ship with it absent or false"; \
+		exit 1; \
+	fi
+	@# iOS / macOS: Release config must not embed debug symbols in
+	@# the binary. `DEBUG_INFORMATION_FORMAT = dwarf` is the debug-
+	@# build default; Release uses `dwarf-with-dsym` (external dSYM
+	@# bundle). Reverting Release to plain `dwarf` ships a binary
+	@# with inline symbols that makes reverse-engineering trivially
+	@# easy. Grep the pbxproj for Release-scope overrides.
+	@if grep -A1 'name = Release;' ios/Runner.xcodeproj/project.pbxproj macos/Runner.xcodeproj/project.pbxproj 2>/dev/null \
+		| grep -E 'DEBUG_INFORMATION_FORMAT = dwarf;' >/dev/null; then \
+		echo "ERROR: Release config uses DEBUG_INFORMATION_FORMAT=dwarf (inline symbols); use dwarf-with-dsym"; \
+		exit 1; \
+	fi
+	@echo "Release hardening OK"
+
+check: analyze lint-workflows lint-release-hardening ## Run analyzer + workflow lint + release hardening + tests (sequential — each must pass first)
 	@$(MAKE) test
 
 hooks: ## Install local git hooks (pre-commit runs make check)
