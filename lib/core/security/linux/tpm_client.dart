@@ -10,10 +10,22 @@ import '../../../utils/logger.dart';
 /// Shell-out wrapper around the `tpm2-tools` CLI for sealing a 32-byte
 /// DB wrapping key under a TPM2 primary key with a password-gated
 /// sealed object. The auth value is an opaque byte string the caller
-/// supplies (in our case the SHA-256 of the sorted fprintd enrolled
-/// fingers list, so any change to the biometric enrolment invalidates
-/// the sealed blob the same way `biometryCurrentSet` invalidates on
-/// Apple platforms).
+/// supplies — the TPM treats it as raw bytes and does not care how it
+/// was derived. Callers choose the derivation to match the security
+/// tier + modifier combo they want:
+///
+/// * T2 without any user-typed secret → empty `Uint8List(0)`
+///   (isolation without authentication — same hw-vs-disk separation
+///   as T2-no-modifiers on iOS / Android).
+/// * T2 + password → `HMAC(typed_password, salt)`. Wrong password
+///   fails TPM unseal; the TPM's dictionary-attack lockout rate-limits
+///   guessing.
+/// * T2 + biometric → `HMAC(fprintd_enrolment_hash, salt)` where the
+///   hash is the SHA-256 of the sorted enrolled-fingers list. Any
+///   change to enrolment changes the hash → the seal becomes
+///   unreadable → user falls back to typing the password. Symmetric
+///   with `biometryCurrentSet` on Apple and
+///   `setInvalidatedByBiometricEnrollment(true)` on Android.
 ///
 /// **Path choice** — shell-out to `tpm2-tools` over FFI to `libtss2-esys`.
 /// Per [§ Native Over Dart When Better](../../../docs/AGENT_RULES.md#native-over-dart-when-better-and-zero-install):

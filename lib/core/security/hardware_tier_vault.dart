@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -274,6 +275,52 @@ class HardwareTierVault {
   Uint8List _deriveAuth(String pin, Uint8List salt) {
     final mac = Hmac(sha256, salt);
     return Uint8List.fromList(mac.convert(utf8.encode(pin)).bytes);
+  }
+
+  /// Resolve the TPM / hw-vault auth value for a (password, biometric)
+  /// modifier combo — shared across platforms, not just Linux/TPM2.
+  /// Matches the "universal bank-style" model documented in the
+  /// 3-tier plan:
+  ///
+  /// * password=false, biometric=false → empty `Uint8List(0)`
+  ///   (isolation-only; wrong callers still need TPM / Secure Enclave
+  ///   access, but there is no user-typed gate).
+  /// * password=true, biometric=false → `HMAC(typedPassword, salt)`.
+  /// * biometric=true → `HMAC(fprintdHash, salt)`. The `password`
+  ///   flag must also be true by wizard invariant (biometric is a
+  ///   shortcut for entering the password, never its replacement),
+  ///   but the resolver itself treats biometric as the authoritative
+  ///   auth source when both are requested.
+  ///
+  /// Returns null for an inconsistent request (password=true without
+  /// a typed password bound, biometric=true without an fprintd hash).
+  /// Callers surface null as "modifier resolution failed — treat as a
+  /// cancelled unlock" so we never silently fall back to an empty auth.
+  ///
+  /// Phase C1: pure helper; later phases plumb this into `store` /
+  /// `read` once the `SecurityTierModifiers` shape carries `password`
+  /// + `biometric` fields (currently it exposes `biometricShortcut`
+  /// only — the full bank-style shape lands with the wizard rewrite
+  /// in Phase E/F).
+  @visibleForTesting
+  static Uint8List? resolveAuthValue({
+    required bool password,
+    required bool biometric,
+    required Uint8List salt,
+    String? typedPassword,
+    Uint8List? fprintdHash,
+  }) {
+    if (biometric) {
+      if (fprintdHash == null || fprintdHash.isEmpty) return null;
+      final mac = Hmac(sha256, salt);
+      return Uint8List.fromList(mac.convert(fprintdHash).bytes);
+    }
+    if (password) {
+      if (typedPassword == null || typedPassword.isEmpty) return null;
+      final mac = Hmac(sha256, salt);
+      return Uint8List.fromList(mac.convert(utf8.encode(typedPassword)).bytes);
+    }
+    return Uint8List(0);
   }
 
   Uint8List _randomBytes(int n) {
