@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +9,7 @@ import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/security_provider.dart';
+import '../providers/session_provider.dart';
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
@@ -184,6 +185,13 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     // tick / lifecycle event re-evaluates and eventually re-locks the DB.
     if (!hasSessions) {
       ref.read(securityStateProvider.notifier).clearEncryption();
+      // Close the Drift / SQLCipher handle too — the Dart-side key
+      // wipe does not reach SQLCipher's C-layer page cache, which
+      // retains the DB key inside the open handle. Closing the
+      // handle forces SQLCipher to zero its cache. Unlock re-opens
+      // via `main._injectDatabase` under the freshly-supplied key.
+      // Fire-and-forget because the UI should not block on a close.
+      unawaited(ref.read(sessionStoreProvider).closeDatabase());
     }
   }
 }

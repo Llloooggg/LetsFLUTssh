@@ -40,6 +40,27 @@ class SessionStore {
   /// Exposed so `ImportService` can open a transaction spanning every store.
   AppDatabase? get database => _db;
 
+  /// Close the held database handle and drop the reference. The
+  /// auto-lock path calls this right after zeroing the in-memory DB
+  /// key so SQLCipher's internal page cache (which retains the key
+  /// in its C-layer state for as long as the handle is open) also
+  /// gets zeroed. On unlock `main._injectDatabase` opens a fresh
+  /// handle and re-injects via [setDatabase].
+  ///
+  /// Best-effort: a failure to close (stale file descriptor, drift
+  /// internal error) is logged by the caller; losing the reference
+  /// is enough to unblock the re-open path.
+  Future<void> closeDatabase() async {
+    final db = _db;
+    _db = null;
+    if (db == null) return;
+    try {
+      await db.close();
+    } catch (_) {
+      // Best-effort. Handle may have been closed elsewhere already.
+    }
+  }
+
   /// Guards concurrent [load] calls.
   Future<List<Session>>? _loadFuture;
 
