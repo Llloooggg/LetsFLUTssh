@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
 import '../core/security/security_tier.dart';
+import '../core/security/terminal_scrubber.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart';
@@ -179,6 +180,14 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     );
     // Always overlay the lock screen — that's the user-visible "locked" state.
     ref.read(lockStateProvider.notifier).lock();
+    // Scrub terminal scrollbacks BEFORE the user sees the lock
+    // overlay. A password the user pasted into a terminal, or a
+    // secret the remote shell echoed back, sits in xterm's
+    // scrollback buffer long after the viewport scrolls past it —
+    // a second person who taps the lock screen can scroll up and
+    // read it. Clearing the scrollback is cheap even when no
+    // terminals are registered (empty-set iteration).
+    TerminalScrubber.instance.scrubAll();
     // Only clear the in-memory DB key when no SSH sessions are running.
     // With live sessions, keep the key warm so the user can immediately
     // interact with their connections after unlocking. The next idle

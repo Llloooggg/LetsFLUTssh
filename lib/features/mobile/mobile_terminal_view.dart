@@ -11,6 +11,7 @@ import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
+import '../../core/security/terminal_scrubber.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/config_provider.dart';
@@ -56,6 +57,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     super.initState();
     final config = ref.read(configProvider);
     _terminal = Terminal(maxLines: config.scrollback);
+    TerminalScrubber.instance.register(_terminal);
     _terminalController = TerminalController();
     _terminalController.addListener(_onSelectionChanged);
     // Delay connection until after the first frame so TerminalView can
@@ -142,6 +144,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   @override
   void dispose() {
+    TerminalScrubber.instance.unregister(_terminal);
     _progressSub?.cancel();
     _terminalController.removeListener(_onSelectionChanged);
     _shellConn?.close();
