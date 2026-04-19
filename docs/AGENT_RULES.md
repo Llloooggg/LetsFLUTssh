@@ -56,7 +56,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 ## Docs First — Read Before, Fix Drift, Update After
 
-Five-step discipline for any work (planning **and** editing) that touches a module documented in `ARCHITECTURE.md`:
+Six-step discipline for any work (planning **and** editing) that touches a module documented in `ARCHITECTURE.md`:
 
 1. **TOC → specific §, never cover-to-cover.** `ARCHITECTURE.md` is 3000+ lines; reading it whole wastes context and pushes the detail you need out of working memory. The strict order is:
    - **(a) Consult the table of contents first** — either the [Within ARCHITECTURE.md nav](#within-architecturemd) in this file or the [CLAUDE.md Action → Read table](../CLAUDE.md#action--read-this-mandatory-before-acting), or the TOC at the top of `ARCHITECTURE.md` itself. The TOC is the index, not optional scaffolding.
@@ -81,7 +81,20 @@ Five-step discipline for any work (planning **and** editing) that touches a modu
 
    When a cross-link target does not exist yet (the related § is too thin, missing, or buried in a general section), **extract it** — create the target § or lift the relevant paragraph into one, then link to it. Better a few extra sub-sections than a § that mentions something the reader cannot jump to. Every new or changed § ships with its outgoing cross-links in the same commit; a § without links is a § stuck in the stack model, and future agents will re-derive the graph from the code instead of from the docs.
 
-This rule binds every code edit **and every plan**, not just "big" ones. "Forgot to check docs", "the docs didn't say", and "the related § was hidden" are all invalid reasons: step 1 names the TOC + nav, step 2 names the remedy when the nav points at an empty answer, and step 5 names the remedy when cross-references are missing.
+6. **When you rename, move, merge, split, or delete a § (or anything with an anchor), update every inbound link in the same commit.** A broken anchor is a stale rule — the link target the reader clicked no longer exists, and whatever rule the link was enforcing silently stops working. Before committing a § restructure:
+   - **Grep the whole repo** for the old anchor (`rg -- 'old-anchor-slug'`) — anchors in markdown are the lowercased `§ title` with spaces-as-dashes and punctuation stripped, so `§ Docs First — Read Before, Fix Drift, Update After` becomes `#docs-first--read-before-fix-drift-update-after`. Rename the slug → every file that linked to it needs updating.
+   - **Check each of these surfaces** and fix every match:
+     - `CLAUDE.md` — Documentation Map, Action → Read table, Always-On Rules. Links to `AGENT_RULES.md` and `ARCHITECTURE.md` sections live here.
+     - `docs/AGENT_RULES.md` — Quick Navigation tables (both "Within AGENT_RULES" and "Within ARCHITECTURE.md"), Documentation Maintenance Checklist table, in-§ cross-references, and this § itself.
+     - `docs/ARCHITECTURE.md` — TOC at the top, every in-file `[§X](#...)` reference.
+     - `README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md` if they link to docs.
+     - Code docstrings or comments that link to a doc anchor.
+     - Memory index (`~/.claude/projects/.../memory/MEMORY.md`) if it points at a renamed rule.
+   - **When in doubt, link to the file, not the anchor.** If a reference does not need deep-linking, `[AGENT_RULES § Foo](docs/AGENT_RULES.md)` is more rename-resilient than `[AGENT_RULES § Foo](docs/AGENT_RULES.md#foo)`. Prefer anchored links when the anchor is load-bearing (nav tables, checklists); prefer file-level links in prose where the exact landing point is cosmetic.
+
+   This step closes the "I renamed a § and now three files silently link to an empty anchor" failure mode. It applies equally to renaming a § in `ARCHITECTURE.md`, a rule in `AGENT_RULES.md`, a bullet in `CLAUDE.md`, or a file itself (moved `docs/X.md` → update everything that links to the old path).
+
+This rule binds every code edit **and every plan**, not just "big" ones. "Forgot to check docs", "the docs didn't say", "the related § was hidden", and "the link broke because I renamed the target" are all invalid reasons: step 1 names the TOC + nav, step 2 names the remedy when the nav points at an empty answer, step 5 names the remedy when cross-references are missing, and step 6 names the remedy when you yourself moved the target.
 
 ## Documentation Maintenance Checklist
 
