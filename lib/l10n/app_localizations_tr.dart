@@ -2050,7 +2050,7 @@ class STr extends S {
       'Sıfırlama şifrelenmiş veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Hiçbir veri geri getirilmez.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'Farklı kimlik bilgilerini dene';
 
   @override
   String get dbCorruptResetContinue => 'Sıfırla ve yeniden kur';
@@ -2421,4 +2421,110 @@ class STr extends S {
 
   @override
   String get continueWithoutPassword => 'Parolasız devam et';
+
+  @override
+  String get threatColdDiskTheft => 'Kapalı makineden disk hırsızlığı';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Kapalı bir bilgisayardan sürücünün çıkarılıp başka bir bilgisayarda okunması ya da ev dizininize erişimi olan biri tarafından veritabanı dosyasının kopyalanması.';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Kilidi açık makinenin yanındaki yabancı';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Siz yokken biri, kilidi zaten açık olan bilgisayarınıza yaklaşıp uygulamayı açar.';
+
+  @override
+  String get threatSameUserMalware =>
+      'Aynı kullanıcı hesabındaki kötücül yazılım';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'Kendi kullanıcı hesabınız altında çalışan kötücül bir süreç. Dosyalara, anahtar zincirine ve belleğe bu uygulamayla aynı erişime sahiptir — tehlikeye atılmış bir ana bilgisayarda hiçbir katman bunu savuşturamaz.';
+
+  @override
+  String get threatLiveProcessMemoryDump => 'Çalışan sürecin bellek dökümü';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'Hata ayıklayıcıya veya ptrace\'e erişebilen bir saldırgan, kilidi açılmış veritabanı anahtarını doğrudan çalışan uygulamanın belleğinden okur.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Kilitli makinede RAM adli bilişimi';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Saldırgan RAM\'i dondurur (ya da DMA ile yakalar) ve uygulama kilitliyken bile anlık görüntüden hâlâ kalıcı olan anahtar malzemesini çeker.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'İşletim sistemi çekirdeği veya anahtar zinciri ele geçirme';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Çekirdek güvenlik açığı, anahtar zinciri sızdırılması ya da donanımsal güvenlik yongasındaki arka kapı. İşletim sistemi güvenilir bir kaynak olmaktan çıkıp saldırganın kendisi haline gelir.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Zayıf parolaya karşı çevrimdışı kaba kuvvet';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Sarılmış anahtarın veya mühürlü blobun kopyasına sahip bir saldırgan, hiçbir hız sınırlayıcı olmadan kendi temposunda her parolayı dener.';
+
+  @override
+  String get legendProtects => 'Korunuyor';
+
+  @override
+  String get legendDoesNotProtect => 'Korunmuyor';
+
+  @override
+  String get legendNotApplicable =>
+      'Uygulanamaz — bu katmanda kullanıcı gizi yok';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Zayıf parola kabul edilebilir — güvenliği başka bir katman (donanımsal hız sınırlayıcı ya da sarılmış anahtar bağlaması) üstlenir';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Uzun bir parola ifadesi şiddetle önerilir — bu katmanın güvenliği buna bağlıdır';
+
+  @override
+  String get colT0 => 'T0 Düz metin';
+
+  @override
+  String get colT1 => 'T1 Anahtar zinciri';
+
+  @override
+  String get colT1Password => 'T1 + parola';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + parola + biyometrik';
+
+  @override
+  String get colT2 => 'T2 Donanım';
+
+  @override
+  String get colT2Password => 'T2 + parola';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + parola + biyometrik';
+
+  @override
+  String get colParanoid => 'Paranoyak';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Güvenlik katmanları — yan yana karşılaştırma';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Tehdit';
+
+  @override
+  String get compareAllTiers => 'Tüm katmanları karşılaştır';
 }

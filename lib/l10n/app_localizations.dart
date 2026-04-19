@@ -4262,6 +4262,186 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Continue Without Password'**
   String get continueWithoutPassword;
+
+  /// No description provided for @threatColdDiskTheft.
+  ///
+  /// In en, this message translates to:
+  /// **'Cold-disk theft'**
+  String get threatColdDiskTheft;
+
+  /// No description provided for @threatColdDiskTheftDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.'**
+  String get threatColdDiskTheftDescription;
+
+  /// No description provided for @threatBystanderUnlockedMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Bystander on an unlocked machine'**
+  String get threatBystanderUnlockedMachine;
+
+  /// No description provided for @threatBystanderUnlockedMachineDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone walks up to your already-unlocked computer and opens the app while you are away.'**
+  String get threatBystanderUnlockedMachineDescription;
+
+  /// No description provided for @threatSameUserMalware.
+  ///
+  /// In en, this message translates to:
+  /// **'Same-user malware'**
+  String get threatSameUserMalware;
+
+  /// No description provided for @threatSameUserMalwareDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A hostile process running under your own user account. It has the same access to files, keychain and memory that this app has — no tier defends against this on a compromised host.'**
+  String get threatSameUserMalwareDescription;
+
+  /// No description provided for @threatLiveProcessMemoryDump.
+  ///
+  /// In en, this message translates to:
+  /// **'Live process memory dump'**
+  String get threatLiveProcessMemoryDump;
+
+  /// No description provided for @threatLiveProcessMemoryDumpDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker with debugger or ptrace access reads the unlocked database key directly out of the running app\'s memory.'**
+  String get threatLiveProcessMemoryDumpDescription;
+
+  /// No description provided for @threatLiveRamForensicsLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'RAM forensics on a locked machine'**
+  String get threatLiveRamForensicsLocked;
+
+  /// No description provided for @threatLiveRamForensicsLockedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker freezes RAM (or captures it via DMA) and pulls still-resident key material out of the snapshot, even while the app is locked.'**
+  String get threatLiveRamForensicsLockedDescription;
+
+  /// No description provided for @threatOsKernelOrKeychainBreach.
+  ///
+  /// In en, this message translates to:
+  /// **'OS kernel or keychain compromise'**
+  String get threatOsKernelOrKeychainBreach;
+
+  /// No description provided for @threatOsKernelOrKeychainBreachDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Kernel vulnerability, keychain exfiltration, or a backdoor in the hardware security chip. The operating system becomes the attacker rather than a trusted resource.'**
+  String get threatOsKernelOrKeychainBreachDescription;
+
+  /// No description provided for @threatOfflineBruteForce.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline brute force on weak password'**
+  String get threatOfflineBruteForce;
+
+  /// No description provided for @threatOfflineBruteForceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker who has a copy of the wrapped key or sealed blob tries every password at their own pace without any rate limiter.'**
+  String get threatOfflineBruteForceDescription;
+
+  /// No description provided for @legendProtects.
+  ///
+  /// In en, this message translates to:
+  /// **'Protected'**
+  String get legendProtects;
+
+  /// No description provided for @legendDoesNotProtect.
+  ///
+  /// In en, this message translates to:
+  /// **'Not protected'**
+  String get legendDoesNotProtect;
+
+  /// No description provided for @legendNotApplicable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not applicable — no user secret for this tier'**
+  String get legendNotApplicable;
+
+  /// No description provided for @legendWeakPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security'**
+  String get legendWeakPasswordWarning;
+
+  /// No description provided for @legendStrongPasswordRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'A long passphrase is strongly recommended — this tier\'s security depends on it'**
+  String get legendStrongPasswordRecommended;
+
+  /// No description provided for @colT0.
+  ///
+  /// In en, this message translates to:
+  /// **'T0 Plaintext'**
+  String get colT0;
+
+  /// No description provided for @colT1.
+  ///
+  /// In en, this message translates to:
+  /// **'T1 Keychain'**
+  String get colT1;
+
+  /// No description provided for @colT1Password.
+  ///
+  /// In en, this message translates to:
+  /// **'T1 + password'**
+  String get colT1Password;
+
+  /// No description provided for @colT1PasswordBiometric.
+  ///
+  /// In en, this message translates to:
+  /// **'T1 + password + biometric'**
+  String get colT1PasswordBiometric;
+
+  /// No description provided for @colT2.
+  ///
+  /// In en, this message translates to:
+  /// **'T2 Hardware'**
+  String get colT2;
+
+  /// No description provided for @colT2Password.
+  ///
+  /// In en, this message translates to:
+  /// **'T2 + password'**
+  String get colT2Password;
+
+  /// No description provided for @colT2PasswordBiometric.
+  ///
+  /// In en, this message translates to:
+  /// **'T2 + password + biometric'**
+  String get colT2PasswordBiometric;
+
+  /// No description provided for @colParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paranoid'**
+  String get colParanoid;
+
+  /// No description provided for @securityComparisonTableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Security tiers — side-by-side comparison'**
+  String get securityComparisonTableTitle;
+
+  /// No description provided for @securityComparisonTableThreatColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Threat'**
+  String get securityComparisonTableThreatColumn;
+
+  /// No description provided for @compareAllTiers.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare all tiers'**
+  String get compareAllTiers;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

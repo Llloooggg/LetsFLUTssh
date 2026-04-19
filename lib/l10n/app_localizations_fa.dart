@@ -2033,7 +2033,7 @@ class SFa extends S {
       'بازنشانی، پایگاه داده رمزگذاری‌شده و تمام فایل‌های مربوط به امنیت را برای همیشه حذف می‌کند. هیچ داده‌ای بازیابی نخواهد شد.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'تلاش با اعتبارنامه دیگر';
 
   @override
   String get dbCorruptResetContinue => 'بازنشانی و راه‌اندازی تازه';
@@ -2401,4 +2401,106 @@ class SFa extends S {
 
   @override
   String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
+
+  @override
+  String get threatColdDiskTheft => 'سرقت دیسک خاموش';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'دستگاهی که خاموش است، درایو آن بیرون کشیده شده و روی رایانهٔ دیگری خوانده می‌شود، یا رونوشتی از فایل پایگاه داده که کسی با دسترسی به پوشهٔ خانگی شما برداشته است.';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'ناظر کنار دستگاه قفل‌گشوده';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'در غیاب شما، فردی به رایانهٔ از پیش قفل‌گشودهٔ شما نزدیک می‌شود و برنامه را باز می‌کند.';
+
+  @override
+  String get threatSameUserMalware => 'بدافزار با همان حساب کاربری';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'فرایندی مخرب که تحت حساب کاربری خودِ شما اجرا می‌شود. همان دسترسی به فایل‌ها، جاکلیدی و حافظه را دارد که این برنامه دارد — هیچ سطحی در میزبان آلوده در برابر این تهدید محافظت نمی‌کند.';
+
+  @override
+  String get threatLiveProcessMemoryDump => 'تخلیهٔ حافظهٔ فرایند در حال اجرا';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'مهاجمی با دسترسی به دیباگر یا ptrace کلید قفل‌گشودهٔ پایگاه داده را مستقیماً از حافظهٔ برنامهٔ در حال اجرا می‌خواند.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'جرم‌یابی حافظهٔ موقت روی دستگاه قفل';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'مهاجم حافظهٔ موقت را منجمد می‌کند (یا آن را از طریق DMA می‌گیرد) و مواد کلید هنوز باقی‌مانده در برف‌نمای حافظه را حتی هنگام قفل بودن برنامه بیرون می‌کشد.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'نفوذ به هستهٔ سیستم‌عامل یا جاکلیدی';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'آسیب‌پذیری هسته، خروج داده از جاکلیدی، یا درِپشتی در تراشهٔ امنیتی سخت‌افزاری. سیستم‌عامل به جای منبعی قابل اعتماد، خود تبدیل به مهاجم می‌شود.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'حملهٔ جستجوی فراگیر برون‌خط به رمز ضعیف';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'مهاجمی که رونوشتی از کلید پیچیده یا بلوب مهروموم‌شده دارد، بدون هیچ محدودکنندهٔ نرخی، با سرعت دلخواه خود همهٔ رمزها را امتحان می‌کند.';
+
+  @override
+  String get legendProtects => 'محافظت می‌شود';
+
+  @override
+  String get legendDoesNotProtect => 'محافظت نمی‌شود';
+
+  @override
+  String get legendNotApplicable => 'قابل اعمال نیست — این سطح رمز کاربر ندارد';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'رمز ضعیف پذیرفتنی است — لایه‌ای دیگر (محدودکنندهٔ نرخ سخت‌افزاری یا پیوند کلید پیچیده) امنیت را بر دوش می‌کشد';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'استفاده از عبارت عبور طولانی به‌شدت توصیه می‌شود — امنیت این سطح به آن وابسته است';
+
+  @override
+  String get colT0 => 'T0 متن ساده';
+
+  @override
+  String get colT1 => 'T1 جاکلیدی';
+
+  @override
+  String get colT1Password => 'T1 + رمز';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + رمز + زیست‌سنجی';
+
+  @override
+  String get colT2 => 'T2 سخت‌افزار';
+
+  @override
+  String get colT2Password => 'T2 + رمز';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + رمز + زیست‌سنجی';
+
+  @override
+  String get colParanoid => 'وسواسی';
+
+  @override
+  String get securityComparisonTableTitle => 'سطوح امنیتی — مقایسهٔ کنار هم';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'تهدید';
+
+  @override
+  String get compareAllTiers => 'مقایسهٔ همهٔ سطوح';
 }

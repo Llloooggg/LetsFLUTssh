@@ -1965,7 +1965,7 @@ class SZh extends S {
   String get dbCorruptWarning => '重置将永久删除加密数据库和所有安全相关文件。不会恢复任何数据。';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => '尝试其他凭据';
 
   @override
   String get dbCorruptResetContinue => '重置并重新设置';
@@ -2317,4 +2317,101 @@ class SZh extends S {
 
   @override
   String get continueWithoutPassword => '不设密码继续';
+
+  @override
+  String get threatColdDiskTheft => '冷盘窃取';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      '关机后拆下硬盘并在另一台计算机上读取，或者有权访问你主目录的人复制了数据库文件。';
+
+  @override
+  String get threatBystanderUnlockedMachine => '已解锁设备旁的旁观者';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      '你离开时，有人走向你已经解锁的计算机并打开本应用。';
+
+  @override
+  String get threatSameUserMalware => '同用户恶意软件';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      '在你自己的用户账户下运行的恶意进程。它对文件、钥匙串和内存拥有与本应用相同的访问权限——在被攻陷的主机上，任何等级都无法防御此类威胁。';
+
+  @override
+  String get threatLiveProcessMemoryDump => '运行进程内存转储';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      '拥有调试器或 ptrace 权限的攻击者直接从运行中的应用内存里读取已解锁的数据库密钥。';
+
+  @override
+  String get threatLiveRamForensicsLocked => '锁定设备上的内存取证';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      '攻击者冻结内存（或通过 DMA 捕获），即便应用处于锁定状态，也能从快照中提取仍然残留的密钥材料。';
+
+  @override
+  String get threatOsKernelOrKeychainBreach => '操作系统内核或钥匙串被攻破';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      '内核漏洞、钥匙串外泄，或硬件安全芯片中的后门。操作系统本身从可信资源变成了攻击者。';
+
+  @override
+  String get threatOfflineBruteForce => '针对弱密码的离线暴力破解';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      '持有已封装密钥或密封数据副本的攻击者，可以不受任何频率限制，按自己的节奏尝试每一个密码。';
+
+  @override
+  String get legendProtects => '已保护';
+
+  @override
+  String get legendDoesNotProtect => '未保护';
+
+  @override
+  String get legendNotApplicable => '不适用——此等级没有用户密钥';
+
+  @override
+  String get legendWeakPasswordWarning => '可接受弱密码——由另一层（硬件频率限制器或密钥封装绑定）承担安全性';
+
+  @override
+  String get legendStrongPasswordRecommended => '强烈建议使用长口令——此等级的安全性依赖于它';
+
+  @override
+  String get colT0 => 'T0 明文';
+
+  @override
+  String get colT1 => 'T1 钥匙串';
+
+  @override
+  String get colT1Password => 'T1 + 密码';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + 密码 + 生物识别';
+
+  @override
+  String get colT2 => 'T2 硬件';
+
+  @override
+  String get colT2Password => 'T2 + 密码';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + 密码 + 生物识别';
+
+  @override
+  String get colParanoid => '偏执模式';
+
+  @override
+  String get securityComparisonTableTitle => '安全等级——并排对比';
+
+  @override
+  String get securityComparisonTableThreatColumn => '威胁';
+
+  @override
+  String get compareAllTiers => '比较所有等级';
 }

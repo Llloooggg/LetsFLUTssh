@@ -745,5 +745,39 @@
   "dbCorruptWarning": "Restablecer eliminará permanentemente la base de datos cifrada y todos los archivos relacionados con la seguridad. No se recuperará ningún dato.",
   "dbCorruptResetContinue": "Restablecer y configurar",
   "dbCorruptExit": "Salir de LetsFLUTssh",
-  "dbCorruptTryOther": "Probar otras credenciales"
+  "dbCorruptTryOther": "Probar otras credenciales",
+
+  "threatColdDiskTheft": "Robo de disco apagado",
+  "threatColdDiskTheftDescription": "Equipo apagado con la unidad extraída y leída en otro ordenador, o una copia del archivo de la base de datos hecha por alguien con acceso a tu carpeta personal.",
+  "threatBystanderUnlockedMachine": "Curioso frente a un equipo desbloqueado",
+  "threatBystanderUnlockedMachineDescription": "Alguien se acerca a tu ordenador ya desbloqueado y abre la aplicación mientras estás ausente.",
+  "threatSameUserMalware": "Malware con el mismo usuario",
+  "threatSameUserMalwareDescription": "Un proceso hostil ejecutándose bajo tu propia cuenta de usuario. Tiene el mismo acceso a archivos, llavero y memoria que esta aplicación — ningún nivel defiende contra esto en un equipo comprometido.",
+  "threatLiveProcessMemoryDump": "Volcado de memoria del proceso activo",
+  "threatLiveProcessMemoryDumpDescription": "Un atacante con acceso a depurador o ptrace lee la clave de la base de datos desbloqueada directamente de la memoria de la aplicación en ejecución.",
+  "threatLiveRamForensicsLocked": "Análisis forense de RAM en equipo bloqueado",
+  "threatLiveRamForensicsLockedDescription": "Un atacante congela la RAM (o la captura por DMA) y extrae material de clave aún residente desde la instantánea, incluso con la aplicación bloqueada.",
+  "threatOsKernelOrKeychainBreach": "Compromiso del kernel del SO o del llavero",
+  "threatOsKernelOrKeychainBreachDescription": "Vulnerabilidad del kernel, exfiltración del llavero o una puerta trasera en el chip de seguridad de hardware. El sistema operativo pasa de recurso de confianza a atacante.",
+  "threatOfflineBruteForce": "Fuerza bruta sin conexión sobre contraseña débil",
+  "threatOfflineBruteForceDescription": "Un atacante con una copia de la clave envuelta o del blob sellado prueba cada contraseña a su propio ritmo, sin ningún limitador de velocidad.",
+
+  "legendProtects": "Protegido",
+  "legendDoesNotProtect": "No protegido",
+  "legendNotApplicable": "No aplicable — este nivel no tiene un secreto de usuario",
+  "legendWeakPasswordWarning": "Contraseña débil aceptable — otra capa (limitador de hardware o vínculo de clave envuelta) asume la seguridad",
+  "legendStrongPasswordRecommended": "Se recomienda encarecidamente una frase de contraseña larga — la seguridad de este nivel depende de ella",
+
+  "colT0": "T0 Texto plano",
+  "colT1": "T1 Llavero",
+  "colT1Password": "T1 + contraseña",
+  "colT1PasswordBiometric": "T1 + contraseña + biometría",
+  "colT2": "T2 Hardware",
+  "colT2Password": "T2 + contraseña",
+  "colT2PasswordBiometric": "T2 + contraseña + biometría",
+  "colParanoid": "Paranoico",
+
+  "securityComparisonTableTitle": "Niveles de seguridad — comparación lado a lado",
+  "securityComparisonTableThreatColumn": "Amenaza",
+  "compareAllTiers": "Comparar todos los niveles"
 }

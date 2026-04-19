@@ -1981,7 +1981,7 @@ class SJa extends S {
       'リセットすると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データは復元されません。';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => '別の認証情報で試す';
 
   @override
   String get dbCorruptResetContinue => 'リセットして新規セットアップ';
@@ -2336,4 +2336,103 @@ class SJa extends S {
 
   @override
   String get continueWithoutPassword => 'パスワードなしで続行';
+
+  @override
+  String get threatColdDiskTheft => '電源オフ時のディスク窃取';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      '電源を切った端末からドライブを取り外して別のコンピューターで読み出す、あるいはホームディレクトリへアクセスできる者がデータベースファイルを複製するケース。';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'ロック解除済み端末のそばにいる第三者';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'あなたが離席している間に、すでにロック解除済みのコンピューターへ誰かが近づき、このアプリを開く状況。';
+
+  @override
+  String get threatSameUserMalware => '同一ユーザー権限のマルウェア';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'あなたのユーザーアカウントで動作する悪意あるプロセス。ファイル・キーチェーン・メモリへの権限はこのアプリと同等であり、侵害済みのホストではどの階層でも防御できません。';
+
+  @override
+  String get threatLiveProcessMemoryDump => '動作中プロセスのメモリダンプ';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'デバッガーや ptrace のアクセス権を持つ攻撃者が、稼働中のアプリのメモリから解錠済みのデータベース鍵を直接読み出します。';
+
+  @override
+  String get threatLiveRamForensicsLocked => 'ロック状態の端末に対する RAM フォレンジック';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      '攻撃者が RAM を凍結したり DMA で取得したりして、アプリがロック中でもスナップショットから残存する鍵素材を引き出します。';
+
+  @override
+  String get threatOsKernelOrKeychainBreach => 'OS カーネルまたはキーチェーンの侵害';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'カーネル脆弱性、キーチェーンの窃取、あるいはハードウェアセキュリティチップのバックドア。OS 自体が信頼できる基盤ではなく、攻撃者側の存在になります。';
+
+  @override
+  String get threatOfflineBruteForce => '弱いパスワードへのオフライン総当たり';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'ラップされた鍵や封印ブロブのコピーを持つ攻撃者が、レート制限を一切受けずに自分のペースで全パスワードを試せる状況。';
+
+  @override
+  String get legendProtects => '保護あり';
+
+  @override
+  String get legendDoesNotProtect => '保護なし';
+
+  @override
+  String get legendNotApplicable => '該当なし — この階層にはユーザー秘密がありません';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      '弱いパスワードでも可 — 別の層（ハードウェアのレート制限、またはラップされた鍵のバインディング）が安全性を担います';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      '長いパスフレーズの使用を強く推奨 — この階層の安全性はそれに依存します';
+
+  @override
+  String get colT0 => 'T0 平文';
+
+  @override
+  String get colT1 => 'T1 キーチェーン';
+
+  @override
+  String get colT1Password => 'T1 + パスワード';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + パスワード + 生体認証';
+
+  @override
+  String get colT2 => 'T2 ハードウェア';
+
+  @override
+  String get colT2Password => 'T2 + パスワード';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + パスワード + 生体認証';
+
+  @override
+  String get colParanoid => 'パラノイド';
+
+  @override
+  String get securityComparisonTableTitle => 'セキュリティ階層 — 横並び比較';
+
+  @override
+  String get securityComparisonTableThreatColumn => '脅威';
+
+  @override
+  String get compareAllTiers => '全階層を比較';
 }

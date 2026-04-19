@@ -2064,7 +2064,7 @@ class SDe extends S {
       'Zurücksetzen löscht die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft. Keine Daten werden wiederhergestellt.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'Andere Anmeldedaten versuchen';
 
   @override
   String get dbCorruptResetContinue => 'Zurücksetzen & neu einrichten';
@@ -2432,4 +2432,110 @@ class SDe extends S {
 
   @override
   String get continueWithoutPassword => 'Ohne Passwort fortfahren';
+
+  @override
+  String get threatColdDiskTheft => 'Diebstahl bei ausgeschaltetem Gerät';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Ausgeschalteter Rechner, dessen Laufwerk ausgebaut und an einem anderen Computer gelesen wird, oder eine Kopie der Datenbankdatei, die jemand mit Zugriff auf dein Home-Verzeichnis erstellt hat.';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Umstehende an einem entsperrten Gerät';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Jemand tritt an deinen bereits entsperrten Computer und öffnet die App, während du abwesend bist.';
+
+  @override
+  String get threatSameUserMalware => 'Schadsoftware im selben Benutzerkonto';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'Ein bösartiger Prozess, der unter deinem eigenen Benutzerkonto läuft. Er hat denselben Zugriff auf Dateien, Schlüsselbund und Arbeitsspeicher wie diese App — auf einem kompromittierten Host schützt keine Stufe davor.';
+
+  @override
+  String get threatLiveProcessMemoryDump =>
+      'Speicherauszug des laufenden Prozesses';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'Ein Angreifer mit Debugger- oder ptrace-Zugriff liest den entsperrten Datenbankschlüssel direkt aus dem Arbeitsspeicher der laufenden App.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'RAM-Forensik an gesperrtem Rechner';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Ein Angreifer friert den RAM ein (oder erfasst ihn per DMA) und zieht noch vorhandenes Schlüsselmaterial aus dem Abbild, auch wenn die App gesperrt ist.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Kompromittierung des OS-Kernels oder Schlüsselbunds';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Kernel-Schwachstelle, Exfiltration aus dem Schlüsselbund oder eine Hintertür im Hardware-Sicherheitschip. Das Betriebssystem wird vom vertrauenswürdigen Bestandteil zum Angreifer.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Offline-Brute-Force gegen schwaches Passwort';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Ein Angreifer mit einer Kopie des umhüllten Schlüssels oder versiegelten Blobs probiert jedes Passwort in eigenem Tempo, ohne jede Geschwindigkeitsbegrenzung.';
+
+  @override
+  String get legendProtects => 'Geschützt';
+
+  @override
+  String get legendDoesNotProtect => 'Nicht geschützt';
+
+  @override
+  String get legendNotApplicable =>
+      'Nicht zutreffend — diese Stufe hat kein Benutzergeheimnis';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Schwaches Passwort akzeptabel — eine andere Schicht (Hardware-Ratenbegrenzer oder Schlüsselumhüllung) trägt die Sicherheit';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Eine lange Passphrase wird dringend empfohlen — die Sicherheit dieser Stufe hängt davon ab';
+
+  @override
+  String get colT0 => 'T0 Klartext';
+
+  @override
+  String get colT1 => 'T1 Schlüsselbund';
+
+  @override
+  String get colT1Password => 'T1 + Passwort';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + Passwort + Biometrie';
+
+  @override
+  String get colT2 => 'T2 Hardware';
+
+  @override
+  String get colT2Password => 'T2 + Passwort';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + Passwort + Biometrie';
+
+  @override
+  String get colParanoid => 'Paranoid';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Sicherheitsstufen — Direktvergleich';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Bedrohung';
+
+  @override
+  String get compareAllTiers => 'Alle Stufen vergleichen';
 }

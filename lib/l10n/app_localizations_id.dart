@@ -2043,7 +2043,7 @@ class SId extends S {
       'Reset akan menghapus basis data terenkripsi dan semua file terkait keamanan secara permanen. Tidak ada data yang dipulihkan.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'Coba kredensial lain';
 
   @override
   String get dbCorruptResetContinue => 'Reset & Siapkan Ulang';
@@ -2411,4 +2411,110 @@ class SId extends S {
 
   @override
   String get continueWithoutPassword => 'Lanjutkan tanpa kata sandi';
+
+  @override
+  String get threatColdDiskTheft => 'Pencurian disk saat mati';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Komputer dalam keadaan mati yang drive-nya dilepas lalu dibaca di komputer lain, atau salinan berkas basis data yang diambil oleh seseorang dengan akses ke direktori home Anda.';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Orang lain di dekat mesin yang sudah terbuka';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Seseorang menghampiri komputer Anda yang sudah terbuka kuncinya dan membuka aplikasi saat Anda tidak di tempat.';
+
+  @override
+  String get threatSameUserMalware => 'Malware di akun pengguna yang sama';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'Proses berbahaya yang berjalan di bawah akun pengguna Anda sendiri. Ia punya akses yang sama ke berkas, keychain, dan memori seperti aplikasi ini — tidak ada tier yang dapat mempertahankan diri terhadap ini pada host yang sudah tercemar.';
+
+  @override
+  String get threatLiveProcessMemoryDump =>
+      'Dump memori proses yang sedang berjalan';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'Penyerang dengan akses debugger atau ptrace membaca kunci basis data yang sudah terbuka langsung dari memori aplikasi yang sedang berjalan.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Forensik RAM pada mesin yang terkunci';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Penyerang membekukan RAM (atau menangkapnya lewat DMA) dan menarik materi kunci yang masih tersimpan dari snapshot, bahkan ketika aplikasi sedang terkunci.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Kompromi kernel OS atau keychain';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Kerentanan kernel, eksfiltrasi keychain, atau pintu belakang pada chip keamanan perangkat keras. Sistem operasi berubah dari sumber daya tepercaya menjadi penyerang itu sendiri.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Brute force offline pada kata sandi lemah';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Penyerang yang memegang salinan kunci yang dibungkus atau blob tersegel mencoba setiap kata sandi dengan kecepatannya sendiri, tanpa pembatas laju apa pun.';
+
+  @override
+  String get legendProtects => 'Terlindungi';
+
+  @override
+  String get legendDoesNotProtect => 'Tidak terlindungi';
+
+  @override
+  String get legendNotApplicable =>
+      'Tidak berlaku — tier ini tidak memiliki rahasia pengguna';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Kata sandi lemah dapat diterima — lapisan lain (pembatas laju perangkat keras atau pengikatan kunci yang dibungkus) yang memikul keamanan';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Frasa sandi panjang sangat disarankan — keamanan tier ini bergantung padanya';
+
+  @override
+  String get colT0 => 'T0 Teks polos';
+
+  @override
+  String get colT1 => 'T1 Keychain';
+
+  @override
+  String get colT1Password => 'T1 + kata sandi';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + kata sandi + biometrik';
+
+  @override
+  String get colT2 => 'T2 Perangkat keras';
+
+  @override
+  String get colT2Password => 'T2 + kata sandi';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + kata sandi + biometrik';
+
+  @override
+  String get colParanoid => 'Paranoid';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Tier keamanan — perbandingan berdampingan';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Ancaman';
+
+  @override
+  String get compareAllTiers => 'Bandingkan semua tier';
 }

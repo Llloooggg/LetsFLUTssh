@@ -745,5 +745,39 @@
   "dbCorruptWarning": "سيؤدي الإعادة إلى حذف قاعدة البيانات المشفرة وجميع الملفات المتعلقة بالأمان نهائيًا. لن تتم استعادة أي بيانات.",
   "dbCorruptResetContinue": "إعادة تعيين وإعداد جديد",
   "dbCorruptExit": "الخروج من LetsFLUTssh",
-  "dbCorruptTryOther": "تجربة بيانات اعتماد أخرى"
+  "dbCorruptTryOther": "تجربة بيانات اعتماد أخرى",
+
+  "threatColdDiskTheft": "سرقة القرص أثناء إيقاف التشغيل",
+  "threatColdDiskTheftDescription": "جهاز متوقف عن التشغيل يُنزع قرصه ويُقرأ على حاسوب آخر، أو نسخة من ملف قاعدة البيانات أخذها شخص لديه وصول إلى مجلدك الشخصي.",
+  "threatBystanderUnlockedMachine": "متطفّل على جهاز غير مقفول",
+  "threatBystanderUnlockedMachineDescription": "يقترب شخص ما من حاسوبك غير المقفول ويفتح التطبيق أثناء غيابك.",
+  "threatSameUserMalware": "برمجيات خبيثة بنفس حساب المستخدم",
+  "threatSameUserMalwareDescription": "عملية خبيثة تعمل تحت حسابك نفسه. تمتلك نفس الوصول إلى الملفات وسلسلة المفاتيح والذاكرة الذي يمتلكه هذا التطبيق — ولا يُدافع أي مستوى عن ذلك على مضيف مخترق.",
+  "threatLiveProcessMemoryDump": "تفريغ ذاكرة العملية النشطة",
+  "threatLiveProcessMemoryDumpDescription": "مهاجم لديه وصول مصحِّح أو ptrace يقرأ مفتاح قاعدة البيانات المفتوح مباشرة من ذاكرة التطبيق الجاري تشغيله.",
+  "threatLiveRamForensicsLocked": "تحليل جنائي للذاكرة على جهاز مقفول",
+  "threatLiveRamForensicsLockedDescription": "يُجمِّد المهاجم الذاكرة العشوائية (أو يلتقطها عبر DMA) ويستخرج المواد المفتاحية التي لا تزال موجودة من اللقطة، حتى عندما يكون التطبيق مقفولاً.",
+  "threatOsKernelOrKeychainBreach": "اختراق نواة النظام أو سلسلة المفاتيح",
+  "threatOsKernelOrKeychainBreachDescription": "ثغرة في النواة، أو تسريب من سلسلة المفاتيح، أو باب خلفي في شريحة الأمان العتادية. يصبح نظام التشغيل مهاجماً بدلاً من أن يكون مورداً موثوقاً.",
+  "threatOfflineBruteForce": "قوة عمياء بلا اتصال على كلمة مرور ضعيفة",
+  "threatOfflineBruteForceDescription": "مهاجم يملك نسخة من المفتاح الملفوف أو الكتلة المختومة يجرّب كل كلمات المرور بوتيرته الخاصة دون أي محدِّد لمعدل المحاولات.",
+
+  "legendProtects": "محمي",
+  "legendDoesNotProtect": "غير محمي",
+  "legendNotApplicable": "غير قابل للتطبيق — لا يوجد سر مستخدم لهذا المستوى",
+  "legendWeakPasswordWarning": "كلمة المرور الضعيفة مقبولة — تتكفّل طبقة أخرى (مُحدِّد معدل عتادي أو ربط المفتاح الملفوف) بالأمان",
+  "legendStrongPasswordRecommended": "يُوصى بشدة بعبارة مرور طويلة — يعتمد أمان هذا المستوى عليها",
+
+  "colT0": "T0 نص صريح",
+  "colT1": "T1 سلسلة المفاتيح",
+  "colT1Password": "T1 + كلمة مرور",
+  "colT1PasswordBiometric": "T1 + كلمة مرور + بصمة حيوية",
+  "colT2": "T2 عتاد",
+  "colT2Password": "T2 + كلمة مرور",
+  "colT2PasswordBiometric": "T2 + كلمة مرور + بصمة حيوية",
+  "colParanoid": "مذعور",
+
+  "securityComparisonTableTitle": "مستويات الأمان — مقارنة جنباً إلى جنب",
+  "securityComparisonTableThreatColumn": "التهديد",
+  "compareAllTiers": "مقارنة جميع المستويات"
 }

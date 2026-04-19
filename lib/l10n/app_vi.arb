@@ -745,5 +745,39 @@
   "dbCorruptWarning": "Đặt lại sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tệp liên quan đến bảo mật. Không có dữ liệu nào được khôi phục.",
   "dbCorruptResetContinue": "Đặt lại & Cài đặt mới",
   "dbCorruptExit": "Thoát LetsFLUTssh",
-  "dbCorruptTryOther": "Thử thông tin xác thực khác"
+  "dbCorruptTryOther": "Thử thông tin xác thực khác",
+
+  "threatColdDiskTheft": "Trộm ổ đĩa khi máy đã tắt",
+  "threatColdDiskTheftDescription": "Máy đã tắt bị tháo ổ đĩa ra và đọc trên một máy khác, hoặc ai đó có quyền truy cập thư mục cá nhân của bạn sao chép tệp cơ sở dữ liệu.",
+  "threatBystanderUnlockedMachine": "Người ngoài bên máy đã mở khóa",
+  "threatBystanderUnlockedMachineDescription": "Có người tiến lại chiếc máy đã mở khóa của bạn và mở ứng dụng trong lúc bạn vắng mặt.",
+  "threatSameUserMalware": "Mã độc chạy cùng tài khoản người dùng",
+  "threatSameUserMalwareDescription": "Một tiến trình thù địch chạy dưới chính tài khoản người dùng của bạn. Nó có cùng quyền truy cập vào tệp, keychain và bộ nhớ như ứng dụng này — không bậc nào phòng được điều này trên một máy chủ đã bị xâm phạm.",
+  "threatLiveProcessMemoryDump": "Kết xuất bộ nhớ tiến trình đang chạy",
+  "threatLiveProcessMemoryDumpDescription": "Kẻ tấn công có quyền trình gỡ lỗi hoặc ptrace đọc thẳng khóa cơ sở dữ liệu đã mở ra khỏi bộ nhớ của ứng dụng đang chạy.",
+  "threatLiveRamForensicsLocked": "Điều tra RAM trên máy đã khóa",
+  "threatLiveRamForensicsLockedDescription": "Kẻ tấn công đóng băng RAM (hoặc thu qua DMA) và lôi ra những mẩu khóa vẫn còn đọng lại trong ảnh chụp, ngay cả khi ứng dụng đang bị khóa.",
+  "threatOsKernelOrKeychainBreach": "Xâm phạm nhân hệ điều hành hoặc keychain",
+  "threatOsKernelOrKeychainBreachDescription": "Lỗ hổng nhân, rò rỉ keychain, hoặc cửa hậu trong chip bảo mật phần cứng. Hệ điều hành từ tài nguyên tin cậy trở thành chính kẻ tấn công.",
+  "threatOfflineBruteForce": "Dò mật khẩu yếu ngoại tuyến",
+  "threatOfflineBruteForceDescription": "Kẻ tấn công có bản sao khóa đã bọc hoặc blob được niêm phong sẽ thử mọi mật khẩu theo nhịp độ của chính mình, không bị giới hạn tốc độ nào.",
+
+  "legendProtects": "Được bảo vệ",
+  "legendDoesNotProtect": "Không được bảo vệ",
+  "legendNotApplicable": "Không áp dụng — bậc này không có bí mật của người dùng",
+  "legendWeakPasswordWarning": "Mật khẩu yếu được chấp nhận — một lớp khác (bộ giới hạn tốc độ phần cứng hoặc ràng buộc khóa đã bọc) đảm nhận tính bảo mật",
+  "legendStrongPasswordRecommended": "Rất khuyến nghị dùng cụm mật khẩu dài — tính bảo mật của bậc này phụ thuộc vào nó",
+
+  "colT0": "T0 Văn bản thuần",
+  "colT1": "T1 Keychain",
+  "colT1Password": "T1 + mật khẩu",
+  "colT1PasswordBiometric": "T1 + mật khẩu + sinh trắc",
+  "colT2": "T2 Phần cứng",
+  "colT2Password": "T2 + mật khẩu",
+  "colT2PasswordBiometric": "T2 + mật khẩu + sinh trắc",
+  "colParanoid": "Hoang tưởng",
+
+  "securityComparisonTableTitle": "Các bậc bảo mật — so sánh cạnh nhau",
+  "securityComparisonTableThreatColumn": "Mối đe dọa",
+  "compareAllTiers": "So sánh tất cả các bậc"
 }

@@ -1391,5 +1391,39 @@
   "enableLoggingSubtitle": "Write app events to a rotating log file",
   "exportWithoutPassword": "Export Without Password?",
   "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
-  "continueWithoutPassword": "Continue Without Password"
+  "continueWithoutPassword": "Continue Without Password",
+
+  "threatColdDiskTheft": "Cold-disk theft",
+  "threatColdDiskTheftDescription": "Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.",
+  "threatBystanderUnlockedMachine": "Bystander on an unlocked machine",
+  "threatBystanderUnlockedMachineDescription": "Someone walks up to your already-unlocked computer and opens the app while you are away.",
+  "threatSameUserMalware": "Same-user malware",
+  "threatSameUserMalwareDescription": "A hostile process running under your own user account. It has the same access to files, keychain and memory that this app has — no tier defends against this on a compromised host.",
+  "threatLiveProcessMemoryDump": "Live process memory dump",
+  "threatLiveProcessMemoryDumpDescription": "An attacker with debugger or ptrace access reads the unlocked database key directly out of the running app's memory.",
+  "threatLiveRamForensicsLocked": "RAM forensics on a locked machine",
+  "threatLiveRamForensicsLockedDescription": "An attacker freezes RAM (or captures it via DMA) and pulls still-resident key material out of the snapshot, even while the app is locked.",
+  "threatOsKernelOrKeychainBreach": "OS kernel or keychain compromise",
+  "threatOsKernelOrKeychainBreachDescription": "Kernel vulnerability, keychain exfiltration, or a backdoor in the hardware security chip. The operating system becomes the attacker rather than a trusted resource.",
+  "threatOfflineBruteForce": "Offline brute force on weak password",
+  "threatOfflineBruteForceDescription": "An attacker who has a copy of the wrapped key or sealed blob tries every password at their own pace without any rate limiter.",
+
+  "legendProtects": "Protected",
+  "legendDoesNotProtect": "Not protected",
+  "legendNotApplicable": "Not applicable — no user secret for this tier",
+  "legendWeakPasswordWarning": "Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security",
+  "legendStrongPasswordRecommended": "A long passphrase is strongly recommended — this tier's security depends on it",
+
+  "colT0": "T0 Plaintext",
+  "colT1": "T1 Keychain",
+  "colT1Password": "T1 + password",
+  "colT1PasswordBiometric": "T1 + password + biometric",
+  "colT2": "T2 Hardware",
+  "colT2Password": "T2 + password",
+  "colT2PasswordBiometric": "T2 + password + biometric",
+  "colParanoid": "Paranoid",
+
+  "securityComparisonTableTitle": "Security tiers — side-by-side comparison",
+  "securityComparisonTableThreatColumn": "Threat",
+  "compareAllTiers": "Compare all tiers"
 }

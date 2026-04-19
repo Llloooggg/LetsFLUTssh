@@ -745,5 +745,39 @@
   "dbCorruptWarning": "La réinitialisation supprimera définitivement la base chiffrée et tous les fichiers liés à la sécurité. Aucune donnée ne sera récupérée.",
   "dbCorruptResetContinue": "Réinitialiser et configurer",
   "dbCorruptExit": "Quitter LetsFLUTssh",
-  "dbCorruptTryOther": "Essayer d'autres identifiants"
+  "dbCorruptTryOther": "Essayer d'autres identifiants",
+
+  "threatColdDiskTheft": "Vol de disque éteint",
+  "threatColdDiskTheftDescription": "Machine éteinte dont le disque est retiré et lu sur un autre ordinateur, ou copie du fichier de base de données prise par quelqu'un ayant accès à votre dossier personnel.",
+  "threatBystanderUnlockedMachine": "Témoin devant une machine déverrouillée",
+  "threatBystanderUnlockedMachineDescription": "Quelqu'un s'approche de votre ordinateur déjà déverrouillé et ouvre l'application pendant que vous êtes absent.",
+  "threatSameUserMalware": "Logiciel malveillant dans le même compte",
+  "threatSameUserMalwareDescription": "Un processus hostile s'exécutant sous votre propre compte utilisateur. Il a le même accès aux fichiers, au trousseau et à la mémoire que cette application — aucun niveau ne protège contre cela sur un hôte compromis.",
+  "threatLiveProcessMemoryDump": "Vidage mémoire du processus actif",
+  "threatLiveProcessMemoryDumpDescription": "Un attaquant disposant d'un débogueur ou d'un accès ptrace lit la clé de base de données déverrouillée directement dans la mémoire de l'application en cours d'exécution.",
+  "threatLiveRamForensicsLocked": "Forensique de RAM sur machine verrouillée",
+  "threatLiveRamForensicsLockedDescription": "Un attaquant gèle la RAM (ou la capture via DMA) et extrait du matériel de clé encore présent dans l'instantané, même si l'application est verrouillée.",
+  "threatOsKernelOrKeychainBreach": "Compromission du noyau ou du trousseau",
+  "threatOsKernelOrKeychainBreachDescription": "Vulnérabilité du noyau, exfiltration du trousseau ou porte dérobée dans la puce de sécurité matérielle. Le système d'exploitation devient l'attaquant au lieu d'une ressource de confiance.",
+  "threatOfflineBruteForce": "Force brute hors ligne sur mot de passe faible",
+  "threatOfflineBruteForceDescription": "Un attaquant possédant une copie de la clé encapsulée ou du blob scellé teste chaque mot de passe à son propre rythme, sans aucun limiteur de débit.",
+
+  "legendProtects": "Protégé",
+  "legendDoesNotProtect": "Non protégé",
+  "legendNotApplicable": "Non applicable — pas de secret utilisateur pour ce niveau",
+  "legendWeakPasswordWarning": "Mot de passe faible acceptable — une autre couche (limiteur matériel ou liaison de clé encapsulée) assure la sécurité",
+  "legendStrongPasswordRecommended": "Une longue phrase secrète est fortement recommandée — la sécurité de ce niveau en dépend",
+
+  "colT0": "T0 Texte brut",
+  "colT1": "T1 Trousseau",
+  "colT1Password": "T1 + mot de passe",
+  "colT1PasswordBiometric": "T1 + mot de passe + biométrie",
+  "colT2": "T2 Matériel",
+  "colT2Password": "T2 + mot de passe",
+  "colT2PasswordBiometric": "T2 + mot de passe + biométrie",
+  "colParanoid": "Paranoïaque",
+
+  "securityComparisonTableTitle": "Niveaux de sécurité — comparaison côte à côte",
+  "securityComparisonTableThreatColumn": "Menace",
+  "compareAllTiers": "Comparer tous les niveaux"
 }

@@ -745,5 +745,39 @@
   "dbCorruptWarning": "재설정은 암호화된 데이터베이스와 모든 보안 관련 파일을 영구적으로 삭제합니다. 데이터는 복구되지 않습니다.",
   "dbCorruptResetContinue": "재설정 후 새로 설정",
   "dbCorruptExit": "LetsFLUTssh 종료",
-  "dbCorruptTryOther": "다른 자격 증명 시도"
+  "dbCorruptTryOther": "다른 자격 증명 시도",
+
+  "threatColdDiskTheft": "전원 꺼진 디스크 탈취",
+  "threatColdDiskTheftDescription": "전원이 꺼진 기기에서 드라이브를 꺼내 다른 컴퓨터에서 읽거나, 홈 디렉터리에 접근할 수 있는 사람이 데이터베이스 파일을 복사하는 경우입니다.",
+  "threatBystanderUnlockedMachine": "잠금 해제된 기기 옆의 제3자",
+  "threatBystanderUnlockedMachineDescription": "자리를 비운 사이, 누군가 이미 잠금 해제된 컴퓨터에 다가가 이 앱을 여는 상황입니다.",
+  "threatSameUserMalware": "동일 사용자 권한의 악성코드",
+  "threatSameUserMalwareDescription": "본인 사용자 계정으로 실행되는 악성 프로세스입니다. 파일·키체인·메모리에 대해 이 앱과 동일한 접근 권한을 가지므로, 침해된 호스트에서는 어떤 티어도 이를 막을 수 없습니다.",
+  "threatLiveProcessMemoryDump": "실행 중 프로세스 메모리 덤프",
+  "threatLiveProcessMemoryDumpDescription": "디버거 또는 ptrace 권한을 가진 공격자가 실행 중인 앱의 메모리에서 잠금 해제된 데이터베이스 키를 직접 읽어냅니다.",
+  "threatLiveRamForensicsLocked": "잠긴 기기의 RAM 포렌식",
+  "threatLiveRamForensicsLockedDescription": "공격자가 RAM을 얼리거나 DMA로 캡처해, 앱이 잠긴 상태여도 스냅샷에서 아직 남아 있는 키 자료를 꺼내 갑니다.",
+  "threatOsKernelOrKeychainBreach": "OS 커널 또는 키체인 침해",
+  "threatOsKernelOrKeychainBreachDescription": "커널 취약점, 키체인 유출, 또는 하드웨어 보안 칩에 숨겨진 백도어. 운영 체제가 신뢰할 수 있는 자원이 아니라 공격자 그 자체가 됩니다.",
+  "threatOfflineBruteForce": "약한 비밀번호에 대한 오프라인 무차별 대입",
+  "threatOfflineBruteForceDescription": "래핑된 키 또는 봉인된 블롭의 사본을 가진 공격자가 어떤 속도 제한도 없이 자신의 속도로 모든 비밀번호를 시도합니다.",
+
+  "legendProtects": "보호됨",
+  "legendDoesNotProtect": "보호되지 않음",
+  "legendNotApplicable": "해당 없음 — 이 티어에는 사용자 비밀이 없습니다",
+  "legendWeakPasswordWarning": "약한 비밀번호 허용 — 다른 계층(하드웨어 속도 제한 또는 래핑된 키 바인딩)이 보안을 담당합니다",
+  "legendStrongPasswordRecommended": "긴 암호 문구 사용을 강력히 권장합니다 — 이 티어의 보안은 여기에 달려 있습니다",
+
+  "colT0": "T0 평문",
+  "colT1": "T1 키체인",
+  "colT1Password": "T1 + 비밀번호",
+  "colT1PasswordBiometric": "T1 + 비밀번호 + 생체 인식",
+  "colT2": "T2 하드웨어",
+  "colT2Password": "T2 + 비밀번호",
+  "colT2PasswordBiometric": "T2 + 비밀번호 + 생체 인식",
+  "colParanoid": "편집증",
+
+  "securityComparisonTableTitle": "보안 티어 — 나란히 비교",
+  "securityComparisonTableThreatColumn": "위협",
+  "compareAllTiers": "모든 티어 비교"
 }

@@ -745,5 +745,39 @@
   "dbCorruptWarning": "重置将永久删除加密数据库和所有安全相关文件。不会恢复任何数据。",
   "dbCorruptResetContinue": "重置并重新设置",
   "dbCorruptExit": "退出 LetsFLUTssh",
-  "dbCorruptTryOther": "尝试其他凭据"
+  "dbCorruptTryOther": "尝试其他凭据",
+
+  "threatColdDiskTheft": "冷盘窃取",
+  "threatColdDiskTheftDescription": "关机后拆下硬盘并在另一台计算机上读取，或者有权访问你主目录的人复制了数据库文件。",
+  "threatBystanderUnlockedMachine": "已解锁设备旁的旁观者",
+  "threatBystanderUnlockedMachineDescription": "你离开时，有人走向你已经解锁的计算机并打开本应用。",
+  "threatSameUserMalware": "同用户恶意软件",
+  "threatSameUserMalwareDescription": "在你自己的用户账户下运行的恶意进程。它对文件、钥匙串和内存拥有与本应用相同的访问权限——在被攻陷的主机上，任何等级都无法防御此类威胁。",
+  "threatLiveProcessMemoryDump": "运行进程内存转储",
+  "threatLiveProcessMemoryDumpDescription": "拥有调试器或 ptrace 权限的攻击者直接从运行中的应用内存里读取已解锁的数据库密钥。",
+  "threatLiveRamForensicsLocked": "锁定设备上的内存取证",
+  "threatLiveRamForensicsLockedDescription": "攻击者冻结内存（或通过 DMA 捕获），即便应用处于锁定状态，也能从快照中提取仍然残留的密钥材料。",
+  "threatOsKernelOrKeychainBreach": "操作系统内核或钥匙串被攻破",
+  "threatOsKernelOrKeychainBreachDescription": "内核漏洞、钥匙串外泄，或硬件安全芯片中的后门。操作系统本身从可信资源变成了攻击者。",
+  "threatOfflineBruteForce": "针对弱密码的离线暴力破解",
+  "threatOfflineBruteForceDescription": "持有已封装密钥或密封数据副本的攻击者，可以不受任何频率限制，按自己的节奏尝试每一个密码。",
+
+  "legendProtects": "已保护",
+  "legendDoesNotProtect": "未保护",
+  "legendNotApplicable": "不适用——此等级没有用户密钥",
+  "legendWeakPasswordWarning": "可接受弱密码——由另一层（硬件频率限制器或密钥封装绑定）承担安全性",
+  "legendStrongPasswordRecommended": "强烈建议使用长口令——此等级的安全性依赖于它",
+
+  "colT0": "T0 明文",
+  "colT1": "T1 钥匙串",
+  "colT1Password": "T1 + 密码",
+  "colT1PasswordBiometric": "T1 + 密码 + 生物识别",
+  "colT2": "T2 硬件",
+  "colT2Password": "T2 + 密码",
+  "colT2PasswordBiometric": "T2 + 密码 + 生物识别",
+  "colParanoid": "偏执模式",
+
+  "securityComparisonTableTitle": "安全等级——并排对比",
+  "securityComparisonTableThreatColumn": "威胁",
+  "compareAllTiers": "比较所有等级"
 }

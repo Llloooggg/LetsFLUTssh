@@ -2399,4 +2399,108 @@ class SEn extends S {
 
   @override
   String get continueWithoutPassword => 'Continue Without Password';
+
+  @override
+  String get threatColdDiskTheft => 'Cold-disk theft';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Bystander on an unlocked machine';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Someone walks up to your already-unlocked computer and opens the app while you are away.';
+
+  @override
+  String get threatSameUserMalware => 'Same-user malware';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'A hostile process running under your own user account. It has the same access to files, keychain and memory that this app has — no tier defends against this on a compromised host.';
+
+  @override
+  String get threatLiveProcessMemoryDump => 'Live process memory dump';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'An attacker with debugger or ptrace access reads the unlocked database key directly out of the running app\'s memory.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'RAM forensics on a locked machine';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'An attacker freezes RAM (or captures it via DMA) and pulls still-resident key material out of the snapshot, even while the app is locked.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'OS kernel or keychain compromise';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Kernel vulnerability, keychain exfiltration, or a backdoor in the hardware security chip. The operating system becomes the attacker rather than a trusted resource.';
+
+  @override
+  String get threatOfflineBruteForce => 'Offline brute force on weak password';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'An attacker who has a copy of the wrapped key or sealed blob tries every password at their own pace without any rate limiter.';
+
+  @override
+  String get legendProtects => 'Protected';
+
+  @override
+  String get legendDoesNotProtect => 'Not protected';
+
+  @override
+  String get legendNotApplicable =>
+      'Not applicable — no user secret for this tier';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'A long passphrase is strongly recommended — this tier\'s security depends on it';
+
+  @override
+  String get colT0 => 'T0 Plaintext';
+
+  @override
+  String get colT1 => 'T1 Keychain';
+
+  @override
+  String get colT1Password => 'T1 + password';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + password + biometric';
+
+  @override
+  String get colT2 => 'T2 Hardware';
+
+  @override
+  String get colT2Password => 'T2 + password';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + password + biometric';
+
+  @override
+  String get colParanoid => 'Paranoid';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Security tiers — side-by-side comparison';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Threat';
+
+  @override
+  String get compareAllTiers => 'Compare all tiers';
 }

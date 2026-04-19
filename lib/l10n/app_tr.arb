@@ -745,5 +745,39 @@
   "dbCorruptWarning": "Sıfırlama şifrelenmiş veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Hiçbir veri geri getirilmez.",
   "dbCorruptResetContinue": "Sıfırla ve yeniden kur",
   "dbCorruptExit": "LetsFLUTssh'den çık",
-  "dbCorruptTryOther": "Farklı kimlik bilgilerini dene"
+  "dbCorruptTryOther": "Farklı kimlik bilgilerini dene",
+
+  "threatColdDiskTheft": "Kapalı makineden disk hırsızlığı",
+  "threatColdDiskTheftDescription": "Kapalı bir bilgisayardan sürücünün çıkarılıp başka bir bilgisayarda okunması ya da ev dizininize erişimi olan biri tarafından veritabanı dosyasının kopyalanması.",
+  "threatBystanderUnlockedMachine": "Kilidi açık makinenin yanındaki yabancı",
+  "threatBystanderUnlockedMachineDescription": "Siz yokken biri, kilidi zaten açık olan bilgisayarınıza yaklaşıp uygulamayı açar.",
+  "threatSameUserMalware": "Aynı kullanıcı hesabındaki kötücül yazılım",
+  "threatSameUserMalwareDescription": "Kendi kullanıcı hesabınız altında çalışan kötücül bir süreç. Dosyalara, anahtar zincirine ve belleğe bu uygulamayla aynı erişime sahiptir — tehlikeye atılmış bir ana bilgisayarda hiçbir katman bunu savuşturamaz.",
+  "threatLiveProcessMemoryDump": "Çalışan sürecin bellek dökümü",
+  "threatLiveProcessMemoryDumpDescription": "Hata ayıklayıcıya veya ptrace'e erişebilen bir saldırgan, kilidi açılmış veritabanı anahtarını doğrudan çalışan uygulamanın belleğinden okur.",
+  "threatLiveRamForensicsLocked": "Kilitli makinede RAM adli bilişimi",
+  "threatLiveRamForensicsLockedDescription": "Saldırgan RAM'i dondurur (ya da DMA ile yakalar) ve uygulama kilitliyken bile anlık görüntüden hâlâ kalıcı olan anahtar malzemesini çeker.",
+  "threatOsKernelOrKeychainBreach": "İşletim sistemi çekirdeği veya anahtar zinciri ele geçirme",
+  "threatOsKernelOrKeychainBreachDescription": "Çekirdek güvenlik açığı, anahtar zinciri sızdırılması ya da donanımsal güvenlik yongasındaki arka kapı. İşletim sistemi güvenilir bir kaynak olmaktan çıkıp saldırganın kendisi haline gelir.",
+  "threatOfflineBruteForce": "Zayıf parolaya karşı çevrimdışı kaba kuvvet",
+  "threatOfflineBruteForceDescription": "Sarılmış anahtarın veya mühürlü blobun kopyasına sahip bir saldırgan, hiçbir hız sınırlayıcı olmadan kendi temposunda her parolayı dener.",
+
+  "legendProtects": "Korunuyor",
+  "legendDoesNotProtect": "Korunmuyor",
+  "legendNotApplicable": "Uygulanamaz — bu katmanda kullanıcı gizi yok",
+  "legendWeakPasswordWarning": "Zayıf parola kabul edilebilir — güvenliği başka bir katman (donanımsal hız sınırlayıcı ya da sarılmış anahtar bağlaması) üstlenir",
+  "legendStrongPasswordRecommended": "Uzun bir parola ifadesi şiddetle önerilir — bu katmanın güvenliği buna bağlıdır",
+
+  "colT0": "T0 Düz metin",
+  "colT1": "T1 Anahtar zinciri",
+  "colT1Password": "T1 + parola",
+  "colT1PasswordBiometric": "T1 + parola + biyometrik",
+  "colT2": "T2 Donanım",
+  "colT2Password": "T2 + parola",
+  "colT2PasswordBiometric": "T2 + parola + biyometrik",
+  "colParanoid": "Paranoyak",
+
+  "securityComparisonTableTitle": "Güvenlik katmanları — yan yana karşılaştırma",
+  "securityComparisonTableThreatColumn": "Tehdit",
+  "compareAllTiers": "Tüm katmanları karşılaştır"
 }

@@ -2029,7 +2029,7 @@ class SVi extends S {
       'Đặt lại sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tệp liên quan đến bảo mật. Không có dữ liệu nào được khôi phục.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'Thử thông tin xác thực khác';
 
   @override
   String get dbCorruptResetContinue => 'Đặt lại & Cài đặt mới';
@@ -2394,4 +2394,107 @@ class SVi extends S {
 
   @override
   String get continueWithoutPassword => 'Tiếp tục không dùng mật khẩu';
+
+  @override
+  String get threatColdDiskTheft => 'Trộm ổ đĩa khi máy đã tắt';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Máy đã tắt bị tháo ổ đĩa ra và đọc trên một máy khác, hoặc ai đó có quyền truy cập thư mục cá nhân của bạn sao chép tệp cơ sở dữ liệu.';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'Người ngoài bên máy đã mở khóa';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Có người tiến lại chiếc máy đã mở khóa của bạn và mở ứng dụng trong lúc bạn vắng mặt.';
+
+  @override
+  String get threatSameUserMalware => 'Mã độc chạy cùng tài khoản người dùng';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'Một tiến trình thù địch chạy dưới chính tài khoản người dùng của bạn. Nó có cùng quyền truy cập vào tệp, keychain và bộ nhớ như ứng dụng này — không bậc nào phòng được điều này trên một máy chủ đã bị xâm phạm.';
+
+  @override
+  String get threatLiveProcessMemoryDump =>
+      'Kết xuất bộ nhớ tiến trình đang chạy';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'Kẻ tấn công có quyền trình gỡ lỗi hoặc ptrace đọc thẳng khóa cơ sở dữ liệu đã mở ra khỏi bộ nhớ của ứng dụng đang chạy.';
+
+  @override
+  String get threatLiveRamForensicsLocked => 'Điều tra RAM trên máy đã khóa';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Kẻ tấn công đóng băng RAM (hoặc thu qua DMA) và lôi ra những mẩu khóa vẫn còn đọng lại trong ảnh chụp, ngay cả khi ứng dụng đang bị khóa.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Xâm phạm nhân hệ điều hành hoặc keychain';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Lỗ hổng nhân, rò rỉ keychain, hoặc cửa hậu trong chip bảo mật phần cứng. Hệ điều hành từ tài nguyên tin cậy trở thành chính kẻ tấn công.';
+
+  @override
+  String get threatOfflineBruteForce => 'Dò mật khẩu yếu ngoại tuyến';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Kẻ tấn công có bản sao khóa đã bọc hoặc blob được niêm phong sẽ thử mọi mật khẩu theo nhịp độ của chính mình, không bị giới hạn tốc độ nào.';
+
+  @override
+  String get legendProtects => 'Được bảo vệ';
+
+  @override
+  String get legendDoesNotProtect => 'Không được bảo vệ';
+
+  @override
+  String get legendNotApplicable =>
+      'Không áp dụng — bậc này không có bí mật của người dùng';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Mật khẩu yếu được chấp nhận — một lớp khác (bộ giới hạn tốc độ phần cứng hoặc ràng buộc khóa đã bọc) đảm nhận tính bảo mật';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Rất khuyến nghị dùng cụm mật khẩu dài — tính bảo mật của bậc này phụ thuộc vào nó';
+
+  @override
+  String get colT0 => 'T0 Văn bản thuần';
+
+  @override
+  String get colT1 => 'T1 Keychain';
+
+  @override
+  String get colT1Password => 'T1 + mật khẩu';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + mật khẩu + sinh trắc';
+
+  @override
+  String get colT2 => 'T2 Phần cứng';
+
+  @override
+  String get colT2Password => 'T2 + mật khẩu';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + mật khẩu + sinh trắc';
+
+  @override
+  String get colParanoid => 'Hoang tưởng';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Các bậc bảo mật — so sánh cạnh nhau';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Mối đe dọa';
+
+  @override
+  String get compareAllTiers => 'So sánh tất cả các bậc';
 }

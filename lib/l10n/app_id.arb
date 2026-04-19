@@ -745,5 +745,39 @@
   "dbCorruptWarning": "Reset akan menghapus basis data terenkripsi dan semua file terkait keamanan secara permanen. Tidak ada data yang dipulihkan.",
   "dbCorruptResetContinue": "Reset & Siapkan Ulang",
   "dbCorruptExit": "Keluar dari LetsFLUTssh",
-  "dbCorruptTryOther": "Coba kredensial lain"
+  "dbCorruptTryOther": "Coba kredensial lain",
+
+  "threatColdDiskTheft": "Pencurian disk saat mati",
+  "threatColdDiskTheftDescription": "Komputer dalam keadaan mati yang drive-nya dilepas lalu dibaca di komputer lain, atau salinan berkas basis data yang diambil oleh seseorang dengan akses ke direktori home Anda.",
+  "threatBystanderUnlockedMachine": "Orang lain di dekat mesin yang sudah terbuka",
+  "threatBystanderUnlockedMachineDescription": "Seseorang menghampiri komputer Anda yang sudah terbuka kuncinya dan membuka aplikasi saat Anda tidak di tempat.",
+  "threatSameUserMalware": "Malware di akun pengguna yang sama",
+  "threatSameUserMalwareDescription": "Proses berbahaya yang berjalan di bawah akun pengguna Anda sendiri. Ia punya akses yang sama ke berkas, keychain, dan memori seperti aplikasi ini — tidak ada tier yang dapat mempertahankan diri terhadap ini pada host yang sudah tercemar.",
+  "threatLiveProcessMemoryDump": "Dump memori proses yang sedang berjalan",
+  "threatLiveProcessMemoryDumpDescription": "Penyerang dengan akses debugger atau ptrace membaca kunci basis data yang sudah terbuka langsung dari memori aplikasi yang sedang berjalan.",
+  "threatLiveRamForensicsLocked": "Forensik RAM pada mesin yang terkunci",
+  "threatLiveRamForensicsLockedDescription": "Penyerang membekukan RAM (atau menangkapnya lewat DMA) dan menarik materi kunci yang masih tersimpan dari snapshot, bahkan ketika aplikasi sedang terkunci.",
+  "threatOsKernelOrKeychainBreach": "Kompromi kernel OS atau keychain",
+  "threatOsKernelOrKeychainBreachDescription": "Kerentanan kernel, eksfiltrasi keychain, atau pintu belakang pada chip keamanan perangkat keras. Sistem operasi berubah dari sumber daya tepercaya menjadi penyerang itu sendiri.",
+  "threatOfflineBruteForce": "Brute force offline pada kata sandi lemah",
+  "threatOfflineBruteForceDescription": "Penyerang yang memegang salinan kunci yang dibungkus atau blob tersegel mencoba setiap kata sandi dengan kecepatannya sendiri, tanpa pembatas laju apa pun.",
+
+  "legendProtects": "Terlindungi",
+  "legendDoesNotProtect": "Tidak terlindungi",
+  "legendNotApplicable": "Tidak berlaku — tier ini tidak memiliki rahasia pengguna",
+  "legendWeakPasswordWarning": "Kata sandi lemah dapat diterima — lapisan lain (pembatas laju perangkat keras atau pengikatan kunci yang dibungkus) yang memikul keamanan",
+  "legendStrongPasswordRecommended": "Frasa sandi panjang sangat disarankan — keamanan tier ini bergantung padanya",
+
+  "colT0": "T0 Teks polos",
+  "colT1": "T1 Keychain",
+  "colT1Password": "T1 + kata sandi",
+  "colT1PasswordBiometric": "T1 + kata sandi + biometrik",
+  "colT2": "T2 Perangkat keras",
+  "colT2Password": "T2 + kata sandi",
+  "colT2PasswordBiometric": "T2 + kata sandi + biometrik",
+  "colParanoid": "Paranoid",
+
+  "securityComparisonTableTitle": "Tier keamanan — perbandingan berdampingan",
+  "securityComparisonTableThreatColumn": "Ancaman",
+  "compareAllTiers": "Bandingkan semua tier"
 }

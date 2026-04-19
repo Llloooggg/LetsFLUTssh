@@ -2049,7 +2049,7 @@ class SRu extends S {
       'Сброс навсегда удалит зашифрованную базу данных и все связанные с безопасностью файлы. Восстановить данные будет невозможно.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'Попробовать другие учётные данные';
 
   @override
   String get dbCorruptResetContinue => 'Сбросить и настроить заново';
@@ -2421,4 +2421,108 @@ class SRu extends S {
 
   @override
   String get continueWithoutPassword => 'Продолжить без пароля';
+
+  @override
+  String get threatColdDiskTheft => 'Кража холодного диска';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Выключенный компьютер с извлечённым диском, прочитанным на другой машине, либо копия файла базы данных, сделанная тем, у кого есть доступ к вашему домашнему каталогу.';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Посторонний у разблокированной машины';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Кто-то подходит к уже разблокированному компьютеру и открывает приложение, пока вас нет рядом.';
+
+  @override
+  String get threatSameUserMalware => 'Вредонос в вашем аккаунте';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'Враждебный процесс, запущенный под вашей учётной записью. У него такой же доступ к файлам, ключнице и памяти, как и у этого приложения — ни один уровень не защищает от этого на скомпрометированном хосте.';
+
+  @override
+  String get threatLiveProcessMemoryDump => 'Дамп памяти работающего процесса';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'Атакующий с доступом отладчика или ptrace читает разблокированный ключ базы данных прямо из памяти запущенного приложения.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Криминалистика ОЗУ на заблокированной машине';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Атакующий замораживает ОЗУ (или снимает её через DMA) и извлекает ещё находящийся там ключевой материал из слепка, даже когда приложение заблокировано.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Компрометация ядра ОС или ключницы';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Уязвимость ядра, эксфильтрация ключницы или бэкдор в аппаратном чипе безопасности. Операционная система становится атакующим, а не доверенным ресурсом.';
+
+  @override
+  String get threatOfflineBruteForce => 'Офлайн-перебор слабого пароля';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Атакующий, имеющий копию обёрнутого ключа или запечатанного блока, перебирает все пароли в своём темпе, без каких-либо ограничений частоты.';
+
+  @override
+  String get legendProtects => 'Защищает';
+
+  @override
+  String get legendDoesNotProtect => 'Не защищает';
+
+  @override
+  String get legendNotApplicable =>
+      'Неприменимо — у этого уровня нет пользовательского секрета';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Слабый пароль допустим — безопасность обеспечивает другой слой (аппаратный ограничитель попыток или привязка обёрнутого ключа)';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Настоятельно рекомендуется длинная парольная фраза — безопасность этого уровня зависит от неё';
+
+  @override
+  String get colT0 => 'T0 Открытый текст';
+
+  @override
+  String get colT1 => 'T1 Ключница';
+
+  @override
+  String get colT1Password => 'T1 + пароль';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + пароль + биометрия';
+
+  @override
+  String get colT2 => 'T2 Аппаратный';
+
+  @override
+  String get colT2Password => 'T2 + пароль';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + пароль + биометрия';
+
+  @override
+  String get colParanoid => 'Параноидальный';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Уровни безопасности — сравнение бок о бок';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Угроза';
+
+  @override
+  String get compareAllTiers => 'Сравнить все уровни';
 }

@@ -2061,7 +2061,7 @@ class SEs extends S {
       'Restablecer eliminará permanentemente la base de datos cifrada y todos los archivos relacionados con la seguridad. No se recuperará ningún dato.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'Probar otras credenciales';
 
   @override
   String get dbCorruptResetContinue => 'Restablecer y configurar';
@@ -2434,4 +2434,110 @@ class SEs extends S {
 
   @override
   String get continueWithoutPassword => 'Continuar sin contraseña';
+
+  @override
+  String get threatColdDiskTheft => 'Robo de disco apagado';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Equipo apagado con la unidad extraída y leída en otro ordenador, o una copia del archivo de la base de datos hecha por alguien con acceso a tu carpeta personal.';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Curioso frente a un equipo desbloqueado';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Alguien se acerca a tu ordenador ya desbloqueado y abre la aplicación mientras estás ausente.';
+
+  @override
+  String get threatSameUserMalware => 'Malware con el mismo usuario';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'Un proceso hostil ejecutándose bajo tu propia cuenta de usuario. Tiene el mismo acceso a archivos, llavero y memoria que esta aplicación — ningún nivel defiende contra esto en un equipo comprometido.';
+
+  @override
+  String get threatLiveProcessMemoryDump =>
+      'Volcado de memoria del proceso activo';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'Un atacante con acceso a depurador o ptrace lee la clave de la base de datos desbloqueada directamente de la memoria de la aplicación en ejecución.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Análisis forense de RAM en equipo bloqueado';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Un atacante congela la RAM (o la captura por DMA) y extrae material de clave aún residente desde la instantánea, incluso con la aplicación bloqueada.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Compromiso del kernel del SO o del llavero';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Vulnerabilidad del kernel, exfiltración del llavero o una puerta trasera en el chip de seguridad de hardware. El sistema operativo pasa de recurso de confianza a atacante.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Fuerza bruta sin conexión sobre contraseña débil';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Un atacante con una copia de la clave envuelta o del blob sellado prueba cada contraseña a su propio ritmo, sin ningún limitador de velocidad.';
+
+  @override
+  String get legendProtects => 'Protegido';
+
+  @override
+  String get legendDoesNotProtect => 'No protegido';
+
+  @override
+  String get legendNotApplicable =>
+      'No aplicable — este nivel no tiene un secreto de usuario';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Contraseña débil aceptable — otra capa (limitador de hardware o vínculo de clave envuelta) asume la seguridad';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Se recomienda encarecidamente una frase de contraseña larga — la seguridad de este nivel depende de ella';
+
+  @override
+  String get colT0 => 'T0 Texto plano';
+
+  @override
+  String get colT1 => 'T1 Llavero';
+
+  @override
+  String get colT1Password => 'T1 + contraseña';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + contraseña + biometría';
+
+  @override
+  String get colT2 => 'T2 Hardware';
+
+  @override
+  String get colT2Password => 'T2 + contraseña';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + contraseña + biometría';
+
+  @override
+  String get colParanoid => 'Paranoico';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Niveles de seguridad — comparación lado a lado';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Amenaza';
+
+  @override
+  String get compareAllTiers => 'Comparar todos los niveles';
 }

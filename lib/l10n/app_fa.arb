@@ -745,5 +745,39 @@
   "dbCorruptWarning": "بازنشانی، پایگاه داده رمزگذاری‌شده و تمام فایل‌های مربوط به امنیت را برای همیشه حذف می‌کند. هیچ داده‌ای بازیابی نخواهد شد.",
   "dbCorruptResetContinue": "بازنشانی و راه‌اندازی تازه",
   "dbCorruptExit": "خروج از LetsFLUTssh",
-  "dbCorruptTryOther": "تلاش با اعتبارنامه دیگر"
+  "dbCorruptTryOther": "تلاش با اعتبارنامه دیگر",
+
+  "threatColdDiskTheft": "سرقت دیسک خاموش",
+  "threatColdDiskTheftDescription": "دستگاهی که خاموش است، درایو آن بیرون کشیده شده و روی رایانهٔ دیگری خوانده می‌شود، یا رونوشتی از فایل پایگاه داده که کسی با دسترسی به پوشهٔ خانگی شما برداشته است.",
+  "threatBystanderUnlockedMachine": "ناظر کنار دستگاه قفل‌گشوده",
+  "threatBystanderUnlockedMachineDescription": "در غیاب شما، فردی به رایانهٔ از پیش قفل‌گشودهٔ شما نزدیک می‌شود و برنامه را باز می‌کند.",
+  "threatSameUserMalware": "بدافزار با همان حساب کاربری",
+  "threatSameUserMalwareDescription": "فرایندی مخرب که تحت حساب کاربری خودِ شما اجرا می‌شود. همان دسترسی به فایل‌ها، جاکلیدی و حافظه را دارد که این برنامه دارد — هیچ سطحی در میزبان آلوده در برابر این تهدید محافظت نمی‌کند.",
+  "threatLiveProcessMemoryDump": "تخلیهٔ حافظهٔ فرایند در حال اجرا",
+  "threatLiveProcessMemoryDumpDescription": "مهاجمی با دسترسی به دیباگر یا ptrace کلید قفل‌گشودهٔ پایگاه داده را مستقیماً از حافظهٔ برنامهٔ در حال اجرا می‌خواند.",
+  "threatLiveRamForensicsLocked": "جرم‌یابی حافظهٔ موقت روی دستگاه قفل",
+  "threatLiveRamForensicsLockedDescription": "مهاجم حافظهٔ موقت را منجمد می‌کند (یا آن را از طریق DMA می‌گیرد) و مواد کلید هنوز باقی‌مانده در برف‌نمای حافظه را حتی هنگام قفل بودن برنامه بیرون می‌کشد.",
+  "threatOsKernelOrKeychainBreach": "نفوذ به هستهٔ سیستم‌عامل یا جاکلیدی",
+  "threatOsKernelOrKeychainBreachDescription": "آسیب‌پذیری هسته، خروج داده از جاکلیدی، یا درِپشتی در تراشهٔ امنیتی سخت‌افزاری. سیستم‌عامل به جای منبعی قابل اعتماد، خود تبدیل به مهاجم می‌شود.",
+  "threatOfflineBruteForce": "حملهٔ جستجوی فراگیر برون‌خط به رمز ضعیف",
+  "threatOfflineBruteForceDescription": "مهاجمی که رونوشتی از کلید پیچیده یا بلوب مهروموم‌شده دارد، بدون هیچ محدودکنندهٔ نرخی، با سرعت دلخواه خود همهٔ رمزها را امتحان می‌کند.",
+
+  "legendProtects": "محافظت می‌شود",
+  "legendDoesNotProtect": "محافظت نمی‌شود",
+  "legendNotApplicable": "قابل اعمال نیست — این سطح رمز کاربر ندارد",
+  "legendWeakPasswordWarning": "رمز ضعیف پذیرفتنی است — لایه‌ای دیگر (محدودکنندهٔ نرخ سخت‌افزاری یا پیوند کلید پیچیده) امنیت را بر دوش می‌کشد",
+  "legendStrongPasswordRecommended": "استفاده از عبارت عبور طولانی به‌شدت توصیه می‌شود — امنیت این سطح به آن وابسته است",
+
+  "colT0": "T0 متن ساده",
+  "colT1": "T1 جاکلیدی",
+  "colT1Password": "T1 + رمز",
+  "colT1PasswordBiometric": "T1 + رمز + زیست‌سنجی",
+  "colT2": "T2 سخت‌افزار",
+  "colT2Password": "T2 + رمز",
+  "colT2PasswordBiometric": "T2 + رمز + زیست‌سنجی",
+  "colParanoid": "وسواسی",
+
+  "securityComparisonTableTitle": "سطوح امنیتی — مقایسهٔ کنار هم",
+  "securityComparisonTableThreatColumn": "تهدید",
+  "compareAllTiers": "مقایسهٔ همهٔ سطوح"
 }

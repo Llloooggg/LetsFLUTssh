@@ -2036,7 +2036,7 @@ class SAr extends S {
       'سيؤدي الإعادة إلى حذف قاعدة البيانات المشفرة وجميع الملفات المتعلقة بالأمان نهائيًا. لن تتم استعادة أي بيانات.';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'تجربة بيانات اعتماد أخرى';
 
   @override
   String get dbCorruptResetContinue => 'إعادة تعيين وإعداد جديد';
@@ -2407,4 +2407,108 @@ class SAr extends S {
 
   @override
   String get continueWithoutPassword => 'المتابعة بدون كلمة مرور';
+
+  @override
+  String get threatColdDiskTheft => 'سرقة القرص أثناء إيقاف التشغيل';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'جهاز متوقف عن التشغيل يُنزع قرصه ويُقرأ على حاسوب آخر، أو نسخة من ملف قاعدة البيانات أخذها شخص لديه وصول إلى مجلدك الشخصي.';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'متطفّل على جهاز غير مقفول';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'يقترب شخص ما من حاسوبك غير المقفول ويفتح التطبيق أثناء غيابك.';
+
+  @override
+  String get threatSameUserMalware => 'برمجيات خبيثة بنفس حساب المستخدم';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'عملية خبيثة تعمل تحت حسابك نفسه. تمتلك نفس الوصول إلى الملفات وسلسلة المفاتيح والذاكرة الذي يمتلكه هذا التطبيق — ولا يُدافع أي مستوى عن ذلك على مضيف مخترق.';
+
+  @override
+  String get threatLiveProcessMemoryDump => 'تفريغ ذاكرة العملية النشطة';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'مهاجم لديه وصول مصحِّح أو ptrace يقرأ مفتاح قاعدة البيانات المفتوح مباشرة من ذاكرة التطبيق الجاري تشغيله.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'تحليل جنائي للذاكرة على جهاز مقفول';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'يُجمِّد المهاجم الذاكرة العشوائية (أو يلتقطها عبر DMA) ويستخرج المواد المفتاحية التي لا تزال موجودة من اللقطة، حتى عندما يكون التطبيق مقفولاً.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'اختراق نواة النظام أو سلسلة المفاتيح';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'ثغرة في النواة، أو تسريب من سلسلة المفاتيح، أو باب خلفي في شريحة الأمان العتادية. يصبح نظام التشغيل مهاجماً بدلاً من أن يكون مورداً موثوقاً.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'قوة عمياء بلا اتصال على كلمة مرور ضعيفة';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'مهاجم يملك نسخة من المفتاح الملفوف أو الكتلة المختومة يجرّب كل كلمات المرور بوتيرته الخاصة دون أي محدِّد لمعدل المحاولات.';
+
+  @override
+  String get legendProtects => 'محمي';
+
+  @override
+  String get legendDoesNotProtect => 'غير محمي';
+
+  @override
+  String get legendNotApplicable =>
+      'غير قابل للتطبيق — لا يوجد سر مستخدم لهذا المستوى';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'كلمة المرور الضعيفة مقبولة — تتكفّل طبقة أخرى (مُحدِّد معدل عتادي أو ربط المفتاح الملفوف) بالأمان';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'يُوصى بشدة بعبارة مرور طويلة — يعتمد أمان هذا المستوى عليها';
+
+  @override
+  String get colT0 => 'T0 نص صريح';
+
+  @override
+  String get colT1 => 'T1 سلسلة المفاتيح';
+
+  @override
+  String get colT1Password => 'T1 + كلمة مرور';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + كلمة مرور + بصمة حيوية';
+
+  @override
+  String get colT2 => 'T2 عتاد';
+
+  @override
+  String get colT2Password => 'T2 + كلمة مرور';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + كلمة مرور + بصمة حيوية';
+
+  @override
+  String get colParanoid => 'مذعور';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'مستويات الأمان — مقارنة جنباً إلى جنب';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'التهديد';
+
+  @override
+  String get compareAllTiers => 'مقارنة جميع المستويات';
 }

@@ -2042,7 +2042,7 @@ class SHi extends S {
       'रीसेट एन्क्रिप्टेड डेटाबेस और सुरक्षा संबंधी सभी फ़ाइलें स्थायी रूप से हटा देगा। कोई डेटा पुनर्प्राप्त नहीं होगा।';
 
   @override
-  String get dbCorruptTryOther => 'Try different credentials';
+  String get dbCorruptTryOther => 'दूसरी प्रमाणिकाएँ आज़माएँ';
 
   @override
   String get dbCorruptResetContinue => 'रीसेट और नया सेटअप';
@@ -2408,4 +2408,105 @@ class SHi extends S {
 
   @override
   String get continueWithoutPassword => 'बिना पासवर्ड के जारी रखें';
+
+  @override
+  String get threatColdDiskTheft => 'बंद डिस्क की चोरी';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'बंद मशीन से ड्राइव निकालकर किसी दूसरे कंप्यूटर पर पढ़ी जाए, या आपके होम डायरेक्टरी तक पहुँच रखने वाले किसी व्यक्ति द्वारा डेटाबेस फ़ाइल की नकल ले ली जाए।';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'अनलॉक मशीन पर मौजूद अजनबी';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'जब आप दूर होते हैं, कोई आपकी पहले से अनलॉक मशीन के पास आकर ऐप खोल लेता है।';
+
+  @override
+  String get threatSameUserMalware => 'उसी उपयोगकर्ता खाते का मैलवेयर';
+
+  @override
+  String get threatSameUserMalwareDescription =>
+      'आपके अपने उपयोगकर्ता खाते के अंतर्गत चलती एक हानिकारक प्रक्रिया। इसकी फ़ाइलों, कीचेन और मेमोरी तक वही पहुँच होती है जो इस ऐप की है — किसी भी समझौता किए गए होस्ट पर कोई भी टीयर इससे बचाव नहीं करता।';
+
+  @override
+  String get threatLiveProcessMemoryDump => 'चालू प्रक्रिया का मेमोरी डंप';
+
+  @override
+  String get threatLiveProcessMemoryDumpDescription =>
+      'डिबगर या ptrace पहुँच वाला हमलावर अनलॉक किए गए डेटाबेस कुंजी को सीधे चालू ऐप की मेमोरी से पढ़ लेता है।';
+
+  @override
+  String get threatLiveRamForensicsLocked => 'लॉक मशीन पर RAM फ़ोरेंसिक';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'हमलावर RAM को फ़्रीज़ करता है (या DMA के ज़रिए कैप्चर करता है) और ऐप लॉक होने पर भी स्नैपशॉट से अब भी मौजूद कुंजी सामग्री निकाल लेता है।';
+
+  @override
+  String get threatOsKernelOrKeychainBreach => 'OS कर्नल या कीचेन की सेंधमारी';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'कर्नल की कमज़ोरी, कीचेन से डेटा बाहर निकालना, या हार्डवेयर सुरक्षा चिप में बैकडोर। ऑपरेटिंग सिस्टम विश्वसनीय संसाधन के बजाय स्वयं हमलावर बन जाता है।';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'कमज़ोर पासवर्ड पर ऑफ़लाइन ब्रूट फ़ोर्स';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'रैप की गई कुंजी या सील्ड ब्लॉब की प्रति रखने वाला हमलावर किसी दर-सीमक के बिना, अपनी गति से हर पासवर्ड आज़माता है।';
+
+  @override
+  String get legendProtects => 'सुरक्षित';
+
+  @override
+  String get legendDoesNotProtect => 'सुरक्षित नहीं';
+
+  @override
+  String get legendNotApplicable =>
+      'लागू नहीं — इस टीयर के लिए कोई उपयोगकर्ता गुप्त नहीं है';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'कमज़ोर पासवर्ड स्वीकार्य — सुरक्षा का भार कोई और परत (हार्डवेयर दर-सीमक या रैप की गई कुंजी की बाइंडिंग) उठाती है';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'एक लंबा पासफ़्रेज़ अत्यधिक अनुशंसित है — इस टीयर की सुरक्षा इस पर निर्भर है';
+
+  @override
+  String get colT0 => 'T0 सादा पाठ';
+
+  @override
+  String get colT1 => 'T1 कीचेन';
+
+  @override
+  String get colT1Password => 'T1 + पासवर्ड';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + पासवर्ड + बायोमेट्रिक';
+
+  @override
+  String get colT2 => 'T2 हार्डवेयर';
+
+  @override
+  String get colT2Password => 'T2 + पासवर्ड';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + पासवर्ड + बायोमेट्रिक';
+
+  @override
+  String get colParanoid => 'पैरानॉइड';
+
+  @override
+  String get securityComparisonTableTitle => 'सुरक्षा टीयर — आमने-सामने तुलना';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'ख़तरा';
+
+  @override
+  String get compareAllTiers => 'सभी टीयर की तुलना करें';
 }
