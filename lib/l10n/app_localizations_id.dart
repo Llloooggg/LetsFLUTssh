@@ -2553,6 +2553,28 @@ class SId extends S {
       'Kunci otomatis memerlukan kata sandi pada tier aktif.';
 
   @override
+  String get recommendedBadge => 'DIREKOMENDASIKAN';
+
+  @override
+  String get continueWithRecommended =>
+      'Lanjutkan dengan yang direkomendasikan';
+
+  @override
+  String get customizeSecurity => 'Sesuaikan keamanan';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Lanjutan: kunci terikat pada perangkat keras. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternatif: kata sandi utama, tanpa memercayai OS. Melindungi dari OS yang disusupi. Tidak meningkatkan proteksi runtime dibandingkan T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih.';
+
+  @override
   String get securitySetupContinue => 'Lanjutkan';
 
   @override

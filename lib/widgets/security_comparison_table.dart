@@ -208,6 +208,20 @@ class _Legend extends StatelessWidget {
           AppTheme.yellow,
           l10n.legendWeakPasswordWarning,
         ),
+        const SizedBox(height: 10),
+        // Honest framing: a flat truth table suggests the user can
+        // "pick a better tier" to fix runtime threats. They cannot —
+        // those are addressed by the mitigation layer, not the KEK
+        // provider. Call this out explicitly so the table does not
+        // over-promise what tier choice can do.
+        Text(
+          l10n.mitigationsNoteRuntimeThreats,
+          style: TextStyle(
+            fontSize: AppFonts.xs,
+            color: AppTheme.fgDim,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
       ],
     );
   }

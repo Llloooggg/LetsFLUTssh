@@ -2565,6 +2565,27 @@ class SPt extends S {
       'O bloqueio automático exige uma senha no nível ativo.';
 
   @override
+  String get recommendedBadge => 'RECOMENDADO';
+
+  @override
+  String get continueWithRecommended => 'Continuar com o recomendado';
+
+  @override
+  String get customizeSecurity => 'Personalizar segurança';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Avançado: chave vinculada ao hardware. Os dados são irrecuperáveis se o chip deste dispositivo for perdido ou substituído.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternativa: senha mestra, sem confiança no OS. Protege contra o comprometimento do OS. Não melhora a proteção em tempo de execução em relação a T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Ameaças em runtime (malware do mesmo usuário, dump de memória de processo em execução) aparecem como ✗ em todos os níveis. Elas são tratadas por funcionalidades de mitigação separadas, aplicadas independentemente do nível escolhido.';
+
+  @override
   String get securitySetupContinue => 'Continuar';
 
   @override

@@ -814,5 +814,12 @@
   "masterPasswordLabel": "マスターパスワード",
 
   "compareAllTiersSubtitle": "各階層の防御範囲を並べて比較できます。",
-  "autoLockRequiresPassword": "自動ロックにはアクティブな階層にパスワードが必要です。"
+  "autoLockRequiresPassword": "自動ロックにはアクティブな階層にパスワードが必要です。",
+
+  "recommendedBadge": "推奨",
+  "continueWithRecommended": "推奨設定で続行",
+  "customizeSecurity": "セキュリティをカスタマイズ",
+  "tierHardwareSubtitleHonest": "上級: ハードウェアに紐づく鍵。このデバイスのチップが失われたり交換されたりすると、データは復元できません。",
+  "tierParanoidSubtitleHonest": "代替: マスターパスワードを使用し、OS を信頼しません。OS の侵害から保護しますが、T1/T2 と比べてランタイム保護は向上しません。",
+  "mitigationsNoteRuntimeThreats": "runtime の脅威（同一ユーザーの malware、稼働中プロセスのメモリダンプ）は、すべての階層で ✗ と表示されます。これらは階層選択に関係なく適用される別途の緩和機能によって対処されます。"
 }

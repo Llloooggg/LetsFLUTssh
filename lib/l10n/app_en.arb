@@ -1437,6 +1437,12 @@
   "resetAllDataFailed": "Reset failed",
   "compareAllTiersSubtitle": "See what each tier protects against, side-by-side.",
   "autoLockRequiresPassword": "Auto-lock requires a password on the active tier.",
+  "recommendedBadge": "RECOMMENDED",
+  "continueWithRecommended": "Continue with recommended",
+  "customizeSecurity": "Customize security",
+  "tierHardwareSubtitleHonest": "Advanced: hardware-bound key. Data is irrecoverable if this device's chip is lost or replaced.",
+  "tierParanoidSubtitleHonest": "Alternative: master password, no OS trust. Protects against OS compromise. Does not improve runtime protection over T1/T2.",
+  "mitigationsNoteRuntimeThreats": "Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.",
 
   "securitySetupContinue": "Continue",
   "currentTierBadge": "CURRENT",

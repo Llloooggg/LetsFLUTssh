@@ -154,6 +154,17 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     });
   }
 
+  /// Pick the tier to flag as "Recommended" in the wizard. Preference
+  /// order mirrors the default-selection logic: hardware-bound when
+  /// available (stronger off-device guarantees), else keychain, else
+  /// plaintext. Paranoid is never auto-recommended — it is a
+  /// conscious opt-in for users who distrust the OS.
+  WizardTier? _recommendedTier(SecurityCapabilities caps) {
+    if (caps.hardwareVaultAvailable) return WizardTier.hardware;
+    if (caps.keychainAvailable) return WizardTier.keychain;
+    return WizardTier.plaintext;
+  }
+
   WizardTier _initialSelection(SecurityCapabilities caps) {
     switch (widget.currentTier) {
       case SecurityTier.plaintext:
@@ -319,6 +330,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           current:
               widget.currentTier == SecurityTier.keychain ||
               widget.currentTier == SecurityTier.keychainWithPassword,
+          recommended: _recommendedTier(caps) == WizardTier.keychain,
           disabledReason: caps.keychainAvailable
               ? null
               : l10n.tierKeychainUnavailable,
@@ -329,10 +341,11 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         _TierRow(
           badge: 'T2',
           label: l10n.tierHardwareLabel,
-          subtitle: l10n.tierHardwareSubtitle,
+          subtitle: l10n.tierHardwareSubtitleHonest,
           accent: AppTheme.accent,
           selected: _selected == WizardTier.hardware,
           current: widget.currentTier == SecurityTier.hardware,
+          recommended: _recommendedTier(caps) == WizardTier.hardware,
           disabledReason: caps.hardwareVaultAvailable
               ? null
               : l10n.tierHardwareUnavailable,
@@ -348,7 +361,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         _TierRow(
           badge: 'P',
           label: l10n.tierParanoidLabel,
-          subtitle: l10n.tierParanoidSubtitle,
+          subtitle: l10n.tierParanoidSubtitleHonest,
           accent: AppTheme.purple,
           selected: _selected == WizardTier.paranoid,
           current: widget.currentTier == SecurityTier.paranoid,
@@ -363,16 +376,23 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         _buildModifierPanel(l10n, caps),
 
         const SizedBox(height: 18),
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
               child: Text(l10n.cancel),
             ),
-            const Spacer(),
             FilledButton(
               onPressed: _submit,
-              child: Text(l10n.securitySetupContinue),
+              child: Text(
+                _selected == _recommendedTier(caps)
+                    ? l10n.continueWithRecommended
+                    : l10n.securitySetupContinue,
+              ),
             ),
           ],
         ),
@@ -511,6 +531,7 @@ class _TierRow extends StatelessWidget {
   final Color accent;
   final bool selected;
   final bool current;
+  final bool recommended;
   final String? disabledReason;
   final VoidCallback? onSelect;
 
@@ -522,6 +543,7 @@ class _TierRow extends StatelessWidget {
     required this.selected,
     required this.current,
     required this.onSelect,
+    this.recommended = false,
     this.disabledReason,
   });
 
@@ -589,6 +611,27 @@ class _TierRow extends StatelessWidget {
                           style: TextStyle(
                             fontSize: AppFonts.xxs,
                             color: AppTheme.fgDim,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (recommended && !current) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.green.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          S.of(context).recommendedBadge,
+                          style: TextStyle(
+                            fontSize: AppFonts.xxs,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.green,
                           ),
                         ),
                       ),

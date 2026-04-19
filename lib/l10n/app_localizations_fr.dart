@@ -2585,6 +2585,27 @@ class SFr extends S {
       'Le verrouillage automatique nécessite un mot de passe sur le niveau actif.';
 
   @override
+  String get recommendedBadge => 'RECOMMANDÉ';
+
+  @override
+  String get continueWithRecommended => 'Continuer avec la recommandation';
+
+  @override
+  String get customizeSecurity => 'Personnaliser la sécurité';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Avancé : clé liée au matériel. Les données sont irrécupérables si la puce de cet appareil est perdue ou remplacée.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternative : mot de passe maître, aucune confiance envers l\'OS. Protège contre une compromission de l\'OS. N\'améliore pas la protection à l\'exécution par rapport à T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Les menaces runtime (malware du même utilisateur, vidage mémoire d\'un processus actif) sont affichées avec ✗ à tous les niveaux. Elles sont traitées par des fonctions de mitigation distinctes appliquées indépendamment du niveau choisi.';
+
+  @override
   String get securitySetupContinue => 'Continuer';
 
   @override

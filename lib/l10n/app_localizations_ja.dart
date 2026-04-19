@@ -2469,6 +2469,27 @@ class SJa extends S {
   String get autoLockRequiresPassword => '自動ロックにはアクティブな階層にパスワードが必要です。';
 
   @override
+  String get recommendedBadge => '推奨';
+
+  @override
+  String get continueWithRecommended => '推奨設定で続行';
+
+  @override
+  String get customizeSecurity => 'セキュリティをカスタマイズ';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      '上級: ハードウェアに紐づく鍵。このデバイスのチップが失われたり交換されたりすると、データは復元できません。';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      '代替: マスターパスワードを使用し、OS を信頼しません。OS の侵害から保護しますが、T1/T2 と比べてランタイム保護は向上しません。';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'runtime の脅威（同一ユーザーの malware、稼働中プロセスのメモリダンプ）は、すべての階層で ✗ と表示されます。これらは階層選択に関係なく適用される別途の緩和機能によって対処されます。';
+
+  @override
   String get securitySetupContinue => '続行';
 
   @override

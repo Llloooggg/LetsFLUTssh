@@ -2561,6 +2561,27 @@ class SRu extends S {
       'Для авто-блокировки нужен пароль на активном уровне.';
 
   @override
+  String get recommendedBadge => 'РЕКОМЕНДУЕТСЯ';
+
+  @override
+  String get continueWithRecommended => 'Продолжить с рекомендуемым';
+
+  @override
+  String get customizeSecurity => 'Настроить безопасность';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Продвинутый: ключ привязан к оборудованию. Данные невосстановимы, если чип этого устройства утерян или заменён.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Альтернативный: мастер-пароль, без доверия к ОС. Защищает от компрометации ОС. Не улучшает защиту во время выполнения по сравнению с T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Угрозы во время выполнения (runtime — malware от того же пользователя, дамп памяти живого процесса) показаны как ✗ во всех уровнях. Они устраняются отдельными функциями защиты, применяемыми независимо от выбранного уровня.';
+
+  @override
   String get securitySetupContinue => 'Продолжить';
 
   @override

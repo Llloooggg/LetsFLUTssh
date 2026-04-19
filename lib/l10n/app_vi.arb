@@ -814,5 +814,12 @@
   "masterPasswordLabel": "Mật khẩu chính",
 
   "compareAllTiersSubtitle": "Xem song song từng bậc bảo vệ chống lại những mối đe dọa nào.",
-  "autoLockRequiresPassword": "Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động."
+  "autoLockRequiresPassword": "Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động.",
+
+  "recommendedBadge": "KHUYẾN NGHỊ",
+  "continueWithRecommended": "Tiếp tục với tùy chọn khuyến nghị",
+  "customizeSecurity": "Tùy chỉnh bảo mật",
+  "tierHardwareSubtitleHonest": "Nâng cao: khóa gắn với phần cứng. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.",
+  "tierParanoidSubtitleHonest": "Phương án thay thế: mật khẩu chính, không tin cậy OS. Bảo vệ khỏi việc OS bị xâm phạm. Không cải thiện bảo vệ lúc chạy so với T1/T2.",
+  "mitigationsNoteRuntimeThreats": "Các mối đe dọa runtime (malware từ cùng người dùng, dump bộ nhớ tiến trình đang chạy) được hiển thị là ✗ ở mọi cấp. Chúng được xử lý bằng các tính năng giảm thiểu riêng biệt, áp dụng bất kể cấp đã chọn."
 }

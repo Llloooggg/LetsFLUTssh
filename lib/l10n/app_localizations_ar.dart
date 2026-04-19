@@ -2547,6 +2547,27 @@ class SAr extends S {
       'يتطلب القفل التلقائي كلمة مرور على المستوى الحالي.';
 
   @override
+  String get recommendedBadge => 'موصى به';
+
+  @override
+  String get continueWithRecommended => 'المتابعة مع الإعداد الموصى به';
+
+  @override
+  String get customizeSecurity => 'تخصيص الأمان';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'متقدم: مفتاح مرتبط بالعتاد. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'بديل: كلمة مرور رئيسية، دون الوثوق بنظام التشغيل. يحمي من اختراق نظام التشغيل. لا يُحسّن الحماية أثناء التشغيل مقارنة بـ T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'تهديدات runtime (malware من المستخدم نفسه، تفريغ ذاكرة عملية نشطة) تظهر على شكل ✗ في جميع المستويات. تتم معالجتها عبر ميزات تخفيف منفصلة تُطبَّق بصرف النظر عن المستوى المختار.';
+
+  @override
   String get securitySetupContinue => 'متابعة';
 
   @override

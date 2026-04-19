@@ -814,5 +814,12 @@
   "masterPasswordLabel": "Contraseña maestra",
 
   "compareAllTiersSubtitle": "Vea, lado a lado, contra qué protege cada nivel.",
-  "autoLockRequiresPassword": "El bloqueo automático requiere una contraseña en el nivel activo."
+  "autoLockRequiresPassword": "El bloqueo automático requiere una contraseña en el nivel activo.",
+
+  "recommendedBadge": "RECOMENDADO",
+  "continueWithRecommended": "Continuar con el recomendado",
+  "customizeSecurity": "Personalizar seguridad",
+  "tierHardwareSubtitleHonest": "Avanzado: clave vinculada al hardware. Los datos son irrecuperables si el chip de este dispositivo se pierde o se reemplaza.",
+  "tierParanoidSubtitleHonest": "Alternativa: contraseña maestra, sin confianza en el OS. Protege contra el compromiso del OS. No mejora la protección en tiempo de ejecución respecto a T1/T2.",
+  "mitigationsNoteRuntimeThreats": "Las amenazas en runtime (malware del mismo usuario, volcado de memoria del proceso en ejecución) se muestran como ✗ en todos los niveles. Se abordan mediante funciones de mitigación independientes que se aplican sin importar el nivel elegido."
 }

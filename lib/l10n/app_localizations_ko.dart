@@ -2466,6 +2466,27 @@ class SKo extends S {
   String get autoLockRequiresPassword => '자동 잠금을 사용하려면 현재 티어에 비밀번호가 필요합니다.';
 
   @override
+  String get recommendedBadge => '권장';
+
+  @override
+  String get continueWithRecommended => '권장 설정으로 계속';
+
+  @override
+  String get customizeSecurity => '보안 사용자 지정';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      '고급: 하드웨어에 바인딩된 키. 이 기기의 칩이 분실되거나 교체되면 데이터를 복구할 수 없습니다.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      '대안: 마스터 비밀번호를 사용하며 OS를 신뢰하지 않습니다. OS 침해로부터 보호하지만 T1/T2에 비해 런타임 보호는 향상되지 않습니다.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'runtime 위협(동일 사용자 malware, 실행 중 프로세스 메모리 덤프)은 모든 티어에서 ✗로 표시됩니다. 이는 티어 선택과 무관하게 적용되는 별도의 완화 기능으로 대응됩니다.';
+
+  @override
   String get securitySetupContinue => '계속';
 
   @override

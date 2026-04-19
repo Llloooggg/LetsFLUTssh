@@ -2545,6 +2545,27 @@ class SHi extends S {
       'ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।';
 
   @override
+  String get recommendedBadge => 'अनुशंसित';
+
+  @override
+  String get continueWithRecommended => 'अनुशंसित के साथ जारी रखें';
+
+  @override
+  String get customizeSecurity => 'सुरक्षा अनुकूलित करें';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'उन्नत: हार्डवेयर-बाध्य कुंजी। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'विकल्प: मास्टर पासवर्ड, OS पर भरोसा नहीं। OS से समझौता होने पर सुरक्षा करता है। T1/T2 की तुलना में रनटाइम सुरक्षा में सुधार नहीं करता।';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।';
+
+  @override
   String get securitySetupContinue => 'जारी रखें';
 
   @override

@@ -2539,6 +2539,27 @@ class SFa extends S {
       'قفل خودکار نیازمند رمز عبور در سطح فعلی است.';
 
   @override
+  String get recommendedBadge => 'توصیه‌شده';
+
+  @override
+  String get continueWithRecommended => 'ادامه با گزینه توصیه‌شده';
+
+  @override
+  String get customizeSecurity => 'سفارشی‌سازی امنیت';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'پیشرفته: کلید به سخت‌افزار گره خورده است. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'جایگزین: رمز عبور اصلی، بدون اعتماد به سیستم‌عامل. در برابر نفوذ OS محافظت می‌کند. حفاظت زمان اجرا را نسبت به T1/T2 بهبود نمی‌دهد.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند.';
+
+  @override
   String get securitySetupContinue => 'ادامه';
 
   @override

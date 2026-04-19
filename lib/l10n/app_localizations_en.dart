@@ -2539,6 +2539,27 @@ class SEn extends S {
       'Auto-lock requires a password on the active tier.';
 
   @override
+  String get recommendedBadge => 'RECOMMENDED';
+
+  @override
+  String get continueWithRecommended => 'Continue with recommended';
+
+  @override
+  String get customizeSecurity => 'Customize security';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Advanced: hardware-bound key. Data is irrecoverable if this device\'s chip is lost or replaced.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternative: master password, no OS trust. Protects against OS compromise. Does not improve runtime protection over T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.';
+
+  @override
   String get securitySetupContinue => 'Continue';
 
   @override

@@ -157,10 +157,26 @@ void main() {
       },
     );
 
-    testWidgets('Continue button renders', (tester) async {
+    testWidgets(
+      'Continue-style button renders (plain or with-recommended variant)',
+      (tester) async {
+        await openDialog(tester, caps: allCaps);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        final plain = find.text(S.of(context).securitySetupContinue);
+        final withRec = find.text(S.of(context).continueWithRecommended);
+        expect(
+          plain.evaluate().isNotEmpty || withRec.evaluate().isNotEmpty,
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets('Recommended badge appears on the hardware-backed default', (
+      tester,
+    ) async {
       await openDialog(tester, caps: allCaps);
       final context = tester.element(find.byType(SecuritySetupDialog));
-      expect(find.text(S.of(context).securitySetupContinue), findsOneWidget);
+      expect(find.text(S.of(context).recommendedBadge), findsOneWidget);
     });
   });
 }

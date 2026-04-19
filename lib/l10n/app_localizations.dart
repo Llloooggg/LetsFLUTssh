@@ -4503,6 +4503,42 @@ abstract class S {
   /// **'Auto-lock requires a password on the active tier.'**
   String get autoLockRequiresPassword;
 
+  /// No description provided for @recommendedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'RECOMMENDED'**
+  String get recommendedBadge;
+
+  /// No description provided for @continueWithRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with recommended'**
+  String get continueWithRecommended;
+
+  /// No description provided for @customizeSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize security'**
+  String get customizeSecurity;
+
+  /// No description provided for @tierHardwareSubtitleHonest.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced: hardware-bound key. Data is irrecoverable if this device\'s chip is lost or replaced.'**
+  String get tierHardwareSubtitleHonest;
+
+  /// No description provided for @tierParanoidSubtitleHonest.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative: master password, no OS trust. Protects against OS compromise. Does not improve runtime protection over T1/T2.'**
+  String get tierParanoidSubtitleHonest;
+
+  /// No description provided for @mitigationsNoteRuntimeThreats.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.'**
+  String get mitigationsNoteRuntimeThreats;
+
   /// No description provided for @securitySetupContinue.
   ///
   /// In en, this message translates to:

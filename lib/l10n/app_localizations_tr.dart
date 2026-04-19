@@ -2563,6 +2563,27 @@ class STr extends S {
       'Otomatik kilit, aktif katmanda bir parola gerektirir.';
 
   @override
+  String get recommendedBadge => 'ÖNERİLEN';
+
+  @override
+  String get continueWithRecommended => 'Önerilenle devam et';
+
+  @override
+  String get customizeSecurity => 'Güvenliği özelleştir';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternatif: ana parola, OS\'e güven yok. OS\'in ele geçirilmesine karşı korur. Çalışma zamanı korumasını T1/T2\'ye göre iyileştirmez.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır.';
+
+  @override
   String get securitySetupContinue => 'Devam';
 
   @override

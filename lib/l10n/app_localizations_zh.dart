@@ -2447,6 +2447,26 @@ class SZh extends S {
   String get autoLockRequiresPassword => '自动锁定需要在当前等级上设置密码。';
 
   @override
+  String get recommendedBadge => '推荐';
+
+  @override
+  String get continueWithRecommended => '使用推荐设置继续';
+
+  @override
+  String get customizeSecurity => '自定义安全设置';
+
+  @override
+  String get tierHardwareSubtitleHonest => '进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      '备选：使用主密码，不信任操作系统。可防御 OS 被攻破，但运行时防护不优于 T1/T2。';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      '运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。';
+
+  @override
   String get securitySetupContinue => '继续';
 
   @override

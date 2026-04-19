@@ -2533,6 +2533,27 @@ class SVi extends S {
       'Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động.';
 
   @override
+  String get recommendedBadge => 'KHUYẾN NGHỊ';
+
+  @override
+  String get continueWithRecommended => 'Tiếp tục với tùy chọn khuyến nghị';
+
+  @override
+  String get customizeSecurity => 'Tùy chỉnh bảo mật';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Nâng cao: khóa gắn với phần cứng. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Phương án thay thế: mật khẩu chính, không tin cậy OS. Bảo vệ khỏi việc OS bị xâm phạm. Không cải thiện bảo vệ lúc chạy so với T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Các mối đe dọa runtime (malware từ cùng người dùng, dump bộ nhớ tiến trình đang chạy) được hiển thị là ✗ ở mọi cấp. Chúng được xử lý bằng các tính năng giảm thiểu riêng biệt, áp dụng bất kể cấp đã chọn.';
+
+  @override
   String get securitySetupContinue => 'Tiếp tục';
 
   @override

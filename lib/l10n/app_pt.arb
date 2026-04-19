@@ -814,5 +814,12 @@
   "masterPasswordLabel": "Senha mestra",
 
   "compareAllTiersSubtitle": "Veja lado a lado contra o que cada nível protege.",
-  "autoLockRequiresPassword": "O bloqueio automático exige uma senha no nível ativo."
+  "autoLockRequiresPassword": "O bloqueio automático exige uma senha no nível ativo.",
+
+  "recommendedBadge": "RECOMENDADO",
+  "continueWithRecommended": "Continuar com o recomendado",
+  "customizeSecurity": "Personalizar segurança",
+  "tierHardwareSubtitleHonest": "Avançado: chave vinculada ao hardware. Os dados são irrecuperáveis se o chip deste dispositivo for perdido ou substituído.",
+  "tierParanoidSubtitleHonest": "Alternativa: senha mestra, sem confiança no OS. Protege contra o comprometimento do OS. Não melhora a proteção em tempo de execução em relação a T1/T2.",
+  "mitigationsNoteRuntimeThreats": "Ameaças em runtime (malware do mesmo usuário, dump de memória de processo em execução) aparecem como ✗ em todos os níveis. Elas são tratadas por funcionalidades de mitigação separadas, aplicadas independentemente do nível escolhido."
 }

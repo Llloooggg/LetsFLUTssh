@@ -2576,6 +2576,27 @@ class SEs extends S {
       'El bloqueo automático requiere una contraseña en el nivel activo.';
 
   @override
+  String get recommendedBadge => 'RECOMENDADO';
+
+  @override
+  String get continueWithRecommended => 'Continuar con el recomendado';
+
+  @override
+  String get customizeSecurity => 'Personalizar seguridad';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Avanzado: clave vinculada al hardware. Los datos son irrecuperables si el chip de este dispositivo se pierde o se reemplaza.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternativa: contraseña maestra, sin confianza en el OS. Protege contra el compromiso del OS. No mejora la protección en tiempo de ejecución respecto a T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Las amenazas en runtime (malware del mismo usuario, volcado de memoria del proceso en ejecución) se muestran como ✗ en todos los niveles. Se abordan mediante funciones de mitigación independientes que se aplican sin importar el nivel elegido.';
+
+  @override
   String get securitySetupContinue => 'Continuar';
 
   @override

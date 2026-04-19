@@ -814,5 +814,12 @@
   "masterPasswordLabel": "Ana parola",
 
   "compareAllTiersSubtitle": "Her katmanın neye karşı koruduğunu yan yana görün.",
-  "autoLockRequiresPassword": "Otomatik kilit, aktif katmanda bir parola gerektirir."
+  "autoLockRequiresPassword": "Otomatik kilit, aktif katmanda bir parola gerektirir.",
+
+  "recommendedBadge": "ÖNERİLEN",
+  "continueWithRecommended": "Önerilenle devam et",
+  "customizeSecurity": "Güvenliği özelleştir",
+  "tierHardwareSubtitleHonest": "Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.",
+  "tierParanoidSubtitleHonest": "Alternatif: ana parola, OS'e güven yok. OS'in ele geçirilmesine karşı korur. Çalışma zamanı korumasını T1/T2'ye göre iyileştirmez.",
+  "mitigationsNoteRuntimeThreats": "Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır."
 }

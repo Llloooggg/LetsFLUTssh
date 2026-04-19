@@ -2574,6 +2574,27 @@ class SDe extends S {
       'Auto-Sperre erfordert ein Passwort auf der aktiven Stufe.';
 
   @override
+  String get recommendedBadge => 'EMPFOHLEN';
+
+  @override
+  String get continueWithRecommended => 'Mit Empfehlung fortfahren';
+
+  @override
+  String get customizeSecurity => 'Sicherheit anpassen';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Fortgeschritten: hardware-gebundener Schlüssel. Daten sind unwiederbringlich verloren, wenn der Chip dieses Geräts verloren geht oder ersetzt wird.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternative: Master-Passwort, kein Vertrauen in das OS. Schützt vor OS-Kompromittierung. Verbessert den Laufzeitschutz gegenüber T1/T2 nicht.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Runtime-Bedrohungen (Malware desselben Benutzers, Speicherabbild des laufenden Prozesses) werden in jeder Stufe als ✗ dargestellt. Sie werden durch separate Mitigationsfunktionen behandelt, die unabhängig von der gewählten Stufe gelten.';
+
+  @override
   String get securitySetupContinue => 'Weiter';
 
   @override
