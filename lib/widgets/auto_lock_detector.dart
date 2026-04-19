@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
 import '../core/security/security_tier.dart';
+import '../core/security/session_lock_listener.dart';
 import '../core/security/terminal_scrubber.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
@@ -63,11 +64,27 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     with WidgetsBindingObserver {
   Timer? _timer;
   Duration _timeout = Duration.zero;
+  final SessionLockListener _sessionLockListener = SessionLockListener();
+  VoidCallback? _sessionLockDispose;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Bind the OS session-lock signal into the same lock path as the
+    // idle timer + lifecycle-paused hook. When the user locks the
+    // workstation (Win+L / Ctrl+Cmd+Q / GNOME screensaver etc) we
+    // fire lockNow immediately regardless of how much idle time
+    // has accumulated.
+    _sessionLockDispose = _sessionLockListener.addListener(() {
+      if (!mounted) return;
+      if (!_hasTypedSecret()) return;
+      AppLogger.instance.log(
+        'OS session-lock signal received; firing auto-lock',
+        name: 'AutoLock',
+      );
+      _triggerLock();
+    });
   }
 
   @override
@@ -136,6 +153,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
 
   @override
   void dispose() {
+    _sessionLockDispose?.call();
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
