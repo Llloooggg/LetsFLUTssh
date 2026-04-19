@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "在继续之前请确认您已了解。",
 
   "passwordLabel": "密码",
-  "masterPasswordLabel": "主密码"
+  "masterPasswordLabel": "主密码",
+
+  "compareAllTiersSubtitle": "并排查看每个等级可抵御的威胁。",
+  "autoLockRequiresPassword": "自动锁定需要在当前等级上设置密码。"
 }

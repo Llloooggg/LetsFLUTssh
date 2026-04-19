@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "जारी रखने से पहले पुष्टि करें कि आप समझ गए हैं।",
 
   "passwordLabel": "पासवर्ड",
-  "masterPasswordLabel": "मास्टर पासवर्ड"
+  "masterPasswordLabel": "मास्टर पासवर्ड",
+
+  "compareAllTiersSubtitle": "देखें कि प्रत्येक टीयर किससे रक्षा करता है, आमने-सामने तुलना में।",
+  "autoLockRequiresPassword": "ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।"
 }

@@ -12,8 +12,8 @@ import '../schema_versions.dart';
 /// the framework just registers the file's presence so the
 /// migration runner has a complete world view.
 ///
-/// Phase A2: presence-only check; Future format bumps register a
-/// proper [Migration] that reads the inner KdfParams version byte.
+/// Presence-only check today; future format bumps register a proper
+/// [Migration] that reads the inner KdfParams version byte.
 class KdfArtefact extends Artefact {
   KdfArtefact({Future<Directory> Function()? supportDir})
     : _supportDir = supportDir ?? getApplicationSupportDirectory;

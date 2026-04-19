@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Confirme que entendeu antes de continuar.",
 
   "passwordLabel": "Senha",
-  "masterPasswordLabel": "Senha mestra"
+  "masterPasswordLabel": "Senha mestra",
+
+  "compareAllTiersSubtitle": "Veja lado a lado contra o que cada nível protege.",
+  "autoLockRequiresPassword": "O bloqueio automático exige uma senha no nível ativo."
 }

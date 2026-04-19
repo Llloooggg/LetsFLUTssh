@@ -7,7 +7,7 @@ import '../../../utils/logger.dart';
 import '../artefact.dart';
 import '../schema_versions.dart';
 
-/// `config.json` payload format. Phase A2: presence-only check.
+/// `config.json` payload format — presence-only check today.
 ///
 /// The file is plain JSON without an envelope. Until Phase G bumps
 /// the format (3-tier collapse), the on-disk version is whatever the

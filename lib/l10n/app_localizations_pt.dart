@@ -2557,6 +2557,14 @@ class SPt extends S {
   String get resetAllDataFailed => 'Falha ao redefinir';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Veja lado a lado contra o que cada nível protege.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'O bloqueio automático exige uma senha no nível ativo.';
+
+  @override
   String get securitySetupContinue => 'Continuar';
 
   @override

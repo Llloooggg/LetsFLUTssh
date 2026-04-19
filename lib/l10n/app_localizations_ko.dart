@@ -2460,6 +2460,12 @@ class SKo extends S {
   String get resetAllDataFailed => '재설정 실패';
 
   @override
+  String get compareAllTiersSubtitle => '각 티어가 무엇을 방어하는지 나란히 비교하세요.';
+
+  @override
+  String get autoLockRequiresPassword => '자동 잠금을 사용하려면 현재 티어에 비밀번호가 필요합니다.';
+
+  @override
   String get securitySetupContinue => '계속';
 
   @override

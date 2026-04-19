@@ -2555,6 +2555,14 @@ class STr extends S {
   String get resetAllDataFailed => 'Sıfırlama başarısız';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Her katmanın neye karşı koruduğunu yan yana görün.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Otomatik kilit, aktif katmanda bir parola gerektirir.';
+
+  @override
   String get securitySetupContinue => 'Devam';
 
   @override

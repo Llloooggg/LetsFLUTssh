@@ -2531,6 +2531,14 @@ class SEn extends S {
   String get resetAllDataFailed => 'Reset failed';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'See what each tier protects against, side-by-side.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Auto-lock requires a password on the active tier.';
+
+  @override
   String get securitySetupContinue => 'Continue';
 
   @override

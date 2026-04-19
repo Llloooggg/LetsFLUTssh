@@ -8,9 +8,9 @@ import 'migration.dart';
 /// `Migration` interface so future archive format bumps read like
 /// any other migration.
 ///
-/// Phase A3: baseline is v1 (the current manifest `schema_version`);
-/// no migrations registered — every supported archive is already at
-/// v1. Pre-v1 formats (legacy headerless PBKDF2, v2 PBKDF2 header,
+/// Today the baseline is v1 (the current manifest `schema_version`);
+/// no migrations are registered — every supported archive is already
+/// at v1. Pre-v1 formats (legacy headerless PBKDF2, v2 PBKDF2 header,
 /// missing manifest) are rejected with `UnsupportedLfsVersionException`
 /// inside `ExportImport._decryptWithPassword` / `_parseManifest`.
 ///
@@ -61,7 +61,7 @@ class ArchiveMigrationRegistry {
   }
 }
 
-/// Singleton registry for archive format migrations. Phase A3: empty
-/// (v1 is the baseline). Phase future: register migrations here.
+/// Singleton registry for archive format migrations. Empty today
+/// (v1 is the baseline); future migrations register here.
 final ArchiveMigrationRegistry archiveMigrationRegistry =
     ArchiveMigrationRegistry();

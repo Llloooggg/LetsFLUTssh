@@ -2531,6 +2531,14 @@ class SFa extends S {
   String get resetAllDataFailed => 'بازنشانی ناموفق بود';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'در کنار هم ببینید هر سطح در برابر چه چیزی محافظت می‌کند.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'قفل خودکار نیازمند رمز عبور در سطح فعلی است.';
+
+  @override
   String get securitySetupContinue => 'ادامه';
 
   @override

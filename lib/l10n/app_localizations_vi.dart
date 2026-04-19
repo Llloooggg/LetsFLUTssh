@@ -2525,6 +2525,14 @@ class SVi extends S {
   String get resetAllDataFailed => 'Đặt lại thất bại';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Xem song song từng bậc bảo vệ chống lại những mối đe dọa nào.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động.';
+
+  @override
   String get securitySetupContinue => 'Tiếp tục';
 
   @override

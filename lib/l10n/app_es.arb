@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Confirme que lo entiende antes de continuar.",
 
   "passwordLabel": "Contraseña",
-  "masterPasswordLabel": "Contraseña maestra"
+  "masterPasswordLabel": "Contraseña maestra",
+
+  "compareAllTiersSubtitle": "Vea, lado a lado, contra qué protege cada nivel.",
+  "autoLockRequiresPassword": "El bloqueo automático requiere una contraseña en el nivel activo."
 }

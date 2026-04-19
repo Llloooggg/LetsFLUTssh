@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "پیش از ادامه، درک خود را تأیید کنید.",
 
   "passwordLabel": "رمز عبور",
-  "masterPasswordLabel": "رمز عبور اصلی"
+  "masterPasswordLabel": "رمز عبور اصلی",
+
+  "compareAllTiersSubtitle": "در کنار هم ببینید هر سطح در برابر چه چیزی محافظت می‌کند.",
+  "autoLockRequiresPassword": "قفل خودکار نیازمند رمز عبور در سطح فعلی است."
 }

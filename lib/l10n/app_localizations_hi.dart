@@ -2537,6 +2537,14 @@ class SHi extends S {
   String get resetAllDataFailed => 'रीसेट विफल';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'देखें कि प्रत्येक टीयर किससे रक्षा करता है, आमने-सामने तुलना में।';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।';
+
+  @override
   String get securitySetupContinue => 'जारी रखें';
 
   @override

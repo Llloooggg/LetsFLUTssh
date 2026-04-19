@@ -373,10 +373,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// Walk every framework-registered artefact and bring its on-disk
   /// state up to the current build's [SchemaVersions]. Runs BEFORE
   /// `_initSecurity` so the unlock path always reads the post-migration
-  /// shape. Phase A2: empty migration list — runner is a no-op on every
-  /// install where on-disk state already matches the constants. Future
-  /// phases register concrete migrations; user-facing failure surfaces
-  /// (toast, blocking dialog) land alongside the first real migration.
+  /// shape. Currently the migration list is empty — runner is a no-op
+  /// on every install where on-disk state already matches the canonical
+  /// [SchemaVersions]. User-facing failure surfaces (toast, blocking
+  /// dialog) land alongside the first real migration.
   Future<void> _runMigrations() async {
     try {
       final registry = buildAppMigrationRegistry();

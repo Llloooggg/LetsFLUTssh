@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "続行する前に理解したことを確認してください。",
 
   "passwordLabel": "パスワード",
-  "masterPasswordLabel": "マスターパスワード"
+  "masterPasswordLabel": "マスターパスワード",
+
+  "compareAllTiersSubtitle": "各階層の防御範囲を並べて比較できます。",
+  "autoLockRequiresPassword": "自動ロックにはアクティブな階層にパスワードが必要です。"
 }

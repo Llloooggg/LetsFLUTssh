@@ -2577,6 +2577,14 @@ class SFr extends S {
   String get resetAllDataFailed => 'Échec de la réinitialisation';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Comparez côte à côte ce contre quoi chaque niveau protège.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Le verrouillage automatique nécessite un mot de passe sur le niveau actif.';
+
+  @override
   String get securitySetupContinue => 'Continuer';
 
   @override

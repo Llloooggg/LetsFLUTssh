@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Devam etmeden önce anladığınızı onaylayın.",
 
   "passwordLabel": "Parola",
-  "masterPasswordLabel": "Ana parola"
+  "masterPasswordLabel": "Ana parola",
+
+  "compareAllTiersSubtitle": "Her katmanın neye karşı koruduğunu yan yana görün.",
+  "autoLockRequiresPassword": "Otomatik kilit, aktif katmanda bir parola gerektirir."
 }

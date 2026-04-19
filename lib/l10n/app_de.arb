@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Bestätigen Sie, dass Sie es verstanden haben, bevor Sie fortfahren.",
 
   "passwordLabel": "Passwort",
-  "masterPasswordLabel": "Master-Passwort"
+  "masterPasswordLabel": "Master-Passwort",
+
+  "compareAllTiersSubtitle": "Sehen Sie nebeneinander, wogegen jede Stufe schützt.",
+  "autoLockRequiresPassword": "Auto-Sperre erfordert ein Passwort auf der aktiven Stufe."
 }

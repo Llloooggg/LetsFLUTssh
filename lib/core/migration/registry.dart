@@ -71,11 +71,11 @@ class MigrationRegistry {
   static MigrationRegistry empty() => MigrationRegistry();
 }
 
-/// Build the registry the live app uses at startup. Phase A2: only
+/// Build the registry the live app uses at startup. Today only
 /// presence-only artefact wrappers are registered, no migrations yet
 /// — the runner is therefore a no-op on every install where on-disk
-/// state already matches [SchemaVersions]. Future phases register
-/// concrete [Migration] subclasses.
+/// state already matches [SchemaVersions]. Future format bumps add
+/// concrete [Migration] subclasses here.
 ///
 /// `supportDir` is injectable so tests can point at a temp directory
 /// without touching `path_provider`.

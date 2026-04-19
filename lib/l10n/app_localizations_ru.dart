@@ -2553,6 +2553,14 @@ class SRu extends S {
   String get resetAllDataFailed => 'Не удалось выполнить сброс';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Посмотрите бок о бок, от чего защищает каждый уровень.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Для авто-блокировки нужен пароль на активном уровне.';
+
+  @override
   String get securitySetupContinue => 'Продолжить';
 
   @override

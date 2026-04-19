@@ -2566,6 +2566,14 @@ class SDe extends S {
   String get resetAllDataFailed => 'Zurücksetzen fehlgeschlagen';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Sehen Sie nebeneinander, wogegen jede Stufe schützt.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Auto-Sperre erfordert ein Passwort auf der aktiven Stufe.';
+
+  @override
   String get securitySetupContinue => 'Weiter';
 
   @override

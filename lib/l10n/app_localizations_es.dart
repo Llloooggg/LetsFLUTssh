@@ -2568,6 +2568,14 @@ class SEs extends S {
   String get resetAllDataFailed => 'Error al restablecer';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Vea, lado a lado, contra qué protege cada nivel.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'El bloqueo automático requiere una contraseña en el nivel activo.';
+
+  @override
   String get securitySetupContinue => 'Continuar';
 
   @override

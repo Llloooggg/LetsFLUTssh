@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Confirmez votre compréhension avant de continuer.",
 
   "passwordLabel": "Mot de passe",
-  "masterPasswordLabel": "Mot de passe maître"
+  "masterPasswordLabel": "Mot de passe maître",
+
+  "compareAllTiersSubtitle": "Comparez côte à côte ce contre quoi chaque niveau protège.",
+  "autoLockRequiresPassword": "Le verrouillage automatique nécessite un mot de passe sur le niveau actif."
 }

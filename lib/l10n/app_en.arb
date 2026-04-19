@@ -1435,6 +1435,8 @@
   "resetAllDataInProgress": "Resetting…",
   "resetAllDataDone": "All data reset",
   "resetAllDataFailed": "Reset failed",
+  "compareAllTiersSubtitle": "See what each tier protects against, side-by-side.",
+  "autoLockRequiresPassword": "Auto-lock requires a password on the active tier.",
 
   "securitySetupContinue": "Continue",
   "currentTierBadge": "CURRENT",

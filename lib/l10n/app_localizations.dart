@@ -4491,6 +4491,18 @@ abstract class S {
   /// **'Reset failed'**
   String get resetAllDataFailed;
 
+  /// No description provided for @compareAllTiersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See what each tier protects against, side-by-side.'**
+  String get compareAllTiersSubtitle;
+
+  /// No description provided for @autoLockRequiresPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-lock requires a password on the active tier.'**
+  String get autoLockRequiresPassword;
+
   /// No description provided for @securitySetupContinue.
   ///
   /// In en, this message translates to:

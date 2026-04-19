@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Подтвердите понимание, прежде чем продолжить.",
 
   "passwordLabel": "Пароль",
-  "masterPasswordLabel": "Мастер-пароль"
+  "masterPasswordLabel": "Мастер-пароль",
+
+  "compareAllTiersSubtitle": "Посмотрите бок о бок, от чего защищает каждый уровень.",
+  "autoLockRequiresPassword": "Для авто-блокировки нужен пароль на активном уровне."
 }

@@ -40,7 +40,7 @@ class WipeReport {
 /// * Settings → Reset all data (user-initiated; double-confirmed).
 /// * DbCorruptDialog (automatic on failed cipher-under-tier probe).
 /// * TierResetDialog (automatic when a v1-era tier is detected on
-///   first launch under the v2 build — see Phase G1).
+///   first launch under the v2 build).
 ///
 /// Crash safety: before any delete runs, the service writes a
 /// `.wipe-pending` marker to app-support. The next launch treats a
@@ -79,7 +79,7 @@ class WipeAllService {
     'keychain_enabled',
     'rate_limit_state.bin',
 
-    // Biometric / hw overlay blobs (D1)
+    // Biometric / hw overlay blobs (password released from biometric-gated slot)
     'hardware_vault_password_overlay_android.bin',
     'hardware_vault_password_overlay_apple.bin',
 

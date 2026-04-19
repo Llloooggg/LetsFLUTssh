@@ -2539,6 +2539,14 @@ class SAr extends S {
   String get resetAllDataFailed => 'فشلت إعادة التعيين';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'شاهد جنبًا إلى جنب ما يحمي منه كل مستوى.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'يتطلب القفل التلقائي كلمة مرور على المستوى الحالي.';
+
+  @override
   String get securitySetupContinue => 'متابعة';
 
   @override

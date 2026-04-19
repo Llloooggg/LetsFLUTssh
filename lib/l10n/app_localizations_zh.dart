@@ -2441,6 +2441,12 @@ class SZh extends S {
   String get resetAllDataFailed => '重置失败';
 
   @override
+  String get compareAllTiersSubtitle => '并排查看每个等级可抵御的威胁。';
+
+  @override
+  String get autoLockRequiresPassword => '自动锁定需要在当前等级上设置密码。';
+
+  @override
   String get securitySetupContinue => '继续';
 
   @override

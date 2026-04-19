@@ -2463,6 +2463,12 @@ class SJa extends S {
   String get resetAllDataFailed => 'リセットに失敗しました';
 
   @override
+  String get compareAllTiersSubtitle => '各階層の防御範囲を並べて比較できます。';
+
+  @override
+  String get autoLockRequiresPassword => '自動ロックにはアクティブな階層にパスワードが必要です。';
+
+  @override
   String get securitySetupContinue => '続行';
 
   @override

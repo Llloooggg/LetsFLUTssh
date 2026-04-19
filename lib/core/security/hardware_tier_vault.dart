@@ -297,11 +297,9 @@ class HardwareTierVault {
   /// Callers surface null as "modifier resolution failed — treat as a
   /// cancelled unlock" so we never silently fall back to an empty auth.
   ///
-  /// Phase C1: pure helper; later phases plumb this into `store` /
-  /// `read` once the `SecurityTierModifiers` shape carries `password`
-  /// + `biometric` fields (currently it exposes `biometricShortcut`
-  /// only — the full bank-style shape lands with the wizard rewrite
-  /// in Phase E/F).
+  /// Pure helper today; callers plumb it into `store` / `read` once
+  /// the `SecurityTierModifiers` shape is fully consumed at the rekey
+  /// / switcher layer.
   @visibleForTesting
   static Uint8List? resolveAuthValue({
     required bool password,

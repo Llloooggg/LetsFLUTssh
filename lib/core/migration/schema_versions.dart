@@ -14,13 +14,14 @@
 ///   v0_to_v1 migration for an artefact reads the legacy structure
 ///   and rewrites it under [VersionedBlob] envelope.
 ///
-/// Initial state (Phase A1): all binary artefacts at version 0
-/// (legacy). Drift DB and KDF stay at their existing internal
-/// versions — they already track schema themselves.
+/// Initial state: every binary artefact at version 0 (legacy). Drift
+/// DB and KDF stay at their existing internal versions — they already
+/// track schema themselves.
 class SchemaVersions {
   /// `config.json` payload format. v1 = post-3-tier collapse
   /// (drops `keychainWithPassword`, folds into modifiers).
-  /// Bumped to 2 in Phase G when the v1→v2 migration lands.
+  /// Bumped to 2 when the v1→v2 config migration lands alongside
+  /// the tier-cutover wipe.
   static const int config = 1;
 
   /// `credentials.kdf` (Argon2id params). Already self-versioned via
@@ -32,26 +33,28 @@ class SchemaVersions {
   /// tracked here so the framework reports its presence.
   static const int db = 2;
 
-  /// `security_pass_hash.bin` — keychain password gate. Phase A1: still
-  /// raw JSON (version 0). Phase G migration bumps to 1 (envelope).
+  /// `security_pass_hash.bin` — keychain password gate. Currently a
+  /// raw JSON blob (version 0); a future migration wraps it in the
+  /// standard [VersionedBlob] envelope and bumps to 1.
   static const int passGate = 0;
 
-  /// `hardware_vault_*.bin` — per-platform hw vault blob. Phase A1:
-  /// legacy formats (version 0). Phase D/J migrations bump to 1.
+  /// `hardware_vault_*.bin` — per-platform hw vault blob. Currently
+  /// legacy formats (version 0); future migrations bump to 1 when
+  /// each platform's blob layout stabilises on its final shape.
   static const int hwVaultAndroid = 0;
   static const int hwVaultApple = 0;
   static const int hwVaultWindows = 0;
   static const int hwVaultLinux = 0;
 
-  /// `hardware_vault_salt.bin` — raw 32-byte salt. Phase A1: legacy
-  /// (version 0). Phase D migration wraps in envelope (version 1).
+  /// `hardware_vault_salt.bin` — raw 32-byte salt. Currently legacy
+  /// (version 0); a future migration wraps it in the envelope.
   static const int hwSalt = 0;
 
-  /// `.lfs` archive schema carried in `manifest.json`. Phase A3 drops
-  /// pre-v1 back-compat (legacy headerless PBKDF2, v2 PBKDF2 header,
-  /// missing manifest) and establishes v1 as the permanent floor —
-  /// future breaking format changes ship a proper archive-side
-  /// `Migration` registered in `archive_registry.dart`.
+  /// `.lfs` archive schema carried in `manifest.json`. Pre-v1 formats
+  /// (legacy headerless PBKDF2, v2 PBKDF2 header, missing manifest)
+  /// have been dropped; v1 is the permanent floor and future breaking
+  /// format changes ship a proper archive-side [Migration] registered
+  /// in [archiveMigrationRegistry].
   static const int archive = 1;
 }
 

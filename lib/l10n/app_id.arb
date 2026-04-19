@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Konfirmasikan pemahaman Anda sebelum melanjutkan.",
 
   "passwordLabel": "Kata sandi",
-  "masterPasswordLabel": "Kata sandi utama"
+  "masterPasswordLabel": "Kata sandi utama",
+
+  "compareAllTiersSubtitle": "Lihat berdampingan apa yang dilindungi oleh setiap tier.",
+  "autoLockRequiresPassword": "Kunci otomatis memerlukan kata sandi pada tier aktif."
 }

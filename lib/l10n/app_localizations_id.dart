@@ -2545,6 +2545,14 @@ class SId extends S {
   String get resetAllDataFailed => 'Reset gagal';
 
   @override
+  String get compareAllTiersSubtitle =>
+      'Lihat berdampingan apa yang dilindungi oleh setiap tier.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Kunci otomatis memerlukan kata sandi pada tier aktif.';
+
+  @override
   String get securitySetupContinue => 'Lanjutkan';
 
   @override

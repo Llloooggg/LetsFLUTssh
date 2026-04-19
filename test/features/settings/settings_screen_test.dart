@@ -3065,9 +3065,13 @@ void main() {
         final valueFinder = find.byWidgetPredicate(
           (w) =>
               w is Text &&
-              (w.data == 'Master Password' ||
-                  w.data == 'OS Keychain' ||
-                  w.data == 'None'),
+              (w.data != null &&
+                  (w.data!.startsWith('T0 ') ||
+                      w.data!.startsWith('T1 ') ||
+                      w.data!.startsWith('T2 ') ||
+                      w.data == 'Paranoid' ||
+                      w.data!.startsWith('T1 ') ||
+                      w.data!.contains('—'))),
         );
         expect(valueFinder, findsOneWidget);
         final valueRect = tester.getRect(valueFinder);
@@ -3285,5 +3289,4 @@ void main() {
       expect(find.text('Download & Install'), findsOneWidget);
     });
   });
-
 }

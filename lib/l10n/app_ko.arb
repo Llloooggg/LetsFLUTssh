@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "계속하기 전에 이해했음을 확인하세요.",
 
   "passwordLabel": "비밀번호",
-  "masterPasswordLabel": "마스터 비밀번호"
+  "masterPasswordLabel": "마스터 비밀번호",
+
+  "compareAllTiersSubtitle": "각 티어가 무엇을 방어하는지 나란히 비교하세요.",
+  "autoLockRequiresPassword": "자동 잠금을 사용하려면 현재 티어에 비밀번호가 필요합니다."
 }

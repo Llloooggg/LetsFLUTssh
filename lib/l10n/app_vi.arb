@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "Xác nhận bạn đã hiểu trước khi tiếp tục.",
 
   "passwordLabel": "Mật khẩu",
-  "masterPasswordLabel": "Mật khẩu chính"
+  "masterPasswordLabel": "Mật khẩu chính",
+
+  "compareAllTiersSubtitle": "Xem song song từng bậc bảo vệ chống lại những mối đe dọa nào.",
+  "autoLockRequiresPassword": "Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động."
 }

@@ -46,13 +46,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   /// Localized explanation for why the biometric toggle is disabled —
-  /// null means "either fully enabled, or still probing". Caller pairs
-  /// this with [_biometricEnabledFor] to decide. Two layers:
-  ///  * platform/hardware reason from [BiometricAuth.availability]
-  ///  * "you need a master password first" when the app is not in
-  ///    master-password mode (biometry caches the MP-derived key, so
-  ///    without an MP there is no key to cache)
-  String? _biometricDisabledReason(S l10n, SecurityTier level) {
+  /// null means "either fully enabled, or still probing". Three layers
+  /// after the bank-style modifier shape:
+  ///  * platform / hardware reason from [BiometricAuth.availability]
+  ///  * "enable a password first" — biometric is a shortcut for
+  ///    entering the password; if the tier does not already hold a
+  ///    password (Paranoid always does; T1/T2 only when
+  ///    `mods.password == true`), there is nothing to shortcut.
+  ///  * legacy fallback: `biometricRequiresMasterPassword` when the
+  ///    new copy string has not yet landed in this locale.
+  String? _biometricDisabledReason(
+    S l10n,
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) {
     if (!_biometricProbed) return null;
     switch (_biometricUnavailable) {
       case BiometricUnavailableReason.platformUnsupported:
@@ -65,8 +72,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       case null:
         break;
     }
-    if (level != SecurityTier.paranoid) {
-      return l10n.biometricRequiresMasterPassword;
+    final hasPassword =
+        level == SecurityTier.paranoid ||
+        level == SecurityTier.keychainWithPassword ||
+        modifiers.password;
+    if (!hasPassword) {
+      return l10n.biometricRequiresPassword;
     }
     return null;
   }
@@ -93,29 +104,51 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   /// Whether the biometric toggle can be flipped. Returns false during
   /// the initial probe so the toggle doesn't momentarily look live.
-  bool _biometricToggleEnabled(SecurityTier level) {
+  /// Enabled only when the active tier already carries a typed secret
+  /// that the biometric shortcut would replace — Paranoid always,
+  /// T1/T2 when the password modifier is on.
+  bool _biometricToggleEnabled(
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) {
     if (!_biometricProbed) return false;
     if (_biometricUnavailable != null) return false;
-    return level == SecurityTier.paranoid;
+    final hasPassword =
+        level == SecurityTier.paranoid ||
+        level == SecurityTier.keychainWithPassword ||
+        modifiers.password;
+    return hasPassword;
   }
 
-  String? _autoLockDisabledReason(S l10n, SecurityTier level) {
-    if (level == SecurityTier.paranoid) return null;
-    return l10n.autoLockRequiresMasterPassword;
+  String? _autoLockDisabledReason(
+    S l10n,
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) {
+    final hasPassword =
+        level == SecurityTier.paranoid ||
+        level == SecurityTier.keychainWithPassword ||
+        modifiers.password;
+    if (hasPassword) return null;
+    return l10n.autoLockRequiresPassword;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
     final secState = ref.watch(securityStateProvider);
+    final config = ref.watch(configProvider);
+    final modifiers =
+        config.security?.modifiers ?? SecurityTierModifiers.defaults;
 
     return Column(
       children: [
-        // Active tier (read-only display).
+        // Active tier (read-only display). Subtitle reflects the new
+        // bank-style modifier shape: "T1 Keychain — password, biometric".
         _InfoTile(
           icon: Icons.shield,
           title: l10n.securityLevel,
-          value: _securityLevelLabel(l10n, secState.level),
+          value: _securityLevelLabel(l10n, secState.level, modifiers),
         ),
         // Keychain status — display-only; the tier wizard handles any
         // action that requires reading this value.
@@ -124,13 +157,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           title: l10n.keychainStatus,
           value: _keychainStatusLabel(l10n),
         ),
+        // Compare tiers — replaces the per-tier AppInfoDialog popups
+        // with the single canonical comparison-table widget. One tap
+        // from Settings surfaces the full threat-coverage matrix so
+        // the user can decide whether a tier change is worth it before
+        // they open the wizard.
+        _ActionTile(
+          icon: Icons.table_chart_outlined,
+          title: l10n.compareAllTiers,
+          subtitle: l10n.compareAllTiersSubtitle,
+          onTap: () => SecurityComparisonTable.show(context),
+        ),
         // Change-tier — single entry point for every security change.
-        // Replaces the legacy "Manage Master Password" tile and the
-        // "Use Keychain" toggle. Opens the tier wizard (pre-marked with
-        // the current tier) and routes the result through the atomic
-        // always-rekey switcher — including when the user picks the
-        // same tier with new credentials (Paranoid password rotation,
-        // L2 short-password rotation, L3 PIN rotation).
+        // Opens the tier wizard (pre-marked with the current tier) and
+        // routes the result through the atomic always-rekey switcher.
         _ActionTile(
           icon: Icons.shield_outlined,
           title: l10n.changeSecurityTier,
@@ -139,23 +179,31 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         ),
         // Biometric unlock — orthogonal modifier. The toggle stays
         // visible on every tier so the reason it cannot be flipped is
-        // legible (no sensor, nothing enrolled, or tier does not
-        // support biometric cache yet).
+        // legible (no sensor, nothing enrolled, or tier has no
+        // password to shortcut).
         _Toggle(
           label: l10n.biometricUnlockTitle,
           subtitle: _biometricSubtitle(l10n),
           icon: Icons.fingerprint,
           value: _biometricEnabled == true,
-          onChanged: _biometricToggleEnabled(secState.level)
+          onChanged: _biometricToggleEnabled(secState.level, modifiers)
               ? (v) => _toggleBiometricUnlock(context, v)
               : null,
-          disabledReason: _biometricDisabledReason(l10n, secState.level),
+          disabledReason: _biometricDisabledReason(
+            l10n,
+            secState.level,
+            modifiers,
+          ),
         ),
         // Auto-lock — orthogonal modifier. Only meaningful when the
         // active tier holds a user-typed secret; disabled with reason
         // tooltip otherwise.
         _AutoLockTile(
-          disabledReason: _autoLockDisabledReason(l10n, secState.level),
+          disabledReason: _autoLockDisabledReason(
+            l10n,
+            secState.level,
+            modifiers,
+          ),
         ),
         // Destructive recovery: single place to wipe every piece of
         // on-disk + keychain + hw-vault state this install holds.
@@ -325,19 +373,32 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     return '...';
   }
 
-  String _securityLevelLabel(S l10n, SecurityTier level) {
-    switch (level) {
-      case SecurityTier.plaintext:
-        return l10n.securityLevelPlaintext;
-      case SecurityTier.keychain:
-        return l10n.tierKeychainLabel;
-      case SecurityTier.keychainWithPassword:
-        return l10n.tierKeychainPassLabel;
-      case SecurityTier.hardware:
-        return l10n.tierHardwareLabel;
-      case SecurityTier.paranoid:
-        return l10n.tierParanoidLabel;
+  String _securityLevelLabel(
+    S l10n,
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) {
+    final base = switch (level) {
+      SecurityTier.plaintext => l10n.colT0,
+      SecurityTier.keychain => l10n.colT1,
+      SecurityTier.keychainWithPassword => l10n.colT1,
+      SecurityTier.hardware => l10n.colT2,
+      SecurityTier.paranoid => l10n.colParanoid,
+    };
+    // Paranoid carries an implicit password modifier; no suffix
+    // needed for it. Plaintext has no modifiers by definition.
+    if (level == SecurityTier.plaintext || level == SecurityTier.paranoid) {
+      return base;
     }
+    final hasPassword =
+        modifiers.password || level == SecurityTier.keychainWithPassword;
+    final hasBiometric = modifiers.biometric;
+    if (!hasPassword && !hasBiometric) return base;
+    final suffix = <String>[
+      if (hasPassword) l10n.modifierPasswordLabel.toLowerCase(),
+      if (hasBiometric) l10n.modifierBiometricLabel.toLowerCase(),
+    ].join(', ');
+    return '$base — $suffix';
   }
 
   /// Open the tier wizard and route the result through the atomic
@@ -396,9 +457,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final manager = ref.read(masterPasswordProvider);
     final bioVault = ref.read(biometricKeyVaultProvider);
 
+    final mods = result.modifiers;
     switch (result.tier) {
       case SecurityTier.plaintext:
-        await _applyAlwaysRekey(null, SecurityTier.plaintext);
+        await _applyAlwaysRekey(null, SecurityTier.plaintext, mods);
         await keyStorage.deleteKey();
         await gate.clear();
         await hwVault.clear();
@@ -408,7 +470,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         final key = AesGcm.generateKey();
         final stored = await keyStorage.writeKey(key);
         if (!stored) throw StateError('keychain write failed');
-        await _applyAlwaysRekey(key, SecurityTier.keychain);
+        await _applyAlwaysRekey(key, SecurityTier.keychain, mods);
         await gate.clear();
         await hwVault.clear();
         if (await manager.isEnabled()) await manager.disable();
@@ -425,7 +487,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           await gate.clear();
           throw StateError('keychain write failed');
         }
-        await _applyAlwaysRekey(key, SecurityTier.keychainWithPassword);
+        await _applyAlwaysRekey(key, SecurityTier.keychainWithPassword, mods);
         await hwVault.clear();
         if (await manager.isEnabled()) await manager.disable();
         await bioVault.clear();
@@ -435,7 +497,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         final key = AesGcm.generateKey();
         final sealed = await hwVault.store(dbKey: key, pin: pin);
         if (!sealed) throw StateError('hardware seal failed');
-        await _applyAlwaysRekey(key, SecurityTier.hardware);
+        await _applyAlwaysRekey(key, SecurityTier.hardware, mods);
         await keyStorage.deleteKey();
         await gate.clear();
         if (await manager.isEnabled()) await manager.disable();
@@ -446,7 +508,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           throw StateError('master password missing');
         }
         final key = await manager.enable(pw);
-        await _applyAlwaysRekey(key, SecurityTier.paranoid);
+        await _applyAlwaysRekey(key, SecurityTier.paranoid, mods);
         await keyStorage.deleteKey();
         await gate.clear();
         await hwVault.clear();
@@ -465,10 +527,15 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   /// crash leaves the `.tier-transition-pending` marker on disk; the
   /// next launch logs and clears it in `main._initSecurity` before
   /// falling through to the standard unlock path.
-  Future<void> _applyAlwaysRekey(Uint8List? key, SecurityTier level) async {
+  Future<void> _applyAlwaysRekey(
+    Uint8List? key,
+    SecurityTier level, [
+    SecurityTierModifiers? modifiers,
+  ]) async {
     final store = ref.read(sessionStoreProvider);
     final db = store.database;
     final markerPayload = '{"tier":"${_tierName(level)}"}';
+    final resolvedMods = modifiers ?? SecurityTierModifiers.defaults;
     // Bind the constructor-time callbacks to the current key /
     // current-db pair. A fresh switcher instance per call is fine —
     // the marker file is the authoritative state, not the instance.
@@ -506,9 +573,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         }
       },
       persistConfig: (_) async {
-        // Tier + modifiers are mirrored into config.json by
-        // main.dart's `_persistSecurityTier` when the provider
-        // state flips; no additional write needed here.
+        // Persist tier + modifiers atomically inside the switch so a
+        // crash after rekey but before config-write does not leave
+        // the DB on the new cipher with the old tier label in
+        // config.json (the legacy main.dart path only persisted on
+        // provider flip and dropped the modifier field).
+        final existing = ref.read(configProvider).security;
+        final next = SecurityConfig(tier: level, modifiers: resolvedMods);
+        if (existing == next) return;
+        await ref
+            .read(configProvider.notifier)
+            .update((cfg) => cfg.copyWith(security: next));
       },
       clearPrevious: () async {
         // Previous-tier cleanup (biometric vault clear, keychain

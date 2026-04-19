@@ -811,5 +811,8 @@
   "plaintextAcknowledgeRequired": "أكّد فهمك قبل المتابعة.",
 
   "passwordLabel": "كلمة المرور",
-  "masterPasswordLabel": "كلمة المرور الرئيسية"
+  "masterPasswordLabel": "كلمة المرور الرئيسية",
+
+  "compareAllTiersSubtitle": "شاهد جنبًا إلى جنب ما يحمي منه كل مستوى.",
+  "autoLockRequiresPassword": "يتطلب القفل التلقائي كلمة مرور على المستوى الحالي."
 }
