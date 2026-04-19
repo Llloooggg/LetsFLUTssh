@@ -54,31 +54,22 @@
 
 ## 1. High-Level Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        main.dart                            │
-│          Entry point, MaterialApp, theme, routing           │
-│    isMobilePlatform → MobileShell  /  else → MainScreen     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-┌─────────────┐  ┌─────────────────┐  ┌──────────────┐
-│  features/  │  │   providers/    │  │   widgets/   │
-│  (UI + UX)  │◄─┤   (Riverpod)    │  │  (reusable)  │
-│             │  │  global state   │  │              │
-└──────┬──────┘  └────────┬────────┘  └──────────────┘
-       │                  │
-       │         ┌────────┴────────┐
-       │         ▼                 ▼
-       │  ┌────────────┐   ┌───────────┐
-       └─►│   core/    │   │  theme/   │
-          │ (no UI)    │   │  utils/   │
-          │ SSH, SFTP  │   └───────────┘
-          │ sessions   │
-          │ security   │
-          │ config     │
-          └────────────┘
+```mermaid
+flowchart TD
+    main["<b>main.dart</b><br/>Entry point, MaterialApp, theme, routing<br/>isMobilePlatform → MobileShell / else → MainScreen"]
+    features["<b>features/</b><br/>(UI + UX)"]
+    providers["<b>providers/</b><br/>(Riverpod) global state"]
+    widgets["<b>widgets/</b><br/>(reusable)"]
+    core["<b>core/</b> (no UI)<br/>SSH, SFTP, sessions, security, config"]
+    themeUtils["<b>theme/</b> + <b>utils/</b>"]
+
+    main --> features
+    main --> providers
+    main --> widgets
+    providers --> features
+    features --> core
+    providers --> core
+    providers --> themeUtils
 ```
 
 **Layering principle:** `core/` does not import Flutter. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic.
@@ -354,24 +345,14 @@ class RemoteFS implements FileSystem { ... }  // SFTPService wrapper, dirSize ca
 
 #### TransferManager — architecture
 
-```
-┌──────────────────────────────────────────┐
-│             TransferManager              │
-│                                          │
-│  Queue: [task1, task2, task3, ...]       │
-│  Workers: 2 (configurable)               │
-│  Max history: 500 entries                │
-│  Timeout: 30 min per task                │
-│                                          │
-│  States: queued → running → completed    │
-│                          └→ failed       │
-│                          └→ cancelled    │
-│                                          │
-│  Streams:                                │
-│    onChange → UI updates                 │
-│    onHistoryChange → history             │
-└──────────────────────────────────────────┘
-```
+**`TransferManager`** runtime shape:
+
+- Queue: `[task1, task2, task3, ...]`
+- Workers: `2` (configurable)
+- Max history: `500` entries
+- Timeout: `30 min` per task
+- States: `queued → running → completed / failed / cancelled`
+- Streams: `onChange → UI updates`, `onHistoryChange → history`
 
 ```dart
 class TransferManager {
@@ -1222,48 +1203,30 @@ class AppShortcutRegistry {
 
 ### 4.1 Provider Dependency Graph
 
+```mermaid
+flowchart TD
+    UI["UI (features/)"]
+    UI -->|watches| sp["sessionProvider<br/>(Notifier)"]
+    UI -->|watches| cp["configProvider<br/>(Notifier)"]
+    UI -->|watches| wp["workspaceProvider<br/>(Notifier)"]
+    sp --> ssp["sessionStoreProvider"]
+    cp --> csp["configStoreProvider"]
+    ssp --> ss["SessionStore + CredentialStore<br/><i>core/ (pure Dart)</i>"]
+    csp --> cs["ConfigStore<br/><i>core/ (pure Dart)</i>"]
+
+    sp -.-> stp["sessionTreeProvider<br/>(computed from sessionProvider)"]
+    cp -.-> tmop["themeModeProvider<br/>(computed from configProvider)"]
+    sp -.-> fsp["filteredSessionsProvider<br/>(computed from sessionProvider<br/>+ sessionSearchProvider)"]
 ```
-                    ┌─────────────────────┐
-                    │   UI (features/)    │
-                    └─────────┬───────────┘
-                              │ watches
-        ┌─────────────────────┼──────────────────────┐
-        ▼                     ▼                      ▼
-┌───────────────┐  ┌──────────────────┐  ┌────────────────────┐
-│sessionProvider│  │  configProvider  │  │ workspaceProvider  │
-│  (Notifier)   │  │   (Notifier)     │  │    (Notifier)      │
-└───────┬───────┘  └────────┬─────────┘  └────────────────────┘
-        │                   │
-        ▼                   ▼
-┌───────────────┐  ┌──────────────────┐
-│sessionStore   │  │  configStore     │
-│  Provider     │  │   Provider       │
-└───────┬───────┘  └────────┬─────────┘
-        │                   │
-        ▼                   ▼
-   SessionStore        ConfigStore          ← core/ (pure Dart)
-   CredentialStore
 
-┌─────────────────────────┐     ┌──────────────────────────┐
-│connectionManagerProvider│     │ transferManagerProvider  │
-│                         │     │                          │
-│ → connectionsProvider   │     │ → activeTransfersProvider│
-│   (StreamProvider)      │     │ → transferHistoryProvider│
-│                         │     │ → transferStatusProvider │
-└─────────────────────────┘     └──────────────────────────┘
+Independent provider groups:
 
-┌─────────────────────┐     ┌────────────────────┐
-│ sessionTreeProvider │     │ themeModeProvider  │
-│ (computed from      │     │ (computed from     │
-│  sessionProvider)   │     │  configProvider)   │
-└─────────────────────┘     └────────────────────┘
-
-┌──────────────────────────┐
-│ filteredSessionsProvider │
-│ (computed from           │
-│  sessionProvider +       │
-│  sessionSearchProvider)  │
-└──────────────────────────┘
+```mermaid
+flowchart LR
+    cmp["connectionManagerProvider"] --> cp1["connectionsProvider<br/>(StreamProvider)"]
+    tmp["transferManagerProvider"] --> tp1["activeTransfersProvider"]
+    tmp --> tp2["transferHistoryProvider"]
+    tmp --> tp3["transferStatusProvider"]
 ```
 
 ### 4.2 Provider Catalog
@@ -2987,24 +2950,13 @@ The archive also carries a `manifest.json` with `schema_version` (current: `Expo
 
 Three-layer error handling catches all errors at appropriate levels:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   runZonedGuarded                       │
-│  Catches: async errors from onPressed, Future, Stream   │
-│  Action: Log (sanitized) + show user dialog             │
-└─────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────┐
-│              FlutterError.onError                       │
-│  Catches: build, layout, render errors                  │
-│  Action: Log only (not user-facing)                     │
-└─────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────┐
-│           PlatformDispatcher.onError                    │
-│  Catches: errors that escape Flutter zone entirely      │
-│  Action: Log (sanitized) + show user dialog             │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    rzg["<b>runZonedGuarded</b><br/>Catches: async errors from onPressed, Future, Stream<br/>Action: Log (sanitized) + show user dialog"]
+    feo["<b>FlutterError.onError</b><br/>Catches: build, layout, render errors<br/>Action: Log only (not user-facing)"]
+    pdo["<b>PlatformDispatcher.onError</b><br/>Catches: errors that escape Flutter zone entirely<br/>Action: Log (sanitized) + show user dialog"]
+    rzg --> feo
+    feo --> pdo
 ```
 
 **Error dialog behavior:**
