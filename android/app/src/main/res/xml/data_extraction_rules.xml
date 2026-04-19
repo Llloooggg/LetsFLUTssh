@@ -1,14 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 12+ (API 31+) data extraction rules.
-     Excludes encrypted credential files from cloud backup
+     `android:allowBackup="false"` in AndroidManifest already blocks
+     Auto Backup for the whole app. These explicit rules are the
+     belt-and-braces: if `allowBackup` is ever flipped back on
+     accidentally, the sensitive files stay out of cloud backup
      and device-to-device transfer. -->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="root" path="credentials.enc" />
-        <exclude domain="root" path="credentials.key" />
+        <exclude domain="file" path="credentials.kdf" />
+        <exclude domain="file" path="credentials.salt" />
+        <exclude domain="file" path="credentials.verify" />
+        <exclude domain="file" path="credentials.key" />
+        <exclude domain="file" path="security_pass_hash.bin" />
+        <exclude domain="file" path="hardware_vault.bin" />
+        <exclude domain="file" path="hardware_vault_android.bin" />
+        <exclude domain="file" path="hardware_vault_apple.bin" />
+        <exclude domain="file" path="hardware_vault_ios.bin" />
+        <exclude domain="file" path="hardware_vault_macos.bin" />
+        <exclude domain="file" path="hardware_vault_windows.bin" />
+        <exclude domain="file" path="hardware_vault_linux.bin" />
+        <exclude domain="file" path="hardware_vault_salt.bin" />
+        <exclude domain="file" path="hardware_vault.tpm" />
+        <exclude domain="file" path="hardware_vault_password_overlay_android.bin" />
+        <exclude domain="file" path="hardware_vault_password_overlay_apple.bin" />
+        <exclude domain="file" path="biometric_vault.tpm" />
+        <exclude domain="file" path="config.json" />
+        <exclude domain="file" path="migration_history.json" />
+        <exclude domain="file" path="letsflutssh.db" />
+        <exclude domain="file" path="letsflutssh.db-wal" />
+        <exclude domain="file" path="letsflutssh.db-shm" />
+        <exclude domain="file" path="letsflutssh.db-journal" />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="root" path="credentials.enc" />
-        <exclude domain="root" path="credentials.key" />
+        <exclude domain="file" path="credentials.kdf" />
+        <exclude domain="file" path="credentials.salt" />
+        <exclude domain="file" path="credentials.verify" />
+        <exclude domain="file" path="credentials.key" />
+        <exclude domain="file" path="security_pass_hash.bin" />
+        <exclude domain="file" path="hardware_vault.bin" />
+        <exclude domain="file" path="hardware_vault_android.bin" />
+        <exclude domain="file" path="hardware_vault_apple.bin" />
+        <exclude domain="file" path="hardware_vault_ios.bin" />
+        <exclude domain="file" path="hardware_vault_macos.bin" />
+        <exclude domain="file" path="hardware_vault_windows.bin" />
+        <exclude domain="file" path="hardware_vault_linux.bin" />
+        <exclude domain="file" path="hardware_vault_salt.bin" />
+        <exclude domain="file" path="hardware_vault.tpm" />
+        <exclude domain="file" path="hardware_vault_password_overlay_android.bin" />
+        <exclude domain="file" path="hardware_vault_password_overlay_apple.bin" />
+        <exclude domain="file" path="biometric_vault.tpm" />
+        <exclude domain="file" path="config.json" />
+        <exclude domain="file" path="migration_history.json" />
+        <exclude domain="file" path="letsflutssh.db" />
+        <exclude domain="file" path="letsflutssh.db-wal" />
+        <exclude domain="file" path="letsflutssh.db-shm" />
+        <exclude domain="file" path="letsflutssh.db-journal" />
     </device-transfer>
 </data-extraction-rules>
