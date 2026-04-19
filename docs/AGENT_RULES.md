@@ -8,8 +8,9 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 | I'm about to... | Read this section |
 |---|---|
-| Write a commit message / bump version | [§ Commits & Versioning](#commits--versioning) |
+| Write a commit message / bump version | [§ Commits & Versioning](#commits--versioning) + [§ Plan-Item IDs Stay Internal](#plan-item-ids-stay-internal) |
 | Open a PR / merge to main | [§ Branching & Release Flow](#branching--release-flow) |
+| Add/edit a diagram in docs | [§ Diagrams in Docs](#diagrams-in-docs--mermaid-not-ascii-box-art) — Mermaid only, no ASCII box-art |
 | Write or refactor any Dart code | [§ Code Quality — SonarCloud](#code-quality--sonarcloud) + [§ Conventions](#conventions) |
 | Call API of an external package (dartssh2, drift, riverpod, xterm, …) | [§ Conventions → External Libraries & APIs](#external-libraries--apis--look-up-dont-guess) — grep repo first, then Context7 / web docs / pub-cache source |
 | Add a new dependency or feature that needs an OS capability | [§ Conventions → Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs |
