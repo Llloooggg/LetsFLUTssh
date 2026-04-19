@@ -56,7 +56,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 ## Docs First — Read Before, Fix Drift, Update After
 
-Four-step discipline for any work (planning **and** editing) that touches a module documented in `ARCHITECTURE.md`:
+Five-step discipline for any work (planning **and** editing) that touches a module documented in `ARCHITECTURE.md`:
 
 1. **TOC → specific §, never cover-to-cover.** `ARCHITECTURE.md` is 3000+ lines; reading it whole wastes context and pushes the detail you need out of working memory. The strict order is:
    - **(a) Consult the table of contents first** — either the [Within ARCHITECTURE.md nav](#within-architecturemd) in this file or the [CLAUDE.md Action → Read table](../CLAUDE.md#action--read-this-mandatory-before-acting), or the TOC at the top of `ARCHITECTURE.md` itself. The TOC is the index, not optional scaffolding.
@@ -71,7 +71,17 @@ Four-step discipline for any work (planning **and** editing) that touches a modu
 
 4. **After your edits, walk the [Documentation Maintenance Checklist](#documentation-maintenance-checklist) below.** Find every row the diff triggers and update the named §. Ship the doc update in the same commit as the code change — a code change without its matching doc update is an incomplete commit (full rule in [§ Always-On Rules](../CLAUDE.md#always-on-rules-gate-every-action)).
 
-This rule binds every code edit **and every plan**, not just "big" ones. "Forgot to check docs" and "the docs didn't say" are both invalid reasons: step 1 names the nav, step 2 names the remedy when the nav points at an empty answer.
+5. **When writing or updating a § in `ARCHITECTURE.md` (or any other git-tracked doc), cross-link to related §s.** Docs are a graph, not a stack of isolated chapters. Any § that mentions behaviour owned by another § — a data model used by a flow, a provider consumed by a widget, a security invariant enforced by a DAO, a platform-specific quirk that shapes an API — must carry a relative markdown link to that other §: `[§9.3 Session CRUD Flow](#93-session-crud-flow)`, `[§10 Data Models → Session](#10-data-models)`, etc. Concrete targets for cross-linking:
+   - A §3.x description of a class that persists via a DAO → link to `§11 Persistence`.
+   - A §5.x feature description that consumes a provider → link to `§4 State Management`.
+   - A §9.x flow diagram that references a model → link to the §10 entry.
+   - A §13 security claim that depends on a specific module → link to the §3.x module.
+   - Any rule / convention in `AGENT_RULES.md` that is enforced by code in a specific module → link out to the `ARCHITECTURE §` that documents the enforcing code.
+   - Any ARCHITECTURE § that describes behaviour shaped by a rule in `AGENT_RULES.md` → link back to that rule.
+
+   When a cross-link target does not exist yet (the related § is too thin, missing, or buried in a general section), **extract it** — create the target § or lift the relevant paragraph into one, then link to it. Better a few extra sub-sections than a § that mentions something the reader cannot jump to. Every new or changed § ships with its outgoing cross-links in the same commit; a § without links is a § stuck in the stack model, and future agents will re-derive the graph from the code instead of from the docs.
+
+This rule binds every code edit **and every plan**, not just "big" ones. "Forgot to check docs", "the docs didn't say", and "the related § was hidden" are all invalid reasons: step 1 names the TOC + nav, step 2 names the remedy when the nav points at an empty answer, and step 5 names the remedy when cross-references are missing.
 
 ## Documentation Maintenance Checklist
 
