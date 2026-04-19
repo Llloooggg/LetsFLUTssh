@@ -1653,18 +1653,6 @@ abstract class S {
   /// **'OS keychain not available on this install.'**
   String get tierKeychainUnavailable;
 
-  /// No description provided for @tierKeychainPassLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Keychain + password'**
-  String get tierKeychainPassLabel;
-
-  /// No description provided for @tierKeychainPassSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Short password in front of the keychain (bystander gate)'**
-  String get tierKeychainPassSubtitle;
-
   /// No description provided for @tierKeychainPassProtect1.
   ///
   /// In en, this message translates to:
@@ -1773,53 +1761,11 @@ abstract class S {
   /// **'Hardware vault not available on this install.'**
   String get tierHardwareUnavailable;
 
-  /// No description provided for @tierKeychainPassSetPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a short password'**
-  String get tierKeychainPassSetPrompt;
-
-  /// No description provided for @tierKeychainPassSetHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Used as a gate in front of the keychain'**
-  String get tierKeychainPassSetHint;
-
-  /// No description provided for @tierHardwarePinSetPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a 4–6 digit PIN'**
-  String get tierHardwarePinSetPrompt;
-
-  /// No description provided for @tierHardwarePinSetHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware lockout slows down PIN guessing'**
-  String get tierHardwarePinSetHint;
-
   /// No description provided for @pinLabel.
   ///
   /// In en, this message translates to:
   /// **'PIN'**
   String get pinLabel;
-
-  /// No description provided for @confirmPin.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm PIN'**
-  String get confirmPin;
-
-  /// No description provided for @pinMustBe4To6Digits.
-  ///
-  /// In en, this message translates to:
-  /// **'PIN must be 4–6 digits'**
-  String get pinMustBe4To6Digits;
-
-  /// No description provided for @pinsDoNotMatch.
-  ///
-  /// In en, this message translates to:
-  /// **'PINs do not match'**
-  String get pinsDoNotMatch;
 
   /// No description provided for @l2UnlockTitle.
   ///
@@ -2630,12 +2576,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Software-backed'**
   String get biometricBackingSoftware;
-
-  /// No description provided for @autoLockRequiresMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Set a master password first to enable auto-lock.'**
-  String get autoLockRequiresMasterPassword;
 
   /// No description provided for @currentPasswordIncorrect.
   ///

@@ -873,13 +873,6 @@ class SFa extends S {
       'زنجیره کلید سیستم‌عامل در این نصب در دسترس نیست.';
 
   @override
-  String get tierKeychainPassLabel => 'زنجیره کلید + رمز عبور';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'رمز عبور کوتاه در جلوی زنجیره کلید (دروازه رهگذر)';
-
-  @override
   String get tierKeychainPassProtect1 => 'همکاری که پشت میز شما می‌نشیند';
 
   @override
@@ -941,29 +934,7 @@ class SFa extends S {
       'گاوصندوق سخت‌افزاری در این نصب در دسترس نیست.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'یک گذرواژه کوتاه انتخاب کنید';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'به عنوان دروازه پیش از کیچین استفاده می‌شود';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'یک پین ۴ تا ۶ رقمی انتخاب کنید';
-
-  @override
-  String get tierHardwarePinSetHint => 'قفل سخت‌افزاری حدس پین را کند می‌کند';
-
-  @override
   String get pinLabel => 'پین';
-
-  @override
-  String get confirmPin => 'تایید پین';
-
-  @override
-  String get pinMustBe4To6Digits => 'پین باید ۴ تا ۶ رقم باشد';
-
-  @override
-  String get pinsDoNotMatch => 'پین‌ها مطابقت ندارند';
 
   @override
   String get l2UnlockTitle => 'گذرواژه لازم است';
@@ -1420,10 +1391,6 @@ class SFa extends S {
 
   @override
   String get biometricBackingSoftware => 'پشتیبانی نرم‌افزاری';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'ابتدا یک رمز عبور اصلی تنظیم کنید تا قفل خودکار فعال شود.';
 
   @override
   String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';

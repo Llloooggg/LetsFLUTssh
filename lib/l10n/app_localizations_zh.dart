@@ -849,12 +849,6 @@ class SZh extends S {
   String get tierKeychainUnavailable => '此安装无法使用操作系统钥匙串。';
 
   @override
-  String get tierKeychainPassLabel => '钥匙串 + 密码';
-
-  @override
-  String get tierKeychainPassSubtitle => '钥匙串前的短密码（路人门禁）';
-
-  @override
   String get tierKeychainPassProtect1 => '坐在您桌前的同事';
 
   @override
@@ -909,28 +903,7 @@ class SZh extends S {
   String get tierHardwareUnavailable => '此安装不支持硬件保险库。';
 
   @override
-  String get tierKeychainPassSetPrompt => '设置一个短密码';
-
-  @override
-  String get tierKeychainPassSetHint => '作为钥匙串前的屏障使用';
-
-  @override
-  String get tierHardwarePinSetPrompt => '设置一个 4–6 位 PIN';
-
-  @override
-  String get tierHardwarePinSetHint => '硬件锁定会减缓 PIN 猜测';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => '确认 PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN 必须为 4–6 位数字';
-
-  @override
-  String get pinsDoNotMatch => 'PIN 不匹配';
 
   @override
   String get l2UnlockTitle => '需要密码';
@@ -1371,9 +1344,6 @@ class SZh extends S {
 
   @override
   String get biometricBackingSoftware => '软件支持';
-
-  @override
-  String get autoLockRequiresMasterPassword => '请先设置主密码以启用自动锁定。';
 
   @override
   String get currentPasswordIncorrect => '当前密码不正确';

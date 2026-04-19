@@ -878,13 +878,6 @@ class SPt extends S {
       'Chaveiro do SO não disponível nesta instalação.';
 
   @override
-  String get tierKeychainPassLabel => 'Chaveiro + senha';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Senha curta à frente do chaveiro (portão contra transeuntes)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Colega sentado em sua mesa';
 
   @override
@@ -949,29 +942,7 @@ class SPt extends S {
       'Cofre de hardware indisponível nesta instalação.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Escolha uma senha curta';
-
-  @override
-  String get tierKeychainPassSetHint => 'Usada como filtro antes das chaves';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'Escolha um PIN de 4–6 dígitos';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'O bloqueio por hardware retarda tentativas de PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Confirmar PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'O PIN deve ter 4–6 dígitos';
-
-  @override
-  String get pinsDoNotMatch => 'Os PINs não coincidem';
 
   @override
   String get l2UnlockTitle => 'Senha necessária';
@@ -1432,10 +1403,6 @@ class SPt extends S {
 
   @override
   String get biometricBackingSoftware => 'Suporte em software';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Defina uma senha mestra primeiro para habilitar o bloqueio automático.';
 
   @override
   String get currentPasswordIncorrect => 'A senha atual está incorreta';

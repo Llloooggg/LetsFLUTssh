@@ -853,12 +853,6 @@ class SJa extends S {
   String get tierKeychainUnavailable => 'このインストールではOSキーチェーンが利用できません。';
 
   @override
-  String get tierKeychainPassLabel => 'キーチェーン + パスワード';
-
-  @override
-  String get tierKeychainPassSubtitle => 'キーチェーンの前に短いパスワード（通行人ゲート）';
-
-  @override
   String get tierKeychainPassProtect1 => 'あなたの机に座る同僚';
 
   @override
@@ -913,28 +907,7 @@ class SJa extends S {
   String get tierHardwareUnavailable => 'このインストールではハードウェアボールトを利用できません。';
 
   @override
-  String get tierKeychainPassSetPrompt => '短いパスワードを設定';
-
-  @override
-  String get tierKeychainPassSetHint => 'キーチェーンの前のゲートとして使用';
-
-  @override
-  String get tierHardwarePinSetPrompt => '4〜6 桁の PIN を設定';
-
-  @override
-  String get tierHardwarePinSetHint => 'ハードウェアロックアウトにより PIN 推測が遅くなります';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'PIN の確認';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN は 4〜6 桁の数字である必要があります';
-
-  @override
-  String get pinsDoNotMatch => 'PIN が一致しません';
 
   @override
   String get l2UnlockTitle => 'パスワードが必要です';
@@ -1379,10 +1352,6 @@ class SJa extends S {
 
   @override
   String get biometricBackingSoftware => 'ソフトウェア保護';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      '自動ロックを有効にするには、まずマスターパスワードを設定してください。';
 
   @override
   String get currentPasswordIncorrect => '現在のパスワードが正しくありません';

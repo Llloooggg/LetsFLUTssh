@@ -880,13 +880,6 @@ class SEs extends S {
       'El llavero del SO no está disponible en esta instalación.';
 
   @override
-  String get tierKeychainPassLabel => 'Llavero + contraseña';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Contraseña corta frente al llavero (puerta contra transeúntes)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Compañero sentado en tu escritorio';
 
   @override
@@ -952,30 +945,7 @@ class SEs extends S {
       'Bóveda de hardware no disponible en esta instalación.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Elige una contraseña corta';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'Se usa como barrera delante del llavero';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'Elige un PIN de 4–6 dígitos';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'El bloqueo por hardware ralentiza los intentos de PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Confirmar PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'El PIN debe tener 4–6 dígitos';
-
-  @override
-  String get pinsDoNotMatch => 'Los PIN no coinciden';
 
   @override
   String get l2UnlockTitle => 'Contraseña requerida';
@@ -1437,10 +1407,6 @@ class SEs extends S {
 
   @override
   String get biometricBackingSoftware => 'Respaldado por software';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Primero establezca una contraseña maestra para habilitar el bloqueo automático.';
 
   @override
   String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';

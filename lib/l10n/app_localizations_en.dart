@@ -872,13 +872,6 @@ class SEn extends S {
       'OS keychain not available on this install.';
 
   @override
-  String get tierKeychainPassLabel => 'Keychain + password';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Short password in front of the keychain (bystander gate)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Coworker sitting at your desk';
 
   @override
@@ -940,30 +933,7 @@ class SEn extends S {
       'Hardware vault not available on this install.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choose a short password';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'Used as a gate in front of the keychain';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'Choose a 4–6 digit PIN';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'Hardware lockout slows down PIN guessing';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Confirm PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN must be 4–6 digits';
-
-  @override
-  String get pinsDoNotMatch => 'PINs do not match';
 
   @override
   String get l2UnlockTitle => 'Password required';
@@ -1419,10 +1389,6 @@ class SEn extends S {
 
   @override
   String get biometricBackingSoftware => 'Software-backed';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Set a master password first to enable auto-lock.';
 
   @override
   String get currentPasswordIncorrect => 'Current password is incorrect';

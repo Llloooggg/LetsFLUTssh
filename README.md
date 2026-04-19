@@ -32,7 +32,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
 - **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection (now also reachable from the mobile SSH keyboard bar)
 - **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
-- **Security** — encrypted SQLite storage (AES-256-GCM via SQLite3MultipleCiphers), three storage modes (plaintext / OS keychain / master password) with on-the-fly switching, optional biometric unlock and idle auto-lock in master-password mode, page-locked in-memory secrets (mlock/VirtualLock), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`), encrypted `.lfs` export/import, TOFU host key verification
+- **Security** — encrypted SQLite storage (AES-256-GCM via SQLite3MultipleCiphers). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](.github/SECURITY.md)
 - **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), pinch-to-zoom, deep links
 - **Auth** — password, key file, PEM text
@@ -69,7 +69,7 @@ tar xzf letsflutssh-*.tar.gz
 cd letsflutssh && ./letsflutssh
 ```
 
-> Optional: `libsecret-1-0` for OS keychain encryption (`sudo apt install libsecret-1-0`). Without it the app works fine — only plaintext and master-password storage modes are available, no biometric.
+> Optional: `libsecret-1-0` for the T1 OS-keychain tier (`sudo apt install libsecret-1-0`). Without it the app still works — the wizard falls back to T0 plaintext, T2 hardware (if a TPM 2.0 is present + `tpm2-tools` installed), or the Paranoid master-password alternative. Biometric modifier on Linux additionally requires `fprintd` with at least one enrolled finger.
 
 > Optional: `fprintd` for biometric unlock in master-password mode (fingerprint reader required). Install + enrol one finger once, the Settings toggle picks it up on next launch. Without it the biometric toggle stays disabled with a clear reason; master-password unlock keeps working.
 >

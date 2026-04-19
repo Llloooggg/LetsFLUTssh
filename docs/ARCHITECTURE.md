@@ -609,31 +609,94 @@ class ForegroundServiceManager {
 
 ### 3.6 Security & Encryption (`core/security/`)
 
-#### Five-Tier Security Model (L0–L3 + Paranoid)
+> The code-level reference lives in this section; the user-facing
+> threat model (scope, threat boundary, KEK provider hierarchy,
+> per-platform trust backing, combined matrix, vulnerability
+> reporting) lives in [`SECURITY.md`](../.github/SECURITY.md). Keep
+> the two in lockstep: code design decisions documented here should
+> cross-link out to the SECURITY section that motivates them, never
+> duplicate the threat-model prose.
 
-All data lives in one drift (SQLite) database. Encryption runs at the database level through SQLite3MultipleCiphers. The user picks one of four **numbered tiers** on the linear ladder, plus one **alternative branch** ("Paranoid") shown separately for users who do not trust the OS at all:
+#### Three-Tier + Paranoid Model
 
-| Tier | Label | DB key location | User-typed secret | Where the secret is stored |
+All data lives in one drift (SQLite) database. Encryption runs at
+the database level through SQLite3MultipleCiphers. The user picks
+one of three **numbered tiers** plus one **alternative branch**
+("Paranoid") shown separately in the wizard for users who do not
+trust the OS at all. `SecurityTier` enum values are deliberately
+unordered — no `<` / `>` comparisons anywhere in the codebase;
+feature-gating goes through predicates on `SecurityConfig`
+(`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`,
+`isPlaintext`).
+
+| Tier | Label | DB key location | Typical user-typed secret (when modifier is on) | Where the secret is stored |
 |---|---|---|---|---|
-| **L0** | Plaintext | — | — | — |
-| **L1** | Keychain | OS keychain (Keychain / Credential Manager / libsecret / EncryptedSharedPreferences) | — | — |
-| **L2** | Keychain + password | OS keychain | Short password (UX gate) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain (`letsflutssh_l2_pepper`) |
-| **L3** | Hardware + PIN | Hardware-bound vault (Secure Enclave / StrongBox / TPM2 / Windows Hello) | 4–6 digit PIN | Hardware module itself; `hardware_vault.bin` on disk carries only the sealed blob + salt |
-| **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Long password | Argon2id salt + verifier in `credentials.kdf`; key material lives only in `SecretBuffer` |
+| **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
+| **T1** | Keychain | OS keychain (Keychain / Credential Manager / libsecret / EncryptedSharedPreferences) | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
+| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Password (optional, via modifier) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
+| **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only in `SecretBuffer` during the unlocked window |
 
-Each tier carries orthogonal modifiers (biometric shortcut on L1/L2/L3; PIN length for L3). `SecurityTier` enum values are deliberately unordered — no `<`/`>` comparisons anywhere in the codebase. Feature-gating uses predicates on `SecurityConfig` (`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`, `isPlaintext`).
+See [`SECURITY.md §KEK provider hierarchy`](../.github/SECURITY.md#kek-provider-hierarchy)
+for the threat-model rationale behind offering both T1 (convenience,
+OS-keychain-backed) and T2 (off-device extraction resistance,
+bypasses the OS keychain layer).
 
-Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`, `SnippetStore`, `TagStore`) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption — the active tier is opaque to them.
+#### Orthogonal modifiers
 
-**Tier resolution at startup** (`main._initSecurity`):
+`SecurityTierModifiers` is the bank-style modifier container. Fields:
 
-1. If the `SecurityTierSwitcher` pending marker exists → log + clear it (the previous run died mid-switch; the standard unlock path below will either succeed under the target credential or fall through to reset).
-2. Read `AppConfig.security` (persisted as `security_tier` + `security_modifiers` in `config.json`). When null **and** any legacy pre-tier state exists on disk → show `TierResetDialog` (breaking change: wipe-and-setup-fresh or quit).
-3. When the config has a tier, dispatch to the matching unlock path: `_unlockParanoid`, `_unlockKeychainWithPassword`, `_unlockHardware`, `_unlockKeychain`, or the plaintext short-circuit.
-4. When the DB file exists but the tier field does not (legacy installs between model iterations) → legacy-infer fall-through: PBKDF2-reject → master-password probe → keychain-key probe → plaintext.
-5. When no DB file exists → first-launch `SecuritySetupDialog` (the wizard), then persist the chosen `SecurityTier` into `config.json`.
+- `password` — when true, the user typed a secret that acts as the
+  primary auth gate for the tier. Stored as HMAC-split on disk +
+  keychain; compared in constant time before the KEK provider is
+  touched. Paranoid always implies `password == true` by design.
+- `biometric` — when true, the user opted into the biometric
+  shortcut. Invariant: `biometric → password`. The flag enables a
+  secondary biometric-gated storage slot (biometric-protected
+  keychain alias on T1 / `letsflutssh_hw_password_overlay`
+  Keystore / SE key on T2) that holds the typed password; biometric
+  unlock releases the password from that slot and replays the HMAC
+  gate without requiring the user to retype.
+- `biometricShortcut` — legacy alias kept in sync with `biometric`
+  during the transition. Old configs that only carry
+  `biometric_shortcut` deserialise into `biometric` automatically.
+- `pinLength` — advisory only post-refactor. Retained so older
+  pre-refactor configs still deserialise.
 
-First launch is detected by the combination "no `config.security` **and** no DB file **and** no legacy state." Any single-signal detector was too fragile against partial installs and mid-switch crashes.
+Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`,
+`SnippetStore`, `TagStore`) receive the opened `AppDatabase` via
+`setDatabase()` and delegate persistence to DAOs. They do not handle
+encryption — the active tier is opaque to them.
+
+#### Tier resolution at startup (`main._initSecurity`)
+
+1. If the `SecurityTierSwitcher` pending marker exists on disk → log
+   and clear it. The previous run died mid-switch; the standard
+   unlock path below either succeeds under the target credential or
+   falls through to the reset dialog.
+2. If a `.wipe-pending` marker from an interrupted
+   `WipeAllService.wipeAll()` exists → resume the wipe idempotently
+   before anything else touches the app-support dir.
+3. Read `ConfigArtefact.readVersion()` (the schema version stamped
+   into `config.json`). When the value is older than
+   `SchemaVersions.config`, or when `AppConfig.security == null`
+   **and** any managed artefact exists on disk, show
+   `TierResetDialog`. The dialog routes through
+   `WipeAllService.wipeAll()` on user confirm; on cancel the app
+   quits. This single gate covers both "pre-v1 tier model, can't
+   read the sealed blob under the new ACL" and "loose legacy files
+   from a half-broken install".
+4. When the config has a tier, dispatch to the matching unlock path
+   (`_unlockParanoid`, `_unlockKeychainWithPassword`, `_unlockHardware`,
+   `_unlockKeychain`, or the plaintext short-circuit).
+5. When no config + no managed state → first-launch
+   `SecuritySetupDialog` (the wizard), then persist the chosen
+   `SecurityConfig` into `config.json` via
+   `_persistSecurityTier(tier, modifiers)`.
+
+First launch is detected by the combination "no `config.security`
+**and** no managed artefact **and** no pending-wipe marker." Any
+single-signal detector was too fragile against partial installs and
+mid-switch crashes.
 
 **Key-derivation pipeline** (only the master-password branch derives; keychain stores the DB key directly, plaintext has no key):
 
@@ -907,6 +970,64 @@ enum SshKeyType { ed25519, rsa2048, rsa4096 }
 ```
 
 **Session integration:** `SessionAuth.keyId` references a key by ID. Resolved in `SessionConnect._resolveConfig()` — key's PEM injected into `SSHConfig.auth.keyData` before connecting. SSH layer receives plain PEM text, unchanged.
+
+#### Migration framework (`core/migration/`)
+
+Versioned-artefact migration framework running on startup before
+`_initSecurity`. Replaces the ad-hoc "detect legacy files, wipe via
+`LegacyStateReset`" approach with a typed interface: every on-disk
+artefact the app persists registers an `Artefact` with a target
+version, and every breaking format change ships a `Migration` that
+walks one step.
+
+```
+lib/core/migration/
+  migration_runner.dart   — MigrationRunner, MigrationReport,
+                            UnsupportedFutureVersionException
+  schema_versions.dart    — SchemaVersions + ArtefactIds constants
+                            (single source of truth for "current
+                            target version per artefact")
+  artefact.dart           — Artefact abstract class
+  migration.dart          — Migration abstract class
+  registry.dart           — MigrationRegistry + buildAppMigrationRegistry()
+  archive_registry.dart   — ArchiveMigrationRegistry for .lfs format
+                            migrations (runs at import time, not startup)
+  versioned_blob.dart     — Standard envelope: magic 'LFS\x01' +
+                            artefactId byte + version byte + payload
+  artefacts/
+    config_artefact.dart  — reads config_schema_version from config.json
+    kdf_artefact.dart     — presence-only; KdfParams is self-versioned
+    db_artefact.dart      — presence-only; Drift owns its schema
+```
+
+`MigrationRunner.runOnStartup()` iterates the registry in dependency
+order, compares each `Artefact.readVersion()` against
+`Artefact.targetVersion`, and applies any migrations needed. Runs
+atomically — a migration writes to a `.tmp` sibling + fsync +
+rename. Validation runs after apply; failure rolls back. Unknown
+future versions on disk throw `UnsupportedFutureVersionException`
+instead of silently corrupting (prevents downgrade attacks + the
+"installed a newer build, rolled back" edge case).
+
+Conventions for new artefacts:
+
+- Write through `VersionedBlob.write(path, artefactId, version,
+  payload)` — this is enforced; raw `File.writeAsBytes` for new
+  binary state is a bug.
+- Bump `SchemaVersions.<artefact>` in lockstep with shipping a new
+  `Migration`. Every bump must have a migration registered, else
+  `MigrationRunner` reports fatal on upgrade.
+- Reset-style migrations (where the target state is "user runs the
+  wizard again, nothing to salvage") do NOT belong in the migration
+  runner — they belong in the `_initSecurity` tier-reset gate,
+  user-consented via `TierResetDialog` → `WipeAllService.wipeAll()`.
+  Migration framework is for silent automated format bumps only.
+
+Archive format migrations use the parallel
+`ArchiveMigrationRegistry` + `archiveMigrationRegistry` singleton.
+Different lifecycle (import-time, not startup) but same `Migration`
+interface. v1 is the permanent floor after the pre-v1 back-compat
+drop; future breaking format changes register here.
 
 ---
 

@@ -874,13 +874,6 @@ class SHi extends S {
       'इस इंस्टॉल पर OS कीचेन उपलब्ध नहीं है।';
 
   @override
-  String get tierKeychainPassLabel => 'कीचेन + पासवर्ड';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'कीचेन के सामने छोटा पासवर्ड (राहगीर द्वार)';
-
-  @override
   String get tierKeychainPassProtect1 => 'आपके डेस्क पर बैठा सहकर्मी';
 
   @override
@@ -942,30 +935,7 @@ class SHi extends S {
       'इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।';
 
   @override
-  String get tierKeychainPassSetPrompt => 'एक छोटा पासवर्ड चुनें';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'कीचेन के आगे गेट के रूप में उपयोग किया जाता है';
-
-  @override
-  String get tierHardwarePinSetPrompt => '4–6 अंकों का पिन चुनें';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'हार्डवेयर लॉकआउट पिन अनुमान को धीमा करता है';
-
-  @override
   String get pinLabel => 'पिन';
-
-  @override
-  String get confirmPin => 'पिन की पुष्टि करें';
-
-  @override
-  String get pinMustBe4To6Digits => 'पिन 4–6 अंकों का होना चाहिए';
-
-  @override
-  String get pinsDoNotMatch => 'पिन मेल नहीं खाते';
 
   @override
   String get l2UnlockTitle => 'पासवर्ड आवश्यक';
@@ -1425,10 +1395,6 @@ class SHi extends S {
 
   @override
   String get biometricBackingSoftware => 'सॉफ़्टवेयर-समर्थित';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'ऑटो-लॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
 
   @override
   String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';

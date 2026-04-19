@@ -1,75 +1,353 @@
 # Security Policy
 
-## Supported Versions
+LetsFLUTssh is an open-source SSH / SFTP client. This document describes
+the threat model the app is designed to protect against, the boundary
+of what app-level code can and cannot achieve, and the vulnerability
+reporting process. It is written for users, security researchers, and
+contributors; readers who want the code-level reference (module map,
+class API, data flow, testing hooks) should head to
+[`docs/ARCHITECTURE.md §3.6 Security`](../docs/ARCHITECTURE.md).
 
-Security updates are applied to the **latest release** only. Older versions are not supported.
+## Scope
 
-Check [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) for the current version.
+### What the app protects
 
-## Reporting a Vulnerability
+- **Cold-disk theft** — someone powers off the machine, removes the
+  drive, and reads it elsewhere; or copies the encrypted database off
+  a running machine with filesystem access. Covered in varying degree
+  by every tier above plaintext.
+- **Bystander at an unlocked machine** — a coworker / family member
+  taps the app while the legitimate user is away. Covered by any tier
+  that holds a typed secret (password modifier or Paranoid).
+- **Off-device key extraction** — stolen backup, rooted clone of the
+  drive, or leaked OS keychain snapshot. The hardware-bound tier
+  (T2) provides specific protection against this class by wrapping
+  the database key under a chip-held key; the sealed blob is
+  unusable without the original device's TPM / Secure Enclave /
+  StrongBox.
+- **OS keychain compromise** — CVE in the OS credential store,
+  keychain exfiltration tool. The Paranoid alternative is the only
+  provider that survives this: it derives the key per unlock from a
+  master password through Argon2id and keeps nothing in any OS-
+  managed storage.
+- **Weak passwords against offline brute force** — when the wrapped
+  key is bound to a hardware chip (T2), an attacker cannot attempt
+  passwords off-device at all. When the key is derived from the
+  password directly (Paranoid), Argon2id slows attempts but does not
+  block a determined attacker against a short password.
+- **Release binary tampering** — the auto-update channel rejects
+  unsigned or mis-signed artefacts via a pinned Ed25519 public key
+  baked into the installed binary. See the **Release signing**
+  section below.
 
-If you discover a security vulnerability in LetsFLUTssh, **please do not open a public issue**.
+### What the app does not protect against
 
-Instead, report it privately via **[GitHub Security Advisories](https://github.com/llloooggg/LetsFLUTssh/security/advisories/new)**.
+The app is a user-space Flutter binary running in the user's OS
+session. It does not pretend to defend against attackers operating at
+or above its own privilege level:
 
-### What to include
+- **Privileged same-user attacker** — root, admin, `SeDebug`
+  privilege, jailbreak, or a debug-signed process with permission to
+  attach to our process. Full-RAM dump is available to this attacker
+  class and defeats every tier. App-level hardening does not change
+  this.
+- **Kernel-level exploits** — CVEs in the OS kernel, hardware chip
+  firmware backdoors, or supply-chain compromise of the Dart VM /
+  Flutter engine / platform libraries. The Paranoid alternative is
+  the only tier that keeps the wrapped key out of OS-managed storage,
+  but even Paranoid does not protect the running unlocked process
+  from a kernel-level reader.
+- **Physical cold-RAM forensics** — attacker freezes the RAM of a
+  running or locked machine and extracts still-resident key
+  material via DMA or chip-off. `mlock` / `VirtualLock` keep keys out
+  of swap but do nothing against in-RAM physical attacks.
+- **Malicious input-method editors** — third-party keyboards on
+  Android that buffer typed text for autocorrect / cloud sync. The
+  password leaves our process the moment it is typed, before any
+  app-level code sees it. Use the system keyboard for password
+  fields; this is a user-side discipline the app does not try to
+  enforce with a non-actionable warning.
+- **Upstream dependency vulnerabilities** — `dartssh2`,
+  `pointycastle`, `xterm`, Flutter itself. Report those to the
+  respective maintainers. Scope for this repository is strictly the
+  code we wrote.
 
-- Description of the vulnerability
-- Steps to reproduce
-- Affected version(s)
-- Potential impact
+## Threat boundary
 
-### What to expect
+The defensive boundary is **OS process isolation + capabilities**, not
+"same user account". Same-user malware is a family of attackers
+ranging from unprivileged scripts (`python stealer.py`, unsigned
+installer dropped by a browser) to elevated debug-capable processes.
 
-This is a personal open-source project, so there are no guaranteed response times. That said, I take security seriously and will do my best to:
+- **Unprivileged same-user code** (no `SeDebug` / `CAP_SYS_PTRACE` /
+  debug signing) → blocked by the OS from attaching to our process:
+  `PR_SET_DUMPABLE=0` on Linux, `ptrace PT_DENY_ATTACH` on macOS,
+  `SetProcessMitigationPolicy` on Windows, sandbox on mobile. The
+  attacker sees our files — if the tier protects the file-level state
+  (T1 / T2 / Paranoid all do) the attacker gets only ciphertext.
+- **Privileged same-user code** (elevated debug privilege / root /
+  jailbreak) → can read our process memory directly. Nothing at app
+  level closes this. Our threat vocabulary (`SecurityThreat` enum,
+  surfaced in the in-app comparison table) marks `sameUserMalware`
+  and `liveProcessMemoryDump` as ✗ across every tier to keep this
+  fact explicit to users.
 
-- Acknowledge the report as soon as possible
-- Provide a fix in the next patch release
-- Credit the reporter (unless they prefer to stay anonymous)
+## KEK provider hierarchy
 
-### Scope
+The app encrypts the SQLite database under a single 256-bit key. The
+hierarchy below describes how that key — the "key-encryption-key" or
+KEK, following the industry term — is produced and stored. Choosing
+between these providers is a security-model decision; choosing
+between the orthogonal modifiers described in the next section is a
+UX decision on top of that choice.
 
-The following areas are in scope:
+### Base — OS-managed key storage (T1)
 
-- Credential storage and encryption (drift + SQLite3MultipleCiphers, AES-256-GCM)
-- Three storage modes — plaintext (DB unencrypted), OS keychain (key in system credential store), master password (PBKDF2-SHA256 600k iterations) — switchable on the fly via `PRAGMA rekey`
-- Optional biometric unlock for master-password mode (`local_auth` + biometric-gated `flutter_secure_storage` slot)
-- Optional auto-lock — idle timer zeroes the in-memory DB key and overlays a lock screen until re-authentication
-- In-memory secret protection — DB key and PBKDF2-derived archive keys live in page-locked native buffers (`mlock` on POSIX, `VirtualLock` on Windows), zeroed + munlocked + freed on dispose
-- Lazy-load credentials — session passwords / passphrases / private keys are not held in the in-memory store cache; fetched from the encrypted DB only at the moment of connect, edit, duplicate, or export
-- Process hardening at startup — `prctl(PR_SET_DUMPABLE, 0)` on Linux/Android (no core dumps, no `gdb -p` from same UID without `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS, `SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)` on Windows (suppresses WER crash dumps that would otherwise contain the cipher key)
-- SSH key handling and authentication
-- Known hosts / TOFU verification (DB-backed)
-- Export/import archive encryption (`.lfs` format, PBKDF2-SHA256 600k iterations, AES-256-GCM, atomic tmp-then-rename writes, 50 MiB pre-decrypt size cap, OpenSSH-config import rejects `..`-traversal `IdentityFile` paths)
-- Deep link URI parsing (`letsflutssh://` scheme) — host/port validation, path traversal rejection
-- File permission handling (`chmod 600` on credentials, known_hosts, config files)
-- Atomic file writes — write-to-temp-then-rename prevents data corruption on crash
-- SFTP recursion depth limit (100 levels) — prevents stack overflow on malicious paths
-- Error message sanitization (file paths stripped from user-facing errors)
+The default. The database key is held in the OS keychain
+(`Keychain` on Apple, `Credential Manager` on Windows, `libsecret` on
+Linux, `EncryptedSharedPreferences` on Android). On Apple, Android,
+and Windows the OS keychain is itself hardware-backed (Secure Enclave,
+StrongBox / TEE, DPAPI with TPM binding) — the effective guarantee is
+hardware-bound-via-OS. On Linux `libsecret` has no TPM integration;
+this is flagged honestly in the per-platform backing matrix below.
 
-### Automated Security Checks
+- Recoverable: replacing the device is transparent as long as the
+  user can transfer the keychain, and `.lfs` archives carry
+  everything except the security configuration itself (which is
+  re-established by the wizard on the new device).
+- Convenient: first-launch wizard prefers this tier when no hardware
+  vault is available.
 
-- **OSV-Scanner** — scans `pubspec.lock` against the [OSV.dev](https://osv.dev) vulnerability database on every dependency change and weekly. Results appear in the GitHub Security tab. Build releases are blocked if known CVEs are found
-- **OpenSSF Scorecard** — evaluates repository security practices (branch protection, dependency pinning, CI hardening). Results published at [scorecard.dev](https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh)
-- **CodeQL** — static analysis of GitHub Actions workflows (weekly). Dart is not supported by CodeQL; application code is covered by SonarCloud instead
-- **SonarCloud** — static analysis, code quality, coverage, and security hotspot detection for Dart/Flutter code on every CI run
-- **Dependency Review** — checks new dependencies for known vulnerabilities on pull requests
-- **Dependabot** — automated security updates (CVE-triggered) and version updates (weekly) for pub packages and GitHub Actions
-- **Pinned Dependencies** — all GitHub Actions are pinned to commit SHA hashes to prevent supply chain attacks via tag manipulation
-- **Branch Protection** — main branch requires CI and OSV-Scanner checks to pass, force pushes and branch deletion are blocked
-- **Least Privilege** — all workflows default to read-only token permissions (`permissions: read-all`), jobs explicitly request only what they need
-- **OpenSSF Best Practices** — project meets [OpenSSF Best Practices](https://www.bestpractices.dev/projects/12283) passing criteria
+### Upgrade — hardware-bound key (T2)
 
-For detailed technical documentation on the security model (credential encryption, TOFU, .lfs format, error sanitization), see [ARCHITECTURE.md §13 Security Model](ARCHITECTURE.md#13-security-model).
+An opt-in advanced option. The database key is wrapped directly by
+the hardware chip (Secure Enclave / StrongBox / TPM 2.0), producing a
+sealed blob that lives on the file system. The OS keychain is **not
+in the path**. The chip refuses to unseal without the original device.
 
-### Release signing
+- Adds **off-device extraction resistance** on top of T1. An attacker
+  with a disk image, a stolen backup, or an exfiltrated keychain
+  snapshot cannot decrypt the sealed blob elsewhere.
+- **Does not improve runtime protection.** A malicious process with
+  access to our running app will trigger the chip to unseal just as
+  easily as it would read a keychain entry. T2's value lives
+  entirely in the at-rest / off-device axis.
+- **Trades against recoverability.** A lost or replaced device chip
+  means the sealed blob cannot be unsealed again anywhere. The user
+  needs to re-run the wizard on the new device and re-add their
+  sessions from a `.lfs` archive or manual re-entry. The wizard
+  warns about this in its T2 subtitle.
+
+### Escape — derived-only (Paranoid)
+
+A separate branch, not a "higher tier". The database key is **not
+persisted** anywhere. The user chooses a master password; on every
+unlock the key is derived per-session through Argon2id (64 MiB / 3
+iterations / 4 lanes by default) and lives only in a page-locked
+native buffer during the unlocked window. On lock the buffer is
+zeroed and freed.
+
+- **Protects against OS compromise + locked-machine RAM forensics.**
+  These are the threats the numbered tiers cannot close — any tier
+  that persists the key via the OS loses to a kernel / keychain CVE
+  or a cold-RAM attack on the locked app. Paranoid keeps nothing
+  persistently, so there is nothing to steal from the locked state.
+- **Does not improve runtime protection for the unlocked app.** The
+  derived key has to be in memory to decrypt database pages; while
+  unlocked, Paranoid is no harder to attack in-process than T1 or T2.
+- Weak passwords are a real vulnerability for Paranoid — Argon2id
+  slows brute force but does not block a determined attacker against
+  a 4-digit password. A long passphrase is the actual defence. The
+  wizard subtitle carries this honesty note inline.
+
+### Per-platform trust-backing matrix
+
+The strength of each tier varies by platform. This is a property of
+the underlying OS keychain / hardware API, not of our code. The
+wizard and Settings surface the active backing level as a subtitle
+("Backing: Hardware / TEE / Secure Enclave / software") so users see
+exactly what they are relying on.
+
+| Platform | T1 backing | T2 backing |
+|---|---|---|
+| iOS | Keychain → Secure Enclave | Secure Enclave (direct) |
+| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs |
+| Android | EncryptedSharedPreferences → Keystore (StrongBox / TEE) | Keystore direct (StrongBox / TEE) |
+| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 |
+| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct via `tpm2-tools` |
+
+**Linux notes.** T1 on Linux is the weakest default across the
+matrix because `libsecret` does not integrate with TPM. Users who
+want hardware binding on Linux should pick T2 (requires a TPM 2.0 +
+`tpm2-tools`; install snippet in the main README). The biometric
+modifier on Linux flows through `fprintd` and requires at least one
+enrolled finger.
+
+## Orthogonal modifiers
+
+Modifiers are applied on top of a chosen KEK provider. They change
+the UX of the unlock path, not the KEK provider itself. They are
+"orthogonal" in the strict sense: the modifier set does not affect
+which off-device / cold-disk / OS-compromise threats the tier
+defeats. What it affects is `bystanderUnlockedMachine`, the runtime
+brute-force surface, and the set of UX moments during which the user
+is prompted for a secret.
+
+- **password** — user-typed secret. On T1 it is the primary auth
+  gate: the app compares an HMAC of the typed password against a
+  stored value before the keychain is touched, so a wrong password
+  fails without consulting the OS keychain. On T2 it is the
+  hardware-chip auth value (Linux / Windows) or a pre-unseal HMAC
+  gate (Apple / Android). Paranoid requires a password by design —
+  the key is derived from it.
+- **biometric** — shortcut that releases the typed password from a
+  biometric-gated OS slot so the user does not retype it. **Biometric
+  requires password** by invariant: biometric is a shortcut for
+  entering the password, never a replacement. The slot is gated by
+  the platform biometric ACL (`biometryCurrentSet` on Apple,
+  `setInvalidatedByBiometricEnrollment(true) + BiometricPrompt` on
+  Android, `fprintd` on Linux, `KeyCredentialManager` on Windows
+  after the CNG rewrite). Re-enrolling biometrics invalidates the
+  slot and forces a password re-entry.
+
+## Orthogonal mitigations
+
+These apply across every KEK provider and every modifier combo. They
+do not change what a tier protects against at rest; they shrink the
+attack surface during the running unlocked window, and close
+ancillary leakage channels that are independent of the tier
+architecture.
+
+- **Encrypted `.lfs` export / import** — Argon2id-derived AES-256-GCM
+  key, pre-decrypt size cap, atomic tmp-then-rename writes, and a
+  mandatory manifest. Pre-v1 archive formats (legacy headerless
+  PBKDF2, v2 PBKDF2 header, missing manifest) are rejected with
+  `UnsupportedLfsVersionException` — users re-export from the current
+  app version to cross upgrade boundaries. Archives never carry
+  per-machine security setup.
+- **Auto-lock** — idle-timer lock + mobile lifecycle-paused lock. Any
+  tier with a typed secret arms the timer (Paranoid + any tier with
+  the password modifier). The DB handle is closed on lock where
+  configured, clearing the SQLCipher page cache in addition to the
+  Dart-side key reference.
+- **Page-locked in-memory secrets** — DB key, Argon2id-derived keys,
+  and biometric-stored passwords live in FFI-allocated buffers
+  locked into physical RAM with `mlock` (POSIX) or `VirtualLock`
+  (Windows), zeroed and unlocked on dispose. They cannot page to
+  swap or hibernate.
+- **Process hardening at startup** — `prctl(PR_SET_DUMPABLE, 0)` on
+  Linux / Android (no core dumps, no `gdb -p` from same UID without
+  `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS,
+  `SetErrorMode` / mitigation policies on Windows (suppresses WER
+  crash dumps that would otherwise contain the cipher key).
+- **Known hosts / TOFU verification** — DB-backed; the host-key
+  callback refuses silent changes and surfaces an unambiguous dialog
+  with both fingerprints.
+- **Deep-link URI parsing** — `letsflutssh://` scheme with host / port
+  validation and path-traversal rejection.
+- **File permission handling** — `chmod 600` on credentials,
+  known_hosts, and config files after every write. Atomic
+  write-to-temp-then-rename prevents corruption on crash.
+- **SFTP recursion depth limit** (100 levels) — prevents stack
+  overflow on malicious server paths.
+- **Error message sanitization** — file paths, IPs, and
+  `user@host` fragments stripped from user-facing and logged errors.
+- **Reset all data** — Settings → Security carries a single
+  destructive reset path. Clears every managed file, every OS
+  keychain entry in the app namespace, every native hw-vault
+  Keystore / SE / TPM key, and the log directory. Writes a
+  `.wipe-pending` marker first so a crash mid-wipe resumes
+  idempotently on the next launch. Needed on desktop, where app
+  uninstall does not reliably purge keychain entries
+  (`macOS` / `Windows` / `Linux` leak).
+
+## Combined threat matrix
+
+The full truth table ships in-app under **Settings → Security →
+Compare all tiers** and is the same matrix the wizard exposes. It is
+generated directly from the canonical `SecurityThreat` /
+`ThreatStatus` vocabulary in `lib/core/security/threat_vocabulary.dart`
+so this document and the UI cannot drift. Short summary:
+
+| Threat | T0 | T1 | T1 + pw | T2 | T2 + pw | Paranoid |
+|---|---|---|---|---|---|---|
+| Cold disk theft | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Bystander at unlocked machine | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
+| Same-user malware (privileged) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Live process memory dump | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Offline brute force on weak pwd | n/a | n/a | weak | n/a | strong¹ | weak² |
+
+¹ T2 + pw — wrapped key is hardware-bound; an attacker with the
+sealed blob cannot brute-force it off-device, and on-device attempts
+are rate-limited by the chip's dictionary-attack lockout.
+
+² Paranoid — the password IS the entire secret. Argon2id slows
+brute force but does not block a determined attacker against a short
+password; a long passphrase is the actual defence.
+
+**Important framing:** `sameUserMalware` and `liveProcessMemoryDump`
+show ✗ across every tier. This is not a gap in the tier choice
+(runtime threats are not a KEK-provider concern); it is covered
+partially by the orthogonal mitigations above — especially process
+hardening, mlock, DB-close-on-lock, and auto-lock — which reduce the
+window and raise the bar against unprivileged same-user code. A
+privileged same-user attacker defeats everything at app level. This
+is a fundamental limit of consumer-app security; no realistic
+open-source client closes it. Commercial password managers, crypto
+wallets, and SSH clients share this ceiling.
+
+## Import / export
+
+`.lfs` archives carry portable user data — sessions, SSH keys,
+known_hosts, snippets, tags, and user preferences. They **never
+carry** `security_tier` or `security_modifiers`. Security
+configuration is strictly per-install: importing on a device B an
+archive made on device A does not try to adopt device A's
+hardware-vault setup; device B's existing security setup is
+preserved. Users re-run the wizard only when setting up a new device
+from scratch.
+
+The encryption format is AES-256-GCM under an Argon2id-derived key,
+with the `LFSE 0x02` header carrying the KDF parameters. The import
+path enforces parameter caps (`maxImportArgon2idMemoryKiB`,
+`maxImportArgon2idIterations`, `maxImportArgon2idParallelism`) so a
+hostile header cannot pin the isolate into swap. Archives declaring
+a schema version the current build does not understand are rejected
+with `UnsupportedLfsVersionException` rather than silently dropping
+unknown fields.
+
+## Known limits
+
+- The running unlocked app must hold the decrypted DB key in process
+  memory. Streaming every SQLite page decrypt through a TPM would
+  kill performance (thousands of 10 ms chip operations per query).
+  No consumer SSH client does this; the limit is inherent to the
+  workload.
+- Linux T1 (libsecret) has no TPM integration. If the user wants
+  hardware binding on Linux, T2 is the path; T1 on Linux is
+  software-backed.
+- Biometric modifier on Linux requires `fprintd` as an opt-in OS
+  dep. Without it the biometric toggle is rendered disabled with a
+  tooltip pointing to the README install snippet.
+- Reset-all-data cannot reach backup archives that have already left
+  the device (iCloud backup, Time Machine, Android Auto Backup,
+  Windows File History). Users exporting the app's app-support
+  directory to external storage should understand that that
+  snapshot carries the sealed blob + salt + KDF params + metadata
+  and should be treated accordingly; the sealed blob without the
+  original hardware is not directly decryptable, but the metadata
+  leakage is real.
+
+## Release signing
 
 Each release is signed by a single Ed25519 signature over a
 `.sha256sums` manifest that lists every artefact and its sha256
 digest. Two files are published alongside the binaries:
 
-- `letsflutssh-<version>.sha256sums` — plaintext manifest, `sha256sum`
-  format (compatible with `sha256sum --check`)
+- `letsflutssh-<version>.sha256sums` — plaintext manifest,
+  `sha256sum` format (compatible with `sha256sum --check`)
 - `letsflutssh-<version>.sha256sums.sig` — detached Ed25519 signature
   over the manifest
 
@@ -81,8 +359,8 @@ A MITM'd GitHub response cannot forge a manifest signature without
 the private key.
 
 **Trust anchor.** The baked public key in the installed binary — not
-anything downloaded at update time. We intentionally do **not**
-publish the PEM public key alongside the release: a `.pub` file
+anything downloaded at update time. The PEM public key is
+intentionally **not** published alongside the release: a `.pub` file
 served from a hostile mirror would be byte-consistent with a forged
 manifest + signature, implying an authenticity check it cannot
 actually provide.
@@ -113,8 +391,8 @@ for a solo-dev repo, is survivable with a manual reinstall.
 **If the private key leaks.** The auto-update channel is effectively
 dead for existing installs. Incident response:
 
-1. Rotate the `RELEASE_SIGNING_KEY` GitHub secret to an entirely fresh
-   Ed25519 key pair (generated offline).
+1. Rotate the `RELEASE_SIGNING_KEY` GitHub secret to an entirely
+   fresh Ed25519 key pair (generated offline).
 2. Replace the `_pinnedPublicKeys` entry in
    `lib/core/update/release_signing.dart` with the fresh public key.
 3. Cut a new release. Existing installs will refuse to auto-update
@@ -127,8 +405,75 @@ dead for existing installs. Incident response:
 ship a new release, users reinstall manually. No auto-update across
 the boundary.
 
-### Out of scope
+## Automated security checks
 
-- Vulnerabilities in upstream dependencies (`dartssh2`, `pointycastle`, `xterm`) — please report those to their maintainers directly
-- Denial of service via local access
-- Issues requiring physical device access
+- **OSV-Scanner** — scans `pubspec.lock` against the
+  [OSV.dev](https://osv.dev) vulnerability database on every
+  dependency change and weekly. Results appear in the GitHub
+  Security tab. Build releases are blocked if known CVEs are found.
+- **OpenSSF Scorecard** — evaluates repository security practices
+  (branch protection, dependency pinning, CI hardening). Results
+  published at
+  [scorecard.dev](https://scorecard.dev/viewer/?uri=github.com/Llloooggg/LetsFLUTssh).
+- **CodeQL** — static analysis of GitHub Actions workflows (weekly).
+  Dart is not supported by CodeQL; application code is covered by
+  SonarCloud instead.
+- **SonarCloud** — static analysis, code quality, coverage, and
+  security hotspot detection for Dart / Flutter code on every CI
+  run.
+- **Dependency Review** — checks new dependencies for known
+  vulnerabilities on pull requests.
+- **Dependabot** — automated security updates (CVE-triggered) and
+  version updates (weekly) for pub packages and GitHub Actions.
+- **Pinned Dependencies** — all GitHub Actions are pinned to commit
+  SHA hashes to prevent supply chain attacks via tag manipulation.
+- **Branch Protection** — main branch requires CI and OSV-Scanner
+  checks to pass, force pushes and branch deletion are blocked.
+- **Least Privilege** — all workflows default to read-only token
+  permissions (`permissions: read-all`), jobs explicitly request only
+  what they need.
+- **OpenSSF Best Practices** — project meets
+  [OpenSSF Best Practices](https://www.bestpractices.dev/projects/12283)
+  passing criteria.
+
+## Reporting a vulnerability
+
+If you discover a security vulnerability in LetsFLUTssh, **please do
+not open a public issue**.
+
+Instead, report it privately via
+**[GitHub Security Advisories](https://github.com/llloooggg/LetsFLUTssh/security/advisories/new)**.
+
+### What to include
+
+- Description of the vulnerability
+- Steps to reproduce
+- Affected version(s)
+- Potential impact
+
+### What to expect
+
+This is a personal open-source project, so there are no guaranteed
+response times. That said, I take security seriously and will do my
+best to:
+
+- Acknowledge the report as soon as possible
+- Provide a fix in the next patch release
+- Credit the reporter (unless they prefer to stay anonymous)
+
+## Supported versions
+
+Security updates are applied to the **latest release** only. Older
+versions are not supported.
+
+Check [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases)
+for the current version.
+
+## Out of scope
+
+- Vulnerabilities in upstream dependencies (`dartssh2`,
+  `pointycastle`, `xterm`) — please report those to their maintainers
+  directly.
+- Denial of service via local access.
+- Issues requiring physical device access (cold-RAM attacks, chip
+  probes, boot-media swaps).

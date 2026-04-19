@@ -852,12 +852,6 @@ class SKo extends S {
   String get tierKeychainUnavailable => '이 설치에서 OS 키체인을 사용할 수 없습니다.';
 
   @override
-  String get tierKeychainPassLabel => '키체인 + 비밀번호';
-
-  @override
-  String get tierKeychainPassSubtitle => '키체인 앞 짧은 비밀번호(행인 게이트)';
-
-  @override
   String get tierKeychainPassProtect1 => '당신의 책상에 앉은 동료';
 
   @override
@@ -912,28 +906,7 @@ class SKo extends S {
   String get tierHardwareUnavailable => '이 설치에서는 하드웨어 금고를 사용할 수 없습니다.';
 
   @override
-  String get tierKeychainPassSetPrompt => '짧은 비밀번호 설정';
-
-  @override
-  String get tierKeychainPassSetHint => '키체인 앞의 게이트로 사용됩니다';
-
-  @override
-  String get tierHardwarePinSetPrompt => '4–6자리 PIN 설정';
-
-  @override
-  String get tierHardwarePinSetHint => '하드웨어 잠금이 PIN 추측을 지연시킵니다';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'PIN 확인';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN은 4–6자리 숫자여야 합니다';
-
-  @override
-  String get pinsDoNotMatch => 'PIN이 일치하지 않습니다';
 
   @override
   String get l2UnlockTitle => '비밀번호 필요';
@@ -1378,10 +1351,6 @@ class SKo extends S {
 
   @override
   String get biometricBackingSoftware => '소프트웨어 기반';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      '자동 잠금을 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
 
   @override
   String get currentPasswordIncorrect => '현재 비밀번호가 올바르지 않습니다';

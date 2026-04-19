@@ -879,13 +879,6 @@ class STr extends S {
       'Bu kurulumda işletim sistemi anahtarlığı kullanılamıyor.';
 
   @override
-  String get tierKeychainPassLabel => 'Anahtarlık + parola';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Anahtarlığın önünde kısa parola (yoldan geçen kapısı)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Masanızda oturan iş arkadaşı';
 
   @override
@@ -951,30 +944,7 @@ class STr extends S {
       'Bu kurulumda donanım kasası kullanılamıyor.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Kısa bir şifre seçin';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'Anahtarlığın önünde geçit olarak kullanılır';
-
-  @override
-  String get tierHardwarePinSetPrompt => '4–6 haneli PIN seçin';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'Donanım kilidi PIN tahminini yavaşlatır';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'PIN\'i onaylayın';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN 4–6 haneli olmalıdır';
-
-  @override
-  String get pinsDoNotMatch => 'PIN\'ler eşleşmiyor';
 
   @override
   String get l2UnlockTitle => 'Şifre gerekli';
@@ -1433,10 +1403,6 @@ class STr extends S {
 
   @override
   String get biometricBackingSoftware => 'Yazılım destekli';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Otomatik kilidi etkinleştirmek için önce bir ana parola belirleyin.';
 
   @override
   String get currentPasswordIncorrect => 'Mevcut parola yanlış';

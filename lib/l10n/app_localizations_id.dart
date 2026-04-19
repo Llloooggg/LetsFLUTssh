@@ -878,13 +878,6 @@ class SId extends S {
       'Keychain OS tidak tersedia pada instalasi ini.';
 
   @override
-  String get tierKeychainPassLabel => 'Keychain + kata sandi';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Kata sandi pendek di depan keychain (gerbang terhadap pelintas)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Rekan kerja yang duduk di meja Anda';
 
   @override
@@ -947,30 +940,7 @@ class SId extends S {
       'Brankas perangkat keras tidak tersedia pada instalasi ini.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Pilih kata sandi pendek';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'Digunakan sebagai gerbang di depan keychain';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'Pilih PIN 4–6 digit';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'Penguncian perangkat keras memperlambat tebakan PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Konfirmasi PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN harus 4–6 digit';
-
-  @override
-  String get pinsDoNotMatch => 'PIN tidak cocok';
 
   @override
   String get l2UnlockTitle => 'Kata sandi diperlukan';
@@ -1431,10 +1401,6 @@ class SId extends S {
 
   @override
   String get biometricBackingSoftware => 'Didukung perangkat lunak';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan kunci otomatis.';
 
   @override
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';

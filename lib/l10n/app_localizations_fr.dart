@@ -883,13 +883,6 @@ class SFr extends S {
       'Trousseau du SE indisponible sur cette installation.';
 
   @override
-  String get tierKeychainPassLabel => 'Trousseau + mot de passe';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Mot de passe court devant le trousseau (barrière contre passants)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Collègue assis à votre bureau';
 
   @override
@@ -954,31 +947,7 @@ class SFr extends S {
       'Coffre matériel indisponible sur cette installation.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Choisissez un mot de passe court';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'Utilisé comme filtre devant le trousseau';
-
-  @override
-  String get tierHardwarePinSetPrompt =>
-      'Choisissez un code PIN à 4–6 chiffres';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'Le verrouillage matériel ralentit les essais de PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Confirmer le PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'Le PIN doit contenir 4–6 chiffres';
-
-  @override
-  String get pinsDoNotMatch => 'Les PIN ne correspondent pas';
 
   @override
   String get l2UnlockTitle => 'Mot de passe requis';
@@ -1443,10 +1412,6 @@ class SFr extends S {
 
   @override
   String get biometricBackingSoftware => 'Sauvegardé par logiciel';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Définissez d\'abord un mot de passe principal pour activer le verrouillage automatique.';
 
   @override
   String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';

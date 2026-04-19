@@ -872,13 +872,6 @@ class SVi extends S {
       'Keychain của HĐH không khả dụng trên bản cài đặt này.';
 
   @override
-  String get tierKeychainPassLabel => 'Keychain + mật khẩu';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Mật khẩu ngắn trước Keychain (cổng chống người qua đường)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Đồng nghiệp ngồi tại bàn của bạn';
 
   @override
@@ -940,28 +933,7 @@ class SVi extends S {
       'Kho phần cứng không có sẵn trên cài đặt này.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Chọn mật khẩu ngắn';
-
-  @override
-  String get tierKeychainPassSetHint => 'Dùng như cổng chặn trước keychain';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'Chọn mã PIN 4–6 chữ số';
-
-  @override
-  String get tierHardwarePinSetHint => 'Khóa phần cứng làm chậm việc đoán PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Xác nhận PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN phải có 4–6 chữ số';
-
-  @override
-  String get pinsDoNotMatch => 'Mã PIN không khớp';
 
   @override
   String get l2UnlockTitle => 'Cần mật khẩu';
@@ -1418,10 +1390,6 @@ class SVi extends S {
 
   @override
   String get biometricBackingSoftware => 'Hỗ trợ phần mềm';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Hãy đặt mật khẩu chính trước để bật tự động khóa.';
 
   @override
   String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';

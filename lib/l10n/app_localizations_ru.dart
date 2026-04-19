@@ -878,13 +878,6 @@ class SRu extends S {
       'Keychain ОС недоступен в этой установке.';
 
   @override
-  String get tierKeychainPassLabel => 'Keychain + пароль';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Короткий пароль перед keychain (защита от прохожих)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Коллега за вашим столом';
 
   @override
@@ -946,29 +939,7 @@ class SRu extends S {
       'Аппаратное хранилище недоступно на этой установке.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Выберите короткий пароль';
-
-  @override
-  String get tierKeychainPassSetHint => 'Используется как шлюз перед ключницей';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'Выберите PIN из 4–6 цифр';
-
-  @override
-  String get tierHardwarePinSetHint =>
-      'Аппаратная блокировка замедляет подбор PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'Подтвердите PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN должен содержать 4–6 цифр';
-
-  @override
-  String get pinsDoNotMatch => 'PIN-коды не совпадают';
 
   @override
   String get l2UnlockTitle => 'Требуется пароль';
@@ -1427,10 +1398,6 @@ class SRu extends S {
 
   @override
   String get biometricBackingSoftware => 'Программная защита';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Сначала задайте мастер-пароль, чтобы включить авто-блокировку.';
 
   @override
   String get currentPasswordIncorrect => 'Неверный текущий пароль';

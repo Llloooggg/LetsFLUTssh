@@ -880,13 +880,6 @@ class SDe extends S {
       'OS-Schlüsselbund auf dieser Installation nicht verfügbar.';
 
   @override
-  String get tierKeychainPassLabel => 'Schlüsselbund + Passwort';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'Kurzes Passwort vor dem Schlüsselbund (Passant-Gatter)';
-
-  @override
   String get tierKeychainPassProtect1 => 'Kollege an Ihrem Schreibtisch';
 
   @override
@@ -952,29 +945,7 @@ class SDe extends S {
       'Hardware-Tresor in dieser Installation nicht verfügbar.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'Kurzes Passwort wählen';
-
-  @override
-  String get tierKeychainPassSetHint =>
-      'Wird als Sperre vor dem Schlüsselbund verwendet';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'PIN aus 4–6 Ziffern wählen';
-
-  @override
-  String get tierHardwarePinSetHint => 'Hardware-Sperre erschwert PIN-Erraten';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'PIN bestätigen';
-
-  @override
-  String get pinMustBe4To6Digits => 'PIN muss 4–6 Ziffern haben';
-
-  @override
-  String get pinsDoNotMatch => 'PINs stimmen nicht überein';
 
   @override
   String get l2UnlockTitle => 'Passwort erforderlich';
@@ -1440,10 +1411,6 @@ class SDe extends S {
 
   @override
   String get biometricBackingSoftware => 'Software-gestützt';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'Legen Sie zuerst ein Masterpasswort fest, um die Auto-Sperre zu aktivieren.';
 
   @override
   String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';

@@ -876,13 +876,6 @@ class SAr extends S {
       'سلسلة مفاتيح النظام غير متوفرة في هذه النسخة.';
 
   @override
-  String get tierKeychainPassLabel => 'سلسلة مفاتيح + كلمة مرور';
-
-  @override
-  String get tierKeychainPassSubtitle =>
-      'كلمة مرور قصيرة أمام سلسلة المفاتيح (بوابة ضد المارّين)';
-
-  @override
   String get tierKeychainPassProtect1 => 'زميل يجلس على مكتبك';
 
   @override
@@ -942,28 +935,7 @@ class SAr extends S {
       'خزينة الأجهزة غير متاحة في هذا التثبيت.';
 
   @override
-  String get tierKeychainPassSetPrompt => 'اختر كلمة مرور قصيرة';
-
-  @override
-  String get tierKeychainPassSetHint => 'تُستخدم كبوابة أمام سلسلة المفاتيح';
-
-  @override
-  String get tierHardwarePinSetPrompt => 'اختر رمز PIN من 4–6 أرقام';
-
-  @override
-  String get tierHardwarePinSetHint => 'إقفال الأجهزة يبطئ تخمين رمز PIN';
-
-  @override
   String get pinLabel => 'PIN';
-
-  @override
-  String get confirmPin => 'تأكيد رمز PIN';
-
-  @override
-  String get pinMustBe4To6Digits => 'يجب أن يتكون رمز PIN من 4–6 أرقام';
-
-  @override
-  String get pinsDoNotMatch => 'رموز PIN غير متطابقة';
 
   @override
   String get l2UnlockTitle => 'كلمة المرور مطلوبة';
@@ -1418,10 +1390,6 @@ class SAr extends S {
 
   @override
   String get biometricBackingSoftware => 'مدعوم بالبرنامج';
-
-  @override
-  String get autoLockRequiresMasterPassword =>
-      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين القفل التلقائي.';
 
   @override
   String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
