@@ -217,6 +217,19 @@ Every diagram in `docs/**/*.md`, `README.md`, `SECURITY.md` and any other git-tr
 
 The raw-text trade-off is accepted: a Mermaid source block is readable as a node+edge listing in `cat`/`less`/IDE, the SVG is the GitHub-web benefit. Do not add ASCII "fallbacks" via `<details>` — that doubles the source and rots under edits.
 
+### Plan-Item IDs Stay Internal
+Plans, session notes, backlogs, internal docs live **outside git** (`~/.claude/plans/*`, `SECURITY_BACKLOG.md`, `~/.claude/projects/*/memory/*`, etc.). Never reference their identifiers — `P1.2-*`, `A1`, `D1`, `Phase E1`, `Phase G1`, `Phase F2`, `Task 3.2`, and anything of that shape — in any file that lands in `git`:
+
+- Commit titles and bodies
+- Code comments and docstrings
+- Filenames and section headers
+- `README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `CLAUDE.md`, `AGENT_RULES.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
+- Any other tracked artefact
+
+If a commit needs to explain "why this change came with that change", describe the reason **prose-wise**: `"ships alongside the overlay methods added to the native plugins"` — not `"wraps up Phase D1"`. Plan IDs are an internal shorthand for in-session tracking only; readers of git history have no access to that context, and any ID reference ages into noise the moment the plan is superseded.
+
+**Review check:** before staging, grep your diff for `/P[0-9]/`, `/Phase [A-Z][0-9]/`, `/Task [0-9]/`, `/[A-Z][0-9] /` — false positives are cheap, leaked IDs are forever.
+
 ## Code Quality — SonarCloud
 
 All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit that touches Dart code. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden, always fix the root cause.

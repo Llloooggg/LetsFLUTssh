@@ -198,5 +198,61 @@ void main() {
         expect(await keyStorage.readKey(), equals(key));
       });
     });
+
+    group('biometric-gated key', () {
+      test('writeBiometricKey + readBiometricKey round-trip', () async {
+        final key = Uint8List.fromList(
+          List.generate(32, (i) => (i * 7) & 0xFF),
+        );
+        expect(await keyStorage.writeBiometricKey(key), isTrue);
+        expect(await keyStorage.readBiometricKey(), equals(key));
+      });
+
+      test(
+        'biometric key lives under a distinct alias — not readable via readKey',
+        () async {
+          final key = Uint8List.fromList(List.generate(32, (i) => i));
+          await keyStorage.writeBiometricKey(key);
+          expect(
+            await keyStorage.readKey(),
+            isNull,
+            reason: 'plain readKey() must not return the biometric-gated alias',
+          );
+        },
+      );
+
+      test('plain writeKey does not populate the biometric alias', () async {
+        final key = Uint8List.fromList(List.generate(32, (i) => i));
+        await keyStorage.writeKey(key);
+        expect(await keyStorage.readBiometricKey(), isNull);
+      });
+
+      test('deleteBiometricKey clears only the biometric alias', () async {
+        final keyA = Uint8List.fromList(List.generate(32, (i) => i));
+        final keyB = Uint8List.fromList(
+          List.generate(32, (i) => (i * 3) & 0xFF),
+        );
+        await keyStorage.writeKey(keyA);
+        await keyStorage.writeBiometricKey(keyB);
+
+        await keyStorage.deleteBiometricKey();
+
+        expect(await keyStorage.readKey(), equals(keyA));
+        expect(await keyStorage.readBiometricKey(), isNull);
+      });
+
+      test('writeBiometricKey surfaces failures as false', () async {
+        fakeStorage.shouldThrow = true;
+        final key = Uint8List.fromList(List.generate(32, (i) => i));
+        expect(await keyStorage.writeBiometricKey(key), isFalse);
+      });
+
+      test('readBiometricKey returns null on backing-store failure', () async {
+        final key = Uint8List.fromList(List.generate(32, (i) => i));
+        await keyStorage.writeBiometricKey(key);
+        fakeStorage.shouldThrow = true;
+        expect(await keyStorage.readBiometricKey(), isNull);
+      });
+    });
   });
 }

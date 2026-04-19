@@ -534,8 +534,15 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   ]) async {
     final store = ref.read(sessionStoreProvider);
     final db = store.database;
-    final markerPayload = '{"tier":"${_tierName(level)}"}';
     final resolvedMods = modifiers ?? SecurityTierModifiers.defaults;
+    // Marker payload carries tier + modifiers so a crash-recovery
+    // path can reconstruct the target config and drive the right
+    // unlock prompt (password? biometric? no gate?) instead of
+    // falling back to whatever the enum alone suggests.
+    final markerPayload = jsonEncode({
+      'tier': _tierName(level),
+      'mods': resolvedMods.toJson(),
+    });
     // Bind the constructor-time callbacks to the current key /
     // current-db pair. A fresh switcher instance per call is fine —
     // the marker file is the authoritative state, not the instance.

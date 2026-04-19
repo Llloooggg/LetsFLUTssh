@@ -27,6 +27,7 @@ import '../../utils/logger.dart';
 /// [deleteKey]. Other platforms keep the original behaviour.
 class SecureKeyStorage {
   static const _keyName = 'letsflutssh_encryption_key';
+  static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
   static const _probeName = 'letsflutssh_keychain_probe';
   static const _markerFile = 'keychain_enabled';
 
@@ -199,6 +200,100 @@ class SecureKeyStorage {
         name: 'SecureKeyStorage',
       );
       return false;
+    }
+  }
+
+  /// Variant of [writeKey] that stores the key under a biometric-
+  /// gated access-control policy.
+  ///
+  /// On Apple (iOS / macOS) the entry is written with
+  /// `AccessControlFlag.biometryCurrentSet` so any biometric
+  /// enrolment change (adding / removing a finger, re-enrolling Face
+  /// ID) invalidates the stored key and forces re-entry of the typed
+  /// password. On Android `flutter_secure_storage`'s
+  /// `AndroidOptions(encryptedSharedPreferences: true)` does the
+  /// best available job inside the package's current API surface;
+  /// the stronger native-backed biometric-gated Keystore flow routes
+  /// through the hardware-vault plugin (`storeBiometricPassword` /
+  /// `readBiometricPassword`) rather than this path. On Linux and
+  /// Windows `flutter_secure_storage` does not expose a biometric
+  /// ACL option in this package — the write falls through to a
+  /// plain entry and the caller is responsible for gating access
+  /// via the platform's own biometric prompt before calling
+  /// [readBiometricKey].
+  ///
+  /// Paired with [readBiometricKey]; the two share the alias so a
+  /// biometric-written key cannot be read back via [readKey] and
+  /// vice versa.
+  Future<bool> writeBiometricKey(Uint8List key) async {
+    if (!_hasKeychainSupport()) return false;
+    try {
+      await _storage.write(
+        key: _biometricKeyName,
+        value: base64Encode(key),
+        iOptions: const IOSOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+        mOptions: const MacOsOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+      );
+      if (Platform.isLinux && !_skipPlatformCheck) await _writeMarker();
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to write biometric key to keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
+  }
+
+  /// Pair of [writeBiometricKey]. Returns null when:
+  ///   * no biometric entry exists;
+  ///   * the user failed / cancelled the biometric prompt;
+  ///   * enrolment changed since the write (Apple
+  ///     `biometryCurrentSet` invalidation).
+  Future<Uint8List?> readBiometricKey() async {
+    if (!_hasKeychainSupport()) return null;
+    if (!await _linuxGatePass()) return null;
+    try {
+      final value = await _storage.read(
+        key: _biometricKeyName,
+        iOptions: const IOSOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+        mOptions: const MacOsOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+      );
+      if (value == null) return null;
+      return base64Decode(value);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to read biometric key from keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+      return null;
+    }
+  }
+
+  /// Drop the biometric-gated key. Always called in lockstep with
+  /// [deleteKey] — the two never exist together on the same install.
+  Future<void> deleteBiometricKey() async {
+    if (!_hasKeychainSupport()) return;
+    if (!await _linuxGatePass()) return;
+    try {
+      await _storage.delete(key: _biometricKeyName);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to delete biometric key from keychain: $e',
+        name: 'SecureKeyStorage',
+      );
     }
   }
 
