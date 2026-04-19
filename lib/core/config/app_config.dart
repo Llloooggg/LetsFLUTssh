@@ -469,6 +469,21 @@ class AppConfig {
     if (security != null) 'security_modifiers': security!.modifiers.toJson(),
   };
 
+  /// Portable JSON for `.lfs` archive export. Strips every field that
+  /// describes the LOCAL machine's security setup — `security_tier`,
+  /// `security_modifiers`, `config_schema_version` — so importing the
+  /// archive on a different machine does not try to adopt the
+  /// exporter's tier / modifier shape. The security configuration is
+  /// strictly per-install and is re-established through the wizard
+  /// on each new device.
+  Map<String, dynamic> toJsonForExport() {
+    final json = toJson();
+    json.remove('security_tier');
+    json.remove('security_modifiers');
+    json.remove('config_schema_version');
+    return json;
+  }
+
   factory AppConfig.fromJson(Map<String, dynamic> json) {
     const d = AppConfig.defaults;
     return AppConfig(

@@ -691,8 +691,17 @@ class _ExportImportTile extends ConsumerWidget {
             ref.read(sessionProvider.notifier).addEmptyFolder(f),
         deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
         getSessions: () => ref.read(sessionProvider),
-        applyConfig: (config) =>
-            ref.read(configProvider.notifier).update((_) => config),
+        applyConfig: (importedConfig) => ref
+            .read(configProvider.notifier)
+            .update(
+              // `security` describes the per-machine setup: which
+              // keychain slot, which hw vault, which DB-key wrapper.
+              // It must NEVER travel across machines via the archive
+              // — importing on machine B should not try to unlock a
+              // hardware vault that belongs to machine A's TPM. Keep
+              // the local value, merge everything else.
+              (current) => importedConfig.copyWith(security: current.security),
+            ),
         saveManagerKey: (entry) => keyStore.importForMerge(entry),
         saveTag: (tag) async {
           await tagStore.add(tag);

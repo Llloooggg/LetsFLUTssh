@@ -524,7 +524,11 @@ class ExportImport {
 
   static void _addConfig(Archive archive, LfsExportInput input) {
     if (!input.options.includeConfig) return;
-    _addRawJson(archive, _configFile, input.config.toJson());
+    // `toJsonForExport()` strips per-machine security setup — the
+    // archive carries portable user data only. Imports use the
+    // local machine's existing `security` configuration regardless
+    // of what the archive was originally exported from.
+    _addRawJson(archive, _configFile, input.config.toJsonForExport());
   }
 
   static void _addKnownHosts(Archive archive, LfsExportInput input) {
