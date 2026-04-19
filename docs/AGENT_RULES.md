@@ -56,7 +56,11 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 ## Docs First — Read Before, Fix Drift, Update After
 
-Six-step discipline for any work (planning **and** editing) that touches a module documented in `ARCHITECTURE.md`:
+**This is the single most important discipline in the project.** The code is temporary; the docs are how intent survives across agents, sessions, and refactors. A codebase with stale or thin docs decays into a graph future agents re-derive from grep — slowly, expensively, and with different conclusions each time. **Treat `ARCHITECTURE.md` as a first-class deliverable, not a byproduct of the code.** Every task — planning, editing, bug-fixing, refactor, review — is also a docs task. Reading, keeping the docs current, and extending them (new §s, cross-links, TOC entries, CLAUDE.md / AGENT_RULES.md nav rows) is load-bearing work, not overhead. When in doubt between "write less doc" and "write more doc", write more.
+
+**What "describe" means in this project:** every § must cover both *how the thing works* (the mechanism — states, inputs, outputs, invariants, failure modes) **and** *why it is that way* (the rationale — the constraint, the past incident, the alternative that was rejected and why, the trade-off accepted). A § that answers only "how" leaves the next agent to guess at intent; a § that answers only "why" leaves them to re-derive the mechanism. Both are required.
+
+Seven-step discipline for any work (planning **and** editing) that touches a module documented in `ARCHITECTURE.md`:
 
 1. **TOC → specific §, never cover-to-cover.** `ARCHITECTURE.md` is 3000+ lines; reading it whole wastes context and pushes the detail you need out of working memory. The strict order is:
    - **(a) Consult the table of contents first** — either the [Within ARCHITECTURE.md nav](#within-architecturemd) in this file or the [CLAUDE.md Action → Read table](../CLAUDE.md#action--read-this-mandatory-before-acting), or the TOC at the top of `ARCHITECTURE.md` itself. The TOC is the index, not optional scaffolding.
@@ -94,7 +98,17 @@ Six-step discipline for any work (planning **and** editing) that touches a modul
 
    This step closes the "I renamed a § and now three files silently link to an empty anchor" failure mode. It applies equally to renaming a § in `ARCHITECTURE.md`, a rule in `AGENT_RULES.md`, a bullet in `CLAUDE.md`, or a file itself (moved `docs/X.md` → update everything that links to the old path).
 
-This rule binds every code edit **and every plan**, not just "big" ones. "Forgot to check docs", "the docs didn't say", "the related § was hidden", and "the link broke because I renamed the target" are all invalid reasons: step 1 names the TOC + nav, step 2 names the remedy when the nav points at an empty answer, step 5 names the remedy when cross-references are missing, and step 6 names the remedy when you yourself moved the target.
+7. **Extend the docs proactively — don't wait to be blocked.** If while reading an § (even for an unrelated task) you notice that a non-trivial behaviour is under-documented, an important invariant is only implicit in the code, a flow's rationale is missing, or a § only covers "how" without "why" (or vice versa), **write it up** — in the same commit if the scope is small and related, or in a dedicated `docs(architecture): expand §X …` commit if the gap is bigger. You do not need permission to extend the docs; extending them is the default, thinning them is what requires justification. Concrete triggers for a proactive write:
+   - The code makes a non-obvious choice (a lock ordering, a specific retry budget, a fallback path) with no matching § paragraph explaining *why* that choice was made.
+   - A §-level description says *what* the module does but not *how* it does it, or *how* but not *why*.
+   - A §-level description is a single paragraph for a module that has real complexity; split it into sub-sections so each sub-behaviour has a link target.
+   - Two §s describe related behaviour without cross-linking (fold into step 5 — add the missing link).
+   - A past bugfix commit message explains a subtle constraint that is *not* reflected in the docs; lift the constraint into the § so the next reader sees it without digging through git log.
+   - A "magic number" or "seemingly arbitrary default" appears in code without matching explanation in the § — document the value + the reasoning.
+
+   The quality bar: after your proactive write, a new reader opening only the § should be able to answer both *"what does this do?"* and *"why is it shaped this way?"* without opening the code. If they still have to open the code for intent, the § is still too thin.
+
+This rule binds every code edit **and every plan**, not just "big" ones. "Forgot to check docs", "the docs didn't say", "the related § was hidden", "the link broke because I renamed the target", and "the gap wasn't blocking me" are all invalid reasons: step 1 names the TOC + nav, step 2 names the remedy when the nav points at an empty answer, step 5 names the remedy when cross-references are missing, step 6 names the remedy when you yourself moved the target, and step 7 names the remedy when the gap is noticed outside the critical path.
 
 ## Documentation Maintenance Checklist
 
