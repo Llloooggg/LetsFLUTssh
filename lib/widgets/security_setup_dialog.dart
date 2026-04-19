@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'password_strength_meter.dart';
+import 'secure_screen_scope.dart';
 import 'security_comparison_table.dart';
 import 'toast.dart';
 
@@ -264,14 +265,16 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: _buildContent(S.of(context)),
+    return SecureScreenScope(
+      child: PopScope(
+        canPop: false,
+        child: Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: _buildContent(S.of(context)),
+            ),
           ),
         ),
       ),

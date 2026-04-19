@@ -7,6 +7,7 @@ import '../core/security/password_rate_limiter.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'secure_screen_scope.dart';
 
 /// Shared unlock-dialog shell for the tier-secret paths (L2 short
 /// password, L3 PIN). Owns the retry loop: the host supplies a
@@ -216,113 +217,115 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   Widget build(BuildContext context) {
     final l10n = S.of(context);
     final theme = Theme.of(context);
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
-                const SizedBox(height: 16),
-                Text(
-                  widget.title,
-                  style: TextStyle(
-                    fontSize: AppFonts.xl,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.hint,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: AppFonts.md,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (_wrong) ...[
+    return SecureScreenScope(
+      child: PopScope(
+        canPop: false,
+        child: Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
+                  const SizedBox(height: 16),
                   Text(
-                    widget.wrongSecretLabel,
+                    widget.title,
                     style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: AppFonts.sm,
+                      fontSize: AppFonts.xl,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
-                ],
-                if (_cooldown.isLocked) ...[
                   Text(
-                    l10n.tierCooldownHint(
-                      _cooldown.cooldownRemaining!.inSeconds + 1,
-                    ),
+                    widget.hint,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: AppFonts.sm,
+                      fontSize: AppFonts.md,
+                      color: AppTheme.fgDim,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                ],
-                TextField(
-                  controller: _ctrl,
-                  focusNode: _focus,
-                  autofocus: true,
-                  obscureText: _obscure,
-                  enabled: !_busy,
-                  keyboardType: widget.numeric
-                      ? TextInputType.number
-                      : TextInputType.visiblePassword,
-                  inputFormatters: widget.numeric
-                      ? [FilteringTextInputFormatter.digitsOnly]
-                      : null,
-                  maxLength: widget.maxLength,
-                  onSubmitted: (_) => _submit(),
-                  decoration: InputDecoration(
-                    labelText: widget.inputLabel,
-                    border: const OutlineInputBorder(),
-                    counterText: '',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility,
+                  const SizedBox(height: 20),
+                  if (_wrong) ...[
+                    Text(
+                      widget.wrongSecretLabel,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: AppFonts.sm,
                       ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (_cooldown.isLocked) ...[
+                    Text(
+                      l10n.tierCooldownHint(
+                        _cooldown.cooldownRemaining!.inSeconds + 1,
+                      ),
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: AppFonts.sm,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  TextField(
+                    controller: _ctrl,
+                    focusNode: _focus,
+                    autofocus: true,
+                    obscureText: _obscure,
+                    enabled: !_busy,
+                    keyboardType: widget.numeric
+                        ? TextInputType.number
+                        : TextInputType.visiblePassword,
+                    inputFormatters: widget.numeric
+                        ? [FilteringTextInputFormatter.digitsOnly]
+                        : null,
+                    maxLength: widget.maxLength,
+                    onSubmitted: (_) => _submit(),
+                    decoration: InputDecoration(
+                      labelText: widget.inputLabel,
+                      border: const OutlineInputBorder(),
+                      counterText: '',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                if (_busy) ...[
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ] else ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _cooldown.isLocked ? null : _submit,
-                      child: Text(l10n.unlock),
+                  const SizedBox(height: 20),
+                  if (_busy) ...[
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  ),
-                  if (widget.onReset != null) ...[
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: _reset,
-                      child: Text(
-                        l10n.forgotPassword,
-                        style: TextStyle(
-                          fontSize: AppFonts.sm,
-                          color: AppTheme.fgDim,
+                  ] else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _cooldown.isLocked ? null : _submit,
+                        child: Text(l10n.unlock),
+                      ),
+                    ),
+                    if (widget.onReset != null) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _reset,
+                        child: Text(
+                          l10n.forgotPassword,
+                          style: TextStyle(
+                            fontSize: AppFonts.sm,
+                            color: AppTheme.fgDim,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

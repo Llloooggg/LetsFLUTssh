@@ -11,6 +11,7 @@ import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
+import 'secure_screen_scope.dart';
 
 /// Full-screen unlock dialog shown at startup when master password is enabled.
 ///
@@ -293,129 +294,131 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     final l10n = S.of(context);
     final theme = Theme.of(context);
 
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.masterPassword,
-                  style: TextStyle(
-                    fontSize: AppFonts.xl,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.enterMasterPassword,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: AppFonts.md,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (_wrongPassword) ...[
+    return SecureScreenScope(
+      child: PopScope(
+        canPop: false,
+        child: Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
+                  const SizedBox(height: 16),
                   Text(
-                    l10n.wrongMasterPassword,
+                    l10n.masterPassword,
                     style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: AppFonts.sm,
+                      fontSize: AppFonts.xl,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
-                ],
-                if (_cooldown.isLocked) ...[
                   Text(
-                    l10n.tierCooldownHint(
-                      _cooldown.cooldownRemaining!.inSeconds + 1,
-                    ),
-                    style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: AppFonts.sm,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (_bioError != null) ...[
-                  Text(
-                    _bioError!,
+                    l10n.enterMasterPassword,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: theme.colorScheme.error,
-                      fontSize: AppFonts.sm,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                TextField(
-                  controller: _passwordCtrl,
-                  focusNode: _focusNode,
-                  obscureText: _obscure,
-                  enabled: !_busy,
-                  onSubmitted: (_) => _unlock(),
-                  decoration: InputDecoration(
-                    labelText: l10n.password,
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (_busy) ...[
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.derivingKey,
-                    style: TextStyle(
-                      fontSize: AppFonts.sm,
+                      fontSize: AppFonts.md,
                       color: AppTheme.fgDim,
                     ),
                   ),
-                ] else ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _cooldown.isLocked ? null : _unlock,
-                      child: Text(l10n.unlock),
+                  const SizedBox(height: 20),
+                  if (_wrongPassword) ...[
+                    Text(
+                      l10n.wrongMasterPassword,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: AppFonts.sm,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (_cooldown.isLocked) ...[
+                    Text(
+                      l10n.tierCooldownHint(
+                        _cooldown.cooldownRemaining!.inSeconds + 1,
+                      ),
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: AppFonts.sm,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (_bioError != null) ...[
+                    Text(
+                      _bioError!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: AppFonts.sm,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  TextField(
+                    controller: _passwordCtrl,
+                    focusNode: _focusNode,
+                    obscureText: _obscure,
+                    enabled: !_busy,
+                    onSubmitted: (_) => _unlock(),
+                    decoration: InputDecoration(
+                      labelText: l10n.password,
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
                     ),
                   ),
-                  if (_biometricOffered == true) ...[
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _retryBiometric,
-                      icon: const Icon(Icons.fingerprint, size: 18),
-                      label: Text(l10n.biometricUnlockTitle),
+                  const SizedBox(height: 20),
+                  if (_busy) ...[
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _forgotPassword,
-                    child: Text(
-                      l10n.forgotPassword,
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.derivingKey,
                       style: TextStyle(
                         fontSize: AppFonts.sm,
                         color: AppTheme.fgDim,
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _cooldown.isLocked ? null : _unlock,
+                        child: Text(l10n.unlock),
+                      ),
+                    ),
+                    if (_biometricOffered == true) ...[
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _retryBiometric,
+                        icon: const Icon(Icons.fingerprint, size: 18),
+                        label: Text(l10n.biometricUnlockTitle),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: _forgotPassword,
+                      child: Text(
+                        l10n.forgotPassword,
+                        style: TextStyle(
+                          fontSize: AppFonts.sm,
+                          color: AppTheme.fgDim,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

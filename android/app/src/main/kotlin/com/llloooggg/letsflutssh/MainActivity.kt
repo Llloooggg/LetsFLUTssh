@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -16,9 +17,16 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val permissionChannel = "com.letsflutssh/permissions"
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
+    private val secureScreenChannel = "com.letsflutssh/secure_screen"
     private var pendingResult: MethodChannel.Result? = null
     private var pendingScanResult: MethodChannel.Result? = null
     private var hardwareVault: HardwareVaultPlugin? = null
+
+    // Refcount for FLAG_SECURE — a nested SecureScreenScope (e.g. an
+    // unlock dialog inside the wizard) should not clear the flag when
+    // the inner scope disposes. Set on transition 0→1, clear on
+    // N→0, leave alone otherwise.
+    private var secureScreenRefcount = 0
 
     companion object {
         private const val MANAGE_STORAGE_REQUEST = 1001
@@ -53,6 +61,46 @@ class MainActivity : FlutterFragmentActivity() {
             HardwareVaultPlugin.CHANNEL
         )
         hardwareVault = HardwareVaultPlugin(this).also { it.register(hwChannel) }
+
+        // Selective FLAG_SECURE — per-screen opt-in, refcounted so
+        // nested SecureScreenScope widgets do not clear the flag
+        // when the inner dispose fires. The Dart side wraps every
+        // credential-entry / credential-display screen in a
+        // SecureScreenScope; here we honour the setSecure calls.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, secureScreenChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setSecure" -> {
+                        val secure = call.argument<Boolean>("secure") ?: false
+                        applySecureFlag(secure)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun applySecureFlag(secure: Boolean) {
+        if (secure) {
+            val was = secureScreenRefcount
+            secureScreenRefcount++
+            if (was == 0) {
+                runOnUiThread {
+                    window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                }
+            }
+        } else {
+            if (secureScreenRefcount <= 0) return
+            secureScreenRefcount--
+            if (secureScreenRefcount == 0) {
+                runOnUiThread {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+        }
     }
 
     private fun launchQrScanner(result: MethodChannel.Result) {
