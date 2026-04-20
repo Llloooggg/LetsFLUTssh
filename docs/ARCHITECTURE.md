@@ -3186,9 +3186,9 @@ Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
 
 ### Fuzz testing
 
-Two layers of fuzz testing:
+Two layers of fuzz testing — **property-based** (random inputs on every PR, no coverage feedback) and **coverage-guided** (libFuzzer mutation on a seed corpus, nightly-style runs).
 
-**Dart property-based tests** (`test/fuzz/`): run as part of `make test` (included in `test/`). Generate random/malformed inputs for parsers and verify they never crash with unhandled exceptions. Targets:
+**Dart property-based tests** (`test/fuzz/`): run as part of `make test` on every PR. Each test generates N random / adversarial inputs (N ≈ 1000, seeded from `Random.secure()`) and asserts the decoder returns a typed failure or a valid value — never an unhandled exception. Pure-Dart tests with full Flutter / pub access.
 
 | Test file | Fuzzed function | Input type |
 |-----------|----------------|------------|
@@ -3197,10 +3197,26 @@ Two layers of fuzz testing:
 | `fuzz_app_config_test.dart` | `AppConfig.fromJson()` + sub-configs | Random JSON maps |
 | `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
 | `fuzz_format_test.dart` | `sanitizeError()`, `formatSize()`, `formatDuration()` | Random strings, errno patterns, objects |
+| `fuzz_openssh_config_parser_test.dart` | `parseOpenSshConfig()` | Random `~/.ssh/config` snippets (wildcards, `Include`, malformed directives) |
+| `fuzz_export_import_parsers_test.dart` | `.lfs` archive parser + key-bundle extraction | Random binary payloads |
+| `aes_gcm_fuzz_test.dart` | `AesGcm.encrypt/decrypt` round-trip | Random keys + plaintexts + tampered ciphertexts |
+| `master_password_fuzz_test.dart` | Master-password derivation path | Random passphrases + KDF params |
+| `parsers_fuzz_test.dart` | Shared `basic` / integer / bool parsers | Random strings + typed overflows |
+| `sanitize_fuzz_test.dart` | `sanitizeErrorMessage()` | Random strings (path redaction, IP redaction) |
 
-**Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read from stdin, exercise parsing logic, used by ClusterFuzzLite/AFL++ in CI. Targets: `fuzz_json_parser`, `fuzz_known_hosts`, `fuzz_uri_parser`.
+**Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read **raw bytes** from stdin (binary targets use `stdin.readByteSync` — `readLineSync` would UTF-8-decode and die on any non-ASCII byte), exercise parsing logic, and are wrapped by a thin C libFuzzer harness from `.clusterfuzzlite/build.sh` that pipes libFuzzer input to the Dart binary's stdin. Coverage-guided mutation via libFuzzer, but the parsing logic runs in Dart.
 
-**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on push to main and PRs to main. Detected by OpenSSF Scorecard's Fuzzing check.
+| Harness | Fuzzed logic | Notes |
+|---------|-------------|-------|
+| `fuzz_json_parser` | `Session.fromJson()` / `AppConfig.fromJson()` / QR payload decoder | Text input, seeded with valid JSONs per target |
+| `fuzz_known_hosts` | `~/.ssh/known_hosts` parser | Text lines, seeded with one RSA + one Ed25519 entry + a comment |
+| `fuzz_uri_parser` | `letsflutssh://` deep-link URIs (`connect` + `import`) | Text, seeded with valid connect + import payload |
+| `fuzz_kdf_params` | `KdfParams.decode` — 10-byte algorithm / memory / iterations / parallelism blob | Binary, seeded with production defaults (Argon2id, 46 MiB, 2 iter, 1 lane) |
+| `fuzz_lfs_archive_header` | LFS archive header — magic + version + KDF blob + salt + IV — parsed up to but NOT including the Argon2id run (user-supplied `memoryKiB` would OOM the fuzz worker) | Binary, seeded with one well-formed Argon2id header + 32-byte salt + 12-byte IV |
+
+Standalone harnesses mirror production logic inline (no Flutter / pub imports) so the compiled binary stays small and libFuzzer coverage attribution is clean. Drift between the mirror and production is caught by test-table tests that exercise both paths against the same vectors.
+
+**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on push to main and PRs to main, 300 seconds per target. Detected by OpenSSF Scorecard's Fuzzing check. Nightly extended runs are not configured — PR-run coverage over time accumulates broadly enough that a separate nightly workflow would duplicate CFL without meaningfully widening coverage. Any new untrusted-input path in `lib/` adds a matching fuzz target in the same commit (see [AGENT_RULES § Fuzz tests for every untrusted-input consumer](AGENT_RULES.md#code-quality--sonarcloud)).
 
 ---
 
