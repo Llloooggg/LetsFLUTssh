@@ -352,7 +352,7 @@ class _ExportImportTile extends ConsumerWidget {
 
     if (!context.mounted) return;
 
-    // Progress bar covers the collection, PBKDF2+encryption, and write steps.
+    // Progress bar covers the collection, Argon2id+encryption, and write steps.
     final l10n = S.of(context);
     final reporter = ProgressReporter(l10n.progressCollectingData);
     AppProgressBarDialog.show(context, reporter);
@@ -616,8 +616,8 @@ class _ExportImportTile extends ConsumerWidget {
     return password;
   }
 
-  /// Decrypt the archive once so preview + final import share the PBKDF2
-  /// key derivation (600k iterations is too expensive to run twice).
+  /// Decrypt the archive once so preview + final import share the Argon2id
+  /// key derivation (memory-hard, too expensive to run twice).
   /// Shows a progress dialog for the duration. Returns null when the
   /// outer widget is no longer mounted after the work completes.
   Future<ImportResult?> _decryptForPreview(

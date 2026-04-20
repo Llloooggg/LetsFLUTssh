@@ -317,8 +317,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (password == null || !context.mounted) return;
 
     final manager = ref.read(masterPasswordProvider);
-    // Single PBKDF2: verify + derive at once so the enable flow
-    // doesn't double the 600k-iteration wait on mobile.
+    // Single Argon2id pass: verify + derive at once so the enable flow
+    // doesn't double the memory-hard KDF wait on mobile.
     final key = await manager.verifyAndDerive(password);
     if (key == null) {
       if (context.mounted) {

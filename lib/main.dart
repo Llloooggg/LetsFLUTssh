@@ -1851,8 +1851,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
     if (result == null || !context.mounted) return;
 
-    // Show progress bar while PBKDF2 + decryption run in isolate and the
-    // subsequent per-store writes stream step counts back to the UI.
+    // Show progress bar while Argon2id + decryption run in isolate and
+    // the subsequent per-store writes stream step counts back to the UI.
     final l10n = S.of(context);
     final progress = ProgressReporter(l10n.progressReadingArchive);
     AppProgressBarDialog.show(context, progress);
