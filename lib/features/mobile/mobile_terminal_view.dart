@@ -199,22 +199,37 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // Always render TerminalView — progress log and errors are written
     // directly into the terminal buffer via ANSI codes.
     //
-    // Stack layout: terminal fills all available space (never resizes on
-    // keyboard show/hide), keyboard bar floats at the bottom above the
-    // system keyboard.  Paired with Scaffold(resizeToAvoidBottomInset: false)
-    // in MobileShell to prevent xterm buffer reflow that caused duplicate
-    // lines when the soft keyboard appeared.
-    // viewInsets.bottom is measured from the screen bottom, but this Stack
-    // sits inside the Scaffold body which ends above the bottomNavigationBar
-    // and the device safe-area.  Subtract that gap so the keyboard bar sits
-    // flush against the system keyboard instead of floating above it.
+    // Stack layout: terminal is bottom-bounded by the keyboard bar +
+    // (when visible) the system keyboard, so the cursor line never
+    // slips under either one. xterm reflows on resize — the earlier
+    // "never resize" policy was a workaround for a duplicate-line
+    // quirk in old xterm versions; modern xterm handles the reflow
+    // correctly, and leaving the terminal full-size while the
+    // keyboard is up meant the user typed into a viewport whose
+    // bottom rows were hidden under the keyboard. The fix trades a
+    // reflow for content visibility.
+    //
+    // viewInsets.bottom is measured from the screen bottom, but this
+    // Stack sits inside the Scaffold body which ends above the
+    // bottomNavigationBar and the device safe-area. Subtract that
+    // gap so the keyboard bar sits flush against the system
+    // keyboard instead of floating above it.
     final mq = MediaQuery.of(context);
     final rawInset = mq.viewInsets.bottom;
     final bottomGap = AppTheme.itemHeightXl + mq.viewPadding.bottom;
     final keyboardInset = math.max(0.0, rawInset - bottomGap);
+    // Terminal bottom = keyboard bar height + system-keyboard inset.
+    // When no keyboard is visible, collapses to bar height alone.
+    final terminalBottom = AppTheme.itemHeightXl + keyboardInset;
     return Stack(
       children: [
-        Positioned.fill(child: _buildPinchZoomArea()),
+        Positioned(
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: terminalBottom,
+          child: _buildPinchZoomArea(),
+        ),
         Positioned(
           left: 0,
           right: 0,

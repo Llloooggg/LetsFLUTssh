@@ -1304,6 +1304,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
             // AutoLockDetector wraps the real UI so every pointer/key
             // event resets the idle timer. LockScreen overlays on top
             // with zero hit-test for the app beneath while locked.
+            //
+            // SelectionArea lives inside MainScreen.build instead of
+            // here — SelectableRegion needs an Overlay ancestor,
+            // which is only provided by the Navigator rooted at
+            // MaterialApp.home. Wrapping at the builder layer
+            // (above Navigator) crashes with "No Overlay widget
+            // found" in tests and in production.
             child: AutoLockDetector(
               child: Stack(
                 children: [
@@ -1589,22 +1596,34 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Mobile: completely different navigation (bottom nav bar)
+    // Mobile: completely different navigation (bottom nav bar).
+    // SelectionArea sits above MobileShell so every plain Text in
+    // the mobile tree supports drag-select + long-press copy.
     if (plat.isMobilePlatform) {
-      return const MobileShell();
+      return const SelectionArea(child: MobileShell());
     }
 
     final ws = ref.watch(workspaceProvider);
 
-    return CallbackShortcuts(
-      bindings: _buildKeyBindings(context, ws),
-      child: Focus(
-        autofocus: true,
-        child: DropTarget(
-          onDragDone: (details) => _handleLfsDrop(context, details),
-          child: LayoutBuilder(
-            builder: (context, constraints) =>
-                _buildDesktopLayout(context, constraints, ws),
+    // SelectionArea wraps the desktop layout so every plain Text
+    // widget supports drag-select + Ctrl+C like a VSCode panel.
+    // Interactive widgets (buttons, switches, session tiles, SFTP
+    // rows) keep their own tap / drag gestures because SelectionArea
+    // yields to widgets that handle their own pointer events. The
+    // terminal (CustomPaint with its own selection logic) renders
+    // below the SelectionArea layer and is untouched — xterm keeps
+    // its native drag-select.
+    return SelectionArea(
+      child: CallbackShortcuts(
+        bindings: _buildKeyBindings(context, ws),
+        child: Focus(
+          autofocus: true,
+          child: DropTarget(
+            onDragDone: (details) => _handleLfsDrop(context, details),
+            child: LayoutBuilder(
+              builder: (context, constraints) =>
+                  _buildDesktopLayout(context, constraints, ws),
+            ),
           ),
         ),
       ),
