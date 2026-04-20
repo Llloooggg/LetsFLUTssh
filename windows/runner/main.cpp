@@ -2,8 +2,38 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <cstdio>
+#include <ctime>
+
 #include "flutter_window.h"
 #include "utils.h"
+
+// Early-boot crash logger. Writes a single-line diagnostic to
+// `%LOCALAPPDATA%\LetsFLUTssh\startup-crash.log` when the process
+// dies before the Dart logger initialises. Without this the app
+// silently vanishes on Windows when a native DLL load, mitigation
+// policy, or COM init fails — no WER dump (we disabled it) and no
+// file the user can point at.
+static LONG WINAPI EarlyCrashHandler(EXCEPTION_POINTERS* ex) {
+  wchar_t buf[MAX_PATH] = {0};
+  DWORD len = ::GetEnvironmentVariableW(L"LOCALAPPDATA", buf, MAX_PATH);
+  if (len == 0 || len >= MAX_PATH) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+  wchar_t path[MAX_PATH];
+  _snwprintf_s(path, MAX_PATH, _TRUNCATE,
+               L"%s\\LetsFLUTssh\\startup-crash.log", buf);
+  ::CreateDirectoryW(path + 0, nullptr);  // idempotent, best-effort.
+  FILE* f = nullptr;
+  if (_wfopen_s(&f, path, L"a") == 0 && f != nullptr) {
+    time_t now = ::time(nullptr);
+    fwprintf(f, L"%lld  exc=0x%08lX  addr=%p\n", (long long)now,
+             ex->ExceptionRecord->ExceptionCode,
+             ex->ExceptionRecord->ExceptionAddress);
+    fclose(f);
+  }
+  return EXCEPTION_CONTINUE_SEARCH;  // Let default termination run.
+}
 
 // Apply Win32 process-level mitigation policies at startup. These
 // are the Windows-side equivalent of `prctl(PR_SET_DUMPABLE, 0)` +
@@ -21,6 +51,7 @@ static void ApplyProcessMitigationPolicies() {
   // ProcessImageLoadPolicy — block loading DLLs from remote /
   // non-Microsoft-signed sources. Defends against supply-chain
   // attacks that rely on side-loading a DLL over SMB / WebDAV.
+  // Compatible with Flutter engine + ANGLE; no regressions observed.
   PROCESS_MITIGATION_IMAGE_LOAD_POLICY image_load = {0};
   image_load.NoRemoteImages = 1;
   image_load.NoLowMandatoryLabelImages = 1;
@@ -28,25 +59,31 @@ static void ApplyProcessMitigationPolicies() {
   ::SetProcessMitigationPolicy(ProcessImageLoadPolicy, &image_load,
                                sizeof(image_load));
 
-  // ProcessDynamicCodePolicy — block `VirtualAlloc(PAGE_EXECUTE)`
-  // at runtime. Defends against ROP / JIT-dropped shellcode patterns
-  // an injected DLL might use. Flutter release builds do not JIT;
-  // our dependencies (`dartssh2`, `pointycastle`, native hw-vault)
-  // are all AOT-compiled.
-  PROCESS_MITIGATION_DYNAMIC_CODE_POLICY dynamic_code = {0};
-  dynamic_code.ProhibitDynamicCode = 1;
-  ::SetProcessMitigationPolicy(ProcessDynamicCodePolicy, &dynamic_code,
-                               sizeof(dynamic_code));
-
-  // ProcessStrictHandleCheckPolicy — terminate the process on any
-  // invalid-handle usage rather than returning an error the
-  // attacker can probe. Defends against handle-table shenanigans
-  // that some malware patterns abuse.
-  PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY strict_handles = {0};
-  strict_handles.RaiseExceptionOnInvalidHandleReference = 1;
-  strict_handles.HandleExceptionsPermanentlyEnabled = 1;
-  ::SetProcessMitigationPolicy(ProcessStrictHandleCheckPolicy,
-                               &strict_handles, sizeof(strict_handles));
+  // **Dropped**: ProcessDynamicCodePolicy.ProhibitDynamicCode.
+  //
+  // On paper Flutter release is AOT-compiled and needs no runtime
+  // JIT. In practice the engine ships ANGLE (OpenGL → Direct3D
+  // translator) which compiles shaders at runtime via the D3D
+  // compiler — that is a legitimate PAGE_EXECUTE_READWRITE
+  // allocation the policy blocks. Enabling `ProhibitDynamicCode`
+  // silently killed the process during window creation on every
+  // Windows host tested; the log was empty because logger init
+  // hadn't started yet. The threat the policy defends against
+  // (injected DLL calling VirtualAlloc(PAGE_EXECUTE)) still needs a
+  // foothold — image load policy + WER disable already raise that
+  // bar. Keeping the policy off is a conscious trade; re-enable
+  // only behind a Flutter-engine capability detection that proves
+  // ANGLE + Skia never need dynamic code, which is not the case
+  // today.
+  //
+  // **Dropped**: ProcessStrictHandleCheckPolicy.
+  //
+  // `HandleExceptionsPermanentlyEnabled = 1` terminates the process
+  // on any invalid-handle reference, even ones Flutter / Skia /
+  // ANGLE treat as recoverable soft errors (e.g. querying a
+  // detached surface). Silent kill with no dump. Shipped here only
+  // if we can guarantee the renderer never feeds an invalid handle
+  // to a Win32 API — again, not today.
 
   // Suppress WER (Windows Error Reporting) crash dumps — they
   // contain the full process address space, including the DB key
@@ -58,6 +95,11 @@ static void ApplyProcessMitigationPolicies() {
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Install the early-boot crash handler first, before any Windows
+  // API call that could die. Everything downstream (policy apply,
+  // DLL load, COM init, window create) is covered.
+  ::SetUnhandledExceptionFilter(EarlyCrashHandler);
+
   // Harden the process before anything else — policies apply to
   // every subsequent DLL load + allocation in the process.
   ApplyProcessMitigationPolicies();
