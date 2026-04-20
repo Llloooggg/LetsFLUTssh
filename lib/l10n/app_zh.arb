@@ -743,6 +743,7 @@
   "securityHardwareUpgradeBody": "升级以将机密绑定到 TPM / Secure Enclave。",
   "securityHardwareUpgradeAction": "升级",
   "securityHardwareUnavailableTitle": "硬件存储不可用",
+  "wizardReducedBanner": "本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。",
   "tierCurrentBadge": "当前",
   "dbCorruptTitle": "无法打开数据库",
   "dbCorruptBody": "磁盘上的加密数据库与此安装记录的安全等级不匹配。这通常意味着之前的设置被中断,或者数据来自使用不同密码的构建。\n\nLetsFLUTssh 无法继续,直到数据库被匹配构建的正确凭据打开,或被清除并重新设置。",

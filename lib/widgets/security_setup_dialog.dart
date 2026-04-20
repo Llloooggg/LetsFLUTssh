@@ -295,6 +295,15 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       );
     }
 
+    // Reduced-choice mode: neither T1 nor T2 is offerable on this
+    // host, so the wizard collapses to T0 vs Paranoid. Hiding the
+    // greyed rows (instead of showing them disabled) matches what
+    // the user can actually pick and keeps the dialog short enough
+    // that the real decision — "do I want a master password?" —
+    // stands out. An info banner above the rows names the missing
+    // dependency so the user knows it is not a hidden feature.
+    final reduced = !caps.keychainAvailable && !caps.hardwareVaultAvailable;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -315,6 +324,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           ),
         ),
         const SizedBox(height: 18),
+        if (reduced) ...[
+          _ReducedWizardBanner(reason: l10n.wizardReducedBanner),
+          const SizedBox(height: 14),
+        ],
 
         _TierRow(
           badge: 'T0',
@@ -325,38 +338,40 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           current: widget.currentTier == SecurityTier.plaintext,
           onSelect: () => setState(() => _selected = WizardTier.plaintext),
         ),
-        _TierRow(
-          badge: 'T1',
-          label: l10n.tierKeychainLabel,
-          subtitle: l10n.tierKeychainSubtitle(_keychainName),
-          accent: AppTheme.accent,
-          selected: _selected == WizardTier.keychain,
-          current:
-              widget.currentTier == SecurityTier.keychain ||
-              widget.currentTier == SecurityTier.keychainWithPassword,
-          recommended: _recommendedTier(caps) == WizardTier.keychain,
-          disabledReason: caps.keychainAvailable
-              ? null
-              : l10n.tierKeychainUnavailable,
-          onSelect: caps.keychainAvailable
-              ? () => setState(() => _selected = WizardTier.keychain)
-              : null,
-        ),
-        _TierRow(
-          badge: 'T2',
-          label: l10n.tierHardwareLabel,
-          subtitle: l10n.tierHardwareSubtitleHonest,
-          accent: AppTheme.accent,
-          selected: _selected == WizardTier.hardware,
-          current: widget.currentTier == SecurityTier.hardware,
-          recommended: _recommendedTier(caps) == WizardTier.hardware,
-          disabledReason: caps.hardwareVaultAvailable
-              ? null
-              : l10n.tierHardwareUnavailable,
-          onSelect: caps.hardwareVaultAvailable
-              ? () => setState(() => _selected = WizardTier.hardware)
-              : null,
-        ),
+        if (!reduced)
+          _TierRow(
+            badge: 'T1',
+            label: l10n.tierKeychainLabel,
+            subtitle: l10n.tierKeychainSubtitle(_keychainName),
+            accent: AppTheme.accent,
+            selected: _selected == WizardTier.keychain,
+            current:
+                widget.currentTier == SecurityTier.keychain ||
+                widget.currentTier == SecurityTier.keychainWithPassword,
+            recommended: _recommendedTier(caps) == WizardTier.keychain,
+            disabledReason: caps.keychainAvailable
+                ? null
+                : l10n.tierKeychainUnavailable,
+            onSelect: caps.keychainAvailable
+                ? () => setState(() => _selected = WizardTier.keychain)
+                : null,
+          ),
+        if (!reduced)
+          _TierRow(
+            badge: 'T2',
+            label: l10n.tierHardwareLabel,
+            subtitle: l10n.tierHardwareSubtitleHonest,
+            accent: AppTheme.accent,
+            selected: _selected == WizardTier.hardware,
+            current: widget.currentTier == SecurityTier.hardware,
+            recommended: _recommendedTier(caps) == WizardTier.hardware,
+            disabledReason: caps.hardwareVaultAvailable
+                ? null
+                : l10n.tierHardwareUnavailable,
+            onSelect: caps.hardwareVaultAvailable
+                ? () => setState(() => _selected = WizardTier.hardware)
+                : null,
+          ),
 
         const SizedBox(height: 10),
         const _SectionDivider(),
@@ -748,6 +763,41 @@ class _SectionDivider extends StatelessWidget {
         ),
         Expanded(child: Container(height: 1, color: AppTheme.borderLight)),
       ],
+    );
+  }
+}
+
+/// Info banner shown at the top of the wizard when the capability
+/// probe came back with no T1 and no T2. Explains the missing
+/// dependency so the reduced choice (T0 vs Paranoid) does not look
+/// like a bug.
+class _ReducedWizardBanner extends StatelessWidget {
+  const _ReducedWizardBanner({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.bg2,
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: AppTheme.fgDim),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              reason,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

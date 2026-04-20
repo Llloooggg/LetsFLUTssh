@@ -2189,6 +2189,10 @@ class SRu extends S {
       'Аппаратное хранилище недоступно';
 
   @override
+  String get wizardReducedBanner =>
+      'Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override

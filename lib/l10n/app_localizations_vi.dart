@@ -2168,6 +2168,10 @@ class SVi extends S {
       'Lưu trữ phần cứng không khả dụng';
 
   @override
+  String get wizardReducedBanner =>
+      'Keychain hệ điều hành không thể truy cập trong bản cài đặt này. Hãy chọn giữa không mã hoá (T0) và mật khẩu chính (Paranoid). Cài đặt gnome-keyring, kwallet hoặc trình cung cấp libsecret khác để bật tầng Keychain.';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

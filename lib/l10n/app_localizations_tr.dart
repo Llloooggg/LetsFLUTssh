@@ -2188,6 +2188,10 @@ class STr extends S {
       'Donanım destekli depolama kullanılamıyor';
 
   @override
+  String get wizardReducedBanner =>
+      'İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

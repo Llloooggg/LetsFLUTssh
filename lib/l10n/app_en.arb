@@ -1270,6 +1270,7 @@
   "securityHardwareUpgradeBody": "Upgrade to bind secrets to TPM / Secure Enclave.",
   "securityHardwareUpgradeAction": "Upgrade",
   "securityHardwareUnavailableTitle": "Hardware-backed storage unavailable",
+  "wizardReducedBanner": "OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.",
   "snippets": "Snippets",
   "snippetsSubtitle": "Manage reusable command snippets",
   "noSnippets": "No snippets yet",

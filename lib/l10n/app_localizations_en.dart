@@ -2173,6 +2173,10 @@ class SEn extends S {
       'Hardware-backed storage unavailable';
 
   @override
+  String get wizardReducedBanner =>
+      'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

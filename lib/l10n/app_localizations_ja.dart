@@ -2117,6 +2117,10 @@ class SJa extends S {
   String get securityHardwareUnavailableTitle => 'ハードウェア保護ストレージは利用できません';
 
   @override
+  String get wizardReducedBanner =>
+      'このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

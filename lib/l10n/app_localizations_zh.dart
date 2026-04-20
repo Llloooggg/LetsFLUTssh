@@ -2096,6 +2096,10 @@ class SZh extends S {
   String get securityHardwareUnavailableTitle => '硬件存储不可用';
 
   @override
+  String get wizardReducedBanner =>
+      '本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。';
+
+  @override
   String get snippets => '代码片段';
 
   @override

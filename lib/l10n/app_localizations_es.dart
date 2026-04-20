@@ -2201,6 +2201,10 @@ class SEs extends S {
       'Almacenamiento por hardware no disponible';
 
   @override
+  String get wizardReducedBanner =>
+      'El llavero del sistema no es accesible en esta instalación. Elige entre sin cifrado (T0) y una contraseña maestra (Paranoid). Instala gnome-keyring, kwallet u otro proveedor de libsecret para habilitar el nivel Keychain.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

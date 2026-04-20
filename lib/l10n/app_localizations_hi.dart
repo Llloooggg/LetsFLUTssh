@@ -2180,6 +2180,10 @@ class SHi extends S {
       'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं';
 
   @override
+  String get wizardReducedBanner =>
+      'इस इंस्टॉलेशन में OS कीचेन उपलब्ध नहीं है। कोई एन्क्रिप्शन नहीं (T0) और मास्टर पासवर्ड (Paranoid) में से चुनें। Keychain स्तर सक्षम करने के लिए gnome-keyring, kwallet या कोई अन्य libsecret प्रदाता स्थापित करें।';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

@@ -2173,6 +2173,10 @@ class SFa extends S {
       'ذخیره‌سازی سخت‌افزاری در دسترس نیست';
 
   @override
+  String get wizardReducedBanner =>
+      'کلیدرشتهٔ سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا یک ارائه‌دهندهٔ libsecret دیگر را نصب کنید.';
+
+  @override
   String get snippets => 'قطعه‌ها';
 
   @override

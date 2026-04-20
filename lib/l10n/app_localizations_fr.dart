@@ -2207,6 +2207,10 @@ class SFr extends S {
       'Stockage matériel indisponible';
 
   @override
+  String get wizardReducedBanner =>
+      'Le trousseau du système n\'est pas accessible sur cette installation. Choisissez entre aucun chiffrement (T0) et un mot de passe maître (Paranoid). Installez gnome-keyring, kwallet ou un autre fournisseur libsecret pour activer le niveau Keychain.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

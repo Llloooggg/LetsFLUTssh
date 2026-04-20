@@ -2183,6 +2183,10 @@ class SId extends S {
       'Penyimpanan berbasis perangkat keras tidak tersedia';
 
   @override
+  String get wizardReducedBanner =>
+      'Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

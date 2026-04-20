@@ -743,6 +743,7 @@
   "securityHardwareUpgradeBody": "Passez au stockage matériel pour lier les secrets au TPM / Secure Enclave.",
   "securityHardwareUpgradeAction": "Mettre à niveau",
   "securityHardwareUnavailableTitle": "Stockage matériel indisponible",
+  "wizardReducedBanner": "Le trousseau du système n'est pas accessible sur cette installation. Choisissez entre aucun chiffrement (T0) et un mot de passe maître (Paranoid). Installez gnome-keyring, kwallet ou un autre fournisseur libsecret pour activer le niveau Keychain.",
   "tierCurrentBadge": "Actuel",
   "dbCorruptTitle": "Impossible d'ouvrir la base de données",
   "dbCorruptBody": "La base de données chiffrée sur le disque ne correspond pas au niveau de sécurité enregistré pour cette installation. Cela signifie généralement qu'une configuration précédente a été interrompue ou que les données proviennent d'une version avec un chiffrement différent.\n\nLetsFLUTssh ne peut pas continuer tant que la base n'est pas ouverte avec les bons identifiants d'une version compatible, ou effacée et reconfigurée.",

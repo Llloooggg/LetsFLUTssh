@@ -3867,6 +3867,12 @@ abstract class S {
   /// **'Hardware-backed storage unavailable'**
   String get securityHardwareUnavailableTitle;
 
+  /// No description provided for @wizardReducedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.'**
+  String get wizardReducedBanner;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

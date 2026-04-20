@@ -2114,6 +2114,10 @@ class SKo extends S {
   String get securityHardwareUnavailableTitle => '하드웨어 기반 저장소를 사용할 수 없습니다';
 
   @override
+  String get wizardReducedBanner =>
+      '이 설치에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 암호(Paranoid) 중에서 선택하세요. Keychain 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
+
+  @override
   String get snippets => '스니펫';
 
   @override

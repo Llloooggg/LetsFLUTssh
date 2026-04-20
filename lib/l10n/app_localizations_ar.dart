@@ -2176,6 +2176,10 @@ class SAr extends S {
       'التخزين المدعوم بالعتاد غير متاح';
 
   @override
+  String get wizardReducedBanner =>
+      'سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

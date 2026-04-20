@@ -743,6 +743,7 @@
   "securityHardwareUpgradeBody": "قم بالترقية لربط الأسرار بـ TPM / Secure Enclave.",
   "securityHardwareUpgradeAction": "ترقية",
   "securityHardwareUnavailableTitle": "التخزين المدعوم بالعتاد غير متاح",
+  "wizardReducedBanner": "سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.",
   "tierCurrentBadge": "الحالي",
   "dbCorruptTitle": "تعذر فتح قاعدة البيانات",
   "dbCorruptBody": "قاعدة البيانات المشفرة على القرص لا تتطابق مع مستوى الأمان المسجل لهذا التثبيت. يعني ذلك عادةً أن الإعداد السابق انقطع أو أن البيانات من بناء استخدم تشفيرًا مختلفًا.\n\nلا يمكن لـ LetsFLUTssh المتابعة حتى يتم فتح قاعدة البيانات بالبيانات الصحيحة لبناء مطابق أو مسحها وإعادة إعدادها من الصفر.",

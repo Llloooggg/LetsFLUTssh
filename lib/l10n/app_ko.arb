@@ -743,6 +743,7 @@
   "securityHardwareUpgradeBody": "업그레이드하여 비밀을 TPM / Secure Enclave에 바인딩하세요.",
   "securityHardwareUpgradeAction": "업그레이드",
   "securityHardwareUnavailableTitle": "하드웨어 기반 저장소를 사용할 수 없습니다",
+  "wizardReducedBanner": "이 설치에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 암호(Paranoid) 중에서 선택하세요. Keychain 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.",
   "tierCurrentBadge": "현재",
   "dbCorruptTitle": "데이터베이스를 열 수 없습니다",
   "dbCorruptBody": "디스크의 암호화된 데이터베이스가 이 설치에 기록된 보안 등급과 일치하지 않습니다. 일반적으로 이전 설정이 중단되었거나 데이터가 다른 암호를 사용한 빌드에서 온 것을 의미합니다.\n\n일치하는 빌드의 올바른 자격 증명으로 데이터베이스를 열거나 삭제 후 새로 설정할 때까지 LetsFLUTssh는 계속할 수 없습니다.",

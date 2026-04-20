@@ -2205,6 +2205,10 @@ class SDe extends S {
       'Hardwaregestützter Speicher nicht verfügbar';
 
   @override
+  String get wizardReducedBanner =>
+      'Der Schlüsselbund des Betriebssystems ist bei dieser Installation nicht erreichbar. Wähle zwischen keiner Verschlüsselung (T0) und einem Master-Passwort (Paranoid). Installiere gnome-keyring, kwallet oder einen anderen libsecret-Anbieter, um die Keychain-Stufe zu aktivieren.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

@@ -2195,6 +2195,10 @@ class SPt extends S {
       'Armazenamento em hardware indisponível';
 
   @override
+  String get wizardReducedBanner =>
+      'O keychain do sistema não está acessível nesta instalação. Escolha entre sem criptografia (T0) e uma senha mestra (Paranoid). Instale gnome-keyring, kwallet ou outro provedor libsecret para habilitar o nível Keychain.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override
