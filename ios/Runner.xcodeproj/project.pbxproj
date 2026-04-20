@@ -16,6 +16,7 @@
 		7B4D52AE0003000000000001 /* HardwareVaultPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0003000000000002 /* HardwareVaultPlugin.swift */; };
 		7B4D52AE0004000000000001 /* BackupExclusionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0004000000000002 /* BackupExclusionPlugin.swift */; };
 		7B4D52AE0007000000000001 /* ClipboardSecurePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0007000000000002 /* ClipboardSecurePlugin.swift */; };
+		7B4D52AE0009000000000001 /* SecureTextPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0009000000000002 /* SecureTextPlugin.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -57,6 +58,7 @@
 		7B4D52AE0003000000000002 /* HardwareVaultPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareVaultPlugin.swift; sourceTree = "<group>"; };
 		7B4D52AE0004000000000002 /* BackupExclusionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupExclusionPlugin.swift; sourceTree = "<group>"; };
 		7B4D52AE0007000000000002 /* ClipboardSecurePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSecurePlugin.swift; sourceTree = "<group>"; };
+		7B4D52AE0009000000000002 /* SecureTextPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureTextPlugin.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -131,6 +133,7 @@
 				7B4D52AE0003000000000002 /* HardwareVaultPlugin.swift */,
 				7B4D52AE0004000000000002 /* BackupExclusionPlugin.swift */,
 				7B4D52AE0007000000000002 /* ClipboardSecurePlugin.swift */,
+				7B4D52AE0009000000000002 /* SecureTextPlugin.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -290,6 +293,7 @@
 				7B4D52AE0003000000000001 /* HardwareVaultPlugin.swift in Sources */,
 				7B4D52AE0004000000000001 /* BackupExclusionPlugin.swift in Sources */,
 				7B4D52AE0007000000000001 /* ClipboardSecurePlugin.swift in Sources */,
+				7B4D52AE0009000000000001 /* SecureTextPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

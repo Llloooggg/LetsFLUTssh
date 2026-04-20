@@ -981,10 +981,11 @@ Every secret-entry field in the app (master password, SSH key passphrase, export
 | Platform | Backend | Status |
 |----------|---------|--------|
 | Android | `EditText` + `TYPE_TEXT_VARIATION_PASSWORD` + `IME_FLAG_NO_PERSONALIZED_LEARNING` + NUL-overwrite on wipe | **shipped** |
-| iOS | `UITextField` + `isSecureTextEntry = true` | planned |
-| macOS | `NSSecureTextField` | planned |
-| Windows | `TextBox` + `PasswordChar` | planned |
-| Linux | `GtkEntry` visibility=false | planned |
+| iOS | `UITextField` + `isSecureTextEntry = true` + `.no` autocorrect / smart-quotes / smart-insert | **shipped** |
+| macOS | `NSSecureTextField` + NUL-overwrite wipe | **shipped** |
+| Windows | Win32 `EDIT` (`ES_PASSWORD`) via PlatformView | pending — Flutter Windows platform-view integration with host-owned HWNDs is still experimental; `SecureNativeTextField.isSupported` returns false and the caller falls back to `SecurePasswordField` |
+| Linux | `GtkEntry` visibility=false | pending — Flutter Linux has no upstream PlatformView support for embedding external GtkWidgets; same fallback as Windows |
+| Web | N/A | intentionally unsupported (browser owns the DOM; no secure buffer to hand off) |
 
 #### AesGcm
 

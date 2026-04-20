@@ -12,23 +12,24 @@ import '../utils/logger.dart';
 /// keystroke inside [TextEditingValue] — immutable and GC-relocatable,
 /// so the bytes can't be zeroed after the fact. This widget hosts a
 /// real platform text input (Android [EditText], iOS [UITextField],
-/// etc) through a [PlatformView], keeps the typed bytes in the
-/// platform's own buffer, and emits them to Dart **once** — on
-/// submit — as a mutable [Uint8List]. The caller copies the bytes
-/// into a page-locked [SecretBuffer] and zeroes the Uint8List in the
-/// same frame; residency on the Dart heap collapses to a single
-/// one-frame window instead of the per-keystroke trail the
-/// TextField path leaves behind.
+/// macOS [NSSecureTextField]) through a [PlatformView], keeps the
+/// typed bytes in the platform's own buffer, and emits them to Dart
+/// **once** — on submit — as a mutable [Uint8List]. The caller
+/// copies the bytes into a page-locked [SecretBuffer] and zeroes
+/// the Uint8List in the same frame; residency on the Dart heap
+/// collapses to a single one-frame window instead of the
+/// per-keystroke trail the TextField path leaves behind.
 ///
-/// Platform coverage as of the initial commit:
+/// Platform coverage:
 ///
 /// | Platform | Backend | Status |
 /// |----------|---------|--------|
 /// | Android  | EditText + TYPE_TEXT_VARIATION_PASSWORD | **supported** |
-/// | iOS      | UITextField + isSecureTextEntry | planned |
-/// | macOS    | NSSecureTextField | planned |
-/// | Windows  | TextBox with PasswordChar | planned |
-/// | Linux    | GtkEntry visibility=false | planned |
+/// | iOS      | UITextField + isSecureTextEntry | **supported** |
+/// | macOS    | NSSecureTextField | **supported** |
+/// | Windows  | Win32 EDIT control (ES_PASSWORD) via PlatformView | **pending** — Flutter Windows platform views still experimental for custom host-window integration; falls back to [SecurePasswordField] |
+/// | Linux    | GtkEntry visibility=false | **pending** — Flutter Linux platform views are not officially supported upstream; falls back to [SecurePasswordField] |
+/// | Web      | N/A | intentionally unsupported (browser owns the DOM) |
 ///
 /// [isSupported] gates the feature: callers use it to pick between
 /// this widget and the fallback [SecurePasswordField]. An unsupported
@@ -64,10 +65,12 @@ class SecureNativeTextField extends StatefulWidget {
   /// native view's intrinsic size, so parents allocate a slot.
   final double height;
 
-  /// Whether a native backend is wired on this platform. Android is
-  /// supported today; other platforms fall back to
-  /// [SecurePasswordField].
-  static bool get isSupported => !kIsWeb && Platform.isAndroid;
+  /// Whether a native backend is wired on this platform. Android,
+  /// iOS, and macOS are supported today; Windows and Linux fall
+  /// back to [SecurePasswordField] (platform-view support for the
+  /// Win32 EDIT control and GtkEntry is still upstream-experimental).
+  static bool get isSupported =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
 
   @override
   State<SecureNativeTextField> createState() => _SecureNativeTextFieldState();
@@ -133,13 +136,28 @@ class _SecureNativeTextFieldState extends State<SecureNativeTextField> {
     if (!SecureNativeTextField.isSupported) {
       return const SizedBox.shrink();
     }
+    const viewType = 'com.letsflutssh/secure_text';
     return SizedBox(
       height: widget.height,
-      child: AndroidView(
-        viewType: 'com.letsflutssh/secure_text',
-        onPlatformViewCreated: _onPlatformViewCreated,
-        creationParamsCodec: const StandardMessageCodec(),
-      ),
+      child: Platform.isAndroid
+          ? AndroidView(
+              viewType: viewType,
+              onPlatformViewCreated: _onPlatformViewCreated,
+              creationParamsCodec: const StandardMessageCodec(),
+            )
+          : Platform.isIOS
+          ? UiKitView(
+              viewType: viewType,
+              onPlatformViewCreated: _onPlatformViewCreated,
+              creationParamsCodec: const StandardMessageCodec(),
+            )
+          : Platform.isMacOS
+          ? AppKitView(
+              viewType: viewType,
+              onPlatformViewCreated: _onPlatformViewCreated,
+              creationParamsCodec: const StandardMessageCodec(),
+            )
+          : const SizedBox.shrink(),
     );
   }
 }
