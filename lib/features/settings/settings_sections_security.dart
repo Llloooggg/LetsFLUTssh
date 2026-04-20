@@ -125,6 +125,45 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     return l10n.autoLockRequiresPassword;
   }
 
+  /// Flippable on T1 / T2 only. Paranoid forces the toggle on (the
+  /// password IS the tier's secret); T0 has no concept of password
+  /// modifier. Tapping the toggle routes through the tier-change
+  /// wizard because adding / removing a password is a rekey.
+  bool _passwordToggleEnabled(SecurityTier level) =>
+      level == SecurityTier.keychain ||
+      level == SecurityTier.keychainWithPassword ||
+      level == SecurityTier.hardware;
+
+  /// Reason-tooltip string for the password toggle when disabled.
+  /// Null when the toggle is flippable. Matches the biometric-toggle
+  /// pattern — the row stays visible so the user sees the option
+  /// exists and understands why it cannot be flipped here.
+  String? _passwordDisabledReason(S l10n, SecurityTier level) {
+    if (level == SecurityTier.plaintext) {
+      return l10n.passwordDisabledPlaintext;
+    }
+    if (level == SecurityTier.paranoid) {
+      return l10n.passwordDisabledParanoid;
+    }
+    return null;
+  }
+
+  /// Short status subtitle below the "Master password" toggle label.
+  /// On Paranoid the password is load-bearing (always on); on T1 /
+  /// T2 the subtitle reflects whether the modifier is currently set.
+  String _passwordSubtitle(
+    S l10n,
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) {
+    if (level == SecurityTier.paranoid) return l10n.passwordSubtitleParanoid;
+    if (level == SecurityTier.plaintext) {
+      return l10n.passwordSubtitlePlaintext;
+    }
+    final on = modifiers.password || level == SecurityTier.keychainWithPassword;
+    return on ? l10n.passwordSubtitleOn : l10n.passwordSubtitleOff;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
@@ -138,6 +177,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final hardwareAvail = caps.maybeWhen(
       data: (c) => c.hardwareVaultAvailable,
       orElse: () => false,
+    );
+    final keychainAvail = caps.maybeWhen(
+      data: (c) => c.keychainAvailable,
+      orElse: () => true,
     );
 
     return Column(
@@ -158,6 +201,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentTier: secState.level,
           currentModifiers: modifiers,
           hardwareAvailable: hardwareAvail,
+          keychainAvailable: keychainAvail,
           onUpgrade: () => _changeSecurityTier(context),
         ),
         _TierCard(
@@ -165,6 +209,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentTier: secState.level,
           currentModifiers: modifiers,
           hardwareAvailable: hardwareAvail,
+          keychainAvailable: keychainAvail,
           onUpgrade: () => _changeSecurityTier(context),
         ),
         _TierCard(
@@ -172,6 +217,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentTier: secState.level,
           currentModifiers: modifiers,
           hardwareAvailable: hardwareAvail,
+          keychainAvailable: keychainAvail,
           onUpgrade: () => _changeSecurityTier(context),
         ),
         _TierCard(
@@ -179,6 +225,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentTier: secState.level,
           currentModifiers: modifiers,
           hardwareAvailable: hardwareAvail,
+          keychainAvailable: keychainAvail,
           onUpgrade: () => _changeSecurityTier(context),
         ),
         const SizedBox(height: 12),
@@ -194,6 +241,25 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           ),
         ),
         const SizedBox(height: 12),
+        // Master password — orthogonal modifier. T1 / T2 accept a
+        // user-typed password on top of the tier's built-in wrap;
+        // Paranoid requires it (toggle is on + disabled); T0 has no
+        // password concept. Flipping routes through the tier wizard
+        // because enabling or removing a password is a rekey
+        // (always-rekey invariant).
+        _Toggle(
+          label: l10n.modifierPasswordLabel,
+          subtitle: _passwordSubtitle(l10n, secState.level, modifiers),
+          icon: Icons.password,
+          value:
+              modifiers.password ||
+              secState.level == SecurityTier.keychainWithPassword ||
+              secState.level == SecurityTier.paranoid,
+          onChanged: _passwordToggleEnabled(secState.level)
+              ? (_) => _changeSecurityTier(context)
+              : null,
+          disabledReason: _passwordDisabledReason(l10n, secState.level),
+        ),
         // Biometric unlock — orthogonal modifier. The toggle stays
         // visible on every tier so the reason it cannot be flipped is
         // legible (no sensor, nothing enrolled, or tier has no
@@ -398,6 +464,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       keyStorage: keyStorage,
       hardwareVault: ref.read(hardwareTierVaultProvider),
       currentTier: currentTier,
+      // Opened from Settings — user can cancel freely via Cancel /
+      // barrier-tap / Esc. First-launch flow leaves the default
+      // (false) so the user must pick a tier before startup can
+      // proceed.
+      dismissible: true,
     );
     if (!context.mounted) return;
 
@@ -729,6 +800,7 @@ class _TierCard extends StatelessWidget {
     required this.currentTier,
     required this.currentModifiers,
     required this.hardwareAvailable,
+    required this.keychainAvailable,
     required this.onUpgrade,
   });
 
@@ -736,6 +808,7 @@ class _TierCard extends StatelessWidget {
   final SecurityTier currentTier;
   final SecurityTierModifiers currentModifiers;
   final bool hardwareAvailable;
+  final bool keychainAvailable;
   final VoidCallback onUpgrade;
 
   @override
@@ -748,8 +821,17 @@ class _TierCard extends StatelessWidget {
     final model = _modelFor(isCurrent);
     final (badge, title, subtitle, accent) = _cardCopy(l10n);
 
+    // Dim the row when the tier is not reachable on this host and
+    // the user is not already on it. T2 needs a TPM / Secure Enclave;
+    // T1 needs a keychain backend (libsecret on Linux, Credential
+    // Manager on Windows, Keychain on Apple, EncryptedSP on Android).
+    // T0 and Paranoid are always reachable — no probe required.
     final bool dim =
-        tier == SecurityTier.hardware && !hardwareAvailable && !isCurrent;
+        !isCurrent &&
+        ((tier == SecurityTier.hardware && !hardwareAvailable) ||
+            ((tier == SecurityTier.keychain ||
+                    tier == SecurityTier.keychainWithPassword) &&
+                !keychainAvailable));
 
     Widget? trailing;
     if (isCurrent) {

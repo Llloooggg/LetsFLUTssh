@@ -2192,6 +2192,35 @@ class SFa extends S {
   String get tierBadgeCurrent => 'فعلی';
 
   @override
+  String get securitySetupEnable => 'فعال‌سازی';
+
+  @override
+  String get securitySetupApply => 'اعمال';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'سطح بدون رمزگذاری هیچ رازی برای محافظت با گذرواژه ندارد.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid کلید پایگاه‌داده را از گذرواژه استخراج می‌کند — همیشه فعال است.';
+
+  @override
+  String get passwordSubtitleOn => 'فعال — هنگام باز کردن قفل گذرواژه لازم است';
+
+  @override
+  String get passwordSubtitleOff =>
+      'غیرفعال — برای افزودن گذرواژه در این سطح ضربه بزنید';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'الزامی — گذرواژهٔ اصلی همان راز سطح است';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'در دسترس نیست — این سطح رمزگذاری ندارد';
+
+  @override
   String get snippets => 'قطعه‌ها';
 
   @override

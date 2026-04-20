@@ -2136,6 +2136,31 @@ class SJa extends S {
   String get tierBadgeCurrent => '現在';
 
   @override
+  String get securitySetupEnable => '有効化';
+
+  @override
+  String get securitySetupApply => '適用';
+
+  @override
+  String get passwordDisabledPlaintext => '暗号化なしの階層ではパスワードで保護する秘密がありません。';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid はパスワードから DB 鍵を導出します — 常に有効です。';
+
+  @override
+  String get passwordSubtitleOn => 'オン — ロック解除時にパスワードが必要';
+
+  @override
+  String get passwordSubtitleOff => 'オフ — この階層にパスワードを追加するにはタップ';
+
+  @override
+  String get passwordSubtitleParanoid => '必須 — マスターパスワードが階層の秘密';
+
+  @override
+  String get passwordSubtitlePlaintext => '適用外 — この階層には暗号化がありません';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

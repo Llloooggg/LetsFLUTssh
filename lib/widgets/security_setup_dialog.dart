@@ -76,12 +76,20 @@ class SecuritySetupDialog extends StatefulWidget {
   /// probes that never return inside a unit-test harness.
   final SecurityCapabilities? capabilitiesOverride;
 
+  /// When true (the Settings "Change tier" entry point) the dialog
+  /// honours Cancel / barrier-tap / Esc / back-gesture. When false
+  /// (the first-launch fallback, shown when the keychain is
+  /// unreachable) dismissal is blocked — the user must pick either
+  /// T0 or Paranoid before the app can proceed past startup.
+  final bool dismissible;
+
   const SecuritySetupDialog({
     super.key,
     required this.keyStorage,
     required this.hardwareVault,
     this.currentTier,
     this.capabilitiesOverride,
+    this.dismissible = false,
   });
 
   static Future<SecuritySetupResult> show(
@@ -90,15 +98,17 @@ class SecuritySetupDialog extends StatefulWidget {
     HardwareTierVault? hardwareVault,
     SecurityTier? currentTier,
     SecurityCapabilities? capabilitiesOverride,
+    bool dismissible = false,
   }) async {
     final result = await showDialog<SecuritySetupResult>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: dismissible,
       builder: (_) => SecuritySetupDialog(
         keyStorage: keyStorage,
         hardwareVault: hardwareVault ?? HardwareTierVault(),
         currentTier: currentTier,
         capabilitiesOverride: capabilitiesOverride,
+        dismissible: dismissible,
       ),
     );
     return result ?? const SecuritySetupResult();
@@ -281,7 +291,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   Widget build(BuildContext context) {
     return SecureScreenScope(
       child: PopScope(
-        canPop: false,
+        canPop: widget.dismissible,
         child: Dialog(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
@@ -420,10 +430,17 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             ),
             FilledButton(
               onPressed: _canSubmit() ? _submit : null,
+              // "Apply" on the edit path (user is already set up and
+              // just changing tier) vs "Enable" on the first-launch
+              // path (keychain probe came back false → user picks
+              // between T0 and Paranoid before startup can proceed).
+              // "Continue with Recommended" was a lie when T0 or
+              // another non-recommended tier was selected — replaced
+              // unconditionally.
               child: Text(
-                _selected == _recommendedTier(caps)
-                    ? l10n.continueWithRecommended
-                    : l10n.securitySetupContinue,
+                widget.currentTier == null
+                    ? l10n.securitySetupEnable
+                    : l10n.securitySetupApply,
               ),
             ),
           ],
@@ -780,10 +797,11 @@ class _SectionDivider extends StatelessWidget {
   }
 }
 
-/// Info banner shown at the top of the wizard when the capability
-/// probe came back with no T1 and no T2. Explains the missing
-/// dependency so the reduced choice (T0 vs Paranoid) does not look
-/// like a bug.
+/// Warning banner shown at the top of the wizard when the capability
+/// probe came back with no T1 and no T2. Yellow — the user is about
+/// to pick between unencrypted storage and a master password with
+/// no middle ground, which is a diminished-state posture worth
+/// flagging.
 class _ReducedWizardBanner extends StatelessWidget {
   const _ReducedWizardBanner({required this.reason});
 
@@ -794,19 +812,19 @@ class _ReducedWizardBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.bg2,
+        color: AppTheme.yellow.withValues(alpha: 0.12),
         borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.border),
+        border: Border.all(color: AppTheme.yellow),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, size: 18, color: AppTheme.fgDim),
+          Icon(Icons.warning_amber_outlined, size: 18, color: AppTheme.yellow),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               reason,
-              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
             ),
           ),
         ],

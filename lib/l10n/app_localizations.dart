@@ -3903,6 +3903,54 @@ abstract class S {
   /// **'Current'**
   String get tierBadgeCurrent;
 
+  /// No description provided for @securitySetupEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get securitySetupEnable;
+
+  /// No description provided for @securitySetupApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get securitySetupApply;
+
+  /// No description provided for @passwordDisabledPlaintext.
+  ///
+  /// In en, this message translates to:
+  /// **'Plaintext tier stores no secret to protect with a password.'**
+  String get passwordDisabledPlaintext;
+
+  /// No description provided for @passwordDisabledParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paranoid derives the database key from the password — it is always on.'**
+  String get passwordDisabledParanoid;
+
+  /// No description provided for @passwordSubtitleOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On — password required on unlock'**
+  String get passwordSubtitleOn;
+
+  /// No description provided for @passwordSubtitleOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off — tap to add a password on this tier'**
+  String get passwordSubtitleOff;
+
+  /// No description provided for @passwordSubtitleParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Required — the master password is the tier\'s secret'**
+  String get passwordSubtitleParanoid;
+
+  /// No description provided for @passwordSubtitlePlaintext.
+  ///
+  /// In en, this message translates to:
+  /// **'Not applicable — no encryption on this tier'**
+  String get passwordSubtitlePlaintext;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

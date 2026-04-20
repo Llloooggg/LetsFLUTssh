@@ -2224,6 +2224,35 @@ class SDe extends S {
   String get tierBadgeCurrent => 'Aktuell';
 
   @override
+  String get securitySetupEnable => 'Aktivieren';
+
+  @override
+  String get securitySetupApply => 'Übernehmen';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Die Plaintext-Stufe speichert kein Geheimnis, das ein Passwort schützen könnte.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid leitet den Datenbankschlüssel aus dem Passwort ab — Passwort ist immer an.';
+
+  @override
+  String get passwordSubtitleOn => 'An — Passwort beim Entsperren erforderlich';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Aus — tippen, um auf dieser Stufe ein Passwort hinzuzufügen';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Erforderlich — das Master-Passwort ist das Geheimnis der Stufe';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Nicht anwendbar — keine Verschlüsselung auf dieser Stufe';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

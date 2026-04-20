@@ -2207,6 +2207,35 @@ class STr extends S {
   String get tierBadgeCurrent => 'Geçerli';
 
   @override
+  String get securitySetupEnable => 'Etkinleştir';
+
+  @override
+  String get securitySetupApply => 'Uygula';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Şifrelemesiz katmanda parolayla korunacak bir sır yok.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid, veritabanı anahtarını paroladan türetir — her zaman açık.';
+
+  @override
+  String get passwordSubtitleOn => 'Açık — kilit açarken parola istenir';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Kapalı — bu katmana parola eklemek için dokun';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Zorunlu — ana parola katmanın sırrıdır';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Geçerli değil — bu katmanda şifreleme yok';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

@@ -2133,6 +2133,31 @@ class SKo extends S {
   String get tierBadgeCurrent => '현재';
 
   @override
+  String get securitySetupEnable => '활성화';
+
+  @override
+  String get securitySetupApply => '적용';
+
+  @override
+  String get passwordDisabledPlaintext => '암호화 없음 등급은 암호로 보호할 비밀이 없습니다.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid는 데이터베이스 키를 비밀번호에서 파생합니다 — 항상 켜짐.';
+
+  @override
+  String get passwordSubtitleOn => '켜짐 — 잠금 해제 시 비밀번호 필요';
+
+  @override
+  String get passwordSubtitleOff => '꺼짐 — 이 등급에 비밀번호를 추가하려면 탭';
+
+  @override
+  String get passwordSubtitleParanoid => '필수 — 마스터 비밀번호가 등급의 비밀';
+
+  @override
+  String get passwordSubtitlePlaintext => '해당 없음 — 이 등급에는 암호화가 없습니다';
+
+  @override
   String get snippets => '스니펫';
 
   @override

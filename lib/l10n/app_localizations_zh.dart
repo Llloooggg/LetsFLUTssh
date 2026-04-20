@@ -2115,6 +2115,30 @@ class SZh extends S {
   String get tierBadgeCurrent => '当前';
 
   @override
+  String get securitySetupEnable => '启用';
+
+  @override
+  String get securitySetupApply => '应用';
+
+  @override
+  String get passwordDisabledPlaintext => '无加密等级不存储可用密码保护的机密。';
+
+  @override
+  String get passwordDisabledParanoid => 'Paranoid 从密码派生数据库密钥——始终开启。';
+
+  @override
+  String get passwordSubtitleOn => '已开启——解锁时需要密码';
+
+  @override
+  String get passwordSubtitleOff => '已关闭——点击为当前等级添加密码';
+
+  @override
+  String get passwordSubtitleParanoid => '必需——主密码就是该等级的机密';
+
+  @override
+  String get passwordSubtitlePlaintext => '不适用——此等级未加密';
+
+  @override
   String get snippets => '代码片段';
 
   @override

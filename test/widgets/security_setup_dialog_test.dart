@@ -158,14 +158,19 @@ void main() {
     );
 
     testWidgets(
-      'Continue-style button renders (plain or with-recommended variant)',
+      'submit button renders (Enable on first-launch, Apply from Settings)',
       (tester) async {
         await openDialog(tester, caps: allCaps);
         final context = tester.element(find.byType(SecuritySetupDialog));
-        final plain = find.text(S.of(context).securitySetupContinue);
-        final withRec = find.text(S.of(context).continueWithRecommended);
+        // The "Continue with Recommended" label lied when a
+        // non-recommended tier was selected. Replaced with a plain
+        // Enable (first-launch, no currentTier) / Apply (Settings
+        // edit path) split. The test no longer cares which of the
+        // two is visible — only that exactly one submit CTA renders.
+        final enable = find.text(S.of(context).securitySetupEnable);
+        final apply = find.text(S.of(context).securitySetupApply);
         expect(
-          plain.evaluate().isNotEmpty || withRec.evaluate().isNotEmpty,
+          enable.evaluate().isNotEmpty || apply.evaluate().isNotEmpty,
           isTrue,
         );
       },

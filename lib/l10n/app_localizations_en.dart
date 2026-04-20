@@ -2192,6 +2192,34 @@ class SEn extends S {
   String get tierBadgeCurrent => 'Current';
 
   @override
+  String get securitySetupEnable => 'Enable';
+
+  @override
+  String get securitySetupApply => 'Apply';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Plaintext tier stores no secret to protect with a password.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid derives the database key from the password — it is always on.';
+
+  @override
+  String get passwordSubtitleOn => 'On — password required on unlock';
+
+  @override
+  String get passwordSubtitleOff => 'Off — tap to add a password on this tier';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Required — the master password is the tier\'s secret';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Not applicable — no encryption on this tier';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

@@ -2226,6 +2226,36 @@ class SFr extends S {
   String get tierBadgeCurrent => 'Actuel';
 
   @override
+  String get securitySetupEnable => 'Activer';
+
+  @override
+  String get securitySetupApply => 'Appliquer';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Le niveau sans chiffrement ne stocke aucun secret à protéger par un mot de passe.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid dérive la clé de la base de données du mot de passe — toujours actif.';
+
+  @override
+  String get passwordSubtitleOn =>
+      'Activé — mot de passe requis au déverrouillage';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Désactivé — appuyez pour ajouter un mot de passe à ce niveau';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Requis — le mot de passe maître est le secret du niveau';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Non applicable — aucun chiffrement à ce niveau';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

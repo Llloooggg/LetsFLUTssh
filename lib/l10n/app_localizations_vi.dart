@@ -2188,6 +2188,34 @@ class SVi extends S {
   String get tierBadgeCurrent => 'Hiện tại';
 
   @override
+  String get securitySetupEnable => 'Kích hoạt';
+
+  @override
+  String get securitySetupApply => 'Áp dụng';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Tầng không mã hoá không giữ bí mật để mật khẩu có thể bảo vệ.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid sinh khoá CSDL từ mật khẩu — luôn bật.';
+
+  @override
+  String get passwordSubtitleOn => 'Bật — cần mật khẩu khi mở khoá';
+
+  @override
+  String get passwordSubtitleOff => 'Tắt — chạm để thêm mật khẩu ở tầng này';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Bắt buộc — mật khẩu chính là bí mật của tầng';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Không áp dụng — tầng này không mã hoá';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

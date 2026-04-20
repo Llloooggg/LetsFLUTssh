@@ -100,7 +100,7 @@ class TierThreatBlock extends StatelessWidget {
     final borderWidth = selected ? 1.5 : 1.0;
 
     Widget body = Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: AppTheme.radiusSm,
@@ -116,7 +116,7 @@ class TierThreatBlock extends StatelessWidget {
             accent: effectiveAccent,
             trailing: trailing,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           _SplitThreatList(
             protects: protects,
             doesNotProtect: doesNot,
@@ -137,7 +137,7 @@ class TierThreatBlock extends StatelessWidget {
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: body,
     );
   }
@@ -164,12 +164,12 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 34,
-          height: 22,
+          width: 28,
+          height: 18,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: accent.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3),
             border: Border.all(color: accent, width: 1),
           ),
           child: Text(
@@ -178,11 +178,11 @@ class _Header extends StatelessWidget {
               color: accent,
               fontSize: AppFonts.xs,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
+              letterSpacing: 0.4,
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,19 +191,21 @@ class _Header extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: AppTheme.fg,
-                  fontSize: AppFonts.md,
+                  fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               if (subtitle.isNotEmpty) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   subtitle,
                   style: TextStyle(
                     color: AppTheme.fgDim,
                     fontSize: AppFonts.xs,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -229,25 +231,22 @@ class _SplitThreatList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Visual rhythm: threats flow ✓ rows → thin divider → ✗ rows.
+    // The coloured glyph carries the "protects / doesn't" meaning;
+    // the section headers from the first revision were pure text
+    // redundancy (every row already has a green ✓ or red ✗). Dropped
+    // so the four-card ladder fits a mobile viewport without hiding
+    // the modifier toggles underneath it.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
-          label: l10n.tierBlockProtectsHeader,
-          icon: Icons.check_circle,
-          color: AppTheme.green,
-        ),
         if (protects.isEmpty)
           _EmptyHint(text: l10n.tierBlockProtectsEmpty)
         else
           for (final t in protects)
             _ThreatLine(threat: t, status: ThreatStatus.protects, l10n: l10n),
-        const SizedBox(height: 8),
-        _SectionHeader(
-          label: l10n.tierBlockDoesNotProtectHeader,
-          icon: Icons.cancel,
-          color: AppTheme.red,
-        ),
+        if (protects.isNotEmpty && doesNotProtect.isNotEmpty)
+          Divider(height: 6, thickness: 1, color: AppTheme.border),
         if (doesNotProtect.isEmpty)
           _EmptyHint(text: l10n.tierBlockDoesNotProtectEmpty)
         else
@@ -258,40 +257,6 @@ class _SplitThreatList extends StatelessWidget {
               l10n: l10n,
             ),
       ],
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: AppFonts.xs,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -314,19 +279,21 @@ class _ThreatLine extends StatelessWidget {
       ThreatStatus.doesNotProtect => (Icons.close, AppTheme.red),
     };
     return Padding(
-      padding: const EdgeInsets.only(left: 4, top: 3, bottom: 3),
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 13, color: color),
+            child: Icon(icon, size: 12, color: color),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               threatTitle(threat, l10n),
               style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.xs),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

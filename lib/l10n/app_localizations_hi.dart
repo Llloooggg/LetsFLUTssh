@@ -2199,6 +2199,35 @@ class SHi extends S {
   String get tierBadgeCurrent => 'वर्तमान';
 
   @override
+  String get securitySetupEnable => 'सक्षम करें';
+
+  @override
+  String get securitySetupApply => 'लागू करें';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'सादा स्तर कोई रहस्य नहीं रखता जिसे पासवर्ड से बचाया जा सके।';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid पासवर्ड से डीबी कुंजी निकालता है — हमेशा चालू।';
+
+  @override
+  String get passwordSubtitleOn => 'चालू — अनलॉक पर पासवर्ड आवश्यक';
+
+  @override
+  String get passwordSubtitleOff =>
+      'बंद — इस स्तर पर पासवर्ड जोड़ने के लिए टैप करें';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'आवश्यक — मास्टर पासवर्ड ही स्तर का रहस्य है';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'लागू नहीं — इस स्तर में कोई एन्क्रिप्शन नहीं';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

@@ -2208,6 +2208,36 @@ class SRu extends S {
   String get tierBadgeCurrent => 'Текущий';
 
   @override
+  String get securitySetupEnable => 'Включить';
+
+  @override
+  String get securitySetupApply => 'Применить';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'В режиме без шифрования пароль защищать нечего.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid выводит ключ БД из пароля — пароль всегда включён.';
+
+  @override
+  String get passwordSubtitleOn =>
+      'Включён — пароль запрашивается при разблокировке';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Выключен — нажмите, чтобы добавить пароль на этом уровне';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Обязателен — мастер-пароль и есть секрет уровня';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Не применимо — на этом уровне нет шифрования';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override

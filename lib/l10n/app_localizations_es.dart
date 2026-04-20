@@ -2220,6 +2220,36 @@ class SEs extends S {
   String get tierBadgeCurrent => 'Actual';
 
   @override
+  String get securitySetupEnable => 'Activar';
+
+  @override
+  String get securitySetupApply => 'Aplicar';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'El nivel sin cifrado no almacena secretos que proteger con una contraseña.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid deriva la clave de la base de datos de la contraseña — siempre está activada.';
+
+  @override
+  String get passwordSubtitleOn =>
+      'Activada — se pide contraseña al desbloquear';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Desactivada — toca para añadir una contraseña en este nivel';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Obligatoria — la contraseña maestra es el secreto del nivel';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'No aplicable — este nivel no tiene cifrado';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

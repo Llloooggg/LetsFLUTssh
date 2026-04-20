@@ -2214,6 +2214,35 @@ class SPt extends S {
   String get tierBadgeCurrent => 'Atual';
 
   @override
+  String get securitySetupEnable => 'Ativar';
+
+  @override
+  String get securitySetupApply => 'Aplicar';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'O nível sem criptografia não guarda nada que uma senha possa proteger.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid deriva a chave do banco a partir da senha — sempre ativada.';
+
+  @override
+  String get passwordSubtitleOn => 'Ativada — senha exigida ao desbloquear';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Desativada — toque para adicionar senha neste nível';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Obrigatória — a senha mestra é o segredo do nível';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Não aplicável — este nível não tem criptografia';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

@@ -2195,6 +2195,35 @@ class SAr extends S {
   String get tierBadgeCurrent => 'الحالي';
 
   @override
+  String get securitySetupEnable => 'تفعيل';
+
+  @override
+  String get securitySetupApply => 'تطبيق';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'المستوى بدون تشفير لا يحفظ سرًا يمكن لكلمة مرور حمايته.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'يشتق Paranoid مفتاح قاعدة البيانات من كلمة المرور — مفعّلة دائمًا.';
+
+  @override
+  String get passwordSubtitleOn => 'مفعّلة — مطلوبة عند فك القفل';
+
+  @override
+  String get passwordSubtitleOff =>
+      'معطّلة — المس لإضافة كلمة مرور في هذا المستوى';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'مطلوبة — كلمة المرور الرئيسية هي سر المستوى';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'غير متاحة — لا يوجد تشفير في هذا المستوى';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

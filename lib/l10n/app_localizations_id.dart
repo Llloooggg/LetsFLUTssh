@@ -2203,6 +2203,35 @@ class SId extends S {
   String get tierBadgeCurrent => 'Saat ini';
 
   @override
+  String get securitySetupEnable => 'Aktifkan';
+
+  @override
+  String get securitySetupApply => 'Terapkan';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Tingkat tanpa enkripsi tidak menyimpan rahasia untuk dilindungi kata sandi.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid menurunkan kunci basis data dari kata sandi — selalu aktif.';
+
+  @override
+  String get passwordSubtitleOn => 'Aktif — kata sandi diminta saat membuka';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Nonaktif — ketuk untuk menambah kata sandi di tingkat ini';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Wajib — kata sandi utama adalah rahasia tingkatan';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Tidak berlaku — tingkat ini tanpa enkripsi';
+
+  @override
   String get snippets => 'Snippet';
 
   @override
