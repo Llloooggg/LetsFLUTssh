@@ -880,6 +880,17 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 
 **Known scope**: the drift database handle is *not* closed on lock. SQLite3MultipleCiphers keeps its cipher key in internal page-cipher state, so DB reads continue to work after lock. Closing + reopening the DB would require disconnecting every live SSH/SFTP session. The auto-lock zeroes the explicit public handle used by rekey / export / config code paths and blocks UI input; it does not fully purge the SQLCipher runtime state.
 
+**OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path via the `com.letsflutssh/session_lock` method channel.
+
+| Platform | Native source |
+|---|---|
+| **Windows** | `WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION)` in `windows/runner/session_lock_plugin.cpp`. `FlutterWindow::MessageHandler` forwards `WM_WTSSESSION_CHANGE` into the plugin, which fires `sessionLocked` on the channel when wparam is `WTS_SESSION_LOCK`. Subscription is released in `OnDestroy`. |
+| **macOS** | `DistributedNotificationCenter` observer on `com.apple.screenIsLocked` in `macos/Runner/SessionLockPlugin.swift`. Fires once per lock transition; removed in `deinit`. |
+| **Linux** | GDBus `signal_subscribe` on `org.freedesktop.login1.Session.Lock` in `linux/runner/session_lock_plugin.cc`. The subscription is scoped to the current process's session object path via `GetSessionByPID`, so a second logged-in session on the same machine cannot trip the app's lock. Unsubscribed + bus dropped in `session_lock_plugin_free`. |
+| **iOS / Android** | No-op — lifecycle-paused already fires on OS lock, so a second channel would double-lock. |
+
+*Why this path vs. polling:* `loginctl show-session` / screensaver-state scraping worked in an earlier iteration and landed as a fallback on Linux, but polling burns a D-Bus round-trip on every tick, lags the real lock by up to the poll interval, and fires duplicate events across transitions. The signal-subscription path fires exactly once per transition, costs nothing when idle, and matches what every other desktop app on the system bus uses. The polling fallback was removed along with this change.
+
 **Encrypted log sink scaffolding (follow-on wiring).** Two classes are in tree ahead of the drift schema + DAO + UI rewire for moving the log target into the encrypted DB:
 
 * [`LogBatchQueue<T>`](../lib/core/db/log_batch_queue.dart) — bounded batching in front of the (future) `app_logs` DAO. Flushes on whichever of *size ≥ 100 events* or *time ≥ 500 ms since the first event* fires first. Flush failures preserve the batch for retry; `dispose()` flushes and blocks further adds.

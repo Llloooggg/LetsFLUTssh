@@ -11,6 +11,7 @@ add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "hardware_vault_plugin.cpp"
   "main.cpp"
+  "session_lock_plugin.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -40,6 +41,9 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 # Windows.Security.Cryptography surfaces we call from
 # hardware_vault_plugin.cpp.
 target_link_libraries(${BINARY_NAME} PRIVATE "WindowsApp.lib")
+# Wtsapi32 provides WTSRegisterSessionNotification for the
+# workstation-lock bridge in session_lock_plugin.cpp.
+target_link_libraries(${BINARY_NAME} PRIVATE "Wtsapi32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

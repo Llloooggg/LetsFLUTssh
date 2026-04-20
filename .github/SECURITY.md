@@ -225,9 +225,14 @@ architecture.
   `UnsupportedLfsVersionException` — users re-export from the current
   app version to cross upgrade boundaries. Archives never carry
   per-machine security setup.
-- **Auto-lock** — idle-timer lock + mobile lifecycle-paused lock. Any
-  tier with a typed secret arms the timer (Paranoid + any tier with
-  the password modifier). The DB handle is closed on lock where
+- **Auto-lock** — idle-timer lock + mobile lifecycle-paused lock +
+  OS workstation-lock hook. Any tier with a typed secret arms the
+  timer (Paranoid + any tier with the password modifier). Locking
+  the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock) routes through
+  `SessionLockListener` — Windows WTS, macOS
+  `NSDistributedNotificationCenter`, Linux systemd-logind D-Bus — so
+  the in-app lock fires even when the user hasn't been idle long
+  enough to trip the timer. The DB handle is closed on lock where
   configured, clearing the SQLCipher page cache in addition to the
   Dart-side key reference.
 - **Page-locked in-memory secrets** — DB key, Argon2id-derived keys,
