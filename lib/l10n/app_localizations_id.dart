@@ -2168,6 +2168,21 @@ class SId extends S {
   String get firstLaunchSecurityDismiss => 'Mengerti';
 
   @override
+  String get securityHardwareUpgradeTitle =>
+      'Penyimpanan berbasis perangkat keras tersedia';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Tingkatkan untuk mengikat rahasia ke TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Tingkatkan';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

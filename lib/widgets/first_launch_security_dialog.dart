@@ -130,17 +130,6 @@ class FirstLaunchSecurityDialog extends StatelessWidget {
     // context at all (e.g. T1 auto-setup on a platform where we
     // don't want to pitch T2 at all) — skip the second paragraph.
     if (reason == null) return null;
-    switch (reason) {
-      case HardwareUnavailableReason.noSecureEnclave:
-        return l10n.firstLaunchSecurityHardwareUnavailableApple;
-      case HardwareUnavailableReason.noTpm:
-        return l10n.firstLaunchSecurityHardwareUnavailableWindows;
-      case HardwareUnavailableReason.noTpm2Tools:
-        return l10n.firstLaunchSecurityHardwareUnavailableLinux;
-      case HardwareUnavailableReason.noAndroidKeystoreHardware:
-        return l10n.firstLaunchSecurityHardwareUnavailableAndroid;
-      case HardwareUnavailableReason.generic:
-        return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
-    }
+    return hardwareUnavailableReasonText(l10n, reason);
   }
 }

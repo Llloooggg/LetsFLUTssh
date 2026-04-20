@@ -2158,6 +2158,21 @@ class SEn extends S {
   String get firstLaunchSecurityDismiss => 'Got it';
 
   @override
+  String get securityHardwareUpgradeTitle =>
+      'Hardware-backed storage available';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Upgrade to bind secrets to TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Upgrade';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Hardware-backed storage unavailable';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

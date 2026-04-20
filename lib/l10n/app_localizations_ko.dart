@@ -2101,6 +2101,19 @@ class SKo extends S {
   String get firstLaunchSecurityDismiss => '확인';
 
   @override
+  String get securityHardwareUpgradeTitle => '하드웨어 기반 저장소 사용 가능';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      '업그레이드하여 비밀을 TPM / Secure Enclave에 바인딩하세요.';
+
+  @override
+  String get securityHardwareUpgradeAction => '업그레이드';
+
+  @override
+  String get securityHardwareUnavailableTitle => '하드웨어 기반 저장소를 사용할 수 없습니다';
+
+  @override
   String get snippets => '스니펫';
 
   @override

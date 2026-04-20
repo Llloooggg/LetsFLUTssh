@@ -2166,6 +2166,20 @@ class SHi extends S {
   String get firstLaunchSecurityDismiss => 'समझ गया';
 
   @override
+  String get securityHardwareUpgradeTitle => 'हार्डवेयर-आधारित स्टोरेज उपलब्ध';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'रहस्यों को TPM / Secure Enclave से बाँधने के लिए अपग्रेड करें।';
+
+  @override
+  String get securityHardwareUpgradeAction => 'अपग्रेड करें';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

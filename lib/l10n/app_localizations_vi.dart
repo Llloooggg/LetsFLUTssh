@@ -2154,6 +2154,20 @@ class SVi extends S {
   String get firstLaunchSecurityDismiss => 'Đã hiểu';
 
   @override
+  String get securityHardwareUpgradeTitle => 'Lưu trữ phần cứng khả dụng';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Nâng cấp để ràng buộc bí mật với TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Nâng cấp';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Lưu trữ phần cứng không khả dụng';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

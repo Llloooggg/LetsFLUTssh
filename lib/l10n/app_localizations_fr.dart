@@ -2193,6 +2193,20 @@ class SFr extends S {
   String get firstLaunchSecurityDismiss => 'Compris';
 
   @override
+  String get securityHardwareUpgradeTitle => 'Stockage matériel disponible';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Passez au stockage matériel pour lier les secrets au TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Mettre à niveau';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Stockage matériel indisponible';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

@@ -2186,6 +2186,21 @@ class SEs extends S {
   String get firstLaunchSecurityDismiss => 'Entendido';
 
   @override
+  String get securityHardwareUpgradeTitle =>
+      'Almacenamiento por hardware disponible';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Actualiza para vincular los secretos a TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Actualizar';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Almacenamiento por hardware no disponible';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

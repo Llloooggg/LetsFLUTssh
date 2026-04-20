@@ -55,6 +55,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/form_submit_chain.dart';
+import '../../providers/first_launch_banner_provider.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
 import '../../widgets/toast.dart';

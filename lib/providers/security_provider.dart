@@ -8,6 +8,7 @@ import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
 import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
+import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
@@ -37,6 +38,21 @@ final keychainPasswordGateProvider = Provider<KeychainPasswordGate>(
 final hardwareTierVaultProvider = Provider<HardwareTierVault>(
   (_) => HardwareTierVault(),
 );
+
+/// OS / hardware capabilities snapshot, probed asynchronously and
+/// cached for the lifetime of the Riverpod container. TPM / Secure
+/// Enclave / libsecret do not appear or disappear mid-session, so a
+/// one-shot probe is correct — the Settings upgrade banner consumes
+/// this to decide whether to surface the "hardware tier available"
+/// row or the "hardware tier unavailable — why" notice.
+final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
+  ref,
+) async {
+  return probeCapabilities(
+    keyStorage: ref.read(secureKeyStorageProvider),
+    hardwareVault: ref.read(hardwareTierVaultProvider),
+  );
+});
 
 /// Current data protection level, detected at startup.
 ///

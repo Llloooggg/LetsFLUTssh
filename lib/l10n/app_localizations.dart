@@ -3843,6 +3843,30 @@ abstract class S {
   /// **'Got it'**
   String get firstLaunchSecurityDismiss;
 
+  /// No description provided for @securityHardwareUpgradeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage available'**
+  String get securityHardwareUpgradeTitle;
+
+  /// No description provided for @securityHardwareUpgradeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to bind secrets to TPM / Secure Enclave.'**
+  String get securityHardwareUpgradeBody;
+
+  /// No description provided for @securityHardwareUpgradeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get securityHardwareUpgradeAction;
+
+  /// No description provided for @securityHardwareUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage unavailable'**
+  String get securityHardwareUnavailableTitle;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

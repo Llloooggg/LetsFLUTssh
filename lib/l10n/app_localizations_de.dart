@@ -2190,6 +2190,21 @@ class SDe extends S {
   String get firstLaunchSecurityDismiss => 'Verstanden';
 
   @override
+  String get securityHardwareUpgradeTitle =>
+      'Hardwaregestützter Speicher verfügbar';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Aktualisiere, um Geheimnisse an TPM / Secure Enclave zu binden.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Aktualisieren';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Hardwaregestützter Speicher nicht verfügbar';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

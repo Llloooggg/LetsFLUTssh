@@ -141,6 +141,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final modifiers =
         config.security?.modifiers ?? SecurityTierModifiers.defaults;
 
+    final caps = ref.watch(securityCapabilitiesProvider);
+
     return Column(
       children: [
         // Active tier (read-only display). Subtitle reflects the new
@@ -150,6 +152,22 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           title: l10n.securityLevel,
           value: _securityLevelLabel(l10n, secState.level, modifiers),
         ),
+        // Hardware-upgrade banner — only meaningful when the current
+        // tier is lower than T2. Capabilities come from an async probe
+        // cached for the session; a loading / error state hides the
+        // banner rather than flashing a placeholder.
+        if (secState.level != SecurityTier.hardware &&
+            secState.level != SecurityTier.paranoid)
+          caps.maybeWhen(
+            data: (c) => c.hardwareVaultAvailable
+                ? _HardwareUpgradeBanner(
+                    onUpgrade: () => _changeSecurityTier(context),
+                  )
+                : _HardwareUnavailableNotice(
+                    reason: defaultHardwareUnavailableReason(),
+                  ),
+            orElse: () => const SizedBox.shrink(),
+          ),
         // Keychain status — display-only; the tier wizard handles any
         // action that requires reading this value.
         _InfoTile(
@@ -731,6 +749,124 @@ class _DisabledDropdownTrigger extends StatelessWidget {
         onTap: () =>
             Toast.show(context, message: reason, level: ToastLevel.info),
         child: child,
+      ),
+    );
+  }
+}
+
+/// Discoverability card shown in Settings → Security when the
+/// current tier is below hardware and T2 is reachable on this
+/// device. Taps the existing tier-change flow — the user lands in
+/// the wizard with their current tier preselected, then picks T2.
+class _HardwareUpgradeBanner extends StatelessWidget {
+  const _HardwareUpgradeBanner({required this.onUpgrade});
+
+  final VoidCallback onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.bg2,
+          borderRadius: AppTheme.radiusSm,
+          border: Border.all(color: AppTheme.green),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(Icons.verified_user_outlined, color: AppTheme.green, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.securityHardwareUpgradeTitle,
+                    style: TextStyle(
+                      fontSize: AppFonts.sm,
+                      color: AppTheme.fg,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.securityHardwareUpgradeBody,
+                    style: TextStyle(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgDim,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onUpgrade,
+              style: TextButton.styleFrom(foregroundColor: AppTheme.green),
+              child: Text(l10n.securityHardwareUpgradeAction),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Informational card shown when the current tier is below hardware
+/// *and* the T2 probe came back false. Explains the specific blocker
+/// (no TPM / no Secure Enclave / missing tpm2-tools) so the upgrade
+/// tile staying greyed out does not look like a hidden feature.
+class _HardwareUnavailableNotice extends StatelessWidget {
+  const _HardwareUnavailableNotice({required this.reason});
+
+  final HardwareUnavailableReason reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.bg2,
+          borderRadius: AppTheme.radiusSm,
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline, size: 20, color: AppTheme.fgDim),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.securityHardwareUnavailableTitle,
+                    style: TextStyle(
+                      fontSize: AppFonts.sm,
+                      color: AppTheme.fg,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hardwareUnavailableReasonText(l10n, reason),
+                    style: TextStyle(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgDim,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

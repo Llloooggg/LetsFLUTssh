@@ -2162,6 +2162,20 @@ class SAr extends S {
   String get firstLaunchSecurityDismiss => 'حسنًا';
 
   @override
+  String get securityHardwareUpgradeTitle => 'التخزين المدعوم بالعتاد متاح';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'قم بالترقية لربط الأسرار بـ TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'ترقية';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'التخزين المدعوم بالعتاد غير متاح';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

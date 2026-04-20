@@ -2174,6 +2174,20 @@ class STr extends S {
   String get firstLaunchSecurityDismiss => 'Anladım';
 
   @override
+  String get securityHardwareUpgradeTitle => 'Donanım destekli depolama mevcut';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Sırları TPM / Secure Enclave\'a bağlamak için yükseltin.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Yükselt';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Donanım destekli depolama kullanılamıyor';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

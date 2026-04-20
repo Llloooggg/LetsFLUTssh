@@ -1,5 +1,5 @@
 import 'dart:async' show runZonedGuarded, unawaited;
-import 'dart:io' show Platform, exit;
+import 'dart:io' show exit;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -912,25 +912,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
             hardwareUpgradeAvailable: caps.hardwareVaultAvailable,
             hardwareUnavailableReason: caps.hardwareVaultAvailable
                 ? null
-                : _hardwareUnavailableReason(),
+                : defaultHardwareUnavailableReason(),
           ),
         );
-  }
-
-  /// Coarse per-platform guess at why T2 is out of reach. The probe
-  /// itself only reports a boolean; this maps the platform to the
-  /// likeliest explanation so the banner can show a specific
-  /// sentence instead of a generic "not available" line.
-  HardwareUnavailableReason _hardwareUnavailableReason() {
-    if (Platform.isWindows) return HardwareUnavailableReason.noTpm;
-    if (Platform.isMacOS || Platform.isIOS) {
-      return HardwareUnavailableReason.noSecureEnclave;
-    }
-    if (Platform.isLinux) return HardwareUnavailableReason.noTpm2Tools;
-    if (Platform.isAndroid) {
-      return HardwareUnavailableReason.noAndroidKeystoreHardware;
-    }
-    return HardwareUnavailableReason.generic;
   }
 
   /// L2 first-launch: configure the keychain password gate, then write

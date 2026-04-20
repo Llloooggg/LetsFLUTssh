@@ -2956,6 +2956,13 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 
 *Post-setup banner:* [`FirstLaunchSecurityDialog`](../lib/widgets/first_launch_security_dialog.dart) shown by `_MainScreenState` when the provider fires. Buttons: **Got it** (primary, dismisses) and **Open Settings** (only when `caps.hardwareVaultAvailable == true && current tier != hardware` — otherwise the upgrade is not reachable so offering the button would be dishonest). No persistence: the banner belongs to the launch where the auto-setup ran, and the auto-setup only runs when no DB file exists, so a restart never re-opens it.
 
+*Settings discoverability cards:* the Security section consumes the same capabilities snapshot via [`securityCapabilitiesProvider`](../lib/providers/security_provider.dart) (a session-scoped `FutureProvider` — TPM / Secure Enclave / libsecret don't appear or disappear mid-session, so one probe per container is correct). When the current tier is below `SecurityTier.hardware`, Settings renders one of two cards right under the active-tier info tile:
+
+- **`_HardwareUpgradeBanner`** — green-bordered action card pointing at the existing "Change security tier" wizard, shown when `caps.hardwareVaultAvailable == true`.
+- **`_HardwareUnavailableNotice`** — neutral info card with the per-platform reason from `defaultHardwareUnavailableReason()` + `hardwareUnavailableReasonText()` (shared with the first-launch dialog so both surfaces speak in lockstep), shown when the probe came back false.
+
+Paranoid is treated as "already opted out of OS trust" and never shows the upgrade card — offering a user who picked Paranoid an "upgrade to TPM" tile would be wrong-direction advice.
+
 ### Startup security flow
 
 `_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs (no legacy file detection):

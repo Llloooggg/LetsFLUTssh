@@ -2158,6 +2158,21 @@ class SFa extends S {
   String get firstLaunchSecurityDismiss => 'باشه';
 
   @override
+  String get securityHardwareUpgradeTitle =>
+      'ذخیره‌سازی سخت‌افزاری در دسترس است';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'برای اتصال اسرار به TPM / Secure Enclave ارتقا دهید.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'ارتقا';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'ذخیره‌سازی سخت‌افزاری در دسترس نیست';
+
+  @override
   String get snippets => 'قطعه‌ها';
 
   @override

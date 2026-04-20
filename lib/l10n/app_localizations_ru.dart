@@ -2175,6 +2175,20 @@ class SRu extends S {
   String get firstLaunchSecurityDismiss => 'Понятно';
 
   @override
+  String get securityHardwareUpgradeTitle => 'Доступно аппаратное хранилище';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Повысьте уровень, чтобы привязать секреты к TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Повысить';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Аппаратное хранилище недоступно';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override

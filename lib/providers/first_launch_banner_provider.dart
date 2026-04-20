@@ -1,6 +1,44 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/security_tier.dart';
+import '../l10n/app_localizations.dart';
+
+/// Return the likeliest-per-platform reason T2 is out of reach on
+/// this host. Shared by the first-launch dialog and the Settings
+/// "hardware unavailable" notice so both surfaces say the same
+/// thing — a future TPM-probe refinement only needs one edit.
+HardwareUnavailableReason defaultHardwareUnavailableReason() {
+  if (Platform.isWindows) return HardwareUnavailableReason.noTpm;
+  if (Platform.isMacOS || Platform.isIOS) {
+    return HardwareUnavailableReason.noSecureEnclave;
+  }
+  if (Platform.isLinux) return HardwareUnavailableReason.noTpm2Tools;
+  if (Platform.isAndroid) {
+    return HardwareUnavailableReason.noAndroidKeystoreHardware;
+  }
+  return HardwareUnavailableReason.generic;
+}
+
+/// Resolve the user-facing copy for a [HardwareUnavailableReason].
+/// Shared so the first-launch dialog and the Settings "hardware
+/// unavailable" notice stay in lockstep — one ARB key pair per
+/// reason, no drift between surfaces.
+String hardwareUnavailableReasonText(S l10n, HardwareUnavailableReason reason) {
+  switch (reason) {
+    case HardwareUnavailableReason.noSecureEnclave:
+      return l10n.firstLaunchSecurityHardwareUnavailableApple;
+    case HardwareUnavailableReason.noTpm:
+      return l10n.firstLaunchSecurityHardwareUnavailableWindows;
+    case HardwareUnavailableReason.noTpm2Tools:
+      return l10n.firstLaunchSecurityHardwareUnavailableLinux;
+    case HardwareUnavailableReason.noAndroidKeystoreHardware:
+      return l10n.firstLaunchSecurityHardwareUnavailableAndroid;
+    case HardwareUnavailableReason.generic:
+      return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
+  }
+}
 
 /// Reason the hardware-backed tier is not reachable on this device.
 /// Ordered by the order of the checks in the capability probe —

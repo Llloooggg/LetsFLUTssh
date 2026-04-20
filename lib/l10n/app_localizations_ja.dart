@@ -2104,6 +2104,19 @@ class SJa extends S {
   String get firstLaunchSecurityDismiss => '了解';
 
   @override
+  String get securityHardwareUpgradeTitle => 'ハードウェア保護ストレージが利用可能';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'アップグレードして秘密情報を TPM / Secure Enclave に紐付けます。';
+
+  @override
+  String get securityHardwareUpgradeAction => 'アップグレード';
+
+  @override
+  String get securityHardwareUnavailableTitle => 'ハードウェア保護ストレージは利用できません';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

@@ -2084,6 +2084,18 @@ class SZh extends S {
   String get firstLaunchSecurityDismiss => '知道了';
 
   @override
+  String get securityHardwareUpgradeTitle => '可使用硬件存储';
+
+  @override
+  String get securityHardwareUpgradeBody => '升级以将机密绑定到 TPM / Secure Enclave。';
+
+  @override
+  String get securityHardwareUpgradeAction => '升级';
+
+  @override
+  String get securityHardwareUnavailableTitle => '硬件存储不可用';
+
+  @override
   String get snippets => '代码片段';
 
   @override

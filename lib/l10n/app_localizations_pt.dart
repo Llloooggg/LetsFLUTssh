@@ -2180,6 +2180,21 @@ class SPt extends S {
   String get firstLaunchSecurityDismiss => 'Entendi';
 
   @override
+  String get securityHardwareUpgradeTitle =>
+      'Armazenamento em hardware disponível';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Atualize para vincular os segredos ao TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Atualizar';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Armazenamento em hardware indisponível';
+
+  @override
   String get snippets => 'Snippets';
 
   @override
