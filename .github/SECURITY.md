@@ -206,9 +206,9 @@ is prompted for a secret.
   entering the password, never a replacement. The slot is gated by
   the platform biometric ACL (`biometryCurrentSet` on Apple,
   `setInvalidatedByBiometricEnrollment(true) + BiometricPrompt` on
-  Android, `fprintd` on Linux, `KeyCredentialManager` on Windows
-  after the CNG rewrite). Re-enrolling biometrics invalidates the
-  slot and forces a password re-entry.
+  Android, `fprintd` on Linux, CNG `NCRYPT_UI_PROTECT_KEY_FLAG` on
+  the Hello-gated overlay key on Windows). Re-enrolling biometrics
+  invalidates the slot and forces a password re-entry.
 
 ## Orthogonal mitigations
 

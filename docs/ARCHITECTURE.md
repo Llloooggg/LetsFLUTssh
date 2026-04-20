@@ -652,10 +652,12 @@ bypasses the OS keychain layer).
 - `biometric` — when true, the user opted into the biometric
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected
-  keychain alias on T1 / `letsflutssh_hw_password_overlay`
-  Keystore / SE key on T2) that holds the typed password; biometric
-  unlock releases the password from that slot and replays the HMAC
-  gate without requiring the user to retype.
+  keychain alias on T1 / per-platform biometric-gated key on T2:
+  `letsflutssh_hw_password_overlay` Keystore on Android, SE alias
+  on iOS/macOS, `LetsFLUTssh-BioOverlay-v2` CNG key with
+  `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
+  biometric unlock releases the password from that slot and replays
+  the HMAC gate without requiring the user to retype.
 - `biometricShortcut` — legacy alias kept in sync with `biometric`
   during the transition. Old configs that only carry
   `biometric_shortcut` deserialise into `biometric` automatically.

@@ -93,9 +93,12 @@ class BiometricAuth {
   /// `flutter_secure_storage`'s default EncryptedSharedPreferences
   /// until a dedicated Keystore + `BiometricPrompt.CryptoObject`
   /// plugin lands, so the level is reported as
-  /// [BiometricBackingLevel.software] today. Windows is also reported
-  /// as software until `KeyCredentialManager` replaces DPAPI. Linux
-  /// upgrades to hardware whenever a TPM2 device + `tpm2-tools`
+  /// [BiometricBackingLevel.software] today. Windows is reported as
+  /// software here; the hw-vault plugin's `backingLevel` method call
+  /// returns `hardware_tpm` when CNG's Platform Crypto Provider
+  /// backed the primary key, and the Settings UI prefers that more
+  /// specific answer when T2 is the active tier. Linux upgrades to
+  /// hardware whenever a TPM2 device + `tpm2-tools`
   /// binary are both reachable — otherwise the fprintd + libsecret
   /// path is honestly labelled software.
   Future<BiometricBackingLevel?> backingLevel() async {

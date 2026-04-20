@@ -23,6 +23,7 @@
         <exclude domain="file" path="hardware_vault.tpm" />
         <exclude domain="file" path="hardware_vault_password_overlay_android.bin" />
         <exclude domain="file" path="hardware_vault_password_overlay_apple.bin" />
+        <exclude domain="file" path="hardware_vault_password_overlay_windows.bin" />
         <exclude domain="file" path="biometric_vault.tpm" />
         <exclude domain="file" path="config.json" />
         <exclude domain="file" path="migration_history.json" />
@@ -48,6 +49,7 @@
         <exclude domain="file" path="hardware_vault.tpm" />
         <exclude domain="file" path="hardware_vault_password_overlay_android.bin" />
         <exclude domain="file" path="hardware_vault_password_overlay_apple.bin" />
+        <exclude domain="file" path="hardware_vault_password_overlay_windows.bin" />
         <exclude domain="file" path="biometric_vault.tpm" />
         <exclude domain="file" path="config.json" />
         <exclude domain="file" path="migration_history.json" />

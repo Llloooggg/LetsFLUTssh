@@ -82,6 +82,7 @@ class WipeAllService {
     // Biometric / hw overlay blobs (password released from biometric-gated slot)
     'hardware_vault_password_overlay_android.bin',
     'hardware_vault_password_overlay_apple.bin',
+    'hardware_vault_password_overlay_windows.bin',
 
     // Password gate (L2-era + current bank-style password layer)
     'security_pass_hash.bin',

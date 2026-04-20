@@ -32,7 +32,11 @@ import 'linux/tpm_client.dart';
 ///   `setUserAuthenticationRequired(true)` + `setInvalidatedBy
 ///   BiometricEnrollment(true)`.
 /// - **Windows** — MethodChannel to `hardware_vault_plugin.cpp`;
-///   KeyCredentialManager (Windows Hello) with RequestSignAsync.
+///   CNG `NCrypt` on the Microsoft Platform Crypto Provider (TPM
+///   2.0) with RSA-OAEP-SHA-256 wrap. Primary wrap is silent — the
+///   PIN-HMAC gates decrypt so there is no Hello prompt on unlock.
+///   Biometric overlay is a second NCrypt key with
+///   `NCRYPT_UI_PROTECT_KEY_FLAG` that Hello gates on each decrypt.
 ///
 /// The PIN itself cannot be the auth value on Apple/Android/Windows
 /// because those APIs do not accept arbitrary secrets — they gate
