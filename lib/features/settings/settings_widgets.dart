@@ -166,43 +166,72 @@ class _SettingsRow extends StatelessWidget {
     this.icon,
   });
 
+  /// Breakpoint under which the row flips to stacked layout — label
+  /// on top, control on a new line. Tuned for the narrowest session
+  /// settings drawer on mobile (≈ 360–400 px) plus long-form
+  /// translations (Russian / German add ~30-50 % to English length).
+  /// Anything above the threshold keeps the side-by-side shape that
+  /// desktop users expect.
+  static const double _narrowBreakpoint = 420;
+
   @override
   Widget build(BuildContext context) {
+    final labelBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+        ),
+        if (subtitle != null)
+          Text(
+            subtitle!,
+            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          ),
+      ],
+    );
+
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: AppTheme.barHeightSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < _narrowBreakpoint;
+            if (narrow) {
+              // Stacked: label block on top, control fills the row
+              // below. Icon stays inline with the label so the visual
+              // hierarchy (icon + label, control underneath) reads as
+              // a single item instead of two disconnected lines.
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    label,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.sm,
-                      color: AppTheme.fg,
-                    ),
+                  Row(
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 16, color: AppTheme.fgDim),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(child: labelBlock),
+                    ],
                   ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgDim,
-                      ),
-                    ),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: child),
                 ],
-              ),
-            ),
-            const SizedBox(width: 24),
-            child,
-          ],
+              );
+            }
+            return Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 16, color: AppTheme.fgDim),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(child: labelBlock),
+                const SizedBox(width: 24),
+                child,
+              ],
+            );
+          },
         ),
       ),
     );

@@ -64,8 +64,19 @@ class AppDialog extends StatelessWidget {
       body = Flexible(child: SingleChildScrollView(child: body));
     }
 
+    // Clamp requested [maxWidth] to the available screen width minus
+    // the Dialog's 24-px inset on each side. Without the clamp, a
+    // dialog asking for 900 px on a 400-px-wide phone gets a fixed
+    // 900-px content box, clipped by the screen and visually letting
+    // content "run off" the modal. With the clamp, narrow hosts fall
+    // back to full-width-minus-inset and the content reflows.
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final effectiveMaxWidth = maxWidth > screenWidth - 48
+        ? screenWidth - 48
+        : maxWidth;
+
     Widget child = ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
+      constraints: BoxConstraints(maxWidth: effectiveMaxWidth),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

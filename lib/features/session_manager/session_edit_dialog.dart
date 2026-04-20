@@ -287,11 +287,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(border: AppTheme.borderBottom),
+      // Three Expanded tabs so Russian / German labels never push the
+      // third tab past the modal edge. Each tab caps its content at a
+      // third of the bar width and truncates with ellipsis if the
+      // translation still overflows that slot.
       child: Row(
         children: [
-          _buildTab(0, Icons.dns, S.of(context).connection),
-          _buildTab(1, Icons.shield, S.of(context).auth),
-          _buildTab(2, Icons.folder, S.of(context).options),
+          Expanded(child: _buildTab(0, Icons.dns, S.of(context).connection)),
+          Expanded(child: _buildTab(1, Icons.shield, S.of(context).auth)),
+          Expanded(child: _buildTab(2, Icons.folder, S.of(context).options)),
         ],
       ),
     );
@@ -303,7 +307,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       onTap: () => setState(() => _tabIndex = index),
       builder: (hovered) => Container(
         height: AppTheme.controlHeightLg,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: !active && hovered ? AppTheme.hover : Colors.transparent,
           border: active
@@ -311,6 +315,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
               : null,
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
@@ -318,13 +323,19 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
               color: active ? AppTheme.fg : AppTheme.fgFaint,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: AppFonts.sm,
-                fontWeight: FontWeight.w500,
-                color: active ? AppTheme.fg : AppTheme.fgFaint,
+            // Flexible + ellipsis so long translations truncate
+            // inside the tab rather than breaking the Row.
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.sm,
+                  fontWeight: FontWeight.w500,
+                  color: active ? AppTheme.fg : AppTheme.fgFaint,
+                ),
               ),
             ),
           ],

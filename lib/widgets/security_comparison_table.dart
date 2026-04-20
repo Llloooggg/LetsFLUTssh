@@ -76,6 +76,13 @@ class SecurityComparisonTable extends StatelessWidget {
     final useTransposed = plat.isMobilePlatform;
     return AppDialog(
       title: l10n.compareAllTiers,
+      // Eight tier columns + threat-label column + padding overflow the
+      // stock 460-wide AppDialog — the table's own horizontal scroll
+      // kicks in around 820. Bump the dialog so the whole matrix fits
+      // on a typical 1440+ desktop without needing the nested scroll.
+      // Transposed mobile layout already fits in 460 (one tier section
+      // per row) so we only widen on desktop.
+      maxWidth: useTransposed ? 460 : 900,
       content: useTransposed
           ? _TransposedMatrix(l10n: l10n)
           : _WideMatrix(l10n: l10n),
