@@ -240,6 +240,17 @@ architecture.
   `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS,
   `SetErrorMode` / mitigation policies on Windows (suppresses WER
   crash dumps that would otherwise contain the cipher key).
+- **Clipboard hygiene** — password / token / passphrase copies
+  route through `SecureClipboard.setText`, which declares the
+  per-OS "don't sync, don't history" markers in the same system
+  call as the text (`CanIncludeInClipboardHistory` +
+  `CanUploadToCloudClipboard` on Windows, nspasteboard
+  transient/concealed types on macOS, `localOnly` +
+  `expirationDate` on iOS, `ClipDescription.EXTRA_IS_SENSITIVE`
+  on Android 13+). A 30-second auto-wipe timer on top only clears
+  the clipboard when the live value still matches what the app
+  wrote, so a user who copied something else mid-window never loses
+  their own data.
 - **Known hosts / TOFU verification** — DB-backed; the host-key
   callback refuses silent changes and surfaces an unambiguous dialog
   with both fingerprints.

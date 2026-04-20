@@ -9,6 +9,7 @@
 #include "win32_window.h"
 
 class HardwareVaultPlugin;
+class ClipboardSecurePlugin;
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -34,6 +35,11 @@ class FlutterWindow : public Win32Window {
   // L3 hardware vault (Windows Hello / KeyCredentialManager). Lives
   // as a member so its MethodChannel binding outlives OnCreate().
   std::unique_ptr<HardwareVaultPlugin> hardware_vault_;
+
+  // Clipboard writer that opts out of Win+V clipboard history and
+  // Microsoft cloud sync on every copy. Member so the method channel
+  // stays registered for the lifetime of the window.
+  std::unique_ptr<ClipboardSecurePlugin> clipboard_secure_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

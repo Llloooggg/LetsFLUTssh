@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import '../../utils/logger.dart';
+import 'secure_clipboard.dart';
 
 /// Auto-expiring clipboard writes for password-shaped copy flows.
 ///
@@ -35,10 +36,12 @@ import '../../utils/logger.dart';
 /// injected through `Clipboard` (Flutter's system channel); tests
 /// replace it with a `MethodChannel` mock binding.
 class ClipboardSecret {
-  ClipboardSecret({Duration? autoWipeAfter})
-    : _autoWipeAfter = autoWipeAfter ?? const Duration(seconds: 30);
+  ClipboardSecret({Duration? autoWipeAfter, SecureClipboard? writer})
+    : _autoWipeAfter = autoWipeAfter ?? const Duration(seconds: 30),
+      _writer = writer ?? SecureClipboard();
 
   final Duration _autoWipeAfter;
+  final SecureClipboard _writer;
 
   Timer? _pendingTimer;
   String? _pendingValue;
@@ -50,7 +53,7 @@ class ClipboardSecret {
   Future<void> copySecret(String plaintext) async {
     cancelPendingWipe();
     try {
-      await Clipboard.setData(ClipboardData(text: plaintext));
+      await _writer.setText(plaintext);
     } catch (e) {
       AppLogger.instance.log(
         'ClipboardSecret.copySecret write failed: $e',

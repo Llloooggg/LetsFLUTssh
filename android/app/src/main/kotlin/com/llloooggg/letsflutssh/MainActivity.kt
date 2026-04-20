@@ -21,6 +21,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var pendingResult: MethodChannel.Result? = null
     private var pendingScanResult: MethodChannel.Result? = null
     private var hardwareVault: HardwareVaultPlugin? = null
+    private var clipboardSecure: ClipboardSecurePlugin? = null
 
     // Refcount for FLAG_SECURE — a nested SecureScreenScope (e.g. an
     // unlock dialog inside the wizard) should not clear the flag when
@@ -61,6 +62,13 @@ class MainActivity : FlutterFragmentActivity() {
             HardwareVaultPlugin.CHANNEL
         )
         hardwareVault = HardwareVaultPlugin(this).also { it.register(hwChannel) }
+
+        val clipboardChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ClipboardSecurePlugin.CHANNEL
+        )
+        clipboardSecure = ClipboardSecurePlugin(applicationContext)
+            .also { it.register(clipboardChannel) }
 
         // Selective FLAG_SECURE — per-screen opt-in, refcounted so
         // nested SecureScreenScope widgets do not clear the flag

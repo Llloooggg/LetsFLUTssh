@@ -29,6 +29,7 @@
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		7B4D52AE0001000000000001 /* HardwareVaultPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0001000000000002 /* HardwareVaultPlugin.swift */; };
 		7B4D52AE0005000000000001 /* BackupExclusionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0005000000000002 /* BackupExclusionPlugin.swift */; };
+		7B4D52AE0006000000000001 /* ClipboardSecurePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4D52AE0006000000000002 /* ClipboardSecurePlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +75,7 @@
 		33CC11122044BFA00003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
 		7B4D52AE0001000000000002 /* HardwareVaultPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareVaultPlugin.swift; sourceTree = "<group>"; };
 		7B4D52AE0005000000000002 /* BackupExclusionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupExclusionPlugin.swift; sourceTree = "<group>"; };
+		7B4D52AE0006000000000002 /* ClipboardSecurePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSecurePlugin.swift; sourceTree = "<group>"; };
 		33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Debug.xcconfig"; sourceTree = "<group>"; };
 		33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Release.xcconfig"; sourceTree = "<group>"; };
 		33CEB47722A0578A004F2AC0 /* Flutter-Generated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Flutter-Generated.xcconfig"; path = "ephemeral/Flutter-Generated.xcconfig"; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				7B4D52AE0001000000000002 /* HardwareVaultPlugin.swift */,
 				7B4D52AE0005000000000002 /* BackupExclusionPlugin.swift */,
+				7B4D52AE0006000000000002 /* ClipboardSecurePlugin.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
 				33CC11242044D66E0003C045 /* Resources */,
@@ -354,6 +357,7 @@
 				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
 				7B4D52AE0001000000000001 /* HardwareVaultPlugin.swift in Sources */,
 				7B4D52AE0005000000000001 /* BackupExclusionPlugin.swift in Sources */,
+				7B4D52AE0006000000000001 /* ClipboardSecurePlugin.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

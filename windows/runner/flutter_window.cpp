@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "clipboard_secure_plugin.h"
 #include "hardware_vault_plugin.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -28,6 +29,8 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   hardware_vault_ =
       std::make_unique<HardwareVaultPlugin>(flutter_controller_->engine());
+  clipboard_secure_ =
+      std::make_unique<ClipboardSecurePlugin>(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

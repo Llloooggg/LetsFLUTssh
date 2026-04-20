@@ -927,6 +927,26 @@ Any finding that would have been expensive (signing / anti-tamper, runtime integ
 
 The native side is a thin Swift plugin (`ios/Runner/BackupExclusionPlugin.swift` and `macos/Runner/BackupExclusionPlugin.swift`) registered on the `com.letsflutssh/backup_exclusion` method channel. The Dart side resolves the path via `path_provider` so native and Dart always agree on which directory to flag, even if Apple ever changes the bundle-identifier layout under `~/Library/Application Support/`.
 
+#### Clipboard hygiene
+
+Two layers cover every "Copy password" / "Copy token" / "Copy SSH key passphrase" button in the app.
+
+Layer 1 is the write path — [`SecureClipboard.setText`](../lib/core/security/secure_clipboard.dart) — which routes the copy through the `com.letsflutssh/clipboard_secure` method channel so the per-platform cloud / history opt-outs land in the *same* system call as the text itself. Writing the text first and then adding opt-out flags in a second `OpenClipboard` session leaves a one-frame window where a clipboard-history watcher can scoop the payload before the flag arrives, so the plugin owns the whole write.
+
+| Platform | Opt-out applied |
+|---|---|
+| **Windows 10/11** | `CanIncludeInClipboardHistory` + `CanUploadToCloudClipboard` registered-clipboard-format DWORDs set to 0 alongside `CF_UNICODETEXT`. Win+V history skips the entry; cloud sync does not upload it. |
+| **macOS** | `NSPasteboard.general` declares `org.nspasteboard.TransientType` and `org.nspasteboard.ConcealedType` in the same `declareTypes` call as `.string`. Every third-party clipboard manager that follows the nspasteboard.org convention (1Password, Maccy, Paste, Alfred) honours these and skips the entry. Universal Clipboard / Handoff remains a residual gap — Apple exposes no first-party opt-out for the iCloud-mirrored copy path, documented here so it stays visible. |
+| **iOS** | `UIPasteboard.setItems(..., options: [.localOnly: true, .expirationDate: now+60s])` — Handoff sync is disabled for that write and the entry clears automatically if the app crashes before the Dart-side wipe fires. |
+| **Android 13+** | `ClipDescription.EXTRA_IS_SENSITIVE = true` — the system hides the clipboard-preview toast and launchers skip the "share what you copied" affordance. Pre-13 SDKs ignore the flag; the copy still works, the OS just has no hook to hide it. |
+| **Linux** | No cloud clipboard default on X11 or Wayland. Falls through to Flutter's stock `Clipboard.setData`. |
+
+Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security/clipboard_secret.dart) — which schedules a 30-second timer on top of the write. When the timer fires it re-reads the clipboard and only clears it if the live value still matches what we wrote; if the user copied something else in the meantime, the new value is left alone. This catches terminal emulators, browser extensions, and systemd-journal clipboard watchers that read the pasteboard lazily — the iOS 60-second `.expirationDate` is a belt-and-braces fallback for the case where the Dart timer never runs (app killed, reboot, forced OOM).
+
+*Why two layers:* the opt-out flags are a compliance hint to well-behaved consumers. They do not stop a malicious process on the same user session from reading the clipboard — that is what the 30-second wipe addresses. Together they cover the typical attacker shapes: clipboard history / cloud sync (Layer 1) and live paste-sniffers (Layer 2).
+
+*Fallback:* if the native channel returns `MissingPluginException` (test harness, platform not yet wired), `SecureClipboard` falls through to Flutter's stock `Clipboard.setData` rather than refusing to copy. The wipe timer still runs, so the payload never sits on the clipboard longer than the window.
+
 #### AesGcm
 
 Shared AES-256-GCM utility used by all encrypted stores.
