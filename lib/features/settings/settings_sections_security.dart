@@ -125,43 +125,83 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     return l10n.autoLockRequiresPassword;
   }
 
-  /// Flippable on T1 / T2 only. Paranoid forces the toggle on (the
-  /// password IS the tier's secret); T0 has no concept of password
-  /// modifier. Tapping the toggle routes through the tier-change
-  /// wizard because adding / removing a password is a rekey.
-  bool _passwordToggleEnabled(SecurityTier level) =>
-      level == SecurityTier.keychain ||
-      level == SecurityTier.keychainWithPassword ||
-      level == SecurityTier.hardware;
-
-  /// Reason-tooltip string for the password toggle when disabled.
-  /// Null when the toggle is flippable. Matches the biometric-toggle
-  /// pattern — the row stays visible so the user sees the option
-  /// exists and understands why it cannot be flipped here.
-  String? _passwordDisabledReason(S l10n, SecurityTier level) {
-    if (level == SecurityTier.plaintext) {
-      return l10n.passwordDisabledPlaintext;
-    }
-    if (level == SecurityTier.paranoid) {
-      return l10n.passwordDisabledParanoid;
-    }
-    return null;
+  /// Build one tier card pre-wired to onSelectTier. Factored out so
+  /// the four stacked cards in the ladder share the same callback +
+  /// current-tier / modifiers lookup without re-spelling the three
+  /// shared params each time.
+  Widget _buildTierCard({
+    required SecurityTier tier,
+    required SecurityTier currentLevel,
+    required SecurityTierModifiers currentModifiers,
+    required bool available,
+    required String? unavailableReason,
+  }) {
+    final isCurrent =
+        tier == currentLevel ||
+        (tier == SecurityTier.keychain &&
+            currentLevel == SecurityTier.keychainWithPassword);
+    return ExpandableTierCard(
+      tier: tier,
+      currentTier: currentLevel,
+      currentModifiers: currentModifiers,
+      tierAvailable: available,
+      unavailableReason: unavailableReason,
+      initiallyExpanded: isCurrent,
+      onSelect: onSelectTier,
+    );
   }
 
-  /// Short status subtitle below the "Master password" toggle label.
-  /// On Paranoid the password is load-bearing (always on); on T1 /
-  /// T2 the subtitle reflects whether the modifier is currently set.
-  String _passwordSubtitle(
-    S l10n,
-    SecurityTier level,
-    SecurityTierModifiers modifiers,
-  ) {
-    if (level == SecurityTier.paranoid) return l10n.passwordSubtitleParanoid;
-    if (level == SecurityTier.plaintext) {
-      return l10n.passwordSubtitlePlaintext;
+  /// Public wrapper around [_applyTierChange] that accepts the
+  /// card's inline modifier + input state and builds a
+  /// [SecuritySetupResult] the existing pipeline already knows how
+  /// to consume. Wraps the application in a progress dialog + toast.
+  Future<void> onSelectTier({
+    required SecurityTier tier,
+    required SecurityTierModifiers modifiers,
+    String? shortPassword,
+    String? pin,
+    String? masterPassword,
+  }) async {
+    final l10n = S.of(context);
+    final keychainAvail = ref
+        .read(securityCapabilitiesProvider)
+        .maybeWhen(data: (c) => c.keychainAvailable, orElse: () => false);
+    final result = SecuritySetupResult(
+      tier: tier,
+      modifiers: modifiers,
+      shortPassword: shortPassword,
+      pin: pin,
+      masterPassword: masterPassword,
+      keychainAvailable: keychainAvail,
+    );
+
+    final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
+    if (!mounted) return;
+    AppProgressBarDialog.show(context, reporter);
+    try {
+      await _applyTierChange(result);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: l10n.changeSecurityTierDone,
+        level: ToastLevel.success,
+      );
+      _checkState();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tier change failed: $e',
+        name: 'Settings',
+        error: e,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: '${l10n.changeSecurityTierFailed}: $e',
+        level: ToastLevel.error,
+      );
     }
-    final on = modifiers.password || level == SecurityTier.keychainWithPassword;
-    return on ? l10n.passwordSubtitleOn : l10n.passwordSubtitleOff;
   }
 
   @override
@@ -185,85 +225,70 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     return Column(
       children: [
-        // Tier ladder: four TierThreatBlock cards stacked T0 → T1 →
-        // T2 → P, each showing the seven threats split into a
-        // "Protects against" half and a "Does not protect" half. The
-        // currently-active tier carries an accent border + "Current"
-        // pill. Non-current T2 gains an inline "Upgrade" link when
-        // the hardware probe is positive; when the probe is
-        // negative the block dims so the user sees *what* they are
-        // missing without a hidden-feature vibe. Blocks are
-        // informational — tier changes live behind the "Change tier"
-        // button below because rekey is expensive and should not be
-        // a one-tap accident.
-        _TierCard(
+        // Tier ladder: four ExpandableTierCards stacked T0 → T1 →
+        // T2 → P. Each card:
+        //   * collapsed — shows badge + title + subtitle + a
+        //     "Current" pill on the active row.
+        //   * expanded — shows the seven-threat split, the
+        //     applicable modifier toggles (password / biometric),
+        //     the input fields the tier needs (short password /
+        //     PIN / master password), and a Select / Apply button.
+        //   * unavailable — stays expandable so the user can still
+        //     read the threat split, with a yellow reason pill
+        //     under the threats and a disabled Select button.
+        //
+        // Select routes through onSelectTier → _applyTierChange,
+        // the same atomic always-rekey pipeline the old wizard
+        // invoked. No intermediate dialog — the card is the wizard.
+        _buildTierCard(
           tier: SecurityTier.plaintext,
-          currentTier: secState.level,
+          currentLevel: secState.level,
           currentModifiers: modifiers,
-          hardwareAvailable: hardwareAvail,
-          keychainAvailable: keychainAvail,
-          onUpgrade: () => _changeSecurityTier(context),
+          available: true,
+          unavailableReason: null,
         ),
-        _TierCard(
+        _buildTierCard(
           tier: SecurityTier.keychain,
-          currentTier: secState.level,
+          currentLevel: secState.level,
           currentModifiers: modifiers,
-          hardwareAvailable: hardwareAvail,
-          keychainAvailable: keychainAvail,
-          onUpgrade: () => _changeSecurityTier(context),
+          available: keychainAvail,
+          unavailableReason: keychainAvail
+              ? null
+              : l10n.tierKeychainUnavailable,
         ),
-        _TierCard(
+        _buildTierCard(
           tier: SecurityTier.hardware,
-          currentTier: secState.level,
+          currentLevel: secState.level,
           currentModifiers: modifiers,
-          hardwareAvailable: hardwareAvail,
-          keychainAvailable: keychainAvail,
-          onUpgrade: () => _changeSecurityTier(context),
+          available: hardwareAvail,
+          unavailableReason: hardwareAvail
+              ? null
+              : l10n.tierHardwareUnavailable,
         ),
-        _TierCard(
+        _buildTierCard(
           tier: SecurityTier.paranoid,
-          currentTier: secState.level,
+          currentLevel: secState.level,
           currentModifiers: modifiers,
-          hardwareAvailable: hardwareAvail,
-          keychainAvailable: keychainAvail,
-          onUpgrade: () => _changeSecurityTier(context),
+          available: true,
+          unavailableReason: null,
         ),
         const SizedBox(height: 12),
-        // Single entry point for tier change. Opens the wizard
-        // pre-marked with the current tier and routes the result
-        // through the atomic always-rekey switcher.
-        Align(
-          alignment: Alignment.center,
-          child: FilledButton.icon(
-            icon: const Icon(Icons.tune, size: 16),
-            label: Text(l10n.changeSecurityTier),
-            onPressed: () => _changeSecurityTier(context),
+        // Auto-lock — orthogonal modifier. Only meaningful when the
+        // active tier holds a user-typed secret; disabled with reason
+        // tooltip otherwise.
+        _AutoLockTile(
+          disabledReason: _autoLockDisabledReason(
+            l10n,
+            secState.level,
+            modifiers,
           ),
         ),
-        const SizedBox(height: 12),
-        // Master password — orthogonal modifier. T1 / T2 accept a
-        // user-typed password on top of the tier's built-in wrap;
-        // Paranoid requires it (toggle is on + disabled); T0 has no
-        // password concept. Flipping routes through the tier wizard
-        // because enabling or removing a password is a rekey
-        // (always-rekey invariant).
-        _Toggle(
-          label: l10n.modifierPasswordLabel,
-          subtitle: _passwordSubtitle(l10n, secState.level, modifiers),
-          icon: Icons.password,
-          value:
-              modifiers.password ||
-              secState.level == SecurityTier.keychainWithPassword ||
-              secState.level == SecurityTier.paranoid,
-          onChanged: _passwordToggleEnabled(secState.level)
-              ? (_) => _changeSecurityTier(context)
-              : null,
-          disabledReason: _passwordDisabledReason(l10n, secState.level),
-        ),
-        // Biometric unlock — orthogonal modifier. The toggle stays
-        // visible on every tier so the reason it cannot be flipped is
-        // legible (no sensor, nothing enrolled, or tier has no
-        // password to shortcut).
+        // Biometric unlock — orthogonal modifier kept as its own row
+        // (not inside the tier cards) because enabling it runs a
+        // BiometricPrompt + stashes the DB key into the biometric-
+        // gated vault. The stash can fail mid-flow in ways the tier
+        // Select button cannot surface, so biometric is applied
+        // after the tier is already stable.
         _Toggle(
           label: l10n.biometricUnlockTitle,
           subtitle: _biometricSubtitle(l10n),
@@ -273,16 +298,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
               ? (v) => _toggleBiometricUnlock(context, v)
               : null,
           disabledReason: _biometricDisabledReason(
-            l10n,
-            secState.level,
-            modifiers,
-          ),
-        ),
-        // Auto-lock — orthogonal modifier. Only meaningful when the
-        // active tier holds a user-typed secret; disabled with reason
-        // tooltip otherwise.
-        _AutoLockTile(
-          disabledReason: _autoLockDisabledReason(
             l10n,
             secState.level,
             modifiers,
@@ -447,60 +462,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         message: l10n.biometricDisabled,
         level: ToastLevel.success,
       );
-    }
-  }
-
-  /// Open the tier wizard and route the result through the atomic
-  /// [SecurityTierSwitcher]. Fresh random DB key on every switch —
-  /// the previous wrapper is invalidated and the DB is rekeyed in
-  /// a single PRAGMA rekey, so any leaked old wrapper cannot
-  /// decrypt the post-switch data.
-  Future<void> _changeSecurityTier(BuildContext context) async {
-    final l10n = S.of(context);
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final currentTier = ref.read(securityStateProvider).level;
-    final result = await SecuritySetupDialog.show(
-      context,
-      keyStorage: keyStorage,
-      hardwareVault: ref.read(hardwareTierVaultProvider),
-      currentTier: currentTier,
-      // Opened from Settings — user can cancel freely via Cancel /
-      // barrier-tap / Esc. First-launch flow leaves the default
-      // (false) so the user must pick a tier before startup can
-      // proceed.
-      dismissible: true,
-    );
-    if (!context.mounted) return;
-
-    final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
-    AppProgressBarDialog.show(context, reporter);
-    try {
-      await _applyTierChange(result);
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        Toast.show(
-          context,
-          message: l10n.changeSecurityTierDone,
-          level: ToastLevel.success,
-        );
-        _checkState();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Change security tier failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        Toast.show(
-          context,
-          message: l10n.changeSecurityTierFailed,
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      reporter.dispose();
     }
   }
 
@@ -773,199 +734,6 @@ class _DisabledDropdownTrigger extends StatelessWidget {
         onTap: () =>
             Toast.show(context, message: reason, level: ToastLevel.info),
         child: child,
-      ),
-    );
-  }
-}
-
-/// Stacked tier card for the Settings ladder.
-///
-/// Wraps a [TierThreatBlock] with per-tier model + trailing-slot
-/// logic:
-///
-/// - **Current tier** → green "Current" pill, accent border. Shows
-///   the actual active modifiers so the user sees exactly what they
-///   picked, not a hypothetical default.
-/// - **T2 when not current + hardware available** → green Upgrade
-///   button that opens the tier wizard.
-/// - **T2 when not current + hardware unavailable** → dim block,
-///   no trailing. The ✓ / ✗ split still reads, but the row is
-///   muted so the user sees they cannot switch.
-/// - **Other rows** → plain informational card, no trailing. Tier
-///   change is exclusively via the "Change tier" button below the
-///   ladder.
-class _TierCard extends StatelessWidget {
-  const _TierCard({
-    required this.tier,
-    required this.currentTier,
-    required this.currentModifiers,
-    required this.hardwareAvailable,
-    required this.keychainAvailable,
-    required this.onUpgrade,
-  });
-
-  final SecurityTier tier;
-  final SecurityTier currentTier;
-  final SecurityTierModifiers currentModifiers;
-  final bool hardwareAvailable;
-  final bool keychainAvailable;
-  final VoidCallback onUpgrade;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    final isCurrent =
-        currentTier == tier ||
-        (tier == SecurityTier.keychain &&
-            currentTier == SecurityTier.keychainWithPassword);
-    final model = _modelFor(isCurrent);
-    final (badge, title, subtitle, accent) = _cardCopy(l10n);
-
-    // Dim the row when the tier is not reachable on this host and
-    // the user is not already on it. T2 needs a TPM / Secure Enclave;
-    // T1 needs a keychain backend (libsecret on Linux, Credential
-    // Manager on Windows, Keychain on Apple, EncryptedSP on Android).
-    // T0 and Paranoid are always reachable — no probe required.
-    final bool dim =
-        !isCurrent &&
-        ((tier == SecurityTier.hardware && !hardwareAvailable) ||
-            ((tier == SecurityTier.keychain ||
-                    tier == SecurityTier.keychainWithPassword) &&
-                !keychainAvailable));
-
-    Widget? trailing;
-    if (isCurrent) {
-      trailing = _CurrentBadge(label: l10n.tierBadgeCurrent);
-    } else if (tier == SecurityTier.hardware && hardwareAvailable) {
-      trailing = TextButton(
-        onPressed: onUpgrade,
-        style: TextButton.styleFrom(foregroundColor: AppTheme.green),
-        child: Text(l10n.securityHardwareUpgradeAction),
-      );
-    }
-
-    return TierThreatBlock(
-      badge: badge,
-      title: title,
-      subtitle: subtitle,
-      accent: accent,
-      model: model,
-      selected: isCurrent,
-      dimmed: dim,
-      trailing: trailing,
-    );
-  }
-
-  /// Model driving the ✓ / ✗ split. For the current tier we use the
-  /// real active modifiers — so a user on T1+password sees
-  /// bystander / offline-brute flip to ✓ on the T1 card. For
-  /// non-current tiers we use the "recommended" default: no
-  /// modifiers for T0 / T1 / T2 (the bare capability), password for
-  /// Paranoid (required by design).
-  ThreatModel _modelFor(bool isCurrent) {
-    if (isCurrent) {
-      return ThreatModel(
-        tier: _toThreatTier(tier),
-        password:
-            currentModifiers.password ||
-            currentTier == SecurityTier.keychainWithPassword ||
-            tier == SecurityTier.paranoid,
-        biometric: currentModifiers.biometric,
-      );
-    }
-    return ThreatModel(
-      tier: _toThreatTier(tier),
-      password: tier == SecurityTier.paranoid,
-    );
-  }
-
-  (String, String, String, Color) _cardCopy(S l10n) {
-    switch (tier) {
-      case SecurityTier.plaintext:
-        return (
-          'T0',
-          l10n.tierPlaintextLabel,
-          l10n.tierPlaintextSubtitle,
-          AppTheme.red,
-        );
-      case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
-        return (
-          'T1',
-          l10n.tierKeychainLabel,
-          l10n.tierKeychainSubtitle(_keychainName()),
-          AppTheme.accent,
-        );
-      case SecurityTier.hardware:
-        return (
-          'T2',
-          l10n.tierHardwareLabel,
-          l10n.tierHardwareSubtitleHonest,
-          AppTheme.accent,
-        );
-      case SecurityTier.paranoid:
-        return (
-          'P',
-          l10n.tierParanoidLabel,
-          l10n.tierParanoidSubtitleHonest,
-          AppTheme.purple,
-        );
-    }
-  }
-
-  ThreatTier _toThreatTier(SecurityTier t) {
-    switch (t) {
-      case SecurityTier.plaintext:
-        return ThreatTier.plaintext;
-      case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
-        return ThreatTier.keychain;
-      case SecurityTier.hardware:
-        return ThreatTier.hardware;
-      case SecurityTier.paranoid:
-        return ThreatTier.paranoid;
-    }
-  }
-
-  /// Platform-specific keychain name matches the wizard copy — shown
-  /// in the T1 subtitle so the user knows which backend this install
-  /// routes through.
-  String _keychainName() {
-    if (Platform.isIOS || Platform.isMacOS) return 'Keychain';
-    if (Platform.isAndroid) return 'Keystore';
-    if (Platform.isWindows) return 'Credential Manager';
-    return 'libsecret';
-  }
-}
-
-class _CurrentBadge extends StatelessWidget {
-  const _CurrentBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.green.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppTheme.green, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check, size: 12, color: AppTheme.green),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: AppTheme.green,
-              fontSize: AppFonts.xs,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }
