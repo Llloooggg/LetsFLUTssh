@@ -262,6 +262,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   Widget _buildTerminalStack() {
+    final mq = MediaQuery.of(context);
+    const keyboardBarHeight = AppTheme.itemHeightLg;
+    final rawInset = mq.viewInsets.bottom;
+    final bottomGap = AppTheme.itemHeightXl + mq.viewPadding.bottom;
+    final keyboardInset = math.max(0.0, rawInset - bottomGap);
     return Stack(
       children: [
         IgnorePointer(
@@ -271,7 +276,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             controller: _terminalController,
             autofocus: true,
             backgroundOpacity: 1.0,
-            padding: const EdgeInsets.all(4),
+            padding: EdgeInsets.only(
+              left: 4,
+              top: 4,
+              right: 4,
+              bottom: 4 + keyboardInset + keyboardBarHeight,
+            ),
             theme: AppTheme.terminalTheme,
             textStyle: TerminalStyle(
               fontSize: _fontSize,

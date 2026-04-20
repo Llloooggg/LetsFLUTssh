@@ -829,6 +829,62 @@ void main() {
     });
   });
 
+  group('MobileTerminalView — keyboard insets', () {
+    testWidgets('terminal has bottom padding when keyboard is shown', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: MediaQuery(
+              data: const MediaQueryData(
+                viewInsets: EdgeInsets.only(bottom: 200),
+                viewPadding: EdgeInsets.zero,
+              ),
+              child: Scaffold(body: MobileTerminalView(connection: conn)),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(termView.padding!.bottom, greaterThan(0));
+    });
+
+    testWidgets('terminal has minimal padding when keyboard is hidden', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: MediaQuery(
+              data: const MediaQueryData(
+                viewInsets: EdgeInsets.zero,
+                viewPadding: EdgeInsets.zero,
+              ),
+              child: Scaffold(body: MobileTerminalView(connection: conn)),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final termView = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(termView.padding!.bottom, 52);
+    });
+  });
+
   group('MobileTerminalView — select mode', () {
     testWidgets('select button renders on keyboard bar', (tester) async {
       final mockSsh = MockSSHConnection();
