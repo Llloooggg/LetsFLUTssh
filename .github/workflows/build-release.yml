@@ -24,6 +24,7 @@ jobs:
       checks: read
     outputs:
       version: ${{ steps.get.outputs.version }}
+      source_date_epoch: ${{ steps.get.outputs.source_date_epoch }}
     steps:
       - name: Verify CI status
         env:
@@ -62,19 +63,42 @@ jobs:
         with:
           sparse-checkout: pubspec.yaml
           sparse-checkout-cone-mode: false
+          # fetch-depth: 1 keeps `.git/HEAD` populated so `git log`
+          # can report the commit timestamp for SOURCE_DATE_EPOCH.
+          fetch-depth: 1
 
-      - name: Extract version from pubspec.yaml
+      - name: Extract version + source-date-epoch from pubspec.yaml
         id: get
         run: |
           VER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VER}"
 
+          # Reproducible-build clock. Every downstream tool that
+          # honours SOURCE_DATE_EPOCH (dpkg-deb, appimagetool, tar
+          # --mtime, Python ZipFile wrapper) stamps artefacts with
+          # this timestamp instead of the CI runner's wall clock,
+          # so two runs of the same commit produce byte-identical
+          # output. Source: the committer-date of the HEAD commit
+          # the workflow is building (for tag pushes, the commit
+          # the tag points at).
+          SDE=$(git log -1 --format=%ct HEAD)
+          echo "source_date_epoch=${SDE}" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_DATE_EPOCH: ${SDE}"
+
   build-linux-x64:
     needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # Reproducible-build clock: honoured by dpkg-deb, appimagetool,
+      # gzip-with-`-n`, tar `--mtime=@${SOURCE_DATE_EPOCH}`. Same two
+      # runs on the same commit produce byte-identical artefacts,
+      # so a user can rebuild from source and compare the sha256 of
+      # our official `.deb` / `.AppImage` / `.tar.gz` against their
+      # own as a supply-chain check.
+      SOURCE_DATE_EPOCH: ${{ needs.preflight.outputs.source_date_epoch }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -96,8 +120,18 @@ jobs:
 
       - name: Package tar.gz
         run: |
+          # Reproducible tar: sort entries by name, wipe uid/gid/
+          # owner strings, pin mtime to SOURCE_DATE_EPOCH. Pipe into
+          # `gzip -n` so the compressed stream carries no filename
+          # / timestamp in its own header. Two runs at the same
+          # commit produce an identical sha256.
           cd build/linux/x64/release/bundle
-          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz .
+          tar --sort=name \
+              --owner=0 --group=0 --numeric-owner \
+              --mtime="@${SOURCE_DATE_EPOCH}" \
+              -cf - . \
+            | gzip -n -9 \
+            > ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
 
       - name: Cache appimagetool
         id: cache-appimagetool
@@ -348,6 +382,16 @@ jobs:
 
       - name: Package tar.gz
         run: |
+          # macOS tarball is NOT reproducible — BSD tar on the
+          # runner lacks `--sort=name` and `--mtime=@<epoch>`, the
+          # .dmg alongside uses hdiutil which bakes in per-run
+          # catalog metadata, and the ad-hoc signed binary carries
+          # its own deterministic sig but the packaging around it
+          # drifts per run. Users who need reproducible verification
+          # should cross-check the Linux `.tar.gz` (reproducible)
+          # or rebuild locally and compare ad-hoc sigs on the
+          # per-binary level. Documented honestly rather than
+          # papered over.
           cd build/macos/Build/Products/Release
           tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz ./*.app
 

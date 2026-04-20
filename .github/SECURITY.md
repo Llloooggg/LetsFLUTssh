@@ -419,6 +419,21 @@ second pinned key as a rotation fallback is a deliberate non-goal —
 the extra key doubles the maintenance surface for a scenario that,
 for a solo-dev repo, is survivable with a manual reinstall.
 
+**Reproducible builds (partial).** The Linux artefacts
+(`.tar.gz`, `.deb`, `.AppImage`) are built with `SOURCE_DATE_EPOCH`
+pinned to the HEAD commit's timestamp + deterministic `tar`
+ordering + `gzip -n`. Two runs of the release workflow on the
+same commit produce byte-identical Linux artefacts — any third
+party can rebuild from source and compare `sha256sum` against the
+official release as a supply-chain check separate from the
+Ed25519 signature (which only proves "CI-signed this", not "this
+matches source"). The Windows `.zip` / `.exe` installer and the
+macOS `.tar.gz` / `.dmg` are **not** byte-reproducible because
+Authenticode / codesign timestamp each run, the self-signed cert
+is generated fresh per run, and `hdiutil` bakes run-scoped
+catalog metadata into the .dmg. Users who need reproducibility
+today should cross-check against the Linux build.
+
 **If the private key leaks.** The auto-update channel is effectively
 dead for existing installs. Incident response:
 
