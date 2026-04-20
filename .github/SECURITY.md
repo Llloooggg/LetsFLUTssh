@@ -333,10 +333,15 @@ unknown fields.
   tooltip pointing to the README install snippet.
 - Reset-all-data cannot reach backup archives that have already left
   the device (iCloud backup, Time Machine, Android Auto Backup,
-  Windows File History). Users exporting the app's app-support
-  directory to external storage should understand that that
-  snapshot carries the sealed blob + salt + KDF params + metadata
-  and should be treated accordingly; the sealed blob without the
+  Windows File History). The app opts out of the Apple paths at
+  startup (`NSURLIsExcludedFromBackupKey` on iOS, the
+  `com_apple_backup_excludeItem` xattr on macOS) and manifest-level
+  `data_extraction_rules.xml` excludes every managed file on
+  Android, so fresh installs never start leaking into those
+  backups. Users exporting the app's app-support directory to
+  external storage should still understand that that snapshot
+  carries the sealed blob + salt + KDF params + metadata and
+  should be treated accordingly; the sealed blob without the
   original hardware is not directly decryptable, but the metadata
   leakage is real.
 

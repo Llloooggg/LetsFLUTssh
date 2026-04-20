@@ -17,6 +17,7 @@ import 'core/db/database.dart';
 import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
 import 'core/security/lock_state.dart';
+import 'core/security/backup_exclusion.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
@@ -149,6 +150,12 @@ Future<void> main() async {
   // Disable core dumps and ptrace attach as early as possible — before any
   // secrets touch RAM. Best-effort, swallowed on failure.
   ProcessHardening.applyOnStartup();
+
+  // Opt the app-support directory out of iCloud/iTunes backup (iOS) and
+  // Time Machine (macOS) so secrets don't land in untrusted backups.
+  // Runs every launch — idempotent, cheap, refreshes the flag if a
+  // system action stripped the xattr.
+  unawaited(BackupExclusion().applyOnStartup());
 
   if (plat.isDesktopPlatform) {
     singleInstanceLock = SingleInstance();

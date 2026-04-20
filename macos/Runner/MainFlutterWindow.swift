@@ -3,6 +3,7 @@ import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
   private let hardwareVault = HardwareVaultPlugin()
+  private let backupExclusion = BackupExclusionPlugin()
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -12,6 +13,7 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     hardwareVault.register(with: flutterViewController.engine.binaryMessenger)
+    backupExclusion.register(with: flutterViewController.engine.binaryMessenger)
 
     // Minimum window size to prevent layout overflow.
     self.contentMinSize = NSSize(width: 480, height: 360)

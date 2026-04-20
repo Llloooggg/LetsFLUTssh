@@ -912,6 +912,21 @@ All calls are wrapped in try/catch; a failed hardening call never blocks startup
 
 Any finding that would have been expensive (signing / anti-tamper, runtime integrity checks, syscall filtering) is deliberately out of scope — the threat model is a lost device / hostile same-UID process, not a kernel-level attacker.
 
+#### Backup exclusion (Apple)
+
+[`BackupExclusion.applyOnStartup()`](../lib/core/security/backup_exclusion.dart) fires once per launch and opts the app-support directory out of Apple's backup paths. The hook is a no-op everywhere except iOS and macOS.
+
+* **iOS** — sets `NSURLIsExcludedFromBackupKey` on the directory URL. iCloud Backup and encrypted iTunes/Finder backups both honour the flag for the directory and every file under it.
+* **macOS** — the same `URLResourceValues.isExcludedFromBackup = true` call writes the `com.apple.metadata:com_apple_backup_excludeItem` extended attribute. Time Machine skips the directory.
+* **Android** — covered by [`data_extraction_rules.xml`](../android/app/src/main/res/xml/data_extraction_rules.xml) at the manifest level; nothing to do at runtime.
+* **Linux / Windows** — no OS-level backup default the app needs to opt out of.
+
+*Why:* the app-support directory holds the encrypted SQLite file, `credentials.kdf` (Argon2id salt + verifier), the hardware-vault blob, and the password rate-limiter journal. A restored Apple backup on an attacker-controlled device turns into an offline brute-force target against the master password without the per-device hardware binding the live install would have. The backup exclusion keeps those secrets tied to one device's trusted boot chain.
+
+*Idempotency:* the flag is a property of the directory, so re-running on every launch is cheap and self-healing — if a system action or a restore stripped the xattr, the next launch sets it again. The plugin runs `unawaited`, so startup never blocks on the round-trip.
+
+The native side is a thin Swift plugin (`ios/Runner/BackupExclusionPlugin.swift` and `macos/Runner/BackupExclusionPlugin.swift`) registered on the `com.letsflutssh/backup_exclusion` method channel. The Dart side resolves the path via `path_provider` so native and Dart always agree on which directory to flag, even if Apple ever changes the bundle-identifier layout under `~/Library/Application Support/`.
+
 #### AesGcm
 
 Shared AES-256-GCM utility used by all encrypted stores.
