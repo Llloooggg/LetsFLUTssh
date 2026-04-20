@@ -2184,6 +2184,21 @@ class SHi extends S {
       'इस इंस्टॉलेशन में OS कीचेन उपलब्ध नहीं है। कोई एन्क्रिप्शन नहीं (T0) और मास्टर पासवर्ड (Paranoid) में से चुनें। Keychain स्तर सक्षम करने के लिए gnome-keyring, kwallet या कोई अन्य libsecret प्रदाता स्थापित करें।';
 
   @override
+  String get tierBlockProtectsHeader => 'इनसे बचाता है';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'इनसे नहीं बचाता';
+
+  @override
+  String get tierBlockProtectsEmpty => 'इस स्तर पर कुछ नहीं।';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'कोई खुला खतरा नहीं।';
+
+  @override
+  String get tierBadgeCurrent => 'वर्तमान';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

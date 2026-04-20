@@ -2199,6 +2199,21 @@ class SPt extends S {
       'O keychain do sistema não está acessível nesta instalação. Escolha entre sem criptografia (T0) e uma senha mestra (Paranoid). Instale gnome-keyring, kwallet ou outro provedor libsecret para habilitar o nível Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'PROTEGE CONTRA';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'NÃO PROTEGE';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Nada neste nível.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Sem ameaças descobertas.';
+
+  @override
+  String get tierBadgeCurrent => 'Atual';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

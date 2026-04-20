@@ -8,7 +8,6 @@ class _SecuritySection extends ConsumerStatefulWidget {
 }
 
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
-  bool? _keychainAvailable;
   BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
   bool _biometricProbed = false;
@@ -21,16 +20,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _checkState() async {
-    // Keychain probe first — drives the keychain-status info tile.
-    // Biometric probes (slower, platform-dependent) land in a second
-    // setState so the first paint never blocks on an idle D-Bus call.
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final keychainAvailable = await keyStorage.isAvailable();
-    if (!mounted) return;
-    setState(() {
-      _keychainAvailable = keychainAvailable;
-    });
-
+    // Biometric probes (slower, platform-dependent) drive the toggle
+    // state + backing-level label; kept async off the first paint so
+    // an idle D-Bus call never blocks the Settings open.
     final bio = ref.read(biometricAuthProvider);
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
@@ -143,58 +135,65 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final caps = ref.watch(securityCapabilitiesProvider);
 
+    final hardwareAvail = caps.maybeWhen(
+      data: (c) => c.hardwareVaultAvailable,
+      orElse: () => false,
+    );
+
     return Column(
       children: [
-        // Active tier (read-only display). Subtitle reflects the new
-        // bank-style modifier shape: "T1 Keychain — password, biometric".
-        _InfoTile(
-          icon: Icons.shield,
-          title: l10n.securityLevel,
-          value: _securityLevelLabel(l10n, secState.level, modifiers),
+        // Tier ladder: four TierThreatBlock cards stacked T0 → T1 →
+        // T2 → P, each showing the seven threats split into a
+        // "Protects against" half and a "Does not protect" half. The
+        // currently-active tier carries an accent border + "Current"
+        // pill. Non-current T2 gains an inline "Upgrade" link when
+        // the hardware probe is positive; when the probe is
+        // negative the block dims so the user sees *what* they are
+        // missing without a hidden-feature vibe. Blocks are
+        // informational — tier changes live behind the "Change tier"
+        // button below because rekey is expensive and should not be
+        // a one-tap accident.
+        _TierCard(
+          tier: SecurityTier.plaintext,
+          currentTier: secState.level,
+          currentModifiers: modifiers,
+          hardwareAvailable: hardwareAvail,
+          onUpgrade: () => _changeSecurityTier(context),
         ),
-        // Hardware-upgrade banner — only meaningful when the current
-        // tier is lower than T2. Capabilities come from an async probe
-        // cached for the session; a loading / error state hides the
-        // banner rather than flashing a placeholder.
-        if (secState.level != SecurityTier.hardware &&
-            secState.level != SecurityTier.paranoid)
-          caps.maybeWhen(
-            data: (c) => c.hardwareVaultAvailable
-                ? _HardwareUpgradeBanner(
-                    onUpgrade: () => _changeSecurityTier(context),
-                  )
-                : _HardwareUnavailableNotice(
-                    reason: defaultHardwareUnavailableReason(),
-                  ),
-            orElse: () => const SizedBox.shrink(),
+        _TierCard(
+          tier: SecurityTier.keychain,
+          currentTier: secState.level,
+          currentModifiers: modifiers,
+          hardwareAvailable: hardwareAvail,
+          onUpgrade: () => _changeSecurityTier(context),
+        ),
+        _TierCard(
+          tier: SecurityTier.hardware,
+          currentTier: secState.level,
+          currentModifiers: modifiers,
+          hardwareAvailable: hardwareAvail,
+          onUpgrade: () => _changeSecurityTier(context),
+        ),
+        _TierCard(
+          tier: SecurityTier.paranoid,
+          currentTier: secState.level,
+          currentModifiers: modifiers,
+          hardwareAvailable: hardwareAvail,
+          onUpgrade: () => _changeSecurityTier(context),
+        ),
+        const SizedBox(height: 12),
+        // Single entry point for tier change. Opens the wizard
+        // pre-marked with the current tier and routes the result
+        // through the atomic always-rekey switcher.
+        Align(
+          alignment: Alignment.center,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.tune, size: 16),
+            label: Text(l10n.changeSecurityTier),
+            onPressed: () => _changeSecurityTier(context),
           ),
-        // Keychain status — display-only; the tier wizard handles any
-        // action that requires reading this value.
-        _InfoTile(
-          icon: Icons.key,
-          title: l10n.keychainStatus,
-          value: _keychainStatusLabel(l10n),
         ),
-        // Compare tiers — replaces the per-tier AppInfoDialog popups
-        // with the single canonical comparison-table widget. One tap
-        // from Settings surfaces the full threat-coverage matrix so
-        // the user can decide whether a tier change is worth it before
-        // they open the wizard.
-        _ActionTile(
-          icon: Icons.table_chart_outlined,
-          title: l10n.compareAllTiers,
-          subtitle: l10n.compareAllTiersSubtitle,
-          onTap: () => SecurityComparisonTable.show(context),
-        ),
-        // Change-tier — single entry point for every security change.
-        // Opens the tier wizard (pre-marked with the current tier) and
-        // routes the result through the atomic always-rekey switcher.
-        _ActionTile(
-          icon: Icons.shield_outlined,
-          title: l10n.changeSecurityTier,
-          subtitle: l10n.changeSecurityTierSubtitle,
-          onTap: () => _changeSecurityTier(context),
-        ),
+        const SizedBox(height: 12),
         // Biometric unlock — orthogonal modifier. The toggle stays
         // visible on every tier so the reason it cannot be flipped is
         // legible (no sensor, nothing enrolled, or tier has no
@@ -383,52 +382,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         level: ToastLevel.success,
       );
     }
-  }
-
-  String _keychainStatusLabel(S l10n) {
-    if (_keychainAvailable == true) return l10n.keychainAvailable;
-    if (_keychainAvailable == false) return l10n.keychainNotAvailable;
-    return '...';
-  }
-
-  String _securityLevelLabel(
-    S l10n,
-    SecurityTier level,
-    SecurityTierModifiers modifiers,
-  ) {
-    final base = switch (level) {
-      SecurityTier.plaintext => l10n.colT0,
-      SecurityTier.keychain => l10n.colT1,
-      SecurityTier.keychainWithPassword => l10n.colT1,
-      SecurityTier.hardware => l10n.colT2,
-      SecurityTier.paranoid => l10n.colParanoid,
-    };
-
-    // Backing-level suffix: surfaces what the OS / hardware is
-    // actually doing to protect the key on this host (Secure Enclave,
-    // TEE, TPM 2.0, software libsecret, etc). Without this subtitle
-    // a user on Linux sees the same "T1 Keychain" label as a user
-    // on iOS and assumes parity — T1 on Linux is software-only.
-    final backing = classifyTierBacking(level);
-    final backingLabel = backing == TierBackingLevel.none
-        ? null
-        : backing.shortName;
-
-    // Paranoid carries an implicit password modifier; no suffix
-    // needed for it. Plaintext has no modifiers by definition.
-    if (level == SecurityTier.plaintext || level == SecurityTier.paranoid) {
-      return base;
-    }
-    final hasPassword =
-        modifiers.password || level == SecurityTier.keychainWithPassword;
-    final hasBiometric = modifiers.biometric;
-    final parts = <String>[
-      ?backingLabel,
-      if (hasPassword) l10n.modifierPasswordLabel.toLowerCase(),
-      if (hasBiometric) l10n.modifierBiometricLabel.toLowerCase(),
-    ];
-    if (parts.isEmpty) return base;
-    return '$base — ${parts.join(', ')}';
   }
 
   /// Open the tier wizard and route the result through the atomic
@@ -754,119 +707,183 @@ class _DisabledDropdownTrigger extends StatelessWidget {
   }
 }
 
-/// Discoverability card shown in Settings → Security when the
-/// current tier is below hardware and T2 is reachable on this
-/// device. Taps the existing tier-change flow — the user lands in
-/// the wizard with their current tier preselected, then picks T2.
-class _HardwareUpgradeBanner extends StatelessWidget {
-  const _HardwareUpgradeBanner({required this.onUpgrade});
+/// Stacked tier card for the Settings ladder.
+///
+/// Wraps a [TierThreatBlock] with per-tier model + trailing-slot
+/// logic:
+///
+/// - **Current tier** → green "Current" pill, accent border. Shows
+///   the actual active modifiers so the user sees exactly what they
+///   picked, not a hypothetical default.
+/// - **T2 when not current + hardware available** → green Upgrade
+///   button that opens the tier wizard.
+/// - **T2 when not current + hardware unavailable** → dim block,
+///   no trailing. The ✓ / ✗ split still reads, but the row is
+///   muted so the user sees they cannot switch.
+/// - **Other rows** → plain informational card, no trailing. Tier
+///   change is exclusively via the "Change tier" button below the
+///   ladder.
+class _TierCard extends StatelessWidget {
+  const _TierCard({
+    required this.tier,
+    required this.currentTier,
+    required this.currentModifiers,
+    required this.hardwareAvailable,
+    required this.onUpgrade,
+  });
 
+  final SecurityTier tier;
+  final SecurityTier currentTier;
+  final SecurityTierModifiers currentModifiers;
+  final bool hardwareAvailable;
   final VoidCallback onUpgrade;
 
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.bg2,
-          borderRadius: AppTheme.radiusSm,
-          border: Border.all(color: AppTheme.green),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(Icons.verified_user_outlined, color: AppTheme.green, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.securityHardwareUpgradeTitle,
-                    style: TextStyle(
-                      fontSize: AppFonts.sm,
-                      color: AppTheme.fg,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    l10n.securityHardwareUpgradeBody,
-                    style: TextStyle(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgDim,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: onUpgrade,
-              style: TextButton.styleFrom(foregroundColor: AppTheme.green),
-              child: Text(l10n.securityHardwareUpgradeAction),
-            ),
-          ],
-        ),
-      ),
+    final isCurrent =
+        currentTier == tier ||
+        (tier == SecurityTier.keychain &&
+            currentTier == SecurityTier.keychainWithPassword);
+    final model = _modelFor(isCurrent);
+    final (badge, title, subtitle, accent) = _cardCopy(l10n);
+
+    final bool dim =
+        tier == SecurityTier.hardware && !hardwareAvailable && !isCurrent;
+
+    Widget? trailing;
+    if (isCurrent) {
+      trailing = _CurrentBadge(label: l10n.tierBadgeCurrent);
+    } else if (tier == SecurityTier.hardware && hardwareAvailable) {
+      trailing = TextButton(
+        onPressed: onUpgrade,
+        style: TextButton.styleFrom(foregroundColor: AppTheme.green),
+        child: Text(l10n.securityHardwareUpgradeAction),
+      );
+    }
+
+    return TierThreatBlock(
+      badge: badge,
+      title: title,
+      subtitle: subtitle,
+      accent: accent,
+      model: model,
+      selected: isCurrent,
+      dimmed: dim,
+      trailing: trailing,
     );
+  }
+
+  /// Model driving the ✓ / ✗ split. For the current tier we use the
+  /// real active modifiers — so a user on T1+password sees
+  /// bystander / offline-brute flip to ✓ on the T1 card. For
+  /// non-current tiers we use the "recommended" default: no
+  /// modifiers for T0 / T1 / T2 (the bare capability), password for
+  /// Paranoid (required by design).
+  ThreatModel _modelFor(bool isCurrent) {
+    if (isCurrent) {
+      return ThreatModel(
+        tier: _toThreatTier(tier),
+        password:
+            currentModifiers.password ||
+            currentTier == SecurityTier.keychainWithPassword ||
+            tier == SecurityTier.paranoid,
+        biometric: currentModifiers.biometric,
+      );
+    }
+    return ThreatModel(
+      tier: _toThreatTier(tier),
+      password: tier == SecurityTier.paranoid,
+    );
+  }
+
+  (String, String, String, Color) _cardCopy(S l10n) {
+    switch (tier) {
+      case SecurityTier.plaintext:
+        return (
+          'T0',
+          l10n.tierPlaintextLabel,
+          l10n.tierPlaintextSubtitle,
+          AppTheme.red,
+        );
+      case SecurityTier.keychain:
+      case SecurityTier.keychainWithPassword:
+        return (
+          'T1',
+          l10n.tierKeychainLabel,
+          l10n.tierKeychainSubtitle(_keychainName()),
+          AppTheme.accent,
+        );
+      case SecurityTier.hardware:
+        return (
+          'T2',
+          l10n.tierHardwareLabel,
+          l10n.tierHardwareSubtitleHonest,
+          AppTheme.accent,
+        );
+      case SecurityTier.paranoid:
+        return (
+          'P',
+          l10n.tierParanoidLabel,
+          l10n.tierParanoidSubtitleHonest,
+          AppTheme.purple,
+        );
+    }
+  }
+
+  ThreatTier _toThreatTier(SecurityTier t) {
+    switch (t) {
+      case SecurityTier.plaintext:
+        return ThreatTier.plaintext;
+      case SecurityTier.keychain:
+      case SecurityTier.keychainWithPassword:
+        return ThreatTier.keychain;
+      case SecurityTier.hardware:
+        return ThreatTier.hardware;
+      case SecurityTier.paranoid:
+        return ThreatTier.paranoid;
+    }
+  }
+
+  /// Platform-specific keychain name matches the wizard copy — shown
+  /// in the T1 subtitle so the user knows which backend this install
+  /// routes through.
+  String _keychainName() {
+    if (Platform.isIOS || Platform.isMacOS) return 'Keychain';
+    if (Platform.isAndroid) return 'Keystore';
+    if (Platform.isWindows) return 'Credential Manager';
+    return 'libsecret';
   }
 }
 
-/// Informational card shown when the current tier is below hardware
-/// *and* the T2 probe came back false. Explains the specific blocker
-/// (no TPM / no Secure Enclave / missing tpm2-tools) so the upgrade
-/// tile staying greyed out does not look like a hidden feature.
-class _HardwareUnavailableNotice extends StatelessWidget {
-  const _HardwareUnavailableNotice({required this.reason});
+class _CurrentBadge extends StatelessWidget {
+  const _CurrentBadge({required this.label});
 
-  final HardwareUnavailableReason reason;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.bg2,
-          borderRadius: AppTheme.radiusSm,
-          border: Border.all(color: AppTheme.border),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.info_outline, size: 20, color: AppTheme.fgDim),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.securityHardwareUnavailableTitle,
-                    style: TextStyle(
-                      fontSize: AppFonts.sm,
-                      color: AppTheme.fg,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hardwareUnavailableReasonText(l10n, reason),
-                    style: TextStyle(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgDim,
-                    ),
-                  ),
-                ],
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppTheme.green.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppTheme.green, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check, size: 12, color: AppTheme.green),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: AppTheme.green,
+              fontSize: AppFonts.xs,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

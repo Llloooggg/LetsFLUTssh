@@ -2205,6 +2205,21 @@ class SEs extends S {
       'El llavero del sistema no es accesible en esta instalación. Elige entre sin cifrado (T0) y una contraseña maestra (Paranoid). Instala gnome-keyring, kwallet u otro proveedor de libsecret para habilitar el nivel Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'PROTEGE CONTRA';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'NO PROTEGE';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Nada en este nivel.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Sin amenazas sin cubrir.';
+
+  @override
+  String get tierBadgeCurrent => 'Actual';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

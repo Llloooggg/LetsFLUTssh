@@ -2177,6 +2177,21 @@ class SEn extends S {
       'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.';
 
   @override
+  String get tierBlockProtectsHeader => 'PROTECTS AGAINST';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'DOES NOT PROTECT';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Nothing on this tier.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Nothing left uncovered.';
+
+  @override
+  String get tierBadgeCurrent => 'Current';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

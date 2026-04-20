@@ -2118,6 +2118,21 @@ class SKo extends S {
       '이 설치에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 암호(Paranoid) 중에서 선택하세요. Keychain 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
 
   @override
+  String get tierBlockProtectsHeader => '보호하는 위협';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => '보호하지 않는 위협';
+
+  @override
+  String get tierBlockProtectsEmpty => '이 등급에서 보호되는 항목이 없습니다.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => '노출된 위협이 없습니다.';
+
+  @override
+  String get tierBadgeCurrent => '현재';
+
+  @override
   String get snippets => '스니펫';
 
   @override

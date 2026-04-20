@@ -2172,6 +2172,22 @@ class SVi extends S {
       'Keychain hệ điều hành không thể truy cập trong bản cài đặt này. Hãy chọn giữa không mã hoá (T0) và mật khẩu chính (Paranoid). Cài đặt gnome-keyring, kwallet hoặc trình cung cấp libsecret khác để bật tầng Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'BẢO VỆ KHỎI';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'KHÔNG BẢO VỆ';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Không có gì ở cấp này.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty =>
+      'Không còn mối đe doạ nào chưa được phủ.';
+
+  @override
+  String get tierBadgeCurrent => 'Hiện tại';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

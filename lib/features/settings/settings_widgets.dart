@@ -90,63 +90,6 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-/// Read-only info tile: icon + title + value. Visually distinct from
-/// [_ActionTile] — no hover highlight, no chevron, a subtle bg3 tint, and
-/// the value rendered in mono so it reads as "output" rather than "tap me".
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.borderLight),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.fgDim),
-          const SizedBox(width: 10),
-          // `Expanded` on the title absorbs every bit of extra row width, so
-          // the value — rendered after the gap without its own flex wrapper —
-          // is pinned against the right edge regardless of how wide the tile
-          // stretches on desktop. The earlier `Flexible` on the value split
-          // the remaining space 50/50 with the title, leaving short values
-          // drifting somewhere in the middle of wide rows.
-          Expanded(
-            child: Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgDim,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            textAlign: TextAlign.end,
-            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Generic settings row: label (+ optional subtitle below) + control, minHeight 36.
 ///
 /// The subtitle is a single-line caption in [AppTheme.fgDim] — same visual

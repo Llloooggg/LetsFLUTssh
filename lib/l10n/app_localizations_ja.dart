@@ -2121,6 +2121,21 @@ class SJa extends S {
       'このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。';
 
   @override
+  String get tierBlockProtectsHeader => '保護する脅威';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => '保護しない脅威';
+
+  @override
+  String get tierBlockProtectsEmpty => 'この階層では何も保護しません。';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => '未カバーの脅威はありません。';
+
+  @override
+  String get tierBadgeCurrent => '現在';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

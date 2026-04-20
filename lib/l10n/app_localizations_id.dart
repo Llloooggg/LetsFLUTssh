@@ -2187,6 +2187,22 @@ class SId extends S {
       'Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'MELINDUNGI DARI';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'TIDAK MELINDUNGI';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Tidak ada pada tingkat ini.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty =>
+      'Tidak ada ancaman yang tidak tertutup.';
+
+  @override
+  String get tierBadgeCurrent => 'Saat ini';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

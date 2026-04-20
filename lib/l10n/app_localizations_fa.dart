@@ -2177,6 +2177,21 @@ class SFa extends S {
       'کلیدرشتهٔ سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا یک ارائه‌دهندهٔ libsecret دیگر را نصب کنید.';
 
   @override
+  String get tierBlockProtectsHeader => 'محافظت در برابر';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'محافظت نمی‌کند در برابر';
+
+  @override
+  String get tierBlockProtectsEmpty => 'در این سطح چیزی نیست.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'تهدید پوشش‌نیافته‌ای نیست.';
+
+  @override
+  String get tierBadgeCurrent => 'فعلی';
+
+  @override
   String get snippets => 'قطعه‌ها';
 
   @override

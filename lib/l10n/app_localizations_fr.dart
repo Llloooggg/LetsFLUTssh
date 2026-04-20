@@ -2211,6 +2211,21 @@ class SFr extends S {
       'Le trousseau du système n\'est pas accessible sur cette installation. Choisissez entre aucun chiffrement (T0) et un mot de passe maître (Paranoid). Installez gnome-keyring, kwallet ou un autre fournisseur libsecret pour activer le niveau Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'PROTÈGE CONTRE';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'NE PROTÈGE PAS';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Rien à ce niveau.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Aucune menace non couverte.';
+
+  @override
+  String get tierBadgeCurrent => 'Actuel';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

@@ -2209,6 +2209,21 @@ class SDe extends S {
       'Der Schlüsselbund des Betriebssystems ist bei dieser Installation nicht erreichbar. Wähle zwischen keiner Verschlüsselung (T0) und einem Master-Passwort (Paranoid). Installiere gnome-keyring, kwallet oder einen anderen libsecret-Anbieter, um die Keychain-Stufe zu aktivieren.';
 
   @override
+  String get tierBlockProtectsHeader => 'SCHÜTZT VOR';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'SCHÜTZT NICHT VOR';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Auf dieser Stufe nichts.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Keine ungedeckten Bedrohungen.';
+
+  @override
+  String get tierBadgeCurrent => 'Aktuell';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

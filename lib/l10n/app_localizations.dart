@@ -3873,6 +3873,36 @@ abstract class S {
   /// **'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.'**
   String get wizardReducedBanner;
 
+  /// No description provided for @tierBlockProtectsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'PROTECTS AGAINST'**
+  String get tierBlockProtectsHeader;
+
+  /// No description provided for @tierBlockDoesNotProtectHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'DOES NOT PROTECT'**
+  String get tierBlockDoesNotProtectHeader;
+
+  /// No description provided for @tierBlockProtectsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this tier.'**
+  String get tierBlockProtectsEmpty;
+
+  /// No description provided for @tierBlockDoesNotProtectEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing left uncovered.'**
+  String get tierBlockDoesNotProtectEmpty;
+
+  /// No description provided for @tierBadgeCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get tierBadgeCurrent;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

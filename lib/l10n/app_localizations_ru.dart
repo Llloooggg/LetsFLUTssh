@@ -2193,6 +2193,21 @@ class SRu extends S {
       'Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'ЗАЩИЩАЕТ ОТ';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'НЕ ЗАЩИЩАЕТ ОТ';
+
+  @override
+  String get tierBlockProtectsEmpty => 'На этом уровне — ничего.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Непокрытых угроз нет.';
+
+  @override
+  String get tierBadgeCurrent => 'Текущий';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override

@@ -2180,6 +2180,21 @@ class SAr extends S {
       'سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.';
 
   @override
+  String get tierBlockProtectsHeader => 'يحمي من';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'لا يحمي من';
+
+  @override
+  String get tierBlockProtectsEmpty => 'لا شيء في هذا المستوى.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'لا توجد تهديدات غير مغطاة.';
+
+  @override
+  String get tierBadgeCurrent => 'الحالي';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

@@ -2192,6 +2192,21 @@ class STr extends S {
       'İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.';
 
   @override
+  String get tierBlockProtectsHeader => 'KORUR';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'KORUMAZ';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Bu katmanda hiçbir şey.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Kapsanmayan tehdit yok.';
+
+  @override
+  String get tierBadgeCurrent => 'Geçerli';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

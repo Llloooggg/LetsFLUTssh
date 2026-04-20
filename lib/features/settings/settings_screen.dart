@@ -22,7 +22,7 @@ import '../../core/shortcut_registry.dart';
 import '../../core/security/aes_gcm.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
-import '../../core/security/tier_backing.dart';
+import '../../core/security/threat_vocabulary.dart';
 import '../../core/security/wipe_all_service.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
@@ -55,9 +55,9 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/form_submit_chain.dart';
-import '../../providers/first_launch_banner_provider.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
+import '../../widgets/tier_threat_block.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
@@ -65,7 +65,6 @@ import '../../widgets/link_import_preview_dialog.dart';
 import '../../widgets/local_directory_picker.dart';
 import '../../widgets/paste_import_link_dialog.dart';
 import '../../widgets/security_setup_dialog.dart';
-import '../../widgets/security_comparison_table.dart';
 import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
@@ -245,27 +244,34 @@ class _MobileSettingsScreen extends ConsumerWidget {
     final sections = _buildSections(context);
     return Scaffold(
       appBar: AppBar(title: Text(S.of(context).settings)),
-      body: ListView(
+      // SingleChildScrollView + Column so every section is built
+      // eagerly. The section count is under 10 — the lazy-sliver
+      // default defers rows below the fold, which lets find-by-text
+      // in tests miss widgets that are materialised only on scroll.
+      // Eager-build keeps find + scroll-to-reveal symmetrical.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        children: [
-          for (final section in sections)
-            _CollapsibleSection(
-              title: section.title,
-              icon: section.icon,
-              child: section.builder(),
+        child: Column(
+          children: [
+            for (final section in sections)
+              _CollapsibleSection(
+                title: section.title,
+                icon: section.icon,
+                child: section.builder(),
+              ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => ref
+                    .read(configProvider.notifier)
+                    .update((_) => AppConfig.defaults),
+                icon: const Icon(Icons.restore, size: 18),
+                label: Text(S.of(context).resetToDefaults),
+              ),
             ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => ref
-                  .read(configProvider.notifier)
-                  .update((_) => AppConfig.defaults),
-              icon: const Icon(Icons.restore, size: 18),
-              label: Text(S.of(context).resetToDefaults),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
@@ -437,6 +443,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                           child: ListView(
                             key: ValueKey(_selectedIndex),
                             padding: const EdgeInsets.all(24),
+                            // Build every section eagerly. Settings
+                            // sections are small in count (under 10);
+                            // the lazy-sliver default materialises
+                            // only visible slivers, which lets test
+                            // finders miss rows below the fold when
+                            // Security grew taller. Eager-build keeps
+                            // every row in the tree regardless of
+                            // scroll position.
+                            cacheExtent: 10000,
                             children: [
                               _SectionHeader(
                                 title: sections[_selectedIndex].title,

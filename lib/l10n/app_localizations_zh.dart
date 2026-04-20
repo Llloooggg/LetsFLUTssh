@@ -2100,6 +2100,21 @@ class SZh extends S {
       '本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。';
 
   @override
+  String get tierBlockProtectsHeader => '可抵御';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => '无法抵御';
+
+  @override
+  String get tierBlockProtectsEmpty => '该等级无可抵御项。';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => '无未覆盖威胁。';
+
+  @override
+  String get tierBadgeCurrent => '当前';
+
+  @override
   String get snippets => '代码片段';
 
   @override
