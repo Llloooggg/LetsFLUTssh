@@ -2149,6 +2149,43 @@ class SEs extends S {
       'No se pudo cambiar el nivel de seguridad';
 
   @override
+  String get firstLaunchSecurityTitle => 'Almacenamiento seguro activado';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Tus datos están cifrados con una clave guardada en el llavero del sistema. El desbloqueo en este dispositivo es automático.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Hay almacenamiento respaldado por hardware disponible en este dispositivo. Actualiza en Ajustes → Seguridad para vincular con TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Almacenamiento por hardware no disponible: no se ha detectado TPM 2.0 en este dispositivo.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Almacenamiento por hardware no disponible: este dispositivo no reporta un Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Almacenamiento por hardware no disponible: instala tpm2-tools y un dispositivo TPM 2.0 para habilitarlo.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Almacenamiento por hardware no disponible: este dispositivo no reporta StrongBox ni TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Almacenamiento por hardware no disponible en este dispositivo.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Abrir ajustes';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Entendido';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

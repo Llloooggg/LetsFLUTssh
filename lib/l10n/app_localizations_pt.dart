@@ -2143,6 +2143,43 @@ class SPt extends S {
       'Não foi possível alterar o nível de segurança';
 
   @override
+  String get firstLaunchSecurityTitle => 'Armazenamento seguro ativado';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Seus dados são criptografados com uma chave guardada no keychain do sistema. O desbloqueio neste dispositivo é automático.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Armazenamento baseado em hardware está disponível neste dispositivo. Atualize em Configurações → Segurança para vincular ao TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Armazenamento em hardware indisponível — TPM 2.0 não detectado neste dispositivo.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Armazenamento em hardware indisponível — este dispositivo não reporta um Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Armazenamento em hardware indisponível — instale tpm2-tools e um dispositivo TPM 2.0 para ativá-lo.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Armazenamento em hardware indisponível — este dispositivo não reporta StrongBox nem TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Armazenamento em hardware indisponível neste dispositivo.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Abrir configurações';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Entendi';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

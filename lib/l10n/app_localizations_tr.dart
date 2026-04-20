@@ -2137,6 +2137,43 @@ class STr extends S {
   String get changeSecurityTierFailed => 'Güvenlik düzeyi değiştirilemedi';
 
   @override
+  String get firstLaunchSecurityTitle => 'Güvenli depolama etkinleştirildi';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Verileriniz işletim sisteminin anahtarlığında tutulan bir anahtarla şifrelenir. Bu cihazda kilit açma otomatiktir.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Bu cihazda donanım destekli depolama mevcut. TPM / Secure Enclave bağlaması için Ayarlar → Güvenlik\'ten yükseltin.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Donanım destekli depolama kullanılamıyor — bu cihazda TPM 2.0 algılanmadı.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Donanım destekli depolama kullanılamıyor — bu cihaz Secure Enclave bildirmiyor.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Donanım destekli depolama kullanılamıyor — etkinleştirmek için tpm2-tools ve bir TPM 2.0 aygıtı kurun.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Donanım destekli depolama kullanılamıyor — bu cihaz StrongBox veya TEE bildirmiyor.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Bu cihazda donanım destekli depolama kullanılamıyor.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Ayarları Aç';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Anladım';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

@@ -2049,6 +2049,41 @@ class SZh extends S {
   String get changeSecurityTierFailed => '无法更改安全等级';
 
   @override
+  String get firstLaunchSecurityTitle => '已启用安全存储';
+
+  @override
+  String get firstLaunchSecurityBody => '你的数据由系统钥匙串中的密钥加密。本设备会自动解锁。';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      '此设备支持硬件存储。请在“设置 → 安全”中升级以使用 TPM / Secure Enclave 绑定。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      '硬件存储不可用——未在此设备上检测到 TPM 2.0。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      '硬件存储不可用——此设备未报告 Secure Enclave。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      '硬件存储不可用——请安装 tpm2-tools 并接入 TPM 2.0 设备以启用。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      '硬件存储不可用——此设备未报告 StrongBox 或 TEE。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric => '此设备不支持硬件存储。';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => '打开设置';
+
+  @override
+  String get firstLaunchSecurityDismiss => '知道了';
+
+  @override
   String get snippets => '代码片段';
 
   @override

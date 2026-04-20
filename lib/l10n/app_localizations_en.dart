@@ -2121,6 +2121,43 @@ class SEn extends S {
   String get changeSecurityTierFailed => 'Could not change security tier';
 
   @override
+  String get firstLaunchSecurityTitle => 'Secure storage enabled';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Your data is encrypted with a key held in the OS keychain. Unlock is automatic on this device.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Hardware-backed storage is available on this device. Upgrade in Settings → Security for TPM / Secure Enclave binding.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Hardware-backed storage is unavailable — no TPM 2.0 detected on this device.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Hardware-backed storage is unavailable — this device does not report a Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Hardware-backed storage is unavailable — install tpm2-tools and a TPM 2.0 device to enable it.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Hardware-backed storage is unavailable — this device does not report a StrongBox or TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Hardware-backed storage is unavailable on this device.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Open Settings';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Got it';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

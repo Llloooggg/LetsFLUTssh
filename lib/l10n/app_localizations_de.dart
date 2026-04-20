@@ -2153,6 +2153,43 @@ class SDe extends S {
       'Sicherheitsstufe konnte nicht geändert werden';
 
   @override
+  String get firstLaunchSecurityTitle => 'Sicherer Speicher aktiviert';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Deine Daten sind mit einem Schlüssel im Schlüsselbund des Betriebssystems verschlüsselt. Die Entsperrung erfolgt auf diesem Gerät automatisch.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Auf diesem Gerät ist hardwaregestützter Speicher verfügbar. Wechsle unter Einstellungen → Sicherheit, um TPM / Secure Enclave zu nutzen.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Hardwaregestützter Speicher nicht verfügbar — kein TPM 2.0 auf diesem Gerät erkannt.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Hardwaregestützter Speicher nicht verfügbar — dieses Gerät meldet keine Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Hardwaregestützter Speicher nicht verfügbar — installiere tpm2-tools und ein TPM 2.0-Gerät, um ihn zu aktivieren.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Hardwaregestützter Speicher nicht verfügbar — dieses Gerät meldet keine StrongBox oder TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Hardwaregestützter Speicher auf diesem Gerät nicht verfügbar.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Einstellungen öffnen';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Verstanden';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

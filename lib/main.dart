@@ -1,5 +1,5 @@
 import 'dart:async' show runZonedGuarded, unawaited;
-import 'dart:io' show exit;
+import 'dart:io' show Platform, exit;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -21,6 +21,7 @@ import 'core/security/backup_exclusion.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
+import 'core/security/security_bootstrap.dart';
 import 'core/import/import_service.dart';
 import 'core/progress/progress_reporter.dart';
 import 'features/session_manager/session_connect.dart';
@@ -35,6 +36,7 @@ import 'widgets/security_setup_dialog.dart';
 import 'widgets/tier_secret_unlock_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/db_corrupt_dialog.dart';
+import 'widgets/first_launch_security_dialog.dart';
 import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
@@ -62,6 +64,7 @@ import 'features/workspace/workspace_node.dart';
 import 'features/workspace/workspace_view.dart';
 import 'providers/auto_lock_provider.dart';
 import 'providers/config_provider.dart';
+import 'providers/first_launch_banner_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/key_provider.dart';
 import 'providers/master_password_provider.dart';
@@ -766,7 +769,19 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
   }
 
-  /// First-launch flow: show wizard, configure security.
+  /// First-launch flow: probe the platform, auto-pick the default
+  /// tier when the keychain is reachable, fall through to the
+  /// wizard only when the user actually needs to make a choice
+  /// (no keychain → plaintext vs. Paranoid).
+  ///
+  /// Auto-select rationale: the overwhelmingly common case — every
+  /// desktop with a working libsecret / Credential Manager /
+  /// Keychain, every iOS device, every Android with EncryptedSP —
+  /// gives us a sane default that "just works" without scaring the
+  /// user with a five-option wizard on their first launch. T1
+  /// (keychain) protects against the cold-disk-theft case without
+  /// a password prompt; T2 and Paranoid remain one tap away in
+  /// Settings for users who want stronger binding or zero OS trust.
   Future<void> _firstLaunchSetup(
     MasterPasswordManager manager,
     SecureKeyStorage keyStorage,
@@ -775,7 +790,30 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;
 
-    final result = await SecuritySetupDialog.show(ctx, keyStorage: keyStorage);
+    final caps = await probeCapabilities(
+      keyStorage: keyStorage,
+      hardwareVault: ref.read(hardwareTierVaultProvider),
+    );
+    if (!mounted) return;
+
+    // Auto-setup path: keychain is reachable → silently land on T1
+    // and queue the post-setup banner so the user learns what we
+    // picked and how to upgrade.
+    if (caps.keychainAvailable) {
+      await _autoSetupKeychain(keyStorage);
+      _queueFirstLaunchBanner(caps);
+      return;
+    }
+
+    // Fallback: keychain unreachable. Hand the user the existing
+    // wizard — it already greys out T1 / T2 with reason tooltips,
+    // so the remaining choice is T0 vs Paranoid.
+    final fallbackCtx = navigatorKey.currentContext;
+    if (fallbackCtx == null || !fallbackCtx.mounted) return;
+    final result = await SecuritySetupDialog.show(
+      fallbackCtx,
+      keyStorage: keyStorage,
+    );
     if (!mounted) return;
 
     switch (result.tier) {
@@ -834,6 +872,65 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           name: 'App',
         );
     }
+  }
+
+  /// Auto-setup path used on first launch when `caps.keychainAvailable`
+  /// is true. Generates a fresh DB key, stores it in the OS keychain,
+  /// and injects the database at T1 — zero dialogs, zero prompts.
+  /// Falls through to plaintext if the keychain write fails for any
+  /// reason (mirror of the existing wizard-path fallback).
+  Future<void> _autoSetupKeychain(SecureKeyStorage keyStorage) async {
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (stored) {
+      await _injectDatabase(key: key, level: SecurityTier.keychain);
+      AppLogger.instance.log(
+        'First launch: auto-selected T1 (keychain)',
+        name: 'App',
+      );
+    } else {
+      await _injectDatabase();
+      AppLogger.instance.log(
+        'First launch: auto-select T1 failed keychain write, '
+        'falling back to plaintext',
+        name: 'App',
+      );
+    }
+  }
+
+  /// Populate [firstLaunchBannerProvider] so the main screen pops a
+  /// one-shot dialog informing the user of the tier we picked and
+  /// whether a hardware upgrade is reachable. The dialog clears the
+  /// provider on dismiss; no persistence — the banner belongs to the
+  /// launch where the auto-setup ran.
+  void _queueFirstLaunchBanner(SecurityCapabilities caps) {
+    ref
+        .read(firstLaunchBannerProvider.notifier)
+        .set(
+          FirstLaunchBannerData(
+            activeTier: SecurityTier.keychain,
+            hardwareUpgradeAvailable: caps.hardwareVaultAvailable,
+            hardwareUnavailableReason: caps.hardwareVaultAvailable
+                ? null
+                : _hardwareUnavailableReason(),
+          ),
+        );
+  }
+
+  /// Coarse per-platform guess at why T2 is out of reach. The probe
+  /// itself only reports a boolean; this maps the platform to the
+  /// likeliest explanation so the banner can show a specific
+  /// sentence instead of a generic "not available" line.
+  HardwareUnavailableReason _hardwareUnavailableReason() {
+    if (Platform.isWindows) return HardwareUnavailableReason.noTpm;
+    if (Platform.isMacOS || Platform.isIOS) {
+      return HardwareUnavailableReason.noSecureEnclave;
+    }
+    if (Platform.isLinux) return HardwareUnavailableReason.noTpm2Tools;
+    if (Platform.isAndroid) {
+      return HardwareUnavailableReason.noAndroidKeystoreHardware;
+    }
+    return HardwareUnavailableReason.generic;
   }
 
   /// L2 first-launch: configure the keychain password gate, then write
@@ -1254,11 +1351,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final _sessionPanelKey = GlobalKey<SessionPanelState>();
   final _sidebarActivated = ValueNotifier<int>(0);
 
+  bool _firstLaunchBannerShown = false;
+
   @override
   void initState() {
     super.initState();
     _setupDeepLinks();
     _listenForStartupUpdate();
+    _listenForFirstLaunchBanner();
   }
 
   @override
@@ -1270,6 +1370,41 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _listenForStartupUpdate() {
     ref.listenManual(updateProvider, (prev, next) => _handleUpdateState(next));
+  }
+
+  /// Watch the in-memory banner provider. When the first-launch
+  /// auto-setup runs it writes a [FirstLaunchBannerData]; we pop a
+  /// one-shot dialog and clear the state on dismiss so a later
+  /// rebuild does not re-open it.
+  void _listenForFirstLaunchBanner() {
+    ref.listenManual<FirstLaunchBannerData?>(firstLaunchBannerProvider, (
+      prev,
+      next,
+    ) {
+      if (next == null || _firstLaunchBannerShown) return;
+      _firstLaunchBannerShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx == null || !ctx.mounted) return;
+        FirstLaunchSecurityDialog.show(
+          ctx,
+          data: next,
+          onOpenSettings: () {
+            final inner = navigatorKey.currentContext;
+            if (inner == null || !inner.mounted) return;
+            if (plat.isMobilePlatform) {
+              SettingsScreen.show(inner);
+            } else {
+              SettingsDialog.show(inner);
+            }
+          },
+        ).whenComplete(() {
+          if (mounted) {
+            ref.read(firstLaunchBannerProvider.notifier).set(null);
+          }
+        });
+      });
+    }, fireImmediately: true);
   }
 
   void _handleUpdateState(UpdateState next) {

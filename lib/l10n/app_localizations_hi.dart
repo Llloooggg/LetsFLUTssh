@@ -2129,6 +2129,43 @@ class SHi extends S {
   String get changeSecurityTierFailed => 'सुरक्षा स्तर नहीं बदला जा सका';
 
   @override
+  String get firstLaunchSecurityTitle => 'सुरक्षित स्टोरेज सक्षम है';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'आपका डेटा OS कीचेन में रखी गई कुंजी से एन्क्रिप्ट किया गया है। इस डिवाइस पर अनलॉक स्वचालित है।';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध है। TPM / Secure Enclave बाइंडिंग के लिए सेटिंग्स → सुरक्षा से अपग्रेड करें।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — इस डिवाइस पर TPM 2.0 नहीं मिला।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — यह डिवाइस Secure Enclave की रिपोर्ट नहीं करता।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — इसे सक्षम करने के लिए tpm2-tools और TPM 2.0 डिवाइस स्थापित करें।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — यह डिवाइस StrongBox या TEE की रिपोर्ट नहीं करता।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है।';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'सेटिंग्स खोलें';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'समझ गया';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

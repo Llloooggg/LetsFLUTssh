@@ -2067,6 +2067,43 @@ class SJa extends S {
   String get changeSecurityTierFailed => 'セキュリティ階層を変更できませんでした';
 
   @override
+  String get firstLaunchSecurityTitle => 'セキュアストレージが有効になりました';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'データは OS キーチェーンに保管された鍵で暗号化されます。このデバイスでのロック解除は自動です。';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'このデバイスではハードウェア保護ストレージが利用できます。TPM / Secure Enclave 連携を使うには、設定 → セキュリティからアップグレードしてください。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'ハードウェア保護ストレージは利用できません — このデバイスで TPM 2.0 が検出されませんでした。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'ハードウェア保護ストレージは利用できません — このデバイスは Secure Enclave を報告していません。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'ハードウェア保護ストレージは利用できません — 有効にするには tpm2-tools と TPM 2.0 デバイスをインストールしてください。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'ハードウェア保護ストレージは利用できません — このデバイスは StrongBox または TEE を報告していません。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'このデバイスではハードウェア保護ストレージを利用できません。';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => '設定を開く';
+
+  @override
+  String get firstLaunchSecurityDismiss => '了解';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

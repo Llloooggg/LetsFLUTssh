@@ -2125,6 +2125,43 @@ class SAr extends S {
   String get changeSecurityTierFailed => 'تعذر تغيير مستوى الأمان';
 
   @override
+  String get firstLaunchSecurityTitle => 'تم تفعيل التخزين الآمن';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'يتم تشفير بياناتك بمفتاح محفوظ في سلسلة مفاتيح النظام. فتح القفل على هذا الجهاز تلقائي.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'يتوفر على هذا الجهاز تخزين مدعوم بالعتاد. قم بالترقية من الإعدادات ← الأمان لربط TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'التخزين المدعوم بالعتاد غير متاح — لم يتم اكتشاف TPM 2.0 على هذا الجهاز.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'التخزين المدعوم بالعتاد غير متاح — لا يُبلّغ هذا الجهاز عن وجود Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'التخزين المدعوم بالعتاد غير متاح — ثبّت tpm2-tools وجهاز TPM 2.0 لتفعيله.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'التخزين المدعوم بالعتاد غير متاح — لا يُبلّغ هذا الجهاز عن StrongBox أو TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'التخزين المدعوم بالعتاد غير متاح على هذا الجهاز.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'فتح الإعدادات';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'حسنًا';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

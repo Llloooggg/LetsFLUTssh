@@ -2131,6 +2131,43 @@ class SId extends S {
       'Tidak dapat mengubah tingkat keamanan';
 
   @override
+  String get firstLaunchSecurityTitle => 'Penyimpanan aman aktif';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Data Anda dienkripsi dengan kunci yang tersimpan di keychain OS. Pembukaan kunci di perangkat ini berjalan otomatis.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Penyimpanan berbasis perangkat keras tersedia di perangkat ini. Tingkatkan di Pengaturan → Keamanan untuk pengikatan TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — TPM 2.0 tidak terdeteksi di perangkat ini.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — perangkat ini tidak melaporkan Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — pasang tpm2-tools dan perangkat TPM 2.0 untuk mengaktifkannya.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — perangkat ini tidak melaporkan StrongBox atau TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia di perangkat ini.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Buka Pengaturan';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Mengerti';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

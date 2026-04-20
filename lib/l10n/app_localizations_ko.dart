@@ -2064,6 +2064,43 @@ class SKo extends S {
   String get changeSecurityTierFailed => '보안 등급을 변경할 수 없습니다';
 
   @override
+  String get firstLaunchSecurityTitle => '보안 저장소가 활성화되었습니다';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      '데이터는 운영체제 키체인에 보관된 키로 암호화됩니다. 이 기기에서는 잠금 해제가 자동으로 진행됩니다.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      '이 기기에서는 하드웨어 기반 저장소를 사용할 수 있습니다. TPM / Secure Enclave 바인딩을 위해 설정 → 보안에서 업그레이드하세요.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      '하드웨어 기반 저장소를 사용할 수 없습니다 — 이 기기에서 TPM 2.0이 감지되지 않았습니다.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      '하드웨어 기반 저장소를 사용할 수 없습니다 — 이 기기는 Secure Enclave를 보고하지 않습니다.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      '하드웨어 기반 저장소를 사용할 수 없습니다 — 활성화하려면 tpm2-tools와 TPM 2.0 기기를 설치하세요.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      '하드웨어 기반 저장소를 사용할 수 없습니다 — 이 기기는 StrongBox 또는 TEE를 보고하지 않습니다.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      '이 기기에서는 하드웨어 기반 저장소를 사용할 수 없습니다.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => '설정 열기';
+
+  @override
+  String get firstLaunchSecurityDismiss => '확인';
+
+  @override
   String get snippets => '스니펫';
 
   @override

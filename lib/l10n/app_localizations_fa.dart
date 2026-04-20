@@ -2121,6 +2121,43 @@ class SFa extends S {
   String get changeSecurityTierFailed => 'تغییر سطح امنیت ممکن نشد';
 
   @override
+  String get firstLaunchSecurityTitle => 'ذخیره‌سازی امن فعال شد';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'داده‌های شما با کلیدی که در کلیدرشتهٔ سیستم نگهداری می‌شود رمزگذاری می‌شوند. باز کردن قفل روی این دستگاه خودکار است.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس است. برای اتصال TPM / Secure Enclave از تنظیمات ← امنیت ارتقا دهید.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — TPM 2.0 روی این دستگاه شناسایی نشد.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — این دستگاه Secure Enclave را گزارش نمی‌کند.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — برای فعال‌سازی، tpm2-tools و دستگاه TPM 2.0 را نصب کنید.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — این دستگاه StrongBox یا TEE را گزارش نمی‌کند.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس نیست.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'باز کردن تنظیمات';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'باشه';
+
+  @override
   String get snippets => 'قطعه‌ها';
 
   @override

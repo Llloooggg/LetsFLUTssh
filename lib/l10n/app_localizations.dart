@@ -3783,6 +3783,66 @@ abstract class S {
   /// **'Could not change security tier'**
   String get changeSecurityTierFailed;
 
+  /// No description provided for @firstLaunchSecurityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure storage enabled'**
+  String get firstLaunchSecurityTitle;
+
+  /// No description provided for @firstLaunchSecurityBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data is encrypted with a key held in the OS keychain. Unlock is automatic on this device.'**
+  String get firstLaunchSecurityBody;
+
+  /// No description provided for @firstLaunchSecurityUpgradeAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is available on this device. Upgrade in Settings → Security for TPM / Secure Enclave binding.'**
+  String get firstLaunchSecurityUpgradeAvailable;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — no TPM 2.0 detected on this device.'**
+  String get firstLaunchSecurityHardwareUnavailableWindows;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — this device does not report a Secure Enclave.'**
+  String get firstLaunchSecurityHardwareUnavailableApple;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableLinux.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — install tpm2-tools and a TPM 2.0 device to enable it.'**
+  String get firstLaunchSecurityHardwareUnavailableLinux;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — this device does not report a StrongBox or TEE.'**
+  String get firstLaunchSecurityHardwareUnavailableAndroid;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable on this device.'**
+  String get firstLaunchSecurityHardwareUnavailableGeneric;
+
+  /// No description provided for @firstLaunchSecurityOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get firstLaunchSecurityOpenSettings;
+
+  /// No description provided for @firstLaunchSecurityDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get firstLaunchSecurityDismiss;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

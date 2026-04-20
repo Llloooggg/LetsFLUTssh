@@ -2944,12 +2944,17 @@ All data stores support three security levels (see §3.6):
 
 Encryption is applied at the database level via SQLite3MultipleCiphers — a single encrypted DB file replaces the old per-store AES-256-GCM files.
 
-### First-launch wizard
+### First-launch auto-select
 
-`SecuritySetupDialog` shown on first launch (no data files on disk):
-1. Probes OS keychain via `SecureKeyStorage.isAvailable()` — a write+read+delete cycle on macOS/iOS/Windows/Android, an env-only check on Linux until the user has opted into keychain storage (see [SecureKeyStorage](#securekeystorage))
-2. Keychain found → offers "Continue with Keychain" or "Set Master Password"
-3. Keychain not found → offers "Continue without Encryption" or "Set Master Password"
+`_firstLaunchSetup` in `main.dart` probes capabilities via [`probeCapabilities`](../lib/core/security/security_bootstrap.dart) and picks the tier itself. The multi-option wizard is a fallback that only fires when the choice matters on this device — 99% of installs never see it.
+
+1. Probe `SecureKeyStorage.isAvailable()` (keychain probe) + `HardwareTierVault.isAvailable()` (hardware probe) in parallel.
+2. **Keychain reachable (common path)** → silently land on T1: generate a random DB key, write it to the OS keychain, inject the database, log the auto-select. No dialogs, no prompts. The `FirstLaunchBannerData` is queued on [`firstLaunchBannerProvider`](../lib/providers/first_launch_banner_provider.dart) so the main screen pops a one-shot confirmation dialog telling the user which tier we picked and whether a hardware upgrade is reachable.
+3. **Keychain unreachable (Linux without libsecret / kwallet, or an explicit `FlutterSecureStorage` probe failure)** → fall through to `SecuritySetupDialog`. The wizard already greys out T1 / T2 with reason tooltips, so the remaining choice is T0 (plaintext) vs Paranoid (master password). A user on this branch made a conscious call by installing without a keychain backend and keeps full control over the decision.
+
+*Why auto-select on top of the existing wizard:* the wizard was jarring as a first-run experience. Five tiers × two modifiers = ten combinations staring at a user who just wanted an SSH client. T1 is a solid default — protects against cold-disk theft, unlocks silently, zero friction — and the upgrade path to T2 / Paranoid is one tap away in Settings. The banner is the honest middle ground: we picked for you, here is what we picked, here is the upgrade path or the reason it is not available.
+
+*Post-setup banner:* [`FirstLaunchSecurityDialog`](../lib/widgets/first_launch_security_dialog.dart) shown by `_MainScreenState` when the provider fires. Buttons: **Got it** (primary, dismisses) and **Open Settings** (only when `caps.hardwareVaultAvailable == true && current tier != hardware` — otherwise the upgrade is not reachable so offering the button would be dishonest). No persistence: the banner belongs to the launch where the auto-setup ran, and the auto-setup only runs when no DB file exists, so a restart never re-opens it.
 
 ### Startup security flow
 
@@ -2958,7 +2963,7 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 2. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
 3. DB file exists + keychain has key → read from keychain
 4. DB file exists but no encryption → plaintext mode
-5. No DB file → first launch → show `SecuritySetupDialog` wizard
+5. No DB file → first launch → probe capabilities, auto-select T1 when the keychain is reachable (queue the post-setup banner on `firstLaunchBannerProvider`), or show `SecuritySetupDialog` in its T0-vs-Paranoid form when the keychain is not reachable (see [First-launch auto-select](#first-launch-auto-select))
 6. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
 ### Master password

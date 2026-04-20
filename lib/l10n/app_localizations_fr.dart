@@ -2156,6 +2156,43 @@ class SFr extends S {
       'Impossible de modifier le niveau de sécurité';
 
   @override
+  String get firstLaunchSecurityTitle => 'Stockage sécurisé activé';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Vos données sont chiffrées avec une clé conservée dans le trousseau du système. Le déverrouillage sur cet appareil est automatique.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Un stockage matériel est disponible sur cet appareil. Passez par Paramètres → Sécurité pour une liaison TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Stockage matériel indisponible — aucun TPM 2.0 détecté sur cet appareil.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Stockage matériel indisponible — cet appareil ne signale pas de Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Stockage matériel indisponible — installez tpm2-tools et un périphérique TPM 2.0 pour l\'activer.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Stockage matériel indisponible — cet appareil ne signale ni StrongBox ni TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Stockage matériel indisponible sur cet appareil.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Ouvrir les paramètres';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Compris';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

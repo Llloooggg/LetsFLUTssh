@@ -2117,6 +2117,43 @@ class SVi extends S {
   String get changeSecurityTierFailed => 'Không thể đổi mức bảo mật';
 
   @override
+  String get firstLaunchSecurityTitle => 'Đã bật lưu trữ an toàn';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Dữ liệu của bạn được mã hoá bằng khoá nằm trong keychain hệ điều hành. Việc mở khoá trên thiết bị này diễn ra tự động.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Thiết bị này có lưu trữ phần cứng sẵn có. Nâng cấp trong Cài đặt → Bảo mật để liên kết TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Lưu trữ phần cứng không khả dụng — không phát hiện TPM 2.0 trên thiết bị này.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Lưu trữ phần cứng không khả dụng — thiết bị này không báo cáo Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Lưu trữ phần cứng không khả dụng — cài đặt tpm2-tools và thiết bị TPM 2.0 để kích hoạt.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Lưu trữ phần cứng không khả dụng — thiết bị này không báo cáo StrongBox hoặc TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Lưu trữ phần cứng không khả dụng trên thiết bị này.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Mở Cài đặt';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Đã hiểu';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

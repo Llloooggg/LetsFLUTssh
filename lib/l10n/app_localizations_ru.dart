@@ -2138,6 +2138,43 @@ class SRu extends S {
       'Не удалось сменить уровень безопасности';
 
   @override
+  String get firstLaunchSecurityTitle => 'Безопасное хранилище включено';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Данные шифруются ключом из системного хранилища. Разблокировка на этом устройстве — автоматическая.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'На устройстве доступно аппаратное хранилище. Повысьте уровень в Настройки → Безопасность для привязки к TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Аппаратное хранилище недоступно — TPM 2.0 не обнаружен.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Аппаратное хранилище недоступно — устройство не сообщает о наличии Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Аппаратное хранилище недоступно — установите tpm2-tools и устройство TPM 2.0, чтобы включить его.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Аппаратное хранилище недоступно — устройство не сообщает о наличии StrongBox или TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Аппаратное хранилище недоступно на этом устройстве.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Открыть настройки';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Понятно';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override
