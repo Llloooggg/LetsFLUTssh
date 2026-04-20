@@ -43,40 +43,6 @@ void main() {
         }
       });
     }
-
-    testWidgets('Paranoid row shows strong-password note', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SecurityThreatList(
-            model: ThreatModel(tier: ThreatTier.paranoid, password: true),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final context = tester.element(find.byType(SecurityThreatList));
-      expect(
-        find.text(S.of(context).legendStrongPasswordRecommended),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('T2+password row shows weak-password-acceptable note', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SecurityThreatList(
-            model: ThreatModel(tier: ThreatTier.hardware, password: true),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final context = tester.element(find.byType(SecurityThreatList));
-      expect(
-        find.text(S.of(context).legendWeakPasswordWarning),
-        findsOneWidget,
-      );
-    });
   });
 
   group('locale smoke — every threat title resolves in every locale', () {

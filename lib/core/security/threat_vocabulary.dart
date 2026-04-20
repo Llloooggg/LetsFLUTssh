@@ -50,29 +50,22 @@ enum SecurityThreat {
   offlineBruteForce,
 }
 
-/// Marker returned per threat by [evaluate]. Maps directly to a UI
-/// glyph: ✓ protects, ✗ doesNotProtect, — notApplicable, ! notes.
+/// Binary per-threat status — ✓ or ✗. No weak/strong-password notes,
+/// no "not applicable" marker. Every threat has a yes-or-no answer
+/// on every tier: if the tier has no user secret, offline brute
+/// force stays a ✗ (nothing is stopping the attacker) rather than a
+/// philosophical "not applicable" that reads as if the threat
+/// disappeared.
+///
+/// The binary shape is what the per-tier split-threat block in
+/// Settings + wizard renders: ✓ rows land in the "Protects against"
+/// half, ✗ rows in the "Does not protect" half.
 enum ThreatStatus {
   /// ✓ — this (tier + modifier) combination defeats the threat.
   protects,
 
   /// ✗ — the threat is not defended against.
   doesNotProtect,
-
-  /// — the threat is structurally irrelevant for this combination
-  /// (e.g. offline brute force against a tier that has no user
-  /// secret to brute force).
-  notApplicable,
-
-  /// ! — weak short password is acceptable only because another
-  /// defence (hardware rate limiter, wrapped-key binding) carries
-  /// the security. Shown as a yellow annotation, not a red ✗.
-  noteWeakPasswordAcceptable,
-
-  /// ! — the tier's security depends critically on a strong long
-  /// password (Paranoid). Weak password on this tier is a real
-  /// vulnerability, not a cosmetic one.
-  noteStrongPasswordRecommended,
 }
 
 /// Normalised tier identifier used by the evaluator. Independent of
@@ -118,85 +111,62 @@ class ThreatModel {
 }
 
 /// Encode the canonical truth table from
-/// `docs/ARCHITECTURE.md §3.6` / the in-app comparison table:
+/// `docs/ARCHITECTURE.md §3.6`:
 ///
-/// | Threat                               | T0 | T1 | T1+pw | T1+pw+bio | T2 | T2+pw | T2+pw+bio | Paranoid |
-/// |--------------------------------------|----|----|-------|-----------|----|-------|-----------|----------|
-/// | Cold disk theft                      | ✗  | ✓  | ✓     | ✓         | ✓  | ✓     | ✓         | ✓        |
-/// | Bystander at unlocked machine        | ✗  | ✗  | ✓     | ✓         | ✗  | ✓     | ✓         | ✓        |
-/// | Same-user malware                    | ✗  | ✗  | ✗     | ✗         | ✗  | ✗     | ✗         | ✗        |
-/// | Live process memory dump             | ✗  | ✗  | ✗     | ✗         | ✗  | ✗     | ✗         | ✗        |
-/// | Live RAM forensics on locked machine | ✗  | ✗  | ✗     | ✗         | ✗  | ✗     | ✗         | ✓        |
-/// | OS kernel / keychain breach          | ✗  | ✗  | ✗     | ✗         | ✗  | ✗     | ✗         | ✓        |
-/// | Offline brute force on weak password | —  | —  | weak  | weak      | —  | str¹  | str¹      | weak²    |
+/// | Threat                               | T0 | T1 | T1+pw | T2 | T2+pw | Paranoid |
+/// |--------------------------------------|----|----|-------|----|-------|----------|
+/// | Cold disk theft                      | ✗  | ✓  | ✓     | ✓  | ✓     | ✓        |
+/// | Bystander at unlocked machine        | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
+/// | Same-user malware                    | ✗  | ✗  | ✗     | ✗  | ✗     | ✗        |
+/// | Live process memory dump             | ✗  | ✗  | ✗     | ✗  | ✗     | ✗        |
+/// | Live RAM forensics on locked machine | ✗  | ✗  | ✗     | ✗  | ✗     | ✓        |
+/// | OS kernel / keychain breach          | ✗  | ✗  | ✗     | ✗  | ✗     | ✓        |
+/// | Offline brute force on password      | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
 ///
-/// ¹ T2+pw — wrapped key is bound to the hw chip, so an attacker
-///   can't pull the sealed blob off disk and attack it offline. Short
-///   passwords are acceptable because the rate limiter lives in the
-///   hardware.
-/// ² Paranoid — the password IS the entire secret. Argon2id slows
-///   brute force but does not block a determined attacker against a
-///   short password. A long passphrase is the actual defence.
+/// *Why offline brute force is ✗ without a user password:* the
+/// threat asks "can an attacker who stole your disk get the data by
+/// trying passwords?" With no user password the wrapped key is
+/// gated by the OS keychain alone — an attacker with disk access
+/// also has keychain access on the same host (same user), so the
+/// brute-force step is unnecessary. The honest answer is "no
+/// protection here", not "not applicable". This matches the
+/// Settings / wizard guidance where every tier shows the same seven
+/// threats and the ✓ / ✗ migration is the whole visualization.
 ///
 /// Pure function — no I/O, no locale lookups, no platform probes.
-/// Every UI surface consumes this map and renders the configured
-/// glyph per threat.
+/// Every UI surface consumes this map and renders ✓ / ✗ per threat.
 Map<SecurityThreat, ThreatStatus> evaluate(ThreatModel model) {
-  final hasSecret =
+  final hasUserSecret =
       model.tier == ThreatTier.paranoid ||
       (model.password &&
           (model.tier == ThreatTier.keychain ||
               model.tier == ThreatTier.hardware));
 
-  final coldDiskTheft = switch (model.tier) {
-    ThreatTier.plaintext => ThreatStatus.doesNotProtect,
-    _ => ThreatStatus.protects,
-  };
-
-  final bystander = switch (model.tier) {
-    ThreatTier.plaintext => ThreatStatus.doesNotProtect,
-    ThreatTier.paranoid => ThreatStatus.protects,
-    ThreatTier.keychain || ThreatTier.hardware =>
-      model.password ? ThreatStatus.protects : ThreatStatus.doesNotProtect,
-  };
-
-  // Same-user malware + live process memory dump: no tier protects.
-  // The unlocked DB key sits in the app process; a malicious same-user
-  // process has every grant the app has.
-  const sameUserMalware = ThreatStatus.doesNotProtect;
-  const liveProcessDump = ThreatStatus.doesNotProtect;
-
-  // Live RAM forensics on a locked machine + OS kernel / keychain
-  // breach: only Paranoid holds up. Paranoid derives the key per
-  // unlock and zeroises after use; numbered tiers rely on the OS to
-  // keep the wrapped key secret.
-  final liveRam = model.tier == ThreatTier.paranoid
-      ? ThreatStatus.protects
-      : ThreatStatus.doesNotProtect;
-  final osBreach = model.tier == ThreatTier.paranoid
-      ? ThreatStatus.protects
-      : ThreatStatus.doesNotProtect;
-
-  final ThreatStatus offline;
-  if (!hasSecret) {
-    offline = ThreatStatus.notApplicable;
-  } else if (model.tier == ThreatTier.paranoid) {
-    offline = ThreatStatus.noteStrongPasswordRecommended;
-  } else if (model.tier == ThreatTier.hardware) {
-    // Wrapped key bound to hw chip — no offline attack surface.
-    offline = ThreatStatus.noteWeakPasswordAcceptable;
-  } else {
-    // T1+password — weak password is still weak (no hw binding).
-    offline = ThreatStatus.noteWeakPasswordAcceptable;
-  }
+  ThreatStatus yes(bool condition) =>
+      condition ? ThreatStatus.protects : ThreatStatus.doesNotProtect;
 
   return <SecurityThreat, ThreatStatus>{
-    SecurityThreat.coldDiskTheft: coldDiskTheft,
-    SecurityThreat.bystanderUnlockedMachine: bystander,
-    SecurityThreat.sameUserMalware: sameUserMalware,
-    SecurityThreat.liveProcessMemoryDump: liveProcessDump,
-    SecurityThreat.liveRamForensicsLocked: liveRam,
-    SecurityThreat.osKernelOrKeychainBreach: osBreach,
-    SecurityThreat.offlineBruteForce: offline,
+    SecurityThreat.coldDiskTheft: yes(model.tier != ThreatTier.plaintext),
+    SecurityThreat.bystanderUnlockedMachine: yes(hasUserSecret),
+    // Same-user malware + live process memory dump: no tier protects.
+    // The unlocked DB key sits in the app process; a malicious
+    // same-user process has every grant the app has.
+    SecurityThreat.sameUserMalware: ThreatStatus.doesNotProtect,
+    SecurityThreat.liveProcessMemoryDump: ThreatStatus.doesNotProtect,
+    // Live RAM forensics on a locked machine + OS kernel / keychain
+    // breach: only Paranoid holds up. Paranoid derives the key per
+    // unlock and zeroises after use; numbered tiers rely on the OS
+    // to keep the wrapped key secret.
+    SecurityThreat.liveRamForensicsLocked: yes(
+      model.tier == ThreatTier.paranoid,
+    ),
+    SecurityThreat.osKernelOrKeychainBreach: yes(
+      model.tier == ThreatTier.paranoid,
+    ),
+    // Offline brute force: defence requires a user-typed secret.
+    // Without one the "brute force the password" step collapses to
+    // nothing (there is no password) and the disk attacker goes
+    // straight through — reported ✗, not "not applicable".
+    SecurityThreat.offlineBruteForce: yes(hasUserSecret),
   };
 }

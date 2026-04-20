@@ -67,8 +67,6 @@ void main() {
 
       expect(find.text(l10n.legendProtects), findsOneWidget);
       expect(find.text(l10n.legendDoesNotProtect), findsOneWidget);
-      expect(find.text(l10n.legendNotApplicable), findsOneWidget);
-      expect(find.text(l10n.legendWeakPasswordWarning), findsOneWidget);
     });
 
     testWidgets('title + close action render', (tester) async {

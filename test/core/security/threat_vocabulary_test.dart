@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/threat_vocabulary.dart';
 
-/// Golden JSON of the canonical truth table. Each top-level key is a
-/// short column identifier matching the plan's comparison table
-/// (T0 / T1 / T1+pw / T1+pw+bio / T2 / T2+pw / T2+pw+bio / Paranoid).
-/// Each inner map is threat name → ThreatStatus name.
+/// Golden JSON of the canonical truth table. Binary protects /
+/// doesNotProtect — no weak/strong-password notes, no "not applicable"
+/// marker; the evaluator returns a straight yes-or-no per threat per
+/// tier+modifier combo.
 const _goldenJson = r'''
 {
   "T0": {
@@ -16,7 +16,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "notApplicable"
+    "offlineBruteForce": "doesNotProtect"
   },
   "T1": {
     "coldDiskTheft": "protects",
@@ -25,7 +25,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "notApplicable"
+    "offlineBruteForce": "doesNotProtect"
   },
   "T1+pw": {
     "coldDiskTheft": "protects",
@@ -34,7 +34,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "noteWeakPasswordAcceptable"
+    "offlineBruteForce": "protects"
   },
   "T1+pw+bio": {
     "coldDiskTheft": "protects",
@@ -43,7 +43,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "noteWeakPasswordAcceptable"
+    "offlineBruteForce": "protects"
   },
   "T2": {
     "coldDiskTheft": "protects",
@@ -52,7 +52,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "notApplicable"
+    "offlineBruteForce": "doesNotProtect"
   },
   "T2+pw": {
     "coldDiskTheft": "protects",
@@ -61,7 +61,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "noteWeakPasswordAcceptable"
+    "offlineBruteForce": "protects"
   },
   "T2+pw+bio": {
     "coldDiskTheft": "protects",
@@ -70,7 +70,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect",
-    "offlineBruteForce": "noteWeakPasswordAcceptable"
+    "offlineBruteForce": "protects"
   },
   "Paranoid": {
     "coldDiskTheft": "protects",
@@ -79,7 +79,7 @@ const _goldenJson = r'''
     "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "protects",
     "osKernelOrKeychainBreach": "protects",
-    "offlineBruteForce": "noteStrongPasswordRecommended"
+    "offlineBruteForce": "protects"
   }
 }
 ''';
@@ -108,15 +108,11 @@ void main() {
     test('T0 plaintext defeats no threats', () {
       final m = evaluate(const ThreatModel(tier: ThreatTier.plaintext));
       for (final threat in SecurityThreat.values) {
-        if (threat == SecurityThreat.offlineBruteForce) {
-          expect(m[threat], ThreatStatus.notApplicable);
-        } else {
-          expect(
-            m[threat],
-            ThreatStatus.doesNotProtect,
-            reason: 'T0 should not protect against $threat',
-          );
-        }
+        expect(
+          m[threat],
+          ThreatStatus.doesNotProtect,
+          reason: 'T0 should not protect against $threat',
+        );
       }
     });
 
@@ -149,35 +145,38 @@ void main() {
     });
 
     test(
-      'offline brute force annotation differentiates T2+pw from Paranoid',
+      'offline brute force is a binary toggle on whether a user secret exists',
       () {
-        final t2 = evaluate(
-          const ThreatModel(tier: ThreatTier.hardware, password: true),
-        );
-        final paranoid = evaluate(
-          const ThreatModel(tier: ThreatTier.paranoid, password: true),
+        for (final tier in [ThreatTier.keychain, ThreatTier.hardware]) {
+          expect(
+            evaluate(ThreatModel(tier: tier))[SecurityThreat.offlineBruteForce],
+            ThreatStatus.doesNotProtect,
+            reason: '$tier without password: nothing stops a disk attacker — ✗',
+          );
+          expect(
+            evaluate(
+              ThreatModel(tier: tier, password: true),
+            )[SecurityThreat.offlineBruteForce],
+            ThreatStatus.protects,
+            reason: '$tier + password: brute-force must break the password — ✓',
+          );
+        }
+        expect(
+          evaluate(
+            const ThreatModel(tier: ThreatTier.plaintext),
+          )[SecurityThreat.offlineBruteForce],
+          ThreatStatus.doesNotProtect,
+          reason: 'T0: data is plaintext — no defence at all',
         );
         expect(
-          t2[SecurityThreat.offlineBruteForce],
-          ThreatStatus.noteWeakPasswordAcceptable,
-        );
-        expect(
-          paranoid[SecurityThreat.offlineBruteForce],
-          ThreatStatus.noteStrongPasswordRecommended,
+          evaluate(
+            const ThreatModel(tier: ThreatTier.paranoid, password: true),
+          )[SecurityThreat.offlineBruteForce],
+          ThreatStatus.protects,
+          reason: 'Paranoid: password IS the secret, Argon2id slows brute',
         );
       },
     );
-
-    test('offline brute force is notApplicable when no user secret exists', () {
-      for (final tier in [
-        ThreatTier.plaintext,
-        ThreatTier.keychain,
-        ThreatTier.hardware,
-      ]) {
-        final m = evaluate(ThreatModel(tier: tier));
-        expect(m[SecurityThreat.offlineBruteForce], ThreatStatus.notApplicable);
-      }
-    });
 
     test('biometric flag alone does not change truth-table outputs', () {
       // Biometric is structurally a shortcut for entering the password —

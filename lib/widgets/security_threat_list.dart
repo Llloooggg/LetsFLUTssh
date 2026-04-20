@@ -61,38 +61,9 @@ class _ThreatRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  threatTitle(threat, l10n),
-                  style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
-                ),
-                if (status == ThreatStatus.noteWeakPasswordAcceptable)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      l10n.legendWeakPasswordWarning,
-                      style: TextStyle(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgDim,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                if (status == ThreatStatus.noteStrongPasswordRecommended)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      l10n.legendStrongPasswordRecommended,
-                      style: TextStyle(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgDim,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-              ],
+            child: Text(
+              threatTitle(threat, l10n),
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
             ),
           ),
         ],
@@ -106,11 +77,6 @@ class _ThreatRow extends StatelessWidget {
         return (Icons.check, AppTheme.green);
       case ThreatStatus.doesNotProtect:
         return (Icons.close, AppTheme.red);
-      case ThreatStatus.notApplicable:
-        return (Icons.remove, AppTheme.fgDim);
-      case ThreatStatus.noteWeakPasswordAcceptable:
-      case ThreatStatus.noteStrongPasswordRecommended:
-        return (Icons.error_outline, AppTheme.yellow);
     }
   }
 }

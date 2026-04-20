@@ -189,11 +189,6 @@ class _StatusCell extends StatelessWidget {
         return Icon(Icons.check, size: 16, color: AppTheme.green);
       case ThreatStatus.doesNotProtect:
         return Icon(Icons.close, size: 16, color: AppTheme.red);
-      case ThreatStatus.notApplicable:
-        return Icon(Icons.remove, size: 16, color: AppTheme.fgDim);
-      case ThreatStatus.noteWeakPasswordAcceptable:
-      case ThreatStatus.noteStrongPasswordRecommended:
-        return Icon(Icons.error_outline, size: 16, color: AppTheme.yellow);
     }
   }
 }
@@ -209,12 +204,6 @@ class _Legend extends StatelessWidget {
       children: [
         _legendRow(Icons.check, AppTheme.green, l10n.legendProtects),
         _legendRow(Icons.close, AppTheme.red, l10n.legendDoesNotProtect),
-        _legendRow(Icons.remove, AppTheme.fgDim, l10n.legendNotApplicable),
-        _legendRow(
-          Icons.error_outline,
-          AppTheme.yellow,
-          l10n.legendWeakPasswordWarning,
-        ),
         const SizedBox(height: 10),
         // Honest framing: a flat truth table suggests the user can
         // "pick a better tier" to fix runtime threats. They cannot —
