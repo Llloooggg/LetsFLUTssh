@@ -2161,6 +2161,18 @@ class SJa extends S {
   String get passwordSubtitlePlaintext => '適用外 — この階層には暗号化がありません';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0 に TPM が見つかりません。マシンが対応していれば BIOS で fTPM / PTT を有効にしてください。そうでなければ、このデバイスではハードウェア階層を使用できません。';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools がインストールされていません。ハードウェア階層を有効にするには `sudo apt install tpm2-tools`（またはディストリビューションの同等コマンド）を実行してください。';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'ハードウェア階層のプローブに失敗しました。/dev/tpmrm0 の権限と udev ルールを確認してください — 詳細はログを参照してください。';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

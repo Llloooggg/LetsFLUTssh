@@ -2228,6 +2228,18 @@ class SHi extends S {
       'लागू नहीं — इस स्तर में कोई एन्क्रिप्शन नहीं';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0 पर कोई TPM नहीं मिला। मशीन समर्थन करती है तो BIOS में fTPM / PTT सक्षम करें; अन्यथा इस डिवाइस पर हार्डवेयर स्तर उपलब्ध नहीं है।';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools स्थापित नहीं है। हार्डवेयर स्तर सक्षम करने के लिए `sudo apt install tpm2-tools` (या आपके वितरण का समतुल्य) चलाएँ।';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'हार्डवेयर स्तर जाँच विफल। /dev/tpmrm0 अनुमतियाँ और udev नियम जाँचें — विवरण लॉग में हैं।';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

@@ -2220,6 +2220,18 @@ class SEn extends S {
       'Not applicable — no encryption on this tier';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'No TPM detected at /dev/tpmrm0. Enable fTPM / PTT in BIOS if the machine supports it, otherwise the hardware tier is unavailable on this device.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools is not installed. Run `sudo apt install tpm2-tools` (or your distro equivalent) to enable the hardware tier.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Hardware-tier probe failed. Check /dev/tpmrm0 permissions / udev rules — see logs for the tpm2-tools error.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

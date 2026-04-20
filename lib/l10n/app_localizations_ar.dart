@@ -2224,6 +2224,18 @@ class SAr extends S {
       'غير متاحة — لا يوجد تشفير في هذا المستوى';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'لم يتم اكتشاف TPM على /dev/tpmrm0. فعّل fTPM / PTT في BIOS إن كان الجهاز يدعم ذلك، وإلا فإن المستوى العتادي غير متاح على هذا الجهاز.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'لم يتم تثبيت tpm2-tools. نفّذ `sudo apt install tpm2-tools` (أو ما يقابله في توزيعتك) لتفعيل المستوى العتادي.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'فحص المستوى العتادي فشل. تحقق من صلاحيات /dev/tpmrm0 وقواعد udev — التفاصيل في السجلات.';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

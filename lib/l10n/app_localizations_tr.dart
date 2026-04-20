@@ -2236,6 +2236,18 @@ class STr extends S {
       'Geçerli değil — bu katmanda şifreleme yok';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0 üzerinde TPM algılanmadı. Makine destekliyorsa BIOS\'tan fTPM / PTT etkinleştirin; aksi halde donanım katmanı bu cihazda kullanılamaz.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools kurulu değil. Donanım katmanını etkinleştirmek için `sudo apt install tpm2-tools` (veya dağıtımınızdaki eşdeğerini) çalıştırın.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Donanım katmanı denemesi başarısız oldu. /dev/tpmrm0 izinlerini ve udev kurallarını kontrol edin — ayrıntılar günlüklerde.';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

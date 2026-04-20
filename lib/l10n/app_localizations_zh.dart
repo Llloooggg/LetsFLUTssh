@@ -2139,6 +2139,18 @@ class SZh extends S {
   String get passwordSubtitlePlaintext => '不适用——此等级未加密';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      '在 /dev/tpmrm0 上未检测到 TPM。如机器支持，请在 BIOS 中启用 fTPM / PTT；否则该设备无法使用硬件等级。';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      '未安装 tpm2-tools。执行 `sudo apt install tpm2-tools`（或您发行版的等效命令）以启用硬件等级。';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      '硬件等级探测失败。请检查 /dev/tpmrm0 权限与 udev 规则 —— 详情见日志。';
+
+  @override
   String get snippets => '代码片段';
 
   @override

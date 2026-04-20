@@ -2238,6 +2238,18 @@ class SRu extends S {
       'Не применимо — на этом уровне нет шифрования';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'TPM не обнаружен на /dev/tpmrm0. Включите fTPM / PTT в BIOS, если машина поддерживает; иначе аппаратный уровень на этом устройстве недоступен.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools не установлен. Выполните `sudo apt install tpm2-tools` (или эквивалент в вашем дистрибутиве), чтобы активировать аппаратный уровень.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Проверка аппаратного уровня не прошла. Проверьте права на /dev/tpmrm0 и udev-правила — подробности в логах.';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override

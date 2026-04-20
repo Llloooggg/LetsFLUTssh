@@ -2250,6 +2250,18 @@ class SEs extends S {
       'No aplicable — este nivel no tiene cifrado';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'No se detectó TPM en /dev/tpmrm0. Activa fTPM / PTT en la BIOS si la máquina lo admite; de lo contrario el nivel de hardware no está disponible en este dispositivo.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools no está instalado. Ejecuta `sudo apt install tpm2-tools` (o el equivalente de tu distribución) para habilitar el nivel de hardware.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'La prueba del nivel de hardware falló. Revisa los permisos de /dev/tpmrm0 y las reglas de udev — detalles en los registros.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

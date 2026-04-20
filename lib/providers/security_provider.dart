@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,10 +7,12 @@ import '../core/security/biometric_auth.dart';
 import '../core/security/biometric_key_vault.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
+import '../core/security/linux/tpm_client.dart';
 import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
+import '../l10n/app_localizations.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
@@ -53,6 +56,80 @@ final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
     hardwareVault: ref.read(hardwareTierVaultProvider),
   );
 });
+
+/// Classified reason the hardware tier is unavailable on this host.
+///
+/// Real probe (not a per-platform guess):
+/// - Linux: delegates to [TpmClient.probe] — distinguishes missing
+///   `/dev/tpmrm0`, missing `tpm2` binary, and generic probe-failed.
+/// - Other platforms: returns [HardwareProbeDetail.generic] until
+///   per-platform diagnostic methods land in their hw-vault plugins.
+///
+/// Only resolved when the base capability probe says hardware is
+/// unavailable — if it is reachable, this provider returns
+/// [HardwareProbeDetail.available] and the UI shows no unavailable
+/// notice.
+enum HardwareProbeDetail {
+  available,
+
+  /// Fallback when we can't classify the failure further. Safe
+  /// default — user sees the generic "unavailable on this device"
+  /// line with no misleading specificity.
+  generic,
+
+  /// `/dev/tpmrm0` missing on Linux. User fix: enable fTPM / PTT in
+  /// BIOS, or accept that the host has no TPM hardware.
+  linuxDeviceMissing,
+
+  /// `tpm2` binary missing on Linux. User fix: install `tpm2-tools`.
+  linuxBinaryMissing,
+
+  /// `tpm2 getcap` failed on Linux — usually permissions on
+  /// `/dev/tpmrm0` or a misbehaving tpm2-tools install. Generic
+  /// "check logs" fallback line.
+  linuxProbeFailed,
+}
+
+final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
+  ref,
+) async {
+  final caps = await ref.watch(securityCapabilitiesProvider.future);
+  if (caps.hardwareVaultAvailable) return HardwareProbeDetail.available;
+  if (Platform.isLinux) {
+    final result = await TpmClient().probe();
+    switch (result) {
+      case TpmProbeResult.available:
+        return HardwareProbeDetail.available;
+      case TpmProbeResult.deviceNodeMissing:
+        return HardwareProbeDetail.linuxDeviceMissing;
+      case TpmProbeResult.binaryMissing:
+        return HardwareProbeDetail.linuxBinaryMissing;
+      case TpmProbeResult.probeFailed:
+        return HardwareProbeDetail.linuxProbeFailed;
+      case TpmProbeResult.wrongPlatform:
+        return HardwareProbeDetail.generic;
+    }
+  }
+  return HardwareProbeDetail.generic;
+});
+
+/// Resolve the localised user-facing copy for a [HardwareProbeDetail].
+/// Shared between Settings and any first-launch diagnostic surface
+/// so the copy stays in lockstep.
+String hardwareProbeDetailText(S l10n, HardwareProbeDetail detail) {
+  switch (detail) {
+    case HardwareProbeDetail.available:
+      return '';
+    case HardwareProbeDetail.generic:
+      return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
+    case HardwareProbeDetail.linuxDeviceMissing:
+      return l10n.hwProbeLinuxDeviceMissing;
+    case HardwareProbeDetail.linuxBinaryMissing:
+      return l10n.hwProbeLinuxBinaryMissing;
+    case HardwareProbeDetail.linuxProbeFailed:
+      return l10n.hwProbeLinuxProbeFailed;
+  }
+}
 
 /// Current data protection level, detected at startup.
 ///

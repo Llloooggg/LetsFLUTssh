@@ -2232,6 +2232,18 @@ class SId extends S {
       'Tidak berlaku — tingkat ini tanpa enkripsi';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'TPM tidak terdeteksi pada /dev/tpmrm0. Aktifkan fTPM / PTT di BIOS jika perangkat mendukung; jika tidak, tingkat perangkat keras tidak tersedia di perangkat ini.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools belum terpasang. Jalankan `sudo apt install tpm2-tools` (atau padanannya di distro Anda) untuk mengaktifkan tingkat perangkat keras.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Pemeriksaan tingkat perangkat keras gagal. Periksa izin /dev/tpmrm0 dan aturan udev — lihat log untuk detail.';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

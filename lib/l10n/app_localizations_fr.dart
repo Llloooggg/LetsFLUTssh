@@ -2256,6 +2256,18 @@ class SFr extends S {
       'Non applicable — aucun chiffrement à ce niveau';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'Aucun TPM détecté sur /dev/tpmrm0. Activez fTPM / PTT dans le BIOS si la machine le prend en charge, sinon le niveau matériel n\'est pas disponible sur cet appareil.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools n\'est pas installé. Exécutez `sudo apt install tpm2-tools` (ou l\'équivalent de votre distribution) pour activer le niveau matériel.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'La vérification du niveau matériel a échoué. Vérifiez les autorisations de /dev/tpmrm0 et les règles udev — détails dans les journaux.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

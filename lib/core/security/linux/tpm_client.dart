@@ -7,6 +7,36 @@ import 'package:path/path.dart' as p;
 
 import '../../../utils/logger.dart';
 
+/// Classified TPM probe outcome — surfaces the reason the probe
+/// failed so the Settings UI can render an actionable hint instead
+/// of a generic "unavailable" line.
+enum TpmProbeResult {
+  /// The device node exists, `tpm2 getcap` returned success. TPM
+  /// sealing is ready to go.
+  available,
+
+  /// Not Linux — probe returns this on any other host. Lets the
+  /// Settings UI keep a single [probe] call instead of branching
+  /// on [Platform.isLinux] separately.
+  wrongPlatform,
+
+  /// `/dev/tpmrm0` is missing. Either the host has no TPM at all,
+  /// or the kernel module (`tpm_crb`, `tpm_tis`) failed to probe,
+  /// or TPM is disabled in BIOS. User fix: enable fTPM / PTT in
+  /// firmware settings, or accept that the host cannot do T2.
+  deviceNodeMissing,
+
+  /// The `tpm2` binary is missing from `$PATH`. User fix:
+  /// `sudo apt install tpm2-tools` (or the distro equivalent).
+  binaryMissing,
+
+  /// `tpm2 getcap` returned non-zero or threw. Usually a permission
+  /// issue on `/dev/tpmrm0` (wrong udev rule) or a TPM command
+  /// failure. Harder for the user to diagnose — we show a generic
+  /// "probe failed" line with the stderr in the logs.
+  probeFailed,
+}
+
 /// Shell-out wrapper around the `tpm2-tools` CLI for sealing a 32-byte
 /// DB wrapping key under a TPM2 primary key with a password-gated
 /// sealed object. The auth value is an opaque byte string the caller
@@ -70,17 +100,42 @@ class TpmClient {
   /// surface a single `hardware not available` branch rather than
   /// re-parsing tpm2-tools diagnostics.
   Future<bool> isAvailable() async {
-    if (!Platform.isLinux) return false;
-    if (!await File(_tpmDevice).exists()) return false;
+    return (await probe()) == TpmProbeResult.available;
+  }
+
+  /// Classified probe result — distinguishes *why* the TPM path is
+  /// unavailable so the UI can show a specific fix instead of a
+  /// generic "hardware not available on this device". Settings →
+  /// Security consumes this on Linux to render the hardware-tier
+  /// card's unavailable reason.
+  Future<TpmProbeResult> probe() async {
+    if (!Platform.isLinux) return TpmProbeResult.wrongPlatform;
+    if (!await File(_tpmDevice).exists()) {
+      return TpmProbeResult.deviceNodeMissing;
+    }
     try {
       final result = await Process.run(_binary, const [
         'getcap',
         '-l',
       ], runInShell: false).timeout(_timeout);
-      return result.exitCode == 0;
+      if (result.exitCode == 0) return TpmProbeResult.available;
+      AppLogger.instance.log(
+        'tpm2 getcap exit=${result.exitCode} stderr=${result.stderr}',
+        name: 'TpmClient',
+      );
+      return TpmProbeResult.probeFailed;
+    } on ProcessException catch (e) {
+      // `tpm2` binary missing → Process.start fails with errno 2
+      // before the timeout fires. Classify explicitly so the UI can
+      // steer the user at an `apt install tpm2-tools` hint.
+      if (e.errorCode == 2 || e.message.contains('No such file')) {
+        return TpmProbeResult.binaryMissing;
+      }
+      AppLogger.instance.log('tpm2 probe process error: $e', name: 'TpmClient');
+      return TpmProbeResult.probeFailed;
     } catch (e) {
       AppLogger.instance.log('tpm2 probe failed: $e', name: 'TpmClient');
-      return false;
+      return TpmProbeResult.probeFailed;
     }
   }
 

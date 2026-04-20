@@ -3951,6 +3951,24 @@ abstract class S {
   /// **'Not applicable — no encryption on this tier'**
   String get passwordSubtitlePlaintext;
 
+  /// No description provided for @hwProbeLinuxDeviceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM detected at /dev/tpmrm0. Enable fTPM / PTT in BIOS if the machine supports it, otherwise the hardware tier is unavailable on this device.'**
+  String get hwProbeLinuxDeviceMissing;
+
+  /// No description provided for @hwProbeLinuxBinaryMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'tpm2-tools is not installed. Run `sudo apt install tpm2-tools` (or your distro equivalent) to enable the hardware tier.'**
+  String get hwProbeLinuxBinaryMissing;
+
+  /// No description provided for @hwProbeLinuxProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-tier probe failed. Check /dev/tpmrm0 permissions / udev rules — see logs for the tpm2-tools error.'**
+  String get hwProbeLinuxProbeFailed;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

@@ -222,6 +222,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       data: (c) => c.keychainAvailable,
       orElse: () => true,
     );
+    final hwDetail = ref.watch(hardwareProbeDetailProvider);
+    final hwReason = hwDetail.maybeWhen(
+      data: (d) => d == HardwareProbeDetail.available
+          ? null
+          : hardwareProbeDetailText(l10n, d),
+      orElse: () => hardwareAvail ? null : l10n.tierHardwareUnavailable,
+    );
 
     return Column(
       children: [
@@ -261,9 +268,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentLevel: secState.level,
           currentModifiers: modifiers,
           available: hardwareAvail,
-          unavailableReason: hardwareAvail
-              ? null
-              : l10n.tierHardwareUnavailable,
+          unavailableReason: hwReason,
         ),
         _buildTierCard(
           tier: SecurityTier.paranoid,

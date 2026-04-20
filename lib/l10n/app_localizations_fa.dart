@@ -2221,6 +2221,18 @@ class SFa extends S {
       'در دسترس نیست — این سطح رمزگذاری ندارد';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'هیچ TPM در /dev/tpmrm0 شناسایی نشد. اگر دستگاه پشتیبانی می‌کند، fTPM / PTT را در BIOS فعال کنید؛ در غیر این صورت سطح سخت‌افزاری روی این دستگاه در دسترس نیست.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools نصب نیست. برای فعال‌سازی سطح سخت‌افزاری `sudo apt install tpm2-tools` (یا معادل در توزیع خود) را اجرا کنید.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'بررسی سطح سخت‌افزاری ناموفق بود. مجوزهای /dev/tpmrm0 و قوانین udev را بررسی کنید — جزئیات در لاگ‌ها.';
+
+  @override
   String get snippets => 'قطعه‌ها';
 
   @override

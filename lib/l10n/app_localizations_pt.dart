@@ -2243,6 +2243,18 @@ class SPt extends S {
       'Não aplicável — este nível não tem criptografia';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'Nenhum TPM detectado em /dev/tpmrm0. Ative fTPM / PTT na BIOS se o hardware suportar; caso contrário o nível de hardware não está disponível neste dispositivo.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools não está instalado. Execute `sudo apt install tpm2-tools` (ou o equivalente na sua distribuição) para ativar o nível de hardware.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'A verificação do nível de hardware falhou. Revise permissões de /dev/tpmrm0 e regras udev — detalhes nos logs.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

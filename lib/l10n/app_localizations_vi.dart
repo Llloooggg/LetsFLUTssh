@@ -2216,6 +2216,18 @@ class SVi extends S {
       'Không áp dụng — tầng này không mã hoá';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'Không phát hiện TPM tại /dev/tpmrm0. Bật fTPM / PTT trong BIOS nếu thiết bị hỗ trợ, nếu không tầng phần cứng không khả dụng trên máy này.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools chưa được cài đặt. Chạy `sudo apt install tpm2-tools` (hoặc tương đương trên phân phối của bạn) để kích hoạt tầng phần cứng.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Kiểm tra tầng phần cứng thất bại. Kiểm tra quyền trên /dev/tpmrm0 và các quy tắc udev — xem log để biết chi tiết.';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

@@ -2158,6 +2158,18 @@ class SKo extends S {
   String get passwordSubtitlePlaintext => '해당 없음 — 이 등급에는 암호화가 없습니다';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0에서 TPM이 감지되지 않았습니다. 기기가 지원한다면 BIOS에서 fTPM / PTT를 활성화하세요. 그렇지 않으면 이 기기에서는 하드웨어 등급을 사용할 수 없습니다.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools가 설치되지 않았습니다. 하드웨어 등급을 활성화하려면 `sudo apt install tpm2-tools`(또는 배포판 대응 명령)를 실행하세요.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      '하드웨어 등급 점검이 실패했습니다. /dev/tpmrm0 권한과 udev 규칙을 확인하세요 — 자세한 내용은 로그를 참조하세요.';
+
+  @override
   String get snippets => '스니펫';
 
   @override

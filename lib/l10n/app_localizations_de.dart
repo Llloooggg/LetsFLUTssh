@@ -2253,6 +2253,18 @@ class SDe extends S {
       'Nicht anwendbar — keine Verschlüsselung auf dieser Stufe';
 
   @override
+  String get hwProbeLinuxDeviceMissing =>
+      'Kein TPM unter /dev/tpmrm0 gefunden. Aktiviere fTPM / PTT im BIOS, falls unterstützt; sonst ist die Hardware-Stufe auf diesem Gerät nicht verfügbar.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools ist nicht installiert. Führe `sudo apt install tpm2-tools` (oder das Äquivalent deiner Distribution) aus, um die Hardware-Stufe zu aktivieren.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Die Hardware-Stufen-Prüfung ist fehlgeschlagen. Prüfe Berechtigungen auf /dev/tpmrm0 und udev-Regeln — Details im Log.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override
