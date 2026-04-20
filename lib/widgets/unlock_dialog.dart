@@ -11,6 +11,7 @@ import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
+import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
 /// Full-screen unlock dialog shown at startup when master password is enabled.
@@ -357,7 +358,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                     ),
                     const SizedBox(height: 8),
                   ],
-                  TextField(
+                  SecurePasswordField(
                     controller: _passwordCtrl,
                     focusNode: _focusNode,
                     obscureText: _obscure,

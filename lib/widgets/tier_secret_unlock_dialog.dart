@@ -7,6 +7,7 @@ import '../core/security/password_rate_limiter.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
 /// Shared unlock-dialog shell for the tier-secret paths (L2 short
@@ -269,7 +270,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     ),
                     const SizedBox(height: 8),
                   ],
-                  TextField(
+                  SecurePasswordField(
                     controller: _ctrl,
                     focusNode: _focus,
                     autofocus: true,

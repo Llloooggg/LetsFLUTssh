@@ -18,13 +18,11 @@ Widget _passwordTextField(
   FocusNode? focusNode,
   TextInputAction? textInputAction,
 }) {
-  return TextField(
+  return SecurePasswordField(
     controller: ctrl,
     focusNode: focusNode,
-    obscureText: true,
     autofocus: autofocus,
     textInputAction: textInputAction,
-    style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
     onSubmitted: onSubmitted,
     decoration: AppTheme.inputDecoration(labelText: label).copyWith(
       enabledBorder: error
@@ -263,7 +261,6 @@ class _ImportPasswordDialogState extends State<_ImportPasswordDialog> {
   }
 }
 
-
 class _EnableBiometricDialog extends StatefulWidget {
   final TextEditingController currentCtrl;
 
@@ -317,4 +314,3 @@ class _EnableBiometricDialogState extends State<_EnableBiometricDialog> {
     );
   }
 }
-

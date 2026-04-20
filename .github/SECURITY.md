@@ -240,6 +240,16 @@ architecture.
   locked into physical RAM with `mlock` (POSIX) or `VirtualLock`
   (Windows), zeroed and unlocked on dispose. They cannot page to
   swap or hibernate.
+- **Hardened password entry** — every secret-entry field goes
+  through `SecurePasswordField`, which forces `autocorrect`,
+  `enableSuggestions`, `enableIMEPersonalizedLearning`, smart-quote
+  substitution, and text-capitalisation hinting off so a typed
+  master password cannot feed the OS spellcheck dictionary,
+  predictive-text history, or IME personalisation model. The
+  controller is wiped on dispose — `text` overwritten with
+  same-length null bytes, then cleared — so the widget no longer
+  references the secret `String` by the time the parent state
+  tears down.
 - **Process hardening at startup** — `prctl(PR_SET_DUMPABLE, 0)` on
   Linux / Android (no core dumps, no `gdb -p` from same UID without
   `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS,

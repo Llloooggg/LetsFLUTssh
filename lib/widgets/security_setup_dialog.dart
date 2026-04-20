@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'password_strength_meter.dart';
+import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 import 'security_comparison_table.dart';
 import 'toast.dart';
@@ -467,10 +468,9 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
+          SecurePasswordField(
             controller: _secretCtrl,
             focusNode: _secretFocus,
-            obscureText: true,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               labelText: _selected == WizardTier.paranoid
@@ -484,9 +484,8 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             PasswordStrengthMeter(controller: _secretCtrl),
           ],
           const SizedBox(height: 8),
-          TextField(
+          SecurePasswordField(
             controller: _confirmCtrl,
-            obscureText: true,
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
