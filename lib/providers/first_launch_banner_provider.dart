@@ -22,22 +22,22 @@ HardwareUnavailableReason defaultHardwareUnavailableReason() {
 }
 
 /// Resolve the user-facing copy for a [HardwareUnavailableReason].
-/// Shared so the first-launch dialog and the Settings "hardware
-/// unavailable" notice stay in lockstep — one ARB key pair per
-/// reason, no drift between surfaces.
+///
+/// Currently always returns the generic string. The per-platform
+/// variants were a guess — the capability probe only returns a
+/// boolean; the "it's because tpm2-tools is missing" inference on
+/// Linux was a plausible-per-platform hunch, not a root-cause
+/// diagnosis. That guess misled users with a TPM present but kernel
+/// driver missing, or with tpm2-tools installed but no /dev/tpmrm0
+/// node.
+///
+/// A real root-cause probe (install check + device-node check +
+/// provider open) lives behind a future commit; until that lands the
+/// honest answer is "unavailable on this device" without claiming a
+/// specific cause. The [reason] parameter stays so the call shape
+/// can grow back without a site-by-site rewrite.
 String hardwareUnavailableReasonText(S l10n, HardwareUnavailableReason reason) {
-  switch (reason) {
-    case HardwareUnavailableReason.noSecureEnclave:
-      return l10n.firstLaunchSecurityHardwareUnavailableApple;
-    case HardwareUnavailableReason.noTpm:
-      return l10n.firstLaunchSecurityHardwareUnavailableWindows;
-    case HardwareUnavailableReason.noTpm2Tools:
-      return l10n.firstLaunchSecurityHardwareUnavailableLinux;
-    case HardwareUnavailableReason.noAndroidKeystoreHardware:
-      return l10n.firstLaunchSecurityHardwareUnavailableAndroid;
-    case HardwareUnavailableReason.generic:
-      return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
-  }
+  return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
 }
 
 /// Reason the hardware-backed tier is not reachable on this device.
