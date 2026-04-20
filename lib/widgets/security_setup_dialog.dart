@@ -225,6 +225,19 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     return false;
   }
 
+  /// Gate the Continue button up front so a disabled state is the
+  /// visible cue instead of a toast on tap. Today the only hard-block
+  /// is "Plaintext tier requires explicit acknowledgement" — the
+  /// password / passphrase fields rely on _submit's post-tap error
+  /// paths because their validation depends on both controllers
+  /// being in sync, which is fiddlier to wire to button state.
+  bool _canSubmit() {
+    if (_selected == WizardTier.plaintext && !_plaintextAcknowledged) {
+      return false;
+    }
+    return true;
+  }
+
   void _submit() {
     final l10n = S.of(context);
     if (_selected == WizardTier.plaintext && !_plaintextAcknowledged) {
@@ -406,7 +419,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
               child: Text(l10n.cancel),
             ),
             FilledButton(
-              onPressed: _submit,
+              onPressed: _canSubmit() ? _submit : null,
               child: Text(
                 _selected == _recommendedTier(caps)
                     ? l10n.continueWithRecommended
