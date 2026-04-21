@@ -262,15 +262,30 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final caps = ref.watch(securityCapabilitiesProvider);
 
-    final hardwareAvail = caps.maybeWhen(
-      data: (c) => c.hardwareVaultAvailable,
-      orElse: () => false,
-    );
-    final keychainAvail = caps.maybeWhen(
-      data: (c) => c.keychainAvailable,
-      orElse: () => true,
-    );
+    // Availability is driven by the classified probe, not the
+    // capabilities-provider boolean. The capabilities boolean comes
+    // from the fast-path `isAvailable()` (env check + marker file);
+    // the classified probe goes further — gdbus ping against
+    // `org.freedesktop.secrets` for keyring, native `probeDetail`
+    // method-channel call for hardware. The classified probe is the
+    // signal that actually maps to "can the user click Select
+    // without hitting an error" — e.g. a WSL host with WSLg has
+    // D-Bus running (fast path says keychain available) but no
+    // secret-service daemon (classified probe says
+    // `linuxNoSecretService`), so the fast-path boolean is a lie
+    // the user should never see on a tier card.
+    //
+    // The capabilities boolean is kept as a fallback for the
+    // `AsyncValue.loading` / `.error` case so the card renders
+    // optimistically while the gdbus call is still in flight.
     final hwDetail = ref.watch(hardwareProbeDetailProvider);
+    final hardwareAvail = hwDetail.maybeWhen(
+      data: (d) => d == HardwareProbeDetail.available,
+      orElse: () => caps.maybeWhen(
+        data: (c) => c.hardwareVaultAvailable,
+        orElse: () => false,
+      ),
+    );
     final hwReason = hwDetail.maybeWhen(
       data: (d) => d == HardwareProbeDetail.available
           ? null
@@ -278,6 +293,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       orElse: () => hardwareAvail ? null : l10n.tierHardwareUnavailable,
     );
     final kcDetail = ref.watch(keyringProbeDetailProvider);
+    final keychainAvail = kcDetail.maybeWhen(
+      data: (d) => d == KeyringProbeResult.available,
+      orElse: () =>
+          caps.maybeWhen(data: (c) => c.keychainAvailable, orElse: () => true),
+    );
     final kcReason = kcDetail.maybeWhen(
       data: (d) => d == KeyringProbeResult.available
           ? null
