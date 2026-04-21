@@ -151,7 +151,17 @@ final class HardwareVaultPlugin: NSObject {
       // signing-identity rejection rather than a generic SE issue.
       // -34018 (`errSecMissingEntitlement`) is what ad-hoc-signed
       // bundles surface on every macOS release tested so far.
-      let code = createErr?.takeRetainedValue().map { CFErrorGetCode($0) } ?? 0
+      //
+      // Don't chain `.map` on the Unmanaged → CFError? path: Swift
+      // resolves the `.map` against `CFError`, not `Optional`,
+      // because `Optional.map` loses to member lookup when the
+      // receiver is a concrete type. Splitting the unwrap keeps
+      // the type checker happy across every SDK version we build
+      // against.
+      var code: CFIndex = 0
+      if let err = createErr?.takeRetainedValue() {
+        code = CFErrorGetCode(err)
+      }
       if code == -34018 { return "macosSigningIdentityMissing" }
       return "macosGeneric"
     }
