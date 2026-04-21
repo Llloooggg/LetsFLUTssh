@@ -2727,6 +2727,14 @@ class SId extends S {
       'Aktifkan kata sandi terlebih dahulu — biometrik hanya pintasan untuk memasukkannya.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Pilih tingkat ini terlebih dahulu untuk mengaktifkan buka kunci biometrik';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Pilih tingkat ini terlebih dahulu untuk mengonfigurasi kunci otomatis';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid tidak mengizinkan biometrik secara desain.';
 

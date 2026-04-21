@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "生物识别快捷方式",
   "modifierBiometricSubtitle": "从受生物识别保护的系统槽位中获取密码，无需手动输入。",
   "biometricRequiresPassword": "请先启用密码——生物识别只是输入密码的快捷方式。",
+  "biometricRequiresActiveTier": "请先选择此等级以启用生物识别解锁",
+  "autoLockRequiresActiveTier": "请先选择此等级以配置自动锁定",
   "biometricForbiddenParanoid": "Paranoid 级别按设计不允许使用生物识别。",
   "fprintdNotAvailable": "未安装 fprintd 或未登记指纹。",
 

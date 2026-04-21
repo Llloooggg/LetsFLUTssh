@@ -11,7 +11,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
   bool _biometricProbed = false;
-  BiometricBackingLevel? _biometricBackingLevel;
 
   @override
   void initState() {
@@ -21,37 +20,26 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _checkState() async {
     // Biometric probes (slower, platform-dependent) drive the toggle
-    // state + backing-level label; kept async off the first paint so
-    // an idle D-Bus call never blocks the Settings open.
+    // state; kept async off the first paint so an idle D-Bus call
+    // never blocks the Settings open.
     final bio = ref.read(biometricAuthProvider);
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
     final stored = await bioVault.isStored();
-    final backing = await bio.backingLevel();
     if (!mounted) return;
     setState(() {
       _biometricUnavailable = availability;
       _biometricEnabled = stored;
       _biometricProbed = true;
-      _biometricBackingLevel = backing;
     });
   }
 
-  /// Localized explanation for why the biometric toggle is disabled —
-  /// null means "either fully enabled, or still probing". Three layers
-  /// after the bank-style modifier shape:
-  ///  * platform / hardware reason from [BiometricAuth.availability]
-  ///  * "enable a password first" — biometric is a shortcut for
-  ///    entering the password; if the tier does not already hold a
-  ///    password (Paranoid always does; T1/T2 only when
-  ///    `mods.password == true`), there is nothing to shortcut.
-  ///  * legacy fallback: `biometricRequiresMasterPassword` when the
-  ///    new copy string has not yet landed in this locale.
-  String? _biometricDisabledReason(
-    S l10n,
-    SecurityTier level,
-    SecurityTierModifiers modifiers,
-  ) {
+  /// Translate a platform [BiometricUnavailableReason] into a
+  /// localised tooltip string, or null if the device is biometric-
+  /// capable. Extracted from [_biometricDisabledReason] so the
+  /// tier-card spec can check it as the highest-priority tooltip
+  /// without falling through the rest of the priority chain.
+  String? _biometricPlatformReason(S l10n) {
     if (!_biometricProbed) return null;
     switch (_biometricUnavailable) {
       case BiometricUnavailableReason.platformUnsupported:
@@ -62,55 +50,29 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       case BiometricUnavailableReason.systemServiceMissing:
         return l10n.biometricSystemServiceMissing;
       case null:
-        break;
+        return null;
     }
-    final hasPassword =
-        level == SecurityTier.paranoid ||
-        level == SecurityTier.keychainWithPassword ||
-        modifiers.password;
-    if (!hasPassword) {
-      return l10n.biometricRequiresPassword;
-    }
-    return null;
   }
 
-  /// Subtitle shown under the biometric toggle. Appends the current
-  /// backing-level label when biometrics are active so the user can
-  /// tell hardware-bound storage (Secure Enclave, StrongBox, TPM2)
-  /// from software-only (OS keystore). Falls back to the plain
-  /// subtitle when biometrics are off or the backing level is
-  /// unknown.
-  String _biometricSubtitle(S l10n) {
-    final base = l10n.biometricUnlockSubtitle;
-    if (_biometricEnabled != true || _biometricUnavailable != null) {
-      return base;
-    }
-    final backing = _biometricBackingLevel;
-    if (backing == null) return base;
-    final label = switch (backing) {
-      BiometricBackingLevel.hardware => l10n.biometricBackingHardware,
-      BiometricBackingLevel.software => l10n.biometricBackingSoftware,
-    };
-    return '$base — $label';
-  }
-
-  /// Whether the biometric toggle can be flipped. Returns false during
-  /// the initial probe so the toggle doesn't momentarily look live.
-  /// Enabled only when the active tier already carries a typed secret
-  /// that the biometric shortcut would replace — Paranoid always,
-  /// T1/T2 when the password modifier is on.
-  bool _biometricToggleEnabled(
-    SecurityTier level,
-    SecurityTierModifiers modifiers,
-  ) {
-    if (!_biometricProbed) return false;
-    if (_biometricUnavailable != null) return false;
-    final hasPassword =
-        level == SecurityTier.paranoid ||
-        level == SecurityTier.keychainWithPassword ||
-        modifiers.password;
-    return hasPassword;
-  }
+  // _biometricDisabledReason + _biometricToggleEnabled used to
+  // render the biometric row inside `_activeTierExtras`. After the
+  // row moved into every T1 / T2 tier card's modifier section via
+  // `BiometricModifierSpec`, `_biometricSpecFor` owns the full
+  // priority ladder (platform unavailable → tier unavailable →
+  // tier not current → password missing) and the two helpers are
+  // no longer called from the widget tree. Kept here as dead-code
+  // placeholders would only confuse future readers, so removed.
+  //
+  // The platform-reason extraction lives on `_biometricPlatformReason`
+  // above; that is the only caller-facing helper left.
+  /// Localized explanation for why the biometric toggle is disabled —
+  /// null means "either fully enabled, or still probing". Three layers
+  /// after the bank-style modifier shape:
+  ///  * platform / hardware reason from [BiometricAuth.availability]
+  ///  * "enable a password first" — biometric is a shortcut for
+  ///    entering the password; if the tier does not already hold a
+  ///    password (Paranoid always does; T1/T2 only when
+  ///    `mods.password == true`), there is nothing to shortcut.
 
   String? _autoLockDisabledReason(
     S l10n,
@@ -149,70 +111,165 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       unavailableReason: unavailableReason,
       initiallyExpanded: isCurrent,
       onSelect: onSelectTier,
-      activeTierExtras: isCurrent
-          ? _activeTierExtras(currentLevel, currentModifiers, l10n)
-          : null,
+      activeTierExtras: null,
+      biometricSpec: _biometricSpecFor(
+        tier: tier,
+        currentLevel: currentLevel,
+        currentModifiers: currentModifiers,
+        tierAvailable: available,
+        tierUnavailableReason: unavailableReason,
+        l10n: l10n,
+      ),
+      autoLockRow: _autoLockRowFor(
+        tier: tier,
+        currentLevel: currentLevel,
+        currentModifiers: currentModifiers,
+        tierAvailable: available,
+        tierUnavailableReason: unavailableReason,
+        l10n: l10n,
+      ),
     );
   }
 
-  /// Auto-lock + biometric rows rendered inside the current tier
-  /// card's expandable.
+  /// Build the auto-lock row for a tier card, or null to hide it.
+  /// Shares the same priority ladder as [_biometricSpecFor] so the
+  /// two rows always agree on what "tier-gated" means:
   ///
-  /// Per-tier visibility rules (user-driven design choices, not
-  /// technical constraints):
+  ///   * T0 — auto-lock is meaningless without a user secret to
+  ///     gate; row hidden.
+  ///   * T1 / T2 / Paranoid — row always rendered inside the
+  ///     expandable. Disabled reason in priority order:
+  ///       1. Tier unavailable on this host → tier reason.
+  ///       2. Tier not the currently-applied one → "select this
+  ///          tier first".
+  ///       3. Current tier but no password → "password required".
+  ///     Paranoid always carries a password so the third gate never
+  ///     fires there.
+  Widget? _autoLockRowFor({
+    required SecurityTier tier,
+    required SecurityTier currentLevel,
+    required SecurityTierModifiers currentModifiers,
+    required bool tierAvailable,
+    required String? tierUnavailableReason,
+    required S l10n,
+  }) {
+    if (tier == SecurityTier.plaintext) return null;
+    final isCurrent =
+        tier == currentLevel ||
+        (tier == SecurityTier.keychain &&
+            currentLevel == SecurityTier.keychainWithPassword);
+    String? reason;
+    if (!tierAvailable) {
+      reason = tierUnavailableReason;
+    } else if (!isCurrent) {
+      reason = l10n.autoLockRequiresActiveTier;
+    } else {
+      reason = _autoLockDisabledReason(l10n, currentLevel, currentModifiers);
+    }
+    return _AutoLockTile(disabledReason: reason);
+  }
+
+  /// Build the biometric-modifier spec for a tier card, or null
+  /// when the row should be hidden entirely:
   ///
-  ///   * **T0 (plaintext)** — nothing to gate. Returns null, no row
-  ///     rendered; the card keeps its threat-list-only shape.
-  ///   * **T1 / T2 (keychain / hardware)** — both rows always
-  ///     rendered. Auto-lock and biometric visibility is stable
-  ///     across the password-on / password-off states so the user
-  ///     sees the toggles without having to enable the password
-  ///     first. When the password modifier is off, both toggles
-  ///     render disabled with a "password required" tooltip —
-  ///     discoverability without accidental activation.
-  ///   * **Paranoid** — auto-lock rendered, biometric deliberately
-  ///     omitted. Paranoid is the "no OS trust" tier; layering
-  ///     biometric on top routes the DB key back through an OS
-  ///     service that defeats the tier's premise. If the user
-  ///     wants biometric they choose T1 + password or T2 + password.
-  Widget? _activeTierExtras(
-    SecurityTier currentLevel,
-    SecurityTierModifiers modifiers,
-    S l10n,
-  ) {
-    if (currentLevel == SecurityTier.plaintext) return null;
-    final showBiometric =
-        currentLevel == SecurityTier.keychain ||
+  ///   * T0 — no secret to gate, row hidden.
+  ///   * Paranoid — "no OS trust" tier; biometric would route the
+  ///     DB key through an OS-backed vault and undermine the
+  ///     premise. Row hidden.
+  ///   * T1 / T2 — row always rendered. `enabled` flips only when
+  ///     the tier is the currently-applied one, the password
+  ///     modifier is active, the device has biometric hardware +
+  ///     enrolled, and the first probe has completed. Disabled
+  ///     cases carry a tooltip explaining *why* the toggle cannot
+  ///     flip — "select this tier first", "password required",
+  ///     platform-level reason (no sensor, not enrolled, system
+  ///     service missing).
+  BiometricModifierSpec? _biometricSpecFor({
+    required SecurityTier tier,
+    required SecurityTier currentLevel,
+    required SecurityTierModifiers currentModifiers,
+    required bool tierAvailable,
+    required String? tierUnavailableReason,
+    required S l10n,
+  }) {
+    if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
+      return null;
+    }
+    final isCurrent =
+        tier == currentLevel ||
+        (tier == SecurityTier.keychain &&
+            currentLevel == SecurityTier.keychainWithPassword);
+
+    // Priority 1: biometric platform unavailable. Never let a
+    // "select tier first" tooltip mask the fact that the device
+    // can't do biometric at all — a user configuring a tier +
+    // password only to find out biometric is unreachable at the
+    // last step is exactly the churn this priority ordering
+    // prevents.
+    final platformReason = _biometricPlatformReason(l10n);
+    if (platformReason != null) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: platformReason,
+      );
+    }
+
+    // Priority 2: tier itself not available on this host. Re-use
+    // the tier's own reason string — same message on the tier
+    // pill and on the biometric row keeps the UI coherent.
+    if (!tierAvailable) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: tierUnavailableReason,
+      );
+    }
+
+    // Priority 3: tier available but not currently applied.
+    if (!isCurrent) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: l10n.biometricRequiresActiveTier,
+      );
+    }
+
+    // Priority 4: current tier but password modifier off.
+    final hasPassword =
+        currentLevel == SecurityTier.paranoid ||
         currentLevel == SecurityTier.keychainWithPassword ||
-        currentLevel == SecurityTier.hardware;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _AutoLockTile(
-          disabledReason: _autoLockDisabledReason(
-            l10n,
-            currentLevel,
-            modifiers,
-          ),
-        ),
-        if (showBiometric)
-          _Toggle(
-            label: l10n.biometricUnlockTitle,
-            subtitle: _biometricSubtitle(l10n),
-            icon: Icons.fingerprint,
-            value: _biometricEnabled == true,
-            onChanged: _biometricToggleEnabled(currentLevel, modifiers)
-                ? (v) => _toggleBiometricUnlock(context, v)
-                : null,
-            disabledReason: _biometricDisabledReason(
-              l10n,
-              currentLevel,
-              modifiers,
-            ),
-          ),
-      ],
+        currentModifiers.password;
+    if (!hasPassword) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: l10n.biometricRequiresPassword,
+      );
+    }
+
+    // All preconditions satisfied — toggle flips via the existing
+    // BiometricPrompt + vault-stash flow.
+    return BiometricModifierSpec(
+      enabled: _biometricProbed,
+      value: _biometricEnabled == true,
+      onChanged: (v) => _toggleBiometricUnlock(context, v),
+      disabledReason: null,
     );
   }
+
+  // `_activeTierExtras` used to carry biometric + auto-lock rows
+  // in the current tier's expandable. Both moved into the
+  // per-tier-card modifier section (via `biometricSpec` +
+  // `autoLockRow`) so the rows render on every T1 / T2 / Paranoid
+  // card with the same disabled-reason priority ladder. No caller
+  // remains, so the slot is dropped; re-adding the
+  // `activeTierExtras` param on `ExpandableTierCard` stays as an
+  // extension point.
 
   /// Public wrapper around [_applyTierChange] that accepts the
   /// card's inline modifier + input state and builds a

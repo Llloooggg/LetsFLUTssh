@@ -4785,6 +4785,18 @@ abstract class S {
   /// **'Enable a password first — biometric is a shortcut for entering it.'**
   String get biometricRequiresPassword;
 
+  /// No description provided for @biometricRequiresActiveTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Select this tier first to enable biometric unlock'**
+  String get biometricRequiresActiveTier;
+
+  /// No description provided for @autoLockRequiresActiveTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Select this tier first to configure auto-lock'**
+  String get autoLockRequiresActiveTier;
+
   /// No description provided for @biometricForbiddenParanoid.
   ///
   /// In en, this message translates to:

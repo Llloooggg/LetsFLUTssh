@@ -2747,6 +2747,14 @@ class SDe extends S {
       'Aktivieren Sie zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Wähle zuerst diese Stufe, um die biometrische Entsperrung zu aktivieren';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Wähle zuerst diese Stufe, um die automatische Sperre zu konfigurieren';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid erlaubt Biometrie per Design nicht.';
 

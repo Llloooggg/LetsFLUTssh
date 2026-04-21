@@ -2735,6 +2735,14 @@ class SRu extends S {
       'Сначала включите пароль — биометрия это ярлык для его ввода.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Сначала выберите этот уровень, чтобы включить биометрический разблок';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Сначала выберите этот уровень, чтобы настроить автоблокировку';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid не допускает биометрию по замыслу.';
 

@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Биометрический ярлык",
   "modifierBiometricSubtitle": "Получение пароля из биометрически защищённого слота ОС вместо ввода вручную.",
   "biometricRequiresPassword": "Сначала включите пароль — биометрия это ярлык для его ввода.",
+  "biometricRequiresActiveTier": "Сначала выберите этот уровень, чтобы включить биометрический разблок",
+  "autoLockRequiresActiveTier": "Сначала выберите этот уровень, чтобы настроить автоблокировку",
   "biometricForbiddenParanoid": "Paranoid не допускает биометрию по замыслу.",
   "fprintdNotAvailable": "fprintd не установлен или нет зарегистрированного отпечатка.",
 

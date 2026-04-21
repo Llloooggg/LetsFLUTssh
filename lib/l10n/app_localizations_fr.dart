@@ -2756,6 +2756,14 @@ class SFr extends S {
       'Activez d\'abord un mot de passe — la biométrie n\'est qu\'un raccourci pour le saisir.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Sélectionnez d\'abord ce niveau pour activer le déverrouillage biométrique';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Sélectionnez d\'abord ce niveau pour configurer le verrouillage automatique';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid n\'autorise pas la biométrie par conception.';
 

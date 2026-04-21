@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Biometrische Verknüpfung",
   "modifierBiometricSubtitle": "Das Passwort aus einem biometrisch gesicherten OS-Slot entnehmen, statt es einzutippen.",
   "biometricRequiresPassword": "Aktivieren Sie zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.",
+  "biometricRequiresActiveTier": "Wähle zuerst diese Stufe, um die biometrische Entsperrung zu aktivieren",
+  "autoLockRequiresActiveTier": "Wähle zuerst diese Stufe, um die automatische Sperre zu konfigurieren",
   "biometricForbiddenParanoid": "Paranoid erlaubt Biometrie per Design nicht.",
   "fprintdNotAvailable": "fprintd ist nicht installiert oder kein Finger registriert.",
 

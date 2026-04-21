@@ -2735,6 +2735,14 @@ class STr extends S {
       'Önce bir parola etkinleştirin — biyometri yalnızca onu girmek için bir kısayoldur.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Biyometrik kilit açmayı etkinleştirmek için önce bu katmanı seçin';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Otomatik kilidi yapılandırmak için önce bu katmanı seçin';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid seviyesi tasarım gereği biyometriye izin vermez.';
 

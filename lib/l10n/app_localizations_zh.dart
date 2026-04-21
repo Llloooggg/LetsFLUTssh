@@ -2607,6 +2607,12 @@ class SZh extends S {
   String get biometricRequiresPassword => '请先启用密码——生物识别只是输入密码的快捷方式。';
 
   @override
+  String get biometricRequiresActiveTier => '请先选择此等级以启用生物识别解锁';
+
+  @override
+  String get autoLockRequiresActiveTier => '请先选择此等级以配置自动锁定';
+
+  @override
   String get biometricForbiddenParanoid => 'Paranoid 级别按设计不允许使用生物识别。';
 
   @override

@@ -1486,6 +1486,8 @@
   "modifierBiometricLabel": "Biometric shortcut",
   "modifierBiometricSubtitle": "Release the password from a biometric-gated OS slot instead of typing it.",
   "biometricRequiresPassword": "Enable a password first — biometric is a shortcut for entering it.",
+  "biometricRequiresActiveTier": "Select this tier first to enable biometric unlock",
+  "autoLockRequiresActiveTier": "Select this tier first to configure auto-lock",
   "biometricForbiddenParanoid": "Paranoid does not allow biometric by design.",
   "fprintdNotAvailable": "fprintd not installed or no enrolled finger.",
 

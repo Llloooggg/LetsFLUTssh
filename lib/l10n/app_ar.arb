@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "اختصار بصمة",
   "modifierBiometricSubtitle": "إخراج كلمة المرور من فتحة نظام محمية ببصمة بدلاً من كتابتها يدويًا.",
   "biometricRequiresPassword": "فعّل كلمة مرور أولاً — البصمة مجرد اختصار لإدخالها.",
+  "biometricRequiresActiveTier": "اختر هذا المستوى أولاً لتمكين فتح القفل البيومتري",
+  "autoLockRequiresActiveTier": "اختر هذا المستوى أولاً لتكوين القفل التلقائي",
   "biometricForbiddenParanoid": "مستوى Paranoid لا يسمح بالبصمة بحكم التصميم.",
   "fprintdNotAvailable": "لم يتم تثبيت fprintd أو لا توجد بصمة مسجلة.",
 

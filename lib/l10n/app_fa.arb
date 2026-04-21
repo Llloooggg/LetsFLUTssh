@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "میان‌برِ بیومتریک",
   "modifierBiometricSubtitle": "گرفتن رمز عبور از یک اسلات سیستم‌عامل با حفاظ بیومتریک به جای تایپ آن.",
   "biometricRequiresPassword": "ابتدا یک رمز عبور فعال کنید — بیومتریک تنها میان‌بری برای وارد کردن آن است.",
+  "biometricRequiresActiveTier": "برای فعال‌سازی باز کردن قفل بیومتریک ابتدا این سطح را انتخاب کنید",
+  "autoLockRequiresActiveTier": "برای پیکربندی قفل خودکار ابتدا این سطح را انتخاب کنید",
   "biometricForbiddenParanoid": "سطح Paranoid به‌طور طراحی‌شده اجازهٔ بیومتریک را نمی‌دهد.",
   "fprintdNotAvailable": "fprintd نصب نشده یا هیچ اثر انگشتی ثبت نشده است.",
 

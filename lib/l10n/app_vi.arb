@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Lối tắt sinh trắc",
   "modifierBiometricSubtitle": "Lấy mật khẩu từ một khe hệ điều hành được bảo vệ bằng sinh trắc học, thay vì gõ nó.",
   "biometricRequiresPassword": "Hãy bật mật khẩu trước — sinh trắc chỉ là lối tắt để nhập mật khẩu.",
+  "biometricRequiresActiveTier": "Chọn tầng này trước để bật mở khóa sinh trắc học",
+  "autoLockRequiresActiveTier": "Chọn tầng này trước để cấu hình khóa tự động",
   "biometricForbiddenParanoid": "Mức Paranoid không cho phép sinh trắc theo thiết kế.",
   "fprintdNotAvailable": "fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.",
 

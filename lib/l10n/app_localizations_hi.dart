@@ -2717,6 +2717,14 @@ class SHi extends S {
       'पहले पासवर्ड सक्षम करें — बायोमेट्रिक उसे दर्ज करने का केवल एक शॉर्टकट है।';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'बायोमेट्रिक अनलॉक सक्षम करने के लिए पहले इस स्तर को चुनें';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'ऑटो-लॉक कॉन्फ़िगर करने के लिए पहले इस स्तर को चुनें';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid डिज़ाइन के अनुसार बायोमेट्रिक की अनुमति नहीं देता।';
 

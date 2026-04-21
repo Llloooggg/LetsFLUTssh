@@ -2711,6 +2711,14 @@ class SEn extends S {
       'Enable a password first — biometric is a shortcut for entering it.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Select this tier first to enable biometric unlock';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Select this tier first to configure auto-lock';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid does not allow biometric by design.';
 

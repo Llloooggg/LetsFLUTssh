@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "बायोमेट्रिक शॉर्टकट",
   "modifierBiometricSubtitle": "पासवर्ड टाइप करने के बजाय बायोमेट्रिक-संरक्षित OS स्लॉट से उसे प्राप्त करें।",
   "biometricRequiresPassword": "पहले पासवर्ड सक्षम करें — बायोमेट्रिक उसे दर्ज करने का केवल एक शॉर्टकट है।",
+  "biometricRequiresActiveTier": "बायोमेट्रिक अनलॉक सक्षम करने के लिए पहले इस स्तर को चुनें",
+  "autoLockRequiresActiveTier": "ऑटो-लॉक कॉन्फ़िगर करने के लिए पहले इस स्तर को चुनें",
   "biometricForbiddenParanoid": "Paranoid डिज़ाइन के अनुसार बायोमेट्रिक की अनुमति नहीं देता।",
   "fprintdNotAvailable": "fprintd संस्थापित नहीं है या कोई फिंगरप्रिंट पंजीकृत नहीं है।",
 

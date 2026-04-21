@@ -2720,6 +2720,14 @@ class SAr extends S {
       'فعّل كلمة مرور أولاً — البصمة مجرد اختصار لإدخالها.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'اختر هذا المستوى أولاً لتمكين فتح القفل البيومتري';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'اختر هذا المستوى أولاً لتكوين القفل التلقائي';
+
+  @override
   String get biometricForbiddenParanoid =>
       'مستوى Paranoid لا يسمح بالبصمة بحكم التصميم.';
 

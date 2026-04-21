@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Biyometrik kısayol",
   "modifierBiometricSubtitle": "Parolayı yazmak yerine biyometrik korumalı bir OS yuvasından alır.",
   "biometricRequiresPassword": "Önce bir parola etkinleştirin — biyometri yalnızca onu girmek için bir kısayoldur.",
+  "biometricRequiresActiveTier": "Biyometrik kilit açmayı etkinleştirmek için önce bu katmanı seçin",
+  "autoLockRequiresActiveTier": "Otomatik kilidi yapılandırmak için önce bu katmanı seçin",
   "biometricForbiddenParanoid": "Paranoid seviyesi tasarım gereği biyometriye izin vermez.",
   "fprintdNotAvailable": "fprintd kurulu değil veya kayıtlı parmak izi yok.",
 

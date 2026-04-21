@@ -2635,6 +2635,13 @@ class SKo extends S {
       '먼저 비밀번호를 활성화하세요 — 생체 인증은 비밀번호 입력을 위한 단축 방식입니다.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      '생체 인식 잠금 해제를 활성화하려면 먼저 이 등급을 선택하세요';
+
+  @override
+  String get autoLockRequiresActiveTier => '자동 잠금을 구성하려면 먼저 이 등급을 선택하세요';
+
+  @override
   String get biometricForbiddenParanoid => 'Paranoid 단계는 설계상 생체 인증을 허용하지 않습니다.';
 
   @override

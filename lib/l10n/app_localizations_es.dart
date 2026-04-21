@@ -2749,6 +2749,14 @@ class SEs extends S {
       'Active primero una contraseña — la biometría es un atajo para introducirla.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Primero selecciona este nivel para activar el desbloqueo biométrico';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Primero selecciona este nivel para configurar el bloqueo automático';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Paranoid no permite biometría por diseño.';
 

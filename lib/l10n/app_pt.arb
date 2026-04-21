@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Atalho biométrico",
   "modifierBiometricSubtitle": "Liberar a senha de um slot do sistema protegido por biometria, em vez de digitá-la.",
   "biometricRequiresPassword": "Ative primeiro uma senha — a biometria é um atalho para digitá-la.",
+  "biometricRequiresActiveTier": "Selecione este nível primeiro para ativar o desbloqueio biométrico",
+  "autoLockRequiresActiveTier": "Selecione este nível primeiro para configurar o bloqueio automático",
   "biometricForbiddenParanoid": "O nível Paranoid não permite biometria por design.",
   "fprintdNotAvailable": "fprintd não instalado ou nenhuma impressão digital registrada.",
 

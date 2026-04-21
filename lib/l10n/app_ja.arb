@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "生体認証ショートカット",
   "modifierBiometricSubtitle": "パスワードを入力する代わりに、生体認証で保護されたOSスロットから取り出します。",
   "biometricRequiresPassword": "先にパスワードを有効にしてください — 生体認証は入力のショートカットです。",
+  "biometricRequiresActiveTier": "生体認証ロック解除を有効にするには、先にこの階層を選択してください",
+  "autoLockRequiresActiveTier": "自動ロックを設定するには、先にこの階層を選択してください",
   "biometricForbiddenParanoid": "Paranoid は設計上、生体認証を許可しません。",
   "fprintdNotAvailable": "fprintd がインストールされていないか、指紋が登録されていません。",
 

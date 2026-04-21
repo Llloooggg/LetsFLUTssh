@@ -2739,6 +2739,14 @@ class SPt extends S {
       'Ative primeiro uma senha — a biometria é um atalho para digitá-la.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Selecione este nível primeiro para ativar o desbloqueio biométrico';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Selecione este nível primeiro para configurar o bloqueio automático';
+
+  @override
   String get biometricForbiddenParanoid =>
       'O nível Paranoid não permite biometria por design.';
 

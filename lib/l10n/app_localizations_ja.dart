@@ -2637,6 +2637,12 @@ class SJa extends S {
       '先にパスワードを有効にしてください — 生体認証は入力のショートカットです。';
 
   @override
+  String get biometricRequiresActiveTier => '生体認証ロック解除を有効にするには、先にこの階層を選択してください';
+
+  @override
+  String get autoLockRequiresActiveTier => '自動ロックを設定するには、先にこの階層を選択してください';
+
+  @override
   String get biometricForbiddenParanoid => 'Paranoid は設計上、生体認証を許可しません。';
 
   @override

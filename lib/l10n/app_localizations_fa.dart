@@ -2713,6 +2713,14 @@ class SFa extends S {
       'ابتدا یک رمز عبور فعال کنید — بیومتریک تنها میان‌بری برای وارد کردن آن است.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'برای فعال‌سازی باز کردن قفل بیومتریک ابتدا این سطح را انتخاب کنید';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'برای پیکربندی قفل خودکار ابتدا این سطح را انتخاب کنید';
+
+  @override
   String get biometricForbiddenParanoid =>
       'سطح Paranoid به‌طور طراحی‌شده اجازهٔ بیومتریک را نمی‌دهد.';
 

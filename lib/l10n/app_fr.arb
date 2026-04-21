@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Raccourci biométrique",
   "modifierBiometricSubtitle": "Récupérer le mot de passe depuis un emplacement du système protégé par biométrie au lieu de le saisir.",
   "biometricRequiresPassword": "Activez d'abord un mot de passe — la biométrie n'est qu'un raccourci pour le saisir.",
+  "biometricRequiresActiveTier": "Sélectionnez d'abord ce niveau pour activer le déverrouillage biométrique",
+  "autoLockRequiresActiveTier": "Sélectionnez d'abord ce niveau pour configurer le verrouillage automatique",
   "biometricForbiddenParanoid": "Paranoid n'autorise pas la biométrie par conception.",
   "fprintdNotAvailable": "fprintd non installé ou aucune empreinte enregistrée.",
 

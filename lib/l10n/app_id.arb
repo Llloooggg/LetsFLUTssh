@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Pintasan biometrik",
   "modifierBiometricSubtitle": "Melepas kata sandi dari slot OS yang dilindungi biometrik, alih-alih mengetiknya.",
   "biometricRequiresPassword": "Aktifkan kata sandi terlebih dahulu — biometrik hanya pintasan untuk memasukkannya.",
+  "biometricRequiresActiveTier": "Pilih tingkat ini terlebih dahulu untuk mengaktifkan buka kunci biometrik",
+  "autoLockRequiresActiveTier": "Pilih tingkat ini terlebih dahulu untuk mengonfigurasi kunci otomatis",
   "biometricForbiddenParanoid": "Paranoid tidak mengizinkan biometrik secara desain.",
   "fprintdNotAvailable": "fprintd belum diinstal atau tidak ada sidik jari terdaftar.",
 

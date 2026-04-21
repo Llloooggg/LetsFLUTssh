@@ -51,6 +51,8 @@ class ExpandableTierCard extends StatefulWidget {
     this.unavailableReason,
     this.initiallyExpanded = false,
     this.activeTierExtras,
+    this.biometricSpec,
+    this.autoLockRow,
   });
 
   final SecurityTier tier;
@@ -82,14 +84,62 @@ class ExpandableTierCard extends StatefulWidget {
   /// meaningful (e.g. T0, which has no user secret to lock).
   final Widget? activeTierExtras;
 
+  /// Optional auto-lock row rendered inside the modifier section
+  /// after the biometric toggle. Parent passes a pre-built
+  /// `_AutoLockTile` (or null to hide) so the same `disabledReason`
+  /// priority ladder biometric uses (platform / tier-availability /
+  /// current-tier / password-required) applies to auto-lock with
+  /// per-tier tooltip copy owned by the parent.
+  final Widget? autoLockRow;
+
+  /// When non-null, a biometric modifier row renders after the
+  /// password toggle. Callers pass their resolved state:
+  ///
+  ///   * `enabled` — true when the toggle can actually flip
+  ///     (current tier, password modifier active, biometric
+  ///     available on the platform).
+  ///   * `value` — current biometric-unlock state from the
+  ///     Settings section's own probe; read-only display when
+  ///     the row is disabled.
+  ///   * `disabledReason` — tooltip message shown on hover when
+  ///     the toggle is disabled (platform unsupported, password
+  ///     required, tier not current, etc.). Pass null when the
+  ///     row is enabled.
+  ///   * `onChanged` — fires the actual BiometricPrompt + vault
+  ///     stash flow owned by the Settings section. Invoked only
+  ///     when the toggle is enabled.
+  ///
+  /// A null `biometricSpec` hides the row — used on T0 (nothing
+  /// to gate) and Paranoid (design rule: biometric undermines the
+  /// "no OS trust" premise of the tier).
+  final BiometricModifierSpec? biometricSpec;
+
   @override
   State<ExpandableTierCard> createState() => _ExpandableTierCardState();
+}
+
+/// Config for the tier-card biometric toggle. Decoupled from the
+/// card so the Settings section can compute enabled / tooltip copy
+/// from its own state (probe results, current tier, modifier flags)
+/// and pass the result in without the card re-implementing the
+/// rule set.
+class BiometricModifierSpec {
+  const BiometricModifierSpec({
+    required this.enabled,
+    required this.value,
+    required this.onChanged,
+    this.disabledReason,
+  });
+
+  final bool enabled;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String? disabledReason;
 }
 
 class _ExpandableTierCardState extends State<ExpandableTierCard> {
   late bool _expanded;
   late bool _passwordEnabled;
-  late bool _biometricEnabled;
   bool _busy = false;
 
   final _passwordCtrl = TextEditingController();
@@ -105,7 +155,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       widget.currentTier,
       widget.currentModifiers,
     );
-    _biometricEnabled = widget.currentModifiers.biometric;
   }
 
   @override
@@ -159,22 +208,16 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         current == SecurityTier.keychainWithPassword ||
         current == SecurityTier.paranoid;
     if (_passwordEnabled != currentHasPassword) return false;
-    // Biometric is managed outside the tier-card's pending state
-    // (see [_biometricToggleAvailable]), so it doesn't factor into
-    // the "does the pending config match current?" check.
+    // Biometric flips through the Settings BiometricPrompt +
+    // vault-stash path directly (via [ExpandableTierCard.biometricSpec]),
+    // not through this card's pending Apply state — so the
+    // "does pending match current?" check ignores biometric.
     return true;
   }
 
   bool get _passwordToggleAvailable =>
       widget.tier == SecurityTier.keychain ||
       widget.tier == SecurityTier.hardware;
-
-  // Biometric stays out of the tier card because its setup flow is
-  // more than a modifier flag — it runs a BiometricPrompt, stashes
-  // the DB key into the biometric-gated vault, and can fail in ways
-  // the Select path can't easily surface. Biometric lives in its
-  // own Settings row below the ladder, same as before.
-  bool get _biometricToggleAvailable => false;
 
   /// T1 and T2 use the same short-password input path when the
   /// password modifier toggle is on. T2 historically had a
@@ -217,7 +260,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   ThreatModel get _previewModel => ThreatModel(
     tier: _toThreatTier(widget.tier),
     password: _passwordEnabled || widget.tier == SecurityTier.paranoid,
-    biometric: _biometricEnabled,
+    biometric: widget.currentModifiers.biometric,
   );
 
   ThreatTier _toThreatTier(SecurityTier t) {
@@ -244,7 +287,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       }
       final mods = SecurityTierModifiers(
         password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
-        biometric: _biometricEnabled,
+        biometric: widget.currentModifiers.biometric,
       );
       // T1 uses `shortPassword` against the keychain-password gate;
       // T2 uses the same value as the PIN HMAC input to the hw
@@ -328,7 +371,8 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                     _UnavailableReason(text: widget.unavailableReason!),
                   ],
                   if (_passwordToggleAvailable ||
-                      _biometricToggleAvailable) ...[
+                      widget.biometricSpec != null ||
+                      widget.autoLockRow != null) ...[
                     const SizedBox(height: 12),
                     const Divider(height: 1),
                     const SizedBox(height: 8),
@@ -341,19 +385,20 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                       onChanged: (v) {
                         setState(() {
                           _passwordEnabled = v;
-                          if (!v) _biometricEnabled = false;
                           _passwordCtrl.wipeAndClear();
                           _passwordConfirmCtrl.wipeAndClear();
                         });
                       },
                     ),
-                  if (_biometricToggleAvailable)
+                  if (widget.biometricSpec != null)
                     _ModifierRow(
                       label: l10n.biometricUnlockTitle,
-                      value: _biometricEnabled,
-                      enabled: widget.tierAvailable,
-                      onChanged: (v) => setState(() => _biometricEnabled = v),
+                      value: widget.biometricSpec!.value,
+                      enabled: widget.biometricSpec!.enabled,
+                      onChanged: widget.biometricSpec!.onChanged,
+                      disabledReason: widget.biometricSpec!.disabledReason,
                     ),
+                  if (widget.autoLockRow != null) widget.autoLockRow!,
                   if (_requiresPasswordInput) ...[
                     const SizedBox(height: 8),
                     _PasswordPair(
@@ -799,6 +844,7 @@ class _ModifierRow extends StatelessWidget {
     required this.value,
     required this.enabled,
     required this.onChanged,
+    this.disabledReason,
   });
 
   final String label;
@@ -806,9 +852,16 @@ class _ModifierRow extends StatelessWidget {
   final bool enabled;
   final ValueChanged<bool> onChanged;
 
+  /// Shown as a hover tooltip when the row is disabled — explains
+  /// *why* the toggle cannot flip (tier not current, password not
+  /// set, biometric unsupported by the platform, etc.). Tooltip is
+  /// skipped when the row is enabled so the active state does not
+  /// carry stale copy.
+  final String? disabledReason;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    Widget row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
@@ -822,6 +875,10 @@ class _ModifierRow extends StatelessWidget {
         ],
       ),
     );
+    if (!enabled && disabledReason != null && disabledReason!.isNotEmpty) {
+      row = Tooltip(message: disabledReason!, child: row);
+    }
+    return row;
   }
 }
 

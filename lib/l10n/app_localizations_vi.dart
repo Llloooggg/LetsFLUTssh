@@ -2706,6 +2706,14 @@ class SVi extends S {
       'Hãy bật mật khẩu trước — sinh trắc chỉ là lối tắt để nhập mật khẩu.';
 
   @override
+  String get biometricRequiresActiveTier =>
+      'Chọn tầng này trước để bật mở khóa sinh trắc học';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Chọn tầng này trước để cấu hình khóa tự động';
+
+  @override
   String get biometricForbiddenParanoid =>
       'Mức Paranoid không cho phép sinh trắc theo thiết kế.';
 

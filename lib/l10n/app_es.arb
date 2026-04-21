@@ -832,6 +832,8 @@
   "modifierBiometricLabel": "Atajo biométrico",
   "modifierBiometricSubtitle": "Liberar la contraseña de una ranura del sistema protegida por biometría, en lugar de escribirla.",
   "biometricRequiresPassword": "Active primero una contraseña — la biometría es un atajo para introducirla.",
+  "biometricRequiresActiveTier": "Primero selecciona este nivel para activar el desbloqueo biométrico",
+  "autoLockRequiresActiveTier": "Primero selecciona este nivel para configurar el bloqueo automático",
   "biometricForbiddenParanoid": "Paranoid no permite biometría por diseño.",
   "fprintdNotAvailable": "fprintd no instalado o sin huellas registradas.",
 

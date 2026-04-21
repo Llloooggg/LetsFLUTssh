@@ -219,33 +219,19 @@ class _Toggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
 
-  /// Shown as a hover tooltip and surfaced via a toast when the user
-  /// taps the disabled toggle — only used when [onChanged] is null.
-  /// The intent is "never hide security options" (see CLAUDE.md): the
-  /// toggle is always visible and the reason it can't flip is always
-  /// one gesture away.
-  final String? disabledReason;
-
   const _Toggle({
     required this.label,
     required this.value,
     required this.onChanged,
     this.subtitle,
     this.icon,
-    this.disabledReason,
   });
 
   @override
   Widget build(BuildContext context) {
     final enabled = onChanged != null;
     final accent = enabled ? AppTheme.accent : AppTheme.bg4;
-    VoidCallback? tap;
-    if (enabled) {
-      tap = () => onChanged!(!value);
-    } else if (disabledReason != null) {
-      tap = () =>
-          Toast.show(context, message: disabledReason!, level: ToastLevel.info);
-    }
+    final VoidCallback? tap = enabled ? () => onChanged!(!value) : null;
     final knob = Container(
       width: 32,
       height: 18,
@@ -280,9 +266,6 @@ class _Toggle extends StatelessWidget {
     // whole container, not just the trailing control.
     if (!enabled) {
       row = Opacity(opacity: 0.5, child: row);
-      if (disabledReason != null) {
-        row = Tooltip(message: disabledReason!, child: row);
-      }
     }
     return row;
   }
