@@ -356,7 +356,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
-      await _runMigrations();
+      // Migration runner gates everything else — a failed or mismatched
+      // artefact would make both the unlock flow and the corrupt-DB
+      // probe read stale state. When it surfaces a reset, the migration
+      // handler runs the full wipe + wizard on its own, so skip the
+      // follow-up _initSecurity / corruption probe.
+      final migrationOk = await _runMigrations();
+      if (!migrationOk) return;
       await _initSecurity();
       // Integrity probe: if the DB file on disk cannot be read under
       // the cipher we just opened it with, the chosen tier does not
@@ -428,29 +434,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// Walk every framework-registered artefact and bring its on-disk
   /// state up to the current build's [SchemaVersions]. Runs BEFORE
   /// `_initSecurity` so the unlock path always reads the post-migration
-  /// shape. Currently the migration list is empty — runner is a no-op
-  /// on every install where on-disk state already matches the canonical
-  /// [SchemaVersions]. User-facing failure surfaces (toast, blocking
-  /// dialog) land alongside the first real migration.
-  Future<void> _runMigrations() async {
+  /// shape.
+  ///
+  /// Returns `true` when the startup sequence may continue into
+  /// `_initSecurity`; `false` when the failure-handling path has
+  /// already taken over (either exiting the app or wiping + re-entering
+  /// the first-launch wizard), in which case the caller must stop.
+  Future<bool> _runMigrations() async {
+    final MigrationReport report;
     try {
       final registry = buildAppMigrationRegistry();
-      final report = await MigrationRunner(registry).runOnStartup();
-      if (report.noOp) return;
-      if (report.hasFailures) {
-        AppLogger.instance.log(
-          'MigrationRunner reported failures '
-          '(steps=${report.steps.length}, '
-          'futureVersions=${report.futureVersions.length}, '
-          'fatal=${report.fatalError}) — continuing into _initSecurity',
-          name: 'App',
-        );
-        return;
-      }
-      AppLogger.instance.log(
-        'MigrationRunner: ${report.migratedCount} artefact(s) migrated',
-        name: 'App',
-      );
+      report = await MigrationRunner(registry).runOnStartup();
     } catch (e, st) {
       AppLogger.instance.log(
         'MigrationRunner threw uncaught: $e',
@@ -458,6 +452,48 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         error: e,
         stackTrace: st,
       );
+      await _handleMigrationFailure();
+      return false;
+    }
+    if (report.noOp) return true;
+    if (report.hasFailures) {
+      AppLogger.instance.log(
+        'MigrationRunner reported failures '
+        '(steps=${report.steps.length}, '
+        'futureVersions=${report.futureVersions.length}, '
+        'fatal=${report.fatalError}) — routing through corrupt dialog',
+        name: 'App',
+      );
+      await _handleMigrationFailure();
+      return false;
+    }
+    AppLogger.instance.log(
+      'MigrationRunner: ${report.migratedCount} artefact(s) migrated',
+      name: 'App',
+    );
+    return true;
+  }
+
+  /// Surface a failed or future-version migration as a blocking
+  /// corrupt-state dialog. The user picks reset (full wipe + wizard
+  /// via [_wipeAndRestartFromScratch]) or exit (leaves disk untouched
+  /// so a newer build can re-read the same artefacts). "Try other
+  /// credentials" is meaningless at this point — the failure is not
+  /// about which key we attempted — so it collapses into the exit
+  /// branch.
+  Future<void> _handleMigrationFailure() async {
+    final choice = await _showDbCorruptDialog();
+    switch (choice) {
+      case DbCorruptChoice.exitApp:
+      case DbCorruptChoice.tryOtherTier:
+        AppLogger.instance.log(
+          'Migration failure — user chose to exit',
+          name: 'App',
+        );
+        await SystemNavigator.pop();
+        exit(0);
+      case DbCorruptChoice.resetAndSetupFresh:
+        await _wipeAndRestartFromScratch();
     }
   }
 

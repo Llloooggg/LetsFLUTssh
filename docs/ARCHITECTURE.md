@@ -1216,11 +1216,20 @@ The runner returns a `MigrationReport`:
 
 `main._runMigrations` inspects `report.hasFailures` (fatal error,
 future-version artefact, or any failed step) and routes the user
-through the corrupt-state dialog + `WipeAllService` on any non-clean
-run. The registry is empty today, so on a current-version install the
-report is always `noOp == true` and the app proceeds into
-`_initSecurity` normally; the failure surface is wired up ahead of time
-so the first real migration inherits a complete path.
+through `DbCorruptDialog` on any non-clean run: *Reset & Setup Fresh*
+runs `_wipeAndRestartFromScratch` (same full-wipe + first-launch wizard
+path that the DB-corruption probe uses); *Quit* leaves the disk
+untouched so a newer build can re-read the same artefacts. An
+uncaught throw from the runner itself lands on the same dialog — a
+broken artefact reader is indistinguishable from a broken artefact
+from the user's point of view. `main` short-circuits the rest of
+startup (`_initSecurity` + `_handleDatabaseCorruption`) whenever
+`_runMigrations` returns `false`, because the failure handler has
+already taken over. The registry is empty today, so on a
+current-version install the report is always `noOp == true` and the
+app proceeds into `_initSecurity` normally; the failure surface is
+wired up ahead of time so the first real migration inherits a
+complete path.
 
 ##### Atomicity
 
