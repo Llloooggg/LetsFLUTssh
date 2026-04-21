@@ -19,6 +19,7 @@ import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
+import '../../utils/platform.dart' as plat;
 
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM
 /// under an Argon2id-derived key.
@@ -63,12 +64,39 @@ class ExportImport {
   @visibleForTesting
   static KdfParams defaultKdfParams = KdfParams.productionDefaults;
 
-  /// Maximum Argon2id memory cost we are willing to honour from an
-  /// untrusted archive header — 1 GiB. Higher values are clamped off and
-  /// the archive is rejected as malformed, so a hostile header can't
-  /// pin the isolate into swap.
+  /// Absolute ceiling on the Argon2id memory cost we are willing to
+  /// honour from an untrusted archive header — 1 GiB on any platform
+  /// with enough RAM. [resolveMaxImportArgon2idMemoryKiB] caps this
+  /// further against physical RAM on the host at import time (25 % of
+  /// total on mobile, a hard 1 GiB floor on desktop). Higher values
+  /// fail the import as malformed, so a hostile header can't pin the
+  /// isolate into swap — and on a 2 GiB Android device, can't drive
+  /// the OS out-of-memory killer either.
   @visibleForTesting
   static const int maxImportArgon2idMemoryKiB = 1 * 1024 * 1024;
+
+  /// Resolve the effective memory cap at import time based on the
+  /// running platform and physical RAM. Mobile devices cap at
+  /// `min(maxImportArgon2idMemoryKiB, 25 % of active RAM)`; desktop
+  /// falls back to the static cap because OS-level memory accounting
+  /// is more flexible and Argon2id at 1 GiB is viable in practice.
+  /// Exposed for tests via [debugMemoryProbeOverride].
+  static int resolveMaxImportArgon2idMemoryKiB() {
+    if (!plat.isMobilePlatform) return maxImportArgon2idMemoryKiB;
+    final physicalBytes =
+        debugMemoryProbeOverride ?? ProcessInfo.maxRss * 4; // rough proxy
+    if (physicalBytes <= 0) return maxImportArgon2idMemoryKiB;
+    final quarterKiB = (physicalBytes ~/ 4) ~/ 1024;
+    return quarterKiB < maxImportArgon2idMemoryKiB
+        ? quarterKiB
+        : maxImportArgon2idMemoryKiB;
+  }
+
+  /// Injection point for tests — set to a non-null value (bytes of
+  /// total physical RAM) to bypass the `ProcessInfo.maxRss` proxy and
+  /// exercise the cap logic deterministically.
+  @visibleForTesting
+  static int? debugMemoryProbeOverride;
 
   /// Upper bound on Argon2id iterations in an untrusted header. Argon2id
   /// is memory-heavy per pass; even a modest iteration count at 1 GiB
@@ -1042,7 +1070,8 @@ class ExportImport {
     } on FormatException catch (e) {
       throw LfsMalformedHeaderException(reason: e.message);
     }
-    if (params.memoryKiB > maxImportArgon2idMemoryKiB ||
+    final memoryCap = resolveMaxImportArgon2idMemoryKiB();
+    if (params.memoryKiB > memoryCap ||
         params.iterations > maxImportArgon2idIterations ||
         params.parallelism > maxImportArgon2idParallelism) {
       throw LfsMalformedHeaderException(
