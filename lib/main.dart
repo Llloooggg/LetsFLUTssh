@@ -28,6 +28,7 @@ import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
+import 'widgets/app_selection_area.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
 import 'widgets/auto_lock_detector.dart';
@@ -887,7 +888,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;
 
-    final caps = await probeCapabilities(
+    var caps = await probeCapabilities(
       keyStorage: keyStorage,
       hardwareVault: ref.read(hardwareTierVaultProvider),
     );
@@ -896,10 +897,30 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // Auto-setup path: keychain is reachable → silently land on T1
     // and queue the post-setup banner so the user learns what we
     // picked and how to upgrade.
+    //
+    // Probe reports "available" when the keychain API answered the
+    // round-trip at all. On platforms where signing identity matters
+    // (notably macOS without an Apple Developer ID cert) the probe
+    // can succeed but the first real write fails with an entitlement
+    // error surfaced as `PlatformException -34018`. Treat a failed
+    // write the same as a failed probe: widen the capabilities
+    // snapshot to `keychainAvailable = false` and fall into the
+    // wizard, which already handles that branch with the right
+    // greyout + tooltip. Previously the write failure silently
+    // landed the user on plaintext (T0) with no UI, which looked
+    // exactly like a wipe.
     if (caps.keychainAvailable) {
-      await _autoSetupKeychain(keyStorage);
-      _queueFirstLaunchBanner(caps);
-      return;
+      final ok = await _autoSetupKeychain(keyStorage);
+      if (ok) {
+        _queueFirstLaunchBanner(caps);
+        return;
+      }
+      AppLogger.instance.log(
+        'First launch: keychain probe said available but write failed — '
+        'retrying through the manual wizard with T1 greyed out',
+        name: 'App',
+      );
+      caps = caps.copyWith(keychainAvailable: false);
     }
 
     // Fallback: keychain unreachable. Hand the user the existing
@@ -976,7 +997,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// and injects the database at T1 — zero dialogs, zero prompts.
   /// Falls through to plaintext if the keychain write fails for any
   /// reason (mirror of the existing wizard-path fallback).
-  Future<void> _autoSetupKeychain(SecureKeyStorage keyStorage) async {
+  /// Returns true when the keychain write succeeded and the DB is now
+  /// attached under T1; false when the write was rejected (caller
+  /// owns the fallback — usually "re-open the wizard with T1
+  /// greyed"). No side effects on the failure branch: the DB is NOT
+  /// injected, no toast is queued, nothing is persisted to
+  /// `config.security`. That keeps the caller's follow-on reset /
+  /// wizard paths idempotent.
+  Future<bool> _autoSetupKeychain(SecureKeyStorage keyStorage) async {
     final key = AesGcm.generateKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
@@ -985,14 +1013,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         'First launch: auto-selected T1 (keychain)',
         name: 'App',
       );
-    } else {
-      await _injectDatabase();
-      AppLogger.instance.log(
-        'First launch: auto-select T1 failed keychain write, '
-        'falling back to plaintext',
-        name: 'App',
-      );
+      return true;
     }
+    AppLogger.instance.log(
+      'First launch: auto-select T1 keychain write rejected — '
+      'leaving DB uninitialised for the wizard fallback',
+      name: 'App',
+    );
+    return false;
   }
 
   /// Populate [firstLaunchBannerProvider] so the main screen pops a
@@ -1785,7 +1813,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // SelectionArea sits above MobileShell so every plain Text in
     // the mobile tree supports drag-select + long-press copy.
     if (plat.isMobilePlatform) {
-      return const SelectionArea(child: MobileShell());
+      return const AppSelectionArea(child: MobileShell());
     }
 
     final ws = ref.watch(workspaceProvider);
@@ -1798,7 +1826,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // terminal (CustomPaint with its own selection logic) renders
     // below the SelectionArea layer and is untouched — xterm keeps
     // its native drag-select.
-    return SelectionArea(
+    return AppSelectionArea(
       child: CallbackShortcuts(
         bindings: _buildKeyBindings(context, ws),
         child: Focus(
