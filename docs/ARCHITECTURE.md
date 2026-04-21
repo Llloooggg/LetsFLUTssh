@@ -19,16 +19,19 @@
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
+  - [4.3 Widget-local controllers (`ChangeNotifier`)](#43-widget-local-controllers-changenotifier)
 - [5. Feature Modules](#5-feature-modules)
   - [5.1 Terminal with Tiling (`features/terminal/`)](#51-terminal-with-tiling-featuresterminal)
   - [5.2 File Browser (`features/file_browser/`)](#52-file-browser-featuresfile_browser)
   - [5.3 Session Manager UI (`features/session_manager/`)](#53-session-manager-ui-featuressession_manager)
-  - [5.4 Tab System (`features/tabs/`)](#54-tab-system-featurestabs)
+  - [5.4 Tab & Workspace System](#54-tab--workspace-system)
   - [5.5 Settings (`features/settings/`)](#55-settings-featuressettings)
   - [5.6 Mobile (`features/mobile/`)](#56-mobile-featuresmobile)
 - [6. Widgets — Public API Reference](#6-widgets--public-api-reference)
+  - [6.1 Security & Tier Wizard Widgets](#61-security--tier-wizard-widgets)
 - [7. Utilities — Public API Reference](#7-utilities--public-api-reference)
 - [8. Theme System](#8-theme-system)
+  - [8.1 Internationalization (i18n)](#81-internationalization-i18n)
 - [9. Data Flow Diagrams](#9-data-flow-diagrams)
   - [9.1 SSH Connection Flow](#91-ssh-connection-flow)
   - [9.2 SFTP Init Flow](#92-sftp-init-flow)
@@ -40,9 +43,10 @@
 - [13. Security Model](#13-security-model)
 - [14. Testing Patterns & DI Hooks](#14-testing-patterns--di-hooks)
 - [15. CI/CD Pipeline](#15-cicd-pipeline)
-  - [15.1 Workflow Graph](#151-workflow-graph)
-  - [15.2 Workflow Catalog](#152-workflow-catalog)
-  - [15.3 Makefile Targets](#153-makefile-targets)
+  - [15.1 Branching Model](#151-branching-model)
+  - [15.2 Workflow Graph](#152-workflow-graph)
+  - [15.3 Workflow Catalog](#153-workflow-catalog)
+  - [15.4 Makefile Targets](#154-makefile-targets)
 - [16. Design Decisions & Rationale](#16-design-decisions--rationale)
   - [16.1 Architecture Choices](#161-architecture-choices)
   - [16.2 API Gotchas](#162-api-gotchas)
@@ -116,15 +120,17 @@ lib/
 │   ├── ssh/                          # SSH client, config, TOFU, errors
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
-│   ├── session/                      # Session model, persistence, tree, QR, history
+│   ├── session/                      # Session model, persistence, tree, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
-│   ├── security/                     # AES-256-GCM, master password, keychain
+│   ├── security/                     # AES-256-GCM, master password, keychain, tier ladder
 │   ├── migration/                    # Versioned-artefact migration framework (runner, Artefact/Migration interfaces, VersionedBlob envelope, SchemaVersions). Full description: §3.7
 │   ├── config/                       # App configuration (file-based, loaded before DB)
 │   ├── snippets/                     # Snippet model + SnippetStore
 │   ├── tags/                         # Tag model + TagStore
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
+│   ├── progress/                     # ProgressReporter — phase/step stream consumed by AppProgressBarDialog and connection-progress widgets
+│   ├── qr/                           # QR scanner — native camera bridge (AVFoundation / CameraX) for import flow
 │   ├── single_instance/              # Single-instance lock (desktop)
 │   ├── update/                       # Update checking
 │   └── shortcut_registry.dart        # Centralized keyboard shortcut definitions
@@ -132,6 +138,7 @@ lib/
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser
 │   ├── session_manager/              # Session management panel
+│   ├── key_manager/                  # SSH key manager (embeddable; standalone dialog on mobile, inside Tools on desktop)
 │   ├── snippets/                     # Snippet manager + terminal picker
 │   ├── tags/                         # Tag manager + assignment dialog
 │   ├── tools/                        # Desktop Tools dialog (SSH Keys, Snippets, Tags)
@@ -139,45 +146,67 @@ lib/
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
-├── l10n/                             # Internationalization (15 languages: en, ru, zh, de, ja, pt, es, fr, ko, ar, fa, tr, vi, id, hi)
+├── l10n/                             # Internationalization (15 languages: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh)
 ├── providers/                        # Riverpod providers (global state)
-├── widgets/                          # Reusable UI components
-│   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
-│   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
+├── widgets/                          # Reusable UI components (alphabetical)
 │   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
 │   ├── app_data_row.dart            # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions, min-height-padded
 │   ├── app_data_search_bar.dart     # Shared search input for list / table dialogs (known hosts, snippets, tags)
+│   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
 │   ├── app_divider.dart             # Standardized 1px divider
+│   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
+│   ├── app_info_button.dart         # Inline (i) icon that opens AppInfoDialog with caller-supplied threat-model copy
+│   ├── app_info_dialog.dart         # Reusable threat-model explainer (what tier protects / does not protect against)
 │   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
+│   ├── auto_lock_detector.dart      # Inactivity wrapper — locks app after autoLockMinutesProvider when security level is masterPassword
 │   ├── clipped_row.dart             # Overflow-clipping Row replacement
 │   ├── column_resize_handle.dart    # Draggable column-resize handle for table headers
 │   ├── confirm_dialog.dart          # Confirmation dialog (delete, destructive actions)
 │   ├── connection_progress.dart     # Terminal-styled progress for non-terminal tabs
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
+│   ├── data_checkboxes.dart         # Shared collapsible checkbox grid used by export + import dialogs
+│   ├── db_corrupt_dialog.dart       # Outcome dialog for DB corruption (reset / try other tier / exit)
 │   ├── error_state.dart             # Error display with retry/secondary actions
+│   ├── expandable_tier_card.dart    # Settings Security ladder unit — tier header + modifiers + secret inputs inline
 │   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
+│   ├── first_launch_security_dialog.dart # Post-auto-setup banner — shows chosen tier + hardware-upgrade path or its absence
 │   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
-│   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
-│   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
+│   ├── import_preview_dialog.dart   # Source-agnostic typedefs (ImportPreviewCounts/Selection) shared by archive + link preview
+│   ├── legacy_kdf_dialog.dart       # Non-dismissible migration prompt for pre-Argon2id PBKDF2 credentials
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
 │   ├── link_import_preview_dialog.dart # letsflutssh:// link / QR payload preview (flags + merge/replace)
-│   ├── data_checkboxes.dart          # Shared collapsible checkbox grid used by export + import dialogs
+│   ├── local_directory_picker.dart  # In-app dart:io directory browser — Android MANAGE_EXTERNAL_STORAGE path bypassing SAF
+│   ├── lock_screen.dart             # Full-screen lock overlay — biometric → master-password fallback, flips lockStateProvider
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
 │   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
+│   ├── passphrase_dialog.dart       # Interactive SSH key passphrase prompt
+│   ├── password_strength_meter.dart # Live coloured strength bar under password input — informational, never blocks Save
+│   ├── paste_import_link_dialog.dart # Camera-less QR import — accepts letsflutssh:// link or raw base64url payload
 │   ├── readonly_terminal_view.dart  # Read-only terminal display widget
+│   ├── secure_password_field.dart   # TextField pre-configured for secret entry — IME spellcheck/autofill/history disabled
+│   ├── secure_screen_scope.dart     # Scope opting subtree into OS screen-capture protection (Android FLAG_SECURE)
+│   ├── security_comparison_table.dart # Threat × tier matrix — horizontally scrollable on desktop, transposed on mobile
+│   ├── security_setup_dialog.dart   # First-launch wizard result — carries both legacy and modifier-shape tier choice
+│   ├── security_threat_list.dart    # Single-tier threat inventory with ✓ / ✗ / — / ! glyphs
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
+│   ├── ssh_dir_import_dialog.dart   # ~/.ssh unified picker — hosts (parsed from config) + keys (scanned)
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
 │   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
-│   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
+│   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
+│   ├── tier_reset_dialog.dart       # Non-dismissible migration prompt for legacy security state lacking a tier field
+│   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / L3 PIN unlock shell with retry + cooldown
+│   ├── tier_threat_block.dart       # Single-tier presentation block (header + threat split) used by wizard + Settings
 │   ├── toast.dart                   # Stacked notification toasts
 │   ├── unified_export_controller.dart # Headless selection / options / sizing
-│   └── unified_export_dialog.dart   # Unified QR and .lfs export dialog
+│   ├── unified_export_dialog.dart   # Unified QR and .lfs export dialog
+│   ├── unified_export_dialog_tree.dart # Tree builders + size-indicator helpers split off from unified_export_dialog.dart
+│   └── unlock_dialog.dart           # Master password unlock dialog (startup)
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -2263,6 +2292,301 @@ Reusable sortable column-header cell for table views. Shows a label with optiona
 
 Also provides `columnDivider()` — thin vertical divider between table columns (for data rows, not headers).
 
+### AppDataRow
+
+```dart
+AppDataRow({
+  required Widget icon,           // leading icon or avatar
+  required String title,
+  String? secondary,              // dim line under title
+  String? tertiary,               // dim line under secondary
+  List<Widget> trailing = const [],
+  VoidCallback? onTap,
+  VoidCallback? onSecondaryTap,
+  bool selected = false,
+  EdgeInsets? padding,
+})
+```
+Shared row primitive for list / table dialogs (known hosts, snippets, tags, SSH keys). Min-height-padded so rows align across dialogs. Uses `AppTheme.itemHeightMd` and `AppFonts` for the typography ladder. Pair with [AppDataSearchBar](#appdatasearchbar) for the matching search input.
+
+### AppDataSearchBar
+
+```dart
+AppDataSearchBar({
+  required TextEditingController controller,
+  required ValueChanged<String> onChanged,
+  String? hint,
+  bool autofocus = false,
+})
+```
+Shared search input for list / table dialogs. Visually paired with [AppDataRow](#appdatarow); both surface the same dark-language conventions so dialogs stay consistent.
+
+### TagDots — SessionTagDots & FolderTagDots
+
+```dart
+SessionTagDots({required String sessionId, double diameter = 8})
+FolderTagDots({required String folderPath, double diameter = 8})
+```
+Coloured dot row showing the tags assigned to a session (or aggregated across a folder subtree). `Consumer*` widgets — both watch `tagProvider` so dots stay in sync with tag CRUD without manual rebuilds. See [§3 Tags](#3-core-modules) for the underlying `TagStore`.
+
+### DataCheckboxes — CollapsibleCheckboxesSection & DataCheckboxRow
+
+```dart
+CollapsibleCheckboxesSection({
+  required String title,
+  required bool expanded,
+  required ValueChanged<bool> onExpandedChanged,
+  required List<Widget> children,
+  Widget? trailing,
+})
+
+DataCheckboxRow({
+  required bool? value,           // null = indeterminate (mixed selection)
+  required String label,
+  String? secondary,
+  required ValueChanged<bool?> onChanged,
+  bool dim = false,
+})
+```
+Shared collapsible checkbox grid + tri-state row used by the unified export dialog and the import-preview dialogs. Tri-state semantics: `null` renders the indeterminate marker so a parent group can show "some children selected".
+
+### LfsImportPreviewDialog
+
+```dart
+typedef LfsImportPreviewResult = ({ImportMode mode, ImportPreviewSelection selection});
+
+LfsImportPreviewDialog.show(context, {
+  required ImportPreviewCounts counts,
+  required ImportMode initialMode,
+}) → Future<LfsImportPreviewResult?>
+```
+Pre-import preview of a `.lfs` archive — shows per-type counts ([§3.9 Import](#39-import-coreimport)) and lets the user trim the import + pick merge/replace before commit. The shared `ImportPreviewCounts` / `ImportPreviewSelection` typedefs in `widgets/import_preview_dialog.dart` are reused by [LinkImportPreviewDialog](#linkimportpreviewdialog) so both sources speak the same shape.
+
+### LinkImportPreviewDialog
+
+```dart
+typedef LinkImportPreviewResult = ({ImportMode mode, ExportOptions options});
+
+LinkImportPreviewDialog.show(context, {
+  required ExportPayloadData payload,
+  required ImportMode initialMode,
+}) → Future<LinkImportPreviewResult?>
+```
+Same preview surface as [LfsImportPreviewDialog](#lfsimportpreviewdialog) but for `letsflutssh://` deep-link / QR payloads. Reuses the shared counts / selection typedefs so both sources render identically.
+
+### UnifiedExportController
+
+```dart
+class UnifiedExportController extends ChangeNotifier {
+  ExportPreset preset;            // fullBackup | sessions | custom
+  ImportPreviewSelection selection;
+  ExportOptions options;          // include credentials? compress? …
+  // Pure presentation logic — no Riverpod, no persistence.
+}
+```
+Headless controller for the unified QR + `.lfs` export dialog. Holds selection + options, exposes derived counts for the size indicator. Lives in `widgets/` because export is widget-local state (not app-wide) — see [§4.3 Widget-local controllers](#43-widget-local-controllers-changenotifier).
+
+### UnifiedExportDialog
+
+```dart
+UnifiedExportDialog.show(context, {
+  required UnifiedExportDialogData data,
+}) → Future<UnifiedExportResult?>
+```
+Single dialog covering both QR and `.lfs` export. Top of the dialog flips between QR (small payloads) and archive (everything else) modes; the controller above owns the selection state. Tree rendering is split into `unified_export_dialog_tree.dart` (a `part of` file) to keep the state class small — presentation only.
+
+---
+
+## 6.1 Security & Tier Wizard Widgets
+
+Cluster of widgets that implement the first-launch security wizard, the Settings → Security ladder, the lock screen, and the legacy-state migration prompts. They consume / mutate state owned by `core/security/` ([§3.6](#36-security--encryption-coresecurity)) and the security providers ([§4.2 Provider Catalog](#42-provider-catalog) — `securityProvider`, `lockStateProvider`, `autoLockMinutesProvider`, `firstLaunchBannerProvider`, `masterPasswordProvider`).
+
+### AppInfoButton
+
+```dart
+AppInfoButton({
+  required String dialogTitle,
+  required Widget dialogContent,
+  double size = 14,
+})
+```
+Inline `(i)` icon that opens [AppInfoDialog](#appinfodialog) with caller-supplied threat-model copy. Sits next to any tier row or setting where the user might want to know what they're turning on before they tap it.
+
+### AppInfoDialog
+
+```dart
+AppInfoDialog({required String title, required Widget content})
+AppInfoDialog.show(context, {required String title, required Widget content}) → Future<void>
+```
+Reusable threat-model explainer. Two columns of "protects against" / "does not protect against". Shown from [AppInfoButton](#appinfobutton) next to security-tier rows in the first-launch wizard and Settings → Security.
+
+### AutoLockDetector
+
+```dart
+AutoLockDetector({required Widget child})
+```
+Wraps the app body and locks the app after `autoLockMinutesProvider` minutes of user inactivity when the active security tier is `masterPassword`. "Lock" means: clear in-memory keys, push [LockScreen](#lockscreen) on top of the navigator. No-op for tiers below masterPassword (keychain / no-secret) — those have nothing to lock.
+
+### LockScreen
+
+```dart
+LockScreen({Key? key})
+```
+Full-screen lock overlay shown while `lockStateProvider` is true. Tries biometric unlock first (if the user enabled it) and falls back to a master-password form. On success it re-derives the DB key, pushes it back into [`KeyHolder`](#36-security--encryption-coresecurity) and flips `lockStateProvider` off. Cross-links: [§3.6 Security](#36-security--encryption-coresecurity) for the key derivation path.
+
+### SecurePasswordField
+
+```dart
+SecurePasswordField({
+  required TextEditingController controller,
+  String? label,
+  String? hint,
+  bool autofocus = false,
+  ValueChanged<String>? onSubmitted,
+  FocusNode? focusNode,
+})
+```
+A `TextField` pre-configured for secret entry — master password, SSH key passphrase, API token. Drops every IME convenience that would otherwise leak the typed secret into a system service: `autocorrect: false`, `enableSuggestions: false`, `enableInteractiveSelection: false`, `obscureText: true`, no spell-check, no autofill. The single Dart implementation replaces the per-platform native plugins that previously wrapped `EditText` / `UITextField` (see [§3.6 Security](#36-security--encryption-coresecurity) for why the native path was retired).
+
+### SecureScreenScope
+
+```dart
+SecureScreenScope({required Widget child, bool enabled = true})
+```
+Scope opting its subtree into OS-level screen-capture protection for as long as it is mounted. On Android sets `WindowManager.LayoutParams.FLAG_SECURE` via the embedding `Activity`; no-op on platforms without an equivalent (iOS / desktop). Wrap any subtree that may render secrets (lock screen, master-password unlock, key import dialogs).
+
+### PasswordStrengthMeter
+
+```dart
+PasswordStrengthMeter({
+  required TextEditingController controller,
+  EdgeInsetsGeometry? padding,
+})
+```
+Live coloured strength bar + label under a password input. Subscribes to `controller.text` so it rebuilds on every keystroke. Informational only — never blocks Save. Strength estimate is computed in pure Dart (no zxcvbn) so it can run without network or a native plugin.
+
+### SecurityComparisonTable
+
+```dart
+SecurityComparisonTable({Key? key})
+```
+Full threat × tier-config matrix. Threats as rows, tier columns along the top. Horizontally scrollable on narrow desktop; rendered in transposed "one section per tier" shape on mobile so each tier fits in viewport width. Pulls labels from `core/security/threat_vocabulary.dart` so the table never drifts from the canonical threat list.
+
+### SecurityThreatList
+
+```dart
+SecurityThreatList({
+  required SecurityTier tier,
+  required SecurityModifiers modifiers,
+})
+```
+Single-tier threat-status list used by the per-tier info popup. Renders the full `SecurityThreat` vocabulary — every threat row visible inline with a ✓ / ✗ / — / ! glyph derived from the tier + modifiers it was constructed with.
+
+### TierThreatBlock
+
+```dart
+TierThreatBlock({
+  required SecurityTier tier,
+  required SecurityModifiers modifiers,
+  VoidCallback? onTap,
+  bool selected = false,
+})
+```
+Single-tier presentation block used by both Settings → Security (read-only info) and the first-launch wizard (tap-to-select). Header carries the tier badge + title + subtitle + a trailing `(i)` — body is a [SecurityThreatList](#securitythreatlist).
+
+### ExpandableTierCard
+
+```dart
+typedef TierSelectCallback =
+    Future<void> Function(SecurityTier tier, SecurityModifiers modifiers);
+
+ExpandableTierCard({
+  required SecurityTier tier,
+  required SecurityState state,
+  required TierSelectCallback onSelect,
+})
+```
+Settings → Security ladder unit. Collapsed state shows the tier header; expanded state surfaces modifier toggles + secret inputs inline so the user picks a config and taps Select in one shot. The Settings side routes the `onSelect` request through the security provider after running the relevant migration / re-encryption path.
+
+### SecuritySetupDialog
+
+```dart
+class SecuritySetupResult { … }
+
+SecuritySetupDialog({Key? key})
+SecuritySetupDialog.show(context) → Future<SecuritySetupResult?>
+```
+First-launch security setup wizard. Carries both the legacy (tier + typed-secret-field) shape and the new bank-style (tier + modifiers) shape on `SecuritySetupResult` so downstream call sites can migrate gradually.
+
+### FirstLaunchSecurityDialog
+
+```dart
+FirstLaunchSecurityDialog.show(context) → Future<void>
+```
+One-shot dialog shown once after the first-launch auto-setup lands on a tier. Tells the user what the app just decided, surfaces the hardware-upgrade path, and explains why the upgrade is unavailable when it is. Drives `firstLaunchBannerProvider` so it never reopens.
+
+### TierSecretUnlockDialog
+
+```dart
+TierSecretUnlockDialog.show(context, {
+  required String title,
+  required Future<Uint8List?> Function(String secret) verify,
+  required String wrongMessage,
+}) → Future<Uint8List?>
+```
+Shared L2 (short password) / L3 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns the resulting key (or null on wrong secret); the dialog handles the cooldown back-off and the "wrong, try again" copy.
+
+### LegacyKdfDialog
+
+```dart
+enum LegacyKdfChoice { wipe, exit }
+
+LegacyKdfDialog.show(context) → Future<LegacyKdfChoice>
+```
+Non-dismissible migration prompt for pre-Argon2id PBKDF2 credentials. Two outcomes: wipe all encrypted data and continue with a fresh credential set, or exit the app. No "skip" option — an old KDF blob blocks startup until the user picks one.
+
+### TierResetDialog
+
+```dart
+enum TierResetChoice { resetAndContinue, exit }
+
+TierResetDialog.show(context) → Future<TierResetChoice>
+```
+Non-dismissible migration prompt for legacy security state that lacks a tier field. Outcomes: wipe every legacy security file + DB and run the new-version setup wizard, or exit.
+
+### DbCorruptDialog
+
+```dart
+enum DbCorruptChoice { reset, tryOtherTier, exit }
+
+DbCorruptDialog.show(context) → Future<DbCorruptChoice>
+```
+Outcome dialog for DB-corruption / wrong-key startup. Three choices: reset the DB and run setup again, retry with a different security tier (config.security gets re-prompted), or exit.
+
+### SshDirImportDialog
+
+```dart
+class SshDirImportSource { … }
+class PickedConfigResult { … }
+typedef PickConfigCallback = Future<PickedConfigResult?> Function();
+typedef PickKeysCallback = Future<List<ScannedKey>?> Function();
+
+SshDirImportDialog.show(context, {
+  required SshDirImportSource source,
+  required PickConfigCallback pickConfig,
+  required PickKeysCallback pickKeys,
+}) → Future<ImportResult?>
+```
+Unified `~/.ssh` picker. Renders hosts (parsed from `~/.ssh/config` via [`parseOpenSshConfig()`](#31-ssh-coressh)) and keys (filesystem scan) in a single pick-list, returns one merged `ImportResult`.
+
+### UnlockDialog
+
+```dart
+UnlockDialog({Key? key})
+UnlockDialog.show(context) → Future<bool>
+```
+Master-password unlock dialog used at startup before any DB read. Returns true on success (key derived and pushed to [`KeyHolder`](#36-security--encryption-coresecurity)), false on cancel. Distinct from [LockScreen](#lockscreen) — this one runs once at app launch, the lock screen runs after auto-lock fires.
+
 ---
 
 ## 7. Utilities — Public API Reference
@@ -2375,6 +2699,24 @@ All long operations surface progress through this type — `ExportImport.export/
 `.lfs` writes use a tmp-then-rename pattern (`<path>.tmp` → `<path>`) so an I/O failure mid-export can't leave a partially-written file that would fail decryption on next import.
 
 `OpenSshConfigImporter.isSuspiciousPath` rejects `IdentityFile` entries that contain `..` segments before the path is dereferenced — a maliciously crafted `~/.ssh/config` cannot coerce the importer into reading files outside the user's intended key directory.
+
+### QR Scanner (`core/qr/`)
+
+```dart
+const qrScannerChannel = MethodChannel('com.letsflutssh/qrscanner');
+
+Future<String?> scanQrCode();
+```
+
+Dart-side entry point for the native QR scanner used by the import flow. Backed by a single `MethodChannel`:
+
+- **Android** — `QrScannerActivity` launches CameraX + ZXing-core; decoded payloads return via `Activity.onActivityResult`.
+- **iOS** — `QrScannerController` presents a modal AVFoundation scanner.
+- **Desktop** — no native implementation; the channel call resolves to `MissingPluginException` and `scanQrCode()` returns `null`. Callers must treat null as "no scanner" and fall back to [PasteImportLinkDialog](#pasteimportlinkdialog).
+
+Returns the decoded QR text, or `null` on user-cancel, permission-denied, or unsupported platform. Errors are logged through `AppLogger` (channel name `QrScanner`) — never thrown to the caller, so callers always see the same nullable contract.
+
+The scanner is exposed as a top-level function (not a class) because there is no per-instance state: every call opens a fresh native scanner, returns one payload, tears down. The constant `qrScannerChannel` is exported so unit tests can install a mock handler without the production code branching on `Platform.isAndroid` / `Platform.isIOS`.
 
 ---
 

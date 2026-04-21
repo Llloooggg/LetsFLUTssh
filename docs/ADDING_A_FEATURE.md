@@ -13,7 +13,7 @@ The codebase is split in two layers:
 - **`lib/core/<domain>/`** — pure logic, models, stores, services. No widgets. Easy to unit-test
 - **`lib/features/<feature>/`** — UI: screens, dialogs, widgets. Consume `core/` via Riverpod providers
 
-State is shared through Riverpod providers in `lib/core/providers/`. Persistence goes through Drift (see [§3.10 Database](ARCHITECTURE.md#310-database--drift)). Strings live in `lib/l10n/app_*.arb` (one file per locale).
+State is shared through Riverpod providers in `lib/providers/` (one file per domain, e.g. `session_provider.dart`). Persistence goes through Drift (see [§11 Persistence](ARCHITECTURE.md#11-persistence--storage)). Strings live in `lib/l10n/app_*.arb` (one file per locale).
 
 A good first scan: open `lib/core/snippets/` and `lib/features/snippets/` side-by-side — it's the smallest complete feature in the codebase and a fair template.
 
@@ -63,7 +63,7 @@ The store owns persistence. For new domains backed by Drift, follow the pattern 
 
 If the data is sensitive (credentials, tokens) it must go through `AesGcm` — see [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity). Notes are not sensitive, so plain Drift is fine.
 
-### 3. Provider — `lib/core/providers/notes/notes_providers.dart`
+### 3. Provider — `lib/providers/notes_provider.dart`
 
 Riverpod is the **only** way state is shared. Never `static` mutable globals.
 
@@ -92,7 +92,7 @@ Full list in [CONTRIBUTING.md → Coding Conventions](CONTRIBUTING.md#coding-con
 
 ### 5. Localization — `lib/l10n/app_*.arb`
 
-Every user-visible string goes into **all** `app_*.arb` files (en, ru, de, es, fr, it, pt, zh, ja, ko, ar, fa, hi, tr, …). Add the key once in `app_en.arb` with metadata, then mirror to other locales (machine translation is acceptable as a starting point — native speakers refine later).
+Every user-visible string goes into **all 15** `app_*.arb` files (ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh). Add the key once in `app_en.arb` with metadata, then mirror to other locales (machine translation is acceptable as a starting point — native speakers refine later).
 
 ```json
 "notesPanelTitle": "Notes",
