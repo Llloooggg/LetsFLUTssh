@@ -70,16 +70,6 @@ class MainActivity : FlutterFragmentActivity() {
         clipboardSecure = ClipboardSecurePlugin(applicationContext)
             .also { it.register(clipboardChannel) }
 
-        // Secure-text platform view — native EditText wrapped as a
-        // Flutter PlatformView so password typing never lands on the
-        // Dart heap. Registered unconditionally; Dart-side widget
-        // falls back to Flutter TextField when the platform view
-        // creation fails (older Android, restrictive OEMs).
-        SecureTextPlugin().register(
-            flutterEngine.dartExecutor.binaryMessenger,
-            flutterEngine.platformViewsController.registry,
-        )
-
         // Selective FLAG_SECURE — per-screen opt-in, refcounted so
         // nested SecureScreenScope widgets do not clear the flag
         // when the inner dispose fires. The Dart side wraps every

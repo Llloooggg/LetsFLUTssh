@@ -15,7 +15,6 @@ import UIKit
   private let hardwareVault = HardwareVaultPlugin()
   private let backupExclusion = BackupExclusionPlugin()
   private let clipboardSecure = ClipboardSecurePlugin()
-  private var secureText: SecureTextPlugin?
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
@@ -23,7 +22,6 @@ import UIKit
     registerHardwareVault(with: engineBridge)
     registerBackupExclusion(with: engineBridge)
     registerClipboardSecure(with: engineBridge)
-    registerSecureText(with: engineBridge)
   }
 
   private func registerHardwareVault(with engineBridge: FlutterImplicitEngineBridge) {
@@ -45,15 +43,6 @@ import UIKit
       forPlugin: "com.letsflutssh.clipboard_secure",
     )?.messenger() else { return }
     clipboardSecure.register(with: messenger)
-  }
-
-  private func registerSecureText(with engineBridge: FlutterImplicitEngineBridge) {
-    guard let registrar = engineBridge.pluginRegistry.registrar(
-      forPlugin: "com.letsflutssh.secure_text",
-    ), let messenger = registrar.messenger() else { return }
-    let plugin = SecureTextPlugin(messenger: messenger)
-    plugin.register(with: registrar)
-    secureText = plugin
   }
 
   private func registerQrScanner(with engineBridge: FlutterImplicitEngineBridge) {

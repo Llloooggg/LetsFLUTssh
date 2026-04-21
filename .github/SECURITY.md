@@ -249,7 +249,21 @@ architecture.
   controller is wiped on dispose — `text` overwritten with
   same-length null bytes, then cleared — so the widget no longer
   references the secret `String` by the time the parent state
-  tears down.
+  tears down. On obscured fields the context menu is stubbed out
+  entirely so paste / share / dictation / lookup cannot surface
+  the buffer content. The widget is a single Dart implementation
+  on all five OSes: Flutter's engine bridges `obscureText` +
+  `visiblePassword` keyboard to the native secure-input field
+  (`TYPE_TEXT_VARIATION_PASSWORD` / `UITextField.isSecureTextEntry`)
+  where the OS offers one, which covers IME-learning suppression
+  on every platform and screen-recording blackout on iOS. The one
+  OS-level primitive the Flutter bridge does not request is macOS
+  `EnableSecureEventInput()` (HID-level keylogger block) — a Mac
+  user concerned about a keylogger with Accessibility permission
+  should deny Accessibility to untrusted apps in System Settings →
+  Privacy & Security → Accessibility, which is the macOS-standard
+  mitigation for that threat regardless of how the app renders
+  its text field.
 - **Process hardening at startup** — `prctl(PR_SET_DUMPABLE, 0)` on
   Linux / Android (no core dumps, no `gdb -p` from same UID without
   `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS,
