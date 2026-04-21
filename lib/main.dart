@@ -2091,9 +2091,16 @@ class _TextButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         color: hovered ? AppTheme.hover : Colors.transparent,
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+        // SelectionContainer.disabled excludes this label from the
+        // ambient SelectionArea at the MainScreen root. Without it
+        // the ambient selection catches the button's text — the user
+        // gets a drag-to-select trail over toolbar buttons they were
+        // trying to click.
+        child: SelectionContainer.disabled(
+          child: Text(
+            label,
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+          ),
         ),
       ),
     );

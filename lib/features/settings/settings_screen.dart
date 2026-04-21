@@ -249,28 +249,35 @@ class _MobileSettingsScreen extends ConsumerWidget {
       // default defers rows below the fold, which lets find-by-text
       // in tests miss widgets that are materialised only on scroll.
       // Eager-build keeps find + scroll-to-reveal symmetrical.
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          children: [
-            for (final section in sections)
-              _CollapsibleSection(
-                title: section.title,
-                icon: section.icon,
-                child: section.builder(),
+      //
+      // `SelectionArea` wraps the body because this route is pushed
+      // on the root Navigator, above the MainScreen-level
+      // `SelectionArea` — so without an inner one the body's Text
+      // widgets would lose drag-to-select.
+      body: SelectionArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            children: [
+              for (final section in sections)
+                _CollapsibleSection(
+                  title: section.title,
+                  icon: section.icon,
+                  child: section.builder(),
+                ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => ref
+                      .read(configProvider.notifier)
+                      .update((_) => AppConfig.defaults),
+                  icon: const Icon(Icons.restore, size: 18),
+                  label: Text(S.of(context).resetToDefaults),
+                ),
               ),
-            const SizedBox(height: 8),
-            Center(
-              child: TextButton.icon(
-                onPressed: () => ref
-                    .read(configProvider.notifier)
-                    .update((_) => AppConfig.defaults),
-                icon: const Icon(Icons.restore, size: 18),
-                label: Text(S.of(context).resetToDefaults),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -366,106 +373,118 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     return Dialog(
       insetPadding: AppTheme.desktopModalInsetPadding(viewportWidth),
       backgroundColor: AppTheme.bg1,
-      child: CallbackShortcuts(
-        bindings: AppShortcutRegistry.instance.buildCallbackMap({
-          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
-        }),
-        child: Focus(
-          autofocus: true,
-          child: Column(
-            children: [
-              AppDialogHeader(
-                title: S.of(context).settings,
-                onClose: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    // Sidebar
-                    SizedBox(
-                      width: 200,
-                      child: Container(
-                        color: scheme.surfaceContainerLow,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
-                                ),
-                                itemCount: sections.length,
-                                itemBuilder: (context, index) {
-                                  final section = sections[index];
-                                  return _NavItem(
-                                    icon: section.icon,
-                                    label: section.title,
-                                    selected: index == _selectedIndex,
-                                    onTap: () =>
-                                        setState(() => _selectedIndex = index),
-                                  );
-                                },
-                              ),
-                            ),
-                            _ResetButton(
-                              onTap: () => ref
-                                  .read(configProvider.notifier)
-                                  .update((_) => AppConfig.defaults),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    VerticalDivider(width: 1, color: theme.dividerColor),
-                    // Content
-                    Expanded(
-                      child: ListTileTheme(
-                        data: ListTileThemeData(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          titleTextStyle: AppFonts.inter(
-                            fontSize: AppFonts.sm,
-                            color: scheme.onSurface,
-                          ),
-                          subtitleTextStyle: AppFonts.inter(
-                            fontSize: AppFonts.xs,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          leadingAndTrailingTextStyle: AppFonts.inter(
-                            fontSize: AppFonts.xs,
-                            color: scheme.onSurface.withValues(alpha: 0.45),
-                          ),
-                        ),
-                        child: DefaultTextStyle(
-                          style: AppFonts.inter(
-                            fontSize: AppFonts.sm,
-                            color: scheme.onSurface,
-                          ),
-                          child: ListView(
-                            key: ValueKey(_selectedIndex),
-                            padding: const EdgeInsets.all(24),
-                            // Build every section eagerly. Settings
-                            // sections are small in count (under 10);
-                            // the lazy-sliver default materialises
-                            // only visible slivers, which lets test
-                            // finders miss rows below the fold when
-                            // Security grew taller. Eager-build keeps
-                            // every row in the tree regardless of
-                            // scroll position.
-                            cacheExtent: 10000,
+      // Dialogs open in the root Overlay, above the Navigator's
+      // MainScreen where the app-wide `SelectionArea` lives — so
+      // plain Text widgets inside the dialog lose the ambient
+      // drag-to-select behaviour. Wrap the modal content in its
+      // own `SelectionArea` so every Text in the settings form
+      // (subtitles, values, backing-level labels, probe hints)
+      // is selectable again. The root `SelectionArea` cannot be
+      // moved up to MaterialApp.builder because widget tests
+      // without a MaterialApp crash looking for an Overlay.
+      child: SelectionArea(
+        child: CallbackShortcuts(
+          bindings: AppShortcutRegistry.instance.buildCallbackMap({
+            AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+          }),
+          child: Focus(
+            autofocus: true,
+            child: Column(
+              children: [
+                AppDialogHeader(
+                  title: S.of(context).settings,
+                  onClose: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Sidebar
+                      SizedBox(
+                        width: 200,
+                        child: Container(
+                          color: scheme.surfaceContainerLow,
+                          child: Column(
                             children: [
-                              _SectionHeader(
-                                title: sections[_selectedIndex].title,
+                              Expanded(
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  itemCount: sections.length,
+                                  itemBuilder: (context, index) {
+                                    final section = sections[index];
+                                    return _NavItem(
+                                      icon: section.icon,
+                                      label: section.title,
+                                      selected: index == _selectedIndex,
+                                      onTap: () => setState(
+                                        () => _selectedIndex = index,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                              sections[_selectedIndex].builder(),
+                              _ResetButton(
+                                onTap: () => ref
+                                    .read(configProvider.notifier)
+                                    .update((_) => AppConfig.defaults),
+                              ),
                             ],
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      VerticalDivider(width: 1, color: theme.dividerColor),
+                      // Content
+                      Expanded(
+                        child: ListTileTheme(
+                          data: ListTileThemeData(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            titleTextStyle: AppFonts.inter(
+                              fontSize: AppFonts.sm,
+                              color: scheme.onSurface,
+                            ),
+                            subtitleTextStyle: AppFonts.inter(
+                              fontSize: AppFonts.xs,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            leadingAndTrailingTextStyle: AppFonts.inter(
+                              fontSize: AppFonts.xs,
+                              color: scheme.onSurface.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: DefaultTextStyle(
+                            style: AppFonts.inter(
+                              fontSize: AppFonts.sm,
+                              color: scheme.onSurface,
+                            ),
+                            child: ListView(
+                              key: ValueKey(_selectedIndex),
+                              padding: const EdgeInsets.all(24),
+                              // Build every section eagerly. Settings
+                              // sections are small in count (under 10);
+                              // the lazy-sliver default materialises
+                              // only visible slivers, which lets test
+                              // finders miss rows below the fold when
+                              // Security grew taller. Eager-build keeps
+                              // every row in the tree regardless of
+                              // scroll position.
+                              cacheExtent: 10000,
+                              children: [
+                                _SectionHeader(
+                                  title: sections[_selectedIndex].title,
+                                ),
+                                sections[_selectedIndex].builder(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
