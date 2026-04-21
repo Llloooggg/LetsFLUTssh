@@ -74,6 +74,17 @@ class _HoverRegionState extends State<HoverRegion> {
 
     Widget child = widget.builder(_hovered);
 
+    // If this region has any tap / long-press binding, it is a
+    // button in UX terms — exclude its content from the ambient
+    // `SelectionArea` so Text inside does not catch a drag-select
+    // and does not flip the cursor to the I-beam on hover. Policy
+    // convention: anything clickable should not also be selectable.
+    // Plain informational Text (subtitles, probe hints, labels)
+    // lives outside `HoverRegion` and keeps the ambient selection.
+    if (hasGesture) {
+      child = SelectionContainer.disabled(child: child);
+    }
+
     if (hasGesture) {
       final effectiveTap = widget.onCtrlTap != null ? _handleTap : widget.onTap;
       child = GestureDetector(

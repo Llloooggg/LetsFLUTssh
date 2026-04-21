@@ -2084,6 +2084,10 @@ class _TextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `HoverRegion` auto-disables selection on its child when a
+    // gesture is bound (see `widgets/hover_region.dart`), so the
+    // toolbar Tools / Settings labels stay outside the ambient
+    // `SelectionArea` without an explicit wrap.
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) => Container(
@@ -2091,16 +2095,9 @@ class _TextButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         color: hovered ? AppTheme.hover : Colors.transparent,
         alignment: Alignment.center,
-        // SelectionContainer.disabled excludes this label from the
-        // ambient SelectionArea at the MainScreen root. Without it
-        // the ambient selection catches the button's text — the user
-        // gets a drag-to-select trail over toolbar buttons they were
-        // trying to click.
-        child: SelectionContainer.disabled(
-          child: Text(
-            label,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
+        child: Text(
+          label,
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
         ),
       ),
     );

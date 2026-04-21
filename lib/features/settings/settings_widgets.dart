@@ -82,6 +82,9 @@ class _ActionTile extends StatelessWidget {
       ),
     );
 
+    // `HoverRegion` auto-wraps its child in `SelectionContainer.disabled`
+    // when a gesture is bound — policy: clickable ≠ selectable. No
+    // explicit wrap needed here.
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) =>
