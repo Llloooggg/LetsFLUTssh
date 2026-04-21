@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Pelintas dengan akses terbuka",
   "tierKeychainPassThreat1": "Penyerang offline dengan file di disk",
   "tierKeychainPassThreat2": "Risiko kompromi OS yang sama seperti Keychain",
-  "tierHardwareLabel": "Hardware + PIN",
+  "tierHardwareLabel": "Hardware",
   "tierHardwareSubtitle": "Brankas terikat hardware + PIN pendek dengan lockout",
   "tierHardwareProtect1": "Brute force offline pada PIN (rate-limit hardware)",
   "tierHardwareProtect2": "Mencuri disk dan blob keychain",

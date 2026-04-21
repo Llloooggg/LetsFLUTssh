@@ -489,7 +489,7 @@
   "tierKeychainPassProtect2": "A passerby with unlocked access",
   "tierKeychainPassThreat1": "Offline attacker with the file on disk",
   "tierKeychainPassThreat2": "Same OS-compromise risks as Keychain",
-  "tierHardwareLabel": "Hardware + PIN",
+  "tierHardwareLabel": "Hardware",
   "tierHardwareSubtitle": "Hardware-bound vault + short PIN with lockout",
   "tierHardwareProtect1": "Offline brute force of the PIN (hardware rate-limit)",
   "tierHardwareProtect2": "Stealing the disk and the keychain blob",

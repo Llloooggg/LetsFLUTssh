@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show File, Platform;
+import 'dart:io' show File, Platform, Process, ProcessException;
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -30,6 +30,22 @@ class SecureKeyStorage {
   static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
   static const _probeName = 'letsflutssh_keychain_probe';
   static const _markerFile = 'keychain_enabled';
+
+  /// Production flag flipped by [main.dart] at app startup. Widget
+  /// tests running under `FakeAsync` do not set this, so the Linux-
+  /// only `Process.run('gdbus', …)` path inside [probe] stays off in
+  /// them — any real subprocess spawn leaks a Timer onto FakeAsync's
+  /// pending-timer list and makes unrelated widget tests fail. In
+  /// production the flag is true from the first frame and the
+  /// classified probe runs normally.
+  static bool _runtimeSubprocessProbesEnabled = false;
+
+  /// Called from production entry points (`main.dart`) to unlock the
+  /// subprocess-backed secret-service ping used by [probe] on Linux.
+  /// Widget tests intentionally do not call it.
+  static void enableRuntimeSubprocessProbes() {
+    _runtimeSubprocessProbesEnabled = true;
+  }
 
   final FlutterSecureStorage _storage;
   final bool _skipPlatformCheck;
@@ -99,49 +115,79 @@ class SecureKeyStorage {
 
   /// Probe whether OS keychain is available at runtime.
   ///
-  /// On Linux, checks for a D-Bus session bus and absence of WSL before
-  /// attempting any libsecret calls — this avoids the native `g_warning()`
-  /// that libsecret emits when the keyring daemon is missing. When the
-  /// marker file from a prior [writeKey] is absent, we also skip the live
-  /// probe (which itself would unlock the keyring and emit the warning on
-  /// a locked one) and report availability purely from the env check. The
-  /// first [writeKey] the user triggers will surface any real failure via
-  /// the normal error path.
+  /// Fast path — env-var + marker-file checks only. No subprocess
+  /// spawn, no gdbus ping. Used by the startup [probeCapabilities]
+  /// flow where a slow Process.run would delay first-frame render
+  /// and confuse test harnesses that pump widgets under FakeAsync
+  /// (the pending-timer from `.timeout()` is flagged as a leak).
   ///
-  /// On all other platforms, performs a full write → read → delete cycle
-  /// with a disposable key. Returns false if any step fails.
+  /// The classified [probe] method — called by the Settings UI to
+  /// render an actionable "why" line — runs the full gdbus-ping
+  /// path. There is no behavioural gap: a system where gdbus
+  /// reports "no secret-service" would also fail the very first
+  /// `writeKey` attempt, so the user sees the failure either from
+  /// the classified Settings tier card or from a one-time write
+  /// failure when enabling T1. The classified probe is the
+  /// diagnostic; the fast probe is the runtime gate.
   Future<bool> isAvailable() async {
-    return (await probe()) == KeyringProbeResult.available;
+    if (!_hasKeychainSupport()) return false;
+    if (Platform.isLinux && !_skipPlatformCheck && !await _markerExists()) {
+      return true;
+    }
+    try {
+      const probe = 'probe';
+      await _storage.write(key: _probeName, value: probe);
+      final readBack = await _storage.read(key: _probeName);
+      await _storage.delete(key: _probeName);
+      return readBack == probe;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Keychain not available: $e',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
   }
 
   /// Classified keyring probe — distinguishes *why* the OS keychain is
   /// unreachable so the Settings UI can surface an actionable hint
   /// instead of a generic "unavailable on this device" line.
   ///
-  /// Design: *concrete probe, not distro guessing.* Early iterations
-  /// pattern-matched `WSL_DISTRO_NAME` to infer "no keyring here";
-  /// that was a proxy (WSL happens to ship without a keyring daemon)
-  /// that mis-classifies any native Linux session that happens to set
-  /// the same env var and any WSL install that ran `systemctl start
-  /// gnome-keyring-daemon` manually. The only honest signal is an
-  /// actual round-trip against the secret-service:
+  /// Design: *concrete probe, every step.* Early iterations pattern-
+  /// matched `WSL_DISTRO_NAME` to infer "no keyring here" — a proxy
+  /// that mis-classified any WSL install running `gnome-keyring-
+  /// daemon` manually and missed any native Linux session with no
+  /// keyring daemon. Later iterations simplified to "D-Bus address
+  /// present? then assume keyring available" — which was still a
+  /// guess: modern WSL2 with WSLg ships `systemd --user` plus a
+  /// session bus socket at `/run/user/$UID/bus` but no secret-
+  /// service daemon, so `DBUS_SESSION_BUS_ADDRESS` is set yet
+  /// `libsecret` still fails.
   ///
+  /// The only honest signal is an actual ping to the secret-service
+  /// daemon on the session bus. We issue
+  /// `gdbus call --session --dest org.freedesktop.secrets
+  ///  --object-path /org/freedesktop/secrets
+  ///  --method org.freedesktop.DBus.Peer.Ping` — gdbus is part of
+  /// GLib and present on every desktop Linux install. Exit code 0
+  /// means the service is registered and responds; any other exit
+  /// code means the service name is not known on the bus (no
+  /// daemon). This is the same semantics `libsecret` uses
+  /// internally; probing via `gdbus` up front lets us classify
+  /// without spamming stderr on a failure.
+  ///
+  /// Decision tree:
   ///   1. Non-Linux platforms → live write/read/delete against
   ///      `flutter_secure_storage`. Failure = `probeFailed`.
-  ///   2. Linux, [DBUS_SESSION_BUS_ADDRESS] unset → the D-Bus protocol
-  ///      itself has no session bus address to connect to, so
-  ///      libsecret cannot even begin. Classified `linuxNoDbusSession`.
-  ///      Not distro guessing — this is the documented bootstrap
-  ///      variable every D-Bus client library reads.
-  ///   3. Linux, D-Bus address set, marker file absent → the user
-  ///      has not yet opted into keychain storage; return
-  ///      `available` without running a probe that would wake the
-  ///      keyring unlock prompt. The first write attempt on the
-  ///      opt-in path carries the real success/failure.
-  ///   4. Linux, D-Bus set, marker present → live write/read/delete
-  ///      cycle through libsecret. Failure = `linuxNoSecretService`
-  ///      (D-Bus up, secret-service daemon not responding — usually
-  ///      no `gnome-keyring-daemon` / `kwalletd`).
+  ///   2. Linux, [DBUS_SESSION_BUS_ADDRESS] unset → no session bus
+  ///      at all → `linuxNoDbusSession`.
+  ///   3. Linux, D-Bus address set, gdbus Ping to secret-service
+  ///      fails → `linuxNoSecretService`. This is where WSL with
+  ///      WSLg lands: D-Bus works, secret-service daemon does not.
+  ///   4. Linux, D-Bus set, gdbus Ping succeeds → `available`.
+  ///      No live write/read/delete needed — the service is up and
+  ///      the caller's first opt-in write will make it past the
+  ///      Ping gate.
   Future<KeyringProbeResult> probe() async {
     if (_skipPlatformCheck || !Platform.isLinux) {
       // Windows / macOS / iOS / Android: the backing service is
@@ -167,18 +213,62 @@ class SecureKeyStorage {
 
     // ── Linux ────────────────────────────────────────────────────
     // D-Bus session bus address is the concrete bootstrap signal —
-    // every Linux D-Bus client (libsecret included) reads it to find
-    // the session bus socket. Absent value = no session bus = no
-    // point probing further. This catches both headless/SSH-only
-    // sessions and WSL containers that lack a `dbus-daemon --session`
-    // — without having to guess which of those it is from other env
-    // vars like `WSL_DISTRO_NAME`.
+    // every Linux D-Bus client reads it to find the session bus
+    // socket. Absent value = no session bus = no point probing
+    // further.
     final dbus = Platform.environment['DBUS_SESSION_BUS_ADDRESS'];
     if (dbus == null || dbus.isEmpty) {
       return KeyringProbeResult.linuxNoDbusSession;
     }
-    // If the user has not yet opted into keychain storage, optimism
-    // (no live probe) — the write path will surface any real failure.
+    // Concrete secret-service probe via `gdbus`. WSL with WSLg
+    // brings the session bus up but not the keyring daemon, so a
+    // bus-address check alone marks the keyring "available" on
+    // systems where libsecret will fail. Pinging the service name
+    // directly is the matching signal libsecret itself uses.
+    //
+    // Guarded by [_runtimeSubprocessProbesEnabled]: widget tests
+    // running under FakeAsync do not set the flag, so they skip
+    // the subprocess entirely (any `Process.run` inside
+    // FakeAsync-managed code ends up leaking a Timer onto the
+    // pending-timer list and fails unrelated widget tests). In
+    // production the flag is set from `main.dart` before the
+    // first provider evaluates.
+    if (_runtimeSubprocessProbesEnabled) {
+      try {
+        final result = await Process.run('gdbus', const [
+          'call',
+          '--session',
+          '--dest',
+          'org.freedesktop.secrets',
+          '--object-path',
+          '/org/freedesktop/secrets',
+          '--method',
+          'org.freedesktop.DBus.Peer.Ping',
+        ], runInShell: false);
+        if (result.exitCode != 0) {
+          return KeyringProbeResult.linuxNoSecretService;
+        }
+      } on ProcessException catch (e) {
+        // `gdbus` binary missing. GLib not installed → extremely
+        // unusual on a desktop Linux, treat as a generic probe
+        // failure. Falls through to the live probe below.
+        AppLogger.instance.log(
+          'gdbus binary missing — falling back to live probe: $e',
+          name: 'SecureKeyStorage',
+        );
+      } catch (e) {
+        AppLogger.instance.log(
+          'gdbus secret-service ping failed: $e',
+          name: 'SecureKeyStorage',
+        );
+        return KeyringProbeResult.linuxNoSecretService;
+      }
+    }
+    // Fall-through: gdbus probe succeeded OR gdbus is missing
+    // entirely. In both cases, optimism — return available unless
+    // the user has opted in and a live probe then fails. The
+    // marker-file optimisation keeps us from waking the keyring
+    // unlock prompt on every fresh launch.
     if (!await _markerExists()) return KeyringProbeResult.available;
     try {
       const marker = 'probe';

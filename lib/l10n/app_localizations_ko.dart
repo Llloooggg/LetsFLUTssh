@@ -864,7 +864,7 @@ class SKo extends S {
   String get tierKeychainPassThreat2 => '키체인과 동일한 OS 침해 위험';
 
   @override
-  String get tierHardwareLabel => '하드웨어 + PIN';
+  String get tierHardwareLabel => '하드웨어';
 
   @override
   String get tierHardwareSubtitle => '하드웨어 바운드 볼트 + 잠금 있는 짧은 PIN';

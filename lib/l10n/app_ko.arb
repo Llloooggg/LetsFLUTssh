@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "잠금이 풀린 접근을 가진 행인",
   "tierKeychainPassThreat1": "디스크의 파일을 가진 오프라인 공격자",
   "tierKeychainPassThreat2": "키체인과 동일한 OS 침해 위험",
-  "tierHardwareLabel": "하드웨어 + PIN",
+  "tierHardwareLabel": "하드웨어",
   "tierHardwareSubtitle": "하드웨어 바운드 볼트 + 잠금 있는 짧은 PIN",
   "tierHardwareProtect1": "PIN의 오프라인 무차별 대입(하드웨어 속도 제한)",
   "tierHardwareProtect2": "디스크와 키체인 블롭 탈취",

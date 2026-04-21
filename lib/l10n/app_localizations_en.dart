@@ -885,7 +885,7 @@ class SEn extends S {
   String get tierKeychainPassThreat2 => 'Same OS-compromise risks as Keychain';
 
   @override
-  String get tierHardwareLabel => 'Hardware + PIN';
+  String get tierHardwareLabel => 'Hardware';
 
   @override
   String get tierHardwareSubtitle =>

@@ -891,7 +891,7 @@ class SRu extends S {
       'Те же риски компрометации ОС, что и у Keychain';
 
   @override
-  String get tierHardwareLabel => 'Железо + PIN';
+  String get tierHardwareLabel => 'Железо';
 
   @override
   String get tierHardwareSubtitle =>

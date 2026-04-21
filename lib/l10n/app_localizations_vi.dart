@@ -885,7 +885,7 @@ class SVi extends S {
   String get tierKeychainPassThreat2 => 'Cùng rủi ro xâm phạm HĐH như Keychain';
 
   @override
-  String get tierHardwareLabel => 'Phần cứng + PIN';
+  String get tierHardwareLabel => 'Phần cứng';
 
   @override
   String get tierHardwareSubtitle =>

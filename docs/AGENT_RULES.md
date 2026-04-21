@@ -48,6 +48,8 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Work with database / DAOs | [§2 Module Map](ARCHITECTURE.md#2-module-map) (`core/db/`) + [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
 | Work with snippets | `core/snippets/` + `features/snippets/` + `providers/snippet_provider.dart` |
 | Work with tags | `core/tags/` + `features/tags/` + `providers/tag_provider.dart` |
+| Bump a persisted-file format / add a new envelope artefact | [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework-coremigration) + [§3.6 → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — `SchemaVersions` + `Migration` + register in `buildAppMigrationRegistry()` |
+| Bump the `.lfs` archive `schema_version` | [§3.9 Import → .lfs format](ARCHITECTURE.md#39-import-coreimport) + [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework-coremigration) — register the `Migration` in `archiveMigrationRegistry` |
 | Check data models | [§10 Data Models](ARCHITECTURE.md#10-data-models) |
 | Understand CI/CD / workflows | [§15 CI/CD Pipeline](ARCHITECTURE.md#15-cicd-pipeline) |
 | Check design decisions / gotchas | [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) |
@@ -142,7 +144,8 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | New/changed utility | Update [§7 Utilities API](ARCHITECTURE.md#7-utilities--public-api-reference) |
 | Changed data flow | Update relevant [§9 Data Flow](ARCHITECTURE.md#9-data-flow-diagrams) diagram |
 | New dependency added | Update [§17 Dependencies](ARCHITECTURE.md#17-dependencies) |
-| Changed persistence format | Update [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
+| Changed persistence format (drift schema column/table change) | Update [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) — drift `MigrationStrategy.onUpgrade` step + schemaVersion bump |
+| Changed wire format of a persisted file (`config.json`, `credentials.kdf`, hardware-vault blob, `.lfs` archive) **or** added a new envelope artefact | Update [§3.6 → Migration framework → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — bump `SchemaVersions.<x>`, ship a `Migration`, register it in `buildAppMigrationRegistry()` (or `archiveMigrationRegistry`), and add the chain test |
 | Changed security model | Update [§13 Security Model](ARCHITECTURE.md#13-security-model) + SECURITY.md |
 | New design decision | Add to [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) with rationale |
 | New CI workflow / changed pipeline | Update [§15 CI/CD](ARCHITECTURE.md#15-cicd-pipeline) |

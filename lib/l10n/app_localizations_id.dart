@@ -891,7 +891,7 @@ class SId extends S {
       'Risiko kompromi OS yang sama seperti Keychain';
 
   @override
-  String get tierHardwareLabel => 'Hardware + PIN';
+  String get tierHardwareLabel => 'Hardware';
 
   @override
   String get tierHardwareSubtitle =>

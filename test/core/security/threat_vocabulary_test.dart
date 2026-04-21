@@ -52,7 +52,7 @@ const _goldenJson = r'''
   "T2": {
     "coldDiskTheft": "protects",
     "keyringFileTheft": "protects",
-    "offlineBruteForce": "protects",
+    "offlineBruteForce": "doesNotProtect",
     "bystanderUnlockedMachine": "doesNotProtect",
     "sameUserMalware": "doesNotProtect",
     "liveProcessMemoryDump": "doesNotProtect",
@@ -152,57 +152,47 @@ void main() {
       }
     });
 
-    test('offline brute force depends on whether the attacker has a usable '
-        'on-disk asset to grind', () {
-      // T1 without password: the wrapped key is inside the keyring
-      // file — an offline attacker with the disk reads the file
-      // directly (no brute-force step needed), so the honest answer
-      // is ✗ on the offline-brute-force row.
-      expect(
-        evaluate(
-          const ThreatModel(tier: ThreatTier.keychain),
-        )[SecurityThreat.offlineBruteForce],
-        ThreatStatus.doesNotProtect,
-        reason: 'T1 no password: keyring file exfil wins without brute force',
-      );
-      // T2 without password: the wrapped blob lives on disk but the
-      // unwrap key is inside the hardware module, which refuses
-      // export regardless of password. There is nothing for the
-      // attacker to brute-force offline — ✓.
-      expect(
-        evaluate(
-          const ThreatModel(tier: ThreatTier.hardware),
-        )[SecurityThreat.offlineBruteForce],
-        ThreatStatus.protects,
-        reason: 'T2 no password: nothing on disk is brute-forceable',
-      );
-      // T1 + password and T2 + password: an offline brute-force
-      // attempt is possible against the wrapped blob, and Argon2id
-      // wall-clock cost is what the ✓ is selling.
-      for (final tier in [ThreatTier.keychain, ThreatTier.hardware]) {
+    test(
+      'offline brute force is symmetric across T1 and T2 — password gates it',
+      () {
+        // Symmetric on both T1 and T2: without a user password the
+        // threat as formulated ("attacker tries passwords offline")
+        // does not apply, rendered ✗. Adding a password turns it
+        // into an Argon2id wall-clock problem, rendered ✓. The T1 vs
+        // T2 split on no-password paths lives on the keyring-file-
+        // theft row, not here — keeping this row symmetric matches
+        // the mental model that the password modifier is what
+        // unlocks brute-force defence.
+        for (final tier in [ThreatTier.keychain, ThreatTier.hardware]) {
+          expect(
+            evaluate(ThreatModel(tier: tier))[SecurityThreat.offlineBruteForce],
+            ThreatStatus.doesNotProtect,
+            reason: '$tier no password: threat is N/A but rendered ✗',
+          );
+          expect(
+            evaluate(
+              ThreatModel(tier: tier, password: true),
+            )[SecurityThreat.offlineBruteForce],
+            ThreatStatus.protects,
+            reason: '$tier + password: Argon2id slows brute force',
+          );
+        }
         expect(
           evaluate(
-            ThreatModel(tier: tier, password: true),
+            const ThreatModel(tier: ThreatTier.plaintext),
+          )[SecurityThreat.offlineBruteForce],
+          ThreatStatus.doesNotProtect,
+          reason: 'T0: data is plaintext — no defence at all',
+        );
+        expect(
+          evaluate(
+            const ThreatModel(tier: ThreatTier.paranoid, password: true),
           )[SecurityThreat.offlineBruteForce],
           ThreatStatus.protects,
-          reason: '$tier + password: Argon2id slows brute force',
+          reason: 'Paranoid: password IS the secret, Argon2id slows brute',
         );
-      }
-      expect(
-        evaluate(
-          const ThreatModel(tier: ThreatTier.plaintext),
-        )[SecurityThreat.offlineBruteForce],
-        ThreatStatus.doesNotProtect,
-        reason: 'T0: data is plaintext — no defence at all',
-      );
-      expect(
-        evaluate(
-          const ThreatModel(tier: ThreatTier.paranoid, password: true),
-        )[SecurityThreat.offlineBruteForce],
-        ThreatStatus.protects,
-        reason: 'Paranoid: password IS the secret, Argon2id slows brute',
-      );
-    });
+      },
+    );
 
     test('keyringFileTheft separates T1 from T2 independent of password', () {
       // The whole point of the new row: T1 relies on the keyring

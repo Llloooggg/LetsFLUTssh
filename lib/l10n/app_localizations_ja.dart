@@ -865,7 +865,7 @@ class SJa extends S {
   String get tierKeychainPassThreat2 => 'キーチェーンと同じOS侵害リスク';
 
   @override
-  String get tierHardwareLabel => 'ハードウェア + PIN';
+  String get tierHardwareLabel => 'ハードウェア';
 
   @override
   String get tierHardwareSubtitle => 'ハードウェアバウンドボルト + ロックアウト付き短いPIN';

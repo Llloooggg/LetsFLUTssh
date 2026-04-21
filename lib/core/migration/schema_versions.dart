@@ -7,8 +7,11 @@
 ///
 /// **Rules:**
 /// - Bump only when shipping a new [Migration] that targets the new
-///   version. CI guard rejects a bump without a matching migration
-///   registered in `registry.dart`.
+///   version. A bump without the matching migration registered in
+///   `registry.dart` is detected by [MigrationRunner.runOnStartup] —
+///   the artefact's first post-upgrade boot raises a fatal error and
+///   the report's `hasFailures` is true. Add a registry / migration
+///   unit test to catch this at PR time instead of first install.
 /// - Never reuse a previous version number. Versions are monotonic.
 /// - Version 0 = "unversioned legacy" (no envelope header). The
 ///   v0_to_v1 migration for an artefact reads the legacy structure

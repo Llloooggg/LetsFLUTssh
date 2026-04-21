@@ -886,7 +886,7 @@ class SHi extends S {
   String get tierKeychainPassThreat2 => 'कीचेन के समान OS-समझौते के जोखिम';
 
   @override
-  String get tierHardwareLabel => 'हार्डवेयर + PIN';
+  String get tierHardwareLabel => 'हार्डवेयर';
 
   @override
   String get tierHardwareSubtitle =>

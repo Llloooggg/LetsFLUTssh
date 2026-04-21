@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "अनलॉक एक्सेस वाला एक राहगीर",
   "tierKeychainPassThreat1": "डिस्क पर फ़ाइल वाला ऑफ़लाइन हमलावर",
   "tierKeychainPassThreat2": "कीचेन के समान OS-समझौते के जोखिम",
-  "tierHardwareLabel": "हार्डवेयर + PIN",
+  "tierHardwareLabel": "हार्डवेयर",
   "tierHardwareSubtitle": "हार्डवेयर-बाध्य वॉल्ट + लॉकआउट के साथ छोटा PIN",
   "tierHardwareProtect1": "PIN का ऑफ़लाइन ब्रूट फ़ोर्स (हार्डवेयर रेट-लिमिट)",
   "tierHardwareProtect2": "डिस्क और कीचेन ब्लॉब चुराना",

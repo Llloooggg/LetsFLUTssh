@@ -861,7 +861,7 @@ class SZh extends S {
   String get tierKeychainPassThreat2 => '与钥匙串相同的操作系统入侵风险';
 
   @override
-  String get tierHardwareLabel => '硬件 + PIN';
+  String get tierHardwareLabel => '硬件';
 
   @override
   String get tierHardwareSubtitle => '绑定硬件的保险库 + 带锁定的短 PIN';

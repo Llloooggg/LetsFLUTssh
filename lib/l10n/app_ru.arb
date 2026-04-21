@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Прохожий с открытым доступом",
   "tierKeychainPassThreat1": "Оффлайн-атакующий с файлом на диске",
   "tierKeychainPassThreat2": "Те же риски компрометации ОС, что и у Keychain",
-  "tierHardwareLabel": "Железо + PIN",
+  "tierHardwareLabel": "Железо",
   "tierHardwareSubtitle": "Хранилище, привязанное к железу + короткий PIN с блокировкой",
   "tierHardwareProtect1": "Оффлайн-брутфорс PIN (аппаратный rate-limit)",
   "tierHardwareProtect2": "Кража диска и блоба keychain",

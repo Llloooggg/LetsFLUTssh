@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Un passant avec accès déverrouillé",
   "tierKeychainPassThreat1": "Attaquant hors-ligne avec le fichier sur disque",
   "tierKeychainPassThreat2": "Mêmes risques de compromission du SE que le trousseau",
-  "tierHardwareLabel": "Matériel + PIN",
+  "tierHardwareLabel": "Matériel",
   "tierHardwareSubtitle": "Coffre lié au matériel + PIN court avec verrouillage",
   "tierHardwareProtect1": "Force brute hors-ligne du PIN (limitation matérielle)",
   "tierHardwareProtect2": "Vol du disque et du blob du trousseau",

@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "ロック解除アクセスを持つ通行人",
   "tierKeychainPassThreat1": "ディスク上のファイルを持つオフライン攻撃者",
   "tierKeychainPassThreat2": "キーチェーンと同じOS侵害リスク",
-  "tierHardwareLabel": "ハードウェア + PIN",
+  "tierHardwareLabel": "ハードウェア",
   "tierHardwareSubtitle": "ハードウェアバウンドボルト + ロックアウト付き短いPIN",
   "tierHardwareProtect1": "PINのオフラインブルートフォース（ハードウェアレート制限）",
   "tierHardwareProtect2": "ディスクとキーチェーンブロブの盗難",

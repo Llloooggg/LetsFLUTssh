@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Vorbeikommender mit offenem Zugriff",
   "tierKeychainPassThreat1": "Offline-Angreifer mit der Datei auf Festplatte",
   "tierKeychainPassThreat2": "Gleiche OS-Kompromittierungs-Risiken wie beim Schlüsselbund",
-  "tierHardwareLabel": "Hardware + PIN",
+  "tierHardwareLabel": "Hardware",
   "tierHardwareSubtitle": "Hardware-gebundener Tresor + kurze PIN mit Sperrung",
   "tierHardwareProtect1": "Offline-Brute-Force der PIN (Hardware-Ratenbegrenzung)",
   "tierHardwareProtect2": "Diebstahl von Festplatte und Schlüsselbund-Blob",

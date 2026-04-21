@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "رهگذری با دسترسی باز",
   "tierKeychainPassThreat1": "مهاجم آفلاین با فایل روی دیسک",
   "tierKeychainPassThreat2": "همان خطرات سازش سیستم‌عامل مانند زنجیره کلید",
-  "tierHardwareLabel": "سخت‌افزار + PIN",
+  "tierHardwareLabel": "سخت‌افزار",
   "tierHardwareSubtitle": "خزانه مرتبط با سخت‌افزار + PIN کوتاه با قفل",
   "tierHardwareProtect1": "حمله brute-force آفلاین روی PIN (محدودیت نرخ سخت‌افزاری)",
   "tierHardwareProtect2": "سرقت دیسک و blob زنجیره کلید",

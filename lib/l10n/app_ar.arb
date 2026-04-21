@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "عابر لديه وصول مفتوح",
   "tierKeychainPassThreat1": "مهاجم غير متصل لديه الملف على القرص",
   "tierKeychainPassThreat2": "نفس مخاطر اختراق نظام التشغيل كالسلسلة",
-  "tierHardwareLabel": "جهاز + رمز PIN",
+  "tierHardwareLabel": "جهاز",
   "tierHardwareSubtitle": "خزينة مرتبطة بالجهاز + PIN قصير مع إقفال",
   "tierHardwareProtect1": "القوة الغاشمة دون اتصال للـ PIN (حد معدل أجهزة)",
   "tierHardwareProtect2": "سرقة القرص وكتلة سلسلة المفاتيح",

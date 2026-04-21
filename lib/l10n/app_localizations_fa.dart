@@ -886,7 +886,7 @@ class SFa extends S {
       'همان خطرات سازش سیستم‌عامل مانند زنجیره کلید';
 
   @override
-  String get tierHardwareLabel => 'سخت‌افزار + PIN';
+  String get tierHardwareLabel => 'سخت‌افزار';
 
   @override
   String get tierHardwareSubtitle =>

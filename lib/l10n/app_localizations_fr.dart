@@ -897,7 +897,7 @@ class SFr extends S {
       'Mêmes risques de compromission du SE que le trousseau';
 
   @override
-  String get tierHardwareLabel => 'Matériel + PIN';
+  String get tierHardwareLabel => 'Matériel';
 
   @override
   String get tierHardwareSubtitle =>

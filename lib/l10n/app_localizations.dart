@@ -1680,7 +1680,7 @@ abstract class S {
   /// No description provided for @tierHardwareLabel.
   ///
   /// In en, this message translates to:
-  /// **'Hardware + PIN'**
+  /// **'Hardware'**
   String get tierHardwareLabel;
 
   /// No description provided for @tierHardwareSubtitle.

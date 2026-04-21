@@ -894,7 +894,7 @@ class STr extends S {
       'Anahtarlık ile aynı işletim sistemi tehlikeleri';
 
   @override
-  String get tierHardwareLabel => 'Donanım + PIN';
+  String get tierHardwareLabel => 'Donanım';
 
   @override
   String get tierHardwareSubtitle =>

@@ -144,7 +144,7 @@ class ThreatModel {
 /// |---------------------------------------|----|----|-------|----|-------|----------|
 /// | Cold disk theft                       | ✗  | ✓  | ✓     | ✓  | ✓     | ✓        |
 /// | Keyring / keychain file exfiltration  | ✗  | ✗  | ✓     | ✓  | ✓     | ✓        |
-/// | Offline brute force on password       | ✗  | ✗  | ✓     | ✓  | ✓     | ✓        |
+/// | Offline brute force on password       | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
 /// | Bystander at unlocked machine         | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
 /// | Same-user malware                     | ✗  | ✗  | ✗     | ✗  | ✗     | ✗        |
 /// | Live process memory dump              | ✗  | ✗  | ✗     | ✗  | ✗     | ✗        |
@@ -162,21 +162,19 @@ class ThreatModel {
 /// the physical chip. This is the structural advantage T2 keeps over
 /// T1 even when neither has a password.
 ///
-/// *Why T2 without password still defeats offline brute force:* with
-/// no user secret there is nothing to brute-force — the auth value
-/// is the empty byte string — but an attacker also has nothing to
-/// attack offline, because the unwrap requires the hardware. The ✓
-/// here says "this threat as formulated (trying passwords offline) is
-/// impossible on this tier", not "the threat is not applicable". On
-/// T1 without password there is also no password to try, yet the
-/// attacker wins via keyring-file exfiltration instead — which is why
-/// the two threats stay separate rows.
-///
-/// *Why offline brute force is ✗ without a user password:* on T1
-/// without password the threat collapses to plain keyring-file theft
-/// (no password to brute force, the attacker reads the key from the
-/// keyring file directly). On T2 without password the attacker has
-/// no avenue at all (no key on disk + no brute-force step) — ✓.
+/// *Why offline brute force is symmetric across T1 and T2:* the
+/// threat as formulated is "the attacker has an on-disk blob and
+/// tries passwords against it offline". Without a user password on
+/// either tier the attack does not apply — but the same attacker
+/// still wins via a different path (keyring file exfil on T1, the
+/// hardware module refuses everything on T2). The honest rendering
+/// is a symmetric ✗ on both T1-no-pw and T2-no-pw; the
+/// keyring-file-theft row above carries the real T1-vs-T2 split that
+/// makes T2-no-pw actually more protected than T1-no-pw. Earlier
+/// versions of this table showed T2-no-pw ✓ here on the logic of
+/// "no on-disk brute-force target" — clever but confusing: users read
+/// the password modifier as the only way ✓ appears on the brute-force
+/// row, and the lopsided ✓ broke that mental model.
 ///
 /// Pure function — no I/O, no locale lookups, no platform probes.
 /// Every UI surface consumes this map and renders ✓ / ✗ per threat.
@@ -201,16 +199,15 @@ Map<SecurityThreat, ThreatStatus> evaluate(ThreatModel model) {
           model.tier == ThreatTier.paranoid ||
           (model.tier == ThreatTier.keychain && model.password),
     ),
-    // Offline brute force: ✓ only when the attacker has no on-disk
-    // asset to grind. T2 without password: blob on disk but the
-    // unwrap key is in the chip, so there is nothing to brute-force
-    // offline. T1 without password: the key itself is in the keyring
-    // file, so "brute force" collapses to "read the file". ✗. T1+pw
-    // and T2+pw: brute-forcing the password is the only angle, and
-    // Argon2id turns it into a wall-clock problem. ✓.
-    SecurityThreat.offlineBruteForce: yes(
-      hasUserSecret || model.tier == ThreatTier.hardware,
-    ),
+    // Offline brute force: ✓ only when a user password is set.
+    // Symmetric across T1 and T2 — both tiers need the password
+    // modifier to turn the brute-force threat into an Argon2id
+    // wall-clock problem. Without a password the threat vector is
+    // formally N/A, but we render ✗ to keep the binary contract and
+    // because the same disk attacker wins via the keyring-file-theft
+    // row above on T1 (even though not on T2 — the hw-isolation
+    // advantage lives in keyringFileTheft, not here).
+    SecurityThreat.offlineBruteForce: yes(hasUserSecret),
     SecurityThreat.bystanderUnlockedMachine: yes(hasUserSecret),
     // Same-user malware + live process memory dump: no tier protects.
     // The unlocked DB key sits in the app process; a malicious

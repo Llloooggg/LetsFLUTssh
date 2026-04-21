@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Un transeúnte con acceso desbloqueado",
   "tierKeychainPassThreat1": "Atacante sin conexión con el archivo en disco",
   "tierKeychainPassThreat2": "Mismos riesgos de compromiso del SO que el llavero",
-  "tierHardwareLabel": "Hardware + PIN",
+  "tierHardwareLabel": "Hardware",
   "tierHardwareSubtitle": "Bóveda vinculada al hardware + PIN corto con bloqueo",
   "tierHardwareProtect1": "Fuerza bruta offline del PIN (límite de tasa por hardware)",
   "tierHardwareProtect2": "Robo del disco y del blob del llavero",

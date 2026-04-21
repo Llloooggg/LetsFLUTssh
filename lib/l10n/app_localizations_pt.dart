@@ -893,7 +893,7 @@ class SPt extends S {
       'Mesmos riscos de comprometimento do SO que o chaveiro';
 
   @override
-  String get tierHardwareLabel => 'Hardware + PIN';
+  String get tierHardwareLabel => 'Hardware';
 
   @override
   String get tierHardwareSubtitle =>

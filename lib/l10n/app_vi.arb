@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Người qua đường với quyền truy cập đã mở khóa",
   "tierKeychainPassThreat1": "Kẻ tấn công offline với tệp trên đĩa",
   "tierKeychainPassThreat2": "Cùng rủi ro xâm phạm HĐH như Keychain",
-  "tierHardwareLabel": "Phần cứng + PIN",
+  "tierHardwareLabel": "Phần cứng",
   "tierHardwareSubtitle": "Két ràng buộc phần cứng + PIN ngắn có khóa",
   "tierHardwareProtect1": "Brute force offline PIN (giới hạn tốc độ phần cứng)",
   "tierHardwareProtect2": "Đánh cắp đĩa và blob keychain",

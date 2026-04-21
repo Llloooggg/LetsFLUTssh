@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "Kilidi açık erişimi olan bir yoldan geçen",
   "tierKeychainPassThreat1": "Diskte dosyayı olan çevrimdışı saldırgan",
   "tierKeychainPassThreat2": "Anahtarlık ile aynı işletim sistemi tehlikeleri",
-  "tierHardwareLabel": "Donanım + PIN",
+  "tierHardwareLabel": "Donanım",
   "tierHardwareSubtitle": "Donanıma bağlı kasa + kilitlemeli kısa PIN",
   "tierHardwareProtect1": "PIN'in çevrimdışı kaba kuvvet saldırısı (donanım hız sınırı)",
   "tierHardwareProtect2": "Diskin ve anahtarlık blob'unun çalınması",

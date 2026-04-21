@@ -895,7 +895,7 @@ class SEs extends S {
       'Mismos riesgos de compromiso del SO que el llavero';
 
   @override
-  String get tierHardwareLabel => 'Hardware + PIN';
+  String get tierHardwareLabel => 'Hardware';
 
   @override
   String get tierHardwareSubtitle =>

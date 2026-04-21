@@ -292,7 +292,7 @@
   "tierKeychainPassProtect2": "具有解锁访问权限的路人",
   "tierKeychainPassThreat1": "拥有磁盘上文件的离线攻击者",
   "tierKeychainPassThreat2": "与钥匙串相同的操作系统入侵风险",
-  "tierHardwareLabel": "硬件 + PIN",
+  "tierHardwareLabel": "硬件",
   "tierHardwareSubtitle": "绑定硬件的保险库 + 带锁定的短 PIN",
   "tierHardwareProtect1": "PIN 的离线暴力破解（硬件速率限制）",
   "tierHardwareProtect2": "偷窃磁盘和钥匙串 blob",

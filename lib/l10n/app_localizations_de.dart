@@ -894,7 +894,7 @@ class SDe extends S {
       'Gleiche OS-Kompromittierungs-Risiken wie beim Schlüsselbund';
 
   @override
-  String get tierHardwareLabel => 'Hardware + PIN';
+  String get tierHardwareLabel => 'Hardware';
 
   @override
   String get tierHardwareSubtitle =>

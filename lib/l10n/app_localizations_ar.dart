@@ -889,7 +889,7 @@ class SAr extends S {
       'نفس مخاطر اختراق نظام التشغيل كالسلسلة';
 
   @override
-  String get tierHardwareLabel => 'جهاز + رمز PIN';
+  String get tierHardwareLabel => 'جهاز';
 
   @override
   String get tierHardwareSubtitle => 'خزينة مرتبطة بالجهاز + PIN قصير مع إقفال';

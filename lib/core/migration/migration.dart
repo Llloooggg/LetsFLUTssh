@@ -7,14 +7,18 @@
 /// intermediate migrations.
 ///
 /// Atomicity contract:
-/// 1. [apply] writes the new artefact bytes to a sibling temp file,
-///    fsyncs, then renames over the original. If [apply] throws,
-///    the original file remains untouched.
-/// 2. After [apply] succeeds, the runner calls [validate] to verify
-///    the post-migration shape is readable. If validation fails the
-///    runner restores the pre-migration file from the swapped-out
-///    sibling (when the migration retains a backup) or surfaces an
-///    error so the user is not left with silently corrupt state.
+/// 1. [apply] is responsible for atomicity end-to-end. The standard
+///    pattern is to write the new artefact bytes to a sibling temp
+///    file, fsync, then `rename` over the original (this is what
+///    [VersionedBlob.write] does for envelope artefacts). If [apply]
+///    throws before the rename, the original file is untouched.
+/// 2. After [apply] succeeds, the runner calls [validate] as a sanity
+///    net (round-trip read, schema check, magic header check, ...).
+///    Returning `false` flags the step as failed in the
+///    [MigrationReport] but does not restore the previous file —
+///    the runner has no backup to swap back. Migrations that need
+///    post-validate rollback must hold their own `.bak` sibling and
+///    perform the swap-back inside [apply] themselves.
 abstract class Migration {
   /// id of the artefact this migration acts on. Must match an
   /// [Artefact.id] registered in the registry.
@@ -31,9 +35,10 @@ abstract class Migration {
   Future<void> apply();
 
   /// Verify the post-migration state is well-formed (round-trip read,
-  /// schema check, magic header check, …). Return false to trigger
-  /// rollback in the runner. Default = noop (assumes apply already
-  /// validated internally).
+  /// schema check, magic header check, …). Returning `false` flags the
+  /// step as failed in the [MigrationReport] but does not roll the file
+  /// back (see the atomicity contract above). Default = noop (assumes
+  /// [apply] already validated internally).
   Future<bool> validate() async => true;
 
   @override

@@ -98,6 +98,15 @@ SingleInstance? singleInstanceLock;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Unlock the Linux-only subprocess probe (gdbus Peer.Ping against
+  // org.freedesktop.secrets) used by SecureKeyStorage.probe. Widget
+  // tests do not run this entry point, so the flag stays false for
+  // them and the subprocess path is skipped — necessary because
+  // Process.run under FakeAsync leaks Timers onto the pending-timer
+  // list and breaks unrelated widget tests. Production app sets it
+  // here before the first provider evaluates.
+  SecureKeyStorage.enableRuntimeSubprocessProbes();
+
   // Start logger init early — runs in parallel with config/lock I/O below.
   // Log path resolves in background; log() calls buffer to dev.log until ready.
   final loggerInit = AppLogger.instance.init();
