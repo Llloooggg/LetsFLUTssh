@@ -2213,6 +2213,15 @@ class SJa extends S {
       'Android Keystore がこのデバイスビルドでハードウェアキーのバックを拒否しました（StrongBox 非対応、カスタム ROM、またはドライバーの不具合）。ハードウェア層は利用できません。';
 
   @override
+  String get securityRecheck => '階層サポートを再確認';
+
+  @override
+  String get securityRecheckUpdated => '階層サポートが更新されました — 上のカードを確認';
+
+  @override
+  String get securityRecheckUnchanged => '階層サポートに変更はありません';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus は動作していますが、secret-service デーモンが実行されていません。gnome-keyring（`sudo apt install gnome-keyring`）または KWalletManager をインストールし、ログイン時に起動するようにしてください。';
 

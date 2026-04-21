@@ -2273,6 +2273,15 @@ class SEn extends S {
       'The Android Keystore refused to back a hardware key on this device build (StrongBox unavailable, custom ROM stripping, or driver glitch). The hardware tier is not available.';
 
   @override
+  String get securityRecheck => 'Re-check tier support';
+
+  @override
+  String get securityRecheckUpdated => 'Tier support updated — see cards above';
+
+  @override
+  String get securityRecheckUnchanged => 'Tier support unchanged';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus is up but no secret-service daemon is running. Install gnome-keyring (`sudo apt install gnome-keyring`) or KWalletManager and ensure it starts at login.';
 

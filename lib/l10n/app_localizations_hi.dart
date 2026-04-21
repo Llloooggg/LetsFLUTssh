@@ -2281,6 +2281,16 @@ class SHi extends S {
       'Android Keystore ने इस डिवाइस बिल्ड पर हार्डवेयर कुंजी समर्थन देने से इनकार किया (StrongBox अनुपलब्ध, कस्टम ROM, या ड्राइवर समस्या)। हार्डवेयर टियर उपलब्ध नहीं है।';
 
   @override
+  String get securityRecheck => 'टियर समर्थन पुनः जाँचें';
+
+  @override
+  String get securityRecheckUpdated =>
+      'टियर समर्थन अपडेट हुआ — ऊपर के कार्ड देखें';
+
+  @override
+  String get securityRecheckUnchanged => 'टियर समर्थन अपरिवर्तित';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus चल रहा है लेकिन कोई secret-service daemon नहीं चल रहा। gnome-keyring (`sudo apt install gnome-keyring`) या KWalletManager स्थापित करें और लॉगिन पर शुरू होना सुनिश्चित करें।';
 

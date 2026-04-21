@@ -2303,6 +2303,16 @@ class SEs extends S {
       'El Keystore de Android rechazó respaldar una clave de hardware en esta build del dispositivo (StrongBox no disponible, ROM personalizada o falla del controlador). El nivel de hardware no está disponible.';
 
   @override
+  String get securityRecheck => 'Volver a comprobar el soporte de niveles';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Soporte de niveles actualizado — ver tarjetas arriba';
+
+  @override
+  String get securityRecheckUnchanged => 'Soporte de niveles sin cambios';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus está activo pero ningún secret-service daemon está ejecutándose. Instala gnome-keyring (`sudo apt install gnome-keyring`) o KWalletManager y asegúrate de que se inicie al iniciar sesión.';
 

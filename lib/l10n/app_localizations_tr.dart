@@ -2289,6 +2289,16 @@ class STr extends S {
       'Android Keystore bu cihaz sürümünde donanım anahtarını oluşturmayı reddetti (StrongBox yok, özel ROM veya sürücü hatası). Donanım katmanı kullanılamıyor.';
 
   @override
+  String get securityRecheck => 'Katman desteğini yeniden denetle';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Katman desteği güncellendi — yukarıdaki kartlara bakın';
+
+  @override
+  String get securityRecheckUnchanged => 'Katman desteği değişmedi';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.';
 

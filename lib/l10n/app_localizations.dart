@@ -4029,6 +4029,24 @@ abstract class S {
   /// **'The Android Keystore refused to back a hardware key on this device build (StrongBox unavailable, custom ROM stripping, or driver glitch). The hardware tier is not available.'**
   String get hwProbeAndroidKeystoreRejected;
 
+  /// No description provided for @securityRecheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-check tier support'**
+  String get securityRecheck;
+
+  /// No description provided for @securityRecheckUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tier support updated — see cards above'**
+  String get securityRecheckUpdated;
+
+  /// No description provided for @securityRecheckUnchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Tier support unchanged'**
+  String get securityRecheckUnchanged;
+
   /// No description provided for @keyringProbeLinuxNoSecretService.
   ///
   /// In en, this message translates to:

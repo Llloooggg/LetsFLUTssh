@@ -2211,6 +2211,15 @@ class SKo extends S {
       'Android Keystore가 이 기기 빌드에서 하드웨어 키 지원을 거부했습니다(StrongBox 사용 불가, 커스텀 ROM 또는 드라이버 오류). 하드웨어 계층을 사용할 수 없습니다.';
 
   @override
+  String get securityRecheck => '계층 지원 다시 확인';
+
+  @override
+  String get securityRecheckUpdated => '계층 지원이 업데이트되었습니다 — 위 카드를 확인하세요';
+
+  @override
+  String get securityRecheckUnchanged => '계층 지원에 변경이 없습니다';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus는 작동 중이지만 secret-service 데몬이 실행 중이 아닙니다. gnome-keyring(`sudo apt install gnome-keyring`) 또는 KWalletManager를 설치하고 로그인 시 시작되도록 하세요.';
 

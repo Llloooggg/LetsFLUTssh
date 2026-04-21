@@ -400,6 +400,21 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         AppLogger.instance.log('Initializing foreground service', name: 'App');
         ref.read(foregroundServiceProvider).init();
       }
+      // Eager-prefetch the capability + probe snapshots off the main
+      // bootstrap path. `securityCapabilitiesProvider` is a
+      // FutureProvider — the first `ref.watch` on it inside Settings
+      // (or the wizard) would otherwise trigger the deep probes on
+      // the Dart async gap where the user first interacts. With
+      // Android + macOS deep probes now running real SE / Keystore
+      // round-trips, the lazy path made tier cards flash
+      // "unavailable → available" as the probe raced the first frame.
+      // Warming the cache here means Settings opens against ready
+      // data — no flicker. A user-facing "Re-check" button in
+      // Settings → Security invalidates + re-awaits the same cache
+      // when the user wants a fresh result.
+      unawaited(ref.read(securityCapabilitiesProvider.future));
+      unawaited(ref.read(hardwareProbeDetailProvider.future));
+      unawaited(ref.read(keyringProbeDetailProvider.future));
       if (ref.read(configProvider).checkUpdatesOnStart) {
         AppLogger.instance.log('Checking for updates on start', name: 'App');
         ref.read(updateProvider.notifier).check();

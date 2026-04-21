@@ -11,6 +11,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
   bool _biometricProbed = false;
+  // True while the "Re-check tier support" button is awaiting fresh
+  // capability + probe results. Swaps the refresh icon for a small
+  // spinner and disables the tap target so the user gets visible
+  // feedback that the probe is running (Android / Windows TPM
+  // round-trips take hundreds of ms; without a spinner the button
+  // feels dead).
+  bool _recheckingTiers = false;
 
   @override
   void initState() {
@@ -452,8 +459,75 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // which belongs under "manage my data" next to Export /
         // Import. The Security section keeps only tier-config
         // controls (ladder + biometric + auto-lock).
+
+        // Re-check button: forces a fresh capability + probe round-
+        // trip when the user has just fixed the underlying issue
+        // (enabled TPM in BIOS, installed tpm2-tools, ran
+        // macos-resign.sh, changed biometric enrolment, etc.). The
+        // probes are normally warmed once on app startup and served
+        // from cache for the rest of the session, so without this
+        // button the user would have to quit + relaunch after
+        // fixing the host state.
+        Center(
+          child: TextButton.icon(
+            icon: _recheckingTiers
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh, size: 16),
+            label: Text(l10n.securityRecheck),
+            onPressed: _recheckingTiers ? null : _rerunTierProbes,
+          ),
+        ),
       ],
     );
+  }
+
+  /// Invalidate the cached capability + probe snapshots and wait for
+  /// the fresh values so the section rebuilds against ready data.
+  /// Shows a spinner on the button while the probes run, then surfaces
+  /// a toast with the outcome — "support unchanged" if every tier
+  /// reports the same availability as before, "support updated" when
+  /// any row flipped. Without the toast the button reads as a no-op
+  /// on hosts where nothing changed between clicks.
+  Future<void> _rerunTierProbes() async {
+    setState(() => _recheckingTiers = true);
+    // Snapshot the current answers so we can report whether the
+    // re-check actually changed anything.
+    final previousCaps = ref.read(securityCapabilitiesProvider);
+    final previousKc = previousCaps.maybeWhen(
+      data: (c) => c.keychainAvailable,
+      orElse: () => false,
+    );
+    final previousHw = previousCaps.maybeWhen(
+      data: (c) => c.hardwareVaultAvailable,
+      orElse: () => false,
+    );
+    ref.invalidate(securityCapabilitiesProvider);
+    ref.invalidate(hardwareProbeDetailProvider);
+    ref.invalidate(keyringProbeDetailProvider);
+    try {
+      final fresh = await ref.read(securityCapabilitiesProvider.future);
+      // Await the detail providers too so the Settings cards rebuild
+      // with classified reasons in one frame instead of two.
+      await ref.read(hardwareProbeDetailProvider.future);
+      await ref.read(keyringProbeDetailProvider.future);
+      if (!mounted) return;
+      final changed =
+          fresh.keychainAvailable != previousKc ||
+          fresh.hardwareVaultAvailable != previousHw;
+      Toast.show(
+        context,
+        message: changed
+            ? S.of(context).securityRecheckUpdated
+            : S.of(context).securityRecheckUnchanged,
+        level: changed ? ToastLevel.success : ToastLevel.info,
+      );
+    } finally {
+      if (mounted) setState(() => _recheckingTiers = false);
+    }
   }
 
   Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {

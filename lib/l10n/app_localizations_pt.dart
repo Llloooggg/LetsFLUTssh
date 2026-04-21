@@ -2296,6 +2296,16 @@ class SPt extends S {
       'O Keystore do Android recusou-se a respaldar uma chave de hardware nesta build do dispositivo (StrongBox indisponível, ROM personalizada ou falha no driver). O nível de hardware não está disponível.';
 
   @override
+  String get securityRecheck => 'Verificar suporte aos níveis';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Suporte aos níveis atualizado — ver cartões acima';
+
+  @override
+  String get securityRecheckUnchanged => 'Suporte aos níveis inalterado';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus está ativo mas nenhum secret-service daemon está rodando. Instale gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager e certifique-se de que inicia no login.';
 

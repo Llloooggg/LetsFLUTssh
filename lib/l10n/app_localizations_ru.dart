@@ -2291,6 +2291,16 @@ class SRu extends S {
       'Android Keystore отказал в создании аппаратного ключа на этой сборке устройства (StrongBox недоступен, кастомная ROM или сбой драйвера). Аппаратный уровень недоступен.';
 
   @override
+  String get securityRecheck => 'Проверить поддержку уровней';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Поддержка уровней обновилась — см. карточки выше';
+
+  @override
+  String get securityRecheckUnchanged => 'Поддержка уровней без изменений';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus работает, но secret-service daemon не запущен. Установите gnome-keyring (`sudo apt install gnome-keyring`) или KWalletManager и включите автозапуск при входе.';
 

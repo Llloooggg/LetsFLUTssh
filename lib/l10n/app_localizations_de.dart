@@ -2305,6 +2305,16 @@ class SDe extends S {
       'Der Android-Keystore hat das Erstellen eines Hardware-Schlüssels für diese Geräteversion abgelehnt (StrongBox nicht verfügbar, Custom-ROM oder Treiberfehler). Die Hardware-Stufe ist nicht verfügbar.';
 
   @override
+  String get securityRecheck => 'Stufen-Unterstützung erneut prüfen';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Stufen-Unterstützung aktualisiert — siehe Karten oben';
+
+  @override
+  String get securityRecheckUnchanged => 'Stufen-Unterstützung unverändert';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus läuft, aber kein Secret-Service-Daemon ist aktiv. Installiere gnome-keyring (`sudo apt install gnome-keyring`) oder KWalletManager und stelle sicher, dass es beim Anmelden startet.';
 

@@ -2274,6 +2274,16 @@ class SFa extends S {
       'Android Keystore در این نسخهٔ دستگاه از پشتیبانی کلید سخت‌افزاری امتناع کرد (StrongBox در دسترس نیست، ROM سفارشی یا خطای درایور). لایهٔ سخت‌افزاری در دسترس نیست.';
 
   @override
+  String get securityRecheck => 'بررسی مجدد پشتیبانی لایه‌ها';
+
+  @override
+  String get securityRecheckUpdated =>
+      'پشتیبانی لایه‌ها به‌روزرسانی شد — کارت‌های بالا را ببینید';
+
+  @override
+  String get securityRecheckUnchanged => 'پشتیبانی لایه‌ها بدون تغییر';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus فعال است اما هیچ secret-service daemon در حال اجرا نیست. gnome-keyring (`sudo apt install gnome-keyring`) یا KWalletManager را نصب کنید و مطمئن شوید که هنگام ورود به سیستم اجرا می‌شود.';
 

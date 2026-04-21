@@ -2269,6 +2269,16 @@ class SVi extends S {
       'Android Keystore từ chối hỗ trợ khóa phần cứng trên bản dựng thiết bị này (StrongBox không có, ROM tùy chỉnh hoặc lỗi trình điều khiển). Lớp phần cứng không khả dụng.';
 
   @override
+  String get securityRecheck => 'Kiểm tra lại hỗ trợ lớp';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Hỗ trợ lớp đã cập nhật — xem thẻ ở trên';
+
+  @override
+  String get securityRecheckUnchanged => 'Hỗ trợ lớp không thay đổi';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus đang chạy nhưng không có secret-service daemon nào đang hoạt động. Cài đặt gnome-keyring (`sudo apt install gnome-keyring`) hoặc KWalletManager và đảm bảo nó khởi động khi đăng nhập.';
 

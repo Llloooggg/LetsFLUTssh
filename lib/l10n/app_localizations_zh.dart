@@ -2189,6 +2189,15 @@ class SZh extends S {
       'Android Keystore 拒绝在此设备版本上备份硬件密钥（StrongBox 不可用、自定义 ROM 或驱动故障）。硬件层级不可用。';
 
   @override
+  String get securityRecheck => '重新检查层级支持';
+
+  @override
+  String get securityRecheckUpdated => '层级支持已更新 —— 请查看上方卡片';
+
+  @override
+  String get securityRecheckUnchanged => '层级支持未变';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。';
 

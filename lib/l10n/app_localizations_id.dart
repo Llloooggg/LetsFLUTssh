@@ -2285,6 +2285,16 @@ class SId extends S {
       'Android Keystore menolak menyimpan kunci perangkat keras pada build perangkat ini (StrongBox tidak tersedia, ROM kustom, atau gangguan driver). Tingkat perangkat keras tidak tersedia.';
 
   @override
+  String get securityRecheck => 'Periksa ulang dukungan tingkat';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Dukungan tingkat diperbarui — lihat kartu di atas';
+
+  @override
+  String get securityRecheckUnchanged => 'Dukungan tingkat tidak berubah';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus aktif tetapi tidak ada secret-service daemon yang berjalan. Pasang gnome-keyring (`sudo apt install gnome-keyring`) atau KWalletManager dan pastikan berjalan saat login.';
 

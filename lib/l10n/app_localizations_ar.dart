@@ -2277,6 +2277,16 @@ class SAr extends S {
       'رفض Android Keystore دعم مفتاح أجهزة في نسخة هذا الجهاز (StrongBox غير متوفر، أو ROM مخصص، أو خلل في برنامج التشغيل). مستوى الأجهزة غير متاح.';
 
   @override
+  String get securityRecheck => 'إعادة فحص دعم المستويات';
+
+  @override
+  String get securityRecheckUpdated =>
+      'تم تحديث دعم المستويات — انظر البطاقات أعلاه';
+
+  @override
+  String get securityRecheckUnchanged => 'دعم المستويات دون تغيير';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus يعمل ولكن لا يوجد secret-service daemon قيد التشغيل. ثبّت gnome-keyring (`sudo apt install gnome-keyring`) أو KWalletManager وتأكد من بدء تشغيله عند تسجيل الدخول.';
 

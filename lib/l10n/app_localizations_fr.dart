@@ -2309,6 +2309,17 @@ class SFr extends S {
       'Le Keystore Android a refusé de créer une clé matérielle sur cette build d\'appareil (StrongBox indisponible, ROM personnalisée ou bogue du pilote). Le niveau matériel n\'est pas disponible.';
 
   @override
+  String get securityRecheck => 'Revérifier la prise en charge des niveaux';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Prise en charge des niveaux mise à jour — voir les cartes ci-dessus';
+
+  @override
+  String get securityRecheckUnchanged =>
+      'Prise en charge des niveaux inchangée';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus fonctionne mais aucun secret-service daemon n\'est actif. Installez gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager et assurez-vous qu\'il démarre à la connexion.';
 
