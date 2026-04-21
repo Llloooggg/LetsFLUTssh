@@ -1314,12 +1314,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
             // event resets the idle timer. LockScreen overlays on top
             // with zero hit-test for the app beneath while locked.
             //
-            // SelectionArea lives inside MainScreen.build instead of
-            // here — SelectableRegion needs an Overlay ancestor,
-            // which is only provided by the Navigator rooted at
-            // MaterialApp.home. Wrapping at the builder layer
-            // (above Navigator) crashes with "No Overlay widget
-            // found" in tests and in production.
+            // `SelectionArea` cannot live at this layer — its
+            // `SelectableRegion` walks up the widget tree for an
+            // `Overlay` ancestor, and `Overlay` is provided by the
+            // `Navigator` *inside* MaterialApp's home, i.e. below
+            // this builder. A global wrap here fails with
+            // "No Overlay widget found". Per-route / per-dialog
+            // `SelectionArea` is the only working shape: MainScreen
+            // wraps the desktop + mobile shells, `AppDialog` wraps
+            // every dialog path, and pushed mobile routes wrap
+            // themselves (see `SettingsScreen._MobileSettingsScreen`).
             child: AutoLockDetector(
               child: Stack(
                 children: [

@@ -102,7 +102,14 @@ class AppDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
-      child: child,
+      // Every dialog opens in the root Overlay, above the
+      // MainScreen-level `SelectionArea` — so drag-to-select and
+      // Ctrl+C do not reach Text widgets inside the dialog without
+      // an inner wrapper. Putting the wrap at the `AppDialog` base
+      // gives every caller the right behaviour with zero per-site
+      // code. A `SelectionArea` that is a no-op on a button-only
+      // dialog costs nothing at runtime.
+      child: SelectionArea(child: child),
     );
   }
 }

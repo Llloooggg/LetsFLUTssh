@@ -139,15 +139,55 @@ class WipeAllService {
     }
   }
 
-  /// True when **any** managed artefact lives in the app-support dir.
-  /// Used on startup to detect "install has prior state" when the
-  /// current build also finds `config.security == null` — together
-  /// those predicates mean the on-disk state predates the current
-  /// schema and should be wiped via the user-confirmed reset dialog.
+  /// True when **any security-bearing** managed artefact lives in the
+  /// app-support dir. Used on startup to detect "install has prior
+  /// state" when the current build also finds `config.security == null`
+  /// — together those predicates mean the on-disk state predates the
+  /// current schema and should be wiped via the user-confirmed reset
+  /// dialog.
+  ///
+  /// *`config.json` and `migration_history.json` are excluded from
+  /// this probe* because both are recreated as soon as the app
+  /// initialises its provider graph — a freshly-reset install writes
+  /// `config.json` back with `security: null` seconds after the wipe
+  /// finishes, so counting it as "state" trapped the user in a
+  /// reset-dialog loop: reset → wipe → provider rewrites config →
+  /// next launch sees "orphan state" → offers reset again. Neither
+  /// file carries credential material; they are settings. The real
+  /// "orphan install" signal is a KDF descriptor, a hw-vault blob,
+  /// a DB file, or a legacy credentials artefact — all of which stay
+  /// in the scan list below.
+  static const _orphanProbeFiles = <String>[
+    '.tier-transition-pending',
+    'keychain_enabled',
+    'rate_limit_state.bin',
+    'hardware_vault_password_overlay_android.bin',
+    'hardware_vault_password_overlay_apple.bin',
+    'hardware_vault_password_overlay_windows.bin',
+    'security_pass_hash.bin',
+    'hardware_vault.bin',
+    'hardware_vault_android.bin',
+    'hardware_vault_apple.bin',
+    'hardware_vault_ios.bin',
+    'hardware_vault_macos.bin',
+    'hardware_vault_windows.bin',
+    'hardware_vault_linux.bin',
+    'hardware_vault_salt.bin',
+    'biometric_vault.tpm',
+    'credentials.kdf',
+    'credentials.salt',
+    'credentials.verify',
+    'credentials.key',
+    'letsflutssh.db',
+    'letsflutssh.db-wal',
+    'letsflutssh.db-shm',
+    'letsflutssh.db-journal',
+  ];
+
   Future<bool> hasAnyState() async {
     try {
       final dir = await _supportDir();
-      for (final name in _managedFiles) {
+      for (final name in _orphanProbeFiles) {
         if (await File(p.join(dir.path, name)).exists()) return true;
       }
       return false;

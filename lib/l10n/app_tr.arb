@@ -774,7 +774,7 @@
   "keyringProbeFailed": "İşletim sistemi anahtar zinciri bu cihazda erişilemez. Platforma özgü hata için günlüklere bakın; uygulama ana parolaya geri döner.",
   "tierCurrentBadge": "Mevcut",
   "dbCorruptTitle": "Veritabanı açılamıyor",
-  "dbCorruptBody": "Diskteki şifrelenmiş veritabanı, bu kurulum için kaydedilen güvenlik düzeyiyle eşleşmiyor. Bu genellikle önceki bir kurulumun kesintiye uğradığı veya verilerin farklı şifreli bir yapıdan kaldığı anlamına gelir.\n\nLetsFLUTssh, veritabanı uygun yapının doğru kimlik bilgileriyle açılana veya silinip yeniden kurulana kadar devam edemez.",
+  "dbCorruptBody": "Diskteki veriler açılamıyor. Farklı bir kimlik bilgisi deneyin veya sıfırlayıp baştan başlayın.",
   "dbCorruptWarning": "Sıfırlama şifrelenmiş veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Hiçbir veri geri getirilmez.",
   "dbCorruptResetContinue": "Sıfırla ve yeniden kur",
   "dbCorruptExit": "LetsFLUTssh'den çık",

@@ -774,7 +774,7 @@
   "keyringProbeFailed": "Keychain OS không truy cập được trên thiết bị này. Xem log để biết lỗi nền tảng cụ thể; ứng dụng chuyển sang mật khẩu chính.",
   "tierCurrentBadge": "Hiện tại",
   "dbCorruptTitle": "Không thể mở cơ sở dữ liệu",
-  "dbCorruptBody": "Cơ sở dữ liệu đã mã hóa trên đĩa không khớp với mức bảo mật được ghi lại cho cài đặt này. Thường có nghĩa là cài đặt trước đó bị gián đoạn hoặc dữ liệu thuộc bản dựng dùng cipher khác.\n\nLetsFLUTssh không thể tiếp tục cho đến khi cơ sở dữ liệu được mở bằng thông tin xác thực đúng của bản dựng tương ứng hoặc bị xóa và thiết lập lại.",
+  "dbCorruptBody": "Dữ liệu trên đĩa không mở được. Hãy thử một thông tin xác thực khác, hoặc đặt lại để bắt đầu từ đầu.",
   "dbCorruptWarning": "Đặt lại sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tệp liên quan đến bảo mật. Không có dữ liệu nào được khôi phục.",
   "dbCorruptResetContinue": "Đặt lại & Cài đặt mới",
   "dbCorruptExit": "Thoát LetsFLUTssh",
