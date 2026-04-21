@@ -4,6 +4,7 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -99,6 +100,17 @@ SingleInstance? singleInstanceLock;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Kill every animation globally. `timeDilation` multiplies every
+  // `Ticker`/`AnimationController` duration in the framework, so
+  // 0.01 collapses 300ms transitions to ~3ms — visually instant.
+  // This catches widgets that ignore `MediaQuery.disableAnimations`
+  // (notably `PopupMenuButton` and `showMenu`, which own their own
+  // AnimationController). Three-layer hard-off, together with the
+  // `_NoTransitionsBuilder` in `AppTheme.pageTransitionsTheme` and
+  // `disableAnimations: true` on the root `MediaQuery`, takes motion
+  // out of the UI project-wide. `timeDilation` must be > 0.
+  timeDilation = 0.01;
 
   // Unlock the Linux-only subprocess probe (gdbus Peer.Ping against
   // org.freedesktop.secrets) used by SecureKeyStorage.probe. Widget
@@ -1603,7 +1615,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return Directionality(
           textDirection: TextDirection.ltr,
           child: MediaQuery(
-            data: mediaQuery.copyWith(textScaler: TextScaler.linear(uiScale)),
+            // Hard-off every animation/transition in the app — route
+            // page transitions, Material implicit animations,
+            // AnimatedSwitcher, etc. Flutter honours this flag across
+            // the framework; we use the same knob the OS "Reduce
+            // motion" accessibility toggle would set, applied
+            // unconditionally. Keep alongside textScaler so a single
+            // MediaQuery wrap controls both signals.
+            data: mediaQuery.copyWith(
+              textScaler: TextScaler.linear(uiScale),
+              disableAnimations: true,
+            ),
             // AutoLockDetector wraps the real UI so every pointer/key
             // event resets the idle timer. LockScreen overlays on top
             // with zero hit-test for the app beneath while locked.
