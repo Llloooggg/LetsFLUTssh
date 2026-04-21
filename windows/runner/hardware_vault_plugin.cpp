@@ -138,9 +138,57 @@ enum class AvailabilityTier {
   kHardware,  // Platform Crypto Provider reachable.
 };
 
+// Real key round-trip: open the provider, create a transient
+// 2048-bit RSA key under a scratch name, finalise it, then delete.
+// `OpenProvider()` only checks that the CNG handle opens — it does
+// not catch the cases where the TPM driver accepts the open call
+// but rejects the persistent-key creation (Group-Policy lockout,
+// TPM cleared but not re-owned, BitLocker-suspended state). Doing
+// the actual create / finalise / delete here is the only way to
+// know the user-facing `store` call won't fail. Best-effort delete:
+// a stranded probe key sits under a stable name so the next probe
+// reuses it instead of leaking a fresh handle.
+bool ProbeRealKeyCreate(ProviderHandle& prov) {
+  static const wchar_t* kProbeName = L"LetsFLUTssh_HwVault_Probe";
+  // Clean up a leftover probe key from an earlier interrupted run so
+  // the new attempt always starts fresh.
+  NCRYPT_KEY_HANDLE stale = 0;
+  if (NCryptOpenKey(prov.handle, &stale, kProbeName, 0, 0) == ERROR_SUCCESS) {
+    NCryptDeleteKey(stale, 0);
+  }
+
+  NCRYPT_KEY_HANDLE key = 0;
+  SECURITY_STATUS s = NCryptCreatePersistedKey(
+      prov.handle, &key, BCRYPT_RSA_ALGORITHM, kProbeName, 0, 0);
+  if (s != ERROR_SUCCESS) return false;
+
+  DWORD len = 2048;
+  NCryptSetProperty(key, NCRYPT_LENGTH_PROPERTY,
+                    reinterpret_cast<PBYTE>(&len), sizeof(len),
+                    NCRYPT_PERSIST_FLAG);
+
+  s = NCryptFinalizeKey(key, 0);
+  if (s != ERROR_SUCCESS) {
+    NCryptFreeObject(key);
+    return false;
+  }
+  // Drop the probe entry — it served its purpose. `NCryptDeleteKey`
+  // also frees the handle, so no separate `NCryptFreeObject` here.
+  NCryptDeleteKey(key, 0);
+  return true;
+}
+
 AvailabilityTier ProbeAvailability() {
   auto p = OpenProvider();
   if (!p) return AvailabilityTier::kUnavailable;
+  // Both providers opened — but TPM-backed (Platform) providers can
+  // refuse the actual key create even after a clean open. Drop to
+  // the software tier when the real round-trip fails so the wizard
+  // does not show T2 as available on a host where `store` would
+  // immediately fail.
+  if (p->is_hardware && !ProbeRealKeyCreate(*p)) {
+    return AvailabilityTier::kSoftware;
+  }
   return p->is_hardware ? AvailabilityTier::kHardware
                         : AvailabilityTier::kSoftware;
 }

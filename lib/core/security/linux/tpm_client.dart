@@ -114,16 +114,51 @@ class TpmClient {
       return TpmProbeResult.deviceNodeMissing;
     }
     try {
-      final result = await Process.run(_binary, const [
+      final getcap = await Process.run(_binary, const [
         'getcap',
         '-l',
       ], runInShell: false).timeout(_timeout);
-      if (result.exitCode == 0) return TpmProbeResult.available;
-      AppLogger.instance.log(
-        'tpm2 getcap exit=${result.exitCode} stderr=${result.stderr}',
-        name: 'TpmClient',
-      );
-      return TpmProbeResult.probeFailed;
+      if (getcap.exitCode != 0) {
+        AppLogger.instance.log(
+          'tpm2 getcap exit=${getcap.exitCode} stderr=${getcap.stderr}',
+          name: 'TpmClient',
+        );
+        return TpmProbeResult.probeFailed;
+      }
+      // Real key-create round-trip on top of the capability query —
+      // `getcap` only reads TPM properties and can succeed on a host
+      // where `/dev/tpmrm0` permissions allow read but not write
+      // (uncommon but observed on hardened sandboxes). The full
+      // `createprimary` exercises the same path as `seal`, so a
+      // probe success here is a strict guarantee that downstream
+      // sealing will not fail with a permissions / lockout error.
+      // Best-effort cleanup: a stranded primary handle costs nothing
+      // (TPM resource manager flushes it when the parent context
+      // closes anyway) and the work dir is wiped via the same helper
+      // `seal` uses.
+      final workDir = await Directory.systemTemp.createTemp('lfs-tpm-probe-');
+      try {
+        final ctx = p.join(workDir.path, 'probe.ctx');
+        final create = await Process.run(_binary, [
+          'createprimary',
+          '-Q',
+          '-C',
+          'o',
+          '-c',
+          ctx,
+        ], runInShell: false).timeout(_timeout);
+        if (create.exitCode != 0) {
+          AppLogger.instance.log(
+            'tpm2 createprimary probe exit=${create.exitCode} '
+            'stderr=${create.stderr}',
+            name: 'TpmClient',
+          );
+          return TpmProbeResult.probeFailed;
+        }
+      } finally {
+        await _wipeDir(workDir);
+      }
+      return TpmProbeResult.available;
     } on ProcessException catch (e) {
       // `tpm2` binary missing → Process.start fails with errno 2
       // before the timeout fires. Classify explicitly so the UI can
