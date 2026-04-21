@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart'
     show formatDuration, formatSize, formatTimestamp, localizeError;
 import '../../utils/platform.dart' as plat;
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/clipped_row.dart';
 import '../../widgets/column_resize_handle.dart';
@@ -250,15 +251,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     return historyAsync.when(
       data: (history) {
         if (active.isEmpty && history.isEmpty) {
-          return Center(
-            child: Text(
-              S.of(context).noTransfersYet,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgFaint,
-              ),
-            ),
-          );
+          return AppEmptyState(message: S.of(context).noTransfersYet);
         }
         final sorted = _ctrl.sorted(history);
         final totalCount = active.length + sorted.length;
@@ -460,15 +453,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     return historyAsync.when(
       data: (history) {
         if (active.isEmpty && history.isEmpty) {
-          return Center(
-            child: Text(
-              S.of(context).noTransfersYet,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgFaint,
-              ),
-            ),
-          );
+          return AppEmptyState(message: S.of(context).noTransfersYet);
         }
         final sorted = _ctrl.sorted(history);
         final totalCount = active.length + sorted.length;

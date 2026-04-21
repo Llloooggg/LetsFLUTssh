@@ -8,6 +8,7 @@ import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_divider.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/data_checkboxes.dart';
 import 'tag_manager_dialog.dart';
 
@@ -225,15 +226,7 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
   Widget _buildTagList(S s, List<Tag> visible) {
     if (visible.isEmpty) {
       // Filtered to nothing — keep the frame but tell the user why.
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            s.noTags,
-            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
-        ),
-      );
+      return AppEmptyState(message: s.noTags);
     }
     return ListView.builder(
       itemCount: visible.length,

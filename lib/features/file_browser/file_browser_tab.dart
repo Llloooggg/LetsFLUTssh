@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_models.dart';
@@ -208,16 +209,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   }
 
   Widget _buildTooNarrowHint(BuildContext context) {
-    return Center(
-      child: Text(
-        S.of(context).resizeWindowToViewFiles,
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: AppFonts.sm,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-        ),
-      ),
-    );
+    return AppEmptyState(message: S.of(context).resizeWindowToViewFiles);
   }
 
   Widget _buildDivider(double maxWidth) {
