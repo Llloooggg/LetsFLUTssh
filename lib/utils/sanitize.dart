@@ -40,7 +40,48 @@ String redactSecrets(String input) {
 
 /// Remove sensitive data from error messages before logging.
 String sanitizeErrorMessage(String message) {
-  // Redact IPv4 addresses FIRST (before user@host pattern matching)
+  // IPv6 literals FIRST — broader shape than IPv4 and would otherwise
+  // get partially chewed by later rules. Covers:
+  //   * full 8-group form `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
+  //   * compressed forms with `::` (leading, trailing, or middle)
+  //   * link-local `fe80::1`, loopback `::1`, unspecified `::`
+  //   * bracketed `[2001:db8::1]` shape used in URLs / SSH error
+  //     messages — optional `[` + `]` are eaten in the same match so
+  //     the follow-up `<ip>:<port>` rule below can redact the port
+  //     cleanly (bare `<ip>]` would not match that rule).
+  //
+  // Dart RegExp alternation picks the **first** matching branch, not
+  // the longest. Arrange branches by specificity — the most trailing
+  // hex groups first so `2001:db8::1` is consumed whole rather than
+  // stopping at `2001:db8::` and leaving `1` behind.
+  message = message.replaceAllMapped(
+    RegExp(
+      r'\[?(?:'
+      // Full 8-group (no compression): 1:2:3:4:5:6:7:8
+      r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
+      // 1 leading group, 1..6 trailing groups after ::
+      r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
+      // 1..2 leading, 5 trailing
+      r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
+      // 1..3 leading, 4 trailing
+      r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
+      // 1..4 leading, 3 trailing
+      r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
+      // 1..5 leading, 2 trailing
+      r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
+      // 1..6 leading, exactly 1 trailing — catches `2001:db8::1`
+      r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
+      // Pure leading-then-:: (no trailing groups) — `1::`, `1:2::`
+      r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
+      // Pure trailing-after-:: — `::8`, `::1:2`, plus bare `::`
+      r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
+      r'|::'
+      r')\]?',
+    ),
+    (_) => '<ip>',
+  );
+
+  // Redact IPv4 addresses (before user@host pattern matching)
   message = message.replaceAllMapped(
     RegExp(r'\b(\d{1,3}\.){3}\d{1,3}\b'),
     (_) => '<ip>',

@@ -15,6 +15,12 @@ class SHi extends S {
   String get ok => 'ठीक है';
 
   @override
+  String get infoDialogProtectsHeader => 'सुरक्षा करता है';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'सुरक्षा नहीं करता';
+
+  @override
   String get cancel => 'रद्द करें';
 
   @override
@@ -796,6 +802,165 @@ class SHi extends S {
   String get passwordsDoNotMatch => 'पासवर्ड मेल नहीं खाते';
 
   @override
+  String get passwordStrengthWeak => 'कमज़ोर';
+
+  @override
+  String get passwordStrengthModerate => 'मध्यम';
+
+  @override
+  String get passwordStrengthStrong => 'मज़बूत';
+
+  @override
+  String get passwordStrengthVeryStrong => 'बहुत मज़बूत';
+
+  @override
+  String get tierRecommendedBadge => 'अनुशंसित';
+
+  @override
+  String get tierCurrentBadge => 'वर्तमान';
+
+  @override
+  String get tierAlternativeBranchLabel => 'विकल्प — OS पर भरोसा न करें';
+
+  @override
+  String get tierUpcomingTooltip => 'आगामी संस्करण में आएगा।';
+
+  @override
+  String get tierUpcomingNotes =>
+      'इस स्तर का अंतर्निहित ढाँचा अभी उपलब्ध नहीं है। पंक्ति दिखाई दे रही है ताकि आपको पता चले कि विकल्प मौजूद है।';
+
+  @override
+  String get tierPlaintextLabel => 'सादा टेक्स्ट';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'कोई एन्क्रिप्शन नहीं — केवल फ़ाइल अनुमतियाँ';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'फ़ाइल सिस्टम एक्सेस वाला कोई भी आपका डेटा पढ़ लेता है';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'गलती से सिंक या बैकअप सब कुछ उजागर कर देता है';
+
+  @override
+  String get tierPlaintextNotes =>
+      'केवल विश्वसनीय, पृथक वातावरण में उपयोग करें।';
+
+  @override
+  String get tierKeychainLabel => 'कीचेन';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'कुंजी $keychain में रहती है — लॉन्च पर ऑटो-अनलॉक';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'उसी मशीन पर अन्य उपयोगकर्ता';
+
+  @override
+  String get tierKeychainProtect2 => 'OS लॉगिन के बिना चुराई गई डिस्क';
+
+  @override
+  String get tierKeychainThreat1 => 'आपके OS खाते में चल रहा मैलवेयर';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'एक हमलावर जो आपके OS लॉगिन पर कब्ज़ा कर लेता है';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'इस इंस्टॉल पर OS कीचेन उपलब्ध नहीं है।';
+
+  @override
+  String get tierKeychainPassProtect1 => 'आपके डेस्क पर बैठा सहकर्मी';
+
+  @override
+  String get tierKeychainPassProtect2 => 'अनलॉक एक्सेस वाला एक राहगीर';
+
+  @override
+  String get tierKeychainPassThreat1 => 'डिस्क पर फ़ाइल वाला ऑफ़लाइन हमलावर';
+
+  @override
+  String get tierKeychainPassThreat2 => 'कीचेन के समान OS-समझौते के जोखिम';
+
+  @override
+  String get tierHardwareLabel => 'हार्डवेयर';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'हार्डवेयर-बाध्य वॉल्ट + लॉकआउट के साथ छोटा PIN';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'PIN का ऑफ़लाइन ब्रूट फ़ोर्स (हार्डवेयर रेट-लिमिट)';
+
+  @override
+  String get tierHardwareProtect2 => 'डिस्क और कीचेन ब्लॉब चुराना';
+
+  @override
+  String get tierHardwareThreat1 => 'सुरक्षित मॉड्यूल पर OS या फ़र्मवेयर CVE';
+
+  @override
+  String get tierHardwareThreat2 => 'जबरन बायोमेट्रिक अनलॉक (यदि सक्षम हो)';
+
+  @override
+  String get tierParanoidLabel => 'मास्टर पासवर्ड (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'लंबा पासवर्ड + Argon2id। कुंजी कभी OS में प्रवेश नहीं करती।';
+
+  @override
+  String get tierParanoidProtect1 => 'OS कीचेन समझौता';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'चुराई गई डिस्क (जब तक आपका पासवर्ड मज़बूत है)';
+
+  @override
+  String get tierParanoidThreat1 => 'आपका पासवर्ड पकड़ने वाला कीलॉगर';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'कमज़ोर पासवर्ड + ऑफ़लाइन Argon2id क्रैकिंग';
+
+  @override
+  String get tierParanoidNotes =>
+      'इस स्तर पर बायोमेट्रिक डिज़ाइन द्वारा अक्षम है।';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।';
+
+  @override
+  String get pinLabel => 'पासवर्ड';
+
+  @override
+  String get l2UnlockTitle => 'पासवर्ड आवश्यक';
+
+  @override
+  String get l2UnlockHint => 'जारी रखने के लिए अपना छोटा पासवर्ड दर्ज करें';
+
+  @override
+  String get l2WrongPassword => 'गलत पासवर्ड';
+
+  @override
+  String get l3UnlockTitle => 'पासवर्ड दर्ज करें';
+
+  @override
+  String get l3UnlockHint => 'पासवर्ड हार्डवेयर-बाउंड वॉल्ट खोलता है';
+
+  @override
+  String get l3WrongPin => 'गलत पासवर्ड';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return '$seconds सेकंड में फिर कोशिश करें';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'निर्यात किया गया: $path';
   }
@@ -823,6 +988,9 @@ class SHi extends S {
 
   @override
   String get dataLocation => 'डेटा स्थान';
+
+  @override
+  String get dataStorageSection => 'संग्रहण';
 
   @override
   String get pathCopied => 'पथ क्लिपबोर्ड पर कॉपी किया गया';
@@ -1185,7 +1353,7 @@ class SHi extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'ऐप शुरू करते समय मास्टर पासवर्ड टाइप करने से बचें।';
+      'पासवर्ड टाइप न करें — डिवाइस के बायोमेट्रिक सेंसर से अनलॉक करें।';
 
   @override
   String get biometricNotAvailable =>
@@ -1221,8 +1389,15 @@ class SHi extends S {
       'इस डिवाइस पर कोई बायोमेट्रिक सेंसर नहीं है।';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'ऑटो-लॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
+  String get biometricSystemServiceMissing =>
+      'फ़िंगरप्रिंट सेवा (fprintd) स्थापित नहीं है। README → Installation देखें।';
+
+  @override
+  String get biometricBackingHardware =>
+      'हार्डवेयर-समर्थित (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'सॉफ़्टवेयर-समर्थित';
 
   @override
   String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
@@ -1252,7 +1427,7 @@ class SHi extends S {
 
   @override
   String get autoLockSubtitle =>
-      'इतनी देर निष्क्रिय रहने पर UI लॉक होता है। एन्क्रिप्टेड डेटाबेस तभी पुनः लॉक होता है जब कोई सक्रिय SSH सत्र न हो, ताकि लंबी प्रक्रियाएँ बाधित न हों।';
+      'इतनी देर निष्क्रिय रहने पर UI लॉक होता है। हर लॉक पर डेटाबेस कुंजी मिटा दी जाती है और एन्क्रिप्टेड स्टोर बंद कर दिया जाता है; सक्रिय सत्र प्रति-सत्र क्रेडेंशियल कैश के ज़रिए जुड़े रहते हैं, जो सत्र बंद होने पर साफ़ हो जाता है।';
 
   @override
   String get autoLockOff => 'बंद';
@@ -1283,6 +1458,10 @@ class SHi extends S {
 
   @override
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'संग्रह अधूरा है। मूल डिवाइस से पुनः डाउनलोड या पुनः निर्यात करें।';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1657,6 +1836,13 @@ class SHi extends S {
   String get generateKey => 'कुंजी जनरेट करें';
 
   @override
+  String get addKey => 'कुंजी जोड़ें';
+
+  @override
+  String get filePickerUnavailable =>
+      'इस सिस्टम पर फ़ाइल चयनकर्ता उपलब्ध नहीं है';
+
+  @override
   String get importKey => 'कुंजी आयात करें';
 
   @override
@@ -1808,6 +1994,46 @@ class SHi extends S {
   String get credentialsReset => 'सभी सहेजे गए क्रेडेंशियल हटा दिए गए';
 
   @override
+  String get migrationToast => 'स्टोरेज को नवीनतम प्रारूप में अपग्रेड किया गया';
+
+  @override
+  String get dbCorruptTitle => 'डेटाबेस नहीं खोला जा सकता';
+
+  @override
+  String get dbCorruptBody =>
+      'डिस्क पर डेटा नहीं खुल पा रहा है। किसी दूसरी प्रमाणिका से प्रयास करें या रीसेट करके नए सिरे से शुरू करें.';
+
+  @override
+  String get dbCorruptWarning =>
+      'रीसेट एन्क्रिप्टेड डेटाबेस और सुरक्षा संबंधी सभी फ़ाइलें स्थायी रूप से हटा देगा। कोई डेटा पुनर्प्राप्त नहीं होगा।';
+
+  @override
+  String get dbCorruptTryOther => 'दूसरी प्रमाणिकाएँ आज़माएँ';
+
+  @override
+  String get dbCorruptResetContinue => 'रीसेट और नया सेटअप';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh से बाहर निकलें';
+
+  @override
+  String get tierResetTitle => 'सुरक्षा रीसेट आवश्यक';
+
+  @override
+  String get tierResetBody =>
+      'इस इंस्टॉल में LetsFLUTssh के पुराने संस्करण से सुरक्षा डेटा मौजूद है जो अलग टियर मॉडल का उपयोग करता था। नया मॉडल एक असंगत परिवर्तन है — कोई स्वचालित माइग्रेशन पथ नहीं है। जारी रखने के लिए, इस इंस्टॉल के सभी सहेजे गए सत्र, क्रेडेंशियल, SSH कुंजियाँ और ज्ञात होस्ट मिटाने होंगे और पहले-लॉन्च सेटअप विज़ार्ड नए सिरे से चलाना होगा।';
+
+  @override
+  String get tierResetWarning =>
+      '«रीसेट करें और नए सिरे से सेटअप करें» चुनने से एन्क्रिप्टेड डेटाबेस और हर सुरक्षा-संबंधित फ़ाइल स्थायी रूप से हट जाएगी। यदि आपको अपना डेटा पुनर्प्राप्त करने की आवश्यकता है, तो अभी ऐप बंद करें और पहले निर्यात करने के लिए LetsFLUTssh का पिछला संस्करण पुनः इंस्टॉल करें।';
+
+  @override
+  String get tierResetResetContinue => 'रीसेट करें और नए सिरे से सेटअप करें';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh बंद करें';
+
+  @override
   String get derivingKey => 'एन्क्रिप्शन कुंजी बनाई जा रही है...';
 
   @override
@@ -1884,6 +2110,200 @@ class SHi extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'मास्टर पासवर्ड सेट, बदलें या हटाएं';
+
+  @override
+  String get changeSecurityTier => 'सुरक्षा स्तर बदलें';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'स्तर सीढ़ी खोलें और अलग सुरक्षा स्तर पर जाएँ';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'नए स्तर से डेटाबेस फिर से एन्क्रिप्ट हो रहा है। बीच में नहीं रोका जा सकता — समाप्त होने तक ऐप खुला रखें।';
+
+  @override
+  String get changeSecurityTierDone => 'सुरक्षा स्तर बदला गया';
+
+  @override
+  String get changeSecurityTierFailed => 'सुरक्षा स्तर नहीं बदला जा सका';
+
+  @override
+  String get firstLaunchSecurityTitle => 'सुरक्षित स्टोरेज सक्षम है';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'आपका डेटा OS कीचेन में रखी गई कुंजी से एन्क्रिप्ट किया गया है। इस डिवाइस पर अनलॉक स्वचालित है।';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध है। TPM / Secure Enclave बाइंडिंग के लिए सेटिंग्स → सुरक्षा से अपग्रेड करें।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — इस डिवाइस पर TPM 2.0 नहीं मिला।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — यह डिवाइस Secure Enclave की रिपोर्ट नहीं करता।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — इसे सक्षम करने के लिए tpm2-tools और TPM 2.0 डिवाइस स्थापित करें।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — यह डिवाइस StrongBox या TEE की रिपोर्ट नहीं करता।';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है।';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'सेटिंग्स खोलें';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'समझ गया';
+
+  @override
+  String get securityHardwareUpgradeTitle => 'हार्डवेयर-आधारित स्टोरेज उपलब्ध';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'रहस्यों को TPM / Secure Enclave से बाँधने के लिए अपग्रेड करें।';
+
+  @override
+  String get securityHardwareUpgradeAction => 'अपग्रेड करें';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं';
+
+  @override
+  String get wizardReducedBanner =>
+      'इस इंस्टॉलेशन में OS कीचेन उपलब्ध नहीं है। कोई एन्क्रिप्शन नहीं (T0) और मास्टर पासवर्ड (Paranoid) में से चुनें। Keychain स्तर सक्षम करने के लिए gnome-keyring, kwallet या कोई अन्य libsecret प्रदाता स्थापित करें।';
+
+  @override
+  String get tierBlockProtectsHeader => 'इनसे बचाता है';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'इनसे नहीं बचाता';
+
+  @override
+  String get tierBlockProtectsEmpty => 'इस स्तर पर कुछ नहीं।';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'कोई खुला खतरा नहीं।';
+
+  @override
+  String get tierBadgeCurrent => 'वर्तमान';
+
+  @override
+  String get securitySetupEnable => 'सक्षम करें';
+
+  @override
+  String get securitySetupApply => 'लागू करें';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'सादा स्तर कोई रहस्य नहीं रखता जिसे पासवर्ड से बचाया जा सके।';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid पासवर्ड से डीबी कुंजी निकालता है — हमेशा चालू।';
+
+  @override
+  String get passwordSubtitleOn => 'चालू — अनलॉक पर पासवर्ड आवश्यक';
+
+  @override
+  String get passwordSubtitleOff =>
+      'बंद — इस स्तर पर पासवर्ड जोड़ने के लिए टैप करें';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'आवश्यक — मास्टर पासवर्ड ही स्तर का रहस्य है';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'लागू नहीं — इस स्तर में कोई एन्क्रिप्शन नहीं';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0 पर कोई TPM नहीं मिला। मशीन समर्थन करती है तो BIOS में fTPM / PTT सक्षम करें; अन्यथा इस डिवाइस पर हार्डवेयर स्तर उपलब्ध नहीं है।';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools स्थापित नहीं है। हार्डवेयर स्तर सक्षम करने के लिए `sudo apt install tpm2-tools` (या आपके वितरण का समतुल्य) चलाएँ।';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'हार्डवेयर स्तर जाँच विफल। /dev/tpmrm0 अनुमतियाँ और udev नियम जाँचें — विवरण लॉग में हैं।';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 नहीं मिला। UEFI फ़र्मवेयर में fTPM / PTT सक्षम करें, या स्वीकारें कि इस डिवाइस पर हार्डवेयर स्तर उपलब्ध नहीं है — ऐप सॉफ़्टवेयर-आधारित क्रेडेंशियल स्टोर पर वापस लौटता है।';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Microsoft Platform Crypto Provider और Software Key Storage Provider दोनों तक पहुँच नहीं है — संभवतः दूषित Windows क्रिप्टो उपप्रणाली या CNG को ब्लॉक करने वाली Group Policy। Event Viewer → Applications and Services Logs जाँचें।';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'इस Mac में Secure Enclave नहीं है (T1 / T2 सुरक्षा चिप के बिना 2017 से पहले का Intel Mac)। हार्डवेयर स्तर उपलब्ध नहीं; मास्टर पासवर्ड का उपयोग करें।';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'इस Mac पर लॉगिन पासवर्ड सेट नहीं है। Secure Enclave कुंजी निर्माण के लिए यह आवश्यक है — System Settings → Touch ID & Password (या Login Password) में सेट करें।';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave ने ऐप की साइनिंग आइडेंटिटी अस्वीकार की (-34018)। रिलीज़ के साथ शामिल `macos-resign.sh` स्क्रिप्ट चलाएँ ताकि इस इंस्टॉल को एक स्थिर सेल्फ़-साइन आइडेंटिटी मिले, फिर ऐप पुनः आरंभ करें।';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'डिवाइस पासकोड सेट नहीं है। Secure Enclave कुंजी निर्माण के लिए यह आवश्यक है — Settings → Face ID & Passcode (या Touch ID & Passcode) में सेट करें।';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'iOS Simulator पर चल रहा है, जिसमें Secure Enclave नहीं है। हार्डवेयर स्तर केवल भौतिक iOS डिवाइसों पर उपलब्ध है।';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'हार्डवेयर स्तर के लिए Android 9 या नया आवश्यक है (StrongBox और प्रति-कुंजी एनरोलमेंट अमान्यकरण पुराने संस्करणों पर विश्वसनीय नहीं हैं)।';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'इस डिवाइस में बायोमेट्रिक हार्डवेयर नहीं है (उँगली या चेहरा)। मास्टर पासवर्ड का उपयोग करें।';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'कोई बायोमेट्रिक नामांकित नहीं। Settings → Security & privacy → Biometrics में उँगली या चेहरा जोड़ें, फिर हार्डवेयर स्तर पुनः सक्षम करें।';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'बायोमेट्रिक हार्डवेयर अस्थायी रूप से अनुपयोगी (असफल प्रयासों के बाद लॉकआउट या लंबित सुरक्षा अपडेट)। कुछ मिनटों में पुनः प्रयास करें।';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore ने इस डिवाइस बिल्ड पर हार्डवेयर कुंजी समर्थन देने से इनकार किया (StrongBox अनुपलब्ध, कस्टम ROM, या ड्राइवर समस्या)। हार्डवेयर टियर उपलब्ध नहीं है।';
+
+  @override
+  String get securityRecheck => 'टियर समर्थन पुनः जाँचें';
+
+  @override
+  String get securityRecheckUpdated =>
+      'टियर समर्थन अपडेट हुआ — ऊपर के कार्ड देखें';
+
+  @override
+  String get securityRecheckUnchanged => 'टियर समर्थन अपरिवर्तित';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus चल रहा है लेकिन कोई secret-service daemon नहीं चल रहा। gnome-keyring (`sudo apt install gnome-keyring`) या KWalletManager स्थापित करें और लॉगिन पर शुरू होना सुनिश्चित करें।';
+
+  @override
+  String get keyringProbeFailed =>
+      'इस डिवाइस पर OS कीचेन पहुँच योग्य नहीं। प्लेटफ़ॉर्म-विशिष्ट त्रुटि के लिए लॉग देखें; ऐप मास्टर पासवर्ड पर वापस लौटता है।';
 
   @override
   String get snippets => 'स्निपेट्स';
@@ -2131,4 +2551,228 @@ class SHi extends S {
 
   @override
   String get continueWithoutPassword => 'बिना पासवर्ड के जारी रखें';
+
+  @override
+  String get threatColdDiskTheft => 'बंद डिस्क की चोरी';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'बंद मशीन से ड्राइव निकालकर किसी दूसरे कंप्यूटर पर पढ़ी जाए, या आपके होम डायरेक्टरी तक पहुँच रखने वाले किसी व्यक्ति द्वारा डेटाबेस फ़ाइल की नकल ले ली जाए।';
+
+  @override
+  String get threatKeyringFileTheft => 'keyring / keychain फ़ाइल चोरी';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'हमलावर प्लेटफ़ॉर्म की क्रेडेंशियल स्टोर फ़ाइल को सीधे डिस्क से पढ़ लेता है (libsecret keyring, Windows Credential Manager, macOS login keychain) और उसमें लिपटी डेटाबेस कुंजी को पुनः प्राप्त कर लेता है। हार्डवेयर स्तर पासवर्ड से स्वतंत्र रूप से इसे रोकता है क्योंकि चिप कुंजी सामग्री निर्यात करने से इनकार करता है; keychain स्तर के लिए अतिरिक्त पासवर्ड आवश्यक है, अन्यथा चोरी की गई फ़ाइल केवल OS लॉगिन पासवर्ड से खोली जा सकती है।';
+
+  @override
+  String get modifierOnlyWithPassword => 'केवल पासवर्ड के साथ';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'अनलॉक मशीन पर मौजूद अजनबी';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'जब आप दूर होते हैं, कोई आपकी पहले से अनलॉक मशीन के पास आकर ऐप खोल लेता है।';
+
+  @override
+  String get threatLiveRamForensicsLocked => 'लॉक मशीन पर RAM फ़ोरेंसिक';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'हमलावर RAM को फ़्रीज़ करता है (या DMA के ज़रिए कैप्चर करता है) और ऐप लॉक होने पर भी स्नैपशॉट से अब भी मौजूद कुंजी सामग्री निकाल लेता है।';
+
+  @override
+  String get threatOsKernelOrKeychainBreach => 'OS कर्नल या कीचेन की सेंधमारी';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'कर्नल की कमज़ोरी, कीचेन से डेटा बाहर निकालना, या हार्डवेयर सुरक्षा चिप में बैकडोर। ऑपरेटिंग सिस्टम विश्वसनीय संसाधन के बजाय स्वयं हमलावर बन जाता है।';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'कमज़ोर पासवर्ड पर ऑफ़लाइन ब्रूट फ़ोर्स';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'रैप की गई कुंजी या सील्ड ब्लॉब की प्रति रखने वाला हमलावर किसी दर-सीमक के बिना, अपनी गति से हर पासवर्ड आज़माता है।';
+
+  @override
+  String get legendProtects => 'सुरक्षित';
+
+  @override
+  String get legendDoesNotProtect => 'सुरक्षित नहीं';
+
+  @override
+  String get legendNotApplicable =>
+      'लागू नहीं — इस टीयर के लिए कोई उपयोगकर्ता गुप्त नहीं है';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'कमज़ोर पासवर्ड स्वीकार्य — सुरक्षा का भार कोई और परत (हार्डवेयर दर-सीमक या रैप की गई कुंजी की बाइंडिंग) उठाती है';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'एक लंबा पासफ़्रेज़ अत्यधिक अनुशंसित है — इस टीयर की सुरक्षा इस पर निर्भर है';
+
+  @override
+  String get colT0 => 'T0 सादा पाठ';
+
+  @override
+  String get colT1 => 'T1 कीचेन';
+
+  @override
+  String get colT1Password => 'T1 + पासवर्ड';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + पासवर्ड + बायोमेट्रिक';
+
+  @override
+  String get colT2 => 'T2 हार्डवेयर';
+
+  @override
+  String get colT2Password => 'T2 + पासवर्ड';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + पासवर्ड + बायोमेट्रिक';
+
+  @override
+  String get colParanoid => 'पैरानॉइड';
+
+  @override
+  String get securityComparisonTableTitle => 'सुरक्षा टीयर — आमने-सामने तुलना';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'ख़तरा';
+
+  @override
+  String get compareAllTiers => 'सभी टीयर की तुलना करें';
+
+  @override
+  String get resetAllDataTitle => 'सभी डेटा रीसेट करें';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'सभी सत्र, कुंजियाँ, कॉन्फ़िगरेशन और सुरक्षा आर्टिफ़ैक्ट हटाएँ। कीचेन प्रविष्टियाँ और हार्डवेयर-वॉल्ट स्लॉट भी साफ़ करता है।';
+
+  @override
+  String get resetAllDataConfirmTitle => 'सभी डेटा रीसेट करें?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'सभी सत्र, SSH कुंजियाँ, known hosts, स्निपेट, टैग, वरीयताएँ और सभी सुरक्षा आर्टिफ़ैक्ट (कीचेन प्रविष्टियाँ, हार्डवेयर-वॉल्ट डेटा, बायोमेट्रिक ओवरले) स्थायी रूप से हटा दिए जाएँगे। इसे पूर्ववत नहीं किया जा सकता।';
+
+  @override
+  String get resetAllDataConfirmAction => 'सब कुछ रीसेट करें';
+
+  @override
+  String get resetAllDataInProgress => 'रीसेट हो रहा है…';
+
+  @override
+  String get resetAllDataDone => 'सभी डेटा रीसेट हो गया';
+
+  @override
+  String get resetAllDataFailed => 'रीसेट विफल';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'देखें कि प्रत्येक टीयर किससे रक्षा करता है, आमने-सामने तुलना में।';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।';
+
+  @override
+  String get recommendedBadge => 'अनुशंसित';
+
+  @override
+  String get continueWithRecommended => 'अनुशंसित के साथ जारी रखें';
+
+  @override
+  String get customizeSecurity => 'सुरक्षा अनुकूलित करें';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'उन्नत: हार्डवेयर-बाध्य कुंजी। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'विकल्प: मास्टर पासवर्ड, OS पर भरोसा नहीं। OS से समझौता होने पर सुरक्षा करता है। T1/T2 की तुलना में रनटाइम सुरक्षा में सुधार नहीं करता।';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।';
+
+  @override
+  String get securitySetupContinue => 'जारी रखें';
+
+  @override
+  String get currentTierBadge => 'वर्तमान';
+
+  @override
+  String get paranoidAlternativeHeader => 'विकल्प';
+
+  @override
+  String get modifierPasswordLabel => 'पासवर्ड';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'वॉल्ट खुलने से पहले टाइप किया गया गुप्त द्वार।';
+
+  @override
+  String get modifierBiometricLabel => 'बायोमेट्रिक शॉर्टकट';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'पासवर्ड टाइप करने के बजाय बायोमेट्रिक-संरक्षित OS स्लॉट से उसे प्राप्त करें।';
+
+  @override
+  String get biometricRequiresPassword =>
+      'पहले पासवर्ड सक्षम करें — बायोमेट्रिक उसे दर्ज करने का केवल एक शॉर्टकट है।';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'बायोमेट्रिक अनलॉक सक्षम करने के लिए पहले इस स्तर को चुनें';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'ऑटो-लॉक कॉन्फ़िगर करने के लिए पहले इस स्तर को चुनें';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid डिज़ाइन के अनुसार बायोमेट्रिक की अनुमति नहीं देता।';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd संस्थापित नहीं है या कोई फिंगरप्रिंट पंजीकृत नहीं है।';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'पासवर्ड के बिना TPM पृथक्करण प्रदान करता है, प्रमाणीकरण नहीं। जो कोई भी इस ऐप को चला सकता है, वह डेटा को अनलॉक कर सकता है।';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'एक लंबे पासफ़्रेज़ की दृढ़ता से अनुशंसा की जाती है — Argon2id केवल ब्रूट फ़ोर्स को धीमा करता है, रोकता नहीं।';
+
+  @override
+  String get plaintextWarningTitle => 'सादा पाठ: कोई एन्क्रिप्शन नहीं';
+
+  @override
+  String get plaintextWarningBody =>
+      'सत्र, कुंजियाँ और known hosts एन्क्रिप्शन के बिना संग्रहीत किए जाएँगे। इस कंप्यूटर के फ़ाइल सिस्टम तक पहुँच रखने वाला कोई भी व्यक्ति उन्हें पढ़ सकता है।';
+
+  @override
+  String get plaintextAcknowledge =>
+      'मुझे समझ है कि मेरा डेटा एन्क्रिप्ट नहीं किया जाएगा';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'जारी रखने से पहले पुष्टि करें कि आप समझ गए हैं।';
+
+  @override
+  String get passwordLabel => 'पासवर्ड';
+
+  @override
+  String get masterPasswordLabel => 'मास्टर पासवर्ड';
 }

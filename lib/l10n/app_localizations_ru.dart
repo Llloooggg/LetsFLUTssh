@@ -15,6 +15,12 @@ class SRu extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Защищает от';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Не защищает от';
+
+  @override
   String get cancel => 'Отмена';
 
   @override
@@ -801,6 +807,164 @@ class SRu extends S {
   String get passwordsDoNotMatch => 'Пароли не совпадают';
 
   @override
+  String get passwordStrengthWeak => 'Слабый';
+
+  @override
+  String get passwordStrengthModerate => 'Средний';
+
+  @override
+  String get passwordStrengthStrong => 'Сильный';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Очень сильный';
+
+  @override
+  String get tierRecommendedBadge => 'Рекомендуется';
+
+  @override
+  String get tierCurrentBadge => 'Текущий';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Альтернатива — не доверять ОС';
+
+  @override
+  String get tierUpcomingTooltip => 'Появится в будущей версии.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Базовый механизм этого уровня ещё не реализован. Строка видна, чтобы вы знали, что опция существует.';
+
+  @override
+  String get tierPlaintextLabel => 'Без шифрования';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'Без шифрования — только права доступа к файлам';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Любой с доступом к файловой системе читает ваши данные';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Случайная синхронизация или бэкап раскрывают всё';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Использовать только в доверенных изолированных средах.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Ключ в $keychain — автоматическая разблокировка при запуске';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Другие пользователи на той же машине';
+
+  @override
+  String get tierKeychainProtect2 => 'Украденный диск без входа в ОС';
+
+  @override
+  String get tierKeychainThreat1 => 'Вредоносное ПО под вашей учёткой ОС';
+
+  @override
+  String get tierKeychainThreat2 => 'Злоумышленник, получивший ваш вход в ОС';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Keychain ОС недоступен в этой установке.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Коллега за вашим столом';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Прохожий с открытым доступом';
+
+  @override
+  String get tierKeychainPassThreat1 => 'Оффлайн-атакующий с файлом на диске';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Те же риски компрометации ОС, что и у Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Аппаратное';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Хранилище, привязанное к оборудованию + короткий PIN с блокировкой';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Оффлайн-брутфорс PIN (аппаратный rate-limit)';
+
+  @override
+  String get tierHardwareProtect2 => 'Кража диска и блоба keychain';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE ОС или прошивки безопасного модуля';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Принудительный биометрический unlock (если включён)';
+
+  @override
+  String get tierParanoidLabel => 'Мастер-пароль (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Длинный пароль + Argon2id. Ключ никогда не попадает в ОС.';
+
+  @override
+  String get tierParanoidProtect1 => 'Компрометация keychain ОС';
+
+  @override
+  String get tierParanoidProtect2 => 'Украденный диск (пока пароль надёжен)';
+
+  @override
+  String get tierParanoidThreat1 => 'Кейлоггер, перехватывающий ваш пароль';
+
+  @override
+  String get tierParanoidThreat2 => 'Слабый пароль + оффлайн-взлом Argon2id';
+
+  @override
+  String get tierParanoidNotes =>
+      'Биометрия отключена на этом уровне по замыслу.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'Аппаратное хранилище недоступно на этой установке.';
+
+  @override
+  String get pinLabel => 'Пароль';
+
+  @override
+  String get l2UnlockTitle => 'Требуется пароль';
+
+  @override
+  String get l2UnlockHint => 'Введите короткий пароль для продолжения';
+
+  @override
+  String get l2WrongPassword => 'Неверный пароль';
+
+  @override
+  String get l3UnlockTitle => 'Введите пароль';
+
+  @override
+  String get l3UnlockHint => 'Пароль разблокирует аппаратное хранилище';
+
+  @override
+  String get l3WrongPin => 'Неверный пароль';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Повтор через $seconds с';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Экспортировано в: $path';
   }
@@ -828,6 +992,9 @@ class SRu extends S {
 
   @override
   String get dataLocation => 'Расположение данных';
+
+  @override
+  String get dataStorageSection => 'Хранилище';
 
   @override
   String get pathCopied => 'Путь скопирован в буфер обмена';
@@ -1189,7 +1356,7 @@ class SRu extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Не вводить мастер-пароль при запуске приложения.';
+      'Не вводить пароль — разблокировать биометрическим сенсором устройства.';
 
   @override
   String get biometricNotAvailable =>
@@ -1225,8 +1392,15 @@ class SRu extends S {
       'На этом устройстве нет биометрического датчика.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'Сначала задайте мастер-пароль, чтобы включить авто-блокировку.';
+  String get biometricSystemServiceMissing =>
+      'Служба отпечатков пальцев (fprintd) не установлена. См. README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Аппаратная защита (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Программная защита';
 
   @override
   String get currentPasswordIncorrect => 'Неверный текущий пароль';
@@ -1256,7 +1430,7 @@ class SRu extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Блокировать интерфейс после указанного периода бездействия. Зашифрованная база перезакрывается только когда нет активных SSH-сессий — длительные операции не прерываются.';
+      'Блокировать интерфейс после указанного периода бездействия. Ключ базы данных стирается и зашифрованное хранилище закрывается при каждой блокировке; активные сессии остаются подключёнными благодаря кэшу учётных данных, который очищается при закрытии сессии.';
 
   @override
   String get autoLockOff => 'Выкл.';
@@ -1291,6 +1465,10 @@ class SRu extends S {
   @override
   String get errLfsDecryptFailed =>
       'Неверный мастер-пароль или повреждённый архив .lfs';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'Архив неполный. Перекачайте или пересоздайте его на исходном устройстве.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1666,6 +1844,13 @@ class SRu extends S {
   String get generateKey => 'Сгенерировать ключ';
 
   @override
+  String get addKey => 'Добавить ключ';
+
+  @override
+  String get filePickerUnavailable =>
+      'Файловый пикер недоступен в этой системе';
+
+  @override
   String get importKey => 'Импортировать ключ';
 
   @override
@@ -1817,6 +2002,46 @@ class SRu extends S {
   String get credentialsReset => 'Все сохранённые учётные данные удалены';
 
   @override
+  String get migrationToast => 'Хранилище обновлено до текущего формата';
+
+  @override
+  String get dbCorruptTitle => 'Не удалось открыть базу данных';
+
+  @override
+  String get dbCorruptBody =>
+      'Данные на диске не открываются. Попробуйте другие учётные данные или сбросьте и настройте заново.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Сброс навсегда удалит зашифрованную базу данных и все связанные с безопасностью файлы. Восстановить данные будет невозможно.';
+
+  @override
+  String get dbCorruptTryOther => 'Попробовать другие учётные данные';
+
+  @override
+  String get dbCorruptResetContinue => 'Сбросить и настроить заново';
+
+  @override
+  String get dbCorruptExit => 'Выйти из LetsFLUTssh';
+
+  @override
+  String get tierResetTitle => 'Требуется сброс безопасности';
+
+  @override
+  String get tierResetBody =>
+      'В этой установке есть данные безопасности от прежней версии LetsFLUTssh, использовавшей другую модель уровней. Новая модель — несовместимое изменение, автоматической миграции нет. Чтобы продолжить, все сохранённые сессии, учётные данные, SSH-ключи и известные хосты в этой установке должны быть удалены, а мастер первого запуска — запущен заново.';
+
+  @override
+  String get tierResetWarning =>
+      'Выбор «Сбросить и настроить заново» безвозвратно удалит зашифрованную базу данных и все связанные с безопасностью файлы. Если нужно восстановить данные, закройте приложение сейчас и переустановите предыдущую версию LetsFLUTssh, чтобы сначала экспортировать их.';
+
+  @override
+  String get tierResetResetContinue => 'Сбросить и настроить заново';
+
+  @override
+  String get tierResetExit => 'Выйти из LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Генерация ключа шифрования...';
 
   @override
@@ -1893,6 +2118,202 @@ class SRu extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'Установить, изменить или удалить мастер-пароль';
+
+  @override
+  String get changeSecurityTier => 'Сменить уровень безопасности';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Открыть лестницу уровней и перейти на другой';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Переашифровываем базу новым уровнем. Не закрывайте приложение до завершения.';
+
+  @override
+  String get changeSecurityTierDone => 'Уровень безопасности изменён';
+
+  @override
+  String get changeSecurityTierFailed =>
+      'Не удалось сменить уровень безопасности';
+
+  @override
+  String get firstLaunchSecurityTitle => 'Безопасное хранилище включено';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Данные шифруются ключом из системного хранилища. Разблокировка на этом устройстве — автоматическая.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'На устройстве доступно аппаратное хранилище. Повысьте уровень в Настройки → Безопасность для привязки к TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Аппаратное хранилище недоступно — TPM 2.0 не обнаружен.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Аппаратное хранилище недоступно — устройство не сообщает о наличии Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Аппаратное хранилище недоступно — установите tpm2-tools и устройство TPM 2.0, чтобы включить его.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Аппаратное хранилище недоступно — устройство не сообщает о наличии StrongBox или TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Аппаратное хранилище недоступно на этом устройстве.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Открыть настройки';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Понятно';
+
+  @override
+  String get securityHardwareUpgradeTitle => 'Доступно аппаратное хранилище';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Повысьте уровень, чтобы привязать секреты к TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Повысить';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Аппаратное хранилище недоступно';
+
+  @override
+  String get wizardReducedBanner =>
+      'Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.';
+
+  @override
+  String get tierBlockProtectsHeader => 'ЗАЩИЩАЕТ ОТ';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'НЕ ЗАЩИЩАЕТ ОТ';
+
+  @override
+  String get tierBlockProtectsEmpty => 'На этом уровне — ничего.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Непокрытых угроз нет.';
+
+  @override
+  String get tierBadgeCurrent => 'Текущий';
+
+  @override
+  String get securitySetupEnable => 'Включить';
+
+  @override
+  String get securitySetupApply => 'Применить';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'В режиме без шифрования пароль защищать нечего.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid выводит ключ БД из пароля — пароль всегда включён.';
+
+  @override
+  String get passwordSubtitleOn =>
+      'Включён — пароль запрашивается при разблокировке';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Выключен — нажмите, чтобы добавить пароль на этом уровне';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Обязателен — мастер-пароль и есть секрет уровня';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Не применимо — на этом уровне нет шифрования';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      'TPM не обнаружен на /dev/tpmrm0. Включите fTPM / PTT в BIOS, если машина поддерживает; иначе аппаратный уровень на этом устройстве недоступен.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools не установлен. Выполните `sudo apt install tpm2-tools` (или эквивалент в вашем дистрибутиве), чтобы активировать аппаратный уровень.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Проверка аппаратного уровня не прошла. Проверьте права на /dev/tpmrm0 и udev-правила — подробности в логах.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 не обнаружен. Включите fTPM / PTT в прошивке UEFI или примите, что аппаратный уровень на этом устройстве недоступен — приложение переходит на программное хранилище учётных данных.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ни Microsoft Platform Crypto Provider, ни Software Key Storage Provider недоступны — вероятно, повреждённая криптоподсистема Windows или Group Policy блокирует CNG. Проверьте Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'На этом Mac нет Secure Enclave (Intel Mac до 2017 года без чипа безопасности T1 / T2). Аппаратный уровень недоступен — используйте мастер-пароль.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'На этом Mac не задан пароль входа. Secure Enclave требует его для создания ключа — установите пароль входа в System Settings → Touch ID & Password (или Login Password).';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave отклонил подпись приложения (-34018). Запустите скрипт `macos-resign.sh` из релизного архива, чтобы дать установке стабильную самоподписанную идентичность, и перезапустите приложение.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'На устройстве не задан код-пароль. Secure Enclave требует его для создания ключа — установите код-пароль в Настройки → Face ID и код-пароль (или Touch ID и код-пароль).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Запуск на iOS Simulator, у которого нет Secure Enclave. Аппаратный уровень доступен только на физических устройствах iOS.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Для аппаратного уровня требуется Android 9 или новее (StrongBox и инвалидация ключа при изменении биометрии не работают надёжно на более старых версиях).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'На этом устройстве нет биометрического оборудования (отпечаток или лицо). Используйте мастер-пароль.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Биометрия не настроена. Добавьте отпечаток или лицо в Настройки → Безопасность и конфиденциальность → Биометрия, затем повторно включите аппаратный уровень.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Биометрическое оборудование временно недоступно (блокировка после неудачных попыток или ожидание обновления безопасности). Повторите через несколько минут.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore отказал в создании аппаратного ключа на этой сборке устройства (StrongBox недоступен, кастомная ROM или сбой драйвера). Аппаратный уровень недоступен.';
+
+  @override
+  String get securityRecheck => 'Проверить поддержку уровней';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Поддержка уровней обновилась — см. карточки выше';
+
+  @override
+  String get securityRecheckUnchanged => 'Поддержка уровней без изменений';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus работает, но secret-service daemon не запущен. Установите gnome-keyring (`sudo apt install gnome-keyring`) или KWalletManager и включите автозапуск при входе.';
+
+  @override
+  String get keyringProbeFailed =>
+      'OS keychain недоступен на этом устройстве. Подробности в логах; приложение переходит на мастер-пароль.';
 
   @override
   String get snippets => 'Сниппеты';
@@ -2145,4 +2566,231 @@ class SRu extends S {
 
   @override
   String get continueWithoutPassword => 'Продолжить без пароля';
+
+  @override
+  String get threatColdDiskTheft => 'Кража холодного диска';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Выключенный компьютер с извлечённым диском, прочитанным на другой машине, либо копия файла базы данных, сделанная тем, у кого есть доступ к вашему домашнему каталогу.';
+
+  @override
+  String get threatKeyringFileTheft => 'Кража файла keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Атакующий читает файл OS-хранилища учётных данных прямо с диска (libsecret keyring, Windows Credential Manager, macOS login keychain) и восстанавливает завёрнутый ключ БД. Аппаратный уровень защищает независимо от пароля — чип отказывает в экспорте ключа; для keychain-уровня нужен пароль сверху, иначе украденный файл расшифровывается одним лишь OS-паролем входа.';
+
+  @override
+  String get modifierOnlyWithPassword => 'только с паролем';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Посторонний у разблокированной машины';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Кто-то подходит к уже разблокированному компьютеру и открывает приложение, пока вас нет рядом.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Криминалистика ОЗУ на заблокированной машине';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Атакующий замораживает ОЗУ (или снимает её через DMA) и извлекает ещё находящийся там ключевой материал из слепка, даже когда приложение заблокировано.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Компрометация ядра ОС или ключницы';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Уязвимость ядра, эксфильтрация ключницы или бэкдор в аппаратном чипе безопасности. Операционная система становится атакующим, а не доверенным ресурсом.';
+
+  @override
+  String get threatOfflineBruteForce => 'Офлайн-перебор слабого пароля';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Атакующий, имеющий копию обёрнутого ключа или запечатанного блока, перебирает все пароли в своём темпе, без каких-либо ограничений частоты.';
+
+  @override
+  String get legendProtects => 'Защищает';
+
+  @override
+  String get legendDoesNotProtect => 'Не защищает';
+
+  @override
+  String get legendNotApplicable =>
+      'Неприменимо — у этого уровня нет пользовательского секрета';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Слабый пароль допустим — безопасность обеспечивает другой слой (аппаратный ограничитель попыток или привязка обёрнутого ключа)';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Настоятельно рекомендуется длинная парольная фраза — безопасность этого уровня зависит от неё';
+
+  @override
+  String get colT0 => 'T0 Открытый текст';
+
+  @override
+  String get colT1 => 'T1 Ключница';
+
+  @override
+  String get colT1Password => 'T1 + пароль';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + пароль + биометрия';
+
+  @override
+  String get colT2 => 'T2 Аппаратный';
+
+  @override
+  String get colT2Password => 'T2 + пароль';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + пароль + биометрия';
+
+  @override
+  String get colParanoid => 'Параноидальный';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Уровни безопасности — сравнение бок о бок';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Угроза';
+
+  @override
+  String get compareAllTiers => 'Сравнить все уровни';
+
+  @override
+  String get resetAllDataTitle => 'Сбросить все данные';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Удалить все сессии, ключи, конфигурации и артефакты безопасности. Также очищает записи в связке ключей ОС и слоты аппаратного хранилища.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Сбросить все данные?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Все сессии, SSH ключи, known hosts, сниппеты, теги, настройки и все артефакты безопасности (записи связки ключей, данные аппаратного хранилища, биометрическая оболочка) будут безвозвратно удалены. Это действие нельзя отменить.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Сбросить всё';
+
+  @override
+  String get resetAllDataInProgress => 'Сброс…';
+
+  @override
+  String get resetAllDataDone => 'Все данные сброшены';
+
+  @override
+  String get resetAllDataFailed => 'Не удалось выполнить сброс';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'Посмотрите бок о бок, от чего защищает каждый уровень.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Для авто-блокировки нужен пароль на активном уровне.';
+
+  @override
+  String get recommendedBadge => 'РЕКОМЕНДУЕТСЯ';
+
+  @override
+  String get continueWithRecommended => 'Продолжить с рекомендуемым';
+
+  @override
+  String get customizeSecurity => 'Настроить безопасность';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Продвинутый: ключ привязан к оборудованию. Данные невосстановимы, если чип этого устройства утерян или заменён.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Альтернативный: мастер-пароль, без доверия к ОС. Защищает от компрометации ОС. Не улучшает защиту во время выполнения по сравнению с T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Угрозы во время выполнения (runtime — malware от того же пользователя, дамп памяти живого процесса) показаны как ✗ во всех уровнях. Они устраняются отдельными функциями защиты, применяемыми независимо от выбранного уровня.';
+
+  @override
+  String get securitySetupContinue => 'Продолжить';
+
+  @override
+  String get currentTierBadge => 'ТЕКУЩИЙ';
+
+  @override
+  String get paranoidAlternativeHeader => 'АЛЬТЕРНАТИВА';
+
+  @override
+  String get modifierPasswordLabel => 'Пароль';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Вводимый секрет — барьер перед разблокировкой хранилища.';
+
+  @override
+  String get modifierBiometricLabel => 'Биометрический ярлык';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Получение пароля из биометрически защищённого слота ОС вместо ввода вручную.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Сначала включите пароль — биометрия это ярлык для его ввода.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'Сначала выберите этот уровень, чтобы включить биометрический разблок';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Сначала выберите этот уровень, чтобы настроить автоблокировку';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid не допускает биометрию по замыслу.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd не установлен или нет зарегистрированного отпечатка.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM без пароля обеспечивает изоляцию, но не аутентификацию. Любой, кто может запустить это приложение, сможет разблокировать данные.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Настоятельно рекомендуется длинная парольная фраза — Argon2id лишь замедляет перебор, но не блокирует его.';
+
+  @override
+  String get plaintextWarningTitle => 'Открытый текст: без шифрования';
+
+  @override
+  String get plaintextWarningBody =>
+      'Сессии, ключи и known hosts будут храниться без шифрования. Любой, у кого есть доступ к файловой системе этого компьютера, сможет их прочитать.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Я понимаю, что мои данные не будут зашифрованы';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Подтвердите понимание, прежде чем продолжить.';
+
+  @override
+  String get passwordLabel => 'Пароль';
+
+  @override
+  String get masterPasswordLabel => 'Мастер-пароль';
 }

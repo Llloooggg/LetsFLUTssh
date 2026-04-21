@@ -1,6 +1,8 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
 
+import 'package:ffi/ffi.dart' as pffi;
+
 import '../../utils/logger.dart';
 
 /// Process-level hardening that runs once at app startup.
@@ -35,8 +37,10 @@ class ProcessHardening {
     try {
       if (Platform.isLinux || Platform.isAndroid) {
         _prctlNoDumpable();
+        _setRLimitCoreZero();
       } else if (Platform.isMacOS) {
         _ptraceDenyAttach();
+        _setRLimitCoreZero();
       } else if (Platform.isWindows) {
         _windowsSuppressErrorDialogs();
       }
@@ -72,6 +76,47 @@ class ProcessHardening {
         'prctl(PR_SET_DUMPABLE, 0) returned $rc',
         name: 'ProcessHardening',
       );
+    }
+  }
+
+  /// POSIX: `setrlimit(RLIMIT_CORE, {0, 0})` — belt-and-braces against
+  /// accidental core dumps on Linux/macOS. `prctl(PR_SET_DUMPABLE, 0)`
+  /// already tells the Linux kernel to skip dump generation for this
+  /// process; on macOS `ptrace(PT_DENY_ATTACH)` blocks debugger attach
+  /// but does *not* cover the `/cores/<pid>.core` dump a SIGSEGV would
+  /// otherwise write when `ulimit -c` is non-zero. Zeroing the soft
+  /// *and* hard limits from inside the process is a self-imposed cap
+  /// that survives any shell-level `ulimit -c unlimited` the user had
+  /// set. Failures are logged and ignored — a missing `libc.so.6` on
+  /// an oddball distro should not break app startup.
+  static void _setRLimitCoreZero() {
+    Pointer<UnsignedLong>? rlim;
+    try {
+      // `<sys/resource.h>` defines `RLIMIT_CORE` as 4 on both Linux and
+      // macOS. `struct rlimit { rlim_t rlim_cur; rlim_t rlim_max; }` is
+      // two `unsigned long` words on every 64-bit POSIX target shipped.
+      const rlimitCore = 4;
+      final libc = Platform.isMacOS
+          ? DynamicLibrary.process()
+          : DynamicLibrary.open('libc.so.6');
+      final setrlimit = libc
+          .lookup<NativeFunction<_SetRLimitC>>('setrlimit')
+          .asFunction<_SetRLimitDart>();
+      rlim = pffi.calloc<UnsignedLong>(2);
+      rlim[0] = 0; // rlim_cur
+      rlim[1] = 0; // rlim_max
+      final rc = setrlimit(rlimitCore, rlim);
+      AppLogger.instance.log(
+        'setrlimit(RLIMIT_CORE, {0, 0}) returned $rc',
+        name: 'ProcessHardening',
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'setrlimit(RLIMIT_CORE, 0) failed: $e',
+        name: 'ProcessHardening',
+      );
+    } finally {
+      if (rlim != null) pffi.calloc.free(rlim);
     }
   }
 
@@ -125,3 +170,6 @@ typedef _PrctlDart = int Function(int, int, int, int, int);
 
 typedef _PtraceC = Int32 Function(Int32, Int32, Pointer<Void>, Int32);
 typedef _PtraceDart = int Function(int, int, Pointer<Void>, int);
+
+typedef _SetRLimitC = Int32 Function(Int32, Pointer<UnsignedLong>);
+typedef _SetRLimitDart = int Function(int, Pointer<UnsignedLong>);

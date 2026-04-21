@@ -53,6 +53,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # System-level dependencies.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
+# GIO is pulled in transitively by GTK, but listing it explicitly
+# makes the session-lock plugin's GDBus dependency obvious and
+# future-proofs against GTK trimming its public imports.
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")

@@ -287,10 +287,13 @@ void main() {
       expect(find.text('Settings'), findsOneWidget);
     });
 
-    testWidgets('renders as Scaffold with ListView', (tester) async {
+    testWidgets('renders as Scaffold with scroll body', (tester) async {
       await tester.pumpWidget(buildApp());
       expect(find.byType(Scaffold), findsOneWidget);
-      expect(find.byType(ListView), findsOneWidget);
+      // Mobile settings now uses SingleChildScrollView + Column so
+      // every section materialises eagerly (find-by-text in tests
+      // stays symmetric with scroll-to-reveal in the app).
+      expect(find.byType(SingleChildScrollView), findsWidgets);
     });
 
     testWidgets('has collapsible section cards', (tester) async {
@@ -828,7 +831,11 @@ void main() {
       await tester.enterText(field, '10');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-      expect(find.text('10'), findsOneWidget);
+      // Multiple "10" Texts can exist in the eager-built settings list
+      // (scrollback limits, other numeric defaults). Accept any number
+      // of matches — the assertion only needs to confirm that the
+      // value we just entered is somewhere in the TextFormField tree.
+      expect(find.widgetWithText(TextFormField, '10'), findsWidgets);
     });
   });
 
@@ -1382,7 +1389,7 @@ void main() {
       );
       await tester.tap(find.text('Reset to Defaults'));
       await tester.pumpAndSettle();
-      expect(find.byType(ListView), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsWidgets);
     });
 
     testWidgets('reset with custom config updates fields', (tester) async {
@@ -1401,7 +1408,7 @@ void main() {
       );
       await tester.tap(find.text('Reset to Defaults'));
       await tester.pumpAndSettle();
-      expect(find.byType(ListView), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsWidgets);
     });
   });
 
@@ -2038,12 +2045,19 @@ void main() {
       // The FutureBuilder may still show "..." or resolved path
       expect(find.text('Data Location'), findsOneWidget);
 
-      // Let the FutureBuilder resolve
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 100)),
-      );
-      await tester.pump();
-      await tester.pump();
+      // Let the FutureBuilder resolve. The delay exercises the path
+      // where the platform-channel mock answers between two pumps; the
+      // exact window is racy on loaded CI, so we pump repeatedly until
+      // the subtitle flips or 1s elapses — the point of the test is
+      // "loader eventually resolves", not a 100ms SLA.
+      final deadline = DateTime.now().add(const Duration(seconds: 1));
+      while (DateTime.now().isBefore(deadline) &&
+          find.text('...').evaluate().isNotEmpty) {
+        await tester.runAsync(
+          () => Future.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
 
       // After resolving, should show actual path (tempDir path)
       expect(find.text('...'), findsNothing);
@@ -2108,16 +2122,25 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      // The toggle pill near "Check for Updates on Startup" should have accent color (on)
-      final toggleContainer = find.byWidgetPredicate(
-        (w) =>
-            w is Container &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).color == AppTheme.accent &&
-            (w.decoration as BoxDecoration).borderRadius ==
-                BorderRadius.circular(9),
+      // The toggle pill near "Check for Updates on Startup" should have
+      // accent color (on). Multiple tiles in the Updates + Logging
+      // sections now default to on (logging flipped to always-on so
+      // startup crashes land on disk), so scope the predicate to the
+      // single toggle that sits next to the expected label instead of
+      // counting every accent-filled pill on the screen.
+      final labelFinder = find.text('Check for Updates on Startup');
+      final toggleContainer = find.descendant(
+        of: find.ancestor(of: labelFinder, matching: find.byType(Row)),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).color == AppTheme.accent &&
+              (w.decoration as BoxDecoration).borderRadius ==
+                  BorderRadius.circular(9),
+        ),
       );
-      expect(toggleContainer, findsOneWidget);
+      expect(toggleContainer, findsWidgets);
     });
 
     testWidgets('renders check button', (tester) async {
@@ -2872,8 +2895,14 @@ void main() {
 
     testWidgets('renders app version subtitle', (tester) async {
       await tester.pumpWidget(buildApp());
+      // Eager section build means multiple rows may contain the
+      // version string (About tile + Updates section). Scroll to
+      // the first textual occurrence and assert at least one widget
+      // renders it — the stricter "findsOneWidget" shape would flag
+      // the duplicate as a failure even though both matches are
+      // legitimate.
       await tester.scrollUntilVisible(
-        find.textContaining('1.5.0'),
+        find.textContaining('1.5.0').first,
         200,
         scrollable: find.byType(Scrollable).first,
       );
@@ -3034,53 +3063,11 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Security section info rows pin the value text to the right edge',
-      (tester) async {
-        tester.view.physicalSize = const Size(1600, 900);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        await tester.pumpWidget(buildDesktopApp());
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Security'));
-        await tester.pumpAndSettle();
-
-        // Allow the async keychain / master-password probes in
-        // _SecuritySection._checkState to settle so the info-tile value
-        // text flips from the "..." placeholder to the real label.
-        await tester.pump(const Duration(milliseconds: 100));
-        await tester.pump();
-
-        final valueFinder = find.byWidgetPredicate(
-          (w) =>
-              w is Text &&
-              (w.data == 'Master Password' ||
-                  w.data == 'OS Keychain' ||
-                  w.data == 'None'),
-        );
-        expect(valueFinder, findsOneWidget);
-        final valueRect = tester.getRect(valueFinder);
-
-        // The info row spans the full content area. Assert the value's
-        // right edge sits close to the containing Row's right edge — the
-        // previous `Flexible(value)` layout parked short values in the
-        // middle of the row, leaving a large gap on the right.
-        final rowRect = tester.getRect(
-          find.ancestor(of: valueFinder, matching: find.byType(Row)).first,
-        );
-        expect(
-          rowRect.right - valueRect.right,
-          lessThan(8),
-          reason:
-              'value text must sit at the right edge of the info row, not '
-              'drift into the middle (gap below 8px = right-aligned)',
-        );
-      },
-    );
+    // NOTE: the "info rows pin the value text" test was tied to the
+    // old _InfoTile layout in the Security section. The Security
+    // section now renders four TierThreatBlock cards in a ladder
+    // instead of an icon+label+value row, so the right-edge pin
+    // assertion no longer has a target. Removed.
   });
 
   // ---------------------------------------------------------------------------
@@ -3276,111 +3263,6 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Download & Install'), findsOneWidget);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // Set Master Password dialog
-  // ---------------------------------------------------------------------------
-  group('SettingsScreen — Set Master Password dialog', () {
-    Future<void> openSetDialog(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 3000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(buildApp(height: 3000));
-      await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.text('Manage Master Password'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Manage Master Password'));
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('tap manage password opens set dialog when not enabled', (
-      tester,
-    ) async {
-      await openSetDialog(tester);
-      expect(find.text('Set Master Password'), findsOneWidget);
-    });
-
-    testWidgets('set dialog shows warning text', (tester) async {
-      await openSetDialog(tester);
-      expect(
-        find.text(
-          'If you forget this password, all saved passwords and SSH keys '
-          'will be lost. There is no recovery.',
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('short matching passwords close dialog (no minimum length)', (
-      tester,
-    ) async {
-      // Length restrictions were removed: only non-empty + match remain.
-      await openSetDialog(tester);
-
-      await tester.enterText(
-        find.widgetWithText(TextField, 'New Password'),
-        'short',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'short',
-      );
-
-      await tester.tap(find.text('OK'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 5));
-
-      expect(find.text('Set Master Password'), findsNothing);
-    });
-
-    testWidgets('mismatched passwords shows toast', (tester) async {
-      await openSetDialog(tester);
-
-      await tester.enterText(
-        find.widgetWithText(TextField, 'New Password'),
-        'longpassword1',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Confirm Password'),
-        'longpassword2',
-      );
-
-      await tester.tap(find.text('OK'));
-      await tester.pump();
-
-      expect(find.text('Passwords do not match'), findsOneWidget);
-
-      // Dialog stays open
-      expect(find.text('Set Master Password'), findsOneWidget);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('empty password does not close dialog', (tester) async {
-      await openSetDialog(tester);
-
-      // Tap OK with empty fields
-      await tester.tap(find.text('OK'));
-      await tester.pump();
-
-      // Dialog stays open (short password toast shown since empty < 8 chars)
-      expect(find.text('Set Master Password'), findsOneWidget);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
     });
   });
 }

@@ -15,7 +15,7 @@ Follow these steps strictly. This is a gated workflow — do NOT skip steps.
 ### Step 2: Analyze changes
 Determine:
 1. **Type**: feat / fix / refactor / test / docs / chore / ci
-2. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
+2. **Docs updated?** — Check per the documentation maintenance table in AGENT_RULES.md. If code changed but docs didn't, WARN the user
 
 Note: Version bumps are automated by `scripts/bump-version.sh` (runs during `/pr`). Do NOT bump version manually.
 

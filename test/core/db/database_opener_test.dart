@@ -84,4 +84,30 @@ void main() {
       expect(msg, isNot(contains("x'")));
     });
   });
+
+  group('EncryptionUnavailableException', () {
+    test('toString explains the refusal without leaking key material', () {
+      const ex = EncryptionUnavailableException();
+      final msg = ex.toString();
+      expect(msg, contains('SQLite3MultipleCiphers'));
+      expect(msg, contains('refusing'));
+      expect(msg, isNot(contains("x'")));
+    });
+  });
+
+  group('openTestDatabase', () {
+    test('returns a working in-memory AppDatabase with FKs enabled', () async {
+      final db = openTestDatabase();
+      try {
+        // The DB is readable — verifyDatabaseReadable returns true.
+        expect(await verifyDatabaseReadable(db), isTrue);
+
+        // PRAGMA foreign_keys = ON was executed in the setup callback.
+        final result = await db.customSelect('PRAGMA foreign_keys').getSingle();
+        expect(result.data.values.first, 1);
+      } finally {
+        await db.close();
+      }
+    });
+  });
 }

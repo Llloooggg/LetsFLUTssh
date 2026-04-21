@@ -1,11 +1,12 @@
 import 'dart:convert';
-import 'dart:io' show File, Platform;
+import 'dart:io' show File, Platform, Process, ProcessException;
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// Thin wrapper around OS keychain for storing the AES-256 encryption key.
@@ -26,8 +27,25 @@ import '../../utils/logger.dart';
 /// [deleteKey]. Other platforms keep the original behaviour.
 class SecureKeyStorage {
   static const _keyName = 'letsflutssh_encryption_key';
+  static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
   static const _probeName = 'letsflutssh_keychain_probe';
   static const _markerFile = 'keychain_enabled';
+
+  /// Production flag flipped by [main.dart] at app startup. Widget
+  /// tests running under `FakeAsync` do not set this, so the Linux-
+  /// only `Process.run('gdbus', …)` path inside [probe] stays off in
+  /// them — any real subprocess spawn leaks a Timer onto FakeAsync's
+  /// pending-timer list and makes unrelated widget tests fail. In
+  /// production the flag is true from the first frame and the
+  /// classified probe runs normally.
+  static bool _runtimeSubprocessProbesEnabled = false;
+
+  /// Called from production entry points (`main.dart`) to unlock the
+  /// subprocess-backed secret-service ping used by [probe] on Linux.
+  /// Widget tests intentionally do not call it.
+  static void enableRuntimeSubprocessProbes() {
+    _runtimeSubprocessProbesEnabled = true;
+  }
 
   final FlutterSecureStorage _storage;
   final bool _skipPlatformCheck;
@@ -61,6 +79,12 @@ class SecureKeyStorage {
       final file = File(await _markerPath());
       await file.parent.create(recursive: true);
       await file.writeAsString('1');
+      // Marker itself holds nothing sensitive (`'1'`) but lives next
+      // to `credentials.kdf` and every other secret file in the app
+      // support dir. Keeping it at 0600 is a consistency win — the
+      // whole directory shouldn't have one file with a weaker mode
+      // than the rest.
+      await hardenFilePerms(file.path);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to write keychain marker: $e',
@@ -91,67 +115,130 @@ class SecureKeyStorage {
 
   /// Probe whether OS keychain is available at runtime.
   ///
-  /// On Linux, checks for a D-Bus session bus and absence of WSL before
-  /// attempting any libsecret calls — this avoids the native `g_warning()`
-  /// that libsecret emits when the keyring daemon is missing. When the
-  /// marker file from a prior [writeKey] is absent, we also skip the live
-  /// probe (which itself would unlock the keyring and emit the warning on
-  /// a locked one) and report availability purely from the env check. The
-  /// first [writeKey] the user triggers will surface any real failure via
-  /// the normal error path.
+  /// Delegates to the classified [probe] so `isAvailable` and
+  /// `probe` never disagree — earlier revisions split the two paths
+  /// (fast env check vs gdbus ping), which left
+  /// `probeCapabilities` on Linux seeing the optimistic
+  /// env-variable answer (`DBUS_SESSION_BUS_ADDRESS` set → "ok")
+  /// while the Settings reason line saw the concrete gdbus answer
+  /// ("no secret-service"). On WSL + WSLg the split caused the
+  /// first-launch flow to auto-select T1, silently hit a libsecret
+  /// write failure, and fall through to plaintext without the user
+  /// ever seeing the reduced-wizard T0-vs-Paranoid prompt.
   ///
-  /// On all other platforms, performs a full write → read → delete cycle
-  /// with a disposable key. Returns false if any step fails.
+  /// Widget tests that run without `enableRuntimeSubprocessProbes`
+  /// skip the gdbus path inside [probe] and receive an optimistic
+  /// `KeyringProbeResult.available`, which maps back to `true`
+  /// here — same behaviour as the earlier fast-path, same harness
+  /// compatibility.
   Future<bool> isAvailable() async {
-    if (!_hasKeychainSupport()) return false;
-    if (Platform.isLinux && !_skipPlatformCheck && !await _markerExists()) {
-      return true;
-    }
-
-    try {
-      const probe = 'probe';
-      await _storage.write(key: _probeName, value: probe);
-      final readBack = await _storage.read(key: _probeName);
-      await _storage.delete(key: _probeName);
-      return readBack == probe;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Keychain not available: $e',
-        name: 'SecureKeyStorage',
-      );
-      return false;
-    }
+    return (await probe()) == KeyringProbeResult.available;
   }
 
-  /// Quick pre-flight check before touching the native keychain API.
+  /// Classified keyring probe — concrete backend ping, no env-var
+  /// heuristics.
   ///
-  /// On Linux, libsecret requires a running keyring daemon reachable via
-  /// D-Bus. Without it, every call logs a noisy `g_warning` to stderr that
-  /// we cannot suppress from Dart. Detect this early and skip.
-  bool _hasKeychainSupport() {
-    if (_skipPlatformCheck || !Platform.isLinux) return true;
-
-    // WSL has no keyring daemon.
-    if (Platform.environment.containsKey('WSL_DISTRO_NAME')) {
-      AppLogger.instance.log(
-        'WSL detected — skipping keychain probe',
-        name: 'SecureKeyStorage',
-      );
-      return false;
+  /// Design: *actually talk to the service.* Every signal short of a
+  /// real round-trip was lying on some platform. Pattern-matching
+  /// `WSL_DISTRO_NAME` mis-classified WSL installs with libsecret
+  /// configured; checking `DBUS_SESSION_BUS_ADDRESS` mis-classified
+  /// WSL2 + WSLg (session bus up, no keyring daemon). The only
+  /// signal that matches "can libsecret read/write a secret right
+  /// now" is either libsecret itself round-tripping a value, or a
+  /// D-Bus ping to the secret-service daemon — the same step
+  /// libsecret runs internally before any API call.
+  ///
+  ///   * Non-Linux platforms (Windows / macOS / iOS / Android) —
+  ///     live write/read/delete against `flutter_secure_storage`.
+  ///     The backing service is always up on a user device; any
+  ///     failure is a real platform-channel error, classified as
+  ///     `probeFailed`.
+  ///   * Linux — `gdbus call --session --dest
+  ///     org.freedesktop.secrets --object-path
+  ///     /org/freedesktop/secrets --method
+  ///     org.freedesktop.DBus.Peer.Ping`. Exit 0 = the service is
+  ///     registered on the session bus and responds. Any non-zero
+  ///     exit (D-Bus down, no daemon, service unregistered) =
+  ///     `linuxNoSecretService`. `gdbus` binary missing is treated
+  ///     the same way — GLib not installed almost certainly means
+  ///     the desktop keyring stack is not there either, and the
+  ///     user is better served by the "install gnome-keyring / KWallet"
+  ///     hint than by a mysterious "probe could not run" fallback.
+  ///
+  /// Linux probe is guarded by [_runtimeSubprocessProbesEnabled]:
+  /// widget tests running under FakeAsync do not set the flag, so
+  /// they skip the subprocess entirely (any `Process.run` inside
+  /// FakeAsync-managed code ends up leaking a Timer onto the
+  /// pending-timer list and fails unrelated widget tests). Tests
+  /// that skip the gdbus path fall through to an optimistic
+  /// `available` — correct for the fixture data they operate on.
+  /// In production the flag is set from `main.dart` before the
+  /// first provider evaluates.
+  Future<KeyringProbeResult> probe() async {
+    if (_skipPlatformCheck || !Platform.isLinux) {
+      try {
+        const marker = 'probe';
+        await _storage.write(key: _probeName, value: marker);
+        final back = await _storage.read(key: _probeName);
+        await _storage.delete(key: _probeName);
+        return back == marker
+            ? KeyringProbeResult.available
+            : KeyringProbeResult.probeFailed;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Keychain probe failed on ${Platform.operatingSystem}: $e',
+          name: 'SecureKeyStorage',
+        );
+        return KeyringProbeResult.probeFailed;
+      }
     }
 
-    // No D-Bus session → no keyring.
-    final dbus = Platform.environment['DBUS_SESSION_BUS_ADDRESS'];
-    if (dbus == null || dbus.isEmpty) {
+    // ── Linux ────────────────────────────────────────────────────
+    if (!_runtimeSubprocessProbesEnabled) {
+      // Test path — subprocess probes disabled; optimistic fallback.
+      return KeyringProbeResult.available;
+    }
+    try {
+      final result = await Process.run('gdbus', const [
+        'call',
+        '--session',
+        '--dest',
+        'org.freedesktop.secrets',
+        '--object-path',
+        '/org/freedesktop/secrets',
+        '--method',
+        'org.freedesktop.DBus.Peer.Ping',
+      ], runInShell: false);
+      if (result.exitCode == 0) {
+        return KeyringProbeResult.available;
+      }
       AppLogger.instance.log(
-        'No D-Bus session bus — skipping keychain probe',
+        'gdbus secret-service ping exit=${result.exitCode} '
+        'stderr=${result.stderr}',
         name: 'SecureKeyStorage',
       );
-      return false;
+      return KeyringProbeResult.linuxNoSecretService;
+    } on ProcessException catch (e) {
+      AppLogger.instance.log(
+        'gdbus binary missing — classifying as no secret-service: $e',
+        name: 'SecureKeyStorage',
+      );
+      return KeyringProbeResult.linuxNoSecretService;
     }
-
-    return true;
   }
+
+  /// Pre-flight gate — unconditional pass-through now that the
+  /// classified [probe] does a concrete `gdbus` ping against the
+  /// secret-service daemon instead of pattern-matching environment
+  /// variables. Kept as a single entry point so the read / write /
+  /// delete paths below all share one gate call and the classification
+  /// behaviour can be extended later without re-threading every call
+  /// site. On non-Linux this was always a no-op; on Linux the earlier
+  /// `DBUS_SESSION_BUS_ADDRESS` check was a proxy (D-Bus present ≠
+  /// keyring working — WSL2 + WSLg ships the bus but not
+  /// `gnome-keyring-daemon`), so removing it matches the concrete
+  /// probe model already used for TPM / Secure Enclave / StrongBox.
+  bool _hasKeychainSupport() => true;
 
   /// Read the encryption key from OS keychain.
   ///
@@ -195,6 +282,100 @@ class SecureKeyStorage {
     }
   }
 
+  /// Variant of [writeKey] that stores the key under a biometric-
+  /// gated access-control policy.
+  ///
+  /// On Apple (iOS / macOS) the entry is written with
+  /// `AccessControlFlag.biometryCurrentSet` so any biometric
+  /// enrolment change (adding / removing a finger, re-enrolling Face
+  /// ID) invalidates the stored key and forces re-entry of the typed
+  /// password. On Android `flutter_secure_storage`'s
+  /// `AndroidOptions(encryptedSharedPreferences: true)` does the
+  /// best available job inside the package's current API surface;
+  /// the stronger native-backed biometric-gated Keystore flow routes
+  /// through the hardware-vault plugin (`storeBiometricPassword` /
+  /// `readBiometricPassword`) rather than this path. On Linux and
+  /// Windows `flutter_secure_storage` does not expose a biometric
+  /// ACL option in this package — the write falls through to a
+  /// plain entry and the caller is responsible for gating access
+  /// via the platform's own biometric prompt before calling
+  /// [readBiometricKey].
+  ///
+  /// Paired with [readBiometricKey]; the two share the alias so a
+  /// biometric-written key cannot be read back via [readKey] and
+  /// vice versa.
+  Future<bool> writeBiometricKey(Uint8List key) async {
+    if (!_hasKeychainSupport()) return false;
+    try {
+      await _storage.write(
+        key: _biometricKeyName,
+        value: base64Encode(key),
+        iOptions: const IOSOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+        mOptions: const MacOsOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+      );
+      if (Platform.isLinux && !_skipPlatformCheck) await _writeMarker();
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to write biometric key to keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
+  }
+
+  /// Pair of [writeBiometricKey]. Returns null when:
+  ///   * no biometric entry exists;
+  ///   * the user failed / cancelled the biometric prompt;
+  ///   * enrolment changed since the write (Apple
+  ///     `biometryCurrentSet` invalidation).
+  Future<Uint8List?> readBiometricKey() async {
+    if (!_hasKeychainSupport()) return null;
+    if (!await _linuxGatePass()) return null;
+    try {
+      final value = await _storage.read(
+        key: _biometricKeyName,
+        iOptions: const IOSOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+        mOptions: const MacOsOptions(
+          accessibility: KeychainAccessibility.passcode,
+          accessControlFlags: [AccessControlFlag.biometryCurrentSet],
+        ),
+      );
+      if (value == null) return null;
+      return base64Decode(value);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to read biometric key from keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+      return null;
+    }
+  }
+
+  /// Drop the biometric-gated key. Always called in lockstep with
+  /// [deleteKey] — the two never exist together on the same install.
+  Future<void> deleteBiometricKey() async {
+    if (!_hasKeychainSupport()) return;
+    if (!await _linuxGatePass()) return;
+    try {
+      await _storage.delete(key: _biometricKeyName);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to delete biometric key from keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+    }
+  }
+
   /// Remove the encryption key from OS keychain.
   ///
   /// On Linux: if the marker is absent we never stored a key through this
@@ -214,4 +395,28 @@ class SecureKeyStorage {
     }
     if (Platform.isLinux && !_skipPlatformCheck) await _clearMarker();
   }
+}
+
+/// Classified keyring probe outcome. Settings UI consumes this to
+/// render an actionable line under a disabled Keychain tier card
+/// instead of a generic "unavailable" note.
+enum KeyringProbeResult {
+  /// Keychain reachable — Linux: gdbus ping to `org.freedesktop.secrets`
+  /// returned 0; non-Linux: live write/read/delete round-trip
+  /// succeeded.
+  available,
+
+  /// Linux `gdbus` ping failed — any of: no session bus reachable,
+  /// no `gnome-keyring-daemon` / `kwalletd` running, or `gdbus`
+  /// binary missing. The earlier `linuxNoDbusSession` case was
+  /// merged in here; distinguishing the two required another env-var
+  /// proxy (present session bus address vs absent) and the user
+  /// action for both is the same — install / start a secret-service
+  /// daemon. One actionable line, no fake specificity.
+  linuxNoSecretService,
+
+  /// Non-Linux host's keychain returned an error — rare, usually a
+  /// locked macOS login keychain or a corrupted Windows Credential
+  /// Manager. UI shows the generic fallback copy.
+  probeFailed,
 }

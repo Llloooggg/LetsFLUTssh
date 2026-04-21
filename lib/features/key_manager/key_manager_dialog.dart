@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/import/key_file_helper.dart';
 import '../../core/security/key_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
@@ -11,7 +14,9 @@ import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable SSH key manager — toolbar + list with CRUD.
@@ -60,28 +65,42 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Widget _buildToolbar(S s) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Text(
-            s.keyCount(_keys.length),
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          ),
-          const Spacer(),
-          _ToolbarButton(
-            icon: Icons.file_download_outlined,
-            label: s.importKey,
-            onTap: _importKey,
-          ),
-          const SizedBox(width: 8),
-          _ToolbarButton(
-            icon: Icons.add,
-            label: s.generateKey,
-            onTap: _generateKey,
-          ),
-        ],
-      ),
+    // Three discrete actions in the order the user expects to reach
+    // for them:
+    //   1. Add Key     — paste-and-label dialog. Fastest path when
+    //                    the user already has the PEM in the
+    //                    clipboard.
+    //   2. Import Key  — native file picker. On systems where the
+    //                    picker is unavailable (WSL without an
+    //                    explorer package, some hardened Linux
+    //                    containers) this degrades to a toast;
+    //                    the user can still use Add Key.
+    //   3. Generate    — fresh in-app key.
+    // Earlier builds folded Add + Import into a single "Import"
+    // dialog with a file-picker button on top of the paste
+    // textarea. That put the file picker and paste flows one indent
+    // apart from each other and made the picker failure mode read
+    // as "this key is invalid" instead of "no picker available".
+    return AppCollectionToolbar(
+      hasItems: _keys.isNotEmpty,
+      countLabel: s.keyCount(_keys.length),
+      actions: [
+        _ToolbarButton(
+          icon: Icons.edit_outlined,
+          label: s.addKey,
+          onTap: _addKey,
+        ),
+        _ToolbarButton(
+          icon: Icons.file_download_outlined,
+          label: s.importKey,
+          onTap: _importKey,
+        ),
+        _ToolbarButton(
+          icon: Icons.add,
+          label: s.generateKey,
+          onTap: _generateKey,
+        ),
+      ],
     );
   }
 
@@ -90,12 +109,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_keys.isEmpty) {
-      return Center(
-        child: Text(
-          s.noKeys,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noKeys);
     }
     return ListView.separated(
       itemCount: _keys.length,
@@ -215,13 +229,91 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     }
   }
 
-  Future<void> _importKey() async {
-    final result = await _ImportKeyDialog.show(context);
+  /// Paste-and-label path. Opens a plain dialog with a label input
+  /// and a PEM textarea; nothing reaches the filesystem.
+  Future<void> _addKey() async {
+    final result = await _AddKeyDialog.show(context);
     if (result == null || !mounted) return;
+    await _persistImportedKey(result.label, result.pem);
+  }
 
+  /// File-picker path. Opens the platform native picker, reads the
+  /// file via `KeyFileHelper.tryReadPemKey`, then pops an edit
+  /// dialog pre-filled with the filename so the user can rename the
+  /// entry before saving. Errors that come from the picker itself
+  /// (MissingPluginException on WSL, PlatformException on hardened
+  /// sandboxes) are classified as "file picker unavailable" instead
+  /// of the misleading "invalid PEM" copy the earlier implementation
+  /// surfaced.
+  Future<void> _importKey() async {
+    final FilePickerResult? picked;
+    try {
+      picked = await FilePicker.pickFiles(
+        dialogTitle: S.of(context).selectKeyFile,
+        allowMultiple: false,
+        type: FileType.any,
+      );
+    } on MissingPluginException catch (e) {
+      AppLogger.instance.log(
+        'File picker missing on ${Platform.operatingSystem}: $e',
+        name: 'KeyManager',
+      );
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).filePickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    } catch (e) {
+      AppLogger.instance.log('File picker failed: $e', name: 'KeyManager');
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).filePickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+    if (!mounted || picked == null) return;
+    final path = picked.files.single.path;
+    if (path == null) return;
+    String pem;
+    try {
+      final extracted = KeyFileHelper.tryReadPemKey(path);
+      pem = extracted ?? await File(path).readAsString();
+    } catch (e) {
+      AppLogger.instance.log('Key file read failed: $e', name: 'KeyManager');
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).invalidPem,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    // Prefill the label with the file name so the user can accept
+    // the default with one click. The `_AddKeyDialog` shape is
+    // reused for the label confirmation — same layout, same
+    // validation, but the PEM is already filled in.
+    final fileName = path.split(Platform.pathSeparator).last;
+    final result = await _AddKeyDialog.show(
+      context,
+      initialLabel: fileName,
+      initialPem: pem,
+    );
+    if (result == null || !mounted) return;
+    await _persistImportedKey(result.label, result.pem);
+  }
+
+  Future<void> _persistImportedKey(String label, String pem) async {
     try {
       final store = ref.read(keyStoreProvider);
-      final entry = store.importKey(result.pem, result.label);
+      final entry = store.importKey(pem, label);
       await store.save(entry);
       ref.invalidate(sshKeysProvider);
       await _loadKeys();
@@ -370,25 +462,47 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
   }
 }
 
-// ── Import Key Dialog ───────────────────────────────────────────────
+// ── Add / Import Key Dialog ────────────────────────────────────────
+//
+// Shared label + PEM textarea dialog. The Add toolbar action opens
+// it empty so the user types from scratch; the Import action reads a
+// file first and opens this dialog with the PEM pre-filled and the
+// label pre-seeded from the filename, so the user can rename before
+// saving. No file picker lives in here anymore — picking files is
+// entirely the responsibility of the Import handler in the panel.
 
-class _ImportKeyDialog extends StatefulWidget {
-  const _ImportKeyDialog();
+class _AddKeyDialog extends StatefulWidget {
+  final String initialLabel;
+  final String initialPem;
 
-  static Future<({String label, String pem})?> show(BuildContext context) {
+  const _AddKeyDialog({this.initialLabel = '', this.initialPem = ''});
+
+  static Future<({String label, String pem})?> show(
+    BuildContext context, {
+    String initialLabel = '',
+    String initialPem = '',
+  }) {
     return AppDialog.show<({String label, String pem})>(
       context,
-      builder: (_) => const _ImportKeyDialog(),
+      builder: (_) =>
+          _AddKeyDialog(initialLabel: initialLabel, initialPem: initialPem),
     );
   }
 
   @override
-  State<_ImportKeyDialog> createState() => _ImportKeyDialogState();
+  State<_AddKeyDialog> createState() => _AddKeyDialogState();
 }
 
-class _ImportKeyDialogState extends State<_ImportKeyDialog> {
-  final _labelCtrl = TextEditingController();
-  final _pemCtrl = TextEditingController();
+class _AddKeyDialogState extends State<_AddKeyDialog> {
+  late final TextEditingController _labelCtrl;
+  late final TextEditingController _pemCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelCtrl = TextEditingController(text: widget.initialLabel);
+    _pemCtrl = TextEditingController(text: widget.initialPem);
+  }
 
   @override
   void dispose() {
@@ -400,8 +514,11 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final isImport = widget.initialPem.isNotEmpty;
     return AppDialog(
-      title: s.importKey,
+      // Same dialog, two modes: title reflects whether the user got
+      // here via Add (paste) or Import (pre-filled from file).
+      title: isImport ? s.importKey : s.addKey,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,7 +531,7 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
             ),
             autofocus: true,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           TextField(
             controller: _pemCtrl,
             maxLines: 5,
@@ -429,12 +546,15 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
       ),
       actions: [
         AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.importKey, onTap: _doImport),
+        AppDialogAction.primary(
+          label: isImport ? s.importKey : s.addKey,
+          onTap: _doSubmit,
+        ),
       ],
     );
   }
 
-  void _doImport() {
+  void _doSubmit() {
     final label = _labelCtrl.text.trim();
     final pem = _pemCtrl.text.trim();
     if (label.isEmpty || pem.isEmpty) return;

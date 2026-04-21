@@ -12,9 +12,37 @@ import UIKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  private let hardwareVault = HardwareVaultPlugin()
+  private let backupExclusion = BackupExclusionPlugin()
+  private let clipboardSecure = ClipboardSecurePlugin()
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerQrScanner(with: engineBridge)
+    registerHardwareVault(with: engineBridge)
+    registerBackupExclusion(with: engineBridge)
+    registerClipboardSecure(with: engineBridge)
+  }
+
+  private func registerHardwareVault(with engineBridge: FlutterImplicitEngineBridge) {
+    guard let messenger = engineBridge.pluginRegistry.registrar(
+      forPlugin: "com.letsflutssh.hardware_vault",
+    )?.messenger() else { return }
+    hardwareVault.register(with: messenger)
+  }
+
+  private func registerBackupExclusion(with engineBridge: FlutterImplicitEngineBridge) {
+    guard let messenger = engineBridge.pluginRegistry.registrar(
+      forPlugin: "com.letsflutssh.backup_exclusion",
+    )?.messenger() else { return }
+    backupExclusion.register(with: messenger)
+  }
+
+  private func registerClipboardSecure(with engineBridge: FlutterImplicitEngineBridge) {
+    guard let messenger = engineBridge.pluginRegistry.registrar(
+      forPlugin: "com.letsflutssh.clipboard_secure",
+    )?.messenger() else { return }
+    clipboardSecure.register(with: messenger)
   }
 
   private func registerQrScanner(with engineBridge: FlutterImplicitEngineBridge) {

@@ -8,11 +8,16 @@ class _SecuritySection extends ConsumerStatefulWidget {
 }
 
 class _SecuritySectionState extends ConsumerState<_SecuritySection> {
-  bool? _masterPasswordEnabled;
-  bool? _keychainAvailable;
   BiometricAvailability _biometricUnavailable;
   bool? _biometricEnabled;
   bool _biometricProbed = false;
+  // True while the "Re-check tier support" button is awaiting fresh
+  // capability + probe results. Swaps the refresh icon for a small
+  // spinner and disables the tap target so the user gets visible
+  // feedback that the probe is running (Android / Windows TPM
+  // round-trips take hundreds of ms; without a spinner the button
+  // feels dead).
+  bool _recheckingTiers = false;
 
   @override
   void initState() {
@@ -21,23 +26,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _checkState() async {
-    // Master password + keychain probes first — _manageMasterPassword()
-    // branches on _masterPasswordEnabled and the wrong branch opens the
-    // "Set password" dialog instead of "Manage options". Biometric probes
-    // (slower, platform-dependent) are kept off this critical path and
-    // published in a second setState below.
-    final manager = ref.read(masterPasswordProvider);
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final coreResults = await Future.wait([
-      manager.isEnabled(),
-      keyStorage.isAvailable(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _masterPasswordEnabled = coreResults[0];
-      _keychainAvailable = coreResults[1];
-    });
-
+    // Biometric probes (slower, platform-dependent) drive the toggle
+    // state; kept async off the first paint so an idle D-Bus call
+    // never blocks the Settings open.
     final bio = ref.read(biometricAuthProvider);
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
@@ -50,14 +41,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     });
   }
 
-  /// Localized explanation for why the biometric toggle is disabled —
-  /// null means "either fully enabled, or still probing". Caller pairs
-  /// this with [_biometricEnabledFor] to decide. Two layers:
-  ///  * platform/hardware reason from [BiometricAuth.availability]
-  ///  * "you need a master password first" when the app is not in
-  ///    master-password mode (biometry caches the MP-derived key, so
-  ///    without an MP there is no key to cache)
-  String? _biometricDisabledReason(S l10n, SecurityLevel level) {
+  /// Translate a platform [BiometricUnavailableReason] into a
+  /// localised tooltip string, or null if the device is biometric-
+  /// capable. Extracted from [_biometricDisabledReason] so the
+  /// tier-card spec can check it as the highest-priority tooltip
+  /// without falling through the rest of the priority chain.
+  String? _biometricPlatformReason(S l10n) {
     if (!_biometricProbed) return null;
     switch (_biometricUnavailable) {
       case BiometricUnavailableReason.platformUnsupported:
@@ -65,94 +54,488 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         return l10n.biometricSensorNotAvailable;
       case BiometricUnavailableReason.notEnrolled:
         return l10n.biometricNotEnrolled;
+      case BiometricUnavailableReason.systemServiceMissing:
+        return l10n.biometricSystemServiceMissing;
       case null:
-        break;
+        return null;
     }
-    if (level != SecurityLevel.masterPassword) {
-      return l10n.biometricRequiresMasterPassword;
-    }
-    return null;
   }
 
-  /// Whether the biometric toggle can be flipped. Returns false during
-  /// the initial probe so the toggle doesn't momentarily look live.
-  bool _biometricToggleEnabled(SecurityLevel level) {
-    if (!_biometricProbed) return false;
-    if (_biometricUnavailable != null) return false;
-    return level == SecurityLevel.masterPassword;
+  // _biometricDisabledReason + _biometricToggleEnabled used to
+  // render the biometric row inside `_activeTierExtras`. After the
+  // row moved into every T1 / T2 tier card's modifier section via
+  // `BiometricModifierSpec`, `_biometricSpecFor` owns the full
+  // priority ladder (platform unavailable → tier unavailable →
+  // tier not current → password missing) and the two helpers are
+  // no longer called from the widget tree. Kept here as dead-code
+  // placeholders would only confuse future readers, so removed.
+  //
+  // The platform-reason extraction lives on `_biometricPlatformReason`
+  // above; that is the only caller-facing helper left.
+  /// Localized explanation for why the biometric toggle is disabled —
+  /// null means "either fully enabled, or still probing". Three layers
+  /// after the bank-style modifier shape:
+  ///  * platform / hardware reason from [BiometricAuth.availability]
+  ///  * "enable a password first" — biometric is a shortcut for
+  ///    entering the password; if the tier does not already hold a
+  ///    password (Paranoid always does; T1/T2 only when
+  ///    `mods.password == true`), there is nothing to shortcut.
+
+  String? _autoLockDisabledReason(
+    S l10n,
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) {
+    final hasPassword =
+        level == SecurityTier.paranoid ||
+        level == SecurityTier.keychainWithPassword ||
+        modifiers.password;
+    if (hasPassword) return null;
+    return l10n.autoLockRequiresPassword;
   }
 
-  String? _autoLockDisabledReason(S l10n, SecurityLevel level) {
-    if (level == SecurityLevel.masterPassword) return null;
-    return l10n.autoLockRequiresMasterPassword;
+  /// Build one tier card pre-wired to onSelectTier. Factored out so
+  /// the four stacked cards in the ladder share the same callback +
+  /// current-tier / modifiers lookup without re-spelling the three
+  /// shared params each time.
+  Widget _buildTierCard({
+    required SecurityTier tier,
+    required SecurityTier currentLevel,
+    required SecurityTierModifiers currentModifiers,
+    required bool available,
+    required String? unavailableReason,
+    required S l10n,
+  }) {
+    final isCurrent =
+        tier == currentLevel ||
+        (tier == SecurityTier.keychain &&
+            currentLevel == SecurityTier.keychainWithPassword);
+    return ExpandableTierCard(
+      tier: tier,
+      currentTier: currentLevel,
+      currentModifiers: currentModifiers,
+      tierAvailable: available,
+      unavailableReason: unavailableReason,
+      initiallyExpanded: isCurrent,
+      onSelect: onSelectTier,
+      activeTierExtras: null,
+      biometricSpec: _biometricSpecFor(
+        tier: tier,
+        currentLevel: currentLevel,
+        currentModifiers: currentModifiers,
+        tierAvailable: available,
+        tierUnavailableReason: unavailableReason,
+        l10n: l10n,
+      ),
+      autoLockRow: _autoLockRowFor(
+        tier: tier,
+        currentLevel: currentLevel,
+        currentModifiers: currentModifiers,
+        tierAvailable: available,
+        tierUnavailableReason: unavailableReason,
+        l10n: l10n,
+      ),
+    );
+  }
+
+  /// Build the auto-lock row for a tier card, or null to hide it.
+  /// Shares the same priority ladder as [_biometricSpecFor] so the
+  /// two rows always agree on what "tier-gated" means:
+  ///
+  ///   * T0 — auto-lock is meaningless without a user secret to
+  ///     gate; row hidden.
+  ///   * T1 / T2 / Paranoid — row always rendered inside the
+  ///     expandable. Disabled reason in priority order:
+  ///       1. Tier unavailable on this host → tier reason.
+  ///       2. Tier not the currently-applied one → "select this
+  ///          tier first".
+  ///       3. Current tier but no password → "password required".
+  ///     Paranoid always carries a password so the third gate never
+  ///     fires there.
+  Widget? _autoLockRowFor({
+    required SecurityTier tier,
+    required SecurityTier currentLevel,
+    required SecurityTierModifiers currentModifiers,
+    required bool tierAvailable,
+    required String? tierUnavailableReason,
+    required S l10n,
+  }) {
+    if (tier == SecurityTier.plaintext) return null;
+    final isCurrent =
+        tier == currentLevel ||
+        (tier == SecurityTier.keychain &&
+            currentLevel == SecurityTier.keychainWithPassword);
+    // Same priority order as the biometric row (see
+    // `_biometricSpecFor`), minus the platform-unavailable layer —
+    // auto-lock is a software-only feature, always supported by
+    // the runtime. "Tier available but not current" wins over
+    // "tier unavailable" so the user first sees the actionable
+    // hint (select this tier) before the reason the tier is out
+    // of reach.
+    String? reason;
+    if (tierAvailable && !isCurrent) {
+      reason = l10n.autoLockRequiresActiveTier;
+    } else if (!tierAvailable) {
+      reason = tierUnavailableReason;
+    } else {
+      reason = _autoLockDisabledReason(l10n, currentLevel, currentModifiers);
+    }
+    return _AutoLockTile(disabledReason: reason);
+  }
+
+  /// Build the biometric-modifier spec for a tier card, or null
+  /// when the row should be hidden entirely:
+  ///
+  ///   * T0 — no secret to gate, row hidden.
+  ///   * Paranoid — "no OS trust" tier; biometric would route the
+  ///     DB key through an OS-backed vault and undermine the
+  ///     premise. Row hidden.
+  ///   * T1 / T2 — row always rendered. `enabled` flips only when
+  ///     the tier is the currently-applied one, the password
+  ///     modifier is active, the device has biometric hardware +
+  ///     enrolled, and the first probe has completed. Disabled
+  ///     cases carry a tooltip explaining *why* the toggle cannot
+  ///     flip — "select this tier first", "password required",
+  ///     platform-level reason (no sensor, not enrolled, system
+  ///     service missing).
+  BiometricModifierSpec? _biometricSpecFor({
+    required SecurityTier tier,
+    required SecurityTier currentLevel,
+    required SecurityTierModifiers currentModifiers,
+    required bool tierAvailable,
+    required String? tierUnavailableReason,
+    required S l10n,
+  }) {
+    if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
+      return null;
+    }
+    final isCurrent =
+        tier == currentLevel ||
+        (tier == SecurityTier.keychain &&
+            currentLevel == SecurityTier.keychainWithPassword);
+
+    // Priority 1: biometric platform unavailable. Never let a
+    // "select tier first" tooltip mask the fact that the device
+    // can't do biometric at all — a user configuring a tier +
+    // password only to find out biometric is unreachable at the
+    // last step is exactly the churn this priority ordering
+    // prevents.
+    final platformReason = _biometricPlatformReason(l10n);
+    if (platformReason != null) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: platformReason,
+      );
+    }
+
+    // Priority 2: tier available but not currently applied. Short
+    // "select this tier first" prompt — the tier's actual
+    // availability reason (when applicable) lives on the next
+    // priority step below so the user first sees the "how to
+    // unlock this" action hint before the "why the tier is out
+    // of reach" explanation.
+    if (tierAvailable && !isCurrent) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: l10n.biometricRequiresActiveTier,
+      );
+    }
+
+    // Priority 3: tier not available on this host. Re-use the
+    // tier's own reason string — same message as the yellow pill
+    // on the tier card keeps the UI coherent.
+    if (!tierAvailable) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: tierUnavailableReason,
+      );
+    }
+
+    // Priority 4: current tier but password modifier off.
+    final hasPassword =
+        currentLevel == SecurityTier.paranoid ||
+        currentLevel == SecurityTier.keychainWithPassword ||
+        currentModifiers.password;
+    if (!hasPassword) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: l10n.biometricRequiresPassword,
+      );
+    }
+
+    // All preconditions satisfied — toggle flips via the existing
+    // BiometricPrompt + vault-stash flow.
+    return BiometricModifierSpec(
+      enabled: _biometricProbed,
+      value: _biometricEnabled == true,
+      onChanged: (v) => _toggleBiometricUnlock(context, v),
+      disabledReason: null,
+    );
+  }
+
+  // `_activeTierExtras` used to carry biometric + auto-lock rows
+  // in the current tier's expandable. Both moved into the
+  // per-tier-card modifier section (via `biometricSpec` +
+  // `autoLockRow`) so the rows render on every T1 / T2 / Paranoid
+  // card with the same disabled-reason priority ladder. No caller
+  // remains, so the slot is dropped; re-adding the
+  // `activeTierExtras` param on `ExpandableTierCard` stays as an
+  // extension point.
+
+  /// Public wrapper around [_applyTierChange] that accepts the
+  /// card's inline modifier + input state and builds a
+  /// [SecuritySetupResult] the existing pipeline already knows how
+  /// to consume. Wraps the application in a progress dialog + toast.
+  Future<void> onSelectTier({
+    required SecurityTier tier,
+    required SecurityTierModifiers modifiers,
+    String? shortPassword,
+    String? pin,
+    String? masterPassword,
+  }) async {
+    final l10n = S.of(context);
+    final keychainAvail = ref
+        .read(securityCapabilitiesProvider)
+        .maybeWhen(data: (c) => c.keychainAvailable, orElse: () => false);
+    final result = SecuritySetupResult(
+      tier: tier,
+      modifiers: modifiers,
+      shortPassword: shortPassword,
+      pin: pin,
+      masterPassword: masterPassword,
+      keychainAvailable: keychainAvail,
+    );
+
+    final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
+    if (!mounted) return;
+    AppProgressBarDialog.show(context, reporter);
+    try {
+      await _applyTierChange(result);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: l10n.changeSecurityTierDone,
+        level: ToastLevel.success,
+      );
+      _checkState();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tier change failed: $e',
+        name: 'Settings',
+        error: e,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: '${l10n.changeSecurityTierFailed}: $e',
+        level: ToastLevel.error,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
     final secState = ref.watch(securityStateProvider);
+    final config = ref.watch(configProvider);
+    final modifiers =
+        config.security?.modifiers ?? SecurityTierModifiers.defaults;
+
+    final caps = ref.watch(securityCapabilitiesProvider);
+
+    // Availability is driven by the classified probe, not the
+    // capabilities-provider boolean. The capabilities boolean comes
+    // from the fast-path `isAvailable()` (env check + marker file);
+    // the classified probe goes further — gdbus ping against
+    // `org.freedesktop.secrets` for keyring, native `probeDetail`
+    // method-channel call for hardware. The classified probe is the
+    // signal that actually maps to "can the user click Select
+    // without hitting an error" — e.g. a WSL host with WSLg has
+    // D-Bus running (fast path says keychain available) but no
+    // secret-service daemon (classified probe says
+    // `linuxNoSecretService`), so the fast-path boolean is a lie
+    // the user should never see on a tier card.
+    //
+    // The capabilities boolean is kept as a fallback for the
+    // `AsyncValue.loading` / `.error` case so the card renders
+    // optimistically while the gdbus call is still in flight.
+    final hwDetail = ref.watch(hardwareProbeDetailProvider);
+    final hardwareAvail = hwDetail.maybeWhen(
+      data: (d) => d == HardwareProbeDetail.available,
+      orElse: () => caps.maybeWhen(
+        data: (c) => c.hardwareVaultAvailable,
+        orElse: () => false,
+      ),
+    );
+    final hwReason = hwDetail.maybeWhen(
+      data: (d) => d == HardwareProbeDetail.available
+          ? null
+          : hardwareProbeDetailText(l10n, d),
+      orElse: () => hardwareAvail ? null : l10n.tierHardwareUnavailable,
+    );
+    final kcDetail = ref.watch(keyringProbeDetailProvider);
+    final keychainAvail = kcDetail.maybeWhen(
+      data: (d) => d == KeyringProbeResult.available,
+      orElse: () =>
+          caps.maybeWhen(data: (c) => c.keychainAvailable, orElse: () => true),
+    );
+    final kcReason = kcDetail.maybeWhen(
+      data: (d) => d == KeyringProbeResult.available
+          ? null
+          : keyringProbeDetailText(l10n, d),
+      orElse: () => keychainAvail ? null : l10n.tierKeychainUnavailable,
+    );
 
     return Column(
       children: [
-        // Security level info.
-        _InfoTile(
-          icon: Icons.shield,
-          title: l10n.securityLevel,
-          value: _securityLevelLabel(l10n, secState.level),
+        // Tier ladder: four ExpandableTierCards stacked T0 → T1 →
+        // T2 → P. Each card:
+        //   * collapsed — shows badge + title + subtitle + a
+        //     "Current" pill on the active row.
+        //   * expanded — shows the seven-threat split, the
+        //     applicable modifier toggles (password / biometric),
+        //     the input fields the tier needs (short password /
+        //     PIN / master password), and a Select / Apply button.
+        //   * unavailable — stays expandable so the user can still
+        //     read the threat split, with a yellow reason pill
+        //     under the threats and a disabled Select button.
+        //
+        // Select routes through onSelectTier → _applyTierChange,
+        // the same atomic always-rekey pipeline the old wizard
+        // invoked. No intermediate dialog — the card is the wizard.
+        _buildTierCard(
+          tier: SecurityTier.plaintext,
+          currentLevel: secState.level,
+          currentModifiers: modifiers,
+          available: true,
+          unavailableReason: null,
+          l10n: l10n,
         ),
-        // Keychain status.
-        _InfoTile(
-          icon: Icons.key,
-          title: l10n.keychainStatus,
-          value: _keychainStatusLabel(l10n),
+        _buildTierCard(
+          tier: SecurityTier.keychain,
+          currentLevel: secState.level,
+          currentModifiers: modifiers,
+          available: keychainAvail,
+          unavailableReason: keychainAvail ? null : kcReason,
+          l10n: l10n,
         ),
-        // Manage master password — single tile.
-        _ActionTile(
-          icon: _masterPasswordEnabled == true ? Icons.lock : Icons.lock_open,
-          title: l10n.manageMasterPassword,
-          subtitle: l10n.manageMasterPasswordSubtitle,
-          onTap: () => _manageMasterPassword(context),
+        _buildTierCard(
+          tier: SecurityTier.hardware,
+          currentLevel: secState.level,
+          currentModifiers: modifiers,
+          available: hardwareAvail,
+          unavailableReason: hwReason,
+          l10n: l10n,
         ),
-        // Single keychain toggle — its label and behaviour flip with the
-        // current security level instead of two separate enable/disable
-        // rows. Greyed out when the platform has no keychain available or
-        // when the current mode is masterPassword (in which case the user
-        // changes mode through the master-password manager instead).
-        _Toggle(
-          label: l10n.useKeychain,
-          subtitle: l10n.useKeychainSubtitle,
-          icon: Icons.enhanced_encryption,
-          value: secState.level == SecurityLevel.keychain,
-          onChanged:
-              _keychainAvailable == true &&
-                  secState.level != SecurityLevel.masterPassword
-              ? (v) => v ? _enableKeychain(context) : _disableKeychain(context)
-              : null,
+        _buildTierCard(
+          tier: SecurityTier.paranoid,
+          currentLevel: secState.level,
+          currentModifiers: modifiers,
+          available: true,
+          unavailableReason: null,
+          l10n: l10n,
         ),
-        // Biometric unlock — always rendered so the user can see that
-        // the option exists and why it cannot be flipped right now.
-        // When disabled the [_Toggle] shows a tooltip + toast with the
-        // reason (no sensor, nothing enrolled, or no master password
-        // set yet) instead of silently disappearing.
-        _Toggle(
-          label: l10n.biometricUnlockTitle,
-          subtitle: l10n.biometricUnlockSubtitle,
-          icon: Icons.fingerprint,
-          value: _biometricEnabled == true,
-          onChanged: _biometricToggleEnabled(secState.level)
-              ? (v) => _toggleBiometricUnlock(context, v)
-              : null,
-          disabledReason: _biometricDisabledReason(l10n, secState.level),
-        ),
-        // Auto-lock — meaningful only when a master password is set,
-        // but still rendered in every mode with a disabled look +
-        // reason so the user doesn't wonder where it went after
-        // disabling master-password mode.
-        _AutoLockTile(
-          disabledReason: _autoLockDisabledReason(l10n, secState.level),
+        const SizedBox(height: 12),
+        // Biometric + auto-lock rows live inside the current tier's
+        // expandable (see _activeTierExtras) — they are orthogonal
+        // "settings of the current tier" and only meaningful when a
+        // user secret exists on the active tier. Keeping them inside
+        // the card keeps the security section to a single scannable
+        // ladder; a T0 / T1-no-password user sees no dead-lettered
+        // toggles in between the cards and the reset-all-data row.
+
+        // Destructive "reset everything" moved to the Data section —
+        // it wipes session data + credentials + keychain + hw-vault,
+        // which belongs under "manage my data" next to Export /
+        // Import. The Security section keeps only tier-config
+        // controls (ladder + biometric + auto-lock).
+
+        // Re-check button: forces a fresh capability + probe round-
+        // trip when the user has just fixed the underlying issue
+        // (enabled TPM in BIOS, installed tpm2-tools, ran
+        // macos-resign.sh, changed biometric enrolment, etc.). The
+        // probes are normally warmed once on app startup and served
+        // from cache for the rest of the session, so without this
+        // button the user would have to quit + relaunch after
+        // fixing the host state.
+        Center(
+          child: TextButton.icon(
+            icon: _recheckingTiers
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh, size: 16),
+            label: Text(l10n.securityRecheck),
+            onPressed: _recheckingTiers ? null : _rerunTierProbes,
+          ),
         ),
       ],
     );
+  }
+
+  /// Invalidate the cached capability + probe snapshots and wait for
+  /// the fresh values so the section rebuilds against ready data.
+  /// Shows a spinner on the button while the probes run, then surfaces
+  /// a toast with the outcome — "support unchanged" if every tier
+  /// reports the same availability as before, "support updated" when
+  /// any row flipped. Without the toast the button reads as a no-op
+  /// on hosts where nothing changed between clicks.
+  Future<void> _rerunTierProbes() async {
+    setState(() => _recheckingTiers = true);
+    // Snapshot the current answers so we can report whether the
+    // re-check actually changed anything.
+    final previousCaps = ref.read(securityCapabilitiesProvider);
+    final previousKc = previousCaps.maybeWhen(
+      data: (c) => c.keychainAvailable,
+      orElse: () => false,
+    );
+    final previousHw = previousCaps.maybeWhen(
+      data: (c) => c.hardwareVaultAvailable,
+      orElse: () => false,
+    );
+    // Clear the persisted cache before invalidating the provider —
+    // otherwise the provider's re-run would read the stale cache
+    // back and skip the real probe, defeating the button. The next
+    // provider read sees `null` cache → runs a fresh probe → writes
+    // the new snapshot back to config.
+    await ref
+        .read(configProvider.notifier)
+        .update((c) => c.copyWith(securityProbeCache: null));
+    ref.invalidate(securityCapabilitiesProvider);
+    ref.invalidate(hardwareProbeDetailProvider);
+    ref.invalidate(keyringProbeDetailProvider);
+    try {
+      final fresh = await ref.read(securityCapabilitiesProvider.future);
+      // Await the detail providers too so the Settings cards rebuild
+      // with classified reasons in one frame instead of two.
+      await ref.read(hardwareProbeDetailProvider.future);
+      await ref.read(keyringProbeDetailProvider.future);
+      if (!mounted) return;
+      final changed =
+          fresh.keychainAvailable != previousKc ||
+          fresh.hardwareVaultAvailable != previousHw;
+      Toast.show(
+        context,
+        message: changed
+            ? S.of(context).securityRecheckUpdated
+            : S.of(context).securityRecheckUnchanged,
+        level: changed ? ToastLevel.success : ToastLevel.info,
+      );
+    } finally {
+      if (mounted) setState(() => _recheckingTiers = false);
+    }
   }
 
   Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
@@ -177,8 +560,8 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (password == null || !context.mounted) return;
 
     final manager = ref.read(masterPasswordProvider);
-    // Single PBKDF2: verify + derive at once so the enable flow
-    // doesn't double the 600k-iteration wait on mobile.
+    // Single Argon2id pass: verify + derive at once so the enable flow
+    // doesn't double the memory-hard KDF wait on mobile.
     final key = await manager.verifyAndDerive(password);
     if (key == null) {
       if (context.mounted) {
@@ -245,434 +628,174 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  String _keychainStatusLabel(S l10n) {
-    if (_keychainAvailable == true) return l10n.keychainAvailable;
-    if (_keychainAvailable == false) return l10n.keychainNotAvailable;
-    return '...';
-  }
-
-  String _securityLevelLabel(S l10n, SecurityLevel level) {
-    switch (level) {
-      case SecurityLevel.plaintext:
-        return l10n.securityLevelPlaintext;
-      case SecurityLevel.keychain:
-        return l10n.securityLevelKeychain;
-      case SecurityLevel.masterPassword:
-        return l10n.securityLevelMasterPassword;
-    }
-  }
-
-  /// Single entry point for master password management.
-  ///
-  /// Not set → show set dialog.
-  /// Already set → show dialog with Change / Remove options.
-  Future<void> _manageMasterPassword(BuildContext context) async {
-    if (_masterPasswordEnabled != true) {
-      await _setMasterPassword(context);
-    } else {
-      await _showManageOptions(context);
-    }
-  }
-
-  Future<void> _showManageOptions(BuildContext context) async {
-    final l10n = S.of(context);
-    final action = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.manageMasterPassword),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'change'),
-            child: Text(l10n.changeMasterPassword),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'remove'),
-            child: Text(
-              l10n.removeMasterPassword,
-              style: TextStyle(color: AppTheme.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (action == null || !context.mounted) return;
-    if (action == 'change') {
-      await _changeMasterPassword(context);
-    } else {
-      await _removeMasterPassword(context);
-    }
-  }
-
-  Future<void> _setMasterPassword(BuildContext context) async {
-    final l10n = S.of(context);
-    final passwordCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-
-    try {
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) => _SetMasterPasswordDialog(
-          passwordCtrl: passwordCtrl,
-          confirmCtrl: confirmCtrl,
-        ),
-      );
-
-      if (password == null || !context.mounted) return;
-
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _enableMasterPassword(password);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.masterPasswordSet,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Set master password failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      passwordCtrl.wipeAndClear();
-      confirmCtrl.wipeAndClear();
-      passwordCtrl.dispose();
-      confirmCtrl.dispose();
-    }
-  }
-
-  Future<void> _enableMasterPassword(String password) async {
+  Future<void> _applyTierChange(SecuritySetupResult result) async {
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final gate = ref.read(keychainPasswordGateProvider);
+    final hwVault = ref.read(hardwareTierVaultProvider);
     final manager = ref.read(masterPasswordProvider);
+    final bioVault = ref.read(biometricKeyVaultProvider);
 
-    // Derive new key from password.
-    final newKey = await manager.enable(password);
-
-    // Sanity check: verify the password immediately to catch crypto issues.
-    final verified = await manager.verify(password);
-    if (!verified) {
-      await manager.disable();
-      throw const MasterPasswordException(
-        'Verification failed after enable — reverted',
-      );
-    }
-
-    // Re-encrypt all stores with the derived key.
-    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
-
-    // Delete keychain key if it was used before.
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    await keyStorage.deleteKey();
-  }
-
-  Future<void> _changeMasterPassword(BuildContext context) async {
-    final l10n = S.of(context);
-    final currentCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-
-    try {
-      final result = await AppDialog.show<({String current, String newPw})>(
-        context,
-        builder: (ctx) => _ChangeMasterPasswordDialog(
-          currentCtrl: currentCtrl,
-          newCtrl: newCtrl,
-          confirmCtrl: confirmCtrl,
-        ),
-      );
-
-      if (result == null || !context.mounted) return;
-
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _doChangePassword(result.current, result.newPw);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.masterPasswordChanged,
-            level: ToastLevel.success,
-          );
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } on MasterPasswordException catch (e) {
-      if (context.mounted) {
-        Toast.show(context, message: e.message, level: ToastLevel.error);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Change master password failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      currentCtrl.wipeAndClear();
-      newCtrl.wipeAndClear();
-      confirmCtrl.wipeAndClear();
-      currentCtrl.dispose();
-      newCtrl.dispose();
-      confirmCtrl.dispose();
-    }
-  }
-
-  Future<void> _doChangePassword(String oldPassword, String newPassword) async {
-    final manager = ref.read(masterPasswordProvider);
-
-    // Change password — verifies old, generates new salt + verifier.
-    final newKey = await manager.changePassword(oldPassword, newPassword);
-
-    // Re-encrypt all stores with new key.
-    await _reEncryptAll(newKey, SecurityLevel.masterPassword);
-
-    // The cached biometric key (if any) was derived from the OLD password
-    // — it's now stale. Wipe it; user can re-enable biometric unlock from
-    // the toggle afterwards.
-    await ref.read(biometricKeyVaultProvider).clear();
-    if (mounted) setState(() => _biometricEnabled = false);
-  }
-
-  Future<void> _removeMasterPassword(BuildContext context) async {
-    final l10n = S.of(context);
-    final passwordCtrl = TextEditingController();
-
-    try {
-      final password = await AppDialog.show<String>(
-        context,
-        builder: (ctx) =>
-            _RemoveMasterPasswordDialog(passwordCtrl: passwordCtrl),
-      );
-
-      if (password == null || !context.mounted) return;
-
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _doRemoveMasterPassword(password);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.masterPasswordRemoved,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } on MasterPasswordException catch (e) {
-      if (context.mounted) {
-        Toast.show(context, message: e.message, level: ToastLevel.error);
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Remove master password failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      passwordCtrl.wipeAndClear();
-      passwordCtrl.dispose();
-    }
-  }
-
-  Future<void> _doRemoveMasterPassword(String password) async {
-    final manager = ref.read(masterPasswordProvider);
-
-    // Verify password first.
-    final isValid = await manager.verify(password);
-    if (!isValid) {
-      throw const MasterPasswordException('Current password is incorrect');
-    }
-
-    // Leaving MP mode — any biometric-cached key belongs to a secret that
-    // is about to stop existing. Drop it unconditionally so the user
-    // cannot silently fall back to biometrics that wrap a now-invalid
-    // credential.
-    await ref.read(biometricKeyVaultProvider).clear();
-    if (mounted) setState(() => _biometricEnabled = false);
-
-    // Try keychain first, fall back to plaintext.
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final keychainAvailable = await keyStorage.isAvailable();
-    if (keychainAvailable) {
-      final key = AesGcm.generateKey();
-      final stored = await keyStorage.writeKey(key);
-      if (stored) {
-        await _reEncryptAll(key, SecurityLevel.keychain);
-        await manager.disable();
-        return;
-      }
-    }
-
-    // No keychain — fall back to plaintext.
-    await _reEncryptAll(null, SecurityLevel.plaintext);
-    await manager.disable();
-  }
-
-  Future<void> _enableKeychain(BuildContext context) async {
-    final l10n = S.of(context);
-    final keyStorage = ref.read(secureKeyStorageProvider);
-
-    if (!context.mounted) return;
-
-    try {
-      final key = AesGcm.generateKey();
-      final stored = await keyStorage.writeKey(key);
-      if (!stored) {
-        throw Exception('Failed to store key in keychain');
-      }
-
-      if (!context.mounted) return;
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
-        await _reEncryptAll(key, SecurityLevel.keychain);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.keychainEnabled,
-            level: ToastLevel.success,
-          );
-          _checkState();
-        }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Enable keychain failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
-    }
-  }
-
-  Future<void> _disableKeychain(BuildContext context) async {
-    final l10n = S.of(context);
-    final confirmed = await AppDialog.show<bool>(
-      context,
-      builder: (ctx) => AppDialog(
-        title: l10n.disableKeychain,
-        content: Text(l10n.disableKeychainConfirm),
-        actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
-            label: l10n.disableKeychain,
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    try {
-      final reporter = ProgressReporter(l10n.progressReencrypting);
-      AppProgressBarDialog.show(context, reporter);
-      try {
+    final mods = result.modifiers;
+    switch (result.tier) {
+      case SecurityTier.plaintext:
+        await _applyAlwaysRekey(null, SecurityTier.plaintext, mods);
         await keyStorage.deleteKey();
-        await _reEncryptAll(null, SecurityLevel.plaintext);
-        if (context.mounted) {
-          Navigator.of(context).pop();
-          Toast.show(
-            context,
-            message: l10n.keychainDisabled,
-            level: ToastLevel.success,
-          );
-          _checkState();
+        await gate.clear();
+        await hwVault.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.keychain:
+        final key = AesGcm.generateKey();
+        final stored = await keyStorage.writeKey(key);
+        if (!stored) throw StateError('keychain write failed');
+        await _applyAlwaysRekey(key, SecurityTier.keychain, mods);
+        await gate.clear();
+        await hwVault.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.keychainWithPassword:
+        final short = result.shortPassword;
+        if (short == null || short.isEmpty) {
+          throw StateError('short password missing');
         }
-      } catch (e) {
-        if (context.mounted) Navigator.of(context).pop();
-        rethrow;
-      } finally {
-        reporter.dispose();
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Disable keychain failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: localizeError(S.of(context), e),
-          level: ToastLevel.error,
-        );
-      }
+        await gate.setPassword(short);
+        final key = AesGcm.generateKey();
+        final stored = await keyStorage.writeKey(key);
+        if (!stored) {
+          await gate.clear();
+          throw StateError('keychain write failed');
+        }
+        await _applyAlwaysRekey(key, SecurityTier.keychainWithPassword, mods);
+        await hwVault.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.hardware:
+        // Hardware tier now accepts a passwordless seal: when the
+        // wizard returns `pin == null` (user left the password
+        // modifier off for T2) the vault derives an empty auth
+        // value and seals under SE/TPM isolation alone. The
+        // modifiers snapshot `mods.password` stays the source of
+        // truth for later unlock flows, so persisting it alongside
+        // the tier keeps the read side in sync.
+        final key = AesGcm.generateKey();
+        final sealed = await hwVault.store(dbKey: key, pin: result.pin);
+        if (!sealed) throw StateError('hardware seal failed');
+        await _applyAlwaysRekey(key, SecurityTier.hardware, mods);
+        await keyStorage.deleteKey();
+        await gate.clear();
+        if (await manager.isEnabled()) await manager.disable();
+        await bioVault.clear();
+      case SecurityTier.paranoid:
+        final pw = result.masterPassword;
+        if (pw == null || pw.isEmpty) {
+          throw StateError('master password missing');
+        }
+        final key = await manager.enable(pw);
+        await _applyAlwaysRekey(key, SecurityTier.paranoid, mods);
+        await keyStorage.deleteKey();
+        await gate.clear();
+        await hwVault.clear();
+        await bioVault.clear();
     }
   }
 
-  /// Re-encrypt the live database with a new key (or convert to plaintext
-  /// when [key] is null), then update global security state.
+  /// Rekey the live database under [key] (or convert to plaintext
+  /// when [key] is null) and flip `securityStateProvider` to the new
+  /// [level]. Single caller: `_applyTierChange`, which runs this
+  /// *after* it has already wrapped the new key into the target
+  /// tier's vault — so the on-disk wrapper and the DB cipher always
+  /// move together.
   ///
-  /// Without the `rekeyDatabase` step the DB file pages stay encrypted under
-  /// the old key while `securityStateProvider` claims the new one — on the
-  /// next app start the DB fails to open. The order is deliberate: run the
-  /// `PRAGMA rekey` first; only flip the provider after it succeeded, so a
-  /// crypto/disk failure leaves the old (working) state intact.
-  Future<void> _reEncryptAll(Uint8List? key, SecurityLevel level) async {
+  /// Routes the rekey through `SecurityTierSwitcher` so a mid-switch
+  /// crash leaves the `.tier-transition-pending` marker on disk; the
+  /// next launch logs and clears it in `main._initSecurity` before
+  /// falling through to the standard unlock path.
+  Future<void> _applyAlwaysRekey(
+    Uint8List? key,
+    SecurityTier level, [
+    SecurityTierModifiers? modifiers,
+  ]) async {
     final store = ref.read(sessionStoreProvider);
     final db = store.database;
-    if (db != null) {
-      await rekeyDatabase(db, key);
+    final resolvedMods = modifiers ?? SecurityTierModifiers.defaults;
+    // Marker payload carries tier + modifiers so a crash-recovery
+    // path can reconstruct the target config and drive the right
+    // unlock prompt (password? biometric? no gate?) instead of
+    // falling back to whatever the enum alone suggests.
+    final markerPayload = jsonEncode({
+      'tier': _tierName(level),
+      'mods': resolvedMods.toJson(),
+    });
+    // Bind the constructor-time callbacks to the current key /
+    // current-db pair. A fresh switcher instance per call is fine —
+    // the marker file is the authoritative state, not the instance.
+    final switcher = SecurityTierSwitcher(
+      keyFactory: () => key ?? Uint8List(0),
+      rekey: (d, _) async => rekeyDatabase(d, key),
+    );
+
+    if (db == null) {
+      // No live DB (plaintext first-launch path before the first
+      // open). Nothing to rekey; just flip the provider. The marker
+      // dance is still useful so a crash between state.set and the
+      // follow-on caller work is visible next launch, but the
+      // switcher wants a non-null DB, so we inline the minimal
+      // equivalent here.
+      try {
+        await switcher.clearMarker();
+        if (key != null) {
+          ref.read(securityStateProvider.notifier).set(level, key);
+        } else {
+          ref.read(securityStateProvider.notifier).clearEncryption();
+        }
+      } catch (_) {}
+      return;
     }
-    if (key != null) {
-      ref.read(securityStateProvider.notifier).set(level, key);
-    } else {
-      ref.read(securityStateProvider.notifier).clearEncryption();
+
+    await switcher.switchTier(
+      db: db,
+      targetMarkerPayload: markerPayload,
+      applyWrapper: (_) async {
+        if (key != null) {
+          ref.read(securityStateProvider.notifier).set(level, key);
+        } else {
+          ref.read(securityStateProvider.notifier).clearEncryption();
+        }
+      },
+      persistConfig: (_) async {
+        // Persist tier + modifiers atomically inside the switch so a
+        // crash after rekey but before config-write does not leave
+        // the DB on the new cipher with the old tier label in
+        // config.json (the legacy main.dart path only persisted on
+        // provider flip and dropped the modifier field).
+        final existing = ref.read(configProvider).security;
+        final next = SecurityConfig(tier: level, modifiers: resolvedMods);
+        if (existing == next) return;
+        await ref
+            .read(configProvider.notifier)
+            .update((cfg) => cfg.copyWith(security: next));
+      },
+      clearPrevious: () async {
+        // Previous-tier cleanup (biometric vault clear, keychain
+        // delete, credentials.kdf remove) is handled by the
+        // specific enable/disable/change/remove methods that call
+        // into `_applyAlwaysRekey`.
+      },
+    );
+  }
+
+  String _tierName(SecurityTier tier) {
+    switch (tier) {
+      case SecurityTier.plaintext:
+        return 'plaintext';
+      case SecurityTier.keychain:
+        return 'keychain';
+      case SecurityTier.keychainWithPassword:
+        return 'keychain_with_password';
+      case SecurityTier.hardware:
+        return 'hardware';
+      case SecurityTier.paranoid:
+        return 'paranoid';
     }
   }
 }
@@ -696,7 +819,7 @@ class _AutoLockTile extends ConsumerWidget {
     final current = ref.watch(autoLockMinutesProvider);
     final enabled = disabledReason == null;
     final trigger = _buildTrigger(l10n, current);
-    return Opacity(
+    Widget body = Opacity(
       opacity: enabled ? 1.0 : 0.5,
       child: _SettingsRow(
         label: l10n.autoLockTitle,
@@ -735,6 +858,14 @@ class _AutoLockTile extends ConsumerWidget {
             : _DisabledDropdownTrigger(reason: disabledReason!, child: trigger),
       ),
     );
+    // Whole-row tooltip on the disabled state so the hover target
+    // matches the biometric `_ModifierRow` above — user hovers
+    // anywhere on the auto-lock line and sees the reason, not only
+    // over the dropdown trigger in the right-hand column.
+    if (!enabled && disabledReason != null && disabledReason!.isNotEmpty) {
+      body = Tooltip(message: disabledReason!, child: body);
+    }
+    return body;
   }
 
   Widget _buildTrigger(S l10n, int current) {

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../l10n/app_localizations.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../providers/config_provider.dart';
@@ -479,7 +480,7 @@ class _MobileFileListState extends State<MobileFileList> {
     if (ctrl.loading) return const Center(child: CircularProgressIndicator());
     if (ctrl.error != null) return _buildError(context);
     if (ctrl.entries.isEmpty) {
-      return Center(child: Text(S.of(context).emptyDirectory));
+      return AppEmptyState(message: S.of(context).emptyDirectory);
     }
 
     return Column(

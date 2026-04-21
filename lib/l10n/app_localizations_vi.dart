@@ -15,6 +15,12 @@ class SVi extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Bảo vệ khỏi';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Không bảo vệ khỏi';
+
+  @override
   String get cancel => 'Hủy';
 
   @override
@@ -793,6 +799,166 @@ class SVi extends S {
   String get passwordsDoNotMatch => 'Mật khẩu không khớp';
 
   @override
+  String get passwordStrengthWeak => 'Yếu';
+
+  @override
+  String get passwordStrengthModerate => 'Trung bình';
+
+  @override
+  String get passwordStrengthStrong => 'Mạnh';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Rất mạnh';
+
+  @override
+  String get tierRecommendedBadge => 'Khuyến nghị';
+
+  @override
+  String get tierCurrentBadge => 'Hiện tại';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Thay thế — không tin tưởng vào HĐH';
+
+  @override
+  String get tierUpcomingTooltip => 'Sẽ có trong phiên bản sắp tới.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Cơ sở hạ tầng nền của tầng này chưa được phát hành. Hàng này hiển thị để bạn biết tùy chọn tồn tại.';
+
+  @override
+  String get tierPlaintextLabel => 'Văn bản thuần';
+
+  @override
+  String get tierPlaintextSubtitle => 'Không mã hóa — chỉ quyền tập tin';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Bất kỳ ai có quyền truy cập hệ thống tệp đều đọc được dữ liệu của bạn';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Đồng bộ hoặc sao lưu vô tình tiết lộ mọi thứ';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Chỉ sử dụng trong môi trường đáng tin cậy, cô lập.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Khóa nằm trong $keychain — tự động mở khóa khi khởi chạy';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Người dùng khác trên cùng máy';
+
+  @override
+  String get tierKeychainProtect2 =>
+      'Đĩa bị đánh cắp mà không có đăng nhập HĐH';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'Phần mềm độc hại chạy dưới tài khoản HĐH của bạn';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Kẻ tấn công chiếm đoạt đăng nhập HĐH của bạn';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Keychain của HĐH không khả dụng trên bản cài đặt này.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Đồng nghiệp ngồi tại bàn của bạn';
+
+  @override
+  String get tierKeychainPassProtect2 =>
+      'Người qua đường với quyền truy cập đã mở khóa';
+
+  @override
+  String get tierKeychainPassThreat1 => 'Kẻ tấn công offline với tệp trên đĩa';
+
+  @override
+  String get tierKeychainPassThreat2 => 'Cùng rủi ro xâm phạm HĐH như Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Phần cứng';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Két ràng buộc phần cứng + PIN ngắn có khóa';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Brute force offline PIN (giới hạn tốc độ phần cứng)';
+
+  @override
+  String get tierHardwareProtect2 => 'Đánh cắp đĩa và blob keychain';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE HĐH hoặc firmware trên mô-đun bảo mật';
+
+  @override
+  String get tierHardwareThreat2 => 'Mở khóa sinh trắc học cưỡng bức (nếu bật)';
+
+  @override
+  String get tierParanoidLabel => 'Mật khẩu chính (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Mật khẩu dài + Argon2id. Khóa không bao giờ đi vào HĐH.';
+
+  @override
+  String get tierParanoidProtect1 => 'Xâm phạm keychain HĐH';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Đĩa bị đánh cắp (miễn là mật khẩu của bạn mạnh)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger bắt mật khẩu của bạn';
+
+  @override
+  String get tierParanoidThreat2 => 'Mật khẩu yếu + bẻ khóa Argon2id offline';
+
+  @override
+  String get tierParanoidNotes =>
+      'Sinh trắc học bị tắt theo thiết kế ở tầng này.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'Kho phần cứng không có sẵn trên cài đặt này.';
+
+  @override
+  String get pinLabel => 'Mật khẩu';
+
+  @override
+  String get l2UnlockTitle => 'Cần mật khẩu';
+
+  @override
+  String get l2UnlockHint => 'Nhập mật khẩu ngắn để tiếp tục';
+
+  @override
+  String get l2WrongPassword => 'Sai mật khẩu';
+
+  @override
+  String get l3UnlockTitle => 'Nhập mật khẩu';
+
+  @override
+  String get l3UnlockHint => 'Mật khẩu mở khóa kho liên kết phần cứng';
+
+  @override
+  String get l3WrongPin => 'Sai mật khẩu';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Thử lại sau $seconds giây';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Đã xuất đến: $path';
   }
@@ -820,6 +986,9 @@ class SVi extends S {
 
   @override
   String get dataLocation => 'Vị trí dữ liệu';
+
+  @override
+  String get dataStorageSection => 'Lưu trữ';
 
   @override
   String get pathCopied => 'Đã sao chép đường dẫn vào bộ nhớ tạm';
@@ -1180,7 +1349,7 @@ class SVi extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Không cần nhập mật khẩu chính khi khởi động ứng dụng.';
+      'Không cần nhập mật khẩu — mở khóa bằng cảm biến sinh trắc học của thiết bị.';
 
   @override
   String get biometricNotAvailable =>
@@ -1215,8 +1384,15 @@ class SVi extends S {
       'Thiết bị này không có cảm biến sinh trắc học.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'Hãy đặt mật khẩu chính trước để bật tự động khóa.';
+  String get biometricSystemServiceMissing =>
+      'Dịch vụ vân tay (fprintd) chưa được cài đặt. Xem README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Hỗ trợ phần cứng (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Hỗ trợ phần mềm';
 
   @override
   String get currentPasswordIncorrect => 'Mật khẩu hiện tại không đúng';
@@ -1246,7 +1422,7 @@ class SVi extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Khóa giao diện sau khoảng thời gian không hoạt động này. Cơ sở dữ liệu mã hóa chỉ bị khóa lại khi không còn phiên SSH nào hoạt động, để các thao tác dài không bị ngắt.';
+      'Khóa giao diện sau khoảng thời gian không hoạt động này. Khóa cơ sở dữ liệu sẽ bị xóa và kho lưu trữ mã hóa sẽ đóng lại sau mỗi lần khóa; các phiên đang hoạt động vẫn kết nối nhờ bộ nhớ đệm thông tin đăng nhập theo từng phiên, được xóa khi phiên kết thúc.';
 
   @override
   String get autoLockOff => 'Tắt';
@@ -1277,6 +1453,10 @@ class SVi extends S {
 
   @override
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'Kho lưu trữ không hoàn chỉnh. Hãy tải lại hoặc xuất lại từ thiết bị gốc.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1646,6 +1826,13 @@ class SVi extends S {
   String get generateKey => 'Tạo khóa';
 
   @override
+  String get addKey => 'Thêm khóa';
+
+  @override
+  String get filePickerUnavailable =>
+      'Trình chọn tệp không khả dụng trên hệ thống này';
+
+  @override
   String get importKey => 'Nhập khóa';
 
   @override
@@ -1796,6 +1983,46 @@ class SVi extends S {
   String get credentialsReset => 'Tất cả thông tin đăng nhập đã lưu đã bị xóa';
 
   @override
+  String get migrationToast => 'Bộ nhớ đã được nâng cấp lên định dạng mới nhất';
+
+  @override
+  String get dbCorruptTitle => 'Không thể mở cơ sở dữ liệu';
+
+  @override
+  String get dbCorruptBody =>
+      'Dữ liệu trên đĩa không mở được. Hãy thử một thông tin xác thực khác, hoặc đặt lại để bắt đầu từ đầu.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Đặt lại sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tệp liên quan đến bảo mật. Không có dữ liệu nào được khôi phục.';
+
+  @override
+  String get dbCorruptTryOther => 'Thử thông tin xác thực khác';
+
+  @override
+  String get dbCorruptResetContinue => 'Đặt lại & Cài đặt mới';
+
+  @override
+  String get dbCorruptExit => 'Thoát LetsFLUTssh';
+
+  @override
+  String get tierResetTitle => 'Cần đặt lại bảo mật';
+
+  @override
+  String get tierResetBody =>
+      'Bản cài đặt này mang theo dữ liệu bảo mật từ phiên bản LetsFLUTssh cũ hơn sử dụng mô hình tầng khác. Mô hình mới là thay đổi không tương thích — không có đường dẫn di chuyển tự động. Để tiếp tục, tất cả phiên đã lưu, thông tin đăng nhập, khóa SSH và máy chủ đã biết trên bản cài đặt này phải bị xóa và chạy lại trình hướng dẫn thiết lập lần đầu từ đầu.';
+
+  @override
+  String get tierResetWarning =>
+      'Chọn «Đặt lại & Thiết lập mới» sẽ xóa vĩnh viễn cơ sở dữ liệu đã mã hóa và mọi tập tin liên quan đến bảo mật. Nếu bạn cần khôi phục dữ liệu, hãy thoát ứng dụng ngay và cài lại phiên bản trước của LetsFLUTssh để xuất trước.';
+
+  @override
+  String get tierResetResetContinue => 'Đặt lại & Thiết lập mới';
+
+  @override
+  String get tierResetExit => 'Thoát LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Đang tạo khóa mã hóa...';
 
   @override
@@ -1871,6 +2098,200 @@ class SVi extends S {
 
   @override
   String get manageMasterPasswordSubtitle => 'Đặt, đổi hoặc xóa mật khẩu chính';
+
+  @override
+  String get changeSecurityTier => 'Đổi mức bảo mật';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Mở thang mức và chuyển sang mức bảo mật khác';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Đang mã hóa lại cơ sở dữ liệu với mức mới. Không thể dừng — giữ ứng dụng mở đến khi hoàn tất.';
+
+  @override
+  String get changeSecurityTierDone => 'Đã đổi mức bảo mật';
+
+  @override
+  String get changeSecurityTierFailed => 'Không thể đổi mức bảo mật';
+
+  @override
+  String get firstLaunchSecurityTitle => 'Đã bật lưu trữ an toàn';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Dữ liệu của bạn được mã hoá bằng khoá nằm trong keychain hệ điều hành. Việc mở khoá trên thiết bị này diễn ra tự động.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Thiết bị này có lưu trữ phần cứng sẵn có. Nâng cấp trong Cài đặt → Bảo mật để liên kết TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Lưu trữ phần cứng không khả dụng — không phát hiện TPM 2.0 trên thiết bị này.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Lưu trữ phần cứng không khả dụng — thiết bị này không báo cáo Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Lưu trữ phần cứng không khả dụng — cài đặt tpm2-tools và thiết bị TPM 2.0 để kích hoạt.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Lưu trữ phần cứng không khả dụng — thiết bị này không báo cáo StrongBox hoặc TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Lưu trữ phần cứng không khả dụng trên thiết bị này.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Mở Cài đặt';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Đã hiểu';
+
+  @override
+  String get securityHardwareUpgradeTitle => 'Lưu trữ phần cứng khả dụng';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Nâng cấp để ràng buộc bí mật với TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Nâng cấp';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Lưu trữ phần cứng không khả dụng';
+
+  @override
+  String get wizardReducedBanner =>
+      'Keychain hệ điều hành không thể truy cập trong bản cài đặt này. Hãy chọn giữa không mã hoá (T0) và mật khẩu chính (Paranoid). Cài đặt gnome-keyring, kwallet hoặc trình cung cấp libsecret khác để bật tầng Keychain.';
+
+  @override
+  String get tierBlockProtectsHeader => 'BẢO VỆ KHỎI';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'KHÔNG BẢO VỆ';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Không có gì ở cấp này.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty =>
+      'Không còn mối đe doạ nào chưa được phủ.';
+
+  @override
+  String get tierBadgeCurrent => 'Hiện tại';
+
+  @override
+  String get securitySetupEnable => 'Kích hoạt';
+
+  @override
+  String get securitySetupApply => 'Áp dụng';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Tầng không mã hoá không giữ bí mật để mật khẩu có thể bảo vệ.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid sinh khoá CSDL từ mật khẩu — luôn bật.';
+
+  @override
+  String get passwordSubtitleOn => 'Bật — cần mật khẩu khi mở khoá';
+
+  @override
+  String get passwordSubtitleOff => 'Tắt — chạm để thêm mật khẩu ở tầng này';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Bắt buộc — mật khẩu chính là bí mật của tầng';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Không áp dụng — tầng này không mã hoá';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      'Không phát hiện TPM tại /dev/tpmrm0. Bật fTPM / PTT trong BIOS nếu thiết bị hỗ trợ, nếu không tầng phần cứng không khả dụng trên máy này.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools chưa được cài đặt. Chạy `sudo apt install tpm2-tools` (hoặc tương đương trên phân phối của bạn) để kích hoạt tầng phần cứng.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Kiểm tra tầng phần cứng thất bại. Kiểm tra quyền trên /dev/tpmrm0 và các quy tắc udev — xem log để biết chi tiết.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'Không phát hiện TPM 2.0. Bật fTPM / PTT trong phần mềm UEFI, hoặc chấp nhận rằng tầng phần cứng không khả dụng trên thiết bị này — ứng dụng chuyển sang kho thông tin xác thực phần mềm.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Cả Microsoft Platform Crypto Provider lẫn Software Key Storage Provider đều không truy cập được — có thể do hệ thống mật mã Windows bị hỏng hoặc Group Policy chặn CNG. Kiểm tra Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Mac này không có Secure Enclave (Mac Intel trước 2017 không có chip bảo mật T1 / T2). Tầng phần cứng không khả dụng; hãy dùng mật khẩu chính.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Chưa đặt mật khẩu đăng nhập trên Mac này. Tạo khóa Secure Enclave cần có — đặt mật khẩu đăng nhập trong System Settings → Touch ID & Password (hoặc Login Password).';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave từ chối danh tính chữ ký của ứng dụng (-34018). Chạy script `macos-resign.sh` đi kèm bản phát hành để gán cho bản cài đặt này một danh tính tự ký ổn định, sau đó khởi động lại ứng dụng.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Chưa đặt mã khóa thiết bị. Tạo khóa Secure Enclave cần có — đặt mã trong Settings → Face ID & Passcode (hoặc Touch ID & Passcode).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Đang chạy trên iOS Simulator, không có Secure Enclave. Tầng phần cứng chỉ khả dụng trên thiết bị iOS vật lý.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Cần Android 9 trở lên cho tầng phần cứng (StrongBox và vô hiệu hóa khóa khi thay đổi đăng ký sinh trắc học không đáng tin cậy trên phiên bản cũ hơn).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Thiết bị này không có phần cứng sinh trắc học (vân tay hoặc khuôn mặt). Hãy dùng mật khẩu chính.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Chưa đăng ký sinh trắc học. Thêm vân tay hoặc khuôn mặt trong Settings → Bảo mật và quyền riêng tư → Sinh trắc học, sau đó bật lại tầng phần cứng.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Phần cứng sinh trắc học tạm thời không sử dụng được (khóa sau nhiều lần thất bại hoặc đang chờ cập nhật bảo mật). Thử lại sau vài phút.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore từ chối hỗ trợ khóa phần cứng trên bản dựng thiết bị này (StrongBox không có, ROM tùy chỉnh hoặc lỗi trình điều khiển). Lớp phần cứng không khả dụng.';
+
+  @override
+  String get securityRecheck => 'Kiểm tra lại hỗ trợ lớp';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Hỗ trợ lớp đã cập nhật — xem thẻ ở trên';
+
+  @override
+  String get securityRecheckUnchanged => 'Hỗ trợ lớp không thay đổi';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus đang chạy nhưng không có secret-service daemon nào đang hoạt động. Cài đặt gnome-keyring (`sudo apt install gnome-keyring`) hoặc KWalletManager và đảm bảo nó khởi động khi đăng nhập.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Keychain OS không truy cập được trên thiết bị này. Xem log để biết lỗi nền tảng cụ thể; ứng dụng chuyển sang mật khẩu chính.';
 
   @override
   String get snippets => 'Snippet';
@@ -2118,4 +2539,229 @@ class SVi extends S {
 
   @override
   String get continueWithoutPassword => 'Tiếp tục không dùng mật khẩu';
+
+  @override
+  String get threatColdDiskTheft => 'Trộm ổ đĩa khi máy đã tắt';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Máy đã tắt bị tháo ổ đĩa ra và đọc trên một máy khác, hoặc ai đó có quyền truy cập thư mục cá nhân của bạn sao chép tệp cơ sở dữ liệu.';
+
+  @override
+  String get threatKeyringFileTheft => 'Đánh cắp tệp keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Kẻ tấn công đọc trực tiếp tệp kho thông tin xác thực của hệ điều hành từ ổ đĩa (libsecret keyring, Windows Credential Manager, macOS login keychain) và khôi phục khóa cơ sở dữ liệu được gói bên trong. Tầng phần cứng chặn điều này bất kể mật khẩu vì chip từ chối xuất vật liệu khóa; tầng keychain cần thêm mật khẩu, nếu không tệp bị đánh cắp có thể mở chỉ bằng mật khẩu đăng nhập hệ điều hành.';
+
+  @override
+  String get modifierOnlyWithPassword => 'chỉ với mật khẩu';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'Người ngoài bên máy đã mở khóa';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Có người tiến lại chiếc máy đã mở khóa của bạn và mở ứng dụng trong lúc bạn vắng mặt.';
+
+  @override
+  String get threatLiveRamForensicsLocked => 'Điều tra RAM trên máy đã khóa';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Kẻ tấn công đóng băng RAM (hoặc thu qua DMA) và lôi ra những mẩu khóa vẫn còn đọng lại trong ảnh chụp, ngay cả khi ứng dụng đang bị khóa.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Xâm phạm nhân hệ điều hành hoặc keychain';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Lỗ hổng nhân, rò rỉ keychain, hoặc cửa hậu trong chip bảo mật phần cứng. Hệ điều hành từ tài nguyên tin cậy trở thành chính kẻ tấn công.';
+
+  @override
+  String get threatOfflineBruteForce => 'Dò mật khẩu yếu ngoại tuyến';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Kẻ tấn công có bản sao khóa đã bọc hoặc blob được niêm phong sẽ thử mọi mật khẩu theo nhịp độ của chính mình, không bị giới hạn tốc độ nào.';
+
+  @override
+  String get legendProtects => 'Được bảo vệ';
+
+  @override
+  String get legendDoesNotProtect => 'Không được bảo vệ';
+
+  @override
+  String get legendNotApplicable =>
+      'Không áp dụng — bậc này không có bí mật của người dùng';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Mật khẩu yếu được chấp nhận — một lớp khác (bộ giới hạn tốc độ phần cứng hoặc ràng buộc khóa đã bọc) đảm nhận tính bảo mật';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Rất khuyến nghị dùng cụm mật khẩu dài — tính bảo mật của bậc này phụ thuộc vào nó';
+
+  @override
+  String get colT0 => 'T0 Văn bản thuần';
+
+  @override
+  String get colT1 => 'T1 Keychain';
+
+  @override
+  String get colT1Password => 'T1 + mật khẩu';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + mật khẩu + sinh trắc';
+
+  @override
+  String get colT2 => 'T2 Phần cứng';
+
+  @override
+  String get colT2Password => 'T2 + mật khẩu';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + mật khẩu + sinh trắc';
+
+  @override
+  String get colParanoid => 'Hoang tưởng';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Các bậc bảo mật — so sánh cạnh nhau';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Mối đe dọa';
+
+  @override
+  String get compareAllTiers => 'So sánh tất cả các bậc';
+
+  @override
+  String get resetAllDataTitle => 'Đặt lại toàn bộ dữ liệu';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Xóa tất cả phiên, khóa, cấu hình và tạo tác bảo mật. Đồng thời xóa các mục trong keychain và các khe của kho phần cứng.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Đặt lại toàn bộ dữ liệu?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Tất cả phiên, khóa SSH, known hosts, đoạn mã, thẻ, tùy chọn và mọi tạo tác bảo mật (mục keychain, dữ liệu kho phần cứng, lớp phủ sinh trắc học) sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Đặt lại tất cả';
+
+  @override
+  String get resetAllDataInProgress => 'Đang đặt lại…';
+
+  @override
+  String get resetAllDataDone => 'Đã đặt lại toàn bộ dữ liệu';
+
+  @override
+  String get resetAllDataFailed => 'Đặt lại thất bại';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'Xem song song từng bậc bảo vệ chống lại những mối đe dọa nào.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động.';
+
+  @override
+  String get recommendedBadge => 'KHUYẾN NGHỊ';
+
+  @override
+  String get continueWithRecommended => 'Tiếp tục với tùy chọn khuyến nghị';
+
+  @override
+  String get customizeSecurity => 'Tùy chỉnh bảo mật';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Nâng cao: khóa gắn với phần cứng. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Phương án thay thế: mật khẩu chính, không tin cậy OS. Bảo vệ khỏi việc OS bị xâm phạm. Không cải thiện bảo vệ lúc chạy so với T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Các mối đe dọa runtime (malware từ cùng người dùng, dump bộ nhớ tiến trình đang chạy) được hiển thị là ✗ ở mọi cấp. Chúng được xử lý bằng các tính năng giảm thiểu riêng biệt, áp dụng bất kể cấp đã chọn.';
+
+  @override
+  String get securitySetupContinue => 'Tiếp tục';
+
+  @override
+  String get currentTierBadge => 'HIỆN TẠI';
+
+  @override
+  String get paranoidAlternativeHeader => 'THAY THẾ';
+
+  @override
+  String get modifierPasswordLabel => 'Mật khẩu';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Cổng bí mật cần gõ trước khi mở két dữ liệu.';
+
+  @override
+  String get modifierBiometricLabel => 'Lối tắt sinh trắc';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Lấy mật khẩu từ một khe hệ điều hành được bảo vệ bằng sinh trắc học, thay vì gõ nó.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Hãy bật mật khẩu trước — sinh trắc chỉ là lối tắt để nhập mật khẩu.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'Chọn tầng này trước để bật mở khóa sinh trắc học';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Chọn tầng này trước để cấu hình khóa tự động';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Mức Paranoid không cho phép sinh trắc theo thiết kế.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM không có mật khẩu chỉ cung cấp sự cô lập, không phải xác thực. Bất kỳ ai có thể chạy ứng dụng này đều có thể mở khóa dữ liệu.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Rất khuyến nghị dùng cụm mật khẩu dài — Argon2id chỉ làm chậm tấn công vét cạn, không ngăn chặn được.';
+
+  @override
+  String get plaintextWarningTitle => 'Văn bản thuần: không mã hóa';
+
+  @override
+  String get plaintextWarningBody =>
+      'Phiên, khóa và known hosts sẽ được lưu mà không mã hóa. Bất kỳ ai có quyền truy cập vào hệ thống tệp của máy tính này đều có thể đọc chúng.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Tôi hiểu rằng dữ liệu của tôi sẽ không được mã hóa';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Xác nhận bạn đã hiểu trước khi tiếp tục.';
+
+  @override
+  String get passwordLabel => 'Mật khẩu';
+
+  @override
+  String get masterPasswordLabel => 'Mật khẩu chính';
 }

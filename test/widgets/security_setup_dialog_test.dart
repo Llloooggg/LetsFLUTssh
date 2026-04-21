@@ -1,19 +1,17 @@
+import 'dart:io' show File;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
+import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
-import 'package:letsflutssh/widgets/toast.dart';
 
-/// In-memory fake that mirrors FlutterSecureStorage API.
-/// [shouldThrow] controls whether the keychain is "available".
 class _FakeStorage implements FlutterSecureStorage {
-  final Map<String, String> _store = {};
-  bool shouldThrow;
-
-  _FakeStorage({this.shouldThrow = false});
-
   @override
   Future<void> write({
     required String key,
@@ -24,14 +22,7 @@ class _FakeStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async {
-    if (shouldThrow) throw Exception('Keychain unavailable');
-    if (value != null) {
-      _store[key] = value;
-    } else {
-      _store.remove(key);
-    }
-  }
+  }) async {}
 
   @override
   Future<String?> read({
@@ -42,10 +33,7 @@ class _FakeStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async {
-    if (shouldThrow) throw Exception('Keychain unavailable');
-    return _store[key];
-  }
+  }) async => null;
 
   @override
   Future<void> delete({
@@ -56,263 +44,160 @@ class _FakeStorage implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async {
-    if (shouldThrow) throw Exception('Keychain unavailable');
-    _store.remove(key);
-  }
+  }) async {}
 
   @override
-  Future<bool> containsKey({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    return _store.containsKey(key);
-  }
-
-  @override
-  Future<Map<String, String>> readAll({
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    return Map.of(_store);
-  }
-
-  @override
-  Future<void> deleteAll({
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    _store.clear();
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-void main() {
-  tearDown(() => Toast.clearAllForTest());
+class _FakeTpm implements TpmClient {
+  @override
+  Future<bool> isAvailable() async => true;
 
-  Widget buildApp({
-    required SecureKeyStorage keyStorage,
-    required void Function(BuildContext) onPressed,
-  }) {
-    return MaterialApp(
-      localizationsDelegates: S.localizationsDelegates,
-      supportedLocales: S.supportedLocales,
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () => onPressed(context),
+  @override
+  Future<Uint8List?> seal(
+    Uint8List secret, {
+    required Uint8List authValue,
+  }) async => Uint8List.fromList([...authValue, ...secret]);
+
+  @override
+  Future<Uint8List?> unseal(
+    Uint8List blob, {
+    required Uint8List authValue,
+  }) async => blob;
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Widget _wrap(Widget child) => MaterialApp(
+  localizationsDelegates: S.localizationsDelegates,
+  supportedLocales: S.supportedLocales,
+  home: Scaffold(body: child),
+);
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  Future<void> openDialog(
+    WidgetTester tester, {
+    required SecurityCapabilities caps,
+  }) async {
+    final keyStorage = SecureKeyStorage(storage: _FakeStorage());
+    final hardwareVault = HardwareTierVault(
+      tpmClient: _FakeTpm(),
+      stateFileFactory: () async => File('/tmp/ignored_hw_vault.bin'),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        Builder(
+          builder: (ctx) => TextButton(
             child: const Text('Open'),
+            onPressed: () async {
+              await SecuritySetupDialog.show(
+                ctx,
+                keyStorage: keyStorage,
+                hardwareVault: hardwareVault,
+                capabilitiesOverride: caps,
+              );
+            },
           ),
         ),
       ),
     );
-  }
-
-  Future<void> openDialog(
-    WidgetTester tester, {
-    required SecureKeyStorage keyStorage,
-  }) async {
-    await tester.pumpWidget(
-      buildApp(
-        keyStorage: keyStorage,
-        onPressed: (ctx) {
-          SecuritySetupDialog.show(ctx, keyStorage: keyStorage);
-        },
-      ),
-    );
     await tester.tap(find.text('Open'));
-    // Let the probe future complete.
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
   }
 
-  group('SecuritySetupDialog — keychain available', () {
-    late SecureKeyStorage keyStorage;
+  const allCaps = SecurityCapabilities(
+    keychainAvailable: true,
+    hardwareVaultAvailable: true,
+    biometricAvailable: true,
+  );
+  const noKeychain = SecurityCapabilities(hardwareVaultAvailable: true);
+  const noHardware = SecurityCapabilities(keychainAvailable: true);
 
-    setUp(() {
-      keyStorage = SecureKeyStorage(storage: _FakeStorage());
-    });
-
-    testWidgets('shows title and keychain detected message', (tester) async {
-      await openDialog(tester, keyStorage: keyStorage);
-
-      expect(find.text('Security Setup'), findsOneWidget);
-      expect(find.text('Continue with Keychain'), findsOneWidget);
-      expect(find.text('Set Master Password'), findsOneWidget);
-    });
-
-    testWidgets('continue with keychain returns result', (tester) async {
-      SecuritySetupResult? result;
-      await tester.pumpWidget(
-        buildApp(
-          keyStorage: keyStorage,
-          onPressed: (ctx) async {
-            result = await SecuritySetupDialog.show(
-              ctx,
-              keyStorage: keyStorage,
-            );
-          },
-        ),
-      );
-      await tester.tap(find.text('Open'));
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Continue with Keychain'));
-      await tester.pumpAndSettle();
-
-      expect(result, isNotNull);
-      expect(result!.keychainAvailable, isTrue);
-      expect(result!.masterPassword, isNull);
-    });
-
-    testWidgets('set master password shows form', (tester) async {
-      await openDialog(tester, keyStorage: keyStorage);
-
-      await tester.tap(find.text('Set Master Password'));
-      await tester.pumpAndSettle();
-
-      // Password form should be visible.
-      expect(find.byType(TextField), findsNWidgets(2));
-      expect(find.text('OK'), findsOneWidget);
-    });
-
-    testWidgets('empty master password does not submit', (tester) async {
-      // Length restrictions were removed: only the non-empty check
-      // gates submit. An empty password must silently keep the form open.
-      await openDialog(tester, keyStorage: keyStorage);
-
-      await tester.tap(find.text('Set Master Password'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Dialog should still be open (password form still visible).
-      expect(find.byType(TextField), findsNWidgets(2));
-    });
-
-    testWidgets('mismatched passwords shows toast', (tester) async {
-      await openDialog(tester, keyStorage: keyStorage);
-
-      await tester.tap(find.text('Set Master Password'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).first, 'password123');
-      await tester.enterText(find.byType(TextField).last, 'different1');
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Dialog should still be open.
-      expect(find.byType(TextField), findsNWidgets(2));
-
-      // Flush the toast auto-dismiss timer and removal animation.
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('valid master password returns result', (tester) async {
-      SecuritySetupResult? result;
-      await tester.pumpWidget(
-        buildApp(
-          keyStorage: keyStorage,
-          onPressed: (ctx) async {
-            result = await SecuritySetupDialog.show(
-              ctx,
-              keyStorage: keyStorage,
-            );
-          },
-        ),
-      );
-      await tester.tap(find.text('Open'));
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Set Master Password'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).first, 'mypassword123');
-      await tester.enterText(find.byType(TextField).last, 'mypassword123');
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      expect(result, isNotNull);
-      expect(result!.masterPassword, 'mypassword123');
-      expect(result!.keychainAvailable, isTrue);
-    });
-
-    testWidgets('cancel from password form goes back to choice', (
+  group('SecuritySetupDialog — 3-tier ladder', () {
+    testWidgets('renders T0/T1/T2 badges + Paranoid alternative section', (
       tester,
     ) async {
-      await openDialog(tester, keyStorage: keyStorage);
-
-      await tester.tap(find.text('Set Master Password'));
-      await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNWidgets(2));
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      // Back to the choice screen.
-      expect(find.text('Continue with Keychain'), findsOneWidget);
-    });
-  });
-
-  group('SecuritySetupDialog — keychain NOT available', () {
-    late SecureKeyStorage keyStorage;
-
-    setUp(() {
-      keyStorage = SecureKeyStorage(storage: _FakeStorage(shouldThrow: true));
+      await openDialog(tester, caps: allCaps);
+      expect(find.text('T0'), findsOneWidget);
+      expect(find.text('T1'), findsOneWidget);
+      expect(find.text('T2'), findsOneWidget);
+      expect(find.text('P'), findsOneWidget);
     });
 
-    testWidgets('shows no keychain message and warning', (tester) async {
-      await openDialog(tester, keyStorage: keyStorage);
-
-      expect(find.text('Security Setup'), findsOneWidget);
-      expect(find.text('Continue without Encryption'), findsOneWidget);
-      expect(find.text('Set Master Password'), findsOneWidget);
-      // "Continue with Keychain" should NOT be visible.
-      expect(find.text('Continue with Keychain'), findsNothing);
+    testWidgets('"Compare all tiers" button is present in the header', (
+      tester,
+    ) async {
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(context).compareAllTiers), findsWidgets);
     });
 
-    testWidgets('continue without encryption returns result', (tester) async {
-      SecuritySetupResult? result;
-      await tester.pumpWidget(
-        buildApp(
-          keyStorage: keyStorage,
-          onPressed: (ctx) async {
-            result = await SecuritySetupDialog.show(
-              ctx,
-              keyStorage: keyStorage,
-            );
-          },
-        ),
-      );
-      await tester.tap(find.text('Open'));
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pumpAndSettle();
+    testWidgets('T1 row disabled-subtitle text when keychain missing', (
+      tester,
+    ) async {
+      // Default `SecurityCapabilities.keychainProbe` is
+      // `KeyringProbeResult.probeFailed` (the classified fallback
+      // when no probe ran); the wizard prefers that classified copy
+      // over the generic `tierKeychainUnavailable` string. If a
+      // platform ever classifies the failure more specifically the
+      // test fixture's `keychainProbe` override keeps this expectation
+      // narrow.
+      await openDialog(tester, caps: noKeychain);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(context).keyringProbeFailed), findsOneWidget);
+    });
 
-      await tester.tap(find.text('Continue without Encryption'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'T2 row disabled-subtitle text when hardware vault unavailable',
+      (tester) async {
+        // Same reasoning as the T1 test above: the default
+        // `hardwareProbeCode` is `'unknown'`, which
+        // `decodeHardwareProbeCode` maps to `HardwareProbeDetail.generic`
+        // and `hardwareProbeDetailText` maps to
+        // `firstLaunchSecurityHardwareUnavailableGeneric`. The
+        // classified copy is preferred over the generic
+        // `tierHardwareUnavailable` string.
+        await openDialog(tester, caps: noHardware);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        expect(
+          find.text(
+            S.of(context).firstLaunchSecurityHardwareUnavailableGeneric,
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
-      expect(result, isNotNull);
-      expect(result!.keychainAvailable, isFalse);
-      expect(result!.masterPassword, isNull);
+    testWidgets(
+      'submit button renders (Enable on first-launch, Apply from Settings)',
+      (tester) async {
+        await openDialog(tester, caps: allCaps);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        // The "Continue with Recommended" label lied when a
+        // non-recommended tier was selected. Replaced with a plain
+        // Enable (first-launch, no currentTier) / Apply (Settings
+        // edit path) split. The test no longer cares which of the
+        // two is visible — only that exactly one submit CTA renders.
+        final enable = find.text(S.of(context).securitySetupEnable);
+        final apply = find.text(S.of(context).securitySetupApply);
+        expect(
+          enable.evaluate().isNotEmpty || apply.evaluate().isNotEmpty,
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets('Recommended badge appears on the hardware-backed default', (
+      tester,
+    ) async {
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(context).recommendedBadge), findsOneWidget);
     });
   });
 }

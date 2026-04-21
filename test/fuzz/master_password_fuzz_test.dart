@@ -5,8 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 
-/// Fuzz tests for MasterPasswordManager — verify that malformed salt/verifier
-/// files never cause unhandled exceptions (crashes).
+/// Fuzz tests for MasterPasswordManager — verify that malformed
+/// `credentials.kdf` / `credentials.verify` files never cause
+/// unhandled exceptions (crashes).
 void main() {
   late Directory tempDir;
   late MasterPasswordManager manager;
@@ -28,24 +29,26 @@ void main() {
     );
   }
 
-  group('MasterPasswordManager fuzz — malformed salt', () {
+  group('MasterPasswordManager fuzz — malformed kdf record', () {
     for (final length in [0, 1, 5, 16, 31, 32, 33, 64, 128, 256]) {
-      test('salt length $length does not crash verify', () async {
+      test('kdf length $length does not crash verify', () async {
         await File(
-          '${tempDir.path}/credentials.salt',
+          '${tempDir.path}/credentials.kdf',
         ).writeAsBytes(randomBytes(length));
-        // Create a valid-looking verifier (may or may not decrypt).
         await File(
           '${tempDir.path}/credentials.verify',
         ).writeAsBytes(randomBytes(64));
 
-        // Should return false (bad data) or throw MasterPasswordException,
-        // but never an unhandled exception.
+        // Should return false (bad data) or throw
+        // MasterPasswordException / FormatException, but never an
+        // unhandled exception.
         try {
           final result = await manager.verify('anypassword');
           expect(result, isFalse);
         } on MasterPasswordException {
           // acceptable
+        } on FormatException {
+          // acceptable — bad magic / truncated header
         }
       });
     }
@@ -54,10 +57,9 @@ void main() {
   group('MasterPasswordManager fuzz — malformed verifier', () {
     for (final length in [0, 1, 5, 11, 12, 13, 16, 32, 64]) {
       test('verifier length $length does not crash verify', () async {
-        // Valid-length salt.
         await File(
-          '${tempDir.path}/credentials.salt',
-        ).writeAsBytes(randomBytes(32));
+          '${tempDir.path}/credentials.kdf',
+        ).writeAsBytes(randomBytes(64));
         await File(
           '${tempDir.path}/credentials.verify',
         ).writeAsBytes(randomBytes(length));
@@ -66,6 +68,8 @@ void main() {
           final result = await manager.verify('anypassword');
           expect(result, isFalse);
         } on MasterPasswordException {
+          // acceptable
+        } on FormatException {
           // acceptable
         }
       });
@@ -84,9 +88,9 @@ void main() {
           );
 
           // Clean up for each iteration.
-          final salt = File('${tempDir.path}/credentials.salt');
+          final kdf = File('${tempDir.path}/credentials.kdf');
           final verify = File('${tempDir.path}/credentials.verify');
-          if (await salt.exists()) await salt.delete();
+          if (await kdf.exists()) await kdf.delete();
           if (await verify.exists()) await verify.delete();
 
           final freshManager = MasterPasswordManager(basePath: tempDir.path);
@@ -104,8 +108,8 @@ void main() {
   });
 
   group('MasterPasswordManager fuzz — empty/missing files', () {
-    test('empty salt file does not crash', () async {
-      await File('${tempDir.path}/credentials.salt').writeAsBytes([]);
+    test('empty kdf file does not crash', () async {
+      await File('${tempDir.path}/credentials.kdf').writeAsBytes([]);
       await File(
         '${tempDir.path}/credentials.verify',
       ).writeAsBytes(randomBytes(32));
@@ -114,13 +118,15 @@ void main() {
         await manager.verify('test');
       } on MasterPasswordException {
         // acceptable
+      } on FormatException {
+        // acceptable
       }
     });
 
     test('empty verifier file does not crash', () async {
       await File(
-        '${tempDir.path}/credentials.salt',
-      ).writeAsBytes(randomBytes(32));
+        '${tempDir.path}/credentials.kdf',
+      ).writeAsBytes(randomBytes(64));
       await File('${tempDir.path}/credentials.verify').writeAsBytes([]);
 
       try {
@@ -128,17 +134,25 @@ void main() {
         expect(result, isFalse);
       } on MasterPasswordException {
         // acceptable
+      } on FormatException {
+        // acceptable
       }
     });
 
-    test('salt exists but verifier missing does not crash', () async {
-      await File(
-        '${tempDir.path}/credentials.salt',
-      ).writeAsBytes(randomBytes(32));
+    test('kdf with bad magic throws without stalling', () async {
+      // All-zero bytes guarantee bad magic → FormatException immediately,
+      // no Argon2id spin-up on random parameter fields.
+      await File('${tempDir.path}/credentials.kdf').writeAsBytes(Uint8List(64));
 
+      Object? caught;
+      try {
+        await manager.verify('test');
+      } catch (e) {
+        caught = e;
+      }
       expect(
-        () => manager.verify('test'),
-        throwsA(isA<MasterPasswordException>()),
+        caught,
+        anyOf(isA<MasterPasswordException>(), isA<FormatException>()),
       );
     });
   });

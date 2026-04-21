@@ -15,6 +15,12 @@ class STr extends S {
   String get ok => 'Tamam';
 
   @override
+  String get infoDialogProtectsHeader => 'Şunlara karşı korur';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Şunlara karşı korumaz';
+
+  @override
   String get cancel => 'İptal';
 
   @override
@@ -799,6 +805,171 @@ class STr extends S {
   String get passwordsDoNotMatch => 'Şifreler eşleşmiyor';
 
   @override
+  String get passwordStrengthWeak => 'Zayıf';
+
+  @override
+  String get passwordStrengthModerate => 'Orta';
+
+  @override
+  String get passwordStrengthStrong => 'Güçlü';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Çok güçlü';
+
+  @override
+  String get tierRecommendedBadge => 'Önerilen';
+
+  @override
+  String get tierCurrentBadge => 'Mevcut';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternatif — işletim sistemine güvenmeyin';
+
+  @override
+  String get tierUpcomingTooltip => 'Yakında bir sürümde geliyor.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Bu katmanın temel altyapısı henüz yayınlanmadı. Satır, seçeneğin var olduğunu bilmeniz için görünür durumda.';
+
+  @override
+  String get tierPlaintextLabel => 'Düz metin';
+
+  @override
+  String get tierPlaintextSubtitle => 'Şifreleme yok — yalnızca dosya izinleri';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Dosya sistemine erişimi olan herkes verilerinizi okur';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Yanlışlıkla senkronizasyon veya yedekleme her şeyi açığa çıkarır';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Yalnızca güvenilir, yalıtılmış ortamlarda kullanın.';
+
+  @override
+  String get tierKeychainLabel => 'Anahtarlık';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Anahtar $keychain içinde — başlatıldığında otomatik kilit açma';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Aynı makinede diğer kullanıcılar';
+
+  @override
+  String get tierKeychainProtect2 =>
+      'İşletim sistemi oturumu olmadan çalınan disk';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'İşletim sistemi hesabınız altında çalışan kötü amaçlı yazılım';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'İşletim sistemi oturumunuzu ele geçiren saldırgan';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Bu kurulumda işletim sistemi anahtarlığı kullanılamıyor.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Masanızda oturan iş arkadaşı';
+
+  @override
+  String get tierKeychainPassProtect2 =>
+      'Kilidi açık erişimi olan bir yoldan geçen';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Diskte dosyayı olan çevrimdışı saldırgan';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Anahtarlık ile aynı işletim sistemi tehlikeleri';
+
+  @override
+  String get tierHardwareLabel => 'Donanım';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Donanıma bağlı kasa + kilitlemeli kısa PIN';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'PIN\'in çevrimdışı kaba kuvvet saldırısı (donanım hız sınırı)';
+
+  @override
+  String get tierHardwareProtect2 =>
+      'Diskin ve anahtarlık blob\'unun çalınması';
+
+  @override
+  String get tierHardwareThreat1 =>
+      'Güvenli modül üzerinde işletim sistemi veya bellenim CVE\'si';
+
+  @override
+  String get tierHardwareThreat2 => 'Zorla biyometrik kilit açma (etkinse)';
+
+  @override
+  String get tierParanoidLabel => 'Ana parola (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Uzun parola + Argon2id. Anahtar hiçbir zaman işletim sistemine girmez.';
+
+  @override
+  String get tierParanoidProtect1 => 'İşletim sistemi anahtarlığı ihlali';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Çalınan disk (parolanız güçlü olduğu sürece)';
+
+  @override
+  String get tierParanoidThreat1 => 'Parolanızı yakalayan keylogger';
+
+  @override
+  String get tierParanoidThreat2 => 'Zayıf parola + çevrimdışı Argon2id kırma';
+
+  @override
+  String get tierParanoidNotes =>
+      'Bu katmanda biyometri tasarım gereği devre dışıdır.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'Bu kurulumda donanım kasası kullanılamıyor.';
+
+  @override
+  String get pinLabel => 'Parola';
+
+  @override
+  String get l2UnlockTitle => 'Şifre gerekli';
+
+  @override
+  String get l2UnlockHint => 'Devam etmek için kısa şifrenizi girin';
+
+  @override
+  String get l2WrongPassword => 'Yanlış şifre';
+
+  @override
+  String get l3UnlockTitle => 'Parolayı girin';
+
+  @override
+  String get l3UnlockHint => 'Parola donanıma bağlı kasanın kilidini açar';
+
+  @override
+  String get l3WrongPin => 'Yanlış parola';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return '$seconds sn sonra tekrar deneyin';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Dışa aktarıldı: $path';
   }
@@ -826,6 +997,9 @@ class STr extends S {
 
   @override
   String get dataLocation => 'Veri Konumu';
+
+  @override
+  String get dataStorageSection => 'Depolama';
 
   @override
   String get pathCopied => 'Yol panoya kopyalandı';
@@ -1187,7 +1361,7 @@ class STr extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Uygulamayı başlatırken ana parolayı yazmaktan kaçının.';
+      'Parolayı yazmayın — cihazın biyometrik sensörüyle kilidi açın.';
 
   @override
   String get biometricNotAvailable =>
@@ -1223,8 +1397,15 @@ class STr extends S {
       'Bu cihazın biyometrik sensörü yok.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'Otomatik kilidi etkinleştirmek için önce bir ana parola belirleyin.';
+  String get biometricSystemServiceMissing =>
+      'Parmak izi hizmeti (fprintd) yüklü değil. README → Installation bölümüne bakın.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Donanım destekli (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Yazılım destekli';
 
   @override
   String get currentPasswordIncorrect => 'Mevcut parola yanlış';
@@ -1254,7 +1435,7 @@ class STr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Bu süre boyunca boşta kalındığında arayüzü kilitler. Şifrelenmiş veritabanı yalnızca aktif SSH oturumu yokken yeniden kilitlenir, uzun süreli işlemler bağlı kalır.';
+      'Bu süre boyunca boşta kalındığında arayüzü kilitler. Her kilitlenmede veritabanı anahtarı silinir ve şifrelenmiş depo kapatılır; etkin oturumlar, oturum kapandığında temizlenen oturum bazlı bir kimlik bilgisi önbelleği sayesinde bağlı kalır.';
 
   @override
   String get autoLockOff => 'Kapalı';
@@ -1285,6 +1466,10 @@ class STr extends S {
   @override
   String get errLfsDecryptFailed =>
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'Arşiv eksik. Yeniden indirin veya orijinal cihazdan yeniden dışa aktarın.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1660,6 +1845,12 @@ class STr extends S {
   String get generateKey => 'Anahtar oluştur';
 
   @override
+  String get addKey => 'Anahtar ekle';
+
+  @override
+  String get filePickerUnavailable => 'Dosya seçici bu sistemde kullanılamıyor';
+
+  @override
   String get importKey => 'Anahtar içe aktar';
 
   @override
@@ -1810,6 +2001,46 @@ class STr extends S {
   String get credentialsReset => 'Tüm kayıtlı kimlik bilgileri silindi';
 
   @override
+  String get migrationToast => 'Depolama en son biçime yükseltildi';
+
+  @override
+  String get dbCorruptTitle => 'Veritabanı açılamıyor';
+
+  @override
+  String get dbCorruptBody =>
+      'Diskteki veriler açılamıyor. Farklı bir kimlik bilgisi deneyin veya sıfırlayıp baştan başlayın.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Sıfırlama şifrelenmiş veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Hiçbir veri geri getirilmez.';
+
+  @override
+  String get dbCorruptTryOther => 'Farklı kimlik bilgilerini dene';
+
+  @override
+  String get dbCorruptResetContinue => 'Sıfırla ve yeniden kur';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh\'den çık';
+
+  @override
+  String get tierResetTitle => 'Güvenlik sıfırlaması gerekli';
+
+  @override
+  String get tierResetBody =>
+      'Bu kurulum, farklı bir katman modeli kullanan LetsFLUTssh\'un önceki sürümünden güvenlik verileri taşıyor. Yeni model geriye dönük uyumsuz bir değişikliktir — otomatik geçiş yolu yoktur. Devam etmek için bu kurulumda kayıtlı tüm oturumlar, kimlik bilgileri, SSH anahtarları ve bilinen sunucular silinmeli ve ilk kurulum sihirbazı baştan çalıştırılmalıdır.';
+
+  @override
+  String get tierResetWarning =>
+      '«Sıfırla ve Yeniden Kur» seçeneği şifreli veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Verilerinizi kurtarmanız gerekiyorsa, uygulamadan şimdi çıkın ve önce dışa aktarmak için LetsFLUTssh\'un önceki sürümünü yeniden yükleyin.';
+
+  @override
+  String get tierResetResetContinue => 'Sıfırla ve Yeniden Kur';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh\'tan Çık';
+
+  @override
   String get derivingKey => 'Şifreleme anahtarı türetiliyor...';
 
   @override
@@ -1886,6 +2117,200 @@ class STr extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'Ana şifreyi belirle, değiştir veya kaldır';
+
+  @override
+  String get changeSecurityTier => 'Güvenlik düzeyini değiştir';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Düzey merdivenini açın ve farklı bir güvenlik düzeyine geçin';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Veritabanı yeni düzeyle yeniden şifreleniyor. Kesilmez — uygulamayı bitene kadar açık tutun.';
+
+  @override
+  String get changeSecurityTierDone => 'Güvenlik düzeyi değiştirildi';
+
+  @override
+  String get changeSecurityTierFailed => 'Güvenlik düzeyi değiştirilemedi';
+
+  @override
+  String get firstLaunchSecurityTitle => 'Güvenli depolama etkinleştirildi';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Verileriniz işletim sisteminin anahtarlığında tutulan bir anahtarla şifrelenir. Bu cihazda kilit açma otomatiktir.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Bu cihazda donanım destekli depolama mevcut. TPM / Secure Enclave bağlaması için Ayarlar → Güvenlik\'ten yükseltin.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Donanım destekli depolama kullanılamıyor — bu cihazda TPM 2.0 algılanmadı.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Donanım destekli depolama kullanılamıyor — bu cihaz Secure Enclave bildirmiyor.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Donanım destekli depolama kullanılamıyor — etkinleştirmek için tpm2-tools ve bir TPM 2.0 aygıtı kurun.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Donanım destekli depolama kullanılamıyor — bu cihaz StrongBox veya TEE bildirmiyor.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Bu cihazda donanım destekli depolama kullanılamıyor.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Ayarları Aç';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Anladım';
+
+  @override
+  String get securityHardwareUpgradeTitle => 'Donanım destekli depolama mevcut';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Sırları TPM / Secure Enclave\'a bağlamak için yükseltin.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Yükselt';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Donanım destekli depolama kullanılamıyor';
+
+  @override
+  String get wizardReducedBanner =>
+      'İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.';
+
+  @override
+  String get tierBlockProtectsHeader => 'KORUR';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'KORUMAZ';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Bu katmanda hiçbir şey.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Kapsanmayan tehdit yok.';
+
+  @override
+  String get tierBadgeCurrent => 'Geçerli';
+
+  @override
+  String get securitySetupEnable => 'Etkinleştir';
+
+  @override
+  String get securitySetupApply => 'Uygula';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Şifrelemesiz katmanda parolayla korunacak bir sır yok.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid, veritabanı anahtarını paroladan türetir — her zaman açık.';
+
+  @override
+  String get passwordSubtitleOn => 'Açık — kilit açarken parola istenir';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Kapalı — bu katmana parola eklemek için dokun';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Zorunlu — ana parola katmanın sırrıdır';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Geçerli değil — bu katmanda şifreleme yok';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0 üzerinde TPM algılanmadı. Makine destekliyorsa BIOS\'tan fTPM / PTT etkinleştirin; aksi halde donanım katmanı bu cihazda kullanılamaz.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools kurulu değil. Donanım katmanını etkinleştirmek için `sudo apt install tpm2-tools` (veya dağıtımınızdaki eşdeğerini) çalıştırın.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Donanım katmanı denemesi başarısız oldu. /dev/tpmrm0 izinlerini ve udev kurallarını kontrol edin — ayrıntılar günlüklerde.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 algılanmadı. UEFI ürün yazılımından fTPM / PTT etkinleştirin veya donanım katmanının bu cihazda kullanılamayacağını kabul edin — uygulama yazılım tabanlı kimlik bilgisi deposuna geri döner.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ne Microsoft Platform Crypto Provider ne de Software Key Storage Provider erişilebilir — muhtemelen bozuk bir Windows kripto alt sistemi veya CNG\'yi engelleyen bir Grup İlkesi. Olay Görüntüleyici → Uygulama ve Hizmet Günlükleri\'ni kontrol edin.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Bu Mac\'te Secure Enclave yok (T1 / T2 güvenlik çipi olmayan 2017 öncesi Intel Mac). Donanım katmanı kullanılamaz; bunun yerine ana parolayı kullanın.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Bu Mac\'te oturum açma parolası ayarlanmamış. Secure Enclave anahtar oluşturma bunu gerektirir — Sistem Ayarları → Touch ID ve Parola (veya Oturum Açma Parolası) bölümünden belirleyin.';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave uygulamanın imza kimliğini reddetti (-34018). Bu yüklemeye sabit bir kendi imzalı kimlik vermek için sürümle birlikte gelen `macos-resign.sh` betiğini çalıştırın ve ardından uygulamayı yeniden başlatın.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Cihaz kodu ayarlanmamış. Secure Enclave anahtar oluşturma bunu gerektirir — Ayarlar → Face ID ve Kod (veya Touch ID ve Kod) bölümünden belirleyin.';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'iOS Simülatöründe çalışıyor, Secure Enclave yok. Donanım katmanı yalnızca fiziksel iOS cihazlarda kullanılabilir.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Donanım katmanı için Android 9 veya üzeri gerekir (StrongBox ve anahtar başına kayıt geçersizliği eski sürümlerde güvenilir değildir).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Bu cihazda biyometrik donanım yok (parmak izi veya yüz). Bunun yerine ana parolayı kullanın.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Biyometri kaydedilmemiş. Ayarlar → Güvenlik ve gizlilik → Biyometri\'den parmak izi veya yüz ekleyin, ardından donanım katmanını yeniden etkinleştirin.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore bu cihaz sürümünde donanım anahtarını oluşturmayı reddetti (StrongBox yok, özel ROM veya sürücü hatası). Donanım katmanı kullanılamıyor.';
+
+  @override
+  String get securityRecheck => 'Katman desteğini yeniden denetle';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Katman desteği güncellendi — yukarıdaki kartlara bakın';
+
+  @override
+  String get securityRecheckUnchanged => 'Katman desteği değişmedi';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.';
+
+  @override
+  String get keyringProbeFailed =>
+      'İşletim sistemi anahtar zinciri bu cihazda erişilemez. Platforma özgü hata için günlüklere bakın; uygulama ana parolaya geri döner.';
 
   @override
   String get snippets => 'Snippet\'ler';
@@ -2138,4 +2563,232 @@ class STr extends S {
 
   @override
   String get continueWithoutPassword => 'Parolasız devam et';
+
+  @override
+  String get threatColdDiskTheft => 'Kapalı makineden disk hırsızlığı';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Kapalı bir bilgisayardan sürücünün çıkarılıp başka bir bilgisayarda okunması ya da ev dizininize erişimi olan biri tarafından veritabanı dosyasının kopyalanması.';
+
+  @override
+  String get threatKeyringFileTheft =>
+      'Keyring / keychain dosyasının çalınması';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Saldırgan, platformun kimlik bilgisi deposu dosyasını doğrudan diskten okur (libsecret keyring, Windows Credential Manager, macOS login keychain) ve sarılmış veritabanı anahtarını bundan çıkarır. Donanım katmanı bunu paroladan bağımsız engeller çünkü çip anahtar malzemesini dışa aktarmayı reddeder; keychain katmanı için ek olarak parola gerekir, aksi halde çalınan dosya yalnızca OS oturum açma parolası ile açılır.';
+
+  @override
+  String get modifierOnlyWithPassword => 'yalnızca parola ile';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Kilidi açık makinenin yanındaki yabancı';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Siz yokken biri, kilidi zaten açık olan bilgisayarınıza yaklaşıp uygulamayı açar.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Kilitli makinede RAM adli bilişimi';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Saldırgan RAM\'i dondurur (ya da DMA ile yakalar) ve uygulama kilitliyken bile anlık görüntüden hâlâ kalıcı olan anahtar malzemesini çeker.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'İşletim sistemi çekirdeği veya anahtar zinciri ele geçirme';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Çekirdek güvenlik açığı, anahtar zinciri sızdırılması ya da donanımsal güvenlik yongasındaki arka kapı. İşletim sistemi güvenilir bir kaynak olmaktan çıkıp saldırganın kendisi haline gelir.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Zayıf parolaya karşı çevrimdışı kaba kuvvet';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Sarılmış anahtarın veya mühürlü blobun kopyasına sahip bir saldırgan, hiçbir hız sınırlayıcı olmadan kendi temposunda her parolayı dener.';
+
+  @override
+  String get legendProtects => 'Korunuyor';
+
+  @override
+  String get legendDoesNotProtect => 'Korunmuyor';
+
+  @override
+  String get legendNotApplicable =>
+      'Uygulanamaz — bu katmanda kullanıcı gizi yok';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Zayıf parola kabul edilebilir — güvenliği başka bir katman (donanımsal hız sınırlayıcı ya da sarılmış anahtar bağlaması) üstlenir';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Uzun bir parola ifadesi şiddetle önerilir — bu katmanın güvenliği buna bağlıdır';
+
+  @override
+  String get colT0 => 'T0 Düz metin';
+
+  @override
+  String get colT1 => 'T1 Anahtar zinciri';
+
+  @override
+  String get colT1Password => 'T1 + parola';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + parola + biyometrik';
+
+  @override
+  String get colT2 => 'T2 Donanım';
+
+  @override
+  String get colT2Password => 'T2 + parola';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + parola + biyometrik';
+
+  @override
+  String get colParanoid => 'Paranoyak';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Güvenlik katmanları — yan yana karşılaştırma';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Tehdit';
+
+  @override
+  String get compareAllTiers => 'Tüm katmanları karşılaştır';
+
+  @override
+  String get resetAllDataTitle => 'Tüm verileri sıfırla';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Tüm oturumları, anahtarları, yapılandırmaları ve güvenlik bileşenlerini siler. Anahtar zinciri kayıtlarını ve donanım kasası yuvalarını da temizler.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Tüm veriler sıfırlansın mı?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Tüm oturumlar, SSH anahtarları, known hosts, parçacıklar, etiketler, tercihler ve tüm güvenlik bileşenleri (anahtar zinciri kayıtları, donanım kasası verileri, biyometrik katman) kalıcı olarak silinecektir. Bu işlem geri alınamaz.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Her şeyi sıfırla';
+
+  @override
+  String get resetAllDataInProgress => 'Sıfırlanıyor…';
+
+  @override
+  String get resetAllDataDone => 'Tüm veriler sıfırlandı';
+
+  @override
+  String get resetAllDataFailed => 'Sıfırlama başarısız';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'Her katmanın neye karşı koruduğunu yan yana görün.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Otomatik kilit, aktif katmanda bir parola gerektirir.';
+
+  @override
+  String get recommendedBadge => 'ÖNERİLEN';
+
+  @override
+  String get continueWithRecommended => 'Önerilenle devam et';
+
+  @override
+  String get customizeSecurity => 'Güvenliği özelleştir';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternatif: ana parola, OS\'e güven yok. OS\'in ele geçirilmesine karşı korur. Çalışma zamanı korumasını T1/T2\'ye göre iyileştirmez.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır.';
+
+  @override
+  String get securitySetupContinue => 'Devam';
+
+  @override
+  String get currentTierBadge => 'GEÇERLİ';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATİF';
+
+  @override
+  String get modifierPasswordLabel => 'Parola';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Kasa açılmadan önce yazılan gizli geçiş kapısı.';
+
+  @override
+  String get modifierBiometricLabel => 'Biyometrik kısayol';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Parolayı yazmak yerine biyometrik korumalı bir OS yuvasından alır.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Önce bir parola etkinleştirin — biyometri yalnızca onu girmek için bir kısayoldur.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'Biyometrik kilit açmayı etkinleştirmek için önce bu katmanı seçin';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Otomatik kilidi yapılandırmak için önce bu katmanı seçin';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid seviyesi tasarım gereği biyometriye izin vermez.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd kurulu değil veya kayıtlı parmak izi yok.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'Parolasız TPM izolasyon sağlar, kimlik doğrulama sağlamaz. Bu uygulamayı çalıştırabilen herkes veriyi açabilir.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Uzun bir parola ifadesi kesinlikle önerilir — Argon2id kaba kuvvet saldırısını yalnızca yavaşlatır, engellemez.';
+
+  @override
+  String get plaintextWarningTitle => 'Düz metin: şifreleme yok';
+
+  @override
+  String get plaintextWarningBody =>
+      'Oturumlar, anahtarlar ve known hosts şifrelenmeden saklanacak. Bu bilgisayarın dosya sistemine erişebilen herkes bunları okuyabilir.';
+
+  @override
+  String get plaintextAcknowledge => 'Verilerimin şifrelenmeyeceğini anlıyorum';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Devam etmeden önce anladığınızı onaylayın.';
+
+  @override
+  String get passwordLabel => 'Parola';
+
+  @override
+  String get masterPasswordLabel => 'Ana parola';
 }

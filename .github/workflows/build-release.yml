@@ -24,6 +24,7 @@ jobs:
       checks: read
     outputs:
       version: ${{ steps.get.outputs.version }}
+      source_date_epoch: ${{ steps.get.outputs.source_date_epoch }}
     steps:
       - name: Verify CI status
         env:
@@ -31,12 +32,22 @@ jobs:
         run: |
           SHA="${{ github.sha }}"
           REPO="${{ github.repository }}"
+          REF="${{ github.ref }}"
 
           if [ "${{ github.event_name }}" = "push" ]; then
             # Tag push — auto-tag already verified CI passed
             echo "Tag-triggered build — CI verified by auto-tag ✓"
+          elif [ "$REF" != "refs/heads/main" ]; then
+            # Non-main branch dispatch (dev, feature/*, fix/*, anything
+            # below release line) — local `make check` is the source of
+            # truth; CI is not required to gate those builds. The
+            # branch name is not part of the published artifact, so a
+            # mis-gated dispatch here only produces throwaway debug
+            # output. Main stays enforced — release artefacts MUST
+            # match a green CI run.
+            echo "Non-main branch dispatch (${REF}) — skipping CI check (local validation) ✓"
           else
-            # Manual dispatch — verify once, no polling
+            # Main-branch manual dispatch — verify once, no polling
             STATUS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" \
               --jq '[.check_runs[] | select(.name == "ci" and .app.slug == "github-actions")] | if length == 0 then "missing" else .[0].conclusion // "pending" end')
 
@@ -52,19 +63,42 @@ jobs:
         with:
           sparse-checkout: pubspec.yaml
           sparse-checkout-cone-mode: false
+          # fetch-depth: 1 keeps `.git/HEAD` populated so `git log`
+          # can report the commit timestamp for SOURCE_DATE_EPOCH.
+          fetch-depth: 1
 
-      - name: Extract version from pubspec.yaml
+      - name: Extract version + source-date-epoch from pubspec.yaml
         id: get
         run: |
           VER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VER}"
 
+          # Reproducible-build clock. Every downstream tool that
+          # honours SOURCE_DATE_EPOCH (dpkg-deb, appimagetool, tar
+          # --mtime, Python ZipFile wrapper) stamps artefacts with
+          # this timestamp instead of the CI runner's wall clock,
+          # so two runs of the same commit produce byte-identical
+          # output. Source: the committer-date of the HEAD commit
+          # the workflow is building (for tag pushes, the commit
+          # the tag points at).
+          SDE=$(git log -1 --format=%ct HEAD)
+          echo "source_date_epoch=${SDE}" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_DATE_EPOCH: ${SDE}"
+
   build-linux-x64:
     needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # Reproducible-build clock: honoured by dpkg-deb, appimagetool,
+      # gzip-with-`-n`, tar `--mtime=@${SOURCE_DATE_EPOCH}`. Same two
+      # runs on the same commit produce byte-identical artefacts,
+      # so a user can rebuild from source and compare the sha256 of
+      # our official `.deb` / `.AppImage` / `.tar.gz` against their
+      # own as a supply-chain check.
+      SOURCE_DATE_EPOCH: ${{ needs.preflight.outputs.source_date_epoch }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -86,8 +120,18 @@ jobs:
 
       - name: Package tar.gz
         run: |
+          # Reproducible tar: sort entries by name, wipe uid/gid/
+          # owner strings, pin mtime to SOURCE_DATE_EPOCH. Pipe into
+          # `gzip -n` so the compressed stream carries no filename
+          # / timestamp in its own header. Two runs at the same
+          # commit produce an identical sha256.
           cd build/linux/x64/release/bundle
-          tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz .
+          tar --sort=name \
+              --owner=0 --group=0 --numeric-owner \
+              --mtime="@${SOURCE_DATE_EPOCH}" \
+              -cf - . \
+            | gzip -n -9 \
+            > ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
 
       - name: Cache appimagetool
         id: cache-appimagetool
@@ -267,61 +311,47 @@ jobs:
         run: flutter build macos --release
 
       - name: Ad-hoc codesign (no Apple Developer ID)
-        # Without ad-hoc signing, Gatekeeper refuses to launch the app at
-        # all on a modern macOS — the user has to run
-        # `xattr -dr com.apple.quarantine` every install.
-        # Ad-hoc (`codesign --sign -`) produces a locally-valid signature
-        # that Gatekeeper accepts via the "right-click → Open" flow.
-        # The app is still marked "Unidentified developer" because we
-        # don't carry an Apple-rooted cert — Apple Developer ID is out
-        # of scope (no external paid accounts).
+        # Without any signature, Gatekeeper refuses to launch the app
+        # on a modern macOS unless the user runs
+        # `xattr -dr com.apple.quarantine` every install. Ad-hoc
+        # (`codesign --sign -`) produces a locally-valid signature that
+        # Gatekeeper accepts via the right-click → Open flow. The app
+        # is still marked "Unidentified developer" because we do not
+        # carry an Apple-rooted cert — Apple Developer ID is out of
+        # scope (no external paid accounts).
         #
-        # Sign every Mach-O binary first, then framework / dylib
-        # bundles, then the outer .app — strictly post-order:
-        #   * `--deep` is deprecated by Apple and has known bugs where
-        #     it silently skips nested frameworks, leaving them with
-        #     their original Xcode-injected Team ID while the outer
-        #     bundle ends up ad-hoc signed (empty Team ID).
-        #   * Signing only the framework *bundle* (without recursing
-        #     into the inner binary) is what bit us in 5.6.0 AND 5.8.0:
-        #     `codesign --force "$fw"` rewrites the bundle's signature
-        #     but does NOT always replace the Team ID baked into the
-        #     inner Mach-O binary. macOS 26 (Tahoe) dyld then halts at
-        #     launch with "mapping process and mapped file (non-platform)
-        #     have different Team IDs".
-        #   * Post-order `find -depth` + explicit Mach-O-first signing
-        #     guarantees one uniform ad-hoc (empty) Team ID across every
-        #     loadable artefact in the bundle.
+        # **`--deep` is required on macOS 26 (Tahoe).** An earlier
+        # revision of this step signed every Mach-O + framework + the
+        # outer bundle in independent per-file `codesign --sign -`
+        # calls, on the theory that `--deep` was deprecated and could
+        # silently skip nested items. That layout produced a bundle
+        # where every binary carried `Signature=adhoc,
+        # TeamIdentifier=not set` — `codesign -dvv` was happy and the
+        # CI sanity gate passed — yet dyld rejected the launch with
+        # "mapping process and mapped file (non-platform) have
+        # different Team IDs" because each per-file signature had an
+        # independent Code Directory hash, and Tahoe's dyld cross-
+        # references those across the main binary and its embedded
+        # frameworks. A single `codesign --force --deep --sign -` on
+        # the outer bundle writes one consistent Code Directory chain
+        # and the app launches. `--deep` is deprecated for Developer-ID
+        # flows (where the skipping bug matters), but for ad-hoc signing
+        # it is the only path that produces the identity macOS 26
+        # requires. Verified by user-side `sudo codesign --force
+        # --deep --sign - /Applications/letsflutssh.app` workaround.
+        #
+        # **Do NOT pass `--options=runtime`.** Hardened Runtime is
+        # designed to pair with a Developer ID signature — pairing it
+        # with an ad-hoc sig produces a partially-valid state that
+        # macOS 26 dyld rejects at launch (same misleading "different
+        # Team IDs" error). The user-side workaround that rescues
+        # broken installs omits `--options=runtime`; CI must match the
+        # exact flag set that was verified to work.
         run: |
           set -euxo pipefail
           APP="build/macos/Build/Products/Release/letsflutssh.app"
 
-          # 1) Sign every Mach-O binary directly (framework inners,
-          # dylibs, plugin executables). `file --mime-type` identifies
-          # Mach-O reliably; `-depth` ensures leaves are signed before
-          # their containers.
-          while IFS= read -r -d '' f; do
-            case "$(file -b --mime-type "$f")" in
-              application/x-mach-binary)
-                codesign --force --sign - \
-                  --options=runtime --timestamp=none "$f"
-                ;;
-            esac
-          done < <(find "$APP" -depth -type f -print0)
-
-          # 2) Sign every framework bundle (post-order), now that their
-          # inner binary is already ad-hoc.
-          if [ -d "$APP/Contents/Frameworks" ]; then
-            while IFS= read -r -d '' fw; do
-              codesign --force --sign - \
-                --options=runtime --timestamp=none "$fw"
-            done < <(find "$APP/Contents/Frameworks" -depth -type d \
-              -name "*.framework" -print0)
-          fi
-
-          # 3) Outer app bundle last so the outer signature covers
-          # everything that's now uniformly ad-hoc.
-          codesign --force --sign - --options=runtime --timestamp=none "$APP"
+          codesign --force --deep --sign - "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
 
           # Sanity gate: every Mach-O binary in the bundle must carry an
@@ -338,12 +368,35 @@ jobs:
 
       - name: Package tar.gz
         run: |
+          # macOS tarball is NOT reproducible — BSD tar on the
+          # runner lacks `--sort=name` and `--mtime=@<epoch>`, the
+          # .dmg alongside uses hdiutil which bakes in per-run
+          # catalog metadata, and the ad-hoc signed binary carries
+          # its own deterministic sig but the packaging around it
+          # drifts per run. Users who need reproducible verification
+          # should cross-check the Linux `.tar.gz` (reproducible)
+          # or rebuild locally and compare ad-hoc sigs on the
+          # per-binary level. Documented honestly rather than
+          # papered over.
           cd build/macos/Build/Products/Release
           tar czf ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz ./*.app
 
       - name: Package dmg
         run: |
           hdiutil create -volname "LetsFLUTssh" -srcfolder build/macos/Build/Products/Release/letsflutssh.app -ov -format UDZO letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
+
+      - name: Copy macOS self-sign helper
+        # Ship `macos-resign.sh` alongside the DMG / tar.gz so users
+        # who want T1 (keychain) tier access can run it once locally
+        # and persistently re-sign the bundle under a personal code-
+        # signing cert. Without this re-sign, keychain rejects writes
+        # with `errSecMissingEntitlement` (-34018) because ad-hoc
+        # signatures change the Code Directory hash every release
+        # and the keychain treats each install as a new app.
+        # Shipping the script inside the release asset bundle (rather
+        # than only linking README) keeps the workflow offline — no
+        # clone, no curl, no extra trust assumption on GitHub raw.
+        run: cp scripts/macos-resign.sh macos-resign.sh
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -352,6 +405,7 @@ jobs:
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
+            macos-resign.sh
 
   build-android:
     needs: preflight
@@ -501,6 +555,7 @@ jobs:
             artifacts/windows-x64/*.exe
             artifacts/macos-universal/*.tar.gz
             artifacts/macos-universal/*.dmg
+            artifacts/macos-universal/macos-resign.sh
             artifacts/android-apk/*.apk
 
       - name: Export provenance for release
@@ -635,6 +690,7 @@ jobs:
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
+            artifacts/macos-universal/macos-resign.sh
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk

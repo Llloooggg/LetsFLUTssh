@@ -6,9 +6,11 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable tag manager — toolbar + list with CRUD.
@@ -63,29 +65,20 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   }
 
   Widget _buildToolbar(S s) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppDataSearchBar(
-              onChanged: (v) => setState(() => _filter = v),
-              hintText: s.search,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            s.tagCount(_tags.length),
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            onPressed: _addTag,
-            icon: const Icon(Icons.add, size: 16),
-            label: Text(s.addTag, style: TextStyle(fontSize: AppFonts.sm)),
-          ),
-        ],
+    return AppCollectionToolbar(
+      hasItems: _tags.isNotEmpty,
+      search: AppDataSearchBar(
+        onChanged: (v) => setState(() => _filter = v),
+        hintText: s.search,
       ),
+      countLabel: s.tagCount(_tags.length),
+      actions: [
+        TextButton.icon(
+          onPressed: _addTag,
+          icon: const Icon(Icons.add, size: 16),
+          label: Text(s.addTag, style: TextStyle(fontSize: AppFonts.sm)),
+        ),
+      ],
     );
   }
 
@@ -94,21 +87,11 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_tags.isEmpty) {
-      return Center(
-        child: Text(
-          s.noTags,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noTags);
     }
     final visible = _filtered();
     if (visible.isEmpty) {
-      return Center(
-        child: Text(
-          s.noResults,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noResults);
     }
     return ListView.separated(
       itemCount: visible.length,

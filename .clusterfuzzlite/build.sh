@@ -124,3 +124,20 @@ SEED
 cat > "$OUT/fuzz_uri_parser_seed_corpus/valid_import.txt" << 'SEED'
 letsflutssh://import?d=eyJ2IjoxLCJzIjpbeyJsIjoidGVzdCIsImgiOiJob3N0IiwidSI6InVzZXIifV19
 SEED
+
+# KdfParams binary header — 10-byte blob: algo + memory (u32) +
+# iterations (u32) + parallelism (u8). Seed with production
+# defaults so libFuzzer has a well-formed anchor to mutate.
+printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/default.bin"
+
+# LFS archive header — LFSE magic + version 0x02 + KDF blob +
+# 32-byte salt + 12-byte IV. Seed covers the minimal parseable
+# header without a ciphertext body (body is header's concern is
+# length-bounds, not content).
+{
+  printf 'LFSE\x02'
+  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01'
+  head -c 32 /dev/urandom
+  head -c 12 /dev/urandom
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/default.bin"

@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/platform.dart';
 import 'app_icon_button.dart';
+import 'app_selection_area.dart';
 import 'hover_region.dart';
 
 // ════════════════════════════════════════════════════════════════════
@@ -64,8 +65,19 @@ class AppDialog extends StatelessWidget {
       body = Flexible(child: SingleChildScrollView(child: body));
     }
 
+    // Clamp requested [maxWidth] to the available screen width minus
+    // the Dialog's 24-px inset on each side. Without the clamp, a
+    // dialog asking for 900 px on a 400-px-wide phone gets a fixed
+    // 900-px content box, clipped by the screen and visually letting
+    // content "run off" the modal. With the clamp, narrow hosts fall
+    // back to full-width-minus-inset and the content reflows.
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final effectiveMaxWidth = maxWidth > screenWidth - 48
+        ? screenWidth - 48
+        : maxWidth;
+
     Widget child = ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
+      constraints: BoxConstraints(maxWidth: effectiveMaxWidth),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -91,7 +103,14 @@ class AppDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: AppTheme.bg1,
       insetPadding: const EdgeInsets.all(24),
-      child: child,
+      // Every dialog opens in the root Overlay, above the
+      // MainScreen-level `SelectionArea` — so drag-to-select and
+      // Ctrl+C do not reach Text widgets inside the dialog without
+      // an inner wrapper. Putting the wrap at the `AppDialog` base
+      // gives every caller the right behaviour with zero per-site
+      // code. A `SelectionArea` that is a no-op on a button-only
+      // dialog costs nothing at runtime.
+      child: AppSelectionArea(child: child),
     );
   }
 }
@@ -159,12 +178,22 @@ class AppDialogFooter extends StatelessWidget {
   }
 
   Widget _desktopLayout() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: _intersperse(
-        const SizedBox(width: 8),
-        actions.map((a) => Flexible(child: a)).toList(),
-      ),
+    // `Wrap` instead of `Row` so long-locale button labels (Russian
+    // "Сгенерировать ключ", German "Passwort generieren", etc.) fall
+    // to a second line inside the modal instead of overflowing the
+    // right edge. `FittedBox(fit: BoxFit.scaleDown)` inside
+    // `AppDialogAction.build` used to shrink the font to fit; on
+    // narrow modals that produced barely-readable 10-pt labels, and
+    // on very long translations the scaled result still clipped.
+    // Wrapping keeps the button text at its native size and lets the
+    // footer grow vertically instead. `alignment: end` preserves the
+    // desktop convention of primary CTA on the right.
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: actions,
     );
   }
 

@@ -8,8 +8,10 @@ import '../../core/ssh/known_hosts.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable known hosts manager — search + list with CRUD.
@@ -77,11 +79,8 @@ class _KnownHostsManagerPanelState
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (entries.isEmpty) {
-      return Center(
-        child: Text(
-          totalCount == 0 ? s.knownHostsEmpty : s.knownHostsCount(0),
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
+      return AppEmptyState(
+        message: totalCount == 0 ? s.knownHostsEmpty : s.knownHostsCount(0),
       );
     }
     return ListView.separated(
@@ -92,31 +91,21 @@ class _KnownHostsManagerPanelState
   }
 
   Widget _buildToolbar(S s, int totalCount) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppDataSearchBar(
-              onChanged: (v) => setState(() => _filter = v),
-              hintText: s.search,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            s.knownHostsCount(totalCount),
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          ),
-          if (totalCount > 0) ...[
-            const SizedBox(width: 8),
-            _ToolbarButton(
-              icon: Icons.delete_sweep,
-              tooltip: s.clearAllKnownHosts,
-              onTap: _clearAll,
-            ),
-          ],
-        ],
+    return AppCollectionToolbar(
+      hasItems: totalCount > 0,
+      search: AppDataSearchBar(
+        onChanged: (v) => setState(() => _filter = v),
+        hintText: s.search,
       ),
+      countLabel: s.knownHostsCount(totalCount),
+      actions: [
+        if (totalCount > 0)
+          _ToolbarButton(
+            icon: Icons.delete_sweep,
+            tooltip: s.clearAllKnownHosts,
+            onTap: _clearAll,
+          ),
+      ],
     );
   }
 

@@ -7,7 +7,7 @@ import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
-import 'package:letsflutssh/core/security/security_level.dart';
+import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
@@ -21,7 +21,10 @@ class _FakeMasterPassword extends MasterPasswordManager {
   int verifyAndDeriveCalls = 0;
 
   @override
-  Future<Uint8List?> verifyAndDerive(String password) async {
+  Future<Uint8List?> verifyAndDerive(
+    String password, {
+    bool useRateLimit = false,
+  }) async {
     verifyAndDeriveCalls++;
     if (password != expectedPassword) return null;
     return keyBytes;
@@ -116,7 +119,7 @@ void main() {
       );
       expect(
         container.read(securityStateProvider).level,
-        SecurityLevel.masterPassword,
+        SecurityTier.paranoid,
         reason: 'security level is promoted after unlock',
       );
       expect(

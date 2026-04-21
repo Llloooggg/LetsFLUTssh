@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/security/security_tier.dart';
 
 void main() {
   // ===== TerminalConfig =====
@@ -1214,6 +1215,66 @@ void main() {
         const config = AppConfig(locale: 'ko');
         expect(config.sanitized().locale, 'ko');
       });
+    });
+
+    group('security tier persistence', () {
+      test('fresh config has null security — triggers wizard', () {
+        // The wizard fires when AppConfig.security is null. After the
+        // user completes the wizard the field is non-null for every
+        // tier, including plaintext, so the wizard never fires twice.
+        expect(const AppConfig().security, isNull);
+      });
+
+      test(
+        'roundtrip preserves hardware tier + modifiers through config.json',
+        () {
+          const config = AppConfig(
+            security: SecurityConfig(
+              tier: SecurityTier.hardware,
+              modifiers: SecurityTierModifiers(
+                biometricShortcut: true,
+                pinLength: 4,
+              ),
+            ),
+          );
+          final restored = AppConfig.fromJson(config.toJson());
+          expect(restored.security, config.security);
+          expect(restored, config);
+        },
+      );
+
+      test('roundtrip preserves paranoid tier', () {
+        const config = AppConfig(
+          security: SecurityConfig(
+            tier: SecurityTier.paranoid,
+            modifiers: SecurityTierModifiers.defaults,
+          ),
+        );
+        final restored = AppConfig.fromJson(config.toJson());
+        expect(restored.security, config.security);
+      });
+
+      test('toJson omits security fields when unset', () {
+        final json = const AppConfig().toJson();
+        expect(json.containsKey('security_tier'), isFalse);
+        expect(json.containsKey('security_modifiers'), isFalse);
+      });
+
+      test('fromJson with missing security fields returns null', () {
+        final config = AppConfig.fromJson({});
+        expect(config.security, isNull);
+      });
+
+      test(
+        'fromJson with unknown tier string returns null — wizard re-fires',
+        () {
+          // A future version of the app could ship a new tier name.
+          // Older builds that encounter it fall back to "wizard has
+          // not run" instead of silently landing in a wrong tier.
+          final config = AppConfig.fromJson({'security_tier': 'made_up_tier'});
+          expect(config.security, isNull);
+        },
+      );
     });
   });
 }

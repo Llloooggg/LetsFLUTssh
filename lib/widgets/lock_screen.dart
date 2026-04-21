@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
-import '../core/security/security_level.dart';
+import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/master_password_provider.dart';
 import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
+import 'secure_password_field.dart';
+import 'secure_screen_scope.dart';
 
 /// Full-screen lock overlay shown while [lockStateProvider] is true.
 ///
@@ -130,9 +132,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   }
 
   void _releaseLock(Uint8List key) {
-    ref
-        .read(securityStateProvider.notifier)
-        .set(SecurityLevel.masterPassword, key);
+    ref.read(securityStateProvider.notifier).set(SecurityTier.paranoid, key);
     ref.read(lockStateProvider.notifier).unlock();
   }
 
@@ -146,8 +146,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     });
     final manager = ref.read(masterPasswordProvider);
     try {
-      // Single PBKDF2: verify + derive in one isolate spawn.
-      final key = await manager.verifyAndDerive(password);
+      // Single Argon2id: verify + derive in one isolate spawn.
+      // `useRateLimit` on — mid-session lock screen is a user-typed
+      // path and should slow down a passerby the same way the
+      // first-launch UnlockDialog does.
+      final key = await manager.verifyAndDerive(password, useRateLimit: true);
       if (key == null) {
         setState(() {
           _busy = false;
@@ -173,86 +176,86 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        backgroundColor: AppTheme.bg0,
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.lock_outline, size: 56, color: AppTheme.accent),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.lockScreenTitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.fg,
-                      fontSize: AppFonts.xl,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.lockScreenSubtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.fgDim,
-                      fontSize: AppFonts.sm,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _pwCtrl,
-                    focusNode: _focusNode,
-                    obscureText: true,
-                    enabled: !_busy,
-                    onSubmitted: (_) => _submitPassword(),
-                    style: TextStyle(color: AppTheme.fg),
-                    decoration: AppTheme.inputDecoration(
-                      labelText: l10n.masterPassword,
-                    ),
-                  ),
-                  if (_wrong) ...[
-                    const SizedBox(height: 6),
+    return SecureScreenScope(
+      child: PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: AppTheme.bg0,
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(Icons.lock_outline, size: 56, color: AppTheme.accent),
+                    const SizedBox(height: 16),
                     Text(
-                      l10n.wrongPassword,
-                      style: TextStyle(
-                        color: AppTheme.red,
-                        fontSize: AppFonts.xs,
-                      ),
-                    ),
-                  ],
-                  if (_bioError != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _bioError!,
-                      style: TextStyle(
-                        color: AppTheme.red,
-                        fontSize: AppFonts.xs,
-                      ),
+                      l10n.lockScreenTitle,
                       textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.fg,
+                        fontSize: AppFonts.xl,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ],
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _busy ? null : _submitPassword,
-                    child: Text(_busy ? '...' : l10n.unlock),
-                  ),
-                  if (_biometricOffered == true) ...[
                     const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _busy ? null : _retryBiometric,
-                      icon: const Icon(Icons.fingerprint, size: 18),
-                      label: Text(l10n.biometricUnlockTitle),
+                    Text(
+                      l10n.lockScreenSubtitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.fgDim,
+                        fontSize: AppFonts.sm,
+                      ),
                     ),
+                    const SizedBox(height: 20),
+                    SecurePasswordField(
+                      controller: _pwCtrl,
+                      focusNode: _focusNode,
+                      enabled: !_busy,
+                      onSubmitted: (_) => _submitPassword(),
+                      decoration: AppTheme.inputDecoration(
+                        labelText: l10n.masterPassword,
+                      ),
+                    ),
+                    if (_wrong) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        l10n.wrongPassword,
+                        style: TextStyle(
+                          color: AppTheme.red,
+                          fontSize: AppFonts.xs,
+                        ),
+                      ),
+                    ],
+                    if (_bioError != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _bioError!,
+                        style: TextStyle(
+                          color: AppTheme.red,
+                          fontSize: AppFonts.xs,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _busy ? null : _submitPassword,
+                      child: Text(_busy ? '...' : l10n.unlock),
+                    ),
+                    if (_biometricOffered == true) ...[
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _busy ? null : _retryBiometric,
+                        icon: const Icon(Icons.fingerprint, size: 18),
+                        label: Text(l10n.biometricUnlockTitle),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

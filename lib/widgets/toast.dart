@@ -166,7 +166,13 @@ class _ToastWidget extends StatelessWidget {
                     Icon(icon, size: 18, color: color),
                     const SizedBox(width: 8),
                     Flexible(
-                      child: Text(
+                      // `SelectableText` so the user can copy the
+                      // message — useful for error toasts carrying
+                      // paths, error codes or hashes the user wants
+                      // to paste into a bug report. `Text` (the
+                      // previous widget) silently swallowed every
+                      // attempt at selection.
+                      child: SelectableText(
                         message,
                         style: TextStyle(fontSize: AppFonts.lg),
                       ),

@@ -15,6 +15,12 @@ class SDe extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Schützt vor';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Schützt nicht vor';
+
+  @override
   String get cancel => 'Abbrechen';
 
   @override
@@ -802,6 +808,170 @@ class SDe extends S {
   String get passwordsDoNotMatch => 'Passwörter stimmen nicht überein';
 
   @override
+  String get passwordStrengthWeak => 'Schwach';
+
+  @override
+  String get passwordStrengthModerate => 'Mittel';
+
+  @override
+  String get passwordStrengthStrong => 'Stark';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Sehr stark';
+
+  @override
+  String get tierRecommendedBadge => 'Empfohlen';
+
+  @override
+  String get tierCurrentBadge => 'Aktuell';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternative — dem OS nicht vertrauen';
+
+  @override
+  String get tierUpcomingTooltip => 'Kommt in einer späteren Version.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Die zugrundeliegende Infrastruktur dieser Stufe ist noch nicht ausgeliefert. Die Zeile ist sichtbar, damit Sie wissen, dass die Option existiert.';
+
+  @override
+  String get tierPlaintextLabel => 'Klartext';
+
+  @override
+  String get tierPlaintextSubtitle =>
+      'Keine Verschlüsselung — nur Dateiberechtigungen';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Jeder mit Dateisystemzugriff liest Ihre Daten';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Versehentliche Sync oder Backup legt alles offen';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Nur in vertrauenswürdigen, isolierten Umgebungen verwenden.';
+
+  @override
+  String get tierKeychainLabel => 'Schlüsselbund';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Schlüssel liegt in $keychain — Auto-Entsperrung beim Start';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Andere Benutzer auf derselben Maschine';
+
+  @override
+  String get tierKeychainProtect2 => 'Gestohlene Festplatte ohne OS-Login';
+
+  @override
+  String get tierKeychainThreat1 => 'Malware unter Ihrem OS-Konto';
+
+  @override
+  String get tierKeychainThreat2 => 'Angreifer, der Ihr OS-Login übernimmt';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'OS-Schlüsselbund auf dieser Installation nicht verfügbar.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Kollege an Ihrem Schreibtisch';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Vorbeikommender mit offenem Zugriff';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Offline-Angreifer mit der Datei auf Festplatte';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Gleiche OS-Kompromittierungs-Risiken wie beim Schlüsselbund';
+
+  @override
+  String get tierHardwareLabel => 'Hardware';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Hardware-gebundener Tresor + kurze PIN mit Sperrung';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Offline-Brute-Force der PIN (Hardware-Ratenbegrenzung)';
+
+  @override
+  String get tierHardwareProtect2 =>
+      'Diebstahl von Festplatte und Schlüsselbund-Blob';
+
+  @override
+  String get tierHardwareThreat1 => 'OS- oder Firmware-CVE am Sicherheitsmodul';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Erzwungene Biometrie-Entsperrung (falls aktiviert)';
+
+  @override
+  String get tierParanoidLabel => 'Master-Passwort (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Langes Passwort + Argon2id. Schlüssel berührt OS nicht.';
+
+  @override
+  String get tierParanoidProtect1 => 'Kompromittierung des OS-Schlüsselbundes';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Gestohlene Festplatte (solange das Passwort stark ist)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger, der Ihr Passwort erfasst';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'Schwaches Passwort + Offline-Argon2id-Cracking';
+
+  @override
+  String get tierParanoidNotes =>
+      'Biometrie ist auf dieser Stufe per Design deaktiviert.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'Hardware-Tresor in dieser Installation nicht verfügbar.';
+
+  @override
+  String get pinLabel => 'Passwort';
+
+  @override
+  String get l2UnlockTitle => 'Passwort erforderlich';
+
+  @override
+  String get l2UnlockHint =>
+      'Geben Sie Ihr kurzes Passwort ein, um fortzufahren';
+
+  @override
+  String get l2WrongPassword => 'Falsches Passwort';
+
+  @override
+  String get l3UnlockTitle => 'Passwort eingeben';
+
+  @override
+  String get l3UnlockHint => 'Passwort entsperrt den hardwaregebundenen Tresor';
+
+  @override
+  String get l3WrongPin => 'Falsches Passwort';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Erneut versuchen in $seconds s';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Exportiert nach: $path';
   }
@@ -829,6 +999,9 @@ class SDe extends S {
 
   @override
   String get dataLocation => 'Datenspeicherort';
+
+  @override
+  String get dataStorageSection => 'Speicher';
 
   @override
   String get pathCopied => 'Pfad in Zwischenablage kopiert';
@@ -1194,7 +1367,7 @@ class SDe extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Master-Passwort beim Start der App nicht eingeben müssen.';
+      'Passwort nicht eingeben — mit dem Biometriesensor des Geräts entsperren.';
 
   @override
   String get biometricNotAvailable =>
@@ -1231,8 +1404,15 @@ class SDe extends S {
       'Dieses Gerät verfügt über keinen biometrischen Sensor.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'Legen Sie zuerst ein Masterpasswort fest, um die Auto-Sperre zu aktivieren.';
+  String get biometricSystemServiceMissing =>
+      'Fingerabdruckdienst (fprintd) ist nicht installiert. Siehe README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Hardware-gestützt (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Software-gestützt';
 
   @override
   String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';
@@ -1262,7 +1442,7 @@ class SDe extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Die verschlüsselte Datenbank wird nur dann erneut gesperrt, wenn keine SSH-Sitzungen aktiv sind – laufende Operationen bleiben verbunden.';
+      'Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Der Datenbankschlüssel wird bei jeder Sperre gelöscht und der verschlüsselte Speicher geschlossen; aktive Sitzungen bleiben dank eines Sitzungs-Anmeldedaten-Caches verbunden, der beim Schließen der Sitzung geleert wird.';
 
   @override
   String get autoLockOff => 'Aus';
@@ -1295,6 +1475,10 @@ class SDe extends S {
   @override
   String get errLfsDecryptFailed =>
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'Archiv ist unvollständig. Erneut herunterladen oder vom Originalgerät neu exportieren.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1670,6 +1854,13 @@ class SDe extends S {
   String get generateKey => 'Schlüssel generieren';
 
   @override
+  String get addKey => 'Schlüssel hinzufügen';
+
+  @override
+  String get filePickerUnavailable =>
+      'Dateiauswahl auf diesem System nicht verfügbar';
+
+  @override
   String get importKey => 'Schlüssel importieren';
 
   @override
@@ -1825,6 +2016,46 @@ class SDe extends S {
       'Alle gespeicherten Anmeldedaten wurden gelöscht';
 
   @override
+  String get migrationToast => 'Speicher auf aktuelles Format aktualisiert';
+
+  @override
+  String get dbCorruptTitle => 'Datenbank kann nicht geöffnet werden';
+
+  @override
+  String get dbCorruptBody =>
+      'Die Daten auf der Festplatte lassen sich nicht öffnen. Probiere andere Anmeldedaten oder setze zurück, um neu zu starten.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Zurücksetzen löscht die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft. Keine Daten werden wiederhergestellt.';
+
+  @override
+  String get dbCorruptTryOther => 'Andere Anmeldedaten versuchen';
+
+  @override
+  String get dbCorruptResetContinue => 'Zurücksetzen & neu einrichten';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh beenden';
+
+  @override
+  String get tierResetTitle => 'Sicherheits-Reset erforderlich';
+
+  @override
+  String get tierResetBody =>
+      'Diese Installation enthält Sicherheitsdaten aus einer älteren Version von LetsFLUTssh, die ein anderes Stufenmodell verwendete. Das neue Modell ist eine inkompatible Änderung — es gibt keinen automatischen Migrationspfad. Um fortzufahren, müssen alle gespeicherten Sitzungen, Anmeldedaten, SSH-Schlüssel und bekannten Hosts dieser Installation gelöscht und der Ersteinrichtungsassistent neu ausgeführt werden.';
+
+  @override
+  String get tierResetWarning =>
+      'Mit „Zurücksetzen & Neu einrichten“ werden die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft gelöscht. Wenn Sie Ihre Daten wiederherstellen müssen, beenden Sie die App jetzt und installieren Sie die vorherige Version von LetsFLUTssh erneut, um zunächst zu exportieren.';
+
+  @override
+  String get tierResetResetContinue => 'Zurücksetzen & Neu einrichten';
+
+  @override
+  String get tierResetExit => 'LetsFLUTssh beenden';
+
+  @override
   String get derivingKey => 'Verschlüsselungsschlüssel wird abgeleitet...';
 
   @override
@@ -1901,6 +2132,202 @@ class SDe extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'Master-Passwort festlegen, ändern oder entfernen';
+
+  @override
+  String get changeSecurityTier => 'Sicherheitsstufe ändern';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Stufenleiter öffnen und eine andere Sicherheitsstufe wählen';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Datenbank wird mit der neuen Stufe neu verschlüsselt. Vorgang nicht unterbrechen — App bis zum Abschluss geöffnet halten.';
+
+  @override
+  String get changeSecurityTierDone => 'Sicherheitsstufe geändert';
+
+  @override
+  String get changeSecurityTierFailed =>
+      'Sicherheitsstufe konnte nicht geändert werden';
+
+  @override
+  String get firstLaunchSecurityTitle => 'Sicherer Speicher aktiviert';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Deine Daten sind mit einem Schlüssel im Schlüsselbund des Betriebssystems verschlüsselt. Die Entsperrung erfolgt auf diesem Gerät automatisch.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Auf diesem Gerät ist hardwaregestützter Speicher verfügbar. Wechsle unter Einstellungen → Sicherheit, um TPM / Secure Enclave zu nutzen.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Hardwaregestützter Speicher nicht verfügbar — kein TPM 2.0 auf diesem Gerät erkannt.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Hardwaregestützter Speicher nicht verfügbar — dieses Gerät meldet keine Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Hardwaregestützter Speicher nicht verfügbar — installiere tpm2-tools und ein TPM 2.0-Gerät, um ihn zu aktivieren.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Hardwaregestützter Speicher nicht verfügbar — dieses Gerät meldet keine StrongBox oder TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Hardwaregestützter Speicher auf diesem Gerät nicht verfügbar.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Einstellungen öffnen';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Verstanden';
+
+  @override
+  String get securityHardwareUpgradeTitle =>
+      'Hardwaregestützter Speicher verfügbar';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Aktualisiere, um Geheimnisse an TPM / Secure Enclave zu binden.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Aktualisieren';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Hardwaregestützter Speicher nicht verfügbar';
+
+  @override
+  String get wizardReducedBanner =>
+      'Der Schlüsselbund des Betriebssystems ist bei dieser Installation nicht erreichbar. Wähle zwischen keiner Verschlüsselung (T0) und einem Master-Passwort (Paranoid). Installiere gnome-keyring, kwallet oder einen anderen libsecret-Anbieter, um die Keychain-Stufe zu aktivieren.';
+
+  @override
+  String get tierBlockProtectsHeader => 'SCHÜTZT VOR';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'SCHÜTZT NICHT VOR';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Auf dieser Stufe nichts.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Keine ungedeckten Bedrohungen.';
+
+  @override
+  String get tierBadgeCurrent => 'Aktuell';
+
+  @override
+  String get securitySetupEnable => 'Aktivieren';
+
+  @override
+  String get securitySetupApply => 'Übernehmen';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Die Plaintext-Stufe speichert kein Geheimnis, das ein Passwort schützen könnte.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid leitet den Datenbankschlüssel aus dem Passwort ab — Passwort ist immer an.';
+
+  @override
+  String get passwordSubtitleOn => 'An — Passwort beim Entsperren erforderlich';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Aus — tippen, um auf dieser Stufe ein Passwort hinzuzufügen';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Erforderlich — das Master-Passwort ist das Geheimnis der Stufe';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Nicht anwendbar — keine Verschlüsselung auf dieser Stufe';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      'Kein TPM unter /dev/tpmrm0 gefunden. Aktiviere fTPM / PTT im BIOS, falls unterstützt; sonst ist die Hardware-Stufe auf diesem Gerät nicht verfügbar.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools ist nicht installiert. Führe `sudo apt install tpm2-tools` (oder das Äquivalent deiner Distribution) aus, um die Hardware-Stufe zu aktivieren.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Die Hardware-Stufen-Prüfung ist fehlgeschlagen. Prüfe Berechtigungen auf /dev/tpmrm0 und udev-Regeln — Details im Log.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'Kein TPM 2.0 erkannt. Aktiviere fTPM / PTT in der UEFI-Firmware, oder akzeptiere dass die Hardware-Stufe auf diesem Gerät nicht verfügbar ist — die App fällt auf den software-gestützten Anmeldedatenspeicher zurück.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Weder Microsoft Platform Crypto Provider noch Software Key Storage Provider sind erreichbar — wahrscheinlich ein beschädigtes Windows-Krypto-Subsystem oder eine Gruppenrichtlinie, die CNG blockiert. Prüfe Ereignisanzeige → Anwendungs- und Dienstprotokolle.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Dieser Mac hat keine Secure Enclave (Intel-Mac vor 2017 ohne T1 / T2-Sicherheitschip). Die Hardware-Stufe ist nicht verfügbar; verwende stattdessen das Master-Passwort.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Auf diesem Mac ist kein Anmeldepasswort festgelegt. Secure-Enclave-Schlüsselerstellung erfordert eines — setze ein Anmeldepasswort in Systemeinstellungen → Touch ID & Passwort (oder Anmeldepasswort).';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave hat die Signaturidentität der App abgelehnt (-34018). Führe das mitgelieferte Skript `macos-resign.sh` aus dem Release aus, um diesem Build eine stabile selbstsignierte Identität zu geben, und starte die App neu.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Kein Gerätecode festgelegt. Secure-Enclave-Schlüsselerstellung erfordert einen — setze einen Code in Einstellungen → Face ID & Code (oder Touch ID & Code).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Ausführung im iOS-Simulator, der keine Secure Enclave hat. Die Hardware-Stufe ist nur auf physischen iOS-Geräten verfügbar.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Für die Hardware-Stufe ist Android 9 oder neuer erforderlich (StrongBox und per-Key-Enrolment-Invalidierung sind auf älteren Versionen nicht zuverlässig).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Dieses Gerät hat keine Biometrie-Hardware (Fingerabdruck oder Gesicht). Verwende stattdessen das Master-Passwort.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Keine Biometrie registriert. Füge einen Fingerabdruck oder Gesicht in Einstellungen → Sicherheit & Datenschutz → Biometrie hinzu, dann aktiviere die Hardware-Stufe erneut.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Biometrie-Hardware ist vorübergehend unbrauchbar (Sperre nach fehlgeschlagenen Versuchen oder ausstehendes Sicherheitsupdate). Versuche es in ein paar Minuten erneut.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Der Android-Keystore hat das Erstellen eines Hardware-Schlüssels für diese Geräteversion abgelehnt (StrongBox nicht verfügbar, Custom-ROM oder Treiberfehler). Die Hardware-Stufe ist nicht verfügbar.';
+
+  @override
+  String get securityRecheck => 'Stufen-Unterstützung erneut prüfen';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Stufen-Unterstützung aktualisiert — siehe Karten oben';
+
+  @override
+  String get securityRecheckUnchanged => 'Stufen-Unterstützung unverändert';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus läuft, aber kein Secret-Service-Daemon ist aktiv. Installiere gnome-keyring (`sudo apt install gnome-keyring`) oder KWalletManager und stelle sicher, dass es beim Anmelden startet.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Der OS-Schlüsselbund ist auf diesem Gerät nicht erreichbar. Plattformspezifischer Fehler siehe Log; die App fällt auf das Master-Passwort zurück.';
 
   @override
   String get snippets => 'Snippets';
@@ -2149,4 +2576,232 @@ class SDe extends S {
 
   @override
   String get continueWithoutPassword => 'Ohne Passwort fortfahren';
+
+  @override
+  String get threatColdDiskTheft => 'Diebstahl bei ausgeschaltetem Gerät';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Ausgeschalteter Rechner, dessen Laufwerk ausgebaut und an einem anderen Computer gelesen wird, oder eine Kopie der Datenbankdatei, die jemand mit Zugriff auf dein Home-Verzeichnis erstellt hat.';
+
+  @override
+  String get threatKeyringFileTheft => 'Diebstahl der Keyring-/Keychain-Datei';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Ein Angreifer liest die Anmeldedatenspeicher-Datei der Plattform direkt vom Laufwerk (libsecret-Keyring, Windows Credential Manager, macOS-Login-Keychain) und rekonstruiert daraus den verpackten Datenbankschlüssel. Die Hardware-Stufe wehrt das unabhängig vom Passwort ab, weil der Chip den Export des Schlüsselmaterials verweigert; die Keychain-Stufe braucht zusätzlich ein Passwort, sonst lässt sich die gestohlene Datei mit dem OS-Anmeldepasswort allein entpacken.';
+
+  @override
+  String get modifierOnlyWithPassword => 'nur mit Passwort';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Umstehende an einem entsperrten Gerät';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Jemand tritt an deinen bereits entsperrten Computer und öffnet die App, während du abwesend bist.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'RAM-Forensik an gesperrtem Rechner';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Ein Angreifer friert den RAM ein (oder erfasst ihn per DMA) und zieht noch vorhandenes Schlüsselmaterial aus dem Abbild, auch wenn die App gesperrt ist.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Kompromittierung des OS-Kernels oder Schlüsselbunds';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Kernel-Schwachstelle, Exfiltration aus dem Schlüsselbund oder eine Hintertür im Hardware-Sicherheitschip. Das Betriebssystem wird vom vertrauenswürdigen Bestandteil zum Angreifer.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Offline-Brute-Force gegen schwaches Passwort';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Ein Angreifer mit einer Kopie des umhüllten Schlüssels oder versiegelten Blobs probiert jedes Passwort in eigenem Tempo, ohne jede Geschwindigkeitsbegrenzung.';
+
+  @override
+  String get legendProtects => 'Geschützt';
+
+  @override
+  String get legendDoesNotProtect => 'Nicht geschützt';
+
+  @override
+  String get legendNotApplicable =>
+      'Nicht zutreffend — diese Stufe hat kein Benutzergeheimnis';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Schwaches Passwort akzeptabel — eine andere Schicht (Hardware-Ratenbegrenzer oder Schlüsselumhüllung) trägt die Sicherheit';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Eine lange Passphrase wird dringend empfohlen — die Sicherheit dieser Stufe hängt davon ab';
+
+  @override
+  String get colT0 => 'T0 Klartext';
+
+  @override
+  String get colT1 => 'T1 Schlüsselbund';
+
+  @override
+  String get colT1Password => 'T1 + Passwort';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + Passwort + Biometrie';
+
+  @override
+  String get colT2 => 'T2 Hardware';
+
+  @override
+  String get colT2Password => 'T2 + Passwort';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + Passwort + Biometrie';
+
+  @override
+  String get colParanoid => 'Paranoid';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Sicherheitsstufen — Direktvergleich';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Bedrohung';
+
+  @override
+  String get compareAllTiers => 'Alle Stufen vergleichen';
+
+  @override
+  String get resetAllDataTitle => 'Alle Daten zurücksetzen';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Alle Sitzungen, Schlüssel, Konfigurationen und Sicherheitsartefakte löschen. Entfernt auch Schlüsselbund-Einträge und Hardware-Vault-Slots.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Alle Daten zurücksetzen?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Alle Sitzungen, SSH-Schlüssel, Known-Hosts, Snippets, Tags, Einstellungen und alle Sicherheitsartefakte (Schlüsselbund-Einträge, Hardware-Vault-Daten, biometrisches Overlay) werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Alles zurücksetzen';
+
+  @override
+  String get resetAllDataInProgress => 'Wird zurückgesetzt…';
+
+  @override
+  String get resetAllDataDone => 'Alle Daten zurückgesetzt';
+
+  @override
+  String get resetAllDataFailed => 'Zurücksetzen fehlgeschlagen';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'Sehen Sie nebeneinander, wogegen jede Stufe schützt.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Auto-Sperre erfordert ein Passwort auf der aktiven Stufe.';
+
+  @override
+  String get recommendedBadge => 'EMPFOHLEN';
+
+  @override
+  String get continueWithRecommended => 'Mit Empfehlung fortfahren';
+
+  @override
+  String get customizeSecurity => 'Sicherheit anpassen';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Fortgeschritten: hardware-gebundener Schlüssel. Daten sind unwiederbringlich verloren, wenn der Chip dieses Geräts verloren geht oder ersetzt wird.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternative: Master-Passwort, kein Vertrauen in das OS. Schützt vor OS-Kompromittierung. Verbessert den Laufzeitschutz gegenüber T1/T2 nicht.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Runtime-Bedrohungen (Malware desselben Benutzers, Speicherabbild des laufenden Prozesses) werden in jeder Stufe als ✗ dargestellt. Sie werden durch separate Mitigationsfunktionen behandelt, die unabhängig von der gewählten Stufe gelten.';
+
+  @override
+  String get securitySetupContinue => 'Weiter';
+
+  @override
+  String get currentTierBadge => 'AKTUELL';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIVE';
+
+  @override
+  String get modifierPasswordLabel => 'Passwort';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Eingetippte Geheimnis-Schranke vor dem Entsperren des Tresors.';
+
+  @override
+  String get modifierBiometricLabel => 'Biometrische Verknüpfung';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Das Passwort aus einem biometrisch gesicherten OS-Slot entnehmen, statt es einzutippen.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Aktivieren Sie zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'Wähle zuerst diese Stufe, um die biometrische Entsperrung zu aktivieren';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Wähle zuerst diese Stufe, um die automatische Sperre zu konfigurieren';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid erlaubt Biometrie per Design nicht.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd ist nicht installiert oder kein Finger registriert.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'Ein TPM ohne Passwort bietet Isolation, keine Authentifizierung. Wer diese App ausführen kann, kann die Daten entsperren.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Eine lange Passphrase wird dringend empfohlen — Argon2id verlangsamt Brute-Force nur, blockiert es aber nicht.';
+
+  @override
+  String get plaintextWarningTitle => 'Klartext: keine Verschlüsselung';
+
+  @override
+  String get plaintextWarningBody =>
+      'Sitzungen, Schlüssel und known hosts werden ohne Verschlüsselung gespeichert. Jeder mit Zugriff auf das Dateisystem dieses Computers kann sie lesen.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Ich verstehe, dass meine Daten nicht verschlüsselt werden';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Bestätigen Sie, dass Sie es verstanden haben, bevor Sie fortfahren.';
+
+  @override
+  String get passwordLabel => 'Passwort';
+
+  @override
+  String get masterPasswordLabel => 'Master-Passwort';
 }

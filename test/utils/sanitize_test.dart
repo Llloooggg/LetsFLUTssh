@@ -87,6 +87,38 @@ void main() {
       expect(sanitizeErrorMessage('10.0.0.1'), contains('<ip>'));
     });
 
+    test('redacts IPv6 literals — full + compressed + link-local', () {
+      // Full 8-group.
+      expect(
+        sanitizeErrorMessage('2001:0db8:85a3:0000:0000:8a2e:0370:7334'),
+        contains('<ip>'),
+      );
+      expect(
+        sanitizeErrorMessage('2001:0db8:85a3:0000:0000:8a2e:0370:7334'),
+        isNot(contains('2001:')),
+      );
+      // Compressed middle.
+      expect(sanitizeErrorMessage('2001:db8::1'), contains('<ip>'));
+      expect(sanitizeErrorMessage('2001:db8::1'), isNot(contains('2001')));
+      // Loopback + unspecified + link-local.
+      expect(sanitizeErrorMessage('::1'), contains('<ip>'));
+      expect(sanitizeErrorMessage('fe80::1'), contains('<ip>'));
+      // Bracketed host:port shape.
+      final bracketed = sanitizeErrorMessage(
+        'connect to [2001:db8::1]:22 failed',
+      );
+      expect(bracketed, contains('<ip>'));
+      expect(bracketed, contains(':<port>'));
+      expect(bracketed, isNot(contains('2001:db8')));
+    });
+
+    test('ipv6 match does not swallow plain hex strings', () {
+      // "abcdef" is not an IPv6 literal (no colon-groups). Rule
+      // requires at least one `:` with hex groups around it.
+      final out = sanitizeErrorMessage('hash abcdef0123456789 matched');
+      expect(out, contains('abcdef0123456789'));
+    });
+
     test('redacts port numbers', () {
       expect(sanitizeErrorMessage('192.168.1.100:22'), contains(':<port>'));
       expect(sanitizeErrorMessage('example.com:2222'), contains(':<port>'));

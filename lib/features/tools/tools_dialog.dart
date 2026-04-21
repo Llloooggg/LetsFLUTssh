@@ -4,6 +4,7 @@ import '../../core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_selection_area.dart';
 import '../../widgets/hover_region.dart';
 import '../key_manager/key_manager_dialog.dart';
 import '../settings/known_hosts_manager.dart';
@@ -79,54 +80,60 @@ class _ToolsDialogState extends State<ToolsDialog> {
       // AppTheme.desktopModalInsetPadding.
       insetPadding: AppTheme.desktopModalInsetPadding(viewportWidth),
       backgroundColor: AppTheme.bg1,
-      child: CallbackShortcuts(
-        bindings: AppShortcutRegistry.instance.buildCallbackMap({
-          AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
-        }),
-        child: Focus(
-          autofocus: true,
-          child: Column(
-            children: [
-              AppDialogHeader(
-                title: S.of(context).tools,
-                onClose: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    // Sidebar
-                    SizedBox(
-                      width: 200,
-                      child: Container(
-                        color: theme.colorScheme.surfaceContainerLow,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          itemCount: entries.length,
-                          itemBuilder: (context, index) {
-                            final entry = entries[index];
-                            return _NavItem(
-                              icon: entry.icon,
-                              label: entry.title,
-                              selected: index == _selectedIndex,
-                              onTap: () =>
-                                  setState(() => _selectedIndex = index),
-                            );
-                          },
+      // `SelectionArea` scoped to the dialog — the root one at
+      // MainScreen sits below this modal in the Overlay stack, so
+      // drag-to-select would not reach Text widgets inside the
+      // dialog without an inner wrapper.
+      child: AppSelectionArea(
+        child: CallbackShortcuts(
+          bindings: AppShortcutRegistry.instance.buildCallbackMap({
+            AppShortcut.dismissDialog: () => Navigator.of(context).pop(),
+          }),
+          child: Focus(
+            autofocus: true,
+            child: Column(
+              children: [
+                AppDialogHeader(
+                  title: S.of(context).tools,
+                  onClose: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Sidebar
+                      SizedBox(
+                        width: 200,
+                        child: Container(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            itemCount: entries.length,
+                            itemBuilder: (context, index) {
+                              final entry = entries[index];
+                              return _NavItem(
+                                icon: entry.icon,
+                                label: entry.title,
+                                selected: index == _selectedIndex,
+                                onTap: () =>
+                                    setState(() => _selectedIndex = index),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                    VerticalDivider(width: 1, color: theme.dividerColor),
-                    // Content
-                    Expanded(
-                      child: KeyedSubtree(
-                        key: ValueKey(_selectedIndex),
-                        child: entries[_selectedIndex].builder(),
+                      VerticalDivider(width: 1, color: theme.dividerColor),
+                      // Content
+                      Expanded(
+                        child: KeyedSubtree(
+                          key: ValueKey(_selectedIndex),
+                          child: entries[_selectedIndex].builder(),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

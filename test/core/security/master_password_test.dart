@@ -32,18 +32,29 @@ void main() {
   });
 
   group('MasterPasswordManager', () {
-    test('isEnabled returns false when no salt file', () async {
+    test('isEnabled returns false when no kdf file', () async {
       expect(await manager.isEnabled(), isFalse);
     });
 
-    test('enable creates salt and verifier files', () async {
+    test('enable creates credentials.kdf and verifier files', () async {
       await manager.enable('testpassword');
 
-      final saltFile = File('${tempDir.path}/credentials.salt');
+      final kdfFile = File('${tempDir.path}/credentials.kdf');
       final verifierFile = File('${tempDir.path}/credentials.verify');
-      expect(await saltFile.exists(), isTrue);
+      expect(await kdfFile.exists(), isTrue);
       expect(await verifierFile.exists(), isTrue);
       expect(await manager.isEnabled(), isTrue);
+    });
+
+    test('credentials.kdf starts with the LFKD magic + version 0x01', () async {
+      await manager.enable('testpassword');
+      final bytes = await File('${tempDir.path}/credentials.kdf').readAsBytes();
+      expect(bytes[0], 0x4C); // 'L'
+      expect(bytes[1], 0x46); // 'F'
+      expect(bytes[2], 0x4B); // 'K'
+      expect(bytes[3], 0x44); // 'D'
+      expect(bytes[4], 0x01, reason: 'file version');
+      expect(bytes[5], 0x01, reason: 'KDF algorithm id (Argon2id)');
     });
 
     test('enable returns 32-byte key', () async {
@@ -149,17 +160,18 @@ void main() {
       expect(await manager.verify('newpass12'), isTrue);
     });
 
-    test('disable removes salt and verifier files', () async {
+    test('disable removes kdf and verifier files', () async {
       await manager.enable('password');
       expect(await manager.isEnabled(), isTrue);
 
       await manager.disable();
       expect(await manager.isEnabled(), isFalse);
 
-      final saltFile = File('${tempDir.path}/credentials.salt');
-      final verifierFile = File('${tempDir.path}/credentials.verify');
-      expect(await saltFile.exists(), isFalse);
-      expect(await verifierFile.exists(), isFalse);
+      expect(await File('${tempDir.path}/credentials.kdf').exists(), isFalse);
+      expect(
+        await File('${tempDir.path}/credentials.verify').exists(),
+        isFalse,
+      );
     });
 
     test('disable is safe when not enabled', () async {
@@ -167,24 +179,19 @@ void main() {
       expect(await manager.isEnabled(), isFalse);
     });
 
-    test('reset deletes all encrypted files', () async {
-      // Create files that reset should delete.
-      await File('${tempDir.path}/credentials.salt').writeAsBytes([1, 2, 3]);
+    test('reset deletes all credential files', () async {
+      await File('${tempDir.path}/credentials.kdf').writeAsBytes([1, 2, 3]);
       await File('${tempDir.path}/credentials.verify').writeAsBytes([4, 5, 6]);
       await File('${tempDir.path}/credentials.key').writeAsBytes([7, 8, 9]);
-      await File('${tempDir.path}/credentials.enc').writeAsBytes([10, 11]);
-      await File('${tempDir.path}/keys.enc').writeAsBytes([12, 13]);
 
       await manager.reset();
 
-      expect(await File('${tempDir.path}/credentials.salt').exists(), isFalse);
+      expect(await File('${tempDir.path}/credentials.kdf').exists(), isFalse);
       expect(
         await File('${tempDir.path}/credentials.verify').exists(),
         isFalse,
       );
       expect(await File('${tempDir.path}/credentials.key').exists(), isFalse);
-      expect(await File('${tempDir.path}/credentials.enc').exists(), isFalse);
-      expect(await File('${tempDir.path}/keys.enc').exists(), isFalse);
     });
 
     test('enable then re-enable with different password works', () async {
@@ -196,6 +203,107 @@ void main() {
       await manager.enable('second12');
       expect(await manager.verify('first123'), isFalse);
       expect(await manager.verify('second12'), isTrue);
+    });
+  });
+
+  group('MasterPasswordManager — corruption & failure modes', () {
+    // Invariant: a broken credentials.kdf must never silently pass unlock.
+    // Every branch of _decodeKdfRecord has to surface a FormatException so
+    // the UI routes the user into wipe/restore instead of trusting the blob.
+    test('verify throws when kdf file has wrong magic', () async {
+      await File(
+        '${tempDir.path}/credentials.kdf',
+      ).writeAsBytes(List.filled(80, 0x00));
+      await File(
+        '${tempDir.path}/credentials.verify',
+      ).writeAsBytes(List.filled(32, 0x00));
+      expect(await manager.isEnabled(), isTrue); // file presence says "yes"
+      expect(() => manager.verify('anything'), throwsA(isA<FormatException>()));
+    });
+
+    test('verify throws when kdf file is truncated below header', () async {
+      // Valid magic + version + algo, but nothing after — params + salt miss.
+      await File('${tempDir.path}/credentials.kdf').writeAsBytes([
+        0x4C, 0x46, 0x4B, 0x44, // 'LFKD'
+        0x01, // version
+        0x01, // algo (Argon2id)
+        // Missing params (9) + salt (32)
+      ]);
+      await File(
+        '${tempDir.path}/credentials.verify',
+      ).writeAsBytes(List.filled(32, 0x00));
+      expect(() => manager.verify('anything'), throwsA(isA<FormatException>()));
+    });
+
+    test('verify throws on unsupported version byte', () async {
+      // Magic OK, version = 0x02 (not supported yet).
+      final bytes = <int>[
+        0x4C, 0x46, 0x4B, 0x44, // 'LFKD'
+        0x02, // version — unsupported
+        0x01, // algo
+        ...List.filled(9, 0x00), // params placeholder
+        ...List.filled(32, 0x00), // salt
+      ];
+      await File('${tempDir.path}/credentials.kdf').writeAsBytes(bytes);
+      await File(
+        '${tempDir.path}/credentials.verify',
+      ).writeAsBytes(List.filled(32, 0x00));
+      expect(
+        () => manager.verify('anything'),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('unsupported version'),
+          ),
+        ),
+      );
+    });
+
+    test('verify throws when verifier file is missing after enable', () async {
+      await manager.enable('pw123456');
+      await File('${tempDir.path}/credentials.verify').delete();
+
+      expect(
+        () => manager.verify('pw123456'),
+        throwsA(isA<MasterPasswordException>()),
+      );
+    });
+
+    test('fresh instance with corrupt kdf — isEnabled returns true but '
+        'deriveKey surfaces the decode error', () async {
+      // A shard left on disk after a crash. The file is *present*, so a
+      // naive isEnabled() probe returns true — but any attempt to actually
+      // use the key fails loudly instead of deriving garbage.
+      await File(
+        '${tempDir.path}/credentials.kdf',
+      ).writeAsBytes([0xFF, 0xFF, 0xFF, 0xFF]);
+      await File(
+        '${tempDir.path}/credentials.verify',
+      ).writeAsBytes(List.filled(32, 0x00));
+
+      final fresh = MasterPasswordManager(basePath: tempDir.path);
+      expect(await fresh.isEnabled(), isTrue);
+      expect(
+        () => fresh.deriveKey('anything'),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('verifier with wrong key returns false, never throws', () async {
+      // Regression: a bad verifier file (GCM tag mismatch) must return
+      // `verify=false`, not propagate a pointycastle InvalidCipherTextException
+      // through the async gap.
+      await manager.enable('correct1');
+      // Corrupt the last byte of the verifier (GCM tag).
+      final vf = File('${tempDir.path}/credentials.verify');
+      final bytes = await vf.readAsBytes();
+      final corrupted = Uint8List.fromList(bytes);
+      corrupted[corrupted.length - 1] ^= 0xFF;
+      await vf.writeAsBytes(corrupted);
+
+      // Must return false (decrypt fails), not throw.
+      expect(await manager.verify('correct1'), isFalse);
     });
   });
 

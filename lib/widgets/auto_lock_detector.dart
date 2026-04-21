@@ -1,49 +1,48 @@
-import 'dart:async';
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/lock_state.dart';
-import '../core/security/security_level.dart';
+import '../core/security/security_tier.dart';
+import '../core/security/session_lock_listener.dart';
+import '../core/security/terminal_scrubber.dart';
 import '../providers/auto_lock_provider.dart';
-import '../providers/connection_provider.dart';
+import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
+import '../providers/session_provider.dart';
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
-/// minutes of user inactivity when security level is `masterPassword`.
+/// minutes of user inactivity when a user-typed secret is configured.
 ///
 /// What "lock" means:
 ///   * The global [lockStateProvider] flips to `true`; the root widget
 ///     swaps the UI for a lock screen that blocks interaction until the
-///     user re-authenticates (master password or biometrics). **Always**
-///     fires when the timer expires.
-///   * The in-memory DB key is zeroed via
-///     `securityStateProvider.clearEncryption()` — but **only when no
-///     SSH/SFTP sessions are active**. The session count comes from
-///     [connectionManagerProvider]. The reasoning: clearing the key kills
-///     any future DB read but keeps the live SSH connections alive (they
-///     run in dartssh2 isolates with their own state); however, the user
-///     will likely want to interact with those sessions, and the moment
-///     they tap to bring up SFTP for one we'd hit a locked DB. Easier UX
-///     to just keep the key warm until everything is idle. Re-evaluation
-///     happens on the next idle tick / lifecycle event, so the DB does
-///     eventually get re-locked once the user finishes.
+///     user re-authenticates (master password or biometrics).
+///   * The in-memory DB key is **always** zeroed via
+///     `securityStateProvider.clearEncryption()` — regardless of whether
+///     active SSH sessions are present. Previously the wipe was gated
+///     on `activeSessions.isEmpty` to keep SFTP reachable, which meant
+///     RAM forensics of a locked app could still recover the DB key as
+///     long as one session was connected — flattening T1+password and
+///     T2+password in the threat matrix. The gate is removed; live
+///     session reconnect is satisfied instead by
+///     `SessionCredentialCache` (per-session page-locked auth envelope
+///     that survives the lock), so the encrypted store can close
+///     without losing the "reconnect after unlock" UX.
+///   * The drift / SQLCipher handle is closed so the C-layer page
+///     cipher cache is also zeroed. `main._injectDatabase` opens a
+///     fresh handle after unlock under the re-derived key.
 ///
 /// Triggers:
 ///   * Idle timer (user inactivity past the configured timeout).
 ///   * OS lifecycle going to `paused` / `inactive` / `hidden` — same as
 ///     the user actively switching away. The lock fires immediately so
 ///     the screen is already overlaid by the time the OS lock screen
-///     dismisses. (Same gating: DB only re-locked if no live sessions.)
-///
-/// What it does NOT do:
-///   * Close the drift database file handle. SQLite3MultipleCiphers still
-///     has the cipher key in its internal page-cipher runtime state, so
-///     DB reads continue to work until the app is restarted. Closing and
-///     re-opening the DB would require coordinating with every open SSH
-///     session, which is the trade-off the session-count gate above is
-///     specifically designed to avoid.
+///     dismisses.
+///   * OS session-lock signal (Win+L / Ctrl+Cmd+Q / GNOME screensaver)
+///     via [SessionLockListener].
 ///
 /// Activity tracking: any pointer, keyboard, or focus event resets the
 /// timer. Two mouse moves per second is enough to keep it alive.
@@ -60,11 +59,27 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     with WidgetsBindingObserver {
   Timer? _timer;
   Duration _timeout = Duration.zero;
+  final SessionLockListener _sessionLockListener = SessionLockListener();
+  VoidCallback? _sessionLockDispose;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Bind the OS session-lock signal into the same lock path as the
+    // idle timer + lifecycle-paused hook. When the user locks the
+    // workstation (Win+L / Ctrl+Cmd+Q / GNOME screensaver etc) we
+    // fire lockNow immediately regardless of how much idle time
+    // has accumulated.
+    _sessionLockDispose = _sessionLockListener.addListener(() {
+      if (!mounted) return;
+      if (!_hasTypedSecret()) return;
+      AppLogger.instance.log(
+        'OS session-lock signal received; firing auto-lock',
+        name: 'AutoLock',
+      );
+      _triggerLock();
+    });
   }
 
   @override
@@ -80,11 +95,24 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
         state != AppLifecycleState.hidden) {
       return;
     }
-    final level = ref.read(securityStateProvider).level;
-    if (level != SecurityLevel.masterPassword) return;
+    if (!_hasTypedSecret()) return;
     final minutes = ref.read(autoLockMinutesProvider);
     if (minutes <= 0) return;
     _triggerLock();
+  }
+
+  /// True when the active tier has a user-typed secret (either
+  /// Paranoid, or any tier with the password modifier on). Auto-lock
+  /// is meaningful only on these tiers — a tier without a typed
+  /// secret has nothing to re-prompt for after the lock.
+  bool _hasTypedSecret() {
+    final level = ref.read(securityStateProvider).level;
+    if (level == SecurityTier.paranoid) return true;
+    if (level == SecurityTier.keychainWithPassword) return true;
+    final modifiers =
+        ref.read(configProvider).security?.modifiers ??
+        SecurityTierModifiers.defaults;
+    return modifiers.password;
   }
 
   @override
@@ -120,6 +148,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
 
   @override
   void dispose() {
+    _sessionLockDispose?.call();
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
@@ -131,8 +160,8 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     _syncTimer(minutes, level);
   }
 
-  void _syncTimer(int minutes, SecurityLevel level) {
-    final enabled = minutes > 0 && level == SecurityLevel.masterPassword;
+  void _syncTimer(int minutes, SecurityTier level) {
+    final enabled = minutes > 0 && _hasTypedSecret();
     if (!enabled) {
       _timer?.cancel();
       _timer = null;
@@ -154,22 +183,30 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   void _triggerLock() {
     final locked = ref.read(lockStateProvider);
     if (locked) return;
-    final activeSessions = ref.read(connectionManagerProvider).connections;
-    final hasSessions = activeSessions.isNotEmpty;
     AppLogger.instance.log(
       'Auto-lock triggered (idle=${_timeout.inMinutes}m, '
-      'activeSessions=${activeSessions.length}, '
-      'clearKey=${!hasSessions})',
+      'keyWiped=true, dbClosed=true)',
       name: 'AutoLock',
     );
     // Always overlay the lock screen — that's the user-visible "locked" state.
     ref.read(lockStateProvider.notifier).lock();
-    // Only clear the in-memory DB key when no SSH sessions are running.
-    // With live sessions, keep the key warm so the user can immediately
-    // interact with their connections after unlocking. The next idle
-    // tick / lifecycle event re-evaluates and eventually re-locks the DB.
-    if (!hasSessions) {
-      ref.read(securityStateProvider.notifier).clearEncryption();
-    }
+    // Scrub terminal scrollbacks BEFORE the user sees the lock
+    // overlay. A password the user pasted into a terminal, or a
+    // secret the remote shell echoed back, sits in xterm's
+    // scrollback buffer long after the viewport scrolls past it —
+    // a second person who taps the lock screen can scroll up and
+    // read it. Clearing the scrollback is cheap even when no
+    // terminals are registered (empty-set iteration).
+    TerminalScrubber.instance.scrubAll();
+    // Unconditionally zero the in-memory DB key and close the
+    // drift / SQLCipher handle. Live SSH sessions stay reconnectable
+    // because `SessionCredentialCache` (populated on connect, kept
+    // alive across the lock) holds each session's auth envelope in
+    // page-locked memory outside the DB. The next idle tick / unlock
+    // re-opens the DB via `main._injectDatabase` under the freshly
+    // re-derived key.
+    ref.read(securityStateProvider.notifier).clearEncryption();
+    // Fire-and-forget — UI must not block on a close.
+    unawaited(ref.read(sessionStoreProvider).closeDatabase());
   }
 }

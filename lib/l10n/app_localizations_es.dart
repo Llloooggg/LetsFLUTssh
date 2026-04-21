@@ -15,6 +15,12 @@ class SEs extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Protege contra';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'No protege contra';
+
+  @override
   String get cancel => 'Cancelar';
 
   @override
@@ -801,6 +807,171 @@ class SEs extends S {
   String get passwordsDoNotMatch => 'Las contraseñas no coinciden';
 
   @override
+  String get passwordStrengthWeak => 'Débil';
+
+  @override
+  String get passwordStrengthModerate => 'Media';
+
+  @override
+  String get passwordStrengthStrong => 'Fuerte';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Muy fuerte';
+
+  @override
+  String get tierRecommendedBadge => 'Recomendado';
+
+  @override
+  String get tierCurrentBadge => 'Actual';
+
+  @override
+  String get tierAlternativeBranchLabel => 'Alternativa — no confíes en el SO';
+
+  @override
+  String get tierUpcomingTooltip => 'Llega en una versión futura.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'La infraestructura subyacente de este nivel aún no se ha lanzado. La fila es visible para que sepas que la opción existe.';
+
+  @override
+  String get tierPlaintextLabel => 'Texto plano';
+
+  @override
+  String get tierPlaintextSubtitle => 'Sin cifrado — solo permisos de archivo';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Cualquiera con acceso al sistema de archivos lee tus datos';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Sincronización o respaldo accidental lo revela todo';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Usar solo en entornos confiables y aislados.';
+
+  @override
+  String get tierKeychainLabel => 'Llavero';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'La clave vive en $keychain — desbloqueo automático al iniciar';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Otros usuarios en la misma máquina';
+
+  @override
+  String get tierKeychainProtect2 =>
+      'Disco robado sin el inicio de sesión del SO';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'Malware que se ejecuta bajo tu cuenta del SO';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Atacante que toma control de tu inicio de sesión del SO';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'El llavero del SO no está disponible en esta instalación.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Compañero sentado en tu escritorio';
+
+  @override
+  String get tierKeychainPassProtect2 =>
+      'Un transeúnte con acceso desbloqueado';
+
+  @override
+  String get tierKeychainPassThreat1 =>
+      'Atacante sin conexión con el archivo en disco';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Mismos riesgos de compromiso del SO que el llavero';
+
+  @override
+  String get tierHardwareLabel => 'Hardware';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Bóveda vinculada al hardware + PIN corto con bloqueo';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Fuerza bruta offline del PIN (límite de tasa por hardware)';
+
+  @override
+  String get tierHardwareProtect2 => 'Robo del disco y del blob del llavero';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE de SO o firmware en el módulo seguro';
+
+  @override
+  String get tierHardwareThreat2 =>
+      'Desbloqueo biométrico forzado (si está habilitado)';
+
+  @override
+  String get tierParanoidLabel => 'Contraseña maestra (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Contraseña larga + Argon2id. La clave nunca entra en el SO.';
+
+  @override
+  String get tierParanoidProtect1 => 'Compromiso del llavero del SO';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Disco robado (siempre que tu contraseña sea fuerte)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger capturando tu contraseña';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'Contraseña débil + craqueo Argon2id offline';
+
+  @override
+  String get tierParanoidNotes =>
+      'La biometría está deshabilitada por diseño en este nivel.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'Bóveda de hardware no disponible en esta instalación.';
+
+  @override
+  String get pinLabel => 'Contraseña';
+
+  @override
+  String get l2UnlockTitle => 'Contraseña requerida';
+
+  @override
+  String get l2UnlockHint => 'Introduce tu contraseña corta para continuar';
+
+  @override
+  String get l2WrongPassword => 'Contraseña incorrecta';
+
+  @override
+  String get l3UnlockTitle => 'Introducir contraseña';
+
+  @override
+  String get l3UnlockHint =>
+      'La contraseña desbloquea la bóveda vinculada al hardware';
+
+  @override
+  String get l3WrongPin => 'Contraseña incorrecta';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Reintentar en $seconds s';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Exportado a: $path';
   }
@@ -828,6 +999,9 @@ class SEs extends S {
 
   @override
   String get dataLocation => 'Ubicación de los datos';
+
+  @override
+  String get dataStorageSection => 'Almacenamiento';
 
   @override
   String get pathCopied => 'Ruta copiada al portapapeles';
@@ -1191,7 +1365,7 @@ class SEs extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Evita escribir la contraseña maestra al iniciar la aplicación.';
+      'Evita escribir la contraseña: desbloquea con el sensor biométrico del dispositivo.';
 
   @override
   String get biometricNotAvailable =>
@@ -1227,8 +1401,15 @@ class SEs extends S {
       'Este dispositivo no tiene sensor biométrico.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'Primero establezca una contraseña maestra para habilitar el bloqueo automático.';
+  String get biometricSystemServiceMissing =>
+      'El servicio de huella dactilar (fprintd) no está instalado. Ver README → Instalación.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Respaldado por hardware (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Respaldado por software';
 
   @override
   String get currentPasswordIncorrect => 'La contraseña actual es incorrecta';
@@ -1258,7 +1439,7 @@ class SEs extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Bloquea la interfaz tras este periodo de inactividad. La base de datos cifrada solo se vuelve a bloquear cuando no hay sesiones SSH activas, para no interrumpir operaciones largas.';
+      'Bloquea la interfaz tras este periodo de inactividad. La clave de la base de datos se borra y el almacén cifrado se cierra en cada bloqueo; las sesiones activas siguen conectadas gracias a una caché de credenciales por sesión que se limpia al cerrar la sesión.';
 
   @override
   String get autoLockOff => 'Desactivado';
@@ -1292,6 +1473,10 @@ class SEs extends S {
   @override
   String get errLfsDecryptFailed =>
       'Contraseña maestra incorrecta o archivo .lfs dañado';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'El archivo está incompleto. Descárguelo de nuevo o reexpórtelo desde el dispositivo original.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1667,6 +1852,13 @@ class SEs extends S {
   String get generateKey => 'Generar clave';
 
   @override
+  String get addKey => 'Agregar clave';
+
+  @override
+  String get filePickerUnavailable =>
+      'Selector de archivos no disponible en este sistema';
+
+  @override
   String get importKey => 'Importar clave';
 
   @override
@@ -1821,6 +2013,46 @@ class SEs extends S {
       'Todas las credenciales guardadas han sido eliminadas';
 
   @override
+  String get migrationToast => 'Almacenamiento actualizado al formato actual';
+
+  @override
+  String get dbCorruptTitle => 'No se puede abrir la base de datos';
+
+  @override
+  String get dbCorruptBody =>
+      'Los datos en el disco no se pueden abrir. Prueba con credenciales distintas o restablece y empieza de nuevo.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Restablecer eliminará permanentemente la base de datos cifrada y todos los archivos relacionados con la seguridad. No se recuperará ningún dato.';
+
+  @override
+  String get dbCorruptTryOther => 'Probar otras credenciales';
+
+  @override
+  String get dbCorruptResetContinue => 'Restablecer y configurar';
+
+  @override
+  String get dbCorruptExit => 'Salir de LetsFLUTssh';
+
+  @override
+  String get tierResetTitle => 'Se requiere restablecer la seguridad';
+
+  @override
+  String get tierResetBody =>
+      'Esta instalación contiene datos de seguridad de una versión anterior de LetsFLUTssh que usaba un modelo de niveles diferente. El nuevo modelo es un cambio incompatible — no existe ruta de migración automática. Para continuar, todas las sesiones guardadas, credenciales, claves SSH y hosts conocidos de esta instalación deben borrarse y el asistente de configuración inicial debe ejecutarse de nuevo.';
+
+  @override
+  String get tierResetWarning =>
+      'Elegir «Restablecer y configurar de nuevo» eliminará permanentemente la base de datos cifrada y todos los archivos de seguridad. Si necesita recuperar sus datos, cierre la aplicación ahora y reinstale la versión anterior de LetsFLUTssh para exportarlos primero.';
+
+  @override
+  String get tierResetResetContinue => 'Restablecer y configurar de nuevo';
+
+  @override
+  String get tierResetExit => 'Salir de LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Derivando clave de cifrado...';
 
   @override
@@ -1897,6 +2129,203 @@ class SEs extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'Establecer, cambiar o eliminar contraseña maestra';
+
+  @override
+  String get changeSecurityTier => 'Cambiar nivel de seguridad';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Abrir la escalera de niveles y pasar a un nivel de seguridad diferente';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Recifrando la base de datos con el nuevo nivel. No se puede interrumpir — mantén la app abierta hasta que termine.';
+
+  @override
+  String get changeSecurityTierDone => 'Nivel de seguridad cambiado';
+
+  @override
+  String get changeSecurityTierFailed =>
+      'No se pudo cambiar el nivel de seguridad';
+
+  @override
+  String get firstLaunchSecurityTitle => 'Almacenamiento seguro activado';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Tus datos están cifrados con una clave guardada en el llavero del sistema. El desbloqueo en este dispositivo es automático.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Hay almacenamiento respaldado por hardware disponible en este dispositivo. Actualiza en Ajustes → Seguridad para vincular con TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Almacenamiento por hardware no disponible: no se ha detectado TPM 2.0 en este dispositivo.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Almacenamiento por hardware no disponible: este dispositivo no reporta un Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Almacenamiento por hardware no disponible: instala tpm2-tools y un dispositivo TPM 2.0 para habilitarlo.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Almacenamiento por hardware no disponible: este dispositivo no reporta StrongBox ni TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Almacenamiento por hardware no disponible en este dispositivo.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Abrir ajustes';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Entendido';
+
+  @override
+  String get securityHardwareUpgradeTitle =>
+      'Almacenamiento por hardware disponible';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Actualiza para vincular los secretos a TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Actualizar';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Almacenamiento por hardware no disponible';
+
+  @override
+  String get wizardReducedBanner =>
+      'El llavero del sistema no es accesible en esta instalación. Elige entre sin cifrado (T0) y una contraseña maestra (Paranoid). Instala gnome-keyring, kwallet u otro proveedor de libsecret para habilitar el nivel Keychain.';
+
+  @override
+  String get tierBlockProtectsHeader => 'PROTEGE CONTRA';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'NO PROTEGE';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Nada en este nivel.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'Sin amenazas sin cubrir.';
+
+  @override
+  String get tierBadgeCurrent => 'Actual';
+
+  @override
+  String get securitySetupEnable => 'Activar';
+
+  @override
+  String get securitySetupApply => 'Aplicar';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'El nivel sin cifrado no almacena secretos que proteger con una contraseña.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid deriva la clave de la base de datos de la contraseña — siempre está activada.';
+
+  @override
+  String get passwordSubtitleOn =>
+      'Activada — se pide contraseña al desbloquear';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Desactivada — toca para añadir una contraseña en este nivel';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Obligatoria — la contraseña maestra es el secreto del nivel';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'No aplicable — este nivel no tiene cifrado';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      'No se detectó TPM en /dev/tpmrm0. Activa fTPM / PTT en la BIOS si la máquina lo admite; de lo contrario el nivel de hardware no está disponible en este dispositivo.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools no está instalado. Ejecuta `sudo apt install tpm2-tools` (o el equivalente de tu distribución) para habilitar el nivel de hardware.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'La prueba del nivel de hardware falló. Revisa los permisos de /dev/tpmrm0 y las reglas de udev — detalles en los registros.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'No se detectó TPM 2.0. Activa fTPM / PTT en el firmware UEFI, o acepta que el nivel de hardware no está disponible en este dispositivo — la app recurre al almacén de credenciales por software.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ni el Microsoft Platform Crypto Provider ni el Software Key Storage Provider están accesibles — probablemente un subsistema criptográfico de Windows dañado o una directiva de grupo que bloquea CNG. Revisa Visor de eventos → Registros de aplicaciones y servicios.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Este Mac no tiene Secure Enclave (Intel Mac anterior a 2017 sin chip de seguridad T1 / T2). El nivel de hardware no está disponible; usa la contraseña maestra.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'No hay contraseña de inicio de sesión en este Mac. Secure Enclave requiere una — establece una en Ajustes del sistema → Touch ID y contraseña (o Contraseña de inicio).';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave rechazó la identidad de firma de la aplicación (-34018). Ejecuta el script `macos-resign.sh` incluido con la versión para darle a esta instalación una identidad autofirmada estable y reinicia la aplicación.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'No hay código del dispositivo establecido. Secure Enclave requiere uno — establece un código en Ajustes → Face ID y código (o Touch ID y código).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Ejecutándose en el Simulador de iOS, que no tiene Secure Enclave. El nivel de hardware solo está disponible en dispositivos iOS físicos.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Se requiere Android 9 o superior para el nivel de hardware (StrongBox y la invalidación por cambio de biometría no son fiables en versiones anteriores).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Este dispositivo no tiene hardware biométrico (huella o rostro). Usa la contraseña maestra.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'No hay biometría registrada. Agrega una huella o rostro en Ajustes → Seguridad y privacidad → Biometría, luego vuelve a habilitar el nivel de hardware.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Hardware biométrico temporalmente inutilizable (bloqueo por intentos fallidos o actualización de seguridad pendiente). Reintenta en unos minutos.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'El Keystore de Android rechazó respaldar una clave de hardware en esta build del dispositivo (StrongBox no disponible, ROM personalizada o falla del controlador). El nivel de hardware no está disponible.';
+
+  @override
+  String get securityRecheck => 'Volver a comprobar el soporte de niveles';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Soporte de niveles actualizado — ver tarjetas arriba';
+
+  @override
+  String get securityRecheckUnchanged => 'Soporte de niveles sin cambios';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus está activo pero ningún secret-service daemon está ejecutándose. Instala gnome-keyring (`sudo apt install gnome-keyring`) o KWalletManager y asegúrate de que se inicie al iniciar sesión.';
+
+  @override
+  String get keyringProbeFailed =>
+      'El keychain del sistema no está accesible en este dispositivo. Consulta los registros para el error específico; la app recurre a la contraseña maestra.';
 
   @override
   String get snippets => 'Snippets';
@@ -2150,4 +2579,232 @@ class SEs extends S {
 
   @override
   String get continueWithoutPassword => 'Continuar sin contraseña';
+
+  @override
+  String get threatColdDiskTheft => 'Robo de disco apagado';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Equipo apagado con la unidad extraída y leída en otro ordenador, o una copia del archivo de la base de datos hecha por alguien con acceso a tu carpeta personal.';
+
+  @override
+  String get threatKeyringFileTheft => 'Robo del archivo keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Un atacante lee el archivo del almacén de credenciales del sistema directamente del disco (libsecret keyring, Credential Manager de Windows, login keychain de macOS) y recupera de él la clave de la base de datos envuelta. El nivel de hardware lo bloquea con independencia de la contraseña porque el chip se niega a exportar el material de clave; el nivel de keychain necesita además una contraseña, de lo contrario el archivo robado se desenvuelve con la sola contraseña de inicio de sesión del SO.';
+
+  @override
+  String get modifierOnlyWithPassword => 'solo con contraseña';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Curioso frente a un equipo desbloqueado';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Alguien se acerca a tu ordenador ya desbloqueado y abre la aplicación mientras estás ausente.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Análisis forense de RAM en equipo bloqueado';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Un atacante congela la RAM (o la captura por DMA) y extrae material de clave aún residente desde la instantánea, incluso con la aplicación bloqueada.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Compromiso del kernel del SO o del llavero';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Vulnerabilidad del kernel, exfiltración del llavero o una puerta trasera en el chip de seguridad de hardware. El sistema operativo pasa de recurso de confianza a atacante.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Fuerza bruta sin conexión sobre contraseña débil';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Un atacante con una copia de la clave envuelta o del blob sellado prueba cada contraseña a su propio ritmo, sin ningún limitador de velocidad.';
+
+  @override
+  String get legendProtects => 'Protegido';
+
+  @override
+  String get legendDoesNotProtect => 'No protegido';
+
+  @override
+  String get legendNotApplicable =>
+      'No aplicable — este nivel no tiene un secreto de usuario';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Contraseña débil aceptable — otra capa (limitador de hardware o vínculo de clave envuelta) asume la seguridad';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Se recomienda encarecidamente una frase de contraseña larga — la seguridad de este nivel depende de ella';
+
+  @override
+  String get colT0 => 'T0 Texto plano';
+
+  @override
+  String get colT1 => 'T1 Llavero';
+
+  @override
+  String get colT1Password => 'T1 + contraseña';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + contraseña + biometría';
+
+  @override
+  String get colT2 => 'T2 Hardware';
+
+  @override
+  String get colT2Password => 'T2 + contraseña';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + contraseña + biometría';
+
+  @override
+  String get colParanoid => 'Paranoico';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Niveles de seguridad — comparación lado a lado';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Amenaza';
+
+  @override
+  String get compareAllTiers => 'Comparar todos los niveles';
+
+  @override
+  String get resetAllDataTitle => 'Restablecer todos los datos';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Eliminar todas las sesiones, claves, configuraciones y artefactos de seguridad. También borra las entradas del llavero y las ranuras del almacén de hardware.';
+
+  @override
+  String get resetAllDataConfirmTitle => '¿Restablecer todos los datos?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Todas las sesiones, claves SSH, known hosts, fragmentos, etiquetas, preferencias y todos los artefactos de seguridad (entradas del llavero, datos del almacén de hardware, superposición biométrica) se eliminarán de forma permanente. Esto no se puede deshacer.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Restablecer todo';
+
+  @override
+  String get resetAllDataInProgress => 'Restableciendo…';
+
+  @override
+  String get resetAllDataDone => 'Todos los datos restablecidos';
+
+  @override
+  String get resetAllDataFailed => 'Error al restablecer';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'Vea, lado a lado, contra qué protege cada nivel.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'El bloqueo automático requiere una contraseña en el nivel activo.';
+
+  @override
+  String get recommendedBadge => 'RECOMENDADO';
+
+  @override
+  String get continueWithRecommended => 'Continuar con el recomendado';
+
+  @override
+  String get customizeSecurity => 'Personalizar seguridad';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Avanzado: clave vinculada al hardware. Los datos son irrecuperables si el chip de este dispositivo se pierde o se reemplaza.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternativa: contraseña maestra, sin confianza en el OS. Protege contra el compromiso del OS. No mejora la protección en tiempo de ejecución respecto a T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Las amenazas en runtime (malware del mismo usuario, volcado de memoria del proceso en ejecución) se muestran como ✗ en todos los niveles. Se abordan mediante funciones de mitigación independientes que se aplican sin importar el nivel elegido.';
+
+  @override
+  String get securitySetupContinue => 'Continuar';
+
+  @override
+  String get currentTierBadge => 'ACTUAL';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIVA';
+
+  @override
+  String get modifierPasswordLabel => 'Contraseña';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Barrera de secreto escrito antes de desbloquear la bóveda.';
+
+  @override
+  String get modifierBiometricLabel => 'Atajo biométrico';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Liberar la contraseña de una ranura del sistema protegida por biometría, en lugar de escribirla.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Active primero una contraseña — la biometría es un atajo para introducirla.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'Primero selecciona este nivel para activar el desbloqueo biométrico';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Primero selecciona este nivel para configurar el bloqueo automático';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid no permite biometría por diseño.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd no instalado o sin huellas registradas.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'El TPM sin contraseña proporciona aislamiento, no autenticación. Cualquier persona que pueda ejecutar esta aplicación puede desbloquear los datos.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Se recomienda encarecidamente una frase de contraseña larga — Argon2id solo ralentiza la fuerza bruta, no la impide.';
+
+  @override
+  String get plaintextWarningTitle => 'Texto plano: sin cifrado';
+
+  @override
+  String get plaintextWarningBody =>
+      'Las sesiones, claves y known hosts se almacenarán sin cifrar. Cualquier persona con acceso al sistema de archivos de este equipo podrá leerlos.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Entiendo que mis datos no estarán cifrados';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Confirme que lo entiende antes de continuar.';
+
+  @override
+  String get passwordLabel => 'Contraseña';
+
+  @override
+  String get masterPasswordLabel => 'Contraseña maestra';
 }

@@ -182,9 +182,39 @@ class KeyStore {
     _cache?.remove(id);
   }
 
-  /// Find the id of a stored key whose private material matches [privateKey].
-  /// Returns null if no match. Comparison uses a normalized SHA-256
-  /// fingerprint, tolerating trailing whitespace and line-ending differences.
+  /// Find the id of a stored key whose material matches [entry].
+  /// Returns null if no match.
+  ///
+  /// Prefers the public-key fingerprint — public key bytes never leave
+  /// the secure store via this path, so dedup runs without pulling
+  /// private material through an isolate just to hash it. Falls back to
+  /// the private-key fingerprint only when [entry.publicKey] is empty
+  /// (a rare path for keys imported without an extracted public half).
+  Future<String?> findIdByKeyMaterial(SshKeyEntry entry) async {
+    final all = await loadAll();
+    final publicTarget = publicKeyFingerprint(entry.publicKey);
+    if (publicTarget.isNotEmpty) {
+      for (final stored in all.values) {
+        if (publicKeyFingerprint(stored.publicKey) == publicTarget) {
+          return stored.id;
+        }
+      }
+      return null;
+    }
+    final privateTarget = privateKeyFingerprint(entry.privateKey);
+    if (privateTarget.isEmpty) return null;
+    for (final stored in all.values) {
+      if (privateKeyFingerprint(stored.privateKey) == privateTarget) {
+        return stored.id;
+      }
+    }
+    return null;
+  }
+
+  /// Thin back-compat alias. New call sites use [findIdByKeyMaterial]
+  /// so dedup starts on the public half; legacy call sites keep working
+  /// while the rename propagates.
+  @Deprecated('Use findIdByKeyMaterial; public-key fingerprint is preferred')
   Future<String?> findIdByPrivateKey(String privateKey) async {
     final target = privateKeyFingerprint(privateKey);
     if (target.isEmpty) return null;
@@ -197,15 +227,17 @@ class KeyStore {
 
   /// Import a key from another source (QR/.lfs), deduplicating by content.
   ///
-  /// - If a stored key has the same private-key fingerprint, returns its id
-  ///   without writing anything (no duplicates).
-  /// - Otherwise, inserts a new entry. The id is replaced with a fresh UUID
-  ///   to avoid colliding with an unrelated stored key that happens to share
-  ///   the imported id. If the label already exists, a "(copy)"/"(copy N)"
-  ///   suffix is appended — mirrors session duplication semantics.
+  /// - If a stored key has the same public-key fingerprint (or private-
+  ///   key fingerprint as fallback), returns its id without writing
+  ///   anything — no duplicates.
+  /// - Otherwise, inserts a new entry. The id is replaced with a fresh
+  ///   UUID to avoid colliding with an unrelated stored key that
+  ///   happens to share the imported id. If the label already exists, a
+  ///   "(copy)"/"(copy N)" suffix is appended — mirrors session
+  ///   duplication semantics.
   Future<String> importForMerge(SshKeyEntry entry) async {
     final all = await loadAll();
-    final existingId = await findIdByPrivateKey(entry.privateKey);
+    final existingId = await findIdByKeyMaterial(entry);
     if (existingId != null) return existingId;
 
     final labels = all.values.map((e) => e.label).toSet();
@@ -237,15 +269,33 @@ class KeyStore {
     return '$base (copy $n)';
   }
 
-  /// SHA-256 hex of a normalized private key PEM. Used as a content-addressable
-  /// id for deduplicating imported manager keys.
+  /// SHA-256 hex of a normalized public key (OpenSSH single-line form).
+  /// Used as a content-addressable id for deduplicating imported manager
+  /// keys without running the hash over private material.
+  ///
+  /// Public keys are normalized by trimming surrounding whitespace and
+  /// collapsing CRLF — the key-type prefix and base64 body are stable
+  /// enough that this matches OpenSSH's own dedup behaviour.
+  static String publicKeyFingerprint(String publicKey) {
+    final normalized = publicKey.replaceAll('\r\n', '\n').trim();
+    if (normalized.isEmpty) return '';
+    return _sha256Hex(utf8.encode(normalized));
+  }
+
+  /// SHA-256 hex of a normalized private key PEM. Retained only as a
+  /// fallback for entries that lack an extracted public half. Prefer
+  /// [publicKeyFingerprint] everywhere else.
   static String privateKeyFingerprint(String privateKey) {
     final normalized = privateKey.replaceAll('\r\n', '\n').trim();
     if (normalized.isEmpty) return '';
+    return _sha256Hex(utf8.encode(normalized));
+  }
+
+  static String _sha256Hex(List<int> bytes) {
     final digest = SHA256Digest();
-    final bytes = digest.process(Uint8List.fromList(utf8.encode(normalized)));
+    final out = digest.process(Uint8List.fromList(bytes));
     final buf = StringBuffer();
-    for (final b in bytes) {
+    for (final b in out) {
       buf.write(b.toRadixString(16).padLeft(2, '0'));
     }
     return buf.toString();

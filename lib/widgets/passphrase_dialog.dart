@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'secure_password_field.dart';
 
 /// Result from passphrase dialog.
 class PassphraseResult {
@@ -91,12 +92,11 @@ class _PassphraseDialogWidgetState extends State<_PassphraseDialogWidget> {
           const SizedBox(height: 12),
           SizedBox(
             height: AppTheme.controlHeightSm,
-            child: TextField(
+            child: SecurePasswordField(
               controller: _controller,
               obscureText: _obscure,
               autofocus: true,
               onSubmitted: (_) => _submit(),
-              style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: s.passphrase,

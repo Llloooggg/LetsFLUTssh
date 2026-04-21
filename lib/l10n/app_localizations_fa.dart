@@ -15,6 +15,12 @@ class SFa extends S {
   String get ok => 'تأیید';
 
   @override
+  String get infoDialogProtectsHeader => 'محافظت می‌کند در برابر';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'محافظت نمی‌کند در برابر';
+
+  @override
   String get cancel => 'لغو';
 
   @override
@@ -794,6 +800,167 @@ class SFa extends S {
   String get passwordsDoNotMatch => 'رمزهای عبور مطابقت ندارند';
 
   @override
+  String get passwordStrengthWeak => 'ضعیف';
+
+  @override
+  String get passwordStrengthModerate => 'متوسط';
+
+  @override
+  String get passwordStrengthStrong => 'قوی';
+
+  @override
+  String get passwordStrengthVeryStrong => 'بسیار قوی';
+
+  @override
+  String get tierRecommendedBadge => 'توصیه شده';
+
+  @override
+  String get tierCurrentBadge => 'فعلی';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'گزینه جایگزین — به سیستم‌عامل اعتماد نکنید';
+
+  @override
+  String get tierUpcomingTooltip => 'در نسخه‌ای آینده ارائه می‌شود.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'زیرساخت این لایه هنوز ارائه نشده است. ردیف قابل مشاهده است تا بدانید این گزینه وجود دارد.';
+
+  @override
+  String get tierPlaintextLabel => 'متن ساده';
+
+  @override
+  String get tierPlaintextSubtitle => 'بدون رمزنگاری — فقط مجوزهای فایل';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'هر کسی با دسترسی به سیستم فایل داده‌های شما را می‌خواند';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'همگام‌سازی یا پشتیبان‌گیری تصادفی همه چیز را فاش می‌کند';
+
+  @override
+  String get tierPlaintextNotes =>
+      'فقط در محیط‌های مورد اعتماد و منزوی استفاده کنید.';
+
+  @override
+  String get tierKeychainLabel => 'زنجیره کلید';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'کلید در $keychain زندگی می‌کند — باز شدن خودکار هنگام راه‌اندازی';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'کاربران دیگر روی همان دستگاه';
+
+  @override
+  String get tierKeychainProtect2 => 'دیسک دزدیده شده بدون ورود به سیستم‌عامل';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'بدافزاری که تحت حساب سیستم‌عامل شما اجرا می‌شود';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'مهاجمی که ورود به سیستم‌عامل شما را به دست می‌گیرد';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'زنجیره کلید سیستم‌عامل در این نصب در دسترس نیست.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'همکاری که پشت میز شما می‌نشیند';
+
+  @override
+  String get tierKeychainPassProtect2 => 'رهگذری با دسترسی باز';
+
+  @override
+  String get tierKeychainPassThreat1 => 'مهاجم آفلاین با فایل روی دیسک';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'همان خطرات سازش سیستم‌عامل مانند زنجیره کلید';
+
+  @override
+  String get tierHardwareLabel => 'سخت‌افزار';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'خزانه مرتبط با سخت‌افزار + PIN کوتاه با قفل';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'حمله brute-force آفلاین روی PIN (محدودیت نرخ سخت‌افزاری)';
+
+  @override
+  String get tierHardwareProtect2 => 'سرقت دیسک و blob زنجیره کلید';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE سیستم‌عامل یا firmware روی ماژول امن';
+
+  @override
+  String get tierHardwareThreat2 => 'بازگشایی اجباری بیومتریک (اگر فعال باشد)';
+
+  @override
+  String get tierParanoidLabel => 'رمز عبور اصلی (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'رمز عبور طولانی + Argon2id. کلید هرگز وارد سیستم‌عامل نمی‌شود.';
+
+  @override
+  String get tierParanoidProtect1 => 'سازش زنجیره کلید سیستم‌عامل';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'دیسک دزدیده شده (تا زمانی که رمز عبور شما قوی باشد)';
+
+  @override
+  String get tierParanoidThreat1 => 'کیلاگری که رمز عبور شما را ضبط می‌کند';
+
+  @override
+  String get tierParanoidThreat2 => 'رمز عبور ضعیف + شکستن Argon2id آفلاین';
+
+  @override
+  String get tierParanoidNotes =>
+      'بیومتریک به طور طراحی در این لایه غیرفعال است.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'گاوصندوق سخت‌افزاری در این نصب در دسترس نیست.';
+
+  @override
+  String get pinLabel => 'رمز عبور';
+
+  @override
+  String get l2UnlockTitle => 'گذرواژه لازم است';
+
+  @override
+  String get l2UnlockHint => 'برای ادامه گذرواژه کوتاه خود را وارد کنید';
+
+  @override
+  String get l2WrongPassword => 'گذرواژه اشتباه';
+
+  @override
+  String get l3UnlockTitle => 'رمز عبور را وارد کنید';
+
+  @override
+  String get l3UnlockHint =>
+      'رمز عبور، گاوصندوق وابسته به سخت‌افزار را باز می‌کند';
+
+  @override
+  String get l3WrongPin => 'رمز عبور اشتباه';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return '$seconds ثانیه دیگر تلاش کنید';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'خروجی گرفته شد به: $path';
   }
@@ -821,6 +988,9 @@ class SFa extends S {
 
   @override
   String get dataLocation => 'محل داده';
+
+  @override
+  String get dataStorageSection => 'ذخیره‌سازی';
 
   @override
   String get pathCopied => 'مسیر در کلیپ‌بورد کپی شد';
@@ -1180,7 +1350,7 @@ class SFa extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'هنگام اجرای برنامه نیازی به تایپ گذرواژهٔ اصلی نباشد.';
+      'گذرواژه را تایپ نکنید — با حسگر زیست‌سنجی دستگاه قفل را باز کنید.';
 
   @override
   String get biometricNotAvailable =>
@@ -1215,8 +1385,15 @@ class SFa extends S {
   String get biometricSensorNotAvailable => 'این دستگاه سنسور زیست‌سنجی ندارد.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'ابتدا یک رمز عبور اصلی تنظیم کنید تا قفل خودکار فعال شود.';
+  String get biometricSystemServiceMissing =>
+      'سرویس اثر انگشت (fprintd) نصب نشده است. README ← نصب را ببینید.';
+
+  @override
+  String get biometricBackingHardware =>
+      'پشتیبانی سخت‌افزاری (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'پشتیبانی نرم‌افزاری';
 
   @override
   String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
@@ -1246,7 +1423,7 @@ class SFa extends S {
 
   @override
   String get autoLockSubtitle =>
-      'پس از این مدت بی‌کاری، رابط را قفل می‌کند. پایگاه داده رمزنگاری‌شده تنها زمانی دوباره قفل می‌شود که هیچ نشست فعال SSH وجود نداشته باشد، تا عملیات طولانی قطع نشوند.';
+      'پس از این مدت بی‌کاری، رابط را قفل می‌کند. در هر قفل‌شدن، کلید پایگاه‌داده پاک و فضای رمزنگاری‌شده بسته می‌شود؛ نشست‌های فعال به لطف یک حافظهٔ نهان اعتبارنامه به ازای هر نشست متصل می‌مانند که هنگام بستن نشست پاک می‌شود.';
 
   @override
   String get autoLockOff => 'خاموش';
@@ -1277,6 +1454,10 @@ class SFa extends S {
 
   @override
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'بایگانی ناقص است. دوباره دانلود کنید یا از دستگاه اصلی دوباره صادر کنید.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1648,6 +1829,13 @@ class SFa extends S {
   String get generateKey => 'ساخت کلید';
 
   @override
+  String get addKey => 'افزودن کلید';
+
+  @override
+  String get filePickerUnavailable =>
+      'انتخابگر فایل در این سیستم در دسترس نیست';
+
+  @override
   String get importKey => 'وارد کردن کلید';
 
   @override
@@ -1798,6 +1986,46 @@ class SFa extends S {
   String get credentialsReset => 'تمام اعتبارنامه‌های ذخیره شده حذف شدند';
 
   @override
+  String get migrationToast => 'ذخیره‌سازی به آخرین فرمت ارتقا یافت';
+
+  @override
+  String get dbCorruptTitle => 'باز کردن پایگاه داده ممکن نیست';
+
+  @override
+  String get dbCorruptBody =>
+      'داده‌های روی دیسک باز نمی‌شوند. اعتبارنامه دیگری امتحان کنید یا برای شروع تازه بازنشانی کنید.';
+
+  @override
+  String get dbCorruptWarning =>
+      'بازنشانی، پایگاه داده رمزگذاری‌شده و تمام فایل‌های مربوط به امنیت را برای همیشه حذف می‌کند. هیچ داده‌ای بازیابی نخواهد شد.';
+
+  @override
+  String get dbCorruptTryOther => 'تلاش با اعتبارنامه دیگر';
+
+  @override
+  String get dbCorruptResetContinue => 'بازنشانی و راه‌اندازی تازه';
+
+  @override
+  String get dbCorruptExit => 'خروج از LetsFLUTssh';
+
+  @override
+  String get tierResetTitle => 'بازنشانی امنیتی لازم است';
+
+  @override
+  String get tierResetBody =>
+      'این نصب شامل داده‌های امنیتی از نسخه‌ای قدیمی از LetsFLUTssh است که از مدل لایه‌های متفاوتی استفاده می‌کرد. مدل جدید یک تغییر ناسازگار است — مسیر مهاجرت خودکار وجود ندارد. برای ادامه، همه جلسات ذخیره‌شده، اعتبارنامه‌ها، کلیدهای SSH و میزبان‌های شناخته‌شده در این نصب باید پاک شوند و راهنمای راه‌اندازی اولیه دوباره اجرا شود.';
+
+  @override
+  String get tierResetWarning =>
+      'انتخاب «بازنشانی و راه‌اندازی جدید» پایگاه داده رمزگذاری‌شده و تمام فایل‌های مرتبط با امنیت را برای همیشه حذف می‌کند. اگر نیاز به بازیابی داده‌های خود دارید، اکنون از برنامه خارج شوید و نسخه قبلی LetsFLUTssh را دوباره نصب کنید تا ابتدا صادر شوند.';
+
+  @override
+  String get tierResetResetContinue => 'بازنشانی و راه‌اندازی جدید';
+
+  @override
+  String get tierResetExit => 'خروج از LetsFLUTssh';
+
+  @override
   String get derivingKey => 'در حال ساخت کلید رمزنگاری...';
 
   @override
@@ -1874,6 +2102,201 @@ class SFa extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'تنظیم، تغییر یا حذف رمز عبور اصلی';
+
+  @override
+  String get changeSecurityTier => 'تغییر سطح امنیت';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'نردبان سطوح را باز کرده و به سطح امنیتی دیگر بروید';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'در حال رمزگذاری مجدد پایگاه داده با سطح جدید. قابل قطع نیست — تا پایان برنامه را باز نگه دارید.';
+
+  @override
+  String get changeSecurityTierDone => 'سطح امنیت تغییر کرد';
+
+  @override
+  String get changeSecurityTierFailed => 'تغییر سطح امنیت ممکن نشد';
+
+  @override
+  String get firstLaunchSecurityTitle => 'ذخیره‌سازی امن فعال شد';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'داده‌های شما با کلیدی که در کلیدرشتهٔ سیستم نگهداری می‌شود رمزگذاری می‌شوند. باز کردن قفل روی این دستگاه خودکار است.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس است. برای اتصال TPM / Secure Enclave از تنظیمات ← امنیت ارتقا دهید.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — TPM 2.0 روی این دستگاه شناسایی نشد.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — این دستگاه Secure Enclave را گزارش نمی‌کند.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — برای فعال‌سازی، tpm2-tools و دستگاه TPM 2.0 را نصب کنید.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — این دستگاه StrongBox یا TEE را گزارش نمی‌کند.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس نیست.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'باز کردن تنظیمات';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'باشه';
+
+  @override
+  String get securityHardwareUpgradeTitle =>
+      'ذخیره‌سازی سخت‌افزاری در دسترس است';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'برای اتصال اسرار به TPM / Secure Enclave ارتقا دهید.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'ارتقا';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'ذخیره‌سازی سخت‌افزاری در دسترس نیست';
+
+  @override
+  String get wizardReducedBanner =>
+      'کلیدرشتهٔ سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا یک ارائه‌دهندهٔ libsecret دیگر را نصب کنید.';
+
+  @override
+  String get tierBlockProtectsHeader => 'محافظت در برابر';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'محافظت نمی‌کند در برابر';
+
+  @override
+  String get tierBlockProtectsEmpty => 'در این سطح چیزی نیست.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => 'تهدید پوشش‌نیافته‌ای نیست.';
+
+  @override
+  String get tierBadgeCurrent => 'فعلی';
+
+  @override
+  String get securitySetupEnable => 'فعال‌سازی';
+
+  @override
+  String get securitySetupApply => 'اعمال';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'سطح بدون رمزگذاری هیچ رازی برای محافظت با گذرواژه ندارد.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid کلید پایگاه‌داده را از گذرواژه استخراج می‌کند — همیشه فعال است.';
+
+  @override
+  String get passwordSubtitleOn => 'فعال — هنگام باز کردن قفل گذرواژه لازم است';
+
+  @override
+  String get passwordSubtitleOff =>
+      'غیرفعال — برای افزودن گذرواژه در این سطح ضربه بزنید';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'الزامی — گذرواژهٔ اصلی همان راز سطح است';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'در دسترس نیست — این سطح رمزگذاری ندارد';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      'هیچ TPM در /dev/tpmrm0 شناسایی نشد. اگر دستگاه پشتیبانی می‌کند، fTPM / PTT را در BIOS فعال کنید؛ در غیر این صورت سطح سخت‌افزاری روی این دستگاه در دسترس نیست.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools نصب نیست. برای فعال‌سازی سطح سخت‌افزاری `sudo apt install tpm2-tools` (یا معادل در توزیع خود) را اجرا کنید.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'بررسی سطح سخت‌افزاری ناموفق بود. مجوزهای /dev/tpmrm0 و قوانین udev را بررسی کنید — جزئیات در لاگ‌ها.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 شناسایی نشد. fTPM / PTT را در سفت‌افزار UEFI فعال کنید، یا بپذیرید که سطح سخت‌افزاری روی این دستگاه در دسترس نیست — برنامه به فروشگاه اعتبارنامه مبتنی بر نرم‌افزار بازمی‌گردد.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'نه Microsoft Platform Crypto Provider و نه Software Key Storage Provider در دسترس هستند — احتمالاً زیرسیستم رمزنگاری Windows آسیب دیده یا Group Policy مانع CNG شده است. Event Viewer → Applications and Services Logs را بررسی کنید.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'این Mac فاقد Secure Enclave است (Intel Mac قبل از ۲۰۱۷ بدون تراشه امنیتی T1 / T2). سطح سخت‌افزاری در دسترس نیست؛ از رمز عبور اصلی استفاده کنید.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'رمز عبور ورود روی این Mac تنظیم نشده است. ایجاد کلید Secure Enclave به آن نیاز دارد — در System Settings ← Touch ID & Password (یا Login Password) تنظیم کنید.';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave هویت امضای برنامه را رد کرد (-34018). اسکریپت `macos-resign.sh` همراه نسخه را اجرا کنید تا به این نصب یک هویت پایدار خودامضا داده شود، سپس برنامه را دوباره راه‌اندازی کنید.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'رمز دستگاه تنظیم نشده است. ایجاد کلید Secure Enclave به آن نیاز دارد — در تنظیمات ← Face ID & Passcode (یا Touch ID & Passcode) تنظیم کنید.';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'در iOS Simulator اجرا می‌شود که Secure Enclave ندارد. سطح سخت‌افزاری فقط در دستگاه‌های فیزیکی iOS در دسترس است.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'برای سطح سخت‌افزاری به Android 9 یا جدیدتر نیاز است (StrongBox و باطل‌سازی هر کلید هنگام تغییر ثبت در نسخه‌های قدیمی قابل اعتماد نیستند).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'این دستگاه سخت‌افزار بیومتریک ندارد (اثر انگشت یا چهره). از رمز عبور اصلی استفاده کنید.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'هیچ بیومتریکی ثبت نشده است. در تنظیمات ← امنیت و حریم خصوصی ← بیومتریک، اثر انگشت یا چهره اضافه کنید، سپس سطح سخت‌افزاری را دوباره فعال کنید.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'سخت‌افزار بیومتریک به طور موقت غیرقابل استفاده است (قفل پس از تلاش‌های ناموفق یا به‌روزرسانی امنیتی در انتظار). چند دقیقه دیگر امتحان کنید.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore در این نسخهٔ دستگاه از پشتیبانی کلید سخت‌افزاری امتناع کرد (StrongBox در دسترس نیست، ROM سفارشی یا خطای درایور). لایهٔ سخت‌افزاری در دسترس نیست.';
+
+  @override
+  String get securityRecheck => 'بررسی مجدد پشتیبانی لایه‌ها';
+
+  @override
+  String get securityRecheckUpdated =>
+      'پشتیبانی لایه‌ها به‌روزرسانی شد — کارت‌های بالا را ببینید';
+
+  @override
+  String get securityRecheckUnchanged => 'پشتیبانی لایه‌ها بدون تغییر';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus فعال است اما هیچ secret-service daemon در حال اجرا نیست. gnome-keyring (`sudo apt install gnome-keyring`) یا KWalletManager را نصب کنید و مطمئن شوید که هنگام ورود به سیستم اجرا می‌شود.';
+
+  @override
+  String get keyringProbeFailed =>
+      'OS keychain در این دستگاه قابل دسترسی نیست. برای خطای مخصوص پلتفرم به لاگ‌ها مراجعه کنید؛ برنامه به رمز عبور اصلی بازمی‌گردد.';
 
   @override
   String get snippets => 'قطعه‌ها';
@@ -2123,4 +2546,229 @@ class SFa extends S {
 
   @override
   String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
+
+  @override
+  String get threatColdDiskTheft => 'سرقت دیسک خاموش';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'دستگاهی که خاموش است، درایو آن بیرون کشیده شده و روی رایانهٔ دیگری خوانده می‌شود، یا رونوشتی از فایل پایگاه داده که کسی با دسترسی به پوشهٔ خانگی شما برداشته است.';
+
+  @override
+  String get threatKeyringFileTheft => 'سرقت فایل keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'مهاجم فایل مخزن اعتبارنامه پلتفرم را مستقیماً از دیسک می‌خواند (libsecret keyring، Windows Credential Manager، macOS login keychain) و کلید بسته‌بندی‌شدهٔ پایگاه داده را از آن بازیابی می‌کند. سطح سخت‌افزاری این را بدون توجه به رمز عبور مسدود می‌کند زیرا تراشه از خروج‌دهی مواد کلید سر باز می‌زند؛ سطح keychain به رمز عبور اضافی نیاز دارد و در غیر این صورت فایل دزدیده‌شده تنها با رمز ورود سیستم‌عامل باز می‌شود.';
+
+  @override
+  String get modifierOnlyWithPassword => 'فقط با رمز عبور';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'ناظر کنار دستگاه قفل‌گشوده';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'در غیاب شما، فردی به رایانهٔ از پیش قفل‌گشودهٔ شما نزدیک می‌شود و برنامه را باز می‌کند.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'جرم‌یابی حافظهٔ موقت روی دستگاه قفل';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'مهاجم حافظهٔ موقت را منجمد می‌کند (یا آن را از طریق DMA می‌گیرد) و مواد کلید هنوز باقی‌مانده در برف‌نمای حافظه را حتی هنگام قفل بودن برنامه بیرون می‌کشد.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'نفوذ به هستهٔ سیستم‌عامل یا جاکلیدی';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'آسیب‌پذیری هسته، خروج داده از جاکلیدی، یا درِپشتی در تراشهٔ امنیتی سخت‌افزاری. سیستم‌عامل به جای منبعی قابل اعتماد، خود تبدیل به مهاجم می‌شود.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'حملهٔ جستجوی فراگیر برون‌خط به رمز ضعیف';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'مهاجمی که رونوشتی از کلید پیچیده یا بلوب مهروموم‌شده دارد، بدون هیچ محدودکنندهٔ نرخی، با سرعت دلخواه خود همهٔ رمزها را امتحان می‌کند.';
+
+  @override
+  String get legendProtects => 'محافظت می‌شود';
+
+  @override
+  String get legendDoesNotProtect => 'محافظت نمی‌شود';
+
+  @override
+  String get legendNotApplicable => 'قابل اعمال نیست — این سطح رمز کاربر ندارد';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'رمز ضعیف پذیرفتنی است — لایه‌ای دیگر (محدودکنندهٔ نرخ سخت‌افزاری یا پیوند کلید پیچیده) امنیت را بر دوش می‌کشد';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'استفاده از عبارت عبور طولانی به‌شدت توصیه می‌شود — امنیت این سطح به آن وابسته است';
+
+  @override
+  String get colT0 => 'T0 متن ساده';
+
+  @override
+  String get colT1 => 'T1 جاکلیدی';
+
+  @override
+  String get colT1Password => 'T1 + رمز';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + رمز + زیست‌سنجی';
+
+  @override
+  String get colT2 => 'T2 سخت‌افزار';
+
+  @override
+  String get colT2Password => 'T2 + رمز';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + رمز + زیست‌سنجی';
+
+  @override
+  String get colParanoid => 'وسواسی';
+
+  @override
+  String get securityComparisonTableTitle => 'سطوح امنیتی — مقایسهٔ کنار هم';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'تهدید';
+
+  @override
+  String get compareAllTiers => 'مقایسهٔ همهٔ سطوح';
+
+  @override
+  String get resetAllDataTitle => 'بازنشانی همهٔ داده‌ها';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'حذف همهٔ نشست‌ها، کلیدها، پیکربندی‌ها و مؤلفه‌های امنیتی. ورودی‌های کی‌چین و اسلات‌های خزانهٔ سخت‌افزاری نیز پاک می‌شوند.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'همهٔ داده‌ها بازنشانی شود؟';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'همهٔ نشست‌ها، کلیدهای SSH، فهرست known hosts، قطعه‌کدها، برچسب‌ها، تنظیمات و همهٔ مؤلفه‌های امنیتی (ورودی‌های کی‌چین، دادهٔ خزانهٔ سخت‌افزاری، لایهٔ زیست‌سنجی) برای همیشه حذف خواهند شد. این عمل قابل بازگشت نیست.';
+
+  @override
+  String get resetAllDataConfirmAction => 'بازنشانی همه';
+
+  @override
+  String get resetAllDataInProgress => 'در حال بازنشانی…';
+
+  @override
+  String get resetAllDataDone => 'همهٔ داده‌ها بازنشانی شدند';
+
+  @override
+  String get resetAllDataFailed => 'بازنشانی ناموفق بود';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'در کنار هم ببینید هر سطح در برابر چه چیزی محافظت می‌کند.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'قفل خودکار نیازمند رمز عبور در سطح فعلی است.';
+
+  @override
+  String get recommendedBadge => 'توصیه‌شده';
+
+  @override
+  String get continueWithRecommended => 'ادامه با گزینه توصیه‌شده';
+
+  @override
+  String get customizeSecurity => 'سفارشی‌سازی امنیت';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'پیشرفته: کلید به سخت‌افزار گره خورده است. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'جایگزین: رمز عبور اصلی، بدون اعتماد به سیستم‌عامل. در برابر نفوذ OS محافظت می‌کند. حفاظت زمان اجرا را نسبت به T1/T2 بهبود نمی‌دهد.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند.';
+
+  @override
+  String get securitySetupContinue => 'ادامه';
+
+  @override
+  String get currentTierBadge => 'فعلی';
+
+  @override
+  String get paranoidAlternativeHeader => 'جایگزین';
+
+  @override
+  String get modifierPasswordLabel => 'رمز عبور';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'دروازهٔ مخفیِ تایپ‌شده پیش از باز شدن گاوصندوق.';
+
+  @override
+  String get modifierBiometricLabel => 'میان‌برِ بیومتریک';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'گرفتن رمز عبور از یک اسلات سیستم‌عامل با حفاظ بیومتریک به جای تایپ آن.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'ابتدا یک رمز عبور فعال کنید — بیومتریک تنها میان‌بری برای وارد کردن آن است.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'برای فعال‌سازی باز کردن قفل بیومتریک ابتدا این سطح را انتخاب کنید';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'برای پیکربندی قفل خودکار ابتدا این سطح را انتخاب کنید';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'سطح Paranoid به‌طور طراحی‌شده اجازهٔ بیومتریک را نمی‌دهد.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd نصب نشده یا هیچ اثر انگشتی ثبت نشده است.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM بدون رمز عبور فقط جداسازی فراهم می‌کند، نه احراز هویت. هر کسی که بتواند این برنامه را اجرا کند می‌تواند داده‌ها را باز کند.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'یک عبارت عبور طولانی به شدت توصیه می‌شود — Argon2id فقط حملهٔ جستجوی فراگیر را کند می‌کند، جلوی آن را نمی‌گیرد.';
+
+  @override
+  String get plaintextWarningTitle => 'متن ساده: بدون رمزگذاری';
+
+  @override
+  String get plaintextWarningBody =>
+      'جلسه‌ها، کلیدها و known hosts بدون رمزگذاری ذخیره خواهند شد. هر کسی که به سیستم فایل این رایانه دسترسی داشته باشد می‌تواند آنها را بخواند.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'می‌دانم که داده‌های من رمزگذاری نخواهند شد';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'پیش از ادامه، درک خود را تأیید کنید.';
+
+  @override
+  String get passwordLabel => 'رمز عبور';
+
+  @override
+  String get masterPasswordLabel => 'رمز عبور اصلی';
 }

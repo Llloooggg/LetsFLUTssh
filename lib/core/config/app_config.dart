@@ -1,3 +1,6 @@
+import '../security/security_bootstrap.dart' show SecurityCapabilities;
+import '../security/security_tier.dart';
+
 /// Terminal display settings.
 class TerminalConfig {
   final double fontSize;
@@ -228,26 +231,20 @@ class UiConfig {
 }
 
 /// App behavior settings: logging, update checks, skipped versions.
+///
+/// Auto-lock timeout is NOT here — it lives in the encrypted DB
+/// (`AppConfigs.auto_lock_minutes`) so an attacker with plaintext-disk
+/// access cannot weaken the security control by editing a plaintext
+/// file. See [AutoLockStore].
 class BehaviorConfig {
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
 
-  /// **Legacy field** — auto-lock timeout used to live in this plaintext
-  /// `config.json`. As of schema v2 the authoritative value lives in the
-  /// encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with
-  /// disk access cannot weaken the security control by editing a
-  /// plaintext file. The notifier (`autoLockMinutesProvider`) reads this
-  /// field exactly once on first DB unlock to migrate any pre-existing
-  /// value, then resets it to `0`. New writes go straight to the DB and
-  /// never touch this field. Kept for the migration window only.
-  final int autoLockMinutes;
-
   const BehaviorConfig({
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
-    this.autoLockMinutes = 0,
   });
 
   static const defaults = BehaviorConfig();
@@ -259,14 +256,12 @@ class BehaviorConfig {
     bool? enableLogging,
     bool? checkUpdatesOnStart,
     Object? skippedVersion = _unset,
-    int? autoLockMinutes,
   }) => BehaviorConfig(
     enableLogging: enableLogging ?? this.enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
     skippedVersion: identical(skippedVersion, _unset)
         ? this.skippedVersion
         : skippedVersion as String?,
-    autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
   );
 
   @override
@@ -275,22 +270,16 @@ class BehaviorConfig {
       other is BehaviorConfig &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion &&
-          autoLockMinutes == other.autoLockMinutes;
+          skippedVersion == other.skippedVersion;
 
   @override
-  int get hashCode => Object.hash(
-    enableLogging,
-    checkUpdatesOnStart,
-    skippedVersion,
-    autoLockMinutes,
-  );
+  int get hashCode =>
+      Object.hash(enableLogging, checkUpdatesOnStart, skippedVersion);
 
   Map<String, dynamic> toJson() => {
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
-    'auto_lock_minutes': autoLockMinutes,
   };
 
   factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
@@ -300,8 +289,6 @@ class BehaviorConfig {
       checkUpdatesOnStart:
           json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
-      autoLockMinutes:
-          (json['auto_lock_minutes'] as num?)?.toInt() ?? d.autoLockMinutes,
     );
   }
 }
@@ -318,6 +305,28 @@ class AppConfig {
   final int transferWorkers;
   final int maxHistory;
   final String? locale;
+
+  /// Persisted security tier + modifiers. `null` means the user has
+  /// not yet been through the first-launch security wizard — the app
+  /// shows the wizard on next launch and writes the chosen config
+  /// back. Non-null (including `SecurityConfig.none` variants) means
+  /// the wizard has already run and the tier is authoritative.
+  final SecurityConfig? security;
+
+  /// Cached snapshot of the last `probeCapabilities` run — keychain
+  /// + hardware-vault + biometric availability plus the raw probe
+  /// reason codes. The `securityCapabilitiesProvider` reads this on
+  /// startup and returns it instead of paying the real SE / TPM /
+  /// Keystore round-trip cost, so Settings opens against ready data
+  /// and the tier cards stop flickering during the first paint.
+  ///
+  /// Null = no probe has run yet (fresh install) or the cache was
+  /// invalidated (Recheck button, corruption-retry path, wipe).
+  /// Stale-positive risk is by design — probe is host state, the
+  /// Recheck button is the user's tool to force a fresh read after
+  /// they change the host (enable TPM in BIOS, run
+  /// `macos-resign.sh`, enrol a biometric, etc.).
+  final SecurityCapabilities? securityProbeCache;
 
   /// Locale codes supported by the app.
   static const supportedLocales = [
@@ -346,6 +355,8 @@ class AppConfig {
     this.transferWorkers = 2,
     this.maxHistory = 500,
     this.locale,
+    this.security,
+    this.securityProbeCache,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -390,6 +401,8 @@ class AppConfig {
       locale: locale != null && supportedLocales.contains(locale)
           ? locale
           : null,
+      security: security,
+      securityProbeCache: securityProbeCache,
     );
   }
 
@@ -404,6 +417,8 @@ class AppConfig {
     int? transferWorkers,
     int? maxHistory,
     Object? locale = _unset,
+    Object? security = _unset,
+    Object? securityProbeCache = _unset,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -413,6 +428,12 @@ class AppConfig {
       transferWorkers: transferWorkers ?? this.transferWorkers,
       maxHistory: maxHistory ?? this.maxHistory,
       locale: identical(locale, _unset) ? this.locale : locale as String?,
+      security: identical(security, _unset)
+          ? this.security
+          : security as SecurityConfig?,
+      securityProbeCache: identical(securityProbeCache, _unset)
+          ? this.securityProbeCache
+          : securityProbeCache as SecurityCapabilities?,
     );
   }
 
@@ -426,7 +447,9 @@ class AppConfig {
           behavior == other.behavior &&
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
-          locale == other.locale;
+          locale == other.locale &&
+          security == other.security &&
+          securityProbeCache == other.securityProbeCache;
 
   @override
   int get hashCode => Object.hash(
@@ -437,6 +460,8 @@ class AppConfig {
     transferWorkers,
     maxHistory,
     locale,
+    security,
+    securityProbeCache,
   );
 
   /// JSON stays flat for backward compatibility.
@@ -448,7 +473,31 @@ class AppConfig {
     'transfer_workers': transferWorkers,
     'max_history': maxHistory,
     if (locale != null) 'locale': locale,
+    if (security != null) 'security_tier': _tierName(security!.tier),
+    if (security != null) 'security_modifiers': security!.modifiers.toJson(),
+    if (securityProbeCache != null)
+      'security_probe_cache': securityProbeCache!.toJson(),
   };
+
+  /// Portable JSON for `.lfs` archive export. Strips every field that
+  /// describes the LOCAL machine's security setup — `security_tier`,
+  /// `security_modifiers`, `config_schema_version` — so importing the
+  /// archive on a different machine does not try to adopt the
+  /// exporter's tier / modifier shape. The security configuration is
+  /// strictly per-install and is re-established through the wizard
+  /// on each new device.
+  Map<String, dynamic> toJsonForExport() {
+    final json = toJson();
+    json.remove('security_tier');
+    json.remove('security_modifiers');
+    // Probe cache is strictly per-host — whether the target machine
+    // has a TPM / Secure Enclave / keychain the exporter had is
+    // never the right thing to inherit. Strip it so the importer
+    // reprobes on first launch instead.
+    json.remove('security_probe_cache');
+    json.remove('config_schema_version');
+    return json;
+  }
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
     const d = AppConfig.defaults;
@@ -460,6 +509,60 @@ class AppConfig {
       transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       locale: json['locale'] as String?,
+      security: _readSecurityConfig(json),
+      securityProbeCache: SecurityCapabilities.fromJson(
+        json['security_probe_cache'] as Map<String, dynamic>?,
+      ),
     ).sanitized();
+  }
+}
+
+String _tierName(SecurityTier tier) {
+  switch (tier) {
+    case SecurityTier.plaintext:
+      return 'plaintext';
+    case SecurityTier.keychain:
+      return 'keychain';
+    case SecurityTier.keychainWithPassword:
+      return 'keychain_with_password';
+    case SecurityTier.hardware:
+      return 'hardware';
+    case SecurityTier.paranoid:
+      return 'paranoid';
+  }
+}
+
+SecurityConfig? _readSecurityConfig(Map<String, dynamic> json) {
+  // Absence of the `security_tier` field means the user has not yet
+  // completed the first-launch wizard. Returning `null` is the signal
+  // `_initSecurity` keys off to fire the wizard. An *unknown* tier
+  // string (e.g. a value from a newer version) is treated as "no
+  // config" for the same reason — the user will re-run the wizard
+  // rather than land in a silently-wrong tier.
+  final tierStr = json['security_tier'];
+  if (tierStr is! String) return null;
+  final tier = _tierFromName(tierStr);
+  if (tier == null) return null;
+  final modifiersJson = json['security_modifiers'];
+  final modifiers = modifiersJson is Map<String, dynamic>
+      ? SecurityTierModifiers.fromJson(modifiersJson)
+      : SecurityTierModifiers.defaults;
+  return SecurityConfig(tier: tier, modifiers: modifiers);
+}
+
+SecurityTier? _tierFromName(String s) {
+  switch (s) {
+    case 'plaintext':
+      return SecurityTier.plaintext;
+    case 'keychain':
+      return SecurityTier.keychain;
+    case 'keychain_with_password':
+      return SecurityTier.keychainWithPassword;
+    case 'hardware':
+      return SecurityTier.hardware;
+    case 'paranoid':
+      return SecurityTier.paranoid;
+    default:
+      return null;
   }
 }

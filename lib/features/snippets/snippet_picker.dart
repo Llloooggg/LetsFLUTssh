@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
 /// Snippet picker dialog — select a snippet to execute in terminal.
@@ -106,12 +107,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_all.isEmpty) {
-      return Center(
-        child: Text(
-          s.noSnippets,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noSnippets);
     }
 
     final filteredPinned = _pinned.where(_matches).toList();
@@ -119,12 +115,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
         .where((sn) => !_pinnedIds.contains(sn.id) && _matches(sn))
         .toList();
     if (filteredPinned.isEmpty && filteredUnpinned.isEmpty) {
-      return Center(
-        child: Text(
-          s.noResults,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noResults);
     }
     final hasPinned = filteredPinned.isNotEmpty;
 

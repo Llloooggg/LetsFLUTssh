@@ -4,6 +4,7 @@ import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/hover_region.dart';
 import '../../utils/platform.dart';
 import '../../widgets/marquee_mixin.dart';
@@ -373,16 +374,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
   @override
   Widget build(BuildContext context) {
     if (widget.tree.isEmpty) {
-      return Center(
-        child: Text(
-          S.of(context).noSessions,
-          style: TextStyle(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.4),
-          ),
-        ),
-      );
+      return AppEmptyState(message: S.of(context).noSessions);
     }
     final flatNodes = _flattenVisible(widget.tree, 0);
     _cachedFlatNodes = flatNodes;

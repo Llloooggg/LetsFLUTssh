@@ -8,7 +8,9 @@ import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/migration/schema_versions.dart';
 import '../../core/progress/progress_reporter.dart';
+import '../../core/security/kdf_params.dart';
 import '../../core/security/key_store.dart';
 import '../../core/security/secret_buffer.dart';
 import '../../core/session/qr_codec.dart';
@@ -17,8 +19,10 @@ import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
+import '../../utils/platform.dart' as plat;
 
-/// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM.
+/// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM
+/// under an Argon2id-derived key.
 ///
 /// Structure inside ZIP:
 ///   manifest.json  — schema + app version, created_at (see [currentSchemaVersion])
@@ -26,53 +30,89 @@ import '../../utils/logger.dart';
 ///   config.json    — app configuration
 ///   known_hosts    — TOFU host key database
 ///
-/// The ZIP bytes are encrypted with AES-256-GCM using a key derived from
-/// a master password via PBKDF2 (600k iterations, SHA-256). GCM's auth tag
-/// already protects archive integrity end-to-end, so the manifest carries
-/// metadata only — no redundant content hash.
+/// Wire format:
+///   `[LFSE 4][0x02 1][KdfParams N][salt 32][iv 12][ct+tag]`
+///
+/// GCM's auth tag protects archive integrity end-to-end, so the manifest
+/// carries metadata only — no redundant content hash. v1 is the permanent
+/// floor; any on-disk archive reporting a different `schema_version`, a
+/// missing manifest, an unrecognised header byte, or no `LFSE` magic is
+/// rejected with [UnsupportedLfsVersionException]. Future format changes
+/// ship a [Migration] registered in `archive_registry.dart`.
 class ExportImport {
-  /// Current .lfs schema version. Bump on format-breaking changes.
-  ///
-  /// - v1 (2026-04): initial manifest introduction. Archives without a
-  ///   manifest are treated as legacy v1 for backward compatibility.
-  static const int currentSchemaVersion = 1;
+  /// Current .lfs schema version. Bump on format-breaking changes; every
+  /// bump ships a corresponding archive `Migration`. Sourced from
+  /// [SchemaVersions.archive] so the migration framework and the archive
+  /// share a single source of truth.
+  static const int currentSchemaVersion = SchemaVersions.archive;
 
   static const _saltLen = 32;
   static const _ivLen = 12;
 
-  /// Header placed at the start of v2 encrypted archives so future releases
-  /// can raise PBKDF2 iterations without breaking the reader.
-  ///
-  /// Layout:
-  ///   [magic 'LFSE' 4] [version 1] [iterations u32 BE 4] [salt 32] [iv 12]
-  ///   [ciphertext + GCM tag]
-  ///
-  /// Archives written before this header existed start straight with the
-  /// 32-byte random salt (no detectable magic); those are treated as legacy
-  /// v1 payloads and decrypted with [productionPbkdf2Iterations]. Unencrypted
-  /// ZIP archives still expose the `PK\x03\x04` magic and are handled
-  /// separately.
+  /// Header magic + single supported version byte (Argon2id).
   static const List<int> _encHeaderMagic = [0x4C, 0x46, 0x53, 0x45]; // 'LFSE'
-  static const int _encHeaderVersion = 1;
-  static const int _encHeaderBaseLen =
-      4 /* magic */ + 1 /* version */ + 4 /* iters */;
+  static const int _encVersionArgon2id = 0x02;
 
-  /// Production PBKDF2-SHA256 iteration count. Public so tests that need a
-  /// roundtrip with the real cost can reference it explicitly. Most tests
-  /// pass a much lower value via the per-call [iterations] parameter.
-  static const int productionPbkdf2Iterations = 600000;
+  /// Upper bound on the fixed part of the Argon2id header
+  /// (magic + version + KdfParams). Used by preflight size estimation;
+  /// the actual length depends on KdfParams.encodedLength at write time.
+  static const int _argon2idHeaderMaxLen = 4 + 1 + 16;
 
-  /// Default PBKDF2 iteration count when [export], [import_] or [preview]
-  /// callers do not provide an explicit `iterations` parameter. Mutable so
-  /// the test bootstrap (`flutter_test_config.dart`) can globally lower it
-  /// for the whole suite without every test having to thread the value
-  /// through. Production code never writes this field.
+  /// Default Argon2id profile used when [export] is called without an
+  /// explicit `kdfParams`. Mutable so the test bootstrap can drop cost
+  /// to the Argon2id minimum, keeping the suite fast.
   @visibleForTesting
-  static int defaultPbkdf2Iterations = productionPbkdf2Iterations;
+  static KdfParams defaultKdfParams = KdfParams.productionDefaults;
+
+  /// Absolute ceiling on the Argon2id memory cost we are willing to
+  /// honour from an untrusted archive header — 1 GiB on any platform
+  /// with enough RAM. [resolveMaxImportArgon2idMemoryKiB] caps this
+  /// further against physical RAM on the host at import time (25 % of
+  /// total on mobile, a hard 1 GiB floor on desktop). Higher values
+  /// fail the import as malformed, so a hostile header can't pin the
+  /// isolate into swap — and on a 2 GiB Android device, can't drive
+  /// the OS out-of-memory killer either.
+  @visibleForTesting
+  static const int maxImportArgon2idMemoryKiB = 1 * 1024 * 1024;
+
+  /// Resolve the effective memory cap at import time based on the
+  /// running platform and physical RAM. Mobile devices cap at
+  /// `min(maxImportArgon2idMemoryKiB, 25 % of active RAM)`; desktop
+  /// falls back to the static cap because OS-level memory accounting
+  /// is more flexible and Argon2id at 1 GiB is viable in practice.
+  /// Exposed for tests via [debugMemoryProbeOverride].
+  static int resolveMaxImportArgon2idMemoryKiB() {
+    if (!plat.isMobilePlatform) return maxImportArgon2idMemoryKiB;
+    final physicalBytes =
+        debugMemoryProbeOverride ?? ProcessInfo.maxRss * 4; // rough proxy
+    if (physicalBytes <= 0) return maxImportArgon2idMemoryKiB;
+    final quarterKiB = (physicalBytes ~/ 4) ~/ 1024;
+    return quarterKiB < maxImportArgon2idMemoryKiB
+        ? quarterKiB
+        : maxImportArgon2idMemoryKiB;
+  }
+
+  /// Injection point for tests — set to a non-null value (bytes of
+  /// total physical RAM) to bypass the `ProcessInfo.maxRss` proxy and
+  /// exercise the cap logic deterministically.
+  @visibleForTesting
+  static int? debugMemoryProbeOverride;
+
+  /// Upper bound on Argon2id iterations in an untrusted header. Argon2id
+  /// is memory-heavy per pass; even a modest iteration count at 1 GiB
+  /// takes minutes, so 20 is a generous cap above any legitimate value.
+  @visibleForTesting
+  static const int maxImportArgon2idIterations = 20;
+
+  /// Upper bound on Argon2id parallelism. Going above physical core count
+  /// is counter-productive and this cap prevents a malformed header from
+  /// requesting thousands of lanes.
+  @visibleForTesting
+  static const int maxImportArgon2idParallelism = 16;
 
   /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
   /// decryption or decompression so a pathologically large file can't OOM
-  /// the process — PBKDF2 + AES-GCM both hold the full plaintext in memory
+  /// the process — Argon2id + AES-GCM both hold the full plaintext in memory
   /// on mobile. Legitimate exports are dominated by session credentials and
   /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
   /// is generous for normal use but catches zip-bomb-scale inputs.
@@ -89,6 +129,50 @@ class ExportImport {
   /// Set to 4× the compressed cap so legitimate exports with high-ratio
   /// JSON content still fit, but anything pathological is rejected.
   static const int maxDecompressedBytes = 200 * 1024 * 1024;
+
+  /// Scan [zipBytes] from the tail for the End-of-Central-Directory
+  /// signature (`PK\x05\x06`, `0x50 0x4B 0x05 0x06`). Returns false when
+  /// the signature is not present in the last 64 KiB — the PKZip spec
+  /// allows up to 64 KiB of ZIP comment after the signature, so a
+  /// signature further back cannot be valid.
+  static bool _hasEocdSignature(Uint8List zipBytes) {
+    const eocdSig = [0x50, 0x4B, 0x05, 0x06];
+    const maxCommentLen = 0xFFFF; // 64 KiB ZIP spec cap.
+    final windowStart = zipBytes.length > maxCommentLen + 22
+        ? zipBytes.length - maxCommentLen - 22
+        : 0;
+    for (var i = zipBytes.length - 4; i >= windowStart; i--) {
+      if (zipBytes[i] == eocdSig[0] &&
+          zipBytes[i + 1] == eocdSig[1] &&
+          zipBytes[i + 2] == eocdSig[2] &&
+          zipBytes[i + 3] == eocdSig[3]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Walk every entry in [archive] and force a read of its decompressed
+  /// bytes. A truncated archive whose central directory survived but
+  /// whose payload section was cut off (the common mid-transfer failure)
+  /// decodes into an [Archive] object that only throws when an entry is
+  /// actually read — pulling the bytes early lets us surface the
+  /// truncation with a typed exception before any parser touches it.
+  ///
+  /// Throws [LfsArchiveTruncatedException].
+  @visibleForTesting
+  static void validateArchiveEntriesReadable(Archive archive) {
+    for (final entry in archive) {
+      if (!entry.isFile) continue;
+      try {
+        // Touching `.content` forces the decoder to decompress the
+        // entry's payload; for truncated entries this throws.
+        entry.content;
+      } catch (e) {
+        throw LfsArchiveTruncatedException(cause: e, entryName: entry.name);
+      }
+    }
+  }
 
   /// Walk every entry in [archive] and refuse if the cumulative declared
   /// uncompressed size exceeds [maxDecompressedBytes].
@@ -132,42 +216,15 @@ class ExportImport {
         data[3] == 0x04;
   }
 
-  /// True when [data] starts with the `LFSE` magic — i.e. a v2+ encrypted
-  /// archive that carries its PBKDF2 iteration count in a 9-byte header
-  /// ahead of the salt.
+  /// True when [data] starts with the `LFSE` magic. Pre-magic archives
+  /// are rejected as [UnsupportedLfsVersionException] in the decrypt
+  /// path — this predicate just drives the version-byte lookup.
   static bool _hasEncryptionHeader(Uint8List data) {
-    if (data.length < _encHeaderBaseLen) return false;
+    if (data.length < _encHeaderMagic.length + 1) return false;
     for (var i = 0; i < _encHeaderMagic.length; i++) {
       if (data[i] != _encHeaderMagic[i]) return false;
     }
     return true;
-  }
-
-  /// Hard ceiling on the iteration count we are willing to honour from an
-  /// untrusted archive header. Anything above this is clamped to [maxImportIterations]
-  /// — a hostile or corrupt archive could otherwise embed `0xFFFFFFFF` and
-  /// hang PBKDF2 in the isolate for hours (DoS on import).
-  ///
-  /// The legitimate value for production archives is [productionPbkdf2Iterations]
-  /// (currently 600 000); the cap is set 10× above that to leave headroom
-  /// for future increases without a format flag day.
-  @visibleForTesting
-  static const int maxImportIterations = 6000000;
-
-  /// Decode the iteration count from a v2 header. Assumes
-  /// [_hasEncryptionHeader] already returned true on [data].
-  ///
-  /// Throws [LfsMalformedHeaderException] when the encoded value is zero
-  /// (impossible to derive a key with zero rounds) or exceeds
-  /// [maxImportIterations] (DoS guard against a hostile / corrupt header).
-  static int _readHeaderIterations(Uint8List data) {
-    final raw = (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
-    if (raw <= 0 || raw > maxImportIterations) {
-      throw LfsMalformedHeaderException(
-        reason: 'iterations=$raw is outside [1, $maxImportIterations]',
-      );
-    }
-    return raw;
   }
 
   /// Probe an `.lfs` candidate file and decide what the import flow
@@ -404,7 +461,7 @@ class ExportImport {
     required String outputPath,
     ProgressReporter? progress,
     S? l10n,
-    int? iterations,
+    KdfParams? kdfParams,
   }) async {
     progress?.phase(l10n?.progressCollectingData ?? 'Collecting data…');
     final archive = _buildArchive(input);
@@ -432,14 +489,14 @@ class ExportImport {
         name: 'ExportImport',
       );
     } else {
-      // Encrypt with master password (runs in isolate — PBKDF2 is CPU-heavy).
+      // Encrypt with master password (runs in isolate — Argon2id is
+      // CPU + memory-heavy). Capture params in the main isolate so the
+      // value crosses the Isolate boundary without the worker re-reading
+      // the mutable global default.
       progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
-      // Capture iteration count in the main isolate so the value crosses the
-      // Isolate boundary as a const, not via the global default that would
-      // otherwise be re-read on the worker side.
-      final iters = iterations ?? defaultPbkdf2Iterations;
+      final params = kdfParams ?? defaultKdfParams;
       encrypted = await Isolate.run(
-        () => _encryptWithPassword(zipBytes, masterPassword, iters),
+        () => _encryptWithPassword(zipBytes, masterPassword, params),
       );
       AppLogger.instance.log(
         'Export: encrypted ${encrypted.length} bytes',
@@ -536,7 +593,11 @@ class ExportImport {
 
   static void _addConfig(Archive archive, LfsExportInput input) {
     if (!input.options.includeConfig) return;
-    _addRawJson(archive, _configFile, input.config.toJson());
+    // `toJsonForExport()` strips per-machine security setup — the
+    // archive carries portable user data only. Imports use the
+    // local machine's existing `security` configuration regardless
+    // of what the archive was originally exported from.
+    _addRawJson(archive, _configFile, input.config.toJsonForExport());
   }
 
   static void _addKnownHosts(Archive archive, LfsExportInput input) {
@@ -611,14 +672,16 @@ class ExportImport {
   }
 
   /// Estimate the final .lfs file size (bytes) for given inputs without
-  /// actually writing to disk or running PBKDF2.
+  /// actually writing to disk or running the KDF.
   ///
-  /// Builds the ZIP archive in memory and adds fixed encryption overhead:
-  /// 9-byte header + salt (32) + IV (12) + GCM tag (16) = 69 bytes.
+  /// Adds fixed encryption overhead for the v3 Argon2id format: magic
+  /// (4) + version (1) + KdfParams (≤ 16) + salt (32) + IV (12) + GCM
+  /// tag (16) — padded to [_argon2idHeaderMaxLen] for the header part so
+  /// the estimate holds even if the default KDF params change.
   static int calculateLfsSize(LfsExportInput input) {
     final archive = _buildArchive(input);
     final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
-    return zipBytes.length + _encHeaderBaseLen + _saltLen + _ivLen + 16;
+    return zipBytes.length + _argon2idHeaderMaxLen + _saltLen + _ivLen + 16;
   }
 
   /// Decrypt an .lfs file and parse the archive contents.
@@ -627,7 +690,6 @@ class ExportImport {
     required String masterPassword,
     ProgressReporter? progress,
     S? l10n,
-    int? iterations,
   }) async {
     progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
     final file = File(filePath);
@@ -647,34 +709,66 @@ class ExportImport {
       zipBytes = encData;
     } else {
       progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
-      // Decrypt in isolate — PBKDF2 600k iterations is CPU-heavy.
-      // GCM auth-tag failure (wrong password or tampered archive) surfaces as
-      // InvalidCipherTextException from pointycastle. ZipDecoder will also
-      // throw on successfully-decrypted-but-non-ZIP bytes (truncated file).
-      // Both cases collapse to LfsDecryptionFailedException so the UI can show
-      // a single localized message.
-      final iters = iterations ?? defaultPbkdf2Iterations;
+      // Decrypt in isolate — Argon2id is CPU + memory-heavy. GCM
+      // auth-tag failure (wrong password or tampered archive) surfaces
+      // as InvalidCipherTextException from pointycastle. ZipDecoder
+      // will also throw on successfully-decrypted-but-non-ZIP bytes
+      // (truncated file). Both cases collapse to
+      // LfsDecryptionFailedException so the UI can show a single
+      // localized message.
       try {
         zipBytes = await Isolate.run(
-          () => _decryptWithPassword(encData, masterPassword, iters),
+          () => _decryptWithPassword(encData, masterPassword),
         );
+      } on LfsMalformedHeaderException {
+        rethrow;
+      } on UnsupportedLfsVersionException {
+        rethrow;
       } catch (e) {
         throw LfsDecryptionFailedException(cause: e);
       }
     }
     progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
+    // EOCD guard: the ZipDecoder in the `archive` package is lenient
+    // with truncated files — it scans forward from local file headers
+    // instead of anchoring on the End-of-Central-Directory record, so a
+    // ZIP whose tail (central directory + EOCD) has been cut off still
+    // decodes into an `Archive` containing only the entries that
+    // happened to survive. That collapses into a "manifest missing"
+    // error deeper in the flow, which reads as "archive from the wrong
+    // version" to the user. Scan for `PK\x05\x06` up front so
+    // truncation surfaces with its own typed exception — it means
+    // "archive is incomplete; re-download or re-export", not "wrong
+    // password" or "unsupported version".
+    if (!_hasEocdSignature(zipBytes)) {
+      throw const LfsArchiveTruncatedException();
+    }
     final Archive archive;
     try {
       archive = ZipDecoder().decodeBytes(zipBytes);
     } catch (e) {
-      throw LfsDecryptionFailedException(cause: e);
+      // A structurally broken ZIP that still carried EOCD but can't be
+      // decoded in full shares the UI copy with a successful EOCD-less
+      // truncation — either way the archive is incomplete.
+      throw LfsArchiveTruncatedException(cause: e);
     }
     // Zip-bomb guard: refuse before the manifest / session readers start
     // pulling entry bytes into memory.
     enforceDecompressedSizeCap(archive);
+    // Integrity guard: the ZipDecoder validates the central directory
+    // record but not each entry's compressed payload — a file truncated
+    // inside an entry's data section would still decode into an Archive
+    // whose first `entry.content` access throws. Force-read every entry
+    // up front so a truncation surfaces here with a typed exception
+    // rather than deep inside one of the per-entry parsers.
+    validateArchiveEntriesReadable(archive);
 
     final manifest = _parseManifest(archive);
-    if (manifest.schemaVersion > currentSchemaVersion) {
+    // Any schema_version that is not exactly [currentSchemaVersion]
+    // (future OR past) is rejected — future archives can't be read by
+    // this build, past archives fall below the v1 floor. Future format
+    // bumps register migrations in archive_registry.dart.
+    if (manifest.schemaVersion != currentSchemaVersion) {
       throw UnsupportedLfsVersionException(
         found: manifest.schemaVersion,
         supported: currentSchemaVersion,
@@ -728,16 +822,27 @@ class ExportImport {
     );
   }
 
-  /// Parse the manifest entry. Absence or malformed content is treated as a
-  /// legacy v1 archive (no manifest was written before [currentSchemaVersion]
-  /// introduction).
+  /// Parse the manifest entry. The manifest is mandatory — absence or
+  /// malformed content throws [UnsupportedLfsVersionException] so the
+  /// caller surfaces a clear "archive not recognised; re-export" error.
+  /// `found: 0` is the sentinel for "manifest missing or unreadable".
   static LfsManifest _parseManifest(Archive archive) {
     final file = archive.findFile(_manifestFile);
-    if (file == null) return const LfsManifest.legacy();
+    if (file == null) {
+      throw const UnsupportedLfsVersionException(
+        found: 0,
+        supported: currentSchemaVersion,
+      );
+    }
     try {
       final json = utf8.decode(file.content as List<int>);
       final decoded = jsonDecode(json);
-      if (decoded is! Map<String, dynamic>) return const LfsManifest.legacy();
+      if (decoded is! Map<String, dynamic>) {
+        throw const UnsupportedLfsVersionException(
+          found: 0,
+          supported: currentSchemaVersion,
+        );
+      }
       final versionRaw = decoded['schema_version'];
       final int schemaVersion;
       if (versionRaw is int) {
@@ -745,7 +850,10 @@ class ExportImport {
       } else if (versionRaw is num) {
         schemaVersion = versionRaw.toInt();
       } else {
-        schemaVersion = 1;
+        throw const UnsupportedLfsVersionException(
+          found: 0,
+          supported: currentSchemaVersion,
+        );
       }
       return LfsManifest(
         schemaVersion: schemaVersion,
@@ -756,8 +864,13 @@ class ExportImport {
             ? DateTime.tryParse(decoded['created_at'] as String)
             : null,
       );
+    } on UnsupportedLfsVersionException {
+      rethrow;
     } catch (_) {
-      return const LfsManifest.legacy();
+      throw const UnsupportedLfsVersionException(
+        found: 0,
+        supported: currentSchemaVersion,
+      );
     }
   }
 
@@ -765,12 +878,10 @@ class ExportImport {
   static Future<LfsPreview> preview({
     required String filePath,
     required String masterPassword,
-    int? iterations,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
-      iterations: iterations,
     );
 
     final hasConfig = parsed.archive.findFile(_configFile) != null;
@@ -802,14 +913,12 @@ class ExportImport {
     ExportOptions options = const ExportOptions(),
     ProgressReporter? progress,
     S? l10n,
-    int? iterations,
   }) async {
     final parsed = await _decryptAndParseArchive(
       filePath: filePath,
       masterPassword: masterPassword,
       progress: progress,
       l10n: l10n,
-      iterations: iterations,
     );
 
     final config = options.includeConfig
@@ -886,17 +995,12 @@ class ExportImport {
     archive.addFile(ArchiveFile(name, bytes.length, bytes));
   }
 
-  /// Encrypt bytes with password-derived key (PBKDF2 + AES-256-GCM).
-  /// Format: [magic 'LFSE' 4] [version 1] [iterations u32 BE 4]
-  ///         [salt 32] [iv 12] [ciphertext + GCM tag]
-  ///
-  /// The header lets a newer reader pick up a future iteration bump without
-  /// a format flag day — decrypt takes iterations from the file, not a
-  /// hard-coded constant.
+  /// Encrypt bytes with an Argon2id-derived key (AES-256-GCM).
+  /// Writes the v3 header: `[LFSE 4][0x02 1][KdfParams N][salt 32][iv 12][ct+tag]`.
   static Uint8List _encryptWithPassword(
     Uint8List data,
     String password,
-    int iterations,
+    KdfParams params,
   ) {
     final random = Random.secure();
     final salt = Uint8List.fromList(
@@ -906,7 +1010,7 @@ class ExportImport {
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
 
-    final keyBuf = _deriveKeyLocked(password, salt, iterations);
+    final keyBuf = _deriveKeyLocked(password, salt, params);
     try {
       final cipher = GCMBlockCipher(AESEngine())
         ..init(
@@ -914,13 +1018,11 @@ class ExportImport {
           AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
         );
       final output = cipher.process(data);
+      final paramsBytes = params.encode();
       final header = <int>[
         ..._encHeaderMagic,
-        _encHeaderVersion,
-        (iterations >> 24) & 0xFF,
-        (iterations >> 16) & 0xFF,
-        (iterations >> 8) & 0xFF,
-        iterations & 0xFF,
+        _encVersionArgon2id,
+        ...paramsBytes,
       ];
       return Uint8List.fromList([...header, ...salt, ...iv, ...output]);
     } finally {
@@ -928,36 +1030,69 @@ class ExportImport {
     }
   }
 
-  /// Decrypt bytes with password-derived key.
-  ///
-  /// Accepts both the v2 header format (`LFSE…`) and the legacy salt-first
-  /// layout. For the legacy case [iterations] is the fallback PBKDF2 cost
-  /// (callers pass [defaultPbkdf2Iterations] — which equals
-  /// [productionPbkdf2Iterations] in production). For v2 the header
-  /// overrides [iterations] so an archive written with a different cost
-  /// still decrypts correctly.
-  static Uint8List _decryptWithPassword(
-    Uint8List data,
-    String password,
-    int iterations,
-  ) {
+  /// Decrypt bytes with a password-derived key. Argon2id-only. Missing
+  /// `LFSE` magic or a header version byte other than
+  /// [_encVersionArgon2id] is rejected with
+  /// [UnsupportedLfsVersionException].
+  static Uint8List _decryptWithPassword(Uint8List data, String password) {
     final bytes = Uint8List.fromList(data);
-    final int saltStart;
-    final int effectiveIterations;
-    if (_hasEncryptionHeader(bytes)) {
-      effectiveIterations = _readHeaderIterations(bytes);
-      saltStart = _encHeaderBaseLen;
-    } else {
-      effectiveIterations = iterations;
-      saltStart = 0;
+
+    if (!_hasEncryptionHeader(bytes)) {
+      throw const UnsupportedLfsVersionException(
+        found: 0,
+        supported: currentSchemaVersion,
+      );
     }
 
+    final version = bytes[_encHeaderMagic.length];
+    if (version != _encVersionArgon2id) {
+      throw UnsupportedLfsVersionException(
+        found: version,
+        supported: currentSchemaVersion,
+      );
+    }
+    return _decryptArgon2id(bytes, password);
+  }
+
+  /// Decrypt a v3 Argon2id archive. Parses params from the header and
+  /// enforces [maxImportArgon2idMemoryKiB] / [maxImportArgon2idIterations]
+  /// / [maxImportArgon2idParallelism] DoS bounds before running the KDF.
+  static Uint8List _decryptArgon2id(Uint8List bytes, String password) {
+    final paramsStart = _encHeaderMagic.length + 1;
+    if (bytes.length <= paramsStart) {
+      throw const LfsMalformedHeaderException(
+        reason: 'truncated Argon2id header',
+      );
+    }
+    final KdfParams params;
+    try {
+      params = KdfParams.decode(Uint8List.sublistView(bytes, paramsStart));
+    } on FormatException catch (e) {
+      throw LfsMalformedHeaderException(reason: e.message);
+    }
+    final memoryCap = resolveMaxImportArgon2idMemoryKiB();
+    if (params.memoryKiB > memoryCap ||
+        params.iterations > maxImportArgon2idIterations ||
+        params.parallelism > maxImportArgon2idParallelism) {
+      throw LfsMalformedHeaderException(
+        reason:
+            'Argon2id params exceed import caps '
+            '(m=${params.memoryKiB}, t=${params.iterations}, '
+            'p=${params.parallelism})',
+      );
+    }
+    final saltStart = paramsStart + params.encodedLength;
+    if (bytes.length < saltStart + _saltLen + _ivLen) {
+      throw const LfsMalformedHeaderException(
+        reason: 'truncated Argon2id payload',
+      );
+    }
     final salt = bytes.sublist(saltStart, saltStart + _saltLen);
     final ivStart = saltStart + _saltLen;
     final iv = bytes.sublist(ivStart, ivStart + _ivLen);
     final ciphertext = bytes.sublist(ivStart + _ivLen);
 
-    final keyBuf = _deriveKeyLocked(password, salt, effectiveIterations);
+    final keyBuf = _deriveKeyLocked(password, salt, params);
     try {
       final cipher = GCMBlockCipher(AESEngine())
         ..init(
@@ -970,23 +1105,38 @@ class ExportImport {
     }
   }
 
-  /// Derive a 256-bit key from password using PBKDF2-SHA256, copy it into a
-  /// page-locked [SecretBuffer], and zero the intermediate Dart buffers.
-  ///
-  /// pointycastle's PBKDF2 returns a regular `Uint8List` on the Dart heap —
-  /// impossible to fully erase (immutable String reuse, GC relocation), but
-  /// we can at least wipe the bytes we control before dropping the ref. The
-  /// caller then holds the key only via the native locked buffer, which the
-  /// OS guarantees not to page out and we guarantee to zero on dispose.
+  /// Derive a 256-bit key, copy it into a page-locked [SecretBuffer], and
+  /// zero the Dart-heap intermediate. Dispatches to the algorithm selected
+  /// by [params]; for now only Argon2id is defined.
   static SecretBuffer _deriveKeyLocked(
     String password,
     Uint8List salt,
-    int iterations,
+    KdfParams params,
+  ) {
+    switch (params.algorithm) {
+      case KdfAlgorithm.argon2id:
+        return _deriveArgon2idKeyLocked(password, salt, params);
+    }
+  }
+
+  static SecretBuffer _deriveArgon2idKeyLocked(
+    String password,
+    Uint8List salt,
+    KdfParams params,
   ) {
     final passwordBytes = Uint8List.fromList(utf8.encode(password));
-    final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
-      ..init(Pbkdf2Parameters(salt, iterations, 32));
-    final derived = pbkdf2.process(passwordBytes);
+    final argon2Params = Argon2Parameters(
+      Argon2Parameters.ARGON2_id,
+      salt,
+      desiredKeyLength: 32,
+      iterations: params.iterations,
+      memory: params.memoryKiB,
+      lanes: params.parallelism,
+      version: Argon2Parameters.ARGON2_VERSION_13,
+    );
+    final generator = Argon2BytesGenerator()..init(argon2Params);
+    final derived = Uint8List(32);
+    generator.deriveKey(passwordBytes, 0, derived, 0);
     try {
       return SecretBuffer.fromBytes(derived);
     } finally {
@@ -997,6 +1147,31 @@ class ExportImport {
         passwordBytes[i] = 0;
       }
     }
+  }
+
+  /// Build an archive with an unknown version byte. Used only by tests
+  /// that assert the rejection path — the header layout is well-formed
+  /// but the version byte is not [_encVersionArgon2id], so
+  /// [_decryptWithPassword] rejects it before any cipher runs.
+  @visibleForTesting
+  static Uint8List encryptInvalidVersionForTesting(
+    Uint8List data, {
+    required int versionByte,
+  }) {
+    final random = Random.secure();
+    final salt = Uint8List.fromList(
+      List.generate(_saltLen, (_) => random.nextInt(256)),
+    );
+    final iv = Uint8List.fromList(
+      List.generate(_ivLen, (_) => random.nextInt(256)),
+    );
+    return Uint8List.fromList([
+      ..._encHeaderMagic,
+      versionByte,
+      ...salt,
+      ...iv,
+      ...data,
+    ]);
   }
 }
 
@@ -1041,11 +1216,13 @@ class LfsManifest {
     this.createdAt,
   });
 
-  /// Constructs a sentinel manifest for legacy archives (pre-manifest).
-  const LfsManifest.legacy()
-    : schemaVersion = 1,
-      appVersion = null,
-      createdAt = null;
+  /// Placeholder manifest used by code paths that need a
+  /// `LfsManifest` instance before the real one is parsed (e.g. the
+  /// default value on `LfsPreview.manifest`). Always carries the
+  /// current schema version and null metadata — never persisted.
+  static const LfsManifest placeholder = LfsManifest(
+    schemaVersion: ExportImport.currentSchemaVersion,
+  );
 }
 
 /// Classification of a file offered to the import flow. Produced by
@@ -1126,6 +1303,24 @@ class LfsDecryptionFailedException implements Exception {
   String toString() => 'LfsDecryptionFailedException';
 }
 
+/// Thrown when the ZIP container inside a .lfs archive is incomplete —
+/// End-of-Central-Directory record is missing or corrupt, or an entry's
+/// payload was cut off mid-stream (distinguishable at force-read time).
+/// Typical cause: the file was copied before a download / SAF write
+/// finished. UI should prompt the user to re-download or re-export
+/// from the original device.
+class LfsArchiveTruncatedException implements Exception {
+  final Object? cause;
+  final String? entryName;
+  const LfsArchiveTruncatedException({this.cause, this.entryName});
+
+  @override
+  String toString() {
+    final where = entryName == null ? '' : ' at entry "$entryName"';
+    return 'LfsArchiveTruncatedException$where';
+  }
+}
+
 /// The encrypted-archive header carried a value that we refuse to honour
 /// (e.g. an iteration count of 0 or above [LfsExportImport.maxImportIterations]).
 /// Importing would otherwise hang the isolate or crash on bad input.
@@ -1161,7 +1356,7 @@ class LfsPreview {
     this.managerKeyCount = 0,
     this.tagCount = 0,
     this.snippetCount = 0,
-    this.manifest = const LfsManifest.legacy(),
+    this.manifest = LfsManifest.placeholder,
     this.skippedSessions = 0,
   });
 

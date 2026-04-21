@@ -41,20 +41,46 @@ class _ActionTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
+  /// Tint the subtitle with the theme primary colour — used for
+  /// copy-to-clipboard tiles (Data Location path, Source Code URL)
+  /// where the subtitle is the payload and should read as a link.
+  /// Default (false) keeps the standard dim muted tone.
+  final bool emphasizeSubtitle;
+
+  /// Destructive variant — icon + title turn red. Used by Reset
+  /// All Data. Carries the same `onTap` semantics; only the visual
+  /// weight changes.
+  final bool destructive;
+
+  /// Hide the trailing chevron. Tiles that are informational
+  /// (tap-to-copy Data Location, tap-to-copy Source Code URL)
+  /// should not carry a drill-down affordance — the chevron reads
+  /// as "navigate further" which this tile does not do.
+  final bool showChevron;
+
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.emphasizeSubtitle = false,
+    this.destructive = false,
+    this.showChevron = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = destructive ? AppTheme.red : AppTheme.fgDim;
+    final titleColor = destructive ? AppTheme.red : AppTheme.fg;
+    final subtitleColor = emphasizeSubtitle
+        ? theme.colorScheme.primary
+        : AppTheme.fgFaint;
     final body = Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppTheme.fgDim),
+          Icon(icon, size: 16, color: iconColor),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -64,85 +90,32 @@ class _ActionTile extends StatelessWidget {
                   title,
                   style: AppFonts.inter(
                     fontSize: AppFonts.sm,
-                    color: AppTheme.fg,
+                    color: titleColor,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: AppFonts.inter(
                     fontSize: AppFonts.xs,
-                    color: AppTheme.fgFaint,
+                    color: subtitleColor,
                   ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right, size: 18, color: AppTheme.fgFaint),
+          if (showChevron)
+            Icon(Icons.chevron_right, size: 18, color: AppTheme.fgFaint),
         ],
       ),
     );
 
+    // `HoverRegion` auto-wraps its child in `SelectionContainer.disabled`
+    // when a gesture is bound — policy: clickable ≠ selectable. No
+    // explicit wrap needed here.
     return HoverRegion(
       onTap: onTap,
       builder: (hovered) =>
           Container(color: hovered ? AppTheme.hover : null, child: body),
-    );
-  }
-}
-
-/// Read-only info tile: icon + title + value. Visually distinct from
-/// [_ActionTile] — no hover highlight, no chevron, a subtle bg3 tint, and
-/// the value rendered in mono so it reads as "output" rather than "tap me".
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: AppTheme.radiusSm,
-        border: Border.all(color: AppTheme.borderLight),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.fgDim),
-          const SizedBox(width: 10),
-          // `Expanded` on the title absorbs every bit of extra row width, so
-          // the value — rendered after the gap without its own flex wrapper —
-          // is pinned against the right edge regardless of how wide the tile
-          // stretches on desktop. The earlier `Flexible` on the value split
-          // the remaining space 50/50 with the title, leaving short values
-          // drifting somewhere in the middle of wide rows.
-          Expanded(
-            child: Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.inter(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgDim,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            textAlign: TextAlign.end,
-            style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -166,43 +139,72 @@ class _SettingsRow extends StatelessWidget {
     this.icon,
   });
 
+  /// Breakpoint under which the row flips to stacked layout — label
+  /// on top, control on a new line. Tuned for the narrowest session
+  /// settings drawer on mobile (≈ 360–400 px) plus long-form
+  /// translations (Russian / German add ~30-50 % to English length).
+  /// Anything above the threshold keeps the side-by-side shape that
+  /// desktop users expect.
+  static const double _narrowBreakpoint = 420;
+
   @override
   Widget build(BuildContext context) {
+    final labelBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+        ),
+        if (subtitle != null)
+          Text(
+            subtitle!,
+            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          ),
+      ],
+    );
+
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: AppTheme.barHeightSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < _narrowBreakpoint;
+            if (narrow) {
+              // Stacked: label block on top, control fills the row
+              // below. Icon stays inline with the label so the visual
+              // hierarchy (icon + label, control underneath) reads as
+              // a single item instead of two disconnected lines.
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    label,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.sm,
-                      color: AppTheme.fg,
-                    ),
+                  Row(
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 16, color: AppTheme.fgDim),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(child: labelBlock),
+                    ],
                   ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: AppFonts.inter(
-                        fontSize: AppFonts.xs,
-                        color: AppTheme.fgDim,
-                      ),
-                    ),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: child),
                 ],
-              ),
-            ),
-            const SizedBox(width: 24),
-            child,
-          ],
+              );
+            }
+            return Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 16, color: AppTheme.fgDim),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(child: labelBlock),
+                const SizedBox(width: 24),
+                child,
+              ],
+            );
+          },
         ),
       ),
     );
@@ -217,33 +219,19 @@ class _Toggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
 
-  /// Shown as a hover tooltip and surfaced via a toast when the user
-  /// taps the disabled toggle — only used when [onChanged] is null.
-  /// The intent is "never hide security options" (see CLAUDE.md): the
-  /// toggle is always visible and the reason it can't flip is always
-  /// one gesture away.
-  final String? disabledReason;
-
   const _Toggle({
     required this.label,
     required this.value,
     required this.onChanged,
     this.subtitle,
     this.icon,
-    this.disabledReason,
   });
 
   @override
   Widget build(BuildContext context) {
     final enabled = onChanged != null;
     final accent = enabled ? AppTheme.accent : AppTheme.bg4;
-    VoidCallback? tap;
-    if (enabled) {
-      tap = () => onChanged!(!value);
-    } else if (disabledReason != null) {
-      tap = () =>
-          Toast.show(context, message: disabledReason!, level: ToastLevel.info);
-    }
+    final VoidCallback? tap = enabled ? () => onChanged!(!value) : null;
     final knob = Container(
       width: 32,
       height: 18,
@@ -278,9 +266,6 @@ class _Toggle extends StatelessWidget {
     // whole container, not just the trailing control.
     if (!enabled) {
       row = Opacity(opacity: 0.5, child: row);
-      if (disabledReason != null) {
-        row = Tooltip(message: disabledReason!, child: row);
-      }
     }
     return row;
   }

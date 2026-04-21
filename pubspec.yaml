@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 6.1.0+410
+version: 7.0.0+411
 homepage: https://github.com/Llloooggg/LetsFLUTssh
 repository: https://github.com/Llloooggg/LetsFLUTssh
 issue_tracker: https://github.com/Llloooggg/LetsFLUTssh/issues
@@ -70,7 +70,8 @@ dependencies:
 
   # Biometric authentication (Face ID / Touch ID / fingerprint) for the
   # optional biometric unlock of master-password mode.
-  local_auth: ^2.3.0
+  local_auth: ^3.0.1
+  dbus: ^0.7.12
 
 dev_dependencies:
   flutter_test:

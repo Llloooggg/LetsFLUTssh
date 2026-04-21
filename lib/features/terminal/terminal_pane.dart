@@ -11,6 +11,7 @@ import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
 import '../../core/shortcut_registry.dart';
+import '../../core/security/terminal_scrubber.dart';
 import '../../core/ssh/shell_helper.dart';
 import '../../core/config/app_config.dart';
 import '../../providers/config_provider.dart';
@@ -126,6 +127,10 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     super.initState();
     _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
     _terminalController = TerminalController();
+    // Register with the scrubber so auto-lock wipes this terminal's
+    // scrollback alongside the DB key. Dispose removes us from the
+    // registry so stale pointers do not linger.
+    TerminalScrubber.instance.register(_terminal);
     HardwareKeyboard.instance.addHandler(_onShiftToggle);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _connectAndOpenShell();
@@ -218,6 +223,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   void dispose() {
+    TerminalScrubber.instance.unregister(_terminal);
     _progressSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onShiftToggle);
     _shellConn?.close();

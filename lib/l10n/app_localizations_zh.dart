@@ -15,6 +15,12 @@ class SZh extends S {
   String get ok => '确定';
 
   @override
+  String get infoDialogProtectsHeader => '防护范围';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => '不在防护范围';
+
+  @override
   String get cancel => '取消';
 
   @override
@@ -778,6 +784,151 @@ class SZh extends S {
   String get passwordsDoNotMatch => '密码不匹配';
 
   @override
+  String get passwordStrengthWeak => '弱';
+
+  @override
+  String get passwordStrengthModerate => '中等';
+
+  @override
+  String get passwordStrengthStrong => '强';
+
+  @override
+  String get passwordStrengthVeryStrong => '很强';
+
+  @override
+  String get tierRecommendedBadge => '推荐';
+
+  @override
+  String get tierCurrentBadge => '当前';
+
+  @override
+  String get tierAlternativeBranchLabel => '替代方案 — 不信任操作系统';
+
+  @override
+  String get tierUpcomingTooltip => '将在后续版本中提供。';
+
+  @override
+  String get tierUpcomingNotes => '此层级的底层机制尚未发布。该行可见是为了让您知道此选项存在。';
+
+  @override
+  String get tierPlaintextLabel => '明文';
+
+  @override
+  String get tierPlaintextSubtitle => '无加密 — 仅文件权限';
+
+  @override
+  String get tierPlaintextThreat1 => '任何拥有文件系统访问权限的人都能读取您的数据';
+
+  @override
+  String get tierPlaintextThreat2 => '意外同步或备份会暴露一切';
+
+  @override
+  String get tierPlaintextNotes => '仅在受信任的隔离环境中使用。';
+
+  @override
+  String get tierKeychainLabel => '钥匙串';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return '密钥存放于 $keychain — 启动时自动解锁';
+  }
+
+  @override
+  String get tierKeychainProtect1 => '同一机器上的其他用户';
+
+  @override
+  String get tierKeychainProtect2 => '没有操作系统登录的被盗磁盘';
+
+  @override
+  String get tierKeychainThreat1 => '在您的操作系统账户下运行的恶意软件';
+
+  @override
+  String get tierKeychainThreat2 => '接管您的操作系统登录的攻击者';
+
+  @override
+  String get tierKeychainUnavailable => '此安装无法使用操作系统钥匙串。';
+
+  @override
+  String get tierKeychainPassProtect1 => '坐在您桌前的同事';
+
+  @override
+  String get tierKeychainPassProtect2 => '具有解锁访问权限的路人';
+
+  @override
+  String get tierKeychainPassThreat1 => '拥有磁盘上文件的离线攻击者';
+
+  @override
+  String get tierKeychainPassThreat2 => '与钥匙串相同的操作系统入侵风险';
+
+  @override
+  String get tierHardwareLabel => '硬件';
+
+  @override
+  String get tierHardwareSubtitle => '绑定硬件的保险库 + 带锁定的短 PIN';
+
+  @override
+  String get tierHardwareProtect1 => 'PIN 的离线暴力破解（硬件速率限制）';
+
+  @override
+  String get tierHardwareProtect2 => '偷窃磁盘和钥匙串 blob';
+
+  @override
+  String get tierHardwareThreat1 => '安全模块上的操作系统或固件 CVE';
+
+  @override
+  String get tierHardwareThreat2 => '强制生物识别解锁（如果启用）';
+
+  @override
+  String get tierParanoidLabel => '主密码 (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle => '长密码 + Argon2id。密钥从不进入操作系统。';
+
+  @override
+  String get tierParanoidProtect1 => '操作系统钥匙串入侵';
+
+  @override
+  String get tierParanoidProtect2 => '被盗磁盘（只要您的密码足够强）';
+
+  @override
+  String get tierParanoidThreat1 => '捕获您密码的键盘记录器';
+
+  @override
+  String get tierParanoidThreat2 => '弱密码 + 离线 Argon2id 破解';
+
+  @override
+  String get tierParanoidNotes => '此层级上的生物识别按设计禁用。';
+
+  @override
+  String get tierHardwareUnavailable => '此安装不支持硬件保险库。';
+
+  @override
+  String get pinLabel => '密码';
+
+  @override
+  String get l2UnlockTitle => '需要密码';
+
+  @override
+  String get l2UnlockHint => '输入您的短密码以继续';
+
+  @override
+  String get l2WrongPassword => '密码错误';
+
+  @override
+  String get l3UnlockTitle => '输入密码';
+
+  @override
+  String get l3UnlockHint => '密码解锁硬件绑定的保险库';
+
+  @override
+  String get l3WrongPin => '密码错误';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return '$seconds 秒后重试';
+  }
+
+  @override
   String exportedTo(String path) {
     return '已导出至：$path';
   }
@@ -804,6 +955,9 @@ class SZh extends S {
 
   @override
   String get dataLocation => '数据位置';
+
+  @override
+  String get dataStorageSection => '存储';
 
   @override
   String get pathCopied => '路径已复制到剪贴板';
@@ -1155,7 +1309,7 @@ class SZh extends S {
   String get biometricUnlockTitle => '使用生物识别解锁';
 
   @override
-  String get biometricUnlockSubtitle => '启动应用时无需输入主密码。';
+  String get biometricUnlockSubtitle => '无需输入密码——使用设备生物识别传感器解锁。';
 
   @override
   String get biometricNotAvailable => '此设备不支持生物识别解锁。';
@@ -1185,7 +1339,14 @@ class SZh extends S {
   String get biometricSensorNotAvailable => '此设备没有生物识别传感器。';
 
   @override
-  String get autoLockRequiresMasterPassword => '请先设置主密码以启用自动锁定。';
+  String get biometricSystemServiceMissing =>
+      '指纹服务 (fprintd) 未安装。请参阅 README → Installation。';
+
+  @override
+  String get biometricBackingHardware => '硬件支持 (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => '软件支持';
 
   @override
   String get currentPasswordIncorrect => '当前密码不正确';
@@ -1213,7 +1374,7 @@ class SZh extends S {
 
   @override
   String get autoLockSubtitle =>
-      '在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。';
+      '在闲置达到此时长后锁定界面。每次锁定都会清除数据库密钥并关闭加密存储；活动会话通过按会话缓存的凭据保持连接，该缓存会在会话关闭时清空。';
 
   @override
   String get autoLockOff => '关闭';
@@ -1243,6 +1404,9 @@ class SZh extends S {
 
   @override
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
+
+  @override
+  String get errLfsArchiveTruncated => '存档不完整。请重新下载或从原始设备重新导出。';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1605,6 +1769,12 @@ class SZh extends S {
   String get generateKey => '生成密钥';
 
   @override
+  String get addKey => '添加密钥';
+
+  @override
+  String get filePickerUnavailable => '此系统上无法使用文件选择器';
+
+  @override
   String get importKey => '导入密钥';
 
   @override
@@ -1750,6 +1920,44 @@ class SZh extends S {
   String get credentialsReset => '所有已保存的凭据已删除';
 
   @override
+  String get migrationToast => '存储已升级到最新格式';
+
+  @override
+  String get dbCorruptTitle => '无法打开数据库';
+
+  @override
+  String get dbCorruptBody => '无法打开磁盘上的数据。请尝试其他凭据，或重置以重新开始。';
+
+  @override
+  String get dbCorruptWarning => '重置将永久删除加密数据库和所有安全相关文件。不会恢复任何数据。';
+
+  @override
+  String get dbCorruptTryOther => '尝试其他凭据';
+
+  @override
+  String get dbCorruptResetContinue => '重置并重新设置';
+
+  @override
+  String get dbCorruptExit => '退出 LetsFLUTssh';
+
+  @override
+  String get tierResetTitle => '需要重置安全设置';
+
+  @override
+  String get tierResetBody =>
+      '此安装携带使用不同层级模型的早期版本 LetsFLUTssh 的安全数据。新模型是不兼容的变更 — 没有自动迁移路径。要继续，必须清除此安装中的所有已保存会话、凭据、SSH 密钥和已知主机，并从头运行首次启动设置向导。';
+
+  @override
+  String get tierResetWarning =>
+      '选择「重置并重新设置」将永久删除加密数据库和所有与安全相关的文件。如果您需要恢复数据，请立即退出应用并重新安装旧版本的 LetsFLUTssh 以先导出数据。';
+
+  @override
+  String get tierResetResetContinue => '重置并重新设置';
+
+  @override
+  String get tierResetExit => '退出 LetsFLUTssh';
+
+  @override
   String get derivingKey => '正在生成加密密钥...';
 
   @override
@@ -1821,6 +2029,186 @@ class SZh extends S {
 
   @override
   String get manageMasterPasswordSubtitle => '设置、更改或移除主密码';
+
+  @override
+  String get changeSecurityTier => '更改安全等级';
+
+  @override
+  String get changeSecurityTierSubtitle => '打开等级梯并切换到其他安全等级';
+
+  @override
+  String get changeSecurityTierConfirm => '正在用新等级重新加密数据库。此过程不可中断——请保持应用打开直到完成。';
+
+  @override
+  String get changeSecurityTierDone => '安全等级已更改';
+
+  @override
+  String get changeSecurityTierFailed => '无法更改安全等级';
+
+  @override
+  String get firstLaunchSecurityTitle => '已启用安全存储';
+
+  @override
+  String get firstLaunchSecurityBody => '你的数据由系统钥匙串中的密钥加密。本设备会自动解锁。';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      '此设备支持硬件存储。请在“设置 → 安全”中升级以使用 TPM / Secure Enclave 绑定。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      '硬件存储不可用——未在此设备上检测到 TPM 2.0。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      '硬件存储不可用——此设备未报告 Secure Enclave。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      '硬件存储不可用——请安装 tpm2-tools 并接入 TPM 2.0 设备以启用。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      '硬件存储不可用——此设备未报告 StrongBox 或 TEE。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric => '此设备不支持硬件存储。';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => '打开设置';
+
+  @override
+  String get firstLaunchSecurityDismiss => '知道了';
+
+  @override
+  String get securityHardwareUpgradeTitle => '可使用硬件存储';
+
+  @override
+  String get securityHardwareUpgradeBody => '升级以将机密绑定到 TPM / Secure Enclave。';
+
+  @override
+  String get securityHardwareUpgradeAction => '升级';
+
+  @override
+  String get securityHardwareUnavailableTitle => '硬件存储不可用';
+
+  @override
+  String get wizardReducedBanner =>
+      '本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。';
+
+  @override
+  String get tierBlockProtectsHeader => '可抵御';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => '无法抵御';
+
+  @override
+  String get tierBlockProtectsEmpty => '该等级无可抵御项。';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => '无未覆盖威胁。';
+
+  @override
+  String get tierBadgeCurrent => '当前';
+
+  @override
+  String get securitySetupEnable => '启用';
+
+  @override
+  String get securitySetupApply => '应用';
+
+  @override
+  String get passwordDisabledPlaintext => '无加密等级不存储可用密码保护的机密。';
+
+  @override
+  String get passwordDisabledParanoid => 'Paranoid 从密码派生数据库密钥——始终开启。';
+
+  @override
+  String get passwordSubtitleOn => '已开启——解锁时需要密码';
+
+  @override
+  String get passwordSubtitleOff => '已关闭——点击为当前等级添加密码';
+
+  @override
+  String get passwordSubtitleParanoid => '必需——主密码就是该等级的机密';
+
+  @override
+  String get passwordSubtitlePlaintext => '不适用——此等级未加密';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      '在 /dev/tpmrm0 上未检测到 TPM。如机器支持，请在 BIOS 中启用 fTPM / PTT；否则该设备无法使用硬件等级。';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      '未安装 tpm2-tools。执行 `sudo apt install tpm2-tools`（或您发行版的等效命令）以启用硬件等级。';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      '硬件等级探测失败。请检查 /dev/tpmrm0 权限与 udev 规则 —— 详情见日志。';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      '未检测到 TPM 2.0。请在 UEFI 固件中启用 fTPM / PTT，或接受此设备上无法使用硬件等级 —— 应用将回退到软件支持的凭据存储。';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      '无法访问 Microsoft Platform Crypto Provider 或 Software Key Storage Provider —— 可能是 Windows 加密子系统损坏或组策略阻止了 CNG。请查看 事件查看器 → 应用程序和服务日志。';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      '此 Mac 没有 Secure Enclave（2017 年之前没有 T1 / T2 安全芯片的 Intel Mac）。硬件等级不可用；请使用主密码。';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      '此 Mac 未设置登录密码。Secure Enclave 密钥创建需要登录密码 —— 请在 系统设置 → 触控 ID 与密码（或登录密码）中设置。';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave 拒绝了应用的签名身份 (-34018)。请运行随版本一同发布的 `macos-resign.sh` 脚本，为此次安装赋予稳定的自签名身份，然后重新启动应用。';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      '未设置设备密码。Secure Enclave 密钥创建需要密码 —— 请在 设置 → 面容 ID 与密码（或触控 ID 与密码）中设置。';
+
+  @override
+  String get hwProbeIosSimulator =>
+      '在 iOS 模拟器上运行，不具备 Secure Enclave。硬件等级仅在实体 iOS 设备上可用。';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      '硬件等级需要 Android 9 或更高版本（StrongBox 与密钥注册失效在较旧版本上不可靠）。';
+
+  @override
+  String get hwProbeAndroidBiometricNone => '此设备没有生物识别硬件（指纹或人脸）。请改用主密码。';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      '未注册生物识别。请在 设置 → 安全和隐私 → 生物识别 中添加指纹或人脸，然后重新启用硬件等级。';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      '生物识别硬件暂时不可用（失败尝试后锁定或待处理的安全更新）。请几分钟后重试。';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore 拒绝在此设备版本上备份硬件密钥（StrongBox 不可用、自定义 ROM 或驱动故障）。硬件层级不可用。';
+
+  @override
+  String get securityRecheck => '重新检查层级支持';
+
+  @override
+  String get securityRecheckUpdated => '层级支持已更新 —— 请查看上方卡片';
+
+  @override
+  String get securityRecheckUnchanged => '层级支持未变';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。';
+
+  @override
+  String get keyringProbeFailed => '此设备上无法访问操作系统密钥链。请查看日志以获取特定平台错误；应用将回退到主密码。';
 
   @override
   String get snippets => '代码片段';
@@ -2061,4 +2449,211 @@ class SZh extends S {
 
   @override
   String get continueWithoutPassword => '不设密码继续';
+
+  @override
+  String get threatColdDiskTheft => '冷盘窃取';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      '关机后拆下硬盘并在另一台计算机上读取，或者有权访问你主目录的人复制了数据库文件。';
+
+  @override
+  String get threatKeyringFileTheft => 'keyring / keychain 文件外泄';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      '攻击者直接从磁盘读取平台的凭据存储文件（libsecret keyring、Windows Credential Manager、macOS login keychain），并从中恢复被包装的数据库密钥。硬件等级无论是否有密码都能阻止此攻击，因为芯片拒绝导出密钥材料；keychain 等级还需要密码，否则仅凭 OS 登录密码即可解包被盗文件。';
+
+  @override
+  String get modifierOnlyWithPassword => '仅在设置密码时';
+
+  @override
+  String get threatBystanderUnlockedMachine => '已解锁设备旁的旁观者';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      '你离开时，有人走向你已经解锁的计算机并打开本应用。';
+
+  @override
+  String get threatLiveRamForensicsLocked => '锁定设备上的内存取证';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      '攻击者冻结内存（或通过 DMA 捕获），即便应用处于锁定状态，也能从快照中提取仍然残留的密钥材料。';
+
+  @override
+  String get threatOsKernelOrKeychainBreach => '操作系统内核或钥匙串被攻破';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      '内核漏洞、钥匙串外泄，或硬件安全芯片中的后门。操作系统本身从可信资源变成了攻击者。';
+
+  @override
+  String get threatOfflineBruteForce => '针对弱密码的离线暴力破解';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      '持有已封装密钥或密封数据副本的攻击者，可以不受任何频率限制，按自己的节奏尝试每一个密码。';
+
+  @override
+  String get legendProtects => '已保护';
+
+  @override
+  String get legendDoesNotProtect => '未保护';
+
+  @override
+  String get legendNotApplicable => '不适用——此等级没有用户密钥';
+
+  @override
+  String get legendWeakPasswordWarning => '可接受弱密码——由另一层（硬件频率限制器或密钥封装绑定）承担安全性';
+
+  @override
+  String get legendStrongPasswordRecommended => '强烈建议使用长口令——此等级的安全性依赖于它';
+
+  @override
+  String get colT0 => 'T0 明文';
+
+  @override
+  String get colT1 => 'T1 钥匙串';
+
+  @override
+  String get colT1Password => 'T1 + 密码';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + 密码 + 生物识别';
+
+  @override
+  String get colT2 => 'T2 硬件';
+
+  @override
+  String get colT2Password => 'T2 + 密码';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + 密码 + 生物识别';
+
+  @override
+  String get colParanoid => '偏执模式';
+
+  @override
+  String get securityComparisonTableTitle => '安全等级——并排对比';
+
+  @override
+  String get securityComparisonTableThreatColumn => '威胁';
+
+  @override
+  String get compareAllTiers => '比较所有等级';
+
+  @override
+  String get resetAllDataTitle => '重置所有数据';
+
+  @override
+  String get resetAllDataSubtitle => '删除所有会话、密钥、配置和安全构件。同时清除钥匙串条目和硬件保险库插槽。';
+
+  @override
+  String get resetAllDataConfirmTitle => '重置所有数据？';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      '所有会话、SSH 密钥、known hosts、代码片段、标签、偏好设置以及所有安全构件（钥匙串条目、硬件保险库数据、生物识别覆盖层）都将被永久删除。此操作无法撤销。';
+
+  @override
+  String get resetAllDataConfirmAction => '全部重置';
+
+  @override
+  String get resetAllDataInProgress => '正在重置…';
+
+  @override
+  String get resetAllDataDone => '所有数据已重置';
+
+  @override
+  String get resetAllDataFailed => '重置失败';
+
+  @override
+  String get compareAllTiersSubtitle => '并排查看每个等级可抵御的威胁。';
+
+  @override
+  String get autoLockRequiresPassword => '自动锁定需要在当前等级上设置密码。';
+
+  @override
+  String get recommendedBadge => '推荐';
+
+  @override
+  String get continueWithRecommended => '使用推荐设置继续';
+
+  @override
+  String get customizeSecurity => '自定义安全设置';
+
+  @override
+  String get tierHardwareSubtitleHonest => '进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      '备选：使用主密码，不信任操作系统。可防御 OS 被攻破，但运行时防护不优于 T1/T2。';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      '运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。';
+
+  @override
+  String get securitySetupContinue => '继续';
+
+  @override
+  String get currentTierBadge => '当前';
+
+  @override
+  String get paranoidAlternativeHeader => '备选';
+
+  @override
+  String get modifierPasswordLabel => '密码';
+
+  @override
+  String get modifierPasswordSubtitle => '解锁保险库前需要输入的密钥门槛。';
+
+  @override
+  String get modifierBiometricLabel => '生物识别快捷方式';
+
+  @override
+  String get modifierBiometricSubtitle => '从受生物识别保护的系统槽位中获取密码，无需手动输入。';
+
+  @override
+  String get biometricRequiresPassword => '请先启用密码——生物识别只是输入密码的快捷方式。';
+
+  @override
+  String get biometricRequiresActiveTier => '请先选择此等级以启用生物识别解锁';
+
+  @override
+  String get autoLockRequiresActiveTier => '请先选择此等级以配置自动锁定';
+
+  @override
+  String get biometricForbiddenParanoid => 'Paranoid 级别按设计不允许使用生物识别。';
+
+  @override
+  String get fprintdNotAvailable => '未安装 fprintd 或未登记指纹。';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      '没有密码的 TPM 仅提供隔离，而非身份验证。任何能运行此应用的人都可以解锁数据。';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      '强烈建议使用较长的口令——Argon2id 只能减慢暴力破解，无法阻止它。';
+
+  @override
+  String get plaintextWarningTitle => '明文：无加密';
+
+  @override
+  String get plaintextWarningBody =>
+      '会话、密钥和 known hosts 将以未加密方式保存。任何能访问本机文件系统的人都可以读取它们。';
+
+  @override
+  String get plaintextAcknowledge => '我了解我的数据不会被加密';
+
+  @override
+  String get plaintextAcknowledgeRequired => '在继续之前请确认您已了解。';
+
+  @override
+  String get passwordLabel => '密码';
+
+  @override
+  String get masterPasswordLabel => '主密码';
 }

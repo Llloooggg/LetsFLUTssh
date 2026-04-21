@@ -139,12 +139,23 @@ class ImportService {
       name: 'Import',
     );
 
-    final snapshot = result.mode == ImportMode.replace
-        ? await _snapshotAndDeleteExisting(result)
-        : null;
-
-    Future<ImportSummary> body() =>
-        _applyCore(result, snapshot, progress, l10n);
+    // The snapshot + delete phase used to run OUTSIDE the transaction —
+    // a crash after the delete but before the apply committed left half
+    // the replace landed on disk, recoverable only by the manual
+    // `_tryRestore` pass. Now the capture, the clear, and the apply all
+    // run under the same `runInTransaction` so drift + SQLite auto-
+    // rollback any partial state on exception. The snapshot survives as
+    // the Dart-level belt for provider cache sync (sessionProvider,
+    // tagProvider, …) which watches callbacks, not the DB directly; the
+    // DB rollback alone would leave those caches stale until their next
+    // `load()`.
+    _Snapshot? snapshot;
+    Future<ImportSummary> body() async {
+      if (result.mode == ImportMode.replace) {
+        snapshot = await _snapshotAndDeleteExisting(result);
+      }
+      return _applyCore(result, snapshot, progress, l10n);
+    }
 
     try {
       if (runInTransaction != null) {

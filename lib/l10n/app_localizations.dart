@@ -135,6 +135,18 @@ abstract class S {
   /// **'OK'**
   String get ok;
 
+  /// No description provided for @infoDialogProtectsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Protects against'**
+  String get infoDialogProtectsHeader;
+
+  /// No description provided for @infoDialogDoesNotProtectHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Does not protect against'**
+  String get infoDialogDoesNotProtectHeader;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
@@ -1515,6 +1527,288 @@ abstract class S {
   /// **'Passwords do not match'**
   String get passwordsDoNotMatch;
 
+  /// No description provided for @passwordStrengthWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get passwordStrengthWeak;
+
+  /// No description provided for @passwordStrengthModerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Moderate'**
+  String get passwordStrengthModerate;
+
+  /// No description provided for @passwordStrengthStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get passwordStrengthStrong;
+
+  /// No description provided for @passwordStrengthVeryStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Very strong'**
+  String get passwordStrengthVeryStrong;
+
+  /// No description provided for @tierRecommendedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get tierRecommendedBadge;
+
+  /// No description provided for @tierCurrentBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get tierCurrentBadge;
+
+  /// No description provided for @tierAlternativeBranchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative — don\'t trust the OS'**
+  String get tierAlternativeBranchLabel;
+
+  /// No description provided for @tierUpcomingTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Ships in an upcoming version.'**
+  String get tierUpcomingTooltip;
+
+  /// No description provided for @tierUpcomingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'This tier\'s underlying plumbing is not shipped yet. The row is visible so you know the option exists.'**
+  String get tierUpcomingNotes;
+
+  /// No description provided for @tierPlaintextLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plaintext'**
+  String get tierPlaintextLabel;
+
+  /// No description provided for @tierPlaintextSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No encryption — file permissions only'**
+  String get tierPlaintextSubtitle;
+
+  /// No description provided for @tierPlaintextThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with filesystem access reads your data'**
+  String get tierPlaintextThreat1;
+
+  /// No description provided for @tierPlaintextThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Accidental sync or backup reveals everything'**
+  String get tierPlaintextThreat2;
+
+  /// No description provided for @tierPlaintextNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only in trusted, isolated environments.'**
+  String get tierPlaintextNotes;
+
+  /// No description provided for @tierKeychainLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain'**
+  String get tierKeychainLabel;
+
+  /// No description provided for @tierKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key lives in {keychain} — auto-unlock on launch'**
+  String tierKeychainSubtitle(String keychain);
+
+  /// No description provided for @tierKeychainProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'Other users on the same machine'**
+  String get tierKeychainProtect1;
+
+  /// No description provided for @tierKeychainProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stolen disk without the OS login'**
+  String get tierKeychainProtect2;
+
+  /// No description provided for @tierKeychainThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Malware running under your OS account'**
+  String get tierKeychainThreat1;
+
+  /// No description provided for @tierKeychainThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker who takes over your OS login'**
+  String get tierKeychainThreat2;
+
+  /// No description provided for @tierKeychainUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'OS keychain not available on this install.'**
+  String get tierKeychainUnavailable;
+
+  /// No description provided for @tierKeychainPassProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'Coworker sitting at your desk'**
+  String get tierKeychainPassProtect1;
+
+  /// No description provided for @tierKeychainPassProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'A passerby with unlocked access'**
+  String get tierKeychainPassProtect2;
+
+  /// No description provided for @tierKeychainPassThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline attacker with the file on disk'**
+  String get tierKeychainPassThreat1;
+
+  /// No description provided for @tierKeychainPassThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Same OS-compromise risks as Keychain'**
+  String get tierKeychainPassThreat2;
+
+  /// No description provided for @tierHardwareLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware'**
+  String get tierHardwareLabel;
+
+  /// No description provided for @tierHardwareSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-bound vault + short PIN with lockout'**
+  String get tierHardwareSubtitle;
+
+  /// No description provided for @tierHardwareProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline brute force of the PIN (hardware rate-limit)'**
+  String get tierHardwareProtect1;
+
+  /// No description provided for @tierHardwareProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stealing the disk and the keychain blob'**
+  String get tierHardwareProtect2;
+
+  /// No description provided for @tierHardwareThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'OS or firmware CVE on the secure module'**
+  String get tierHardwareThreat1;
+
+  /// No description provided for @tierHardwareThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Forced biometric unlock (if enabled)'**
+  String get tierHardwareThreat2;
+
+  /// No description provided for @tierParanoidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password (Paranoid)'**
+  String get tierParanoidLabel;
+
+  /// No description provided for @tierParanoidSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Long password + Argon2id. Key never enters the OS.'**
+  String get tierParanoidSubtitle;
+
+  /// No description provided for @tierParanoidProtect1.
+  ///
+  /// In en, this message translates to:
+  /// **'OS keychain compromise'**
+  String get tierParanoidProtect1;
+
+  /// No description provided for @tierParanoidProtect2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stolen disk (as long as your password is strong)'**
+  String get tierParanoidProtect2;
+
+  /// No description provided for @tierParanoidThreat1.
+  ///
+  /// In en, this message translates to:
+  /// **'Keylogger capturing your password'**
+  String get tierParanoidThreat1;
+
+  /// No description provided for @tierParanoidThreat2.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak password + offline Argon2id cracking'**
+  String get tierParanoidThreat2;
+
+  /// No description provided for @tierParanoidNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric is disabled by design on this tier.'**
+  String get tierParanoidNotes;
+
+  /// No description provided for @tierHardwareUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware vault not available on this install.'**
+  String get tierHardwareUnavailable;
+
+  /// No description provided for @pinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get pinLabel;
+
+  /// No description provided for @l2UnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password required'**
+  String get l2UnlockTitle;
+
+  /// No description provided for @l2UnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your short password to continue'**
+  String get l2UnlockHint;
+
+  /// No description provided for @l2WrongPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password'**
+  String get l2WrongPassword;
+
+  /// No description provided for @l3UnlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter password'**
+  String get l3UnlockTitle;
+
+  /// No description provided for @l3UnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password unlocks the hardware-bound vault'**
+  String get l3UnlockHint;
+
+  /// No description provided for @l3WrongPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong password'**
+  String get l3WrongPin;
+
+  /// No description provided for @tierCooldownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again in {seconds}s'**
+  String tierCooldownHint(int seconds);
+
   /// No description provided for @exportedTo.
   ///
   /// In en, this message translates to:
@@ -1562,6 +1856,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Data Location'**
   String get dataLocation;
+
+  /// No description provided for @dataStorageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get dataStorageSection;
 
   /// No description provided for @pathCopied.
   ///
@@ -2208,7 +2508,7 @@ abstract class S {
   /// No description provided for @biometricUnlockSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Skip typing the master password when launching the app.'**
+  /// **'Skip typing the password — unlock with the device biometric sensor.'**
   String get biometricUnlockSubtitle;
 
   /// No description provided for @biometricNotAvailable.
@@ -2265,11 +2565,23 @@ abstract class S {
   /// **'This device has no biometric sensor.'**
   String get biometricSensorNotAvailable;
 
-  /// No description provided for @autoLockRequiresMasterPassword.
+  /// No description provided for @biometricSystemServiceMissing.
   ///
   /// In en, this message translates to:
-  /// **'Set a master password first to enable auto-lock.'**
-  String get autoLockRequiresMasterPassword;
+  /// **'Fingerprint service (fprintd) is not installed. See README → Installation.'**
+  String get biometricSystemServiceMissing;
+
+  /// No description provided for @biometricBackingHardware.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed (Secure Enclave / TPM)'**
+  String get biometricBackingHardware;
+
+  /// No description provided for @biometricBackingSoftware.
+  ///
+  /// In en, this message translates to:
+  /// **'Software-backed'**
+  String get biometricBackingSoftware;
 
   /// No description provided for @currentPasswordIncorrect.
   ///
@@ -2322,7 +2634,7 @@ abstract class S {
   /// No description provided for @autoLockSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.'**
+  /// **'Block the UI when idle for this long. The database key is wiped and the encrypted store is closed on every lock; active sessions stay connected through a per-session credential cache that clears when the session is closed.'**
   String get autoLockSubtitle;
 
   /// No description provided for @autoLockOff.
@@ -2366,6 +2678,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Wrong master password or corrupted .lfs archive'**
   String get errLfsDecryptFailed;
+
+  /// No description provided for @errLfsArchiveTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive is incomplete. Re-download or re-export from the original device.'**
+  String get errLfsArchiveTruncated;
 
   /// No description provided for @errLfsArchiveTooLarge.
   ///
@@ -2961,6 +3279,18 @@ abstract class S {
   /// **'Generate Key'**
   String get generateKey;
 
+  /// No description provided for @addKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Key'**
+  String get addKey;
+
+  /// No description provided for @filePickerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'File picker unavailable on this system'**
+  String get filePickerUnavailable;
+
   /// No description provided for @importKey.
   ///
   /// In en, this message translates to:
@@ -3213,6 +3543,78 @@ abstract class S {
   /// **'All saved credentials have been deleted'**
   String get credentialsReset;
 
+  /// No description provided for @migrationToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage upgraded to the latest format'**
+  String get migrationToast;
+
+  /// No description provided for @dbCorruptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Database cannot be opened'**
+  String get dbCorruptTitle;
+
+  /// No description provided for @dbCorruptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The data on disk cannot be opened. Try a different credential, or reset to start fresh.'**
+  String get dbCorruptBody;
+
+  /// No description provided for @dbCorruptWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset will permanently delete the encrypted database and every security-related file. No data will be recovered.'**
+  String get dbCorruptWarning;
+
+  /// No description provided for @dbCorruptTryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Try different credentials'**
+  String get dbCorruptTryOther;
+
+  /// No description provided for @dbCorruptResetContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & Setup Fresh'**
+  String get dbCorruptResetContinue;
+
+  /// No description provided for @dbCorruptExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit LetsFLUTssh'**
+  String get dbCorruptExit;
+
+  /// No description provided for @tierResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Security reset required'**
+  String get tierResetTitle;
+
+  /// No description provided for @tierResetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This install carries security data from an older version of LetsFLUTssh that used a different tier model. The new model is a breaking change — there is no automatic migration path. To continue, every saved session, credential, SSH key, and known-host entry on this install must be wiped and the first-launch setup wizard run fresh.'**
+  String get tierResetBody;
+
+  /// No description provided for @tierResetWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Choosing Reset & Setup Fresh will permanently delete the encrypted database and every security-related file. If you need to recover your data, quit the app now and reinstall the previous version of LetsFLUTssh to export first.'**
+  String get tierResetWarning;
+
+  /// No description provided for @tierResetResetContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset & Setup Fresh'**
+  String get tierResetResetContinue;
+
+  /// No description provided for @tierResetExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit LetsFLUTssh'**
+  String get tierResetExit;
+
   /// No description provided for @derivingKey.
   ///
   /// In en, this message translates to:
@@ -3350,6 +3752,324 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Set, change, or remove master password'**
   String get manageMasterPasswordSubtitle;
+
+  /// No description provided for @changeSecurityTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Security Tier'**
+  String get changeSecurityTier;
+
+  /// No description provided for @changeSecurityTierSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the tier ladder and switch to a different security level'**
+  String get changeSecurityTierSubtitle;
+
+  /// No description provided for @changeSecurityTierConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.'**
+  String get changeSecurityTierConfirm;
+
+  /// No description provided for @changeSecurityTierDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Security tier changed'**
+  String get changeSecurityTierDone;
+
+  /// No description provided for @changeSecurityTierFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change security tier'**
+  String get changeSecurityTierFailed;
+
+  /// No description provided for @firstLaunchSecurityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure storage enabled'**
+  String get firstLaunchSecurityTitle;
+
+  /// No description provided for @firstLaunchSecurityBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data is encrypted with a key held in the OS keychain. Unlock is automatic on this device.'**
+  String get firstLaunchSecurityBody;
+
+  /// No description provided for @firstLaunchSecurityUpgradeAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is available on this device. Upgrade in Settings → Security for TPM / Secure Enclave binding.'**
+  String get firstLaunchSecurityUpgradeAvailable;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableWindows.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — no TPM 2.0 detected on this device.'**
+  String get firstLaunchSecurityHardwareUnavailableWindows;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — this device does not report a Secure Enclave.'**
+  String get firstLaunchSecurityHardwareUnavailableApple;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableLinux.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — install tpm2-tools and a TPM 2.0 device to enable it.'**
+  String get firstLaunchSecurityHardwareUnavailableLinux;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableAndroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable — this device does not report a StrongBox or TEE.'**
+  String get firstLaunchSecurityHardwareUnavailableAndroid;
+
+  /// No description provided for @firstLaunchSecurityHardwareUnavailableGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage is unavailable on this device.'**
+  String get firstLaunchSecurityHardwareUnavailableGeneric;
+
+  /// No description provided for @firstLaunchSecurityOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get firstLaunchSecurityOpenSettings;
+
+  /// No description provided for @firstLaunchSecurityDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get firstLaunchSecurityDismiss;
+
+  /// No description provided for @securityHardwareUpgradeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage available'**
+  String get securityHardwareUpgradeTitle;
+
+  /// No description provided for @securityHardwareUpgradeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to bind secrets to TPM / Secure Enclave.'**
+  String get securityHardwareUpgradeBody;
+
+  /// No description provided for @securityHardwareUpgradeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get securityHardwareUpgradeAction;
+
+  /// No description provided for @securityHardwareUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-backed storage unavailable'**
+  String get securityHardwareUnavailableTitle;
+
+  /// No description provided for @wizardReducedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.'**
+  String get wizardReducedBanner;
+
+  /// No description provided for @tierBlockProtectsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'PROTECTS AGAINST'**
+  String get tierBlockProtectsHeader;
+
+  /// No description provided for @tierBlockDoesNotProtectHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'DOES NOT PROTECT'**
+  String get tierBlockDoesNotProtectHeader;
+
+  /// No description provided for @tierBlockProtectsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this tier.'**
+  String get tierBlockProtectsEmpty;
+
+  /// No description provided for @tierBlockDoesNotProtectEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing left uncovered.'**
+  String get tierBlockDoesNotProtectEmpty;
+
+  /// No description provided for @tierBadgeCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get tierBadgeCurrent;
+
+  /// No description provided for @securitySetupEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get securitySetupEnable;
+
+  /// No description provided for @securitySetupApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get securitySetupApply;
+
+  /// No description provided for @passwordDisabledPlaintext.
+  ///
+  /// In en, this message translates to:
+  /// **'Plaintext tier stores no secret to protect with a password.'**
+  String get passwordDisabledPlaintext;
+
+  /// No description provided for @passwordDisabledParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paranoid derives the database key from the password — it is always on.'**
+  String get passwordDisabledParanoid;
+
+  /// No description provided for @passwordSubtitleOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On — password required on unlock'**
+  String get passwordSubtitleOn;
+
+  /// No description provided for @passwordSubtitleOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off — tap to add a password on this tier'**
+  String get passwordSubtitleOff;
+
+  /// No description provided for @passwordSubtitleParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Required — the master password is the tier\'s secret'**
+  String get passwordSubtitleParanoid;
+
+  /// No description provided for @passwordSubtitlePlaintext.
+  ///
+  /// In en, this message translates to:
+  /// **'Not applicable — no encryption on this tier'**
+  String get passwordSubtitlePlaintext;
+
+  /// No description provided for @hwProbeLinuxDeviceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM detected at /dev/tpmrm0. Enable fTPM / PTT in BIOS if the machine supports it, otherwise the hardware tier is unavailable on this device.'**
+  String get hwProbeLinuxDeviceMissing;
+
+  /// No description provided for @hwProbeLinuxBinaryMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'tpm2-tools is not installed. Run `sudo apt install tpm2-tools` (or your distro equivalent) to enable the hardware tier.'**
+  String get hwProbeLinuxBinaryMissing;
+
+  /// No description provided for @hwProbeLinuxProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware-tier probe failed. Check /dev/tpmrm0 permissions / udev rules — see logs for the tpm2-tools error.'**
+  String get hwProbeLinuxProbeFailed;
+
+  /// No description provided for @hwProbeWindowsSoftwareOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM 2.0 detected. Enable fTPM / PTT in UEFI firmware, or accept that the hardware tier is unavailable on this device — the app falls back to the software-backed credential store.'**
+  String get hwProbeWindowsSoftwareOnly;
+
+  /// No description provided for @hwProbeWindowsProvidersMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Neither the Microsoft Platform Crypto Provider nor the Software Key Storage Provider is reachable — likely a corrupted Windows crypto subsystem or a Group Policy that blocks CNG. Check Event Viewer → Applications and Services Logs.'**
+  String get hwProbeWindowsProvidersMissing;
+
+  /// No description provided for @hwProbeMacosNoSecureEnclave.
+  ///
+  /// In en, this message translates to:
+  /// **'This Mac has no Secure Enclave (pre-2017 Intel Mac without a T1 / T2 security chip). The hardware tier is not available; use master password instead.'**
+  String get hwProbeMacosNoSecureEnclave;
+
+  /// No description provided for @hwProbeMacosPasscodeNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No login password is set on this Mac. Secure Enclave key creation requires one — set a login password in System Settings → Touch ID & Password (or Login Password).'**
+  String get hwProbeMacosPasscodeNotSet;
+
+  /// No description provided for @hwProbeMacosSigningIdentityMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave rejected the app\'s signing identity (-34018). Run the bundled `macos-resign.sh` script (download from the same release) to give this install a stable self-signed identity, then relaunch.'**
+  String get hwProbeMacosSigningIdentityMissing;
+
+  /// No description provided for @hwProbeIosPasscodeNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No device passcode is set. Secure Enclave key creation requires one — set a passcode in Settings → Face ID & Passcode (or Touch ID & Passcode).'**
+  String get hwProbeIosPasscodeNotSet;
+
+  /// No description provided for @hwProbeIosSimulator.
+  ///
+  /// In en, this message translates to:
+  /// **'Running on the iOS Simulator, which has no Secure Enclave. The hardware tier is only available on physical iOS devices.'**
+  String get hwProbeIosSimulator;
+
+  /// No description provided for @hwProbeAndroidApiTooLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Android 9 or newer is required for the hardware tier (StrongBox and per-key enrolment invalidation are not reliable on older versions).'**
+  String get hwProbeAndroidApiTooLow;
+
+  /// No description provided for @hwProbeAndroidBiometricNone.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has no biometric hardware (fingerprint or face). Use master password instead.'**
+  String get hwProbeAndroidBiometricNone;
+
+  /// No description provided for @hwProbeAndroidBiometricNotEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'No biometric is enrolled. Add a fingerprint or face in Settings → Security & privacy → Biometrics, then re-enable the hardware tier.'**
+  String get hwProbeAndroidBiometricNotEnrolled;
+
+  /// No description provided for @hwProbeAndroidBiometricUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.'**
+  String get hwProbeAndroidBiometricUnavailable;
+
+  /// No description provided for @hwProbeAndroidKeystoreRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The Android Keystore refused to back a hardware key on this device build (StrongBox unavailable, custom ROM stripping, or driver glitch). The hardware tier is not available.'**
+  String get hwProbeAndroidKeystoreRejected;
+
+  /// No description provided for @securityRecheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-check tier support'**
+  String get securityRecheck;
+
+  /// No description provided for @securityRecheckUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tier support updated — see cards above'**
+  String get securityRecheckUpdated;
+
+  /// No description provided for @securityRecheckUnchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Tier support unchanged'**
+  String get securityRecheckUnchanged;
+
+  /// No description provided for @keyringProbeLinuxNoSecretService.
+  ///
+  /// In en, this message translates to:
+  /// **'D-Bus is up but no secret-service daemon is running. Install gnome-keyring (`sudo apt install gnome-keyring`) or KWalletManager and ensure it starts at login.'**
+  String get keyringProbeLinuxNoSecretService;
+
+  /// No description provided for @keyringProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The OS keychain is unreachable on this device. See logs for the specific platform error; the app falls back to master password.'**
+  String get keyringProbeFailed;
 
   /// No description provided for @snippets.
   ///
@@ -3770,6 +4490,396 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Continue Without Password'**
   String get continueWithoutPassword;
+
+  /// No description provided for @threatColdDiskTheft.
+  ///
+  /// In en, this message translates to:
+  /// **'Cold-disk theft'**
+  String get threatColdDiskTheft;
+
+  /// No description provided for @threatColdDiskTheftDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.'**
+  String get threatColdDiskTheftDescription;
+
+  /// No description provided for @threatKeyringFileTheft.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyring / keychain file exfiltration'**
+  String get threatKeyringFileTheft;
+
+  /// No description provided for @threatKeyringFileTheftDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Attacker reads the platform\'s credential-store file directly off the disk (libsecret keyring, Windows Credential Manager, macOS login keychain) and recovers the wrapped database key from it. The hardware tier defeats this regardless of password because the chip refuses to export key material; the keychain tier needs a password on top so the stolen file cannot be unwrapped by the OS login password alone.'**
+  String get threatKeyringFileTheftDescription;
+
+  /// No description provided for @modifierOnlyWithPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'only with password'**
+  String get modifierOnlyWithPassword;
+
+  /// No description provided for @threatBystanderUnlockedMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Bystander on an unlocked machine'**
+  String get threatBystanderUnlockedMachine;
+
+  /// No description provided for @threatBystanderUnlockedMachineDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone walks up to your already-unlocked computer and opens the app while you are away.'**
+  String get threatBystanderUnlockedMachineDescription;
+
+  /// No description provided for @threatLiveRamForensicsLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'RAM forensics on a locked machine'**
+  String get threatLiveRamForensicsLocked;
+
+  /// No description provided for @threatLiveRamForensicsLockedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker freezes RAM (or captures it via DMA) and pulls still-resident key material out of the snapshot, even while the app is locked.'**
+  String get threatLiveRamForensicsLockedDescription;
+
+  /// No description provided for @threatOsKernelOrKeychainBreach.
+  ///
+  /// In en, this message translates to:
+  /// **'OS kernel or keychain compromise'**
+  String get threatOsKernelOrKeychainBreach;
+
+  /// No description provided for @threatOsKernelOrKeychainBreachDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Kernel vulnerability, keychain exfiltration, or a backdoor in the hardware security chip. The operating system becomes the attacker rather than a trusted resource.'**
+  String get threatOsKernelOrKeychainBreachDescription;
+
+  /// No description provided for @threatOfflineBruteForce.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline brute force on weak password'**
+  String get threatOfflineBruteForce;
+
+  /// No description provided for @threatOfflineBruteForceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'An attacker who has a copy of the wrapped key or sealed blob tries every password at their own pace without any rate limiter.'**
+  String get threatOfflineBruteForceDescription;
+
+  /// No description provided for @legendProtects.
+  ///
+  /// In en, this message translates to:
+  /// **'Protected'**
+  String get legendProtects;
+
+  /// No description provided for @legendDoesNotProtect.
+  ///
+  /// In en, this message translates to:
+  /// **'Not protected'**
+  String get legendDoesNotProtect;
+
+  /// No description provided for @legendNotApplicable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not applicable — no user secret for this tier'**
+  String get legendNotApplicable;
+
+  /// No description provided for @legendWeakPasswordWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security'**
+  String get legendWeakPasswordWarning;
+
+  /// No description provided for @legendStrongPasswordRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'A long passphrase is strongly recommended — this tier\'s security depends on it'**
+  String get legendStrongPasswordRecommended;
+
+  /// No description provided for @colT0.
+  ///
+  /// In en, this message translates to:
+  /// **'T0 Plaintext'**
+  String get colT0;
+
+  /// No description provided for @colT1.
+  ///
+  /// In en, this message translates to:
+  /// **'T1 Keychain'**
+  String get colT1;
+
+  /// No description provided for @colT1Password.
+  ///
+  /// In en, this message translates to:
+  /// **'T1 + password'**
+  String get colT1Password;
+
+  /// No description provided for @colT1PasswordBiometric.
+  ///
+  /// In en, this message translates to:
+  /// **'T1 + password + biometric'**
+  String get colT1PasswordBiometric;
+
+  /// No description provided for @colT2.
+  ///
+  /// In en, this message translates to:
+  /// **'T2 Hardware'**
+  String get colT2;
+
+  /// No description provided for @colT2Password.
+  ///
+  /// In en, this message translates to:
+  /// **'T2 + password'**
+  String get colT2Password;
+
+  /// No description provided for @colT2PasswordBiometric.
+  ///
+  /// In en, this message translates to:
+  /// **'T2 + password + biometric'**
+  String get colT2PasswordBiometric;
+
+  /// No description provided for @colParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paranoid'**
+  String get colParanoid;
+
+  /// No description provided for @securityComparisonTableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Security tiers — side-by-side comparison'**
+  String get securityComparisonTableTitle;
+
+  /// No description provided for @securityComparisonTableThreatColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Threat'**
+  String get securityComparisonTableThreatColumn;
+
+  /// No description provided for @compareAllTiers.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare all tiers'**
+  String get compareAllTiers;
+
+  /// No description provided for @resetAllDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all data'**
+  String get resetAllDataTitle;
+
+  /// No description provided for @resetAllDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete every session, key, config and security artefact. Clears keychain entries and hardware-vault slots too.'**
+  String get resetAllDataSubtitle;
+
+  /// No description provided for @resetAllDataConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all data?'**
+  String get resetAllDataConfirmTitle;
+
+  /// No description provided for @resetAllDataConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All sessions, SSH keys, known hosts, snippets, tags, preferences, and every security artefact (keychain entries, hardware-vault blobs, biometric overlay) will be permanently deleted. This cannot be undone.'**
+  String get resetAllDataConfirmBody;
+
+  /// No description provided for @resetAllDataConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset everything'**
+  String get resetAllDataConfirmAction;
+
+  /// No description provided for @resetAllDataInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Resetting…'**
+  String get resetAllDataInProgress;
+
+  /// No description provided for @resetAllDataDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All data reset'**
+  String get resetAllDataDone;
+
+  /// No description provided for @resetAllDataFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset failed'**
+  String get resetAllDataFailed;
+
+  /// No description provided for @compareAllTiersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See what each tier protects against, side-by-side.'**
+  String get compareAllTiersSubtitle;
+
+  /// No description provided for @autoLockRequiresPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-lock requires a password on the active tier.'**
+  String get autoLockRequiresPassword;
+
+  /// No description provided for @recommendedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'RECOMMENDED'**
+  String get recommendedBadge;
+
+  /// No description provided for @continueWithRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with recommended'**
+  String get continueWithRecommended;
+
+  /// No description provided for @customizeSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize security'**
+  String get customizeSecurity;
+
+  /// No description provided for @tierHardwareSubtitleHonest.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced: hardware-bound key. Data is irrecoverable if this device\'s chip is lost or replaced.'**
+  String get tierHardwareSubtitleHonest;
+
+  /// No description provided for @tierParanoidSubtitleHonest.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative: master password, no OS trust. Protects against OS compromise. Does not improve runtime protection over T1/T2.'**
+  String get tierParanoidSubtitleHonest;
+
+  /// No description provided for @mitigationsNoteRuntimeThreats.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.'**
+  String get mitigationsNoteRuntimeThreats;
+
+  /// No description provided for @securitySetupContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get securitySetupContinue;
+
+  /// No description provided for @currentTierBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'CURRENT'**
+  String get currentTierBadge;
+
+  /// No description provided for @paranoidAlternativeHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'ALTERNATIVE'**
+  String get paranoidAlternativeHeader;
+
+  /// No description provided for @modifierPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get modifierPasswordLabel;
+
+  /// No description provided for @modifierPasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Typed secret gate before the vault unlocks.'**
+  String get modifierPasswordSubtitle;
+
+  /// No description provided for @modifierBiometricLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric shortcut'**
+  String get modifierBiometricLabel;
+
+  /// No description provided for @modifierBiometricSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Release the password from a biometric-gated OS slot instead of typing it.'**
+  String get modifierBiometricSubtitle;
+
+  /// No description provided for @biometricRequiresPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable a password first — biometric is a shortcut for entering it.'**
+  String get biometricRequiresPassword;
+
+  /// No description provided for @biometricRequiresActiveTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Select this tier first to enable biometric unlock'**
+  String get biometricRequiresActiveTier;
+
+  /// No description provided for @autoLockRequiresActiveTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Select this tier first to configure auto-lock'**
+  String get autoLockRequiresActiveTier;
+
+  /// No description provided for @biometricForbiddenParanoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paranoid does not allow biometric by design.'**
+  String get biometricForbiddenParanoid;
+
+  /// No description provided for @fprintdNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'fprintd not installed or no enrolled finger.'**
+  String get fprintdNotAvailable;
+
+  /// No description provided for @linuxTpmWithoutPasswordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.'**
+  String get linuxTpmWithoutPasswordNote;
+
+  /// No description provided for @paranoidMasterPasswordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A long passphrase is strongly recommended — Argon2id only slows brute force, it does not block it.'**
+  String get paranoidMasterPasswordNote;
+
+  /// No description provided for @plaintextWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plaintext: no encryption'**
+  String get plaintextWarningTitle;
+
+  /// No description provided for @plaintextWarningBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions, keys, and known hosts will be stored without encryption. Anyone with access to this computer\'s filesystem can read them.'**
+  String get plaintextWarningBody;
+
+  /// No description provided for @plaintextAcknowledge.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand my data will not be encrypted'**
+  String get plaintextAcknowledge;
+
+  /// No description provided for @plaintextAcknowledgeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm you understand before continuing.'**
+  String get plaintextAcknowledgeRequired;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// No description provided for @masterPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Master password'**
+  String get masterPasswordLabel;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

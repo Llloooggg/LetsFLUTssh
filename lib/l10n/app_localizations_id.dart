@@ -15,6 +15,12 @@ class SId extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => 'Melindungi dari';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => 'Tidak melindungi dari';
+
+  @override
   String get cancel => 'Batal';
 
   @override
@@ -799,6 +805,169 @@ class SId extends S {
   String get passwordsDoNotMatch => 'Kata sandi tidak cocok';
 
   @override
+  String get passwordStrengthWeak => 'Lemah';
+
+  @override
+  String get passwordStrengthModerate => 'Sedang';
+
+  @override
+  String get passwordStrengthStrong => 'Kuat';
+
+  @override
+  String get passwordStrengthVeryStrong => 'Sangat kuat';
+
+  @override
+  String get tierRecommendedBadge => 'Direkomendasikan';
+
+  @override
+  String get tierCurrentBadge => 'Saat ini';
+
+  @override
+  String get tierAlternativeBranchLabel =>
+      'Alternatif — jangan percaya pada OS';
+
+  @override
+  String get tierUpcomingTooltip => 'Akan hadir di versi mendatang.';
+
+  @override
+  String get tierUpcomingNotes =>
+      'Infrastruktur di balik tingkat ini belum dirilis. Baris ini terlihat agar Anda tahu opsi tersebut ada.';
+
+  @override
+  String get tierPlaintextLabel => 'Teks biasa';
+
+  @override
+  String get tierPlaintextSubtitle => 'Tanpa enkripsi — hanya izin file';
+
+  @override
+  String get tierPlaintextThreat1 =>
+      'Siapa pun dengan akses sistem file membaca data Anda';
+
+  @override
+  String get tierPlaintextThreat2 =>
+      'Sinkronisasi atau cadangan tidak sengaja mengungkap semuanya';
+
+  @override
+  String get tierPlaintextNotes =>
+      'Hanya gunakan di lingkungan tepercaya dan terisolasi.';
+
+  @override
+  String get tierKeychainLabel => 'Keychain';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'Kunci ada di $keychain — buka otomatis saat peluncuran';
+  }
+
+  @override
+  String get tierKeychainProtect1 => 'Pengguna lain pada mesin yang sama';
+
+  @override
+  String get tierKeychainProtect2 => 'Disk yang dicuri tanpa login OS';
+
+  @override
+  String get tierKeychainThreat1 =>
+      'Malware yang berjalan di bawah akun OS Anda';
+
+  @override
+  String get tierKeychainThreat2 =>
+      'Penyerang yang mengambil alih login OS Anda';
+
+  @override
+  String get tierKeychainUnavailable =>
+      'Keychain OS tidak tersedia pada instalasi ini.';
+
+  @override
+  String get tierKeychainPassProtect1 => 'Rekan kerja yang duduk di meja Anda';
+
+  @override
+  String get tierKeychainPassProtect2 => 'Pelintas dengan akses terbuka';
+
+  @override
+  String get tierKeychainPassThreat1 => 'Penyerang offline dengan file di disk';
+
+  @override
+  String get tierKeychainPassThreat2 =>
+      'Risiko kompromi OS yang sama seperti Keychain';
+
+  @override
+  String get tierHardwareLabel => 'Hardware';
+
+  @override
+  String get tierHardwareSubtitle =>
+      'Brankas terikat hardware + PIN pendek dengan lockout';
+
+  @override
+  String get tierHardwareProtect1 =>
+      'Brute force offline pada PIN (rate-limit hardware)';
+
+  @override
+  String get tierHardwareProtect2 => 'Mencuri disk dan blob keychain';
+
+  @override
+  String get tierHardwareThreat1 => 'CVE OS atau firmware pada modul aman';
+
+  @override
+  String get tierHardwareThreat2 => 'Buka biometrik paksa (jika diaktifkan)';
+
+  @override
+  String get tierParanoidLabel => 'Kata sandi utama (Paranoid)';
+
+  @override
+  String get tierParanoidSubtitle =>
+      'Kata sandi panjang + Argon2id. Kunci tidak pernah masuk ke OS.';
+
+  @override
+  String get tierParanoidProtect1 => 'Kompromi keychain OS';
+
+  @override
+  String get tierParanoidProtect2 =>
+      'Disk dicuri (selama kata sandi Anda kuat)';
+
+  @override
+  String get tierParanoidThreat1 => 'Keylogger yang menangkap kata sandi Anda';
+
+  @override
+  String get tierParanoidThreat2 =>
+      'Kata sandi lemah + peretasan Argon2id offline';
+
+  @override
+  String get tierParanoidNotes =>
+      'Biometrik dinonaktifkan secara desain pada tingkat ini.';
+
+  @override
+  String get tierHardwareUnavailable =>
+      'Brankas perangkat keras tidak tersedia pada instalasi ini.';
+
+  @override
+  String get pinLabel => 'Kata sandi';
+
+  @override
+  String get l2UnlockTitle => 'Kata sandi diperlukan';
+
+  @override
+  String get l2UnlockHint =>
+      'Masukkan kata sandi pendek Anda untuk melanjutkan';
+
+  @override
+  String get l2WrongPassword => 'Kata sandi salah';
+
+  @override
+  String get l3UnlockTitle => 'Masukkan kata sandi';
+
+  @override
+  String get l3UnlockHint =>
+      'Kata sandi membuka brankas terikat perangkat keras';
+
+  @override
+  String get l3WrongPin => 'Kata sandi salah';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return 'Coba lagi dalam $seconds d';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'Diekspor ke: $path';
   }
@@ -826,6 +995,9 @@ class SId extends S {
 
   @override
   String get dataLocation => 'Lokasi Data';
+
+  @override
+  String get dataStorageSection => 'Penyimpanan';
 
   @override
   String get pathCopied => 'Jalur disalin ke clipboard';
@@ -1187,7 +1359,7 @@ class SId extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Hindari mengetik kata sandi utama saat membuka aplikasi.';
+      'Tidak perlu mengetik kata sandi — buka kunci dengan sensor biometrik perangkat.';
 
   @override
   String get biometricNotAvailable =>
@@ -1223,8 +1395,15 @@ class SId extends S {
       'Perangkat ini tidak memiliki sensor biometrik.';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan kunci otomatis.';
+  String get biometricSystemServiceMissing =>
+      'Layanan sidik jari (fprintd) belum terpasang. Lihat README → Installation.';
+
+  @override
+  String get biometricBackingHardware =>
+      'Didukung perangkat keras (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'Didukung perangkat lunak';
 
   @override
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
@@ -1254,7 +1433,7 @@ class SId extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Mengunci UI setelah tidak aktif selama durasi ini. Basis data terenkripsi hanya dikunci ulang ketika tidak ada sesi SSH aktif, agar operasi panjang tetap berjalan.';
+      'Mengunci UI setelah tidak aktif selama durasi ini. Kunci basis data dihapus dan penyimpanan terenkripsi ditutup pada setiap penguncian; sesi aktif tetap tersambung melalui cache kredensial per sesi yang dibersihkan saat sesi ditutup.';
 
   @override
   String get autoLockOff => 'Mati';
@@ -1285,6 +1464,10 @@ class SId extends S {
   @override
   String get errLfsDecryptFailed =>
       'Kata sandi utama salah atau arsip .lfs rusak';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'Arsip tidak lengkap. Unduh ulang atau ekspor ulang dari perangkat asal.';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1656,6 +1839,13 @@ class SId extends S {
   String get generateKey => 'Buat kunci';
 
   @override
+  String get addKey => 'Tambah kunci';
+
+  @override
+  String get filePickerUnavailable =>
+      'Pemilih berkas tidak tersedia pada sistem ini';
+
+  @override
   String get importKey => 'Impor kunci';
 
   @override
@@ -1805,6 +1995,46 @@ class SId extends S {
   String get credentialsReset => 'Semua kredensial tersimpan telah dihapus';
 
   @override
+  String get migrationToast => 'Penyimpanan ditingkatkan ke format terbaru';
+
+  @override
+  String get dbCorruptTitle => 'Basis data tidak dapat dibuka';
+
+  @override
+  String get dbCorruptBody =>
+      'Data di disk tidak dapat dibuka. Coba kredensial lain atau setel ulang untuk mulai dari awal.';
+
+  @override
+  String get dbCorruptWarning =>
+      'Reset akan menghapus basis data terenkripsi dan semua file terkait keamanan secara permanen. Tidak ada data yang dipulihkan.';
+
+  @override
+  String get dbCorruptTryOther => 'Coba kredensial lain';
+
+  @override
+  String get dbCorruptResetContinue => 'Reset & Siapkan Ulang';
+
+  @override
+  String get dbCorruptExit => 'Keluar dari LetsFLUTssh';
+
+  @override
+  String get tierResetTitle => 'Perlu atur ulang keamanan';
+
+  @override
+  String get tierResetBody =>
+      'Instalasi ini membawa data keamanan dari versi LetsFLUTssh lama yang menggunakan model tingkatan berbeda. Model baru merupakan perubahan tidak kompatibel — tidak ada jalur migrasi otomatis. Untuk melanjutkan, semua sesi tersimpan, kredensial, kunci SSH, dan host yang dikenal pada instalasi ini harus dihapus dan wisaya pengaturan pertama dijalankan dari awal.';
+
+  @override
+  String get tierResetWarning =>
+      'Memilih «Atur Ulang & Siapkan Baru» akan menghapus permanen basis data terenkripsi dan setiap berkas terkait keamanan. Jika Anda perlu memulihkan data, keluar dari aplikasi sekarang dan instal ulang versi sebelumnya dari LetsFLUTssh untuk mengekspor terlebih dahulu.';
+
+  @override
+  String get tierResetResetContinue => 'Atur Ulang & Siapkan Baru';
+
+  @override
+  String get tierResetExit => 'Keluar dari LetsFLUTssh';
+
+  @override
   String get derivingKey => 'Membuat kunci enkripsi...';
 
   @override
@@ -1881,6 +2111,203 @@ class SId extends S {
   @override
   String get manageMasterPasswordSubtitle =>
       'Atur, ubah, atau hapus kata sandi utama';
+
+  @override
+  String get changeSecurityTier => 'Ubah Tingkat Keamanan';
+
+  @override
+  String get changeSecurityTierSubtitle =>
+      'Buka tangga tingkat dan pindah ke tingkat keamanan lain';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      'Mengenkripsi ulang basis data dengan tingkat baru. Tidak dapat diganggu — biarkan aplikasi terbuka hingga selesai.';
+
+  @override
+  String get changeSecurityTierDone => 'Tingkat keamanan diubah';
+
+  @override
+  String get changeSecurityTierFailed =>
+      'Tidak dapat mengubah tingkat keamanan';
+
+  @override
+  String get firstLaunchSecurityTitle => 'Penyimpanan aman aktif';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'Data Anda dienkripsi dengan kunci yang tersimpan di keychain OS. Pembukaan kunci di perangkat ini berjalan otomatis.';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'Penyimpanan berbasis perangkat keras tersedia di perangkat ini. Tingkatkan di Pengaturan → Keamanan untuk pengikatan TPM / Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — TPM 2.0 tidak terdeteksi di perangkat ini.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — perangkat ini tidak melaporkan Secure Enclave.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — pasang tpm2-tools dan perangkat TPM 2.0 untuk mengaktifkannya.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia — perangkat ini tidak melaporkan StrongBox atau TEE.';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia di perangkat ini.';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => 'Buka Pengaturan';
+
+  @override
+  String get firstLaunchSecurityDismiss => 'Mengerti';
+
+  @override
+  String get securityHardwareUpgradeTitle =>
+      'Penyimpanan berbasis perangkat keras tersedia';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'Tingkatkan untuk mengikat rahasia ke TPM / Secure Enclave.';
+
+  @override
+  String get securityHardwareUpgradeAction => 'Tingkatkan';
+
+  @override
+  String get securityHardwareUnavailableTitle =>
+      'Penyimpanan berbasis perangkat keras tidak tersedia';
+
+  @override
+  String get wizardReducedBanner =>
+      'Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.';
+
+  @override
+  String get tierBlockProtectsHeader => 'MELINDUNGI DARI';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => 'TIDAK MELINDUNGI';
+
+  @override
+  String get tierBlockProtectsEmpty => 'Tidak ada pada tingkat ini.';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty =>
+      'Tidak ada ancaman yang tidak tertutup.';
+
+  @override
+  String get tierBadgeCurrent => 'Saat ini';
+
+  @override
+  String get securitySetupEnable => 'Aktifkan';
+
+  @override
+  String get securitySetupApply => 'Terapkan';
+
+  @override
+  String get passwordDisabledPlaintext =>
+      'Tingkat tanpa enkripsi tidak menyimpan rahasia untuk dilindungi kata sandi.';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid menurunkan kunci basis data dari kata sandi — selalu aktif.';
+
+  @override
+  String get passwordSubtitleOn => 'Aktif — kata sandi diminta saat membuka';
+
+  @override
+  String get passwordSubtitleOff =>
+      'Nonaktif — ketuk untuk menambah kata sandi di tingkat ini';
+
+  @override
+  String get passwordSubtitleParanoid =>
+      'Wajib — kata sandi utama adalah rahasia tingkatan';
+
+  @override
+  String get passwordSubtitlePlaintext =>
+      'Tidak berlaku — tingkat ini tanpa enkripsi';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      'TPM tidak terdeteksi pada /dev/tpmrm0. Aktifkan fTPM / PTT di BIOS jika perangkat mendukung; jika tidak, tingkat perangkat keras tidak tersedia di perangkat ini.';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools belum terpasang. Jalankan `sudo apt install tpm2-tools` (atau padanannya di distro Anda) untuk mengaktifkan tingkat perangkat keras.';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'Pemeriksaan tingkat perangkat keras gagal. Periksa izin /dev/tpmrm0 dan aturan udev — lihat log untuk detail.';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 tidak terdeteksi. Aktifkan fTPM / PTT di firmware UEFI, atau terima bahwa tingkat perangkat keras tidak tersedia di perangkat ini — aplikasi beralih ke penyimpanan kredensial berbasis perangkat lunak.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Baik Microsoft Platform Crypto Provider maupun Software Key Storage Provider tidak dapat dijangkau — kemungkinan subsistem kripto Windows rusak atau Kebijakan Grup yang memblokir CNG. Periksa Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Mac ini tidak memiliki Secure Enclave (Mac Intel sebelum 2017 tanpa chip keamanan T1 / T2). Tingkat perangkat keras tidak tersedia; gunakan kata sandi utama.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Tidak ada kata sandi login di Mac ini. Pembuatan kunci Secure Enclave memerlukannya — atur kata sandi login di Pengaturan Sistem → Touch ID & Kata Sandi (atau Kata Sandi Login).';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave menolak identitas penandatanganan aplikasi (-34018). Jalankan skrip `macos-resign.sh` yang disertakan di rilis untuk memberikan instalasi ini identitas swatandatangan yang stabil, lalu mulai ulang aplikasi.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Tidak ada kode sandi perangkat yang diatur. Pembuatan kunci Secure Enclave memerlukannya — atur kode sandi di Pengaturan → Face ID & Kode Sandi (atau Touch ID & Kode Sandi).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Berjalan di Simulator iOS, yang tidak memiliki Secure Enclave. Tingkat perangkat keras hanya tersedia di perangkat iOS fisik.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Android 9 atau lebih baru diperlukan untuk tingkat perangkat keras (StrongBox dan invalidasi per-kunci saat pendaftaran tidak dapat diandalkan pada versi lebih lama).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Perangkat ini tidak memiliki perangkat keras biometrik (sidik jari atau wajah). Gunakan kata sandi utama.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Tidak ada biometrik yang terdaftar. Tambahkan sidik jari atau wajah di Pengaturan → Keamanan & privasi → Biometrik, lalu aktifkan kembali tingkat perangkat keras.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Perangkat keras biometrik tidak dapat digunakan sementara (terkunci setelah percobaan gagal atau pembaruan keamanan tertunda). Coba lagi beberapa menit lagi.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore menolak menyimpan kunci perangkat keras pada build perangkat ini (StrongBox tidak tersedia, ROM kustom, atau gangguan driver). Tingkat perangkat keras tidak tersedia.';
+
+  @override
+  String get securityRecheck => 'Periksa ulang dukungan tingkat';
+
+  @override
+  String get securityRecheckUpdated =>
+      'Dukungan tingkat diperbarui — lihat kartu di atas';
+
+  @override
+  String get securityRecheckUnchanged => 'Dukungan tingkat tidak berubah';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus aktif tetapi tidak ada secret-service daemon yang berjalan. Pasang gnome-keyring (`sudo apt install gnome-keyring`) atau KWalletManager dan pastikan berjalan saat login.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Keychain OS tidak dapat dijangkau di perangkat ini. Lihat log untuk error spesifik platform; aplikasi beralih ke kata sandi utama.';
 
   @override
   String get snippets => 'Snippet';
@@ -2129,4 +2556,233 @@ class SId extends S {
 
   @override
   String get continueWithoutPassword => 'Lanjutkan tanpa kata sandi';
+
+  @override
+  String get threatColdDiskTheft => 'Pencurian disk saat mati';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      'Komputer dalam keadaan mati yang drive-nya dilepas lalu dibaca di komputer lain, atau salinan berkas basis data yang diambil oleh seseorang dengan akses ke direktori home Anda.';
+
+  @override
+  String get threatKeyringFileTheft => 'Pencurian berkas keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Penyerang membaca berkas penyimpanan kredensial platform langsung dari disk (libsecret keyring, Windows Credential Manager, macOS login keychain) dan memulihkan kunci basis data yang dibungkus dari dalamnya. Tingkat perangkat keras memblokirnya terlepas dari kata sandi karena chip menolak mengekspor material kunci; tingkat keychain memerlukan kata sandi tambahan, jika tidak berkas yang dicuri dapat dibuka hanya dengan kata sandi login OS.';
+
+  @override
+  String get modifierOnlyWithPassword => 'hanya dengan kata sandi';
+
+  @override
+  String get threatBystanderUnlockedMachine =>
+      'Orang lain di dekat mesin yang sudah terbuka';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'Seseorang menghampiri komputer Anda yang sudah terbuka kuncinya dan membuka aplikasi saat Anda tidak di tempat.';
+
+  @override
+  String get threatLiveRamForensicsLocked =>
+      'Forensik RAM pada mesin yang terkunci';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      'Penyerang membekukan RAM (atau menangkapnya lewat DMA) dan menarik materi kunci yang masih tersimpan dari snapshot, bahkan ketika aplikasi sedang terkunci.';
+
+  @override
+  String get threatOsKernelOrKeychainBreach =>
+      'Kompromi kernel OS atau keychain';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'Kerentanan kernel, eksfiltrasi keychain, atau pintu belakang pada chip keamanan perangkat keras. Sistem operasi berubah dari sumber daya tepercaya menjadi penyerang itu sendiri.';
+
+  @override
+  String get threatOfflineBruteForce =>
+      'Brute force offline pada kata sandi lemah';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'Penyerang yang memegang salinan kunci yang dibungkus atau blob tersegel mencoba setiap kata sandi dengan kecepatannya sendiri, tanpa pembatas laju apa pun.';
+
+  @override
+  String get legendProtects => 'Terlindungi';
+
+  @override
+  String get legendDoesNotProtect => 'Tidak terlindungi';
+
+  @override
+  String get legendNotApplicable =>
+      'Tidak berlaku — tier ini tidak memiliki rahasia pengguna';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      'Kata sandi lemah dapat diterima — lapisan lain (pembatas laju perangkat keras atau pengikatan kunci yang dibungkus) yang memikul keamanan';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      'Frasa sandi panjang sangat disarankan — keamanan tier ini bergantung padanya';
+
+  @override
+  String get colT0 => 'T0 Teks polos';
+
+  @override
+  String get colT1 => 'T1 Keychain';
+
+  @override
+  String get colT1Password => 'T1 + kata sandi';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + kata sandi + biometrik';
+
+  @override
+  String get colT2 => 'T2 Perangkat keras';
+
+  @override
+  String get colT2Password => 'T2 + kata sandi';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + kata sandi + biometrik';
+
+  @override
+  String get colParanoid => 'Paranoid';
+
+  @override
+  String get securityComparisonTableTitle =>
+      'Tier keamanan — perbandingan berdampingan';
+
+  @override
+  String get securityComparisonTableThreatColumn => 'Ancaman';
+
+  @override
+  String get compareAllTiers => 'Bandingkan semua tier';
+
+  @override
+  String get resetAllDataTitle => 'Reset semua data';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'Hapus semua sesi, kunci, konfigurasi, dan artefak keamanan. Juga membersihkan entri keychain dan slot brankas perangkat keras.';
+
+  @override
+  String get resetAllDataConfirmTitle => 'Reset semua data?';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'Semua sesi, kunci SSH, known hosts, snippet, tag, preferensi, dan semua artefak keamanan (entri keychain, data brankas perangkat keras, lapisan biometrik) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.';
+
+  @override
+  String get resetAllDataConfirmAction => 'Reset semuanya';
+
+  @override
+  String get resetAllDataInProgress => 'Mereset…';
+
+  @override
+  String get resetAllDataDone => 'Semua data telah direset';
+
+  @override
+  String get resetAllDataFailed => 'Reset gagal';
+
+  @override
+  String get compareAllTiersSubtitle =>
+      'Lihat berdampingan apa yang dilindungi oleh setiap tier.';
+
+  @override
+  String get autoLockRequiresPassword =>
+      'Kunci otomatis memerlukan kata sandi pada tier aktif.';
+
+  @override
+  String get recommendedBadge => 'DIREKOMENDASIKAN';
+
+  @override
+  String get continueWithRecommended =>
+      'Lanjutkan dengan yang direkomendasikan';
+
+  @override
+  String get customizeSecurity => 'Sesuaikan keamanan';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      'Lanjutan: kunci terikat pada perangkat keras. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      'Alternatif: kata sandi utama, tanpa memercayai OS. Melindungi dari OS yang disusupi. Tidak meningkatkan proteksi runtime dibandingkan T1/T2.';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih.';
+
+  @override
+  String get securitySetupContinue => 'Lanjutkan';
+
+  @override
+  String get currentTierBadge => 'SAAT INI';
+
+  @override
+  String get paranoidAlternativeHeader => 'ALTERNATIF';
+
+  @override
+  String get modifierPasswordLabel => 'Kata sandi';
+
+  @override
+  String get modifierPasswordSubtitle =>
+      'Gerbang rahasia yang diketik sebelum brankas dibuka.';
+
+  @override
+  String get modifierBiometricLabel => 'Pintasan biometrik';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'Melepas kata sandi dari slot OS yang dilindungi biometrik, alih-alih mengetiknya.';
+
+  @override
+  String get biometricRequiresPassword =>
+      'Aktifkan kata sandi terlebih dahulu — biometrik hanya pintasan untuk memasukkannya.';
+
+  @override
+  String get biometricRequiresActiveTier =>
+      'Pilih tingkat ini terlebih dahulu untuk mengaktifkan buka kunci biometrik';
+
+  @override
+  String get autoLockRequiresActiveTier =>
+      'Pilih tingkat ini terlebih dahulu untuk mengonfigurasi kunci otomatis';
+
+  @override
+  String get biometricForbiddenParanoid =>
+      'Paranoid tidak mengizinkan biometrik secara desain.';
+
+  @override
+  String get fprintdNotAvailable =>
+      'fprintd belum diinstal atau tidak ada sidik jari terdaftar.';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'TPM tanpa kata sandi menyediakan isolasi, bukan autentikasi. Siapa pun yang dapat menjalankan aplikasi ini dapat membuka data.';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      'Sangat disarankan menggunakan frasa sandi yang panjang — Argon2id hanya memperlambat serangan brute force, bukan memblokirnya.';
+
+  @override
+  String get plaintextWarningTitle => 'Teks polos: tanpa enkripsi';
+
+  @override
+  String get plaintextWarningBody =>
+      'Sesi, kunci, dan known hosts akan disimpan tanpa enkripsi. Siapa pun yang memiliki akses ke sistem file komputer ini dapat membacanya.';
+
+  @override
+  String get plaintextAcknowledge =>
+      'Saya memahami bahwa data saya tidak akan dienkripsi';
+
+  @override
+  String get plaintextAcknowledgeRequired =>
+      'Konfirmasikan pemahaman Anda sebelum melanjutkan.';
+
+  @override
+  String get passwordLabel => 'Kata sandi';
+
+  @override
+  String get masterPasswordLabel => 'Kata sandi utama';
 }

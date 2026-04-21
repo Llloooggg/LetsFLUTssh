@@ -19,16 +19,19 @@
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
+  - [4.3 Widget-local controllers (`ChangeNotifier`)](#43-widget-local-controllers-changenotifier)
 - [5. Feature Modules](#5-feature-modules)
   - [5.1 Terminal with Tiling (`features/terminal/`)](#51-terminal-with-tiling-featuresterminal)
   - [5.2 File Browser (`features/file_browser/`)](#52-file-browser-featuresfile_browser)
   - [5.3 Session Manager UI (`features/session_manager/`)](#53-session-manager-ui-featuressession_manager)
-  - [5.4 Tab System (`features/tabs/`)](#54-tab-system-featurestabs)
+  - [5.4 Tab & Workspace System](#54-tab--workspace-system)
   - [5.5 Settings (`features/settings/`)](#55-settings-featuressettings)
   - [5.6 Mobile (`features/mobile/`)](#56-mobile-featuresmobile)
 - [6. Widgets — Public API Reference](#6-widgets--public-api-reference)
+  - [6.1 Security & Tier Wizard Widgets](#61-security--tier-wizard-widgets)
 - [7. Utilities — Public API Reference](#7-utilities--public-api-reference)
 - [8. Theme System](#8-theme-system)
+  - [8.1 Internationalization (i18n)](#81-internationalization-i18n)
 - [9. Data Flow Diagrams](#9-data-flow-diagrams)
   - [9.1 SSH Connection Flow](#91-ssh-connection-flow)
   - [9.2 SFTP Init Flow](#92-sftp-init-flow)
@@ -40,9 +43,10 @@
 - [13. Security Model](#13-security-model)
 - [14. Testing Patterns & DI Hooks](#14-testing-patterns--di-hooks)
 - [15. CI/CD Pipeline](#15-cicd-pipeline)
-  - [15.1 Workflow Graph](#151-workflow-graph)
-  - [15.2 Workflow Catalog](#152-workflow-catalog)
-  - [15.3 Makefile Targets](#153-makefile-targets)
+  - [15.1 Branching Model](#151-branching-model)
+  - [15.2 Workflow Graph](#152-workflow-graph)
+  - [15.3 Workflow Catalog](#153-workflow-catalog)
+  - [15.4 Makefile Targets](#154-makefile-targets)
 - [16. Design Decisions & Rationale](#16-design-decisions--rationale)
   - [16.1 Architecture Choices](#161-architecture-choices)
   - [16.2 API Gotchas](#162-api-gotchas)
@@ -54,34 +58,41 @@
 
 ## 1. High-Level Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        main.dart                            │
-│          Entry point, MaterialApp, theme, routing           │
-│    isMobilePlatform → MobileShell  /  else → MainScreen     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-┌─────────────┐  ┌─────────────────┐  ┌──────────────┐
-│  features/  │  │   providers/    │  │   widgets/   │
-│  (UI + UX)  │◄─┤   (Riverpod)    │  │  (reusable)  │
-│             │  │  global state   │  │              │
-└──────┬──────┘  └────────┬────────┘  └──────────────┘
-       │                  │
-       │         ┌────────┴────────┐
-       │         ▼                 ▼
-       │  ┌────────────┐   ┌───────────┐
-       └─►│   core/    │   │  theme/   │
-          │ (no UI)    │   │  utils/   │
-          │ SSH, SFTP  │   └───────────┘
-          │ sessions   │
-          │ security   │
-          │ config     │
-          └────────────┘
+```mermaid
+flowchart TD
+    main["<b>main.dart</b><br/>Entry point, MaterialApp, theme, routing<br/>isMobilePlatform → MobileShell / else → MainScreen"]
+    features["<b>features/</b><br/>(UI + UX)"]
+    providers["<b>providers/</b><br/>(Riverpod) global state"]
+    widgets["<b>widgets/</b><br/>(reusable)"]
+    core["<b>core/</b> (no UI)<br/>SSH, SFTP, sessions, security, config"]
+    themeUtils["<b>theme/</b> + <b>utils/</b>"]
+
+    main --> features
+    main --> providers
+    main --> widgets
+    providers --> features
+    features --> core
+    providers --> core
+    providers --> themeUtils
 ```
 
-**Principle:** `core/` does not import Flutter. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic.
+**Layering principle:** `core/` does not import Flutter. `features/` accesses `core/` through `providers/`. `widgets/` are reusable UI components with no business logic.
+
+**Self-contained-binary principle:** the released artefact must be **runnable by an end-user with zero manual setup beyond extracting / installing the bundle.** No "first install Python", no "first install JRE", no "first apt install …" as a hard requirement. External OS-level dependencies are allowed **only** when both conditions hold:
+
+1. The app **degrades gracefully** without the dependency, with a clear in-UI message naming what's missing and what's lost (canonical example: Linux without `libsecret-1-0` → OS-keychain mode disabled, plaintext + master-password modes still available).
+2. The user-facing `README.md` **Installation** section documents how to install the optional dependency per platform with a copy-pasteable command.
+
+Order of preference when a feature needs OS capability: **bundle it** (e.g. SQLite via `sqlite3` build hooks, QR scanner via system frameworks `AVFoundation` / `AndroidX CameraX`) > **fall back to a built-in alternative** (e.g. master password instead of keychain) > **document an optional install** (last resort, only if the first two are impossible). Never ship a build that hard-requires a manual install step.
+
+**Reuse principle:** the codebase favours **shared modules over local one-offs** at every layer, not just UI. Repeated logic lives in named, parameterised primitives that can be extended; a second caller is the trigger to extract a shared helper, a third caller makes it mandatory. Concrete patterns this principle has produced:
+
+- **UI primitives** in `lib/widgets/` — `AppIconButton`, `AppDialog` (+ `AppDialogHeader`/`Footer`/`Action`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`. No widget that has more than one caller is duplicated.
+- **Theme primitives** in `lib/theme/` — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes/radii/heights are treated as bugs.
+- **Cross-feature mixins and helpers** in `lib/core/**` — `SftpBrowserMixin` (shared SFTP init/upload/download for desktop + mobile browsers), `key_file_helper.dart` (PEM detection shared by importer / `~/.ssh` scanner / file picker), `breadcrumb_path.dart`, `column_widths.dart`, `progress_writer.dart`, `shell_helper.dart`. New cross-cutting logic gets a `*_helper.dart` or mixin instead of being inlined per call site.
+- **DAO + Store layering** — every persisted entity has the same `Store → DAO` shape ([§11](#11-persistence--storage)); a new entity follows the existing template, not its own ad-hoc pattern.
+
+The practical upshot: before adding a widget, helper, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent; if behaviour is close but not identical, extend the shared primitive (add a parameter) rather than fork it. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason should be obvious from the code.
 
 ---
 
@@ -109,14 +120,17 @@ lib/
 │   ├── ssh/                          # SSH client, config, TOFU, errors
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
-│   ├── session/                      # Session model, persistence, tree, QR, history
+│   ├── session/                      # Session model, persistence, tree, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
-│   ├── security/                     # AES-256-GCM, master password, keychain
+│   ├── security/                     # AES-256-GCM, master password, keychain, tier ladder
+│   ├── migration/                    # Versioned-artefact migration framework (runner, Artefact/Migration interfaces, VersionedBlob envelope, SchemaVersions). Full description: §3.6 → Migration framework
 │   ├── config/                       # App configuration (file-based, loaded before DB)
 │   ├── snippets/                     # Snippet model + SnippetStore
 │   ├── tags/                         # Tag model + TagStore
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
+│   ├── progress/                     # ProgressReporter — phase/step stream consumed by AppProgressBarDialog and connection-progress widgets
+│   ├── qr/                           # QR scanner — native camera bridge (AVFoundation / CameraX) for import flow
 │   ├── single_instance/              # Single-instance lock (desktop)
 │   ├── update/                       # Update checking
 │   └── shortcut_registry.dart        # Centralized keyboard shortcut definitions
@@ -124,6 +138,7 @@ lib/
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser
 │   ├── session_manager/              # Session management panel
+│   ├── key_manager/                  # SSH key manager (embeddable; standalone dialog on mobile, inside Tools on desktop)
 │   ├── snippets/                     # Snippet manager + terminal picker
 │   ├── tags/                         # Tag manager + assignment dialog
 │   ├── tools/                        # Desktop Tools dialog (SSH Keys, Snippets, Tags)
@@ -131,45 +146,66 @@ lib/
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
 │   └── mobile/                       # Mobile version (bottom nav)
-├── l10n/                             # Internationalization (15 languages: en, ru, zh, de, ja, pt, es, fr, ko, ar, fa, tr, vi, id, hi)
+├── l10n/                             # Internationalization (15 languages: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh)
 ├── providers/                        # Riverpod providers (global state)
-├── widgets/                          # Reusable UI components
-│   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
-│   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
+├── widgets/                          # Reusable UI components (alphabetical)
 │   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
 │   ├── app_data_row.dart            # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions, min-height-padded
 │   ├── app_data_search_bar.dart     # Shared search input for list / table dialogs (known hosts, snippets, tags)
+│   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
 │   ├── app_divider.dart             # Standardized 1px divider
+│   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
+│   ├── app_info_button.dart         # Inline (i) icon that opens AppInfoDialog with caller-supplied threat-model copy
+│   ├── app_info_dialog.dart         # Reusable threat-model explainer (what tier protects / does not protect against)
 │   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
+│   ├── auto_lock_detector.dart      # Inactivity wrapper — locks app after autoLockMinutesProvider when security level is masterPassword
 │   ├── clipped_row.dart             # Overflow-clipping Row replacement
 │   ├── column_resize_handle.dart    # Draggable column-resize handle for table headers
 │   ├── confirm_dialog.dart          # Confirmation dialog (delete, destructive actions)
 │   ├── connection_progress.dart     # Terminal-styled progress for non-terminal tabs
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
+│   ├── data_checkboxes.dart         # Shared collapsible checkbox grid used by export + import dialogs
+│   ├── db_corrupt_dialog.dart       # Outcome dialog for DB corruption (reset / try other tier / exit)
 │   ├── error_state.dart             # Error display with retry/secondary actions
+│   ├── expandable_tier_card.dart    # Settings Security ladder unit — tier header + modifiers + secret inputs inline
 │   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
+│   ├── first_launch_security_dialog.dart # Post-auto-setup banner — shows chosen tier + hardware-upgrade path or its absence
 │   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
-│   ├── passphrase_dialog.dart      # Interactive SSH key passphrase prompt
-│   ├── unlock_dialog.dart          # Master password unlock dialog (startup)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
+│   ├── import_preview_dialog.dart   # Source-agnostic typedefs (ImportPreviewCounts/Selection) shared by archive + link preview
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
 │   ├── link_import_preview_dialog.dart # letsflutssh:// link / QR payload preview (flags + merge/replace)
-│   ├── data_checkboxes.dart          # Shared collapsible checkbox grid used by export + import dialogs
+│   ├── local_directory_picker.dart  # In-app dart:io directory browser — Android MANAGE_EXTERNAL_STORAGE path bypassing SAF
+│   ├── lock_screen.dart             # Full-screen lock overlay — biometric → master-password fallback, flips lockStateProvider
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
 │   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
+│   ├── passphrase_dialog.dart       # Interactive SSH key passphrase prompt
+│   ├── password_strength_meter.dart # Live coloured strength bar under password input — informational, never blocks Save
+│   ├── paste_import_link_dialog.dart # Camera-less QR import — accepts letsflutssh:// link or raw base64url payload
 │   ├── readonly_terminal_view.dart  # Read-only terminal display widget
+│   ├── secure_password_field.dart   # TextField pre-configured for secret entry — IME spellcheck/autofill/history disabled
+│   ├── secure_screen_scope.dart     # Scope opting subtree into OS screen-capture protection (Android FLAG_SECURE)
+│   ├── security_comparison_table.dart # Threat × tier matrix — horizontally scrollable on desktop, transposed on mobile
+│   ├── security_setup_dialog.dart   # First-launch wizard — plain tier + modifier-shape choice
+│   ├── security_threat_list.dart    # Single-tier threat inventory with ✓ / ✗ / — / ! glyphs
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
+│   ├── ssh_dir_import_dialog.dart   # ~/.ssh unified picker — hosts (parsed from config) + keys (scanned)
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
 │   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
-│   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
+│   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
+│   ├── tier_reset_dialog.dart       # Non-dismissible reset prompt when the resolved tier no longer matches on-disk artefacts
+│   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / L3 PIN unlock shell with retry + cooldown
+│   ├── tier_threat_block.dart       # Single-tier presentation block (header + threat split) used by wizard + Settings
 │   ├── toast.dart                   # Stacked notification toasts
 │   ├── unified_export_controller.dart # Headless selection / options / sizing
-│   └── unified_export_dialog.dart   # Unified QR and .lfs export dialog
+│   ├── unified_export_dialog.dart   # Unified QR and .lfs export dialog
+│   ├── unified_export_dialog_tree.dart # Tree builders + size-indicator helpers split off from unified_export_dialog.dart
+│   └── unlock_dialog.dart           # Master password unlock dialog (startup)
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -337,24 +373,14 @@ class RemoteFS implements FileSystem { ... }  // SFTPService wrapper, dirSize ca
 
 #### TransferManager — architecture
 
-```
-┌──────────────────────────────────────────┐
-│             TransferManager              │
-│                                          │
-│  Queue: [task1, task2, task3, ...]       │
-│  Workers: 2 (configurable)               │
-│  Max history: 500 entries                │
-│  Timeout: 30 min per task                │
-│                                          │
-│  States: queued → running → completed    │
-│                          └→ failed       │
-│                          └→ cancelled    │
-│                                          │
-│  Streams:                                │
-│    onChange → UI updates                 │
-│    onHistoryChange → history             │
-└──────────────────────────────────────────┘
-```
+**`TransferManager`** runtime shape:
+
+- Queue: `[task1, task2, task3, ...]`
+- Workers: `2` (configurable)
+- Max history: `500` entries
+- Timeout: `30 min` per task
+- States: `queued → running → completed / failed / cancelled`
+- Streams: `onChange → UI updates`, `onHistoryChange → history`
 
 ```dart
 class TransferManager {
@@ -611,25 +637,102 @@ class ForegroundServiceManager {
 
 ### 3.6 Security & Encryption (`core/security/`)
 
-#### Three-Level Security Model
+> The code-level reference lives in this section; the user-facing
+> threat model (scope, threat boundary, KEK provider hierarchy,
+> per-platform trust backing, combined matrix, vulnerability
+> reporting) lives in [`SECURITY.md`](SECURITY.md). Keep
+> the two in lockstep: code design decisions documented here should
+> cross-link out to the SECURITY section that motivates them, never
+> duplicate the threat-model prose.
 
-All data is stored in a single drift (SQLite) database. Encryption is applied at the database level via SQLite3MultipleCiphers:
+#### Three-Tier + Paranoid Model
 
-| Level | When | Database | Key source |
-|-------|------|----------|------------|
-| **Plaintext** | No keychain AND no master password | `letsflutssh.db` (unencrypted SQLite) | None |
-| **Keychain** | OS keychain available, no master password | `letsflutssh.db` (encrypted via PRAGMA key) | OS keychain via `flutter_secure_storage` |
-| **Master Password** | User set master password | `letsflutssh.db` (encrypted via PRAGMA key) + `credentials.salt` + `credentials.verify` | PBKDF2-derived |
+All data lives in one drift (SQLite) database. Encryption runs at
+the database level through SQLite3MultipleCiphers. The user picks
+one of three **numbered tiers** plus one **alternative branch**
+("Paranoid") shown separately in the wizard for users who do not
+trust the OS at all. `SecurityTier` enum values are deliberately
+unordered — no `<` / `>` comparisons anywhere in the codebase;
+feature-gating goes through predicates on `SecurityConfig`
+(`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`,
+`isPlaintext`).
 
-Stores (SessionStore, KeyStore, KnownHostsManager, SnippetStore, TagStore) receive the opened `AppDatabase` via `setDatabase()` and delegate persistence to DAOs. They do not handle encryption.
+| Tier | Label | DB key location | Typical user-typed secret (when modifier is on) | Where the secret is stored |
+|---|---|---|---|---|
+| **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
+| **T1** | Keychain | OS keychain (Keychain / Credential Manager / libsecret / EncryptedSharedPreferences) | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
+| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Password (optional, via modifier) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
+| **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only in `SecretBuffer` during the unlocked window |
 
-First-launch wizard (`SecuritySetupDialog`) probes the OS keychain and offers the user a choice. First launch is detected by the absence of any data files (no master password salt, no keychain key, no database file).
+See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
+for the threat-model rationale behind offering both T1 (convenience,
+OS-keychain-backed) and T2 (off-device extraction resistance,
+bypasses the OS keychain layer).
+
+#### Orthogonal modifiers
+
+`SecurityTierModifiers` is the bank-style modifier container. Fields:
+
+- `password` — when true, the user typed a secret that acts as the
+  primary auth gate for the tier. Stored as HMAC-split on disk +
+  keychain; compared in constant time before the KEK provider is
+  touched. Paranoid always implies `password == true` by design.
+- `biometric` — when true, the user opted into the biometric
+  shortcut. Invariant: `biometric → password`. The flag enables a
+  secondary biometric-gated storage slot (biometric-protected
+  keychain alias on T1 / per-platform biometric-gated key on T2:
+  `letsflutssh_hw_password_overlay` Keystore on Android, SE alias
+  on iOS/macOS, `LetsFLUTssh-BioOverlay-v2` CNG key with
+  `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
+  biometric unlock releases the password from that slot and replays
+  the HMAC gate without requiring the user to retype.
+- `biometricShortcut` — legacy alias kept in sync with `biometric`
+  during the transition. Old configs that only carry
+  `biometric_shortcut` deserialise into `biometric` automatically.
+- `pinLength` — advisory only post-refactor. Retained so older
+  pre-refactor configs still deserialise.
+
+Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`,
+`SnippetStore`, `TagStore`) receive the opened `AppDatabase` via
+`setDatabase()` and delegate persistence to DAOs. They do not handle
+encryption — the active tier is opaque to them.
+
+#### Tier resolution at startup (`main._initSecurity`)
+
+1. If the `SecurityTierSwitcher` pending marker exists on disk → log
+   and clear it. The previous run died mid-switch; the standard
+   unlock path below either succeeds under the target credential or
+   falls through to the reset dialog.
+2. If a `.wipe-pending` marker from an interrupted
+   `WipeAllService.wipeAll()` exists → resume the wipe idempotently
+   before anything else touches the app-support dir.
+3. Read `ConfigArtefact.readVersion()` (the schema version stamped
+   into `config.json`). When the value is older than
+   `SchemaVersions.config`, or when `AppConfig.security == null`
+   **and** any managed artefact exists on disk, show
+   `TierResetDialog`. The dialog routes through
+   `WipeAllService.wipeAll()` on user confirm; on cancel the app
+   quits. Covers both "resolved tier does not match the sealed blob
+   under the expected ACL" and "orphan files from a half-broken
+   install".
+4. When the config has a tier, dispatch to the matching unlock path
+   (`_unlockParanoid`, `_unlockKeychainWithPassword`, `_unlockHardware`,
+   `_unlockKeychain`, or the plaintext short-circuit).
+5. When no config + no managed state → first-launch
+   `SecuritySetupDialog` (the wizard), then persist the chosen
+   `SecurityConfig` into `config.json` via
+   `_persistSecurityTier(tier, modifiers)`.
+
+First launch is detected by the combination "no `config.security`
+**and** no managed artefact **and** no pending-wipe marker." Any
+single-signal detector was too fragile against partial installs and
+mid-switch crashes.
 
 **Key-derivation pipeline** (only the master-password branch derives; keychain stores the DB key directly, plaintext has no key):
 
 ```mermaid
 flowchart LR
-    A[User password] --> B["PBKDF2-SHA256<br/>600k iters<br/>+ 16-byte salt"]
+    A[User password] --> B["Argon2id<br/>m=46 MiB, t=2, p=1<br/>+ 32-byte salt"]
     B --> C["32-byte DB key<br/>(Uint8List)"]
     C --> D["SecretBuffer<br/>(page-locked RAM)"]
     D --> E[SQLite3MC<br/>PRAGMA key]
@@ -637,44 +740,289 @@ flowchart LR
     F -.-> D
 ```
 
+**KDF file format** (`credentials.kdf`, v1):
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | Magic `'LFKD'` (0x4C 0x46 0x4B 0x44) |
+| 4 | 1 | File version (`0x01`) |
+| 5 | 1 | KDF algorithm id (mirror of params[0]) |
+| 6 | 10 | Argon2id params: `memoryKiB` (u32 BE), `iterations` (u32 BE), `parallelism` (u8), plus algorithm id byte prefix |
+| 16 | 32 | Random salt |
+
+The algorithm id + params block is defined in [`KdfParams`](../lib/core/security/kdf_params.dart) — new algorithms can be added without changing the file-layout header. Production defaults are [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart) (Argon2id m=46 MiB t=2 p=1, chosen as the OWASP 2024 recommended floor that balances mid-tier mobile wall-clock against GPU/ASIC resistance).
+
 #### In-memory DB key (page-locked)
 
-The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the PBKDF2-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
+The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the Argon2id-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
 
-#### Unlock-path single PBKDF2
+#### Unlock-path single KDF
 
-Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two 600k-iteration PBKDF2 runs, adding up to 3-5 s on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm).
+Every master-password unlock must verify the password *and* produce the derived DB key. An earlier implementation called `verify()` then `deriveKey()` — two isolate spawns + two KDF runs, adding up to several seconds on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so the single-call optimisation saves real wall-clock on every unlock.
 
-#### Switching modes on the fly
+#### Switching tiers on the fly — always-rekey invariant
 
-`_reEncryptAll()` in `settings_sections.dart` runs `PRAGMA rekey` through `rekeyDatabase()` in `lib/core/db/database_opener.dart` to re-encrypt every DB page under the new key *before* flipping `securityStateProvider`. A crypto / disk failure leaves the old working state intact instead of a half-migrated file. Removing master password or changing it wipes `BiometricKeyVault` since the cached key becomes stale.
+Every tier switch — L0↔L1↔L2↔L3↔Paranoid, **including modifier-only changes on the same tier** — generates a fresh random 32-byte DB key and rekeys the whole DB under it. The previous wrapper (keychain entry, hardware-sealed blob, Argon2id verifier) is invalidated by the rekey, so a previously leaked wrapper cannot decrypt post-switch data.
+
+[`SecurityTierSwitcher.switchTier`](../lib/features/settings/security_tier_switcher.dart) owns the orchestration order:
+
+1. Generate a fresh 32-byte key via `Random.secure()` (CSPRNG-backed — `/dev/urandom` on POSIX, `BCryptGenRandom` on Windows).
+2. Write `.tier-transition-pending` marker with the target tier's JSON payload. Marker lives in app-support, hardened to 0600.
+3. `rekeyDatabase(db, newKey)` — atomic `PRAGMA rekey` transaction. On failure the DB is still under the source key; the marker points at the unfinished target so startup notices.
+4. `applyWrapper(newKey)` — tier-specific: write to `SecureKeyStorage`, `HardwareTierVault.store`, `MasterPasswordManager.enable`, etc.
+5. `persistConfig(newKey)` — update `securityStateProvider` + mirror the new tier into `config.json`.
+6. `clearPrevious()` — tier-specific cleanup: delete the previous keychain entry, clear the hardware vault, clear the password gate, disable the master-password manager, clear the biometric vault.
+7. Delete the marker as the last step; its absence is the "all good" signal the next startup relies on.
+
+A crash between steps 3 and 7 leaves the marker on disk. `main._initSecurity` logs and clears the marker on the next launch; the standard unlock path then succeeds under whichever credential the user can supply (source or target), or falls through to reset. This tolerates the 25-pair tier-transition matrix without needing per-pair recovery logic.
+
+Settings exposes the switcher through a single "Change Security Tier" action that reopens the wizard pre-marked with the current tier and routes the result through `_applyTierChange` (`settings_sections_security.dart`) — every on-disk tier switch goes through the same orchestration path.
+
+#### L2 keychain-password gate (`KeychainPasswordGate`)
+
+L2 layers a UX-only short password in front of the L1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.
+
+State layout:
+
+- `security_pass_hash.bin` on disk holds `{salt, HMAC-SHA256(pepper, salt || password)}` as JSON.
+- OS keychain holds the pepper under `letsflutssh_l2_pepper`.
+
+`setPassword` rotates both salt and pepper atomically; a stale pepper without a fresh disk write (or vice versa) fails `verify` — the split storage is the tamper surface. `verify` uses constant-time compare. A persistent rate limiter (see below) is keyed by the stored HMAC, so any offline attempt to reset the limiter to zero-failures requires forging a HMAC whose key the attacker already has the pieces of.
+
+#### L3 hardware vault (`HardwareTierVault`)
+
+L3 seals the DB key inside a hardware module under an auth value derived as `HMAC-SHA256(pin, salt)`. The hardware module enforces rate-limiting and lockout after N failed attempts — that is what makes a 4–6 digit PIN cryptographically meaningful; dictionary attack against such a short secret is infeasible only because the hardware refuses retries.
+
+Per-platform dispatch:
+
+| Platform | Binding | File | PIN channel |
+|---|---|---|---|
+| **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p hex:<digest>` as the unseal auth value — TPM lockout is the rate limiter |
+| **iOS / macOS** | P-256 in Secure Enclave (`kSecAttrTokenIDSecureEnclave`) with `.biometryCurrentSet` via [`HardwareVaultPlugin.swift`](../ios/Runner/HardwareVaultPlugin.swift) / [`macos/Runner/HardwareVaultPlugin.swift`](../macos/Runner/HardwareVaultPlugin.swift) | `hardware_vault_apple.bin` (native side) + `hardware_vault_salt.bin` (Dart side) | PIN HMAC is an external gate — SE accepts only biometrics for release |
+| **Android** | AES-256-GCM in Keystore with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` + StrongBox preferred, via [`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) | `hardware_vault_android.bin` + salt file | PIN HMAC is an external gate — Keystore requires `BiometricPrompt.CryptoObject` for release |
+| **Windows** | CNG / `NCrypt` on the Microsoft Platform Crypto Provider (TPM 2.0) via [`hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp). Falls back to Microsoft Software KSP when no TPM. Primary wrap is silent (no Hello); biometric overlay is a second NCrypt key with `NCRYPT_UI_PROTECT_KEY` that Hello gates | `hardware_vault_windows.bin` + overlay file + salt file | PIN HMAC is an external gate — wrong PIN fails without waking the TPM |
+
+The PIN is the user-facing secret on every platform, but the binding path diverges: Linux alone is hardware-auth-value-native (TPM accepts arbitrary HMAC bytes as the unseal password). Apple / Android / Windows APIs gate the hardware key release on biometrics / Hello, so the PIN runs as a local HMAC gate that is checked *before* the biometric prompt fires; a wrong PIN fails without waking the user's sensor. Salt lives in Dart-owned `hardware_vault_salt.bin` so two installs with the same PIN produce different gates.
+
+Native plugin code is shipped but has not been validated on real hardware — the plan's "manual device-testing pass" acceptance is still outstanding. CI compiles each plugin on its own runner (macos-latest / windows-latest / ubuntu-latest + Android SDK) but cannot exercise biometric / Hello / StrongBox prompts. iOS is not in the release matrix; the project file carries the entries so `flutter build ios` works when invoked on a developer's Mac.
+
+Per-install salt is generated on `store()` and written alongside the sealed blob in `hardware_vault.bin`. Two devices with the same PIN never end up with the same sealed blob.
+
+#### Rate limiters — per-tier matrix
+
+[`PasswordRateLimiter`](../lib/core/security/password_rate_limiter.dart) is the abstract base; three concrete variants cover the tier matrix:
+
+| Tier | Limiter | Persistence | Rationale |
+|---|---|---|---|
+| **L0 / L1** | none | n/a | L0 has no user secret; L1 auto-unlocks via keychain, no retry surface |
+| **L2** | `PersistedRateLimiter` | disk, HMAC-authenticated | UX-gate password has no cryptographic strength; a process-restart reset would be free for an attacker |
+| **L3** | `HardwareRateLimiter` | in-memory | Thin software counter on top of the platform's hardware lockout — defense-in-depth if the hardware layer is misconfigured |
+| **Paranoid** | `InMemoryRateLimiter` | in-memory | Argon2id is the real brake; persisting a forgot-password wait across restarts is user-hostile for no extra safety |
+
+All three share the backoff schedule `[0, 1, 2, 4, 8, 16, 32, 60, 60, 60] s` — capped at 60 s so a legitimate user who genuinely forgot their password never waits more than a minute between retries.
+
+`PersistedRateLimiter` writes `{failureCount, nextRetryAtMillis}` to `rate_limit_state.bin` framed with an HMAC-SHA256 tag under the L2 gate's own stored HMAC as key. Tamper detection: a mismatch on load clamps the counter to the schedule cap and sets `nextRetryAt` to `now + 60 s`, so an attacker who overwrites the state file with garbage lands in max cooldown rather than zero-failures. Writes are serialised on a `Future` chain so back-to-back `recordFailure` / `recordSuccess` calls never race at the filesystem.
+
+The unlock dialogs (`UnlockDialog`, `TierSecretUnlockDialog`) consult `rateLimitStatus()` on mount, refuse `verify` while locked, start a 1-Hz `Timer.periodic` to refresh the countdown, and disable the submit button until the cooldown clears. The rendered label uses the `tierCooldownHint(seconds)` l10n key in all 15 locales.
 
 #### Biometric unlock
 
-Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) wraps `local_auth` for the availability probe + prompt; [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key in `flutter_secure_storage` under a platform keychain slot (iOS/macOS Keychain, Windows Credential Manager, Android EncryptedSharedPreferences). At startup, `_tryBiometricUnlock()` in `main.dart` runs the biometric prompt first and skips the master-password dialog on success; fall back is the normal `UnlockDialog`.
+Optional in master-password mode. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) wraps `local_auth` for the availability probe + prompt; [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key in `flutter_secure_storage` under a platform keychain slot (iOS/macOS Keychain, Windows Credential Manager, Android EncryptedSharedPreferences). At startup, `_tryBiometricUnlock()` in `main.dart` runs the biometric prompt first and skips the master-password dialog on success.
 
-`BiometricAuth.availability()` returns a `BiometricUnavailableReason?` (null when biometrics work). The probe goes beyond `canCheckBiometrics + getAvailableBiometrics().isNotEmpty` — a Windows Hello PIN alone satisfies those two checks and would falsely report biometrics as ready. The probe additionally filters the enrolled list for a real bio type (`fingerprint` / `face` / `iris` / `strong`) so PIN-only Hello is correctly reported as `notEnrolled`. The settings UI uses this three-state result to show a reason tooltip on a disabled toggle instead of hiding the option.
+**Apple platforms — Secure Enclave binding.** On iOS and macOS the vault stores the DB key with a `SecAccessControl` that stacks `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` with `SecAccessControlCreateFlags.biometryCurrentSet` — exposed through `BiometricKeyVault.iosOptions` / `macOsOptions`. Two consequences follow: (a) the key material is held in the Secure Enclave, so even a device-level RAM compromise cannot exfiltrate it; and (b) any change to the biometric enrolment (added or removed fingerprint, re-enrolled Face ID) invalidates the stored key, forcing the user back through the master-password dialog on the next unlock. Android still rides on `flutter_secure_storage`'s default EncryptedSharedPreferences until a dedicated Keystore + `BiometricPrompt.CryptoObject` plugin lands. When it fails (cancel, wrong finger) the fallback is `UnlockDialog` — which itself auto-triggers biometric on first frame as long as `autoTriggerBiometric` is true. `main.dart` passes `false` when it already attempted biometric to prevent a double-cancel loop; the retry button inside the dialog stays available either way, so the user can re-invoke biometrics without relaunching the app. `LockScreen` (mid-session re-lock overlay) follows the same auto-trigger + retry pattern.
+
+`BiometricAuth.availability()` returns a `BiometricUnavailableReason?` (null when biometrics work). The probe goes beyond `canCheckBiometrics + getAvailableBiometrics().isNotEmpty` — a Windows Hello PIN alone satisfies those two checks and would falsely report biometrics as ready. The probe additionally filters the enrolled list for a real bio type (`fingerprint` / `face` / `iris` / `strong`) so PIN-only Hello is correctly reported as `notEnrolled`. The settings UI uses this multi-state result to show a reason tooltip on a disabled toggle instead of hiding the option.
+
+`BiometricUnavailableReason` also carries `systemServiceMissing` — the rung-3 reason for the Linux path: the toggle is disabled with a `fprintd is not installed. See README → Installation.` reason whenever the OS-level fingerprint daemon is absent.
+
+**Linux — `fprintd` D-Bus binding.** On Linux `BiometricAuth.availability()` delegates to [`FprintdClient`](../lib/core/security/linux/fprintd_client.dart), a thin wrapper over the `net.reactivated.Fprint` system bus. The ladder is strict: if the daemon is not registered (`GetDefaultDevice` fails or the bus name is unknown) → `systemServiceMissing`; if the default device reports an empty `ListEnrolledFingers("")` → `notEnrolled`; otherwise biometrics are ready. `authenticate()` on Linux issues a `Claim` → subscribes to `VerifyStatus` → calls `VerifyStart("any")` → awaits the terminal signal with a 30 s timeout, and always `Release`s the device in `finally` so a failed verify does not leave the reader stuck. The `dbus` pub.dev package is used over a native Kotlin/Rust plugin per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install) — an fprintd call is once-per-unlock IPC through the same system-bus socket either way; a native wrapper would offer no measurable performance or functionality win.
+
+**Linux — TPM2 seal layer (`tpm2-tools`).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which shells out to `tpm2 createprimary` + `tpm2 create -p hex:<digest>`; the resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`tpm2 createprimary` + `tpm2 load` + `tpm2 unseal -p hex:<digest>`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. TPM2 policy via shell-out was chosen over FFI to `libtss2-esys` per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install): the seal/unseal flow runs once per unlock, ESAPI is a thick C API, and `tpm2-tools` already ships a battle-tested wrapper the user installs via README. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
+
+`BiometricAuth.backingLevel()` reports how the active biometric vault is protecting the cached DB key — `hardware` on iOS/macOS (Secure Enclave via `biometryCurrentSet`), `software` on Android/Windows/Linux until the respective hardware-binding path lands (dedicated Keystore + `BiometricPrompt.CryptoObject` on Android; CNG Platform Crypto Provider on Windows; TPM2 seal bound to the fprintd enrolment hash on Linux). The Settings biometric toggle concatenates the localised backing-level label into its subtitle when the toggle is on, so the user can tell hardware binding apart from software fallback without opening the source.
 
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
+#### Android hardware-backed L3 vault (shipped; device-testing pass pending)
+
+[`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) exposes the Keystore-backed L3 path over the `com.letsflutssh/hardware_vault` MethodChannel. `MainActivity` registers the plugin in `configureFlutterEngine`; `build.gradle.kts` pins `androidx.biometric:1.1.0` + `androidx.fragment:1.6.2` so the `BiometricPrompt` + `FragmentActivity` surfaces compile cleanly.
+
+1. **Key creation.** `KeyGenParameterSpec.Builder` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` — the key *must* be presented inside a `BiometricPrompt.CryptoObject` session, and any change to the device's enrolled biometrics atomically invalidates the key. This is the Android-native equivalent of `.biometryCurrentSet`.
+2. **Storage backing.** `setIsStrongBoxBacked(true)` is attempted on SDK ≥ 28; the Keystore silently falls through to TEE-backed storage on devices that do not expose a StrongBox chip. `KeyInfo.securityLevel` (SDK ≥ 31) + `isInsideSecureHardware` (pre-31) drive the `backingLevel` return value — `hardware_strongbox` / `hardware_tee` / `software`.
+3. **Wrapping.** The DB key is AES-GCM-encrypted under the CryptoObject key on `store`; the IV + ciphertext + PIN-HMAC frame lands in `hardware_vault_android.bin` under the app's files dir, 0600. Unlock presents `BiometricPrompt` → receives the authed `Cipher` → decrypts.
+
+**Outstanding device-testing pass:** StrongBox presence varies by OEM (Pixel 3+, recent Samsung flagships), the `setInvalidatedByBiometricEnrollment` contract is subtly different on pre-Android-11 builds, and the `FragmentActivity` host dependency of `BiometricPrompt` interacts with Flutter's `MainActivity` in ways that the emulator matrix does not exercise. The unit-test suite covers the Dart dispatch contract (see `test/core/security/hardware_tier_vault_test.dart`); runtime validation on real hardware is the remaining acceptance item.
+
+#### Windows CNG / NCrypt integration (shipped; device-testing pass pending)
+
+[`windows/runner/hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp) binds the `com.letsflutssh/hardware_vault` MethodChannel to Windows CNG via `NCrypt` on the Microsoft Platform Crypto Provider (TPM 2.0). Registered from `flutter_window.cpp` alongside the generated plugin registrant; `CMakeLists.txt` links `Ncrypt.lib` + `Bcrypt.lib` for the silent-unlock primary key and keeps `WindowsApp.lib` for the WinRT projection still used by the initial apartment init.
+
+Two keys live in the CNG key store, each serving a separate role:
+
+1. **Primary DB-wrap key — `LetsFLUTssh-DBKey-v2`.** Created once per install via `NCryptCreatePersistedKey` (`BCRYPT_RSA_ALGORITHM`, 2048-bit) on the Platform Crypto Provider — TPM-resident on a host with a TPM, softwa­re-resident on the Microsoft Software KSP fallback otherwise. **No `NCRYPT_UI_POLICY_PROPERTY` set**, so `NCryptEncrypt` / `NCryptDecrypt` run silently with zero user prompt. `store(dbKey, pinHmac)` RSA-OAEP (SHA-256) wraps the DB key and persists `{magic=0x02, pinHmac, ciphertext}` at `%LOCALAPPDATA%\LetsFLUTssh\hardware_vault_windows.bin`. `read(pinHmac)` constant-time compares the stored PIN-HMAC first, then `NCryptDecrypt`s — wrong PIN fails without waking the TPM, matching the external-HMAC-gate pattern on Apple / Android.
+2. **Biometric password overlay — `LetsFLUTssh-BioOverlay-v2`.** Same 2048-bit RSA-OAEP-SHA-256 shape, but finalised with `NCRYPT_UI_POLICY_PROPERTY + NCRYPT_UI_PROTECT_KEY_FLAG`. Every `NCryptDecrypt` on this key fires the Windows consent dialog — on a Hello-configured host that is the Hello prompt, which is exactly the biometric gate the overlay is asking for. Stores at `hardware_vault_password_overlay_windows.bin`. No pin_hmac in the blob — the biometric itself is the gate.
+
+`backingLevel` returns `hardware_tpm` when the Platform Crypto Provider opens successfully, `software` when the Microsoft Software KSP is the fallback, and `unavailable` when neither is reachable.
+
+**Rewrite history.** The first shipped revision used `KeyCredentialManager::RequestSignAsync` for the primary wrap. That fired a Hello prompt on every `read` — fine when the user wanted biometric unlock, but a jarring double-prompt for the password-modifier flow, where the user has already typed their password (primary unlock) and Hello firing a second time on top served no threat-model purpose. Switching the primary path to silent NCrypt removes that UX snag; the Hello-gated branch survives as the explicit biometric-overlay key where the prompt is the entire point.
+
+**Outstanding device-testing pass:** the NCrypt calls are synchronous. Not observed blocking the UI thread in practice — they run on the platform channel's worker thread and the Flutter UI isolate remains responsive — but the Hello prompt from the overlay key still takes focus while it is on-screen. A Windows 10 / 11 host *with* Hello + TPM has to exercise `backingLevel == hardware_tpm`, a host *with* TPM but *without* Hello needs to confirm the primary path still unlocks silently, and a host without either has to verify the software-KSP fallback stores/reads without error and reports `backingLevel == software`.
+
+#### FIDO2 / hardware-security-key unlock (deferred — upstream library gap)
+
+A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the master password: plug / tap the key, the app takes that as proof-of-presence and decrypts the DB. The intent was multiplatform from day one — Android USB/NFC, iOS Lightning/NFC, desktops via USB HID.
+
+**Why the feature is not shipped:** the pub.dev landscape for FIDO2 in Dart is immature for the constraint "end-user installs nothing via README" that [§ Self-Contained Binary](AGENT_RULES.md#self-contained-binary--end-user-installs-nothing) imposes. Candidates reviewed and their failure mode:
+
+- `fido2` (pub.dev) — WebAuthn client surface only; no HID transport, no NFC transport, no PC/SC transport. Dead for desktop USB, dead for Android NFC, dead for iOS Lightning.
+- `yubikit_flutter` — Yubico-only (skip other FIDO2 keys), hard-requires a native plugin per platform, and the desktop builds pull in PC/SC-Lite (Linux needs `libpcsclite1` installed, which breaks zero-install).
+- Platform-native paths — Android `fido.U2fApi` lives in Google Play Services (incompatible with the project's no-GMS stance), iOS `AuthenticationServices.ASAuthorizationSecurityKeyPublicKeyCredential` works only for WebAuthn challenges and requires an `ASAuthorizationController`, no cross-platform wrapper exists.
+- Rolling our own HID+APDU layer — feasible in pure Dart via `libusb`/`hidraw`, but every platform has its own permission model (Linux udev rules, macOS entitlements, Windows driver). That pushes the feature back into rung 3 with a README install snippet for `libpcsclite1` / `libhidapi` / driver install on Windows, which is exactly the matrix [§ Fallbacks Are Last Resort](AGENT_RULES.md#fallbacks-are-last-resort-not-default) told us to walk before committing.
+
+**Current status:** feature is **deferred**, not cancelled. Master-password + biometric unlock already covers the user-visible use cases; a YubiKey factor would be a nice-to-have, not a closing-the-gap-at-any-cost. Revisit when a multiplatform Dart library surfaces that works across all 5 desktops + Android + iOS without mandatory native-dep installs (a realistic candidate: a future `flutter_webauthn` that wraps each platform's native authenticator surface). Until then the table-stakes master-password path is the sole secret boundary and that is fine for the project's threat model (lost device, hostile same-UID process — **not** kernel-level attackers or advanced persistent threats).
+
+#### SQLCipher cipher choice — AES-CBC+HMAC vs AES-GCM vs ChaCha20-Poly1305 (decision doc, not a rewrite)
+
+SQLite3MultipleCiphers supports several cipher schemes for at-rest DB encryption. A review pass evaluated whether the project should migrate from the default `sqlcipher` scheme (AES-256-CBC + HMAC-SHA512, encrypt-then-MAC per page) to an AEAD construction (`aes256gcm` or `chacha20`).
+
+**Inputs to the decision:**
+
+- *Security posture.* The current `sqlcipher` scheme is encrypt-then-MAC under a 64-byte HMAC tag per 4 KiB page, with per-page random IVs derived from the page number + a database-wide random salt. This is structurally equivalent to an AEAD: confidentiality from AES-256-CBC, integrity + authenticity from HMAC-SHA512. No known cryptanalytic weakness justifies a migration on security grounds alone.
+- *Performance.* AES-256-CBC throughput on AES-NI silicon is ~2–3 GiB/s. AES-256-GCM can be ~30 % faster on the same silicon because GCM parallelises cleanly and avoids the HMAC pass. On non-AES-NI devices (Arm mobile without the crypto extensions — increasingly rare but still present) ChaCha20-Poly1305 outperforms both AES variants by 2–4×. The project is not CPU-bound on DB I/O at current workload — logs, sessions, snippets, known-hosts entries are all sub-100-KiB tables with low page-churn, so the wall-clock win from a cipher switch is in the millisecond range on typical user flows.
+- *Format compatibility.* Migration requires a full rekey under the new cipher (`PRAGMA cipher_migrate`-style flow): every page is re-encrypted on disk, the legacy cipher header is rewritten, and any existing `.lfs` archive exports produced under the old scheme decrypt *only* with the old code path (need a version-guarded reader).
+- *Binary size / build surface.* All three schemes are already compiled into the SQLite3MC binary the project bundles — no new C dependencies, no `pubspec.yaml` changes.
+- *Blast radius of a bad migration.* A crash mid-rekey corrupts every page that has been re-encrypted so far. Mitigation would require a tmp-file + atomic-rename flow (similar to `_applyAlwaysRekey` in settings). Non-trivial.
+
+**Recommendation — stay on `sqlcipher` (AES-CBC+HMAC) for now.** The performance delta is small on current workloads, the security posture is equivalent, and the migration cost is real: a user-visible re-encryption step with a non-negligible crash window. Revisit if a concrete signal appears — a benchmark showing the DB I/O path is user-visible, or a CVE against the current scheme. If a switch does happen, **ChaCha20-Poly1305 beats AES-GCM** for the project's target device mix: it's faster on Arm-without-crypto-extensions (where Android mid-tiers still live) and the constant-time implementation is less footgun-prone than nonce-managed GCM.
+
+**Authorised follow-up** if and when the switch lands:
+1. Gate the new cipher behind a schema/version marker in the DB header, so `database_opener.dart` can pick the right `PRAGMA cipher` at open time;
+2. Reuse the `rekeyDatabase()` atomic-tmp flow already used for master-password rotation;
+3. Version-bump the `.lfs` archive format to mirror the new cipher header;
+4. Migration UI should be opt-in — never run on app startup by surprise.
+
+#### Password strength meter
+
+Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (L2 / L3) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
+
 #### Auto-lock
 
-Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`, schema v2) — moving it out of plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. A one-shot migration on first DB unlock copies any pre-existing value from the legacy `config.json` field into the DB. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not in master-password mode — so the option never silently disappears.
+Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) — storing it there rather than in plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
 
 **Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
-**Known scope**: the drift database handle is *not* closed on lock. SQLite3MultipleCiphers keeps its cipher key in internal page-cipher state, so DB reads continue to work after lock. Closing + reopening the DB would require disconnecting every live SSH/SFTP session. The auto-lock zeroes the explicit public handle used by rekey / export / config code paths and blocks UI input; it does not fully purge the SQLCipher runtime state.
+**Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which unconditionally zeroes the `SecurityStateNotifier` SecretBuffer and closes the drift / SQLCipher handle via `SessionStore.closeDatabase`. Previously the wipe was gated on `activeSessions.isEmpty` — a UX concession so an auto-lock during an open SSH session did not kill the user's reconnect path. The consequence was that the DB key sat in app RAM as long as a single session was active, so RAM forensics of a locked app could still recover it; T1+password and T2+password landed on the same ✗ row for `liveRamForensicsLocked` and `osKernelOrKeychainBreach` in the threat matrix. The gate is now gone; live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache), and T2+password now covers both RAM-forensics and kernel-breach rows.
+
+**Unlock re-opens the DB.** Because `_triggerLock` closes the drift handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual` in `_LetsFLUTsshAppState.initState` observes the locked → unlocked transition and calls `_reopenDatabaseAfterUnlock`, which walks the usual `_injectDatabase` path so every store picks up the new AppDatabase reference. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
+
+**Shortcut gate while locked.** Keyboard shortcuts registered on `MainScreen.CallbackShortcuts` sit in a sibling focus scope to `LockScreen`, so `Ctrl+N` / `Ctrl+,` can otherwise bubble through the overlay and hit `_newSession` / `SettingsDialog.show` against a closed DB. `MainScreen._buildKeyBindings` short-circuits every shortcut callback when `lockStateProvider` is true. Pointer hit-testing is already blocked by the `Positioned.fill(LockScreen)` overlay on the root `Stack`, so the gate is specifically a keyboard-path defense.
+
+#### Session credential cache
+
+[`SessionCredentialCache`](../lib/core/security/session_credential_cache.dart) (provided by [`sessionCredentialCacheProvider`](../lib/providers/session_credential_cache_provider.dart)) is the always-wipe-on-lock policy's reconnect escape hatch. It keys session id → [`CachedCredentials`](../lib/core/security/session_credential_cache.dart), each entry holding up to three `SecretBuffer` slots (password, key bytes, passphrase). The buffers are the same `mlock` / `VirtualLock`-pinned native memory used for the DB key, so the cached plaintext sits outside the drift encrypted store and survives closing that store on lock.
+
+Lifetime:
+
+1. **Populate** — `ConnectionManager._cachePostAuthCredentials` stores the envelope immediately after a successful SSH auth, but only when the Connection has a stable `sessionId`. Quick-connect sessions have no key and are skipped.
+2. **Read on (re)connect** — `ConnectionManager._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `SSHConnection.connect`, filling any empty `password` / `keyData` / `passphrase` slot. The primary source is still `conn.sshConfig` (the Connection holds its initial auth envelope alive through its own field); the cache is a defensive second layer so a future refactor that strips credentials from the `Connection` or a reload that reads `session.auth.hasStoredSecret=true` with empty plaintext does not break reconnect.
+3. **Evict on explicit close** — `ConnectionManager.disconnect(id)` and `disconnectAll` evict the entry. Transient drops (network blip, app suspend/resume) go through `SSHConnection.onDisconnect` which flips the Connection's state but does not call `disconnect` on the manager, so the cache is preserved across reconnect.
+4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes it before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads `() => ref.read(sessionCredentialCacheProvider).evictAll()` through. The startup-time pending-wipe resumption passes `null` because the provider graph is not yet wired at that point and the cache is provably empty.
+5. **App shutdown** — the provider's `ref.onDispose(cache.evictAll)` zeros every buffer when the Riverpod container tears down.
+
+Why not read `session.auth` directly every time? Two reasons: (a) `SessionStore`'s cached list strips plaintext on load and exposes `Session.auth.hasStoredSecret` only — a reconnect issued while the encrypted store is closed cannot ask the DB for plaintext, so without the cache the reconnect would fail; (b) putting the plaintext in `mlock`'d native memory (rather than on the Dart heap as immutable `String`s) removes the swap-file / heap-snapshot exposure window. The cache is the "page-locked side" of the session credentials; `conn.sshConfig` is the Dart-heap primary.
+
+Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, and does not decrypt anything at rest. The only attacker it helps against is the user's own loss of reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock is what flattens the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.
+
+**OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path via the `com.letsflutssh/session_lock` method channel.
+
+| Platform | Native source |
+|---|---|
+| **Windows** | `WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION)` in `windows/runner/session_lock_plugin.cpp`. `FlutterWindow::MessageHandler` forwards `WM_WTSSESSION_CHANGE` into the plugin, which fires `sessionLocked` on the channel when wparam is `WTS_SESSION_LOCK`. Subscription is released in `OnDestroy`. |
+| **macOS** | `DistributedNotificationCenter` observer on `com.apple.screenIsLocked` in `macos/Runner/SessionLockPlugin.swift`. Fires once per lock transition; removed in `deinit`. |
+| **Linux** | GDBus `signal_subscribe` on `org.freedesktop.login1.Session.Lock` in `linux/runner/session_lock_plugin.cc`. The subscription is scoped to the current process's session object path via `GetSessionByPID`, so a second logged-in session on the same machine cannot trip the app's lock. Unsubscribed + bus dropped in `session_lock_plugin_free`. |
+| **iOS / Android** | No-op — lifecycle-paused already fires on OS lock, so a second channel would double-lock. |
+
+*Why this path vs. polling:* `loginctl show-session` / screensaver-state scraping worked in an earlier iteration and landed as a fallback on Linux, but polling burns a D-Bus round-trip on every tick, lags the real lock by up to the poll interval, and fires duplicate events across transitions. The signal-subscription path fires exactly once per transition, costs nothing when idle, and matches what every other desktop app on the system bus uses. The polling fallback was removed along with this change.
+
+**Encrypted log sink scaffolding (follow-on wiring).** Two classes are in tree ahead of the drift schema + DAO + UI rewire for moving the log target into the encrypted DB:
+
+* [`LogBatchQueue<T>`](../lib/core/db/log_batch_queue.dart) — bounded batching in front of the (future) `app_logs` DAO. Flushes on whichever of *size ≥ 100 events* or *time ≥ 500 ms since the first event* fires first. Flush failures preserve the batch for retry; `dispose()` flushes and blocks further adds.
+* [`BootstrapLogBuffer<T>`](../lib/core/db/bootstrap_log_buffer.dart) — ring buffer for the bootstrap window before the DB is unlocked. Capacity default is 512, oldest-first eviction on overflow (the last seconds before a crash matter more than the very first init line). Drains FIFO into the live sink when the DB-backed [`LogBatchQueue`](../lib/core/db/log_batch_queue.dart) comes online.
+
+Neither class is wired yet — `AppLogger` still writes to the file sink. The wiring commit will (a) add an `app_logs` table + schema bump in drift, (b) swap `AppLogger._sink` for a `LogBatchQueue` once `_injectDatabase` is called, (c) rewrite the Settings → Logging live-log viewer to stream via the DAO, and (d) drop the file target except during bootstrap. Landing the queue + buffer now keeps the scaffolding commit small and the schema-bump commit focused on migration mechanics.
+
+**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 500 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
 
 #### Process hardening
 
 [`ProcessHardening.applyOnStartup()`](../lib/core/security/process_hardening.dart) is called from `main.dart` before any secrets touch RAM:
 
 * Linux / Android — `prctl(PR_SET_DUMPABLE, 0)`: kernel skips core-dump generation on SIGSEGV and another process under the same UID can no longer `gdb -p` to read our memory without `CAP_SYS_PTRACE`.
+* Linux / Android / macOS — `setrlimit(RLIMIT_CORE, {0, 0})`: belt-and-braces against accidental core dumps. `prctl`/`ptrace` above block the attack-paths they target, but on macOS and on a Linux shell that already ran `ulimit -c unlimited` a SIGSEGV would still write `/cores/<pid>.core` or `./core.<pid>`. Zeroing the soft *and* hard limits from inside the process closes that window without touching the user's shell config.
 * macOS — `ptrace(PT_DENY_ATTACH, 0, NULL, 0)`: refuses subsequent debugger attach.
 * Windows — `SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX)`: suppresses the "stopped working" dialog and tells Windows Error Reporting (WER) not to capture a crash dump for our process. Without this, WER can write a heap snapshot (and optionally upload it to Microsoft) that contains the live SQLite cipher key and decrypted credentials.
 * iOS — no-op; sandboxing already covers the relevant attacks.
 
 All calls are wrapped in try/catch; a failed hardening call never blocks startup.
+
+**Process-hardening audit findings.** A pass against the checklist (core dumps, ptrace attach, `mlock` coverage, stack canaries, isolate cross-talk) confirmed the current surface is sound:
+
+* *Core dumps* — covered on every POSIX target (prctl + setrlimit on Linux/Android, ptrace PT_DENY_ATTACH + setrlimit on macOS). Windows WER is disabled for the process via SetErrorMode. No gap.
+* *Ptrace attach* — Linux requires `CAP_SYS_PTRACE` after `PR_SET_DUMPABLE, 0`; macOS blocked via `PT_DENY_ATTACH`; Windows equivalent is covered by the WER disable + the debugger-detection Windows already surfaces. No gap.
+* *mlock coverage* — every long-lived DB/crypto secret (`SecurityStateNotifier`'s current DB key, `MasterPasswordManager.verifyAndDerive` intermediate, `ExportImport._encryptWithPassword` / `_decryptWithPassword` Argon2id-derived keys) lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every entry point zeros the source after copy.
+* *Stack canaries* — the Dart VM + `flutter` engine are compiled with `-fstack-protector-strong` by upstream; the project does not link any native code of its own that would opt out. No action.
+* *Isolate cross-talk* — Dart isolates have isolated heaps by design; the project uses one secondary isolate (`MasterPasswordManager.verifyAndDerive` spawns a short-lived isolate for Argon2id) and explicitly disposes its secret buffers before the isolate terminates. No cross-talk surface.
+* *Android manifest debuggable flag* — Flutter release builds set `debuggable=false` by default via Gradle; the project never overrides it. No action.
+
+Any finding that would have been expensive (signing / anti-tamper, runtime integrity checks, syscall filtering) is deliberately out of scope — the threat model is a lost device / hostile same-UID process, not a kernel-level attacker.
+
+#### Backup exclusion (Apple)
+
+[`BackupExclusion.applyOnStartup()`](../lib/core/security/backup_exclusion.dart) fires once per launch and opts the app-support directory out of Apple's backup paths. The hook is a no-op everywhere except iOS and macOS.
+
+* **iOS** — sets `NSURLIsExcludedFromBackupKey` on the directory URL. iCloud Backup and encrypted iTunes/Finder backups both honour the flag for the directory and every file under it.
+* **macOS** — the same `URLResourceValues.isExcludedFromBackup = true` call writes the `com.apple.metadata:com_apple_backup_excludeItem` extended attribute. Time Machine skips the directory.
+* **Android** — covered by [`data_extraction_rules.xml`](../android/app/src/main/res/xml/data_extraction_rules.xml) at the manifest level; nothing to do at runtime.
+* **Linux / Windows** — no OS-level backup default the app needs to opt out of.
+
+*Why:* the app-support directory holds the encrypted SQLite file, `credentials.kdf` (Argon2id salt + verifier), the hardware-vault blob, and the password rate-limiter journal. A restored Apple backup on an attacker-controlled device turns into an offline brute-force target against the master password without the per-device hardware binding the live install would have. The backup exclusion keeps those secrets tied to one device's trusted boot chain.
+
+*Idempotency:* the flag is a property of the directory, so re-running on every launch is cheap and self-healing — if a system action or a restore stripped the xattr, the next launch sets it again. The plugin runs `unawaited`, so startup never blocks on the round-trip.
+
+The native side is a thin Swift plugin (`ios/Runner/BackupExclusionPlugin.swift` and `macos/Runner/BackupExclusionPlugin.swift`) registered on the `com.letsflutssh/backup_exclusion` method channel. The Dart side resolves the path via `path_provider` so native and Dart always agree on which directory to flag, even if Apple ever changes the bundle-identifier layout under `~/Library/Application Support/`.
+
+#### Clipboard hygiene
+
+Two layers cover every "Copy password" / "Copy token" / "Copy SSH key passphrase" button in the app.
+
+Layer 1 is the write path — [`SecureClipboard.setText`](../lib/core/security/secure_clipboard.dart) — which routes the copy through the `com.letsflutssh/clipboard_secure` method channel so the per-platform cloud / history opt-outs land in the *same* system call as the text itself. Writing the text first and then adding opt-out flags in a second `OpenClipboard` session leaves a one-frame window where a clipboard-history watcher can scoop the payload before the flag arrives, so the plugin owns the whole write.
+
+| Platform | Opt-out applied |
+|---|---|
+| **Windows 10/11** | `CanIncludeInClipboardHistory` + `CanUploadToCloudClipboard` registered-clipboard-format DWORDs set to 0 alongside `CF_UNICODETEXT`. Win+V history skips the entry; cloud sync does not upload it. |
+| **macOS** | `NSPasteboard.general` declares `org.nspasteboard.TransientType` and `org.nspasteboard.ConcealedType` in the same `declareTypes` call as `.string`. Every third-party clipboard manager that follows the nspasteboard.org convention (1Password, Maccy, Paste, Alfred) honours these and skips the entry. Universal Clipboard / Handoff remains a residual gap — Apple exposes no first-party opt-out for the iCloud-mirrored copy path, documented here so it stays visible. |
+| **iOS** | `UIPasteboard.setItems(..., options: [.localOnly: true, .expirationDate: now+60s])` — Handoff sync is disabled for that write and the entry clears automatically if the app crashes before the Dart-side wipe fires. |
+| **Android 13+** | `ClipDescription.EXTRA_IS_SENSITIVE = true` — the system hides the clipboard-preview toast and launchers skip the "share what you copied" affordance. Pre-13 SDKs ignore the flag; the copy still works, the OS just has no hook to hide it. |
+| **Linux** | No cloud clipboard default on X11 or Wayland. Falls through to Flutter's stock `Clipboard.setData`. |
+
+Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security/clipboard_secret.dart) — which schedules a 30-second timer on top of the write. When the timer fires it re-reads the clipboard and only clears it if the live value still matches what we wrote; if the user copied something else in the meantime, the new value is left alone. This catches terminal emulators, browser extensions, and systemd-journal clipboard watchers that read the pasteboard lazily — the iOS 60-second `.expirationDate` is a belt-and-braces fallback for the case where the Dart timer never runs (app killed, reboot, forced OOM).
+
+*Why two layers:* the opt-out flags are a compliance hint to well-behaved consumers. They do not stop a malicious process on the same user session from reading the clipboard — that is what the 30-second wipe addresses. Together they cover the typical attacker shapes: clipboard history / cloud sync (Layer 1) and live paste-sniffers (Layer 2).
+
+*Fallback:* if the native channel returns `MissingPluginException` (test harness, platform not yet wired), `SecureClipboard` falls through to Flutter's stock `Clipboard.setData` rather than refusing to copy. The wipe timer still runs, so the payload never sits on the clipboard longer than the window.
+
+#### Password entry widget
+
+Every secret-entry field in the app (master password, SSH key passphrase, export/import password, rate-limited PIN) goes through [`SecurePasswordField`](../lib/widgets/secure_password_field.dart). The widget wraps a stock `TextField` with two behaviours the default does not have:
+
+1. **IME hardening.** `autocorrect`, `enableSuggestions`, `enableIMEPersonalizedLearning`, `smartDashesType`, `smartQuotesType`, and `textCapitalization` are all forced off. Every one of those routes keystrokes through an OS service the app does not want to share a master password with — the autocorrect dictionary learns typed tokens, predictive text builds n-gram histories, `personalisedLearning` trains the IME model, smart-quote substitution hands the raw character stream to the text engine. `keyboardType: TextInputType.visiblePassword` picks the Android "password" IME that already disables dictionary learning at the OS level; `autofillHints: [AutofillHints.password]` keeps the field inside the platform password-autofill surface, which routinely suppresses the dictation / share / lookup context-menu items a plain text field would expose. An obscured field's context menu is stubbed out entirely (only select stays), matching the behaviour of native password fields.
+2. **Deterministic wipe point.** `State.dispose` calls [`SecretController.wipeAndClear`](../lib/utils/secret_controller.dart) on the caller's controller before the parent `State` drops its reference. The controller's `text` is overwritten with same-length null bytes, then cleared — the `ValueListenable` emits an opaque intermediate so any listener observing the change no longer sees the secret, and the final listenable state holds nothing. `wipeAndClear` is idempotent, so the caller's own dispose can call it again without surprise.
+
+*Residency trade-off (explicit, not wishful thinking):* Dart `String` is immutable and GC-relocatable. There is no hook in Flutter's stock text-input pipeline to keep typed characters out of a Dart-heap `String` — the IME delivers a full `TextEditingValue` each keystroke, the framework stores `.text` on the controller, and the engine renders it. `wipeAndClear` on dispose overwrites the controller's `text` with same-length null bytes before clearing, but the short-lived interim `String`s the framework created still live on the Dart heap until the GC runs. The long-lived derived key is captured into a page-locked `SecretBuffer` at the KDF output, so it stays mlock-pinned for the entire session — the password *input* buffer is the narrow residency gap, not the derived DB key.
+
+*Platform protection via the Flutter engine (not a separate native widget):* Flutter's engine on Android / iOS bridges `obscureText` and `keyboardType: TextInputType.visiblePassword` to the native `TYPE_TEXT_VARIATION_PASSWORD` / `UITextField(isSecureTextEntry: true)`, which the OS honours for IME learning suppression, clipboard-history opt-out, and screen-recording blackout (iOS only). `macOS` is the notable exception — Flutter `TextField` uses `NSTextView`, not `NSSecureTextField`, so `EnableSecureEventInput()` (HID-level keylogger block) is **not** active. A Mac user concerned about keylogger malware must rely on deny-by-default for Accessibility permission in System Settings → Privacy & Security → Accessibility, which is the standard macOS guard. Windows/Linux have no OS-level equivalent primitive for HID-blocking password fields at the widget layer, so `SecurePasswordField` on all five platforms provides the same set of guarantees (IME hardening + wipe-on-dispose) plus whatever the Flutter engine's native bridging layer adds.
+
+*Why no custom `SecureNativeTextField` PlatformView:* an earlier iteration shipped a PlatformView-backed `SecureNativeTextField` (Android `EditText`, iOS `UITextField`, macOS `NSSecureTextField`) intending to collapse Dart-heap residency into a single one-frame `Uint8List`. It was removed before any call site adopted it — the hardening actually delivered over plain Flutter `TextField + obscureText` was marginal on Android / iOS (the engine already bridges to the same native field) and real only on macOS (`NSSecureTextField` triggers `EnableSecureEventInput`). Keeping the macOS-only branch would have required separate wiring at every password call site, stylistic mismatch with Material widgets, and a platform-view lifecycle bug surface — all for a keylogger-block that a user with untrusted Accessibility-permissioned apps has already lost regardless. The unified `SecurePasswordField` is the single code path; the macOS HID-block gap is documented above and in `SECURITY.md`.
 
 #### AesGcm
 
@@ -734,6 +1082,374 @@ enum SshKeyType { ed25519, rsa2048, rsa4096 }
 ```
 
 **Session integration:** `SessionAuth.keyId` references a key by ID. Resolved in `SessionConnect._resolveConfig()` — key's PEM injected into `SSHConfig.auth.keyData` before connecting. SSH layer receives plain PEM text, unchanged.
+
+#### Migration framework (`core/migration/`)
+
+Versioned-artefact migration framework running on startup before
+`_initSecurity`. Replaces the ad-hoc "detect legacy files, wipe via
+`LegacyStateReset`" approach with a typed interface: every on-disk
+artefact the app persists registers an `Artefact` with a target
+version, and every breaking format change ships a `Migration` that
+walks one step. The framework owns the *file-format envelope* around
+the artefact; intra-DB column / table changes are owned by drift's own
+`MigrationStrategy` ([§11 Persistence](#11-persistence--storage)) and
+are out of scope here.
+
+##### File layout
+
+```
+lib/core/migration/
+  migration_runner.dart   — MigrationRunner, MigrationReport,
+                            MigrationStep, UnsupportedFutureVersionException
+  schema_versions.dart    — SchemaVersions + ArtefactIds constants
+                            (single source of truth for "current
+                            target version per artefact" + "stable
+                            1-byte id per artefact in the envelope")
+  artefact.dart           — Artefact abstract class (id + targetVersion
+                            + readVersion)
+  migration.dart          — Migration abstract class (artefactId +
+                            fromVersion + toVersion + apply + validate)
+  registry.dart           — MigrationRegistry + buildAppMigrationRegistry()
+                            — composition root, no service-locator scan
+  archive_registry.dart   — ArchiveMigrationRegistry + archiveMigrationRegistry
+                            singleton for .lfs format migrations (runs
+                            at import time, not startup)
+  versioned_blob.dart     — Standard envelope: magic 'LFS\x01' +
+                            artefactId byte + version byte + payload
+  artefacts/
+    config_artefact.dart  — reads config_schema_version from config.json
+    kdf_artefact.dart     — presence-only; KdfParams is self-versioned
+    db_artefact.dart      — presence-only; Drift owns its schema
+```
+
+##### VersionedBlob envelope
+
+Every framework-managed binary artefact uses a fixed 6-byte header so
+the runner can identify the artefact and its on-disk version without
+parsing the payload:
+
+```
+offset  size  meaning
+0       4     magic = ASCII 'L','F','S',0x01
+4       1     artefact id  (see ArtefactIds — never reuse a value)
+5       1     payload format version
+6       N     payload bytes (artefact-specific)
+```
+
+`VersionedBlob.write(path, artefactId, version, payload)` is the only
+sanctioned writer for envelope artefacts: it serialises the header,
+writes the bytes to a `.tmp<rand>` sibling via `writeBytesAtomic`,
+hardens the file permissions, then renames over the original. A crash
+mid-write leaves the previous file intact. Plain `File.writeAsBytes`
+for new binary state is a bug — it skips both the envelope header and
+the atomic-rename pattern.
+
+`VersionedBlob.read(path)` and `tryParse(bytes)` return `null` when
+the magic does not match — callers treat null as unrecognised state
+and let the runner surface the mismatch via the fatal-report path.
+
+The header is intentionally absent for two artefacts: drift's DB file
+(drift owns its own schema and reads its own version via `PRAGMA
+user_version`) and `credentials.kdf` (carries its own `'LFKD'` magic
++ `KdfParams` block). Both are wired in as **presence-only** artefacts
+— the framework knows they exist and routes future format changes
+through the same `runOnStartup` decision path, but does not parse them
+itself.
+
+##### Artefact contract — readVersion conventions
+
+`Artefact.readVersion()` is how the runner discovers what is on disk.
+The return value drives the runner's decision tree:
+
+| Return value | Meaning | Runner action |
+|---|---|---|
+| `-1` | Artefact does not exist on disk yet (clean install for this slot) | Skip — nothing to migrate |
+| `>= 1` | Artefact present, header-versioned at the returned value | Walk the Migration chain up to `targetVersion` |
+
+v1 is the permanent floor for every artefact. Unrecognised headers,
+missing schema fields, malformed payloads must **throw** — the runner
+catches the throw and records it as a fatal `MigrationReport` entry so
+the caller can route the user through the reset dialog. Never return a
+made-up version for unrecognised state.
+
+`targetVersion` must be read straight from a `SchemaVersions.<x>`
+constant — never inline a number. The constant is the single source of
+truth and the registry-completeness unit test greps for stale literals.
+
+##### MigrationRunner lifecycle
+
+`main._runMigrations()` calls `MigrationRunner(registry).runOnStartup()`
+**before** `_initSecurity`, so the unlock path always reads the
+post-migration shape. The runner is idempotent — calling twice in a
+row is a no-op on the second call once every artefact has been brought
+to its target.
+
+For each artefact (in topologically-sorted order — see Topology
+below):
+
+1. Call `readVersion()`. If it returns `-1` (absent) or equals
+   `targetVersion` (already current), skip.
+2. If `onDisk > targetVersion` (newer-than-known state, usually the
+   result of a downgrade after a forward migration ran), record an
+   `UnsupportedFutureVersionException` in `report.futureVersions` and
+   move on. The artefact is left untouched on disk so a re-upgrade
+   recovers cleanly — never silently rewrite future-version data.
+3. If `onDisk < targetVersion`, walk the Migration chain step by
+   step. For each step:
+   - Look up the `Migration` whose `artefactId` matches and whose
+     `fromVersion == current`. **No registered migration = fatal
+     error**: the runner appends a failed `MigrationStep` and aborts
+     the whole run with `report.fatalError` set.
+   - Call `apply()`. If it throws, record the failure and abort.
+   - Otherwise advance `current` to `step.toVersion` and continue.
+
+The runner returns a `MigrationReport`:
+
+| Field | Meaning |
+|---|---|
+| `steps` | Per-step record (artefactId, fromVersion, toVersion, succeeded, error) |
+| `futureVersions` | List of `UnsupportedFutureVersionException` for artefacts ahead of the build |
+| `fatalError` | First fatal error (missing migration, apply throw, dependency cycle, corrupt header) |
+| `noOp` | True iff no migrations ran and no failures recorded |
+| `hasFailures` | True iff any step failed, any future version was seen, or fatal is set |
+| `migratedCount` | Successful step count — used in the post-run log line |
+
+`main._runMigrations` inspects `report.hasFailures` (fatal error,
+future-version artefact, or any failed step) and routes the user
+through `DbCorruptDialog` on any non-clean run: *Reset & Setup Fresh*
+runs `_wipeAndRestartFromScratch` (same full-wipe + first-launch wizard
+path that the DB-corruption probe uses); *Quit* leaves the disk
+untouched so a newer build can re-read the same artefacts. An
+uncaught throw from the runner itself lands on the same dialog — a
+broken artefact reader is indistinguishable from a broken artefact
+from the user's point of view. `main` short-circuits the rest of
+startup (`_initSecurity` + `_handleDatabaseCorruption`) whenever
+`_runMigrations` returns `false`, because the failure handler has
+already taken over. The registry is empty today, so on a
+current-version install the report is always `noOp == true` and the
+app proceeds into `_initSecurity` normally; the failure surface is
+wired up ahead of time so the first real migration inherits a
+complete path.
+
+##### Atomicity
+
+`Migration.apply()` is responsible for atomicity end-to-end. The
+standard recipe is `VersionedBlob.write(...)` (tmp + rename + chmod);
+custom payloads follow the same pattern via `writeBytesAtomic` in
+`utils/file_utils.dart`. If `apply` throws before the rename, the
+original file is untouched and the runner records the failure as a
+fatal `MigrationStep`.
+
+There is no post-apply validate hook. A migration that needs to sanity-
+check its own output does so inside `apply` and throws on mismatch —
+the runner has no backup to swap to and no separate validate phase to
+couple rollback to. Migrations that want true rollback must hold their
+own `.bak` sibling inside `apply`.
+
+##### Topology — declareDependency
+
+Some artefacts must be migrated only after others (the canonical
+example: every per-platform `hardware_vault_*.bin` depends on
+`config.json` because the vault layout reads its tier and modifier
+shape from the post-migration config). The registry exposes
+`declareDependency(artefactId, [otherIds...])` — and its bulk variant
+`declareDependencies([artefactIds...], [otherIds...])` — to encode
+this; the runner sorts via Kahn's algorithm and throws
+`StateError('Cycle in migration dependencies')` (captured as
+`report.fatalError`) on any cycle. Order between independent artefacts
+is not specified — do not rely on it; declare the dependency if order
+matters.
+
+Dangling edges are tolerated on purpose. `buildAppMigrationRegistry()`
+declares vault dependencies ahead of the vault artefacts themselves
+(the vault wrappers land in a later change), so the runner skips any
+edge whose `artefactId` is not in the registered set — both endpoints
+must be known for the edge to contribute to `indegree`. Without this
+guard a fresh install hit `indegree[unregistered_id]!` during the
+Kahn sweep, the error surfaced as "dependency cycle: Null check
+operator used on a null value" in `report.fatalError`, and
+`_handleMigrationFailure` routed every first-launch user through
+`DbCorruptDialog`. The tolerance keeps forward-declared deps cheap:
+register the vault artefact later and the pre-declared edge starts
+taking effect automatically.
+
+##### Reset migrations are out of scope
+
+When the target state of an "upgrade" is "user runs the setup wizard
+again, nothing to salvage", the migration framework is the wrong
+place. Those route through `TierResetDialog` / `DbCorruptDialog` →
+`WipeAllService.wipeAll()` — user-consented destructive operations,
+not silent format bumps. The framework is for silent automated format
+bumps only; if there is no automatable transform, escalate to a reset
+dialog instead.
+
+##### Archive format migrations
+
+`ArchiveMigrationRegistry` + the `archiveMigrationRegistry` singleton
+mirror the on-disk registry but for `.lfs` archive contents. Different
+lifecycle (import-time, not startup) but same `Migration` interface.
+v1 is the permanent floor; archives whose `schema_version` does not
+match the current [`SchemaVersions.archive`](../lib/core/migration/schema_versions.dart)
+are rejected at import with `UnsupportedLfsVersionException` (see
+[§3.9 Import → .lfs format](#39-import-coreimport)). Future breaking
+format changes register a `Migration` here rather than growing a
+read-only back-compat path.
+
+##### Developer guide — how to ship a format change
+
+When you change the wire format of a framework-managed artefact, walk
+this checklist. There is no CI guard that rejects a partial bump
+today; the safety net is `MigrationRunner.runOnStartup` raising a
+fatal `MigrationStep` on first post-upgrade boot when a registered
+migration is missing. Catch the gap at PR time by adding a unit test
+that builds the registry and asserts every adjacent
+`(SchemaVersions.<x>, fromVersion → fromVersion + 1)` pair has a
+Migration registered.
+
+###### Adding a brand-new envelope artefact
+
+You are persisting a new binary blob and want it to participate in
+the framework from day one.
+
+1. Pick a stable 1-byte id and add it to `ArtefactIds` in
+   `schema_versions.dart`. Never reuse a previous value — even for
+   ids that were once registered and removed.
+2. Add a `SchemaVersions.<name>` constant set to `1` (the permanent
+   floor — v1 is the lowest legal version in the framework).
+3. Implement `<name>_artefact.dart` under `core/migration/artefacts/`
+   extending `Artefact`. Override `id` (use the on-disk filename),
+   `targetVersion` (`SchemaVersions.<name>`), and `readVersion()` —
+   typically: file missing → `-1`, no envelope magic → `0`, otherwise
+   return `VersionedBlob.tryParse(bytes).version`.
+4. Register the artefact in `buildAppMigrationRegistry()` in
+   `registry.dart`. If your artefact's layout depends on another
+   (e.g. it reads tier from `config.json`), call `declareDependency`
+   in the same place.
+5. Persist the blob through `VersionedBlob.write(path, artefactId:
+   ArtefactIds.<name>, version: SchemaVersions.<name>, payload: ...)`
+   from the producing module. Never call `File.writeAsBytes`
+   directly for envelope artefacts.
+6. Add a unit test under `test/core/migration/artefacts/` exercising
+   each `readVersion()` path (missing file, malformed, current
+   version). Pass an injected `supportDir` so the test owns a temp
+   directory.
+
+No Migration is needed yet — the artefact ships at v1 from the start
+and the runner is a no-op on every install.
+
+###### Bumping an existing artefact's format
+
+You are changing the on-disk shape (added a field, renamed a key,
+re-arranged a struct) of an artefact already in the registry.
+
+1. Bump the `SchemaVersions.<artefact>` constant by exactly one.
+   Skipping versions is forbidden; the runner walks the chain step
+   by step and expects every intermediate migration to exist.
+2. Implement a `Migration` subclass under `core/migration/migrations/`
+   covering the single `(artefactId, fromVersion → toVersion)`
+   transition. Override `apply` to read the v(N-1) bytes, transform
+   them in memory, and write the v(N) bytes via `VersionedBlob.write`
+   (or another atomic writer if the artefact does not use the
+   envelope). Override `validate` if a round-trip read or schema
+   check is feasible.
+3. Register the migration with `reg.registerMigration(...)` in
+   `buildAppMigrationRegistry()`. Duplicate `(artefactId, fromVersion)`
+   pairs throw at registration — there is exactly one path between
+   adjacent versions.
+4. Update the writer in the producing module to stamp the new version
+   constant. Update any reader to handle the new payload shape.
+   Existing data on disk continues to read correctly because the
+   migration upgrades it on next startup.
+5. Add a unit test under `test/core/migration/migrations/` that
+   builds a v(N-1) file in a temp dir, runs the migration, and
+   asserts the resulting file matches the v(N) shape (and that
+   `validate()` returns true). Add a second test confirming the
+   migration is registered in `buildAppMigrationRegistry()`.
+6. Document the bump under `docs/ARCHITECTURE.md §11 Persistence`
+   (if the artefact is a top-level data file) or in the relevant
+   `core/security/...` doc reference. Mention what the change is and
+   why so the next agent can read intent without grepping commits.
+
+The next install that boots will run the new migration once on
+startup, log the success step, and never run it again because
+`readVersion()` now returns `targetVersion`. A user who downgrades
+to the prior build after the bump runs lands on the
+`UnsupportedFutureVersionException` path — the file is left intact
+so a re-upgrade recovers.
+
+###### Adding a `.lfs` archive format migration
+
+You are bumping the archive `manifest.schema_version`.
+
+1. Bump `SchemaVersions.archive` by one. The constant is consulted by
+   `ExportImport.currentSchemaVersion`; see [§3.9 Import → .lfs
+   format](#39-import-coreimport) for how the manifest is written and
+   validated on import.
+2. Implement a `Migration` subclass under `core/migration/migrations/`
+   that rewrites the in-memory archive map (add a field, rename a
+   key, fold two collections together). Archive migrations transform
+   parsed maps, not raw bytes — the import path has already decoded
+   the ZIP and the manifest by the time migrations run.
+3. Register via `archiveMigrationRegistry.register(...)` (the
+   singleton in `archive_registry.dart`). Duplicates throw at
+   registration like the on-disk registry.
+4. The import path queries `archiveMigrationRegistry.chain(onDisk,
+   currentSchemaVersion)` and applies each step before parsing the
+   archive entries — see `ExportImport._applyArchiveMigrations`.
+5. Test under `test/core/migration/migrations/archive_v(N-1)_to_v(N)_test.dart`
+   with a synthetic input map and the expected output map.
+
+###### Deferred v1 improvements
+
+Three improvements were designed but intentionally not shipped in the
+v1-floor cleanup, because each one would require bumping the archive
+schema (or adding a native dependency) — and "v1 is the permanent
+floor" means the next format bump should be a single coordinated
+v1 → v2 step, not a drip of back-compat flags inside v1:
+
+- **Fast wrong-password canary.** An 8-byte sentinel encrypted with
+  the Argon2id-derived key, placed at a known offset before the main
+  AEAD blob, so a wrong password rejects in microseconds instead of
+  processing the whole ciphertext to fail GCM tag verification.
+  Requires a format bump (new header field) or a reserved offset
+  inside the KdfParams block; both are v1 → v2 changes.
+- **Per-entry `schema_version`.** Each JSON entry (sessions, tags,
+  snippets, …) carries its own schema version so the framework can
+  evolve one entry type without bumping the whole archive. Requires
+  wrapping each entry's top-level shape from `[...]` to
+  `{"schema_version": 1, "entries": [...]}` — again a v1 → v2 change.
+- **Zstd compression.** Would reduce JSON-heavy archives by 30–50 %.
+  No stable pure-Dart zstd implementation on pub.dev today; pulling
+  in a native-code FFI package would break the self-contained-binary
+  invariant ([AGENT_RULES § Self-Contained Binary](./AGENT_RULES.md#self-contained-binary--end-user-installs-nothing))
+  or require a per-platform fallback. Pick this up only if a pure
+  Dart zstd decoder lands or if the binary-size cost of bundling
+  one is judged acceptable.
+
+Streaming archive decode (reading entries from an `InputFileStream`
+instead of loading the whole decompressed archive into memory) is a
+separate axis and sits in the same deferred bucket — the current
+50 MiB cap on encrypted archive size keeps the in-memory cost bounded,
+and encrypted archives have to be decrypted fully before the ZIP is
+readable at all, so streaming would only benefit the unencrypted path
+without touching the hot case. Revisit when a user reports a
+real-world archive pushing the cap.
+
+###### What the framework will not do for you
+
+- **Reset migrations** — see "Reset migrations are out of scope"
+  above. If the upgrade has no automatable transform, escalate to
+  `TierResetDialog` / `DbCorruptDialog` instead.
+- **Cross-artefact migrations in a single Migration** — one migration
+  covers exactly one `(artefactId, fromVersion → toVersion)`. If a
+  format change touches two artefacts, ship two migrations and
+  declare the dependency between them via `declareDependency`.
+- **Auto-rollback after `validate()` returns false** — see
+  "Atomicity and rollback" above. If your migration needs
+  post-validate rollback, hold a `.bak` sibling inside `apply`
+  yourself.
+- **Skipping a version** — every adjacent pair `(N-1, N)` must have
+  a registered migration. The runner does not jump versions.
 
 ---
 
@@ -833,7 +1549,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
+| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, Argon2id-derived key). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
 | `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
@@ -857,19 +1573,38 @@ payload = ZIP archive:
   session_snippets.json   ← session→snippet links
 
 Encryption: AES-256-GCM
-Key: PBKDF2-SHA256(password, salt, 600000 iterations)
+Key: Argon2id(password, salt, m=46 MiB, t=2, p=1) — see
+  [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart)
 
-Wire format for v2 encrypted archives:
-  [ 'LFSE' (4) | version u8 | iterations u32 BE | salt (32) | iv (12) |
-    ciphertext + GCM tag ]
+Wire format for v3 encrypted archives (current writer):
+  [ 'LFSE' (4) | version = 0x02 (1) | KdfParams block (≤ 16) |
+    salt (32) | iv (12) | ciphertext + GCM tag ]
 
-The 9-byte header lets the reader pick up the exact PBKDF2 cost that was
-used to write the archive — so a future release can raise iterations
-without having to break or re-encrypt existing files. Archives written
-before the header existed start straight with the 32-byte salt (no
-detectable magic) and are still decrypted via the legacy fall-back path
-using `ExportImport.defaultPbkdf2Iterations`. Unencrypted ZIP archives
-keep their `PK\x03\x04` magic and are handled separately.
+The KdfParams block carries the algorithm id (1 byte, `0x01` = Argon2id)
+followed by the algorithm-specific parameters (for Argon2id: memoryKiB
+u32 BE + iterations u32 BE + parallelism u8 = 9 bytes). The reader picks
+up the exact cost used to write the archive — a future release can tune
+parameters without having to break or re-encrypt existing files.
+
+Argon2id is the only supported KDF. Archives with a header version byte
+other than `0x02`, missing `LFSE` magic, or no manifest are rejected at
+import with `UnsupportedLfsVersionException` — users must re-export from
+the current app version. Future breaking format changes ship a
+`Migration` registered in `lib/core/migration/archive_registry.dart` —
+see [§3.6 → Migration framework](#migration-framework-coremigration)
+for the framework, which runs at import time (not startup) for archive
+artefacts but uses the same `Migration` interface as the on-disk
+artefacts.
+
+| On-disk form | Version byte | KDF | Notes |
+|---|---|---|---|
+| v1 (LFSE) | `0x02` | Argon2id @ header params | Current writer and the only supported reader. |
+
+Import caps bound Argon2id params from an untrusted header
+(`maxImportArgon2idMemoryKiB = 1 GiB`, `maxImportArgon2idIterations =
+20`, `maxImportArgon2idParallelism = 16`) so a hostile archive cannot
+pin the isolate into swap. Unencrypted ZIP archives keep their
+`PK\x03\x04` magic and are handled separately.
 
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
@@ -890,12 +1625,13 @@ password prompt:
     check inside `_decryptAndParseArchive` is the final arbiter.
 ```
 
-Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**). The
-manifest is written on every export and validated on import — archives with a
-higher `schema_version` throw `UnsupportedLfsVersionException` rather than
-silently dropping unknown fields. Archives without a manifest are treated as
-legacy v1 (back-compat). GCM's auth tag already protects archive integrity
-end-to-end, so no separate content hash is stored in the manifest.
+Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**,
+sourced from `SchemaVersions.archive`). The manifest is written on every
+export and validated on import — archives with any `schema_version` other
+than the current one, or no manifest at all, throw
+`UnsupportedLfsVersionException`. GCM's auth tag already protects archive
+integrity end-to-end, so no separate content hash is stored in the
+manifest.
 
 #### Import modes
 
@@ -960,8 +1696,8 @@ Supporting classes in the same directory:
   `<artifact>.sig` file against them via `pinenacl`. Multi-pin so the
   maintainer can rotate a leaked key without breaking already-installed
   builds. See [§13 Update channel integrity](#update-channel-integrity)
-  for the end-to-end picture and `.github/SECURITY.md` for the rotation
-  playbook.
+  for the end-to-end picture and [`SECURITY.md`](SECURITY.md) for the
+  rotation playbook.
 - **`CertPinning`** (`cert_pinning.dart`) — installs a
   `badCertificateCallback` on the update-download HTTP client that
   checks the leaf cert's SPKI against a per-host pin set. Pin map is
@@ -1013,48 +1749,30 @@ class AppShortcutRegistry {
 
 ### 4.1 Provider Dependency Graph
 
+```mermaid
+flowchart TD
+    UI["UI (features/)"]
+    UI -->|watches| sp["sessionProvider<br/>(Notifier)"]
+    UI -->|watches| cp["configProvider<br/>(Notifier)"]
+    UI -->|watches| wp["workspaceProvider<br/>(Notifier)"]
+    sp --> ssp["sessionStoreProvider"]
+    cp --> csp["configStoreProvider"]
+    ssp --> ss["SessionStore + CredentialStore<br/><i>core/ (pure Dart)</i>"]
+    csp --> cs["ConfigStore<br/><i>core/ (pure Dart)</i>"]
+
+    sp -.-> stp["sessionTreeProvider<br/>(computed from sessionProvider)"]
+    cp -.-> tmop["themeModeProvider<br/>(computed from configProvider)"]
+    sp -.-> fsp["filteredSessionsProvider<br/>(computed from sessionProvider<br/>+ sessionSearchProvider)"]
 ```
-                    ┌─────────────────────┐
-                    │   UI (features/)    │
-                    └─────────┬───────────┘
-                              │ watches
-        ┌─────────────────────┼──────────────────────┐
-        ▼                     ▼                      ▼
-┌───────────────┐  ┌──────────────────┐  ┌────────────────────┐
-│sessionProvider│  │  configProvider  │  │ workspaceProvider  │
-│  (Notifier)   │  │   (Notifier)     │  │    (Notifier)      │
-└───────┬───────┘  └────────┬─────────┘  └────────────────────┘
-        │                   │
-        ▼                   ▼
-┌───────────────┐  ┌──────────────────┐
-│sessionStore   │  │  configStore     │
-│  Provider     │  │   Provider       │
-└───────┬───────┘  └────────┬─────────┘
-        │                   │
-        ▼                   ▼
-   SessionStore        ConfigStore          ← core/ (pure Dart)
-   CredentialStore
 
-┌─────────────────────────┐     ┌──────────────────────────┐
-│connectionManagerProvider│     │ transferManagerProvider  │
-│                         │     │                          │
-│ → connectionsProvider   │     │ → activeTransfersProvider│
-│   (StreamProvider)      │     │ → transferHistoryProvider│
-│                         │     │ → transferStatusProvider │
-└─────────────────────────┘     └──────────────────────────┘
+Independent provider groups:
 
-┌─────────────────────┐     ┌────────────────────┐
-│ sessionTreeProvider │     │ themeModeProvider  │
-│ (computed from      │     │ (computed from     │
-│  sessionProvider)   │     │  configProvider)   │
-└─────────────────────┘     └────────────────────┘
-
-┌──────────────────────────┐
-│ filteredSessionsProvider │
-│ (computed from           │
-│  sessionProvider +       │
-│  sessionSearchProvider)  │
-└──────────────────────────┘
+```mermaid
+flowchart LR
+    cmp["connectionManagerProvider"] --> cp1["connectionsProvider<br/>(StreamProvider)"]
+    tmp["transferManagerProvider"] --> tp1["activeTransfersProvider"]
+    tmp --> tp2["transferHistoryProvider"]
+    tmp --> tp3["transferStatusProvider"]
 ```
 
 ### 4.2 Provider Catalog
@@ -1620,7 +2338,7 @@ void dispose();
 
 Shared Enter-key wiring for any multi-field input dialog. Owns a fixed-length list of `FocusNode`s and returns the per-field `textInputAction` + `onSubmitted` callback that implement "Enter advances to the next field; Enter on the last field submits". Flutter `TextField`s intercept Enter before parent `CallbackShortcuts` can, so a dialog-level shortcut cannot implement dialog-wide Enter-submit; each field must wire `onSubmitted` individually. Centralising the wiring here keeps dialogs short and prevents per-dialog regressions (e.g. a field that silently fails to submit).
 
-Every password dialog in `features/settings/settings_dialogs.dart` uses it: `_SetMasterPasswordDialog`, `_ChangeMasterPasswordDialog`, `_RemoveMasterPasswordDialog`, `_EnableBiometricDialog`, `_ExportPasswordDialog`, `_ImportPasswordDialog`. Any new input dialog must use this helper instead of re-rolling `FocusNode`s and `TextInputAction` defaults by hand.
+Every password dialog in `features/settings/settings_dialogs.dart` uses it: `_EnableBiometricDialog`, `_ExportPasswordDialog`, `_ImportPasswordDialog`. Any new input dialog must use this helper instead of re-rolling `FocusNode`s and `TextInputAction` defaults by hand. The pre-tier master-password dialogs that also lived in this file were deleted when the tier wizard became the single entry point for every security change (see §3.6).
 
 ### AppBorderedBox
 
@@ -1904,6 +2622,315 @@ Reusable sortable column-header cell for table views. Shows a label with optiona
 
 Also provides `columnDivider()` — thin vertical divider between table columns (for data rows, not headers).
 
+### AppDataRow
+
+```dart
+AppDataRow({
+  required Widget icon,           // leading icon or avatar
+  required String title,
+  String? secondary,              // dim line under title
+  String? tertiary,               // dim line under secondary
+  List<Widget> trailing = const [],
+  VoidCallback? onTap,
+  VoidCallback? onSecondaryTap,
+  bool selected = false,
+  EdgeInsets? padding,
+})
+```
+Shared row primitive for list / table dialogs (known hosts, snippets, tags, SSH keys). Min-height-padded so rows align across dialogs. Uses `AppTheme.itemHeightMd` and `AppFonts` for the typography ladder. Pair with [AppDataSearchBar](#appdatasearchbar) for the matching search input.
+
+### AppDataSearchBar
+
+```dart
+AppDataSearchBar({
+  required TextEditingController controller,
+  required ValueChanged<String> onChanged,
+  String? hint,
+  bool autofocus = false,
+})
+```
+Shared search input for list / table dialogs. Visually paired with [AppDataRow](#appdatarow); both surface the same dark-language conventions so dialogs stay consistent.
+
+### TagDots — SessionTagDots & FolderTagDots
+
+```dart
+SessionTagDots({required String sessionId, double diameter = 8})
+FolderTagDots({required String folderPath, double diameter = 8})
+```
+Coloured dot row showing the tags assigned to a session (or aggregated across a folder subtree). `Consumer*` widgets — both watch `tagProvider` so dots stay in sync with tag CRUD without manual rebuilds. See [§3 Tags](#3-core-modules) for the underlying `TagStore`.
+
+### DataCheckboxes — CollapsibleCheckboxesSection & DataCheckboxRow
+
+```dart
+CollapsibleCheckboxesSection({
+  required String title,
+  required bool expanded,
+  required ValueChanged<bool> onExpandedChanged,
+  required List<Widget> children,
+  Widget? trailing,
+})
+
+DataCheckboxRow({
+  required bool? value,           // null = indeterminate (mixed selection)
+  required String label,
+  String? secondary,
+  required ValueChanged<bool?> onChanged,
+  bool dim = false,
+})
+```
+Shared collapsible checkbox grid + tri-state row used by the unified export dialog and the import-preview dialogs. Tri-state semantics: `null` renders the indeterminate marker so a parent group can show "some children selected".
+
+### LfsImportPreviewDialog
+
+```dart
+typedef LfsImportPreviewResult = ({ImportMode mode, ImportPreviewSelection selection});
+
+LfsImportPreviewDialog.show(context, {
+  required ImportPreviewCounts counts,
+  required ImportMode initialMode,
+}) → Future<LfsImportPreviewResult?>
+```
+Pre-import preview of a `.lfs` archive — shows per-type counts ([§3.9 Import](#39-import-coreimport)) and lets the user trim the import + pick merge/replace before commit. The shared `ImportPreviewCounts` / `ImportPreviewSelection` typedefs in `widgets/import_preview_dialog.dart` are reused by [LinkImportPreviewDialog](#linkimportpreviewdialog) so both sources speak the same shape.
+
+### LinkImportPreviewDialog
+
+```dart
+typedef LinkImportPreviewResult = ({ImportMode mode, ExportOptions options});
+
+LinkImportPreviewDialog.show(context, {
+  required ExportPayloadData payload,
+  required ImportMode initialMode,
+}) → Future<LinkImportPreviewResult?>
+```
+Same preview surface as [LfsImportPreviewDialog](#lfsimportpreviewdialog) but for `letsflutssh://` deep-link / QR payloads. Reuses the shared counts / selection typedefs so both sources render identically.
+
+### UnifiedExportController
+
+```dart
+class UnifiedExportController extends ChangeNotifier {
+  ExportPreset preset;            // fullBackup | sessions | custom
+  ImportPreviewSelection selection;
+  ExportOptions options;          // include credentials? compress? …
+  // Pure presentation logic — no Riverpod, no persistence.
+}
+```
+Headless controller for the unified QR + `.lfs` export dialog. Holds selection + options, exposes derived counts for the size indicator. Lives in `widgets/` because export is widget-local state (not app-wide) — see [§4.3 Widget-local controllers](#43-widget-local-controllers-changenotifier).
+
+### UnifiedExportDialog
+
+```dart
+UnifiedExportDialog.show(context, {
+  required UnifiedExportDialogData data,
+}) → Future<UnifiedExportResult?>
+```
+Single dialog covering both QR and `.lfs` export. Top of the dialog flips between QR (small payloads) and archive (everything else) modes; the controller above owns the selection state. Tree rendering is split into `unified_export_dialog_tree.dart` (a `part of` file) to keep the state class small — presentation only.
+
+---
+
+## 6.1 Security & Tier Wizard Widgets
+
+Cluster of widgets that implement the first-launch security wizard, the Settings → Security ladder, the lock screen, and the reset prompts for mismatched on-disk state. They consume / mutate state owned by `core/security/` ([§3.6](#36-security--encryption-coresecurity)) and the security providers ([§4.2 Provider Catalog](#42-provider-catalog) — `securityProvider`, `lockStateProvider`, `autoLockMinutesProvider`, `firstLaunchBannerProvider`, `masterPasswordProvider`).
+
+### AppInfoButton
+
+```dart
+AppInfoButton({
+  required String dialogTitle,
+  required Widget dialogContent,
+  double size = 14,
+})
+```
+Inline `(i)` icon that opens [AppInfoDialog](#appinfodialog) with caller-supplied threat-model copy. Sits next to any tier row or setting where the user might want to know what they're turning on before they tap it.
+
+### AppInfoDialog
+
+```dart
+AppInfoDialog({required String title, required Widget content})
+AppInfoDialog.show(context, {required String title, required Widget content}) → Future<void>
+```
+Reusable threat-model explainer. Two columns of "protects against" / "does not protect against". Shown from [AppInfoButton](#appinfobutton) next to security-tier rows in the first-launch wizard and Settings → Security.
+
+### AutoLockDetector
+
+```dart
+AutoLockDetector({required Widget child})
+```
+Wraps the app body and locks the app after `autoLockMinutesProvider` minutes of user inactivity when the active security tier is `masterPassword`. "Lock" means: clear in-memory keys, push [LockScreen](#lockscreen) on top of the navigator. No-op for tiers below masterPassword (keychain / no-secret) — those have nothing to lock.
+
+### LockScreen
+
+```dart
+LockScreen({Key? key})
+```
+Full-screen lock overlay shown while `lockStateProvider` is true. Tries biometric unlock first (if the user enabled it) and falls back to a master-password form. On success it re-derives the DB key, pushes it back into [`KeyHolder`](#36-security--encryption-coresecurity) and flips `lockStateProvider` off. Cross-links: [§3.6 Security](#36-security--encryption-coresecurity) for the key derivation path.
+
+### SecurePasswordField
+
+```dart
+SecurePasswordField({
+  required TextEditingController controller,
+  String? label,
+  String? hint,
+  bool autofocus = false,
+  ValueChanged<String>? onSubmitted,
+  FocusNode? focusNode,
+})
+```
+A `TextField` pre-configured for secret entry — master password, SSH key passphrase, API token. Drops every IME convenience that would otherwise leak the typed secret into a system service: `autocorrect: false`, `enableSuggestions: false`, `enableInteractiveSelection: false`, `obscureText: true`, no spell-check, no autofill. The single Dart implementation replaces the per-platform native plugins that previously wrapped `EditText` / `UITextField` (see [§3.6 Security](#36-security--encryption-coresecurity) for why the native path was retired).
+
+### SecureScreenScope
+
+```dart
+SecureScreenScope({required Widget child, bool enabled = true})
+```
+Scope opting its subtree into OS-level screen-capture protection for as long as it is mounted. On Android sets `WindowManager.LayoutParams.FLAG_SECURE` via the embedding `Activity`; no-op on platforms without an equivalent (iOS / desktop). Wrap any subtree that may render secrets (lock screen, master-password unlock, key import dialogs).
+
+### PasswordStrengthMeter
+
+```dart
+PasswordStrengthMeter({
+  required TextEditingController controller,
+  EdgeInsetsGeometry? padding,
+})
+```
+Live coloured strength bar + label under a password input. Subscribes to `controller.text` so it rebuilds on every keystroke. Informational only — never blocks Save. Strength estimate is computed in pure Dart (no zxcvbn) so it can run without network or a native plugin.
+
+### SecurityComparisonTable
+
+```dart
+SecurityComparisonTable({Key? key})
+```
+Full threat × tier-config matrix. Threats as rows, tier columns along the top. Horizontally scrollable on narrow desktop; rendered in transposed "one section per tier" shape on mobile so each tier fits in viewport width. Pulls labels from `core/security/threat_vocabulary.dart` so the table never drifts from the canonical threat list.
+
+### SecurityThreatList
+
+```dart
+SecurityThreatList({
+  required SecurityTier tier,
+  required SecurityModifiers modifiers,
+})
+```
+Single-tier threat-status list used by the per-tier info popup. Renders the full `SecurityThreat` vocabulary — every threat row visible inline with a ✓ / ✗ / — / ! glyph derived from the tier + modifiers it was constructed with.
+
+### TierThreatBlock
+
+```dart
+TierThreatBlock({
+  required SecurityTier tier,
+  required SecurityModifiers modifiers,
+  VoidCallback? onTap,
+  bool selected = false,
+})
+```
+Single-tier presentation block used by both Settings → Security (read-only info) and the first-launch wizard (tap-to-select). Header carries the tier badge + title + subtitle + a trailing `(i)` — body is a [SecurityThreatList](#securitythreatlist).
+
+### ExpandableTierCard
+
+```dart
+typedef TierSelectCallback =
+    Future<void> Function({
+      required SecurityTier tier,
+      required SecurityTierModifiers modifiers,
+      String? shortPassword,
+      String? pin,
+      String? masterPassword,
+    });
+
+ExpandableTierCard({
+  required SecurityTier tier,
+  required SecurityTier currentTier,
+  required SecurityTierModifiers currentModifiers,
+  required bool tierAvailable,
+  required TierSelectCallback onSelect,
+  String? unavailableReason,
+  bool initiallyExpanded = false,
+  Widget? activeTierExtras,
+})
+```
+Settings → Security ladder unit. Collapsed state shows the tier header (badge + title + subtitle + a trailing "Current" pill on the active row). Expanded state surfaces:
+
+1. A fixed-order threat list — the same 8 rows in the same sequence on every tier card, each with a ✓/✗ icon computed by `evaluate()` in `threat_vocabulary.dart`. Rows that would flip to ✓ if the password modifier were enabled carry an "(only with password)" hint in muted italics so the user can tell at a glance which threats the toggle unlocks. Earlier iterations split the list into "protects" / "doesn't protect" halves; dropped because cross-tier comparison requires positional alignment that halves-split destroyed.
+2. Password and biometric modifier toggles where applicable — T1 and T2 both carry the password toggle; the underlying auth value (long password vs PIN) is semantically different but rendered as the same `SecurePasswordField + confirm` pair under a unified "password" label. The brute-force-resistance distinction (length on T1, hardware lockout on T2) lives in the threat-row copy, not in a second field name.
+3. Secret input fields — shown only when the corresponding modifier is on (password+confirm for T1/T2, master password+confirm for Paranoid).
+4. An Apply / "✓ Current" button — Apply routes through `onSelect` into the same atomic always-rekey pipeline the old wizard invoked.
+5. `activeTierExtras` — an optional widget slot rendered under the Apply button with a divider separating it. Used by the Settings section to inline the biometric-unlock toggle and the auto-lock tile into the current tier's expandable, because both are orthogonal "settings of the currently applied tier" rather than pending changes queued for Apply. Non-current cards pass null; the slot stays hidden there.
+
+Unavailable tiers (T2 without TPM, T1 with gdbus probe reporting no secret-service) keep the card expandable so the user can still read the threat split. The Select button is disabled and the `unavailableReason` line renders under the threat list as a yellow pill.
+
+### SecuritySetupDialog
+
+```dart
+class SecuritySetupResult { … }
+
+SecuritySetupDialog({Key? key})
+SecuritySetupDialog.show(context) → Future<SecuritySetupResult?>
+```
+Reduced-wizard fallback: shown on first launch **only when both T1 (keychain) and T2 (hardware) are unavailable** — a rare environment where the user genuinely has to pick between T0 (plaintext) and Paranoid (master password) because no OS-backed secret store is reachable. On the common path (keychain reachable) `_firstLaunchSetup` auto-selects T1 silently and surfaces a `FirstLaunchSecurityToast` instead of this modal — the toast is non-blocking because the auto-setup already made a safe choice for the user. `SecuritySetupResult` carries both the plain `(tier + typed-secret-field)` shape and the bank-style `(tier + modifiers)` shape so downstream call sites can consume either form.
+
+### FirstLaunchSecurityToast
+
+```dart
+FirstLaunchSecurityToast.show(context, {
+  required FirstLaunchBannerData data,
+  required VoidCallback onOpenSettings,
+  required VoidCallback onDismiss,
+}) → void
+```
+Top-right `Overlay`-based toast shown once after the first-launch auto-setup lands on a tier. Replaces the earlier blocking `FirstLaunchSecurityDialog` — the auto-selected T1 is a safe default the app already landed on, so a dismiss-to-continue modal is out of scale for what the user has to do (nothing). Carries the same copy (what we picked + whether a hardware upgrade is within reach), offers the Settings action when `data.hardwareUpgradeAvailable`, and auto-dismisses after 8 seconds. Drives `firstLaunchBannerProvider` the same way the dialog did — `onDismiss` clears the provider so the toast never re-opens. The reduced-wizard path (both keychain + hardware unreachable) still shows `SecuritySetupDialog` as a blocking modal because that branch is a real decision the user has to make.
+
+### TierSecretUnlockDialog
+
+```dart
+TierSecretUnlockDialog.show(context, {
+  required String title,
+  required Future<Uint8List?> Function(String secret) verify,
+  required String wrongMessage,
+}) → Future<Uint8List?>
+```
+Shared L2 (short password) / L3 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns the resulting key (or null on wrong secret); the dialog handles the cooldown back-off and the "wrong, try again" copy.
+
+### TierResetDialog
+
+```dart
+enum TierResetChoice { resetAndContinue, exit }
+
+TierResetDialog.show(context) → Future<TierResetChoice>
+```
+Non-dismissible prompt shown when the resolved security tier no longer matches the on-disk artefact shape. Outcomes: wipe every security file + DB and run the setup wizard, or exit.
+
+### DbCorruptDialog
+
+```dart
+enum DbCorruptChoice { reset, tryOtherTier, exit }
+
+DbCorruptDialog.show(context) → Future<DbCorruptChoice>
+```
+Outcome dialog for DB-corruption / wrong-key startup. Three choices: reset the DB and run setup again, retry with a different security tier (config.security gets re-prompted), or exit.
+
+### SshDirImportDialog
+
+```dart
+class SshDirImportSource { … }
+class PickedConfigResult { … }
+typedef PickConfigCallback = Future<PickedConfigResult?> Function();
+typedef PickKeysCallback = Future<List<ScannedKey>?> Function();
+
+SshDirImportDialog.show(context, {
+  required SshDirImportSource source,
+  required PickConfigCallback pickConfig,
+  required PickKeysCallback pickKeys,
+}) → Future<ImportResult?>
+```
+Unified `~/.ssh` picker. Renders hosts (parsed from `~/.ssh/config` via [`parseOpenSshConfig()`](#31-ssh-coressh)) and keys (filesystem scan) in a single pick-list, returns one merged `ImportResult`.
+
+### UnlockDialog
+
+```dart
+UnlockDialog({Key? key})
+UnlockDialog.show(context) → Future<bool>
+```
+Master-password unlock dialog used at startup before any DB read. Returns true on success (key derived and pushed to [`KeyHolder`](#36-security--encryption-coresecurity)), false on cancel. Distinct from [LockScreen](#lockscreen) — this one runs once at app launch, the lock screen runs after auto-lock fires.
+
 ---
 
 ## 7. Utilities — Public API Reference
@@ -1931,7 +2958,11 @@ class AppLogger {
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 `dispose()` sets `_enabled = false` so no writes occur after disposal.
 
-**Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
+**Routine logs are opt-in — disabled by default.** `init()` resolves the log path but does not open the routine sink; that happens the first time `setEnabled(true)` is called, wired up via `ConfigProvider.load` reading `config.enableLogging`. Entries already on disk stay until the user hits "Clear" in the Settings → Logging section. All writes pass through [sanitize](#sanitize) and the file is chmod-0600 on POSIX (same hardening as `credentials.*` and `config.json`).
+
+**Critical paths bypass the toggle.** [`AppLogger.logCritical`](../lib/utils/logger.dart) appends straight to the resolved log file even when `enabled` is false, so the three global crash boundaries in `main.dart` (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded` handler), the `MigrationRunner` fatal path (uncaught throws + `report.hasFailures`) and the post-init `verifyDatabaseReadable` failure all leave a forensic breadcrumb without waiting for the user to flip the toggle. The write uses `FileMode.append` on `logPath` directly — never touches `_sink`, so routine entries cannot leak past the opt-out gate between crit writes. Rationale: the window where a crash trace matters most is exactly the first-launch window, before any user has opened Settings at all.
+
+**Rule:** `AppLogger.instance.log(message, name: 'Tag')` for routine events; `AppLogger.instance.logCritical(...)` only for crash / fatal / integrity-probe-failure paths. Never `print()` / `debugPrint()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
 
 ### Sanitize
 
@@ -2009,13 +3040,31 @@ All long operations surface progress through this type — `ExportImport.export/
 
 `LfsDecryptionFailedException` (from `ExportImport`) wraps GCM auth-tag failures and ZIP decoder failures so the UI can render a single localized "wrong master password or corrupted archive" message without leaking `InvalidCipherTextException` stack traces.
 
-`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before PBKDF2 + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
+`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before Argon2id + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
 
-`UnsupportedLfsVersionException` fires when `manifest.schema_version` is newer than `ExportImport.currentSchemaVersion`. Legacy archives without a `manifest.json` fall back to `LfsManifest.legacy()` (schema v1, null appVersion) so pre-manifest exports still import cleanly.
+`UnsupportedLfsVersionException` fires when an archive is not at the current `SchemaVersions.archive`: missing `manifest.json`, malformed `schema_version`, a `schema_version` that does not match `ExportImport.currentSchemaVersion`, missing `LFSE` magic, or a header version byte other than the current Argon2id one. v1 is the permanent floor — users re-export from the current app version to recover.
 
 `.lfs` writes use a tmp-then-rename pattern (`<path>.tmp` → `<path>`) so an I/O failure mid-export can't leave a partially-written file that would fail decryption on next import.
 
 `OpenSshConfigImporter.isSuspiciousPath` rejects `IdentityFile` entries that contain `..` segments before the path is dereferenced — a maliciously crafted `~/.ssh/config` cannot coerce the importer into reading files outside the user's intended key directory.
+
+### QR Scanner (`core/qr/`)
+
+```dart
+const qrScannerChannel = MethodChannel('com.letsflutssh/qrscanner');
+
+Future<String?> scanQrCode();
+```
+
+Dart-side entry point for the native QR scanner used by the import flow. Backed by a single `MethodChannel`:
+
+- **Android** — `QrScannerActivity` launches CameraX + ZXing-core; decoded payloads return via `Activity.onActivityResult`.
+- **iOS** — `QrScannerController` presents a modal AVFoundation scanner.
+- **Desktop** — no native implementation; the channel call resolves to `MissingPluginException` and `scanQrCode()` returns `null`. Callers must treat null as "no scanner" and fall back to [PasteImportLinkDialog](#pasteimportlinkdialog).
+
+Returns the decoded QR text, or `null` on user-cancel, permission-denied, or unsupported platform. Errors are logged through `AppLogger` (channel name `QrScanner`) — never thrown to the caller, so callers always see the same nullable contract.
+
+The scanner is exposed as a top-level function (not a class) because there is no per-instance state: every call opens a fresh native scanner, returns one payload, tears down. The constant `qrScannerChannel` is exported so unit tests can install a mock handler without the production code branching on `Platform.isAndroid` / `Platform.isIOS`.
 
 ---
 
@@ -2225,39 +3274,20 @@ Text(S.of(context).nSessions(count))  // parameterized
 
 ### 9.1 SSH Connection Flow
 
-```
-User clicks session
-         │
-         ▼
-SessionConnect.connectTerminal(session)
-         │
-         ├── Session → SSHConfig (with credentials from CredentialStore)
-         │
-         ▼
-connectionManager.connectAsync(config)
-         │
-         ├── Creates Connection (state: connecting)
-         ├── Launches async _doConnect() in background
-         └── Returns Connection → UI
-                                      │
-_doConnect():                         │
-  1. SSHConnection.connect(onProgress) │
-     ├── onProgress(socketConnect.inProgress)
-     ├── TCP socket                   ▼
-     ├── onProgress(socketConnect.success)
-     ├── onProgress(hostKeyVerify.inProgress)
-     ├── Host key verify     UI: tabProvider.addTerminalTab(connection)
-     ├── onProgress(hostKeyVerify.success)         │
-     ├── onProgress(authenticate.inProgress)       ▼
-     ├── Auth chain          TerminalPane subscribes to progressStream
-     └── onProgress(authenticate.success)          │
-  2. Success:                          ▼
-     ├── state = connected   TerminalPane: clear terminal → openShell()
-     └── completeReady()                            → xterm pipe
-  3. Failure:
-     ├── connectionError     TerminalPane: progress log stays visible
-     ├── state = disconnected         with error text in terminal buffer
-     └── completeReady()
+```mermaid
+flowchart TD
+    u[User clicks session]
+    u --> sc["SessionConnect.connectTerminal(session)<br/>Session → SSHConfig (credentials from CredentialStore)"]
+    sc --> cm["connectionManager.connectAsync(config)<br/>Creates Connection (state: connecting)<br/>Launches async _doConnect()<br/>Returns Connection → UI"]
+    cm --> tab["UI: tabProvider.addTerminalTab(connection)<br/>TerminalPane subscribes to progressStream"]
+    cm --> dc["_doConnect() async:<br/>SSHConnection.connect(onProgress)<br/>emits steps: socketConnect → hostKeyVerify → authenticate"]
+    dc --> r{outcome}
+    r -->|success| ok["state = connected + completeReady()"]
+    r -->|failure| err["connectionError, state = disconnected<br/>+ completeReady()"]
+    ok --> okui["TerminalPane: clear terminal → openShell() → xterm pipe"]
+    err --> errui["TerminalPane: progress log stays visible with error"]
+    tab -.->|via progressStream| okui
+    tab -.->|via progressStream| errui
 ```
 
 **Progress pipeline:** `SSHConnection.connect()` accepts an `onProgress` callback that emits `ConnectionStep` events at each phase boundary. `ConnectionManager._doConnect()` forwards these to `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
@@ -2266,83 +3296,46 @@ _doConnect():                         │
 
 ### 9.2 SFTP Init Flow
 
-```
-FileBrowserTab.initState()
-         │
-         ├── Shows ConnectionProgress widget (subscribes to progressStream)
-         ├── await connection.waitUntilReady()
-         │
-         ▼
-SFTPInitializer.init(connection)
-         │
-         ├── [Android] _requestStoragePermission()
-         │     ├── Quick-check /storage/emulated/0
-         │     └── MethodChannel → MainActivity.kt
-         │           ├── API 30+: ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
-         │           └── API <30: READ/WRITE_EXTERNAL_STORAGE runtime dialog
-         │
-         ├── connection.sshConnection.client.sftp()  → SftpClient
-         │
-         ├── LocalFS(homeDirectory)  → FilePaneController (local)
-         └── RemoteFS(SFTPService)   → FilePaneController (remote)
-                                              │
-                                              ▼
-                                     FilePane(controller) × 2
+```mermaid
+flowchart TD
+    fb["FileBrowserTab.initState()<br/>Shows ConnectionProgress widget<br/>await connection.waitUntilReady()"]
+    fb --> init["SFTPInitializer.init(connection)"]
+    init -->|Android only| perm["_requestStoragePermission()<br/>Quick-check /storage/emulated/0<br/>MethodChannel → MainActivity.kt"]
+    perm --> api["API 30+: MANAGE_APP_ALL_FILES_ACCESS_PERMISSION<br/>API &lt;30: READ/WRITE_EXTERNAL_STORAGE dialog"]
+    init --> cli["connection.sshConnection.client.sftp() → SftpClient"]
+    cli --> local["LocalFS(homeDirectory) → FilePaneController (local)"]
+    cli --> remote["RemoteFS(SFTPService) → FilePaneController (remote)"]
+    local --> pane["FilePane(controller) × 2"]
+    remote --> pane
 ```
 
 ### 9.3 Session CRUD Flow
 
-```
-UI → sessionProvider.add(session)
-         │
-         ├── SessionStore.add(session)
-         │     ├── Adds to list
-         │     └── SessionStore.save()
-         │           ├── sessions.json (metadata, atomic write)
-         │           └── credentials.enc (AES-256-GCM, atomic write)
-         │
-         ├── SessionHistory.push(snapshot)  ← undo support
-         │
-         └── state = [...state, session]
-                      │
-                      ▼
-              sessionTreeProvider recomputes
-              filteredSessionsProvider recomputes
-              UI rebuilds
+```mermaid
+flowchart TD
+    ui["UI → sessionProvider.add(session)"]
+    ui --> add["SessionStore.add(session)<br/>Adds to list → SessionStore.save()"]
+    add --> meta["sessions.json<br/>metadata, atomic write"]
+    add --> creds["credentials.enc<br/>AES-256-GCM, atomic write"]
+    ui --> hist["SessionHistory.push(snapshot)<br/>undo support"]
+    ui --> st["state = [...state, session]"]
+    st --> rc["sessionTreeProvider recomputes<br/>filteredSessionsProvider recomputes<br/>UI rebuilds"]
 ```
 
 ### 9.4 File Transfer Flow
 
-```
-User drags file between panes
-         │
-         ▼
-FileActions.transfer(source, target, direction)
-         │
-         ├── Creates TransferTask(name, direction, paths, size, run)
-         │     run = async (progressCallback) {
-         │       SFTPService.uploadFile/downloadFile(from, to, progressCallback)
-         │     }
-         │
-         ▼
-transferManager.enqueue(task)
-         │
-         ├── Adds to queue
-         ├── If workers < max → starts a worker
-         │
-         ▼
-Worker:
-  ├── task.state = running
-  ├── task.run(progressCallback)
-  │     progressCallback checks:
-  │       - cancelled? → throw CancelException
-  │       - timeout? → throw TimeoutException
-  │       - updates progress %
-  ├── Success → HistoryEntry(completed)
-  └── Failure → HistoryEntry(failed, error)
-         │
-         ▼
-Streams → UI updates (TransferPanel)
+```mermaid
+flowchart TD
+    drag["User drags file between panes"]
+    drag --> fa["FileActions.transfer(source, target, direction)<br/>Creates TransferTask(name, direction, paths, size, run)<br/>run wraps SFTPService.uploadFile/downloadFile"]
+    fa --> enq["transferManager.enqueue(task)<br/>Adds to queue<br/>If workers &lt; max → starts a worker"]
+    enq --> w["Worker:<br/>task.state = running<br/>task.run(progressCallback)"]
+    w --> cb["progressCallback checks:<br/>cancelled? → CancelException<br/>timeout? → TimeoutException<br/>updates progress %"]
+    cb --> r{outcome}
+    r -->|success| ok["HistoryEntry(completed)"]
+    r -->|failure| err["HistoryEntry(failed, error)"]
+    ok --> strm["Streams → UI updates (TransferPanel)"]
+    err --> strm
 ```
 
 ---
@@ -2493,19 +3486,12 @@ All files live in the platform's app-support directory (see **Location** below).
 |------|-----------|--------|---------|--------------|
 | `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
 | `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
-| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout has been moved to the encrypted DB; the field is kept here only for one-shot migration | First config save |
-| `credentials.salt` | No | 32 raw bytes | PBKDF2 salt for master-password key derivation. Presence = master password is enabled | Master password setup |
+| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs, `config_schema_version`. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout lives in the encrypted DB, not here | First config save |
+| `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled | Master password setup |
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
 | `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
 | `logs/letsflutssh.log.1`…`.3` | No | Text | Rotated log files | After log rotation |
 | `app.lock` | No | PID text | Single-instance lock — exclusive `RandomAccessFile.lock`. OS releases on process exit | Each app start (desktop only) |
-
-**Legacy files** (created by older versions, no longer used — safe to delete):
-- `sessions.json`, `sessions.enc` — replaced by `letsflutssh.db` in v4.0
-- `keys.json`, `keys.enc` — replaced by `SshKeys` table
-- `known_hosts`, `known_hosts.enc` — replaced by `KnownHosts` table
-- `credentials.enc` — replaced by SQLCipher-encrypted DB
-- `credential.key` — eliminated; key now lives only in the OS keychain
 
 ### Database initialization
 
@@ -2516,7 +3502,7 @@ All files live in the platform's app-support directory (see **Location** below).
 - Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
 - **POSIX permissions:** `restrictDatabaseFilePermissions()` runs on every open and forces `chmod 600` on `letsflutssh.db` and any existing `-journal` / `-wal` / `-shm` sidecar (Linux/macOS via `chmod`, Windows via `icacls`). Idempotent; logs and continues if the call fails so a permission-system quirk never blocks startup. The file is pre-created before SQLite touches it so the very first encrypted page lands on a 0600 inode.
 
-**Config split:** `config.json` is loaded before the database opens because it carries pre-unlock UI state (theme, locale, window size) — anything that has to render before the user types the master password. The auto-lock timeout, by contrast, is a security control: it now lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with disk access cannot weaken it. The legacy field in `config.json` is read once on first DB unlock for migration, then zeroed.
+**Config split:** `config.json` is loaded before the database opens because it carries pre-unlock UI state (theme, locale, window size) — anything that has to render before the user types the master password. The auto-lock timeout, by contrast, is a security control: it lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with disk access cannot weaken it.
 
 **Location:** `path_provider` → `getApplicationSupportDirectory()`
 - Linux: `~/.local/share/letsflutssh/`
@@ -2527,7 +3513,9 @@ All files live in the platform's app-support directory (see **Location** below).
 
 **Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `ImportService.applyResult` wraps its entire body in `AppDatabase.transaction(...)` via the injected `runInTransaction` hook, so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback before the replace-mode snapshot restore runs).
 
-**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `onUpgrade` → per-version steps, `beforeOpen` → `PRAGMA foreign_keys = ON`). Bump `schemaVersion` when adding/renaming columns or tables and append a `from{N-1}to{N}` branch to `onUpgrade`. Never skip a version — the schema history above the `schemaVersion` getter documents every bump.
+**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `beforeOpen` → `PRAGMA foreign_keys = ON`). v1 is the permanent floor — a DB on disk at any other version is treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Bump `schemaVersion` when adding/renaming columns or tables and append a `from{N-1}to{N}` branch to `onUpgrade`; never skip a version.
+
+Drift's `MigrationStrategy` is **only** for intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework-coremigration) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: drift owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch is caught by drift itself on open and surfaced via `DbCorruptDialog`.
 
 ### Uninstall behavior
 
@@ -2641,42 +3629,70 @@ All data stores support three security levels (see §3.6):
 |-------|-----------|---------------------|
 | Plaintext | None | `letsflutssh.db` — unencrypted SQLite |
 | Keychain | OS keychain (`flutter_secure_storage`) | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) |
-| Master Password | PBKDF2-derived | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) + `credentials.salt` + `credentials.verify` |
+| Master Password | Argon2id-derived | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) + `credentials.kdf` + `credentials.verify` |
 
 Encryption is applied at the database level via SQLite3MultipleCiphers — a single encrypted DB file replaces the old per-store AES-256-GCM files.
 
-### First-launch wizard
+### First-launch auto-select
 
-`SecuritySetupDialog` shown on first launch (no data files on disk):
-1. Probes OS keychain via `SecureKeyStorage.isAvailable()` — a write+read+delete cycle on macOS/iOS/Windows/Android, an env-only check on Linux until the user has opted into keychain storage (see [SecureKeyStorage](#securekeystorage))
-2. Keychain found → offers "Continue with Keychain" or "Set Master Password"
-3. Keychain not found → offers "Continue without Encryption" or "Set Master Password"
+`_firstLaunchSetup` in `main.dart` probes capabilities via [`probeCapabilities`](../lib/core/security/security_bootstrap.dart) and picks the tier itself. The multi-option wizard is a fallback that only fires when the choice matters on this device — 99% of installs never see it.
+
+1. Probe `SecureKeyStorage.isAvailable()` (keychain probe) + `HardwareTierVault.isAvailable()` (hardware probe) in parallel.
+2. **Keychain reachable (common path)** → silently land on T1: generate a random DB key, write it to the OS keychain, inject the database, log the auto-select. No dialogs, no prompts. The `FirstLaunchBannerData` is queued on [`firstLaunchBannerProvider`](../lib/providers/first_launch_banner_provider.dart) so the main screen pops a one-shot confirmation dialog telling the user which tier we picked and whether a hardware upgrade is reachable.
+3. **Keychain unreachable (Linux without libsecret / kwallet, or an explicit `FlutterSecureStorage` probe failure)** → fall through to `SecuritySetupDialog` in its **reduced** layout. When both `caps.keychainAvailable` and `caps.hardwareVaultAvailable` come back false, the wizard hides the T1 + T2 rows entirely and renders a banner at the top naming the missing dependency (`wizardReducedBanner`: "OS keychain not reachable — install gnome-keyring / kwallet / libsecret provider"). The remaining choice collapses to T0 (plaintext) vs Paranoid (master password). Showing the two disabled rows with tooltip grumbles was the first iteration and read as "we're hiding options from you"; collapsing to the rows the user can actually pick matches what the decision is about, and the banner keeps the honesty.
+
+*Why auto-select on top of the existing wizard:* the wizard was jarring as a first-run experience. Five tiers × two modifiers = ten combinations staring at a user who just wanted an SSH client. T1 is a solid default — protects against cold-disk theft, unlocks silently, zero friction — and the upgrade path to T2 / Paranoid is one tap away in Settings. The banner is the honest middle ground: we picked for you, here is what we picked, here is the upgrade path or the reason it is not available.
+
+*Post-setup banner:* [`FirstLaunchSecurityToast`](../lib/widgets/first_launch_security_toast.dart) — top-right `Overlay`-based toast shown by `_MainScreenState` when the provider fires. Replaces an earlier blocking `FirstLaunchSecurityDialog`: the auto-selected T1 is a safe default the app already landed on, so a modal that pins the user to click Dismiss before touching anything else is heavier than the choice warrants. The toast carries the same copy (what we picked + whether a hardware upgrade is within reach), offers an **Open Settings** action when `caps.hardwareVaultAvailable == true && current tier != hardware`, auto-dismisses after 8 seconds, and never blocks input. `onDismiss` clears the provider so the toast never re-opens; same no-persistence property as the dialog it replaced.
+
+*Settings discoverability cards:* the Security section consumes the same capabilities snapshot via [`securityCapabilitiesProvider`](../lib/providers/security_provider.dart) (a session-scoped `FutureProvider` — TPM / Secure Enclave / libsecret don't appear or disappear mid-session, so one probe per container is correct). When the current tier is below `SecurityTier.hardware`, Settings renders one of two cards right under the active-tier info tile:
+
+- **`_HardwareUpgradeBanner`** — green-bordered action card pointing at the existing "Change security tier" wizard, shown when `caps.hardwareVaultAvailable == true`.
+- **`_HardwareUnavailableNotice`** — neutral info card with the per-platform reason from `defaultHardwareUnavailableReason()` + `hardwareUnavailableReasonText()` (shared with the first-launch dialog so both surfaces speak in lockstep), shown when the probe came back false.
+
+Paranoid is treated as "already opted out of OS trust" and never shows the upgrade card — offering a user who picked Paranoid an "upgrade to TPM" tile would be wrong-direction advice.
+
+*Classified unavailability reasons.* A tier that reports `isAvailable: false` still needs to tell the user *why*, or the Settings card reads as a dead end. Two providers resolve a typed reason code into a localised hint line rendered under the disabled card:
+
+- [`hardwareProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`HardwareProbeDetail`](../lib/providers/security_provider.dart) case to the `hwProbe*` ARB keys. Linux delegates to [`TpmClient.probe()`](../lib/core/security/linux/tpm_client.dart) which distinguishes `deviceNodeMissing` (no `/dev/tpmrm0`), `binaryMissing` (no `tpm2-tools`), and `probeFailed` (CLI returned non-zero). Windows / macOS / iOS / Android call the `probeDetail` method channel on their native `HardwareVaultPlugin` and receive one of the platform-specific codes:
+  - **Windows** — `windowsSoftwareOnly` (TPM 2.0 absent, only Software KSP reachable), `windowsProvidersMissing` (both CNG providers fail — corrupted crypto subsystem or blocking GPO).
+  - **macOS** — `macosNoSecureEnclave` (pre-T2 Intel Mac), `macosPasscodeNotSet` (SE present, login password absent), `macosGeneric` (any other `LAError`).
+  - **iOS** — `iosPasscodeNotSet`, `iosSimulator` (Simulator has no SEP), `iosGeneric`.
+  - **Android** — `androidBiometricNone` (no fingerprint / face hardware), `androidBiometricNotEnrolled`, `androidBiometricUnavailable` (lockout or pending security update), `androidGeneric`. `androidApiTooLow` is still exposed by the Dart enum as a defensive fallback but the native plugin no longer emits it — `minSdk = 28` (see [`android/app/build.gradle.kts`](../android/app/build.gradle.kts)) guarantees StrongBox and BiometricPrompt are available.
+
+  *Why the native side classifies rather than the Dart side:* the backing-level inference Linux does via file + process probes is not portable. On Apple the classifier needs the typed `LAError` code from `canEvaluatePolicy`, on Android it needs the `BiometricManager.canAuthenticate` status constant, on Windows it needs the `NCryptOpenStorageProvider` result. All three live on the native side already; the plugin returning a structured code is simpler than routing the raw error object through the method channel and re-classifying in Dart.
+
+- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe is a single concrete `gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.DBus.Peer.Ping` subprocess — exit 0 = service registered and responds, any other exit (bus down, no daemon, `gdbus` binary missing) = `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. Earlier iterations pattern-matched `WSL_DISTRO_NAME` or checked `DBUS_SESSION_BUS_ADDRESS` — both proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so the env-var branches gave the wrong answer. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `flutter_secure_storage`; failure = `probeFailed`.
+
+The Linux subprocess path is guarded by `SecureKeyStorage.enableRuntimeSubprocessProbes`, called from `main.dart` at app startup. Widget tests running under FakeAsync do not reach that entry point, so the flag stays false and the probe short-circuits to an optimistic `available` — necessary because `Process.run` inside FakeAsync-managed code leaks a Timer onto the pending-timer list and fails unrelated widget tests.
+
+Both providers are session-scoped (keyring failure modes on Linux don't change mid-session, hardware probe results are fixed by the boot-time state of the chip). Tier cards read the classified probe's `AsyncValue` as the authoritative availability signal too, not just for the reason-line copy — the fast-path `SecureKeyStorage.isAvailable()` uses only env + marker-file checks and would falsely mark WSL as "keychain available", leaving the Select button enabled on a broken system; the classified `probe()` is the actual truth. `caps.keychainAvailable` from the startup capabilities snapshot is kept as a fallback while the classified probe's future is still resolving, so the card renders optimistically on the first frame and snaps to the correct state milliseconds later.
 
 ### Startup security flow
 
-`_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs (no legacy file detection):
-1. DB file exists + `credentials.salt` exists → show `UnlockDialog` → derive key
+`_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs:
+1. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
 2. DB file exists + keychain has key → read from keychain
 3. DB file exists but no encryption → plaintext mode
-4. No DB file → first launch → show `SecuritySetupDialog` wizard
-5. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
+5. No DB file → first launch → probe capabilities, auto-select T1 when the keychain is reachable (queue the post-setup banner on `firstLaunchBannerProvider`), or show `SecuritySetupDialog` in its T0-vs-Paranoid form when the keychain is not reachable (see [First-launch auto-select](#first-launch-auto-select))
+6. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
 ### Master password
 
-```
-User password → PBKDF2-SHA256(600k iterations, random salt) → 256-bit key
-                                                                   │
-                                                                   ▼
-                                                          letsflutssh.db
-                                                     (PRAGMA key = "x'hex'")
+```mermaid
+flowchart LR
+    pw["User password"]
+    pw --> kdf["Argon2id<br/>m=46 MiB, t=2, p=1<br/>32-byte salt"]
+    kdf --> k["256-bit key"]
+    k --> db["letsflutssh.db<br/>PRAGMA key = x'hex'"]
 ```
 
-- **Detection:** `credentials.salt` exists = master password enabled
+- **Detection:** `credentials.kdf` exists
 - **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
 - **Enable flow:** derive key → re-open database with new key → delete keychain key if present
-- **Disable flow:** try keychain → generate random key → re-open database → delete salt/verifier. No keychain → plaintext fallback
+- **Disable flow:** try keychain → generate random key → re-open database → delete `credentials.kdf` + verifier. No keychain → plaintext fallback
 - **Change flow:** verify old → derive new → re-open database with new key
-- **Forgot password:** deletes encrypted database + salt/verifier files
+- **Forgot password:** deletes encrypted database + kdf/salt/verifier files
 
 ### Update channel integrity
 
@@ -2714,7 +3730,7 @@ key ever leaks the maintainer swaps the `RELEASE_SIGNING_KEY` secret
 to the backup, generates a fresh backup pair offline, and ships the
 next release with `[backup, fresh-backup]` in `release_signing.dart`.
 Already-installed builds keep verifying via the (now-active) backup
-pin. Full playbook in `.github/SECURITY.md`.
+pin. Full playbook in [`SECURITY.md`](SECURITY.md).
 
 **SPKI pinning (optional, off by default):** `CertPinning` adds a
 `badCertificateCallback` on the update HTTP client that checks the
@@ -2728,16 +3744,23 @@ transport layer on top of the release signature.
 ### .lfs export
 
 ```
-[salt 32B] [IV 12B] [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
+v1 header:
+  ['LFSE' 4] [0x02 version 1] [KdfParams block ≤16] [salt 32B] [IV 12B]
+  [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
 
-Key = PBKDF2-SHA256(password, salt, 600000 iterations)
+Key = Argon2id(password, salt, m=46 MiB, t=2, p=1)
 ```
+
+v1 is the permanent floor — archives with any other header version,
+missing magic, or no manifest are rejected with
+`UnsupportedLfsVersionException`. See the .lfs format table in §3.9 for
+the full layout.
 
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
 Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
 
-The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`), optional `app_version`, and `created_at`. Archives with a future `schema_version` are rejected with `UnsupportedLfsVersionException` to avoid silently dropping unknown fields; missing manifest is treated as legacy v1.
+The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`, sourced from `SchemaVersions.archive`), optional `app_version`, and `created_at`. Archives whose `schema_version` is missing, malformed, or does not match the current build are rejected with `UnsupportedLfsVersionException` — the user re-exports from the current app version. Future format bumps ship a `Migration` registered in `lib/core/migration/archive_registry.dart` (see §3.7) instead of a permanent read-only fallback.
 
 ### TOFU (Trust On First Use)
 
@@ -2770,24 +3793,13 @@ The archive also carries a `manifest.json` with `schema_version` (current: `Expo
 
 Three-layer error handling catches all errors at appropriate levels:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   runZonedGuarded                       │
-│  Catches: async errors from onPressed, Future, Stream   │
-│  Action: Log (sanitized) + show user dialog             │
-└─────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────┐
-│              FlutterError.onError                       │
-│  Catches: build, layout, render errors                  │
-│  Action: Log only (not user-facing)                     │
-└─────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────┐
-│           PlatformDispatcher.onError                    │
-│  Catches: errors that escape Flutter zone entirely      │
-│  Action: Log (sanitized) + show user dialog             │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    rzg["<b>runZonedGuarded</b><br/>Catches: async errors from onPressed, Future, Stream<br/>Action: Log (sanitized) + show user dialog"]
+    feo["<b>FlutterError.onError</b><br/>Catches: build, layout, render errors<br/>Action: Log only (not user-facing)"]
+    pdo["<b>PlatformDispatcher.onError</b><br/>Catches: errors that escape Flutter zone entirely<br/>Action: Log (sanitized) + show user dialog"]
+    rzg --> feo
+    feo --> pdo
 ```
 
 **Error dialog behavior:**
@@ -2878,9 +3890,9 @@ Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
 
 ### Fuzz testing
 
-Two layers of fuzz testing:
+Two layers of fuzz testing — **property-based** (random inputs on every PR, no coverage feedback) and **coverage-guided** (libFuzzer mutation on a seed corpus, nightly-style runs).
 
-**Dart property-based tests** (`test/fuzz/`): run as part of `make test` (included in `test/`). Generate random/malformed inputs for parsers and verify they never crash with unhandled exceptions. Targets:
+**Dart property-based tests** (`test/fuzz/`): run as part of `make test` on every PR. Each test generates N random / adversarial inputs (N ≈ 1000, seeded from `Random.secure()`) and asserts the decoder returns a typed failure or a valid value — never an unhandled exception. Pure-Dart tests with full Flutter / pub access.
 
 | Test file | Fuzzed function | Input type |
 |-----------|----------------|------------|
@@ -2889,10 +3901,26 @@ Two layers of fuzz testing:
 | `fuzz_app_config_test.dart` | `AppConfig.fromJson()` + sub-configs | Random JSON maps |
 | `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
 | `fuzz_format_test.dart` | `sanitizeError()`, `formatSize()`, `formatDuration()` | Random strings, errno patterns, objects |
+| `fuzz_openssh_config_parser_test.dart` | `parseOpenSshConfig()` | Random `~/.ssh/config` snippets (wildcards, `Include`, malformed directives) |
+| `fuzz_export_import_parsers_test.dart` | `.lfs` archive parser + key-bundle extraction | Random binary payloads |
+| `aes_gcm_fuzz_test.dart` | `AesGcm.encrypt/decrypt` round-trip | Random keys + plaintexts + tampered ciphertexts |
+| `master_password_fuzz_test.dart` | Master-password derivation path | Random passphrases + KDF params |
+| `parsers_fuzz_test.dart` | Shared `basic` / integer / bool parsers | Random strings + typed overflows |
+| `sanitize_fuzz_test.dart` | `sanitizeErrorMessage()` | Random strings (path redaction, IP redaction) |
 
-**Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read from stdin, exercise parsing logic, used by ClusterFuzzLite/AFL++ in CI. Targets: `fuzz_json_parser`, `fuzz_known_hosts`, `fuzz_uri_parser`.
+**Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read **raw bytes** from stdin (binary targets use `stdin.readByteSync` — `readLineSync` would UTF-8-decode and die on any non-ASCII byte), exercise parsing logic, and are wrapped by a thin C libFuzzer harness from `.clusterfuzzlite/build.sh` that pipes libFuzzer input to the Dart binary's stdin. Coverage-guided mutation via libFuzzer, but the parsing logic runs in Dart.
 
-**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on push to main and PRs to main. Detected by OpenSSF Scorecard's Fuzzing check.
+| Harness | Fuzzed logic | Notes |
+|---------|-------------|-------|
+| `fuzz_json_parser` | `Session.fromJson()` / `AppConfig.fromJson()` / QR payload decoder | Text input, seeded with valid JSONs per target |
+| `fuzz_known_hosts` | `~/.ssh/known_hosts` parser | Text lines, seeded with one RSA + one Ed25519 entry + a comment |
+| `fuzz_uri_parser` | `letsflutssh://` deep-link URIs (`connect` + `import`) | Text, seeded with valid connect + import payload |
+| `fuzz_kdf_params` | `KdfParams.decode` — 10-byte algorithm / memory / iterations / parallelism blob | Binary, seeded with production defaults (Argon2id, 46 MiB, 2 iter, 1 lane) |
+| `fuzz_lfs_archive_header` | LFS archive header — magic + version + KDF blob + salt + IV — parsed up to but NOT including the Argon2id run (user-supplied `memoryKiB` would OOM the fuzz worker) | Binary, seeded with one well-formed Argon2id header + 32-byte salt + 12-byte IV |
+
+Standalone harnesses mirror production logic inline (no Flutter / pub imports) so the compiled binary stays small and libFuzzer coverage attribution is clean. Drift between the mirror and production is caught by test-table tests that exercise both paths against the same vectors.
+
+**CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on push to main and PRs to main, 300 seconds per target. Detected by OpenSSF Scorecard's Fuzzing check. Nightly extended runs are not configured — PR-run coverage over time accumulates broadly enough that a separate nightly workflow would duplicate CFL without meaningfully widening coverage. Any new untrusted-input path in `lib/` adds a matching fuzz target in the same commit (see [AGENT_RULES § Fuzz tests for every untrusted-input consumer](AGENT_RULES.md#code-quality--sonarcloud)).
 
 ---
 
@@ -2917,44 +3945,25 @@ Two branches: **`dev`** (daily work) and **`main`** (releases only).
 
 ### 15.2 Workflow Graph
 
-```
-push to dev/main or PR
-  │
-  ├─► ci.yml                 (always runs — no path filters)
-  │     analyze + test + coverage
-  │           │
-  │           ├─► ci-sonarcloud.yml   (workflow_run[CI], non-fork only)
-  │           │     quality + coverage scan
-  │           │
-  │           └─► ci-auto-tag.yml     (workflow_run[CI], main only)
-  │                 reads version from pubspec.yaml
-  │                 tag exists → skip / new version → create tag
-  │                       │
-  │                       └─► build-release.yml    "Build & Release"  (tags: v*)
-  │                             build all platforms
-  │                             → GitHub Release + SLSA attestation
-  │
-  ├─► cfl-fuzz.yml             (push main / PR to main)
-  │     cfl-fuzz
-  │
-  ├─► osv.yml                 (main push + PR + weekly)
-  ├─► codeql.yml              (main push + PR + weekly)
-  ├─► semgrep.yml             (main push + PR + weekly)
-  └─► scorecard.yml            (main push + weekly)
+```mermaid
+flowchart TD
+    p["push to dev/main or PR"]
+    p --> ci["ci.yml<br/>always runs — no path filters<br/>analyze + test + coverage"]
+    ci --> sonar["ci-sonarcloud.yml<br/>workflow_run[CI], non-fork only<br/>quality + coverage scan"]
+    ci --> tag["ci-auto-tag.yml<br/>workflow_run[CI], main only<br/>reads version from pubspec.yaml<br/>tag exists → skip / new version → create tag"]
+    tag --> rel["build-release.yml (tags: v*)<br/>build all platforms<br/>GitHub Release + SLSA attestation"]
+    p --> fuzz["cfl-fuzz.yml<br/>push main / PR to main"]
+    p --> sec["osv.yml / codeql.yml / semgrep.yml<br/>main push + PR + weekly"]
+    p --> sco["scorecard.yml<br/>main push + weekly"]
 
-Dependabot PR (into main)
-  │
-  └─► dependabot-auto.yml → bump version in PR branch → auto-merge
-        └─► ci.yml → ci-auto-tag.yml → build-release.yml → Release
+    dep["Dependabot PR (into main)"]
+    dep --> da["dependabot-auto.yml<br/>bump version in PR branch → auto-merge<br/>→ ci.yml → ci-auto-tag.yml → build-release.yml → Release"]
 
-Version bump (on dev, before PR)
-  │
-  └─► scripts/bump-version.sh → parse commits → bump pubspec.yaml → commit
+    bump["Version bump (on dev, before PR)"]
+    bump --> bs["scripts/bump-version.sh<br/>parse commits → bump pubspec.yaml → commit"]
 
-Manual build
-  │
-  └─► gh workflow run build-release.yml
-        CI not passed? → fail immediately (no polling)
+    man["Manual build"]
+    man --> mb["gh workflow run build-release.yml<br/>CI not passed? → fail immediately (no polling)"]
 ```
 
 ### 15.3 Workflow Catalog
@@ -3022,11 +4031,14 @@ Manual build
 
 | Decision | Why |
 |----------|-----|
+| **Self-contained binary, zero manual setup** for end-user | App must run from a single extracted bundle. External OS deps allowed only if (1) graceful degradation with in-UI message and (2) install documented in README per platform. Preference order: bundle > built-in fallback > documented optional install. See [§1 Self-contained-binary principle](#1-high-level-overview) |
+| **Shared modules over local one-offs** at every layer | Single source of truth for visual, behavioural, and persistence patterns; second caller triggers extraction, third makes it mandatory. Produced `AppDialog`/`AppIconButton`/`AppDataRow`/`StyledFormField` (UI), `AppTheme.radius*`/`AppFonts.*`/`*ColWidth` (theme), `SftpBrowserMixin`/`key_file_helper.dart`/`breadcrumb_path.dart` (logic), `Store → DAO` template (persistence). See [§1 Reuse principle](#1-high-level-overview) |
 | drift (SQLite) instead of JSON files | Referential integrity, folder tree with FK, M2M tags/snippets, single encrypted DB file via SQLite3MultipleCiphers |
 | SQLite3MultipleCiphers (build hooks) | DB-level encryption replaces per-store AES-GCM. Bundled via `hooks: user_defines: sqlite3: source: sqlite3mc` — no external native libs needed |
 | Config stays file-based | Theme/locale needed before DB opens (chicken-and-egg with encryption key) |
 | `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
 | Three-level security (plaintext/keychain/master password) | Honest security: DB-level encryption via PRAGMA key. OS keychain optional with graceful fallback |
+| Accept per-platform asymmetry, don't escalate working baselines | Cross-platform packages with documented per-platform limits are the chosen budget across all domains (storage, file pickers, notifications, biometrics, IPC, hardware probes). Per-platform native rewrites are out of scope unless explicitly requested — N× code paths rarely worth a marginal upgrade. See [AGENT_RULES § Don't Escalate Working Baselines](AGENT_RULES.md#dont-escalate-working-baselines) |
 | `flutter_secure_storage` as optional dep | OS keychain for automatic encryption; app works without it (libsecret on Linux is optional) |
 | `app_links` instead of `uni_links` | Desktop support |
 | Widget-local controllers (`FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`) use `ChangeNotifier` | Match tool to scope: app-state lives in Riverpod `NotifierProvider`, dialog / pane / panel state that takes constructor args or owns caches uses `ChangeNotifier + AnimatedBuilder` — side-channel Riverpod overrides would be pure ceremony |
@@ -3055,7 +4067,8 @@ Manual build
 
 | Decision | Rationale |
 |----------|-----------|
-| PBKDF2 600k iterations | OWASP 2024 recommendation |
+| Argon2id m=46 MiB t=2 p=1 | OWASP 2024 recommended floor — memory-hard, resists GPU/ASIC cracking much better than PBKDF2 |
+| v1 floor across every persisted artefact | Anything below the current schema is treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Keeps the attack surface to a single KDF and a single wire format at runtime |
 | chmod 600 | Minimal permissions on sensitive files |
 | TOFU reject without callback | Fail-safe: if no UI → reject |
 | `CredentialStoreException` with two types | Distinguish "no credentials" from "corrupt key" |

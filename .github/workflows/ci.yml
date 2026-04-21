@@ -115,7 +115,7 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|style|revert|security)(\([a-z0-9-]+\))?!?: \S.+'
+          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9-]+\))?!?: \S.+'
 
           # Read commit subjects straight from git so we get the full header —
           # `gh pr view --json commits.messageHeadline` truncates to ~72 chars
@@ -151,7 +151,7 @@ jobs:
             echo "::error::Some commit messages don't follow the required format."
             echo ""
             echo "Expected format: type: short description"
-            echo "Valid types: feat, fix, refactor, perf, build, test, docs, chore, ci"
+            echo "Valid types: feat, fix, refactor, perf, build, test, docs, chore, ci, i18n, l10n, style, revert, security"
             echo ""
             echo "Invalid commits:"
             echo -e "$ERRORS"

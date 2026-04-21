@@ -15,6 +15,12 @@ class SJa extends S {
   String get ok => 'OK';
 
   @override
+  String get infoDialogProtectsHeader => '保護する';
+
+  @override
+  String get infoDialogDoesNotProtectHeader => '保護しない';
+
+  @override
   String get cancel => 'キャンセル';
 
   @override
@@ -781,6 +787,152 @@ class SJa extends S {
   String get passwordsDoNotMatch => 'パスワードが一致しません';
 
   @override
+  String get passwordStrengthWeak => '弱い';
+
+  @override
+  String get passwordStrengthModerate => '普通';
+
+  @override
+  String get passwordStrengthStrong => '強い';
+
+  @override
+  String get passwordStrengthVeryStrong => '非常に強い';
+
+  @override
+  String get tierRecommendedBadge => '推奨';
+
+  @override
+  String get tierCurrentBadge => '現在';
+
+  @override
+  String get tierAlternativeBranchLabel => '代替 — OSを信頼しない';
+
+  @override
+  String get tierUpcomingTooltip => '今後のバージョンで提供されます。';
+
+  @override
+  String get tierUpcomingNotes =>
+      'この層の基盤はまだ出荷されていません。オプションが存在することを知らせるために行は表示されています。';
+
+  @override
+  String get tierPlaintextLabel => 'プレーンテキスト';
+
+  @override
+  String get tierPlaintextSubtitle => '暗号化なし — ファイル権限のみ';
+
+  @override
+  String get tierPlaintextThreat1 => 'ファイルシステムにアクセスできる者が誰でもデータを読める';
+
+  @override
+  String get tierPlaintextThreat2 => '偶発的な同期またはバックアップがすべてを明らかにする';
+
+  @override
+  String get tierPlaintextNotes => '信頼された隔離環境でのみ使用してください。';
+
+  @override
+  String get tierKeychainLabel => 'キーチェーン';
+
+  @override
+  String tierKeychainSubtitle(String keychain) {
+    return 'キーは $keychain に存在 — 起動時に自動ロック解除';
+  }
+
+  @override
+  String get tierKeychainProtect1 => '同じマシン上の他のユーザー';
+
+  @override
+  String get tierKeychainProtect2 => 'OSログインなしで盗まれたディスク';
+
+  @override
+  String get tierKeychainThreat1 => 'あなたのOSアカウントで動作するマルウェア';
+
+  @override
+  String get tierKeychainThreat2 => 'あなたのOSログインを乗っ取る攻撃者';
+
+  @override
+  String get tierKeychainUnavailable => 'このインストールではOSキーチェーンが利用できません。';
+
+  @override
+  String get tierKeychainPassProtect1 => 'あなたの机に座る同僚';
+
+  @override
+  String get tierKeychainPassProtect2 => 'ロック解除アクセスを持つ通行人';
+
+  @override
+  String get tierKeychainPassThreat1 => 'ディスク上のファイルを持つオフライン攻撃者';
+
+  @override
+  String get tierKeychainPassThreat2 => 'キーチェーンと同じOS侵害リスク';
+
+  @override
+  String get tierHardwareLabel => 'ハードウェア';
+
+  @override
+  String get tierHardwareSubtitle => 'ハードウェアバウンドボルト + ロックアウト付き短いPIN';
+
+  @override
+  String get tierHardwareProtect1 => 'PINのオフラインブルートフォース（ハードウェアレート制限）';
+
+  @override
+  String get tierHardwareProtect2 => 'ディスクとキーチェーンブロブの盗難';
+
+  @override
+  String get tierHardwareThreat1 => 'セキュアモジュールのOSまたはファームウェアのCVE';
+
+  @override
+  String get tierHardwareThreat2 => '強制生体認証ロック解除（有効な場合）';
+
+  @override
+  String get tierParanoidLabel => 'マスターパスワード（Paranoid）';
+
+  @override
+  String get tierParanoidSubtitle => '長いパスワード + Argon2id。キーはOSに入りません。';
+
+  @override
+  String get tierParanoidProtect1 => 'OSキーチェーン侵害';
+
+  @override
+  String get tierParanoidProtect2 => '盗まれたディスク（パスワードが強い限り）';
+
+  @override
+  String get tierParanoidThreat1 => 'パスワードをキャプチャするキーロガー';
+
+  @override
+  String get tierParanoidThreat2 => '弱いパスワード + オフラインArgon2idクラッキング';
+
+  @override
+  String get tierParanoidNotes => 'この層では生体認証は設計上無効化されています。';
+
+  @override
+  String get tierHardwareUnavailable => 'このインストールではハードウェアボールトを利用できません。';
+
+  @override
+  String get pinLabel => 'パスワード';
+
+  @override
+  String get l2UnlockTitle => 'パスワードが必要です';
+
+  @override
+  String get l2UnlockHint => '短いパスワードを入力して続行';
+
+  @override
+  String get l2WrongPassword => 'パスワードが違います';
+
+  @override
+  String get l3UnlockTitle => 'パスワードを入力';
+
+  @override
+  String get l3UnlockHint => 'パスワードでハードウェア連携のボールトを解除';
+
+  @override
+  String get l3WrongPin => 'パスワードが違います';
+
+  @override
+  String tierCooldownHint(int seconds) {
+    return '$seconds 秒後に再試行';
+  }
+
+  @override
   String exportedTo(String path) {
     return 'エクスポート先: $path';
   }
@@ -807,6 +959,9 @@ class SJa extends S {
 
   @override
   String get dataLocation => 'データの保存場所';
+
+  @override
+  String get dataStorageSection => 'ストレージ';
 
   @override
   String get pathCopied => 'パスをクリップボードにコピーしました';
@@ -1161,7 +1316,7 @@ class SJa extends S {
   String get biometricUnlockTitle => '生体認証でロック解除';
 
   @override
-  String get biometricUnlockSubtitle => 'アプリ起動時にマスターパスワードの入力を省略できます。';
+  String get biometricUnlockSubtitle => 'パスワードを入力せず、デバイスの生体認証センサーでロックを解除します。';
 
   @override
   String get biometricNotAvailable => 'このデバイスでは生体認証によるロック解除を利用できません。';
@@ -1192,8 +1347,14 @@ class SJa extends S {
   String get biometricSensorNotAvailable => 'このデバイスには生体センサーがありません。';
 
   @override
-  String get autoLockRequiresMasterPassword =>
-      '自動ロックを有効にするには、まずマスターパスワードを設定してください。';
+  String get biometricSystemServiceMissing =>
+      '指紋サービス (fprintd) がインストールされていません。README → Installation を参照してください。';
+
+  @override
+  String get biometricBackingHardware => 'ハードウェア保護 (Secure Enclave / TPM)';
+
+  @override
+  String get biometricBackingSoftware => 'ソフトウェア保護';
 
   @override
   String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
@@ -1222,7 +1383,7 @@ class SJa extends S {
 
   @override
   String get autoLockSubtitle =>
-      'この時間操作がないと UI をロックします。暗号化データベースはアクティブな SSH セッションがない場合のみ再ロックされ、長時間の処理は接続を維持します。';
+      'この時間操作がないと UI をロックします。ロックのたびにデータベースキーが消去され暗号化ストアが閉じられます。アクティブなセッションはセッションごとの資格情報キャッシュで接続が維持され、セッション終了時にキャッシュはクリアされます。';
 
   @override
   String get autoLockOff => 'オフ';
@@ -1252,6 +1413,10 @@ class SJa extends S {
 
   @override
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
+
+  @override
+  String get errLfsArchiveTruncated =>
+      'アーカイブが不完全です。再ダウンロードするか、元のデバイスから再エクスポートしてください。';
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
@@ -1618,6 +1783,12 @@ class SJa extends S {
   String get generateKey => 'キーを生成';
 
   @override
+  String get addKey => 'キーを追加';
+
+  @override
+  String get filePickerUnavailable => 'このシステムではファイルピッカーを利用できません';
+
+  @override
   String get importKey => 'キーをインポート';
 
   @override
@@ -1764,6 +1935,45 @@ class SJa extends S {
   String get credentialsReset => '保存された認証情報がすべて削除されました';
 
   @override
+  String get migrationToast => 'ストレージを最新の形式にアップグレードしました';
+
+  @override
+  String get dbCorruptTitle => 'データベースを開けません';
+
+  @override
+  String get dbCorruptBody => 'ディスク上のデータを開けません。別の認証情報を試すか、リセットして最初からやり直してください。';
+
+  @override
+  String get dbCorruptWarning =>
+      'リセットすると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データは復元されません。';
+
+  @override
+  String get dbCorruptTryOther => '別の認証情報で試す';
+
+  @override
+  String get dbCorruptResetContinue => 'リセットして新規セットアップ';
+
+  @override
+  String get dbCorruptExit => 'LetsFLUTssh を終了';
+
+  @override
+  String get tierResetTitle => 'セキュリティリセットが必要です';
+
+  @override
+  String get tierResetBody =>
+      'このインストールには、異なる層モデルを使用していた以前のバージョンのLetsFLUTsshのセキュリティデータが含まれています。新しいモデルは互換性のない変更であり、自動移行パスはありません。続行するには、このインストールに保存されているすべてのセッション、認証情報、SSHキー、既知のホストを消去し、初回起動のセットアップウィザードをゼロから実行する必要があります。';
+
+  @override
+  String get tierResetWarning =>
+      '「リセットして新規セットアップ」を選択すると、暗号化データベースとすべてのセキュリティ関連ファイルが完全に削除されます。データを復元する必要がある場合は、今アプリを終了し、まず以前のバージョンのLetsFLUTsshを再インストールしてエクスポートしてください。';
+
+  @override
+  String get tierResetResetContinue => 'リセットして新規セットアップ';
+
+  @override
+  String get tierResetExit => 'LetsFLUTsshを終了';
+
+  @override
   String get derivingKey => '暗号化キーを生成中...';
 
   @override
@@ -1837,6 +2047,193 @@ class SJa extends S {
 
   @override
   String get manageMasterPasswordSubtitle => 'マスターパスワードの設定、変更、削除';
+
+  @override
+  String get changeSecurityTier => 'セキュリティ階層を変更';
+
+  @override
+  String get changeSecurityTierSubtitle => '階層ラダーを開き、別のセキュリティ階層に切り替え';
+
+  @override
+  String get changeSecurityTierConfirm =>
+      '新しい階層でデータベースを再暗号化中。中断できません — 完了するまでアプリを開いたままにしてください。';
+
+  @override
+  String get changeSecurityTierDone => 'セキュリティ階層が変更されました';
+
+  @override
+  String get changeSecurityTierFailed => 'セキュリティ階層を変更できませんでした';
+
+  @override
+  String get firstLaunchSecurityTitle => 'セキュアストレージが有効になりました';
+
+  @override
+  String get firstLaunchSecurityBody =>
+      'データは OS キーチェーンに保管された鍵で暗号化されます。このデバイスでのロック解除は自動です。';
+
+  @override
+  String get firstLaunchSecurityUpgradeAvailable =>
+      'このデバイスではハードウェア保護ストレージが利用できます。TPM / Secure Enclave 連携を使うには、設定 → セキュリティからアップグレードしてください。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableWindows =>
+      'ハードウェア保護ストレージは利用できません — このデバイスで TPM 2.0 が検出されませんでした。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableApple =>
+      'ハードウェア保護ストレージは利用できません — このデバイスは Secure Enclave を報告していません。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableLinux =>
+      'ハードウェア保護ストレージは利用できません — 有効にするには tpm2-tools と TPM 2.0 デバイスをインストールしてください。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableAndroid =>
+      'ハードウェア保護ストレージは利用できません — このデバイスは StrongBox または TEE を報告していません。';
+
+  @override
+  String get firstLaunchSecurityHardwareUnavailableGeneric =>
+      'このデバイスではハードウェア保護ストレージを利用できません。';
+
+  @override
+  String get firstLaunchSecurityOpenSettings => '設定を開く';
+
+  @override
+  String get firstLaunchSecurityDismiss => '了解';
+
+  @override
+  String get securityHardwareUpgradeTitle => 'ハードウェア保護ストレージが利用可能';
+
+  @override
+  String get securityHardwareUpgradeBody =>
+      'アップグレードして秘密情報を TPM / Secure Enclave に紐付けます。';
+
+  @override
+  String get securityHardwareUpgradeAction => 'アップグレード';
+
+  @override
+  String get securityHardwareUnavailableTitle => 'ハードウェア保護ストレージは利用できません';
+
+  @override
+  String get wizardReducedBanner =>
+      'このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。';
+
+  @override
+  String get tierBlockProtectsHeader => '保護する脅威';
+
+  @override
+  String get tierBlockDoesNotProtectHeader => '保護しない脅威';
+
+  @override
+  String get tierBlockProtectsEmpty => 'この階層では何も保護しません。';
+
+  @override
+  String get tierBlockDoesNotProtectEmpty => '未カバーの脅威はありません。';
+
+  @override
+  String get tierBadgeCurrent => '現在';
+
+  @override
+  String get securitySetupEnable => '有効化';
+
+  @override
+  String get securitySetupApply => '適用';
+
+  @override
+  String get passwordDisabledPlaintext => '暗号化なしの階層ではパスワードで保護する秘密がありません。';
+
+  @override
+  String get passwordDisabledParanoid =>
+      'Paranoid はパスワードから DB 鍵を導出します — 常に有効です。';
+
+  @override
+  String get passwordSubtitleOn => 'オン — ロック解除時にパスワードが必要';
+
+  @override
+  String get passwordSubtitleOff => 'オフ — この階層にパスワードを追加するにはタップ';
+
+  @override
+  String get passwordSubtitleParanoid => '必須 — マスターパスワードが階層の秘密';
+
+  @override
+  String get passwordSubtitlePlaintext => '適用外 — この階層には暗号化がありません';
+
+  @override
+  String get hwProbeLinuxDeviceMissing =>
+      '/dev/tpmrm0 に TPM が見つかりません。マシンが対応していれば BIOS で fTPM / PTT を有効にしてください。そうでなければ、このデバイスではハードウェア階層を使用できません。';
+
+  @override
+  String get hwProbeLinuxBinaryMissing =>
+      'tpm2-tools がインストールされていません。ハードウェア階層を有効にするには `sudo apt install tpm2-tools`（またはディストリビューションの同等コマンド）を実行してください。';
+
+  @override
+  String get hwProbeLinuxProbeFailed =>
+      'ハードウェア階層のプローブに失敗しました。/dev/tpmrm0 の権限と udev ルールを確認してください — 詳細はログを参照してください。';
+
+  @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 が検出されませんでした。UEFI ファームウェアで fTPM / PTT を有効にするか、このデバイスでハードウェア階層が使用できないことを受け入れてください — アプリはソフトウェアベースの認証情報ストアにフォールバックします。';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Microsoft Platform Crypto Provider も Software Key Storage Provider にも到達できません — Windows 暗号サブシステムの破損、または CNG をブロックするグループポリシーが考えられます。イベントビューアー → アプリケーションとサービスログを確認してください。';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'この Mac には Secure Enclave がありません（T1 / T2 セキュリティチップ非搭載の 2017 年以前の Intel Mac）。ハードウェア階層は利用できません。マスターパスワードを使用してください。';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'この Mac にログインパスワードが設定されていません。Secure Enclave キー作成に必要です — システム設定 → Touch ID とパスワード（またはログインパスワード）で設定してください。';
+
+  @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave がアプリの署名 ID を拒否しました (-34018)。リリースに同梱の `macos-resign.sh` スクリプトを実行してこのインストールに安定した自己署名 ID を付与し、アプリを再起動してください。';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'デバイスのパスコードが設定されていません。Secure Enclave キー作成に必要です — 設定 → Face ID とパスコード（または Touch ID とパスコード）で設定してください。';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'iOS シミュレーターで実行中で、Secure Enclave がありません。ハードウェア階層は物理 iOS デバイスでのみ利用可能です。';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'ハードウェア階層には Android 9 以降が必要です（StrongBox とキーごとの登録無効化は古いバージョンでは信頼性がありません）。';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'このデバイスには生体認証ハードウェア（指紋または顔）がありません。マスターパスワードを使用してください。';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      '生体認証が登録されていません。設定 → セキュリティとプライバシー → 生体認証で指紋または顔を追加してから、ハードウェア階層を再度有効にしてください。';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      '生体認証ハードウェアが一時的に使用できません（失敗試行後のロックアウトまたは保留中のセキュリティ更新）。数分後に再試行してください。';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore がこのデバイスビルドでハードウェアキーのバックを拒否しました（StrongBox 非対応、カスタム ROM、またはドライバーの不具合）。ハードウェア層は利用できません。';
+
+  @override
+  String get securityRecheck => '階層サポートを再確認';
+
+  @override
+  String get securityRecheckUpdated => '階層サポートが更新されました — 上のカードを確認';
+
+  @override
+  String get securityRecheckUnchanged => '階層サポートに変更はありません';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus は動作していますが、secret-service デーモンが実行されていません。gnome-keyring（`sudo apt install gnome-keyring`）または KWalletManager をインストールし、ログイン時に起動するようにしてください。';
+
+  @override
+  String get keyringProbeFailed =>
+      'このデバイスでは OS キーチェーンに到達できません。プラットフォーム固有のエラーはログを参照してください。アプリはマスターパスワードにフォールバックします。';
 
   @override
   String get snippets => 'スニペット';
@@ -2077,4 +2474,217 @@ class SJa extends S {
 
   @override
   String get continueWithoutPassword => 'パスワードなしで続行';
+
+  @override
+  String get threatColdDiskTheft => '電源オフ時のディスク窃取';
+
+  @override
+  String get threatColdDiskTheftDescription =>
+      '電源を切った端末からドライブを取り外して別のコンピューターで読み出す、あるいはホームディレクトリへアクセスできる者がデータベースファイルを複製するケース。';
+
+  @override
+  String get threatKeyringFileTheft => 'keyring / keychain ファイルの窃取';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      '攻撃者がプラットフォームの認証情報ストアファイル（libsecret keyring、Windows Credential Manager、macOS ログイン keychain）をディスクから直接読み取り、そこにラップされたデータベースキーを復元するケース。ハードウェア階層はパスワードに関係なくこれを防ぎます。チップが鍵マテリアルのエクスポートを拒否するためです。keychain 階層では追加でパスワードが必要で、そうでなければ盗まれたファイルは OS ログインパスワードだけで解けてしまいます。';
+
+  @override
+  String get modifierOnlyWithPassword => 'パスワード必須';
+
+  @override
+  String get threatBystanderUnlockedMachine => 'ロック解除済み端末のそばにいる第三者';
+
+  @override
+  String get threatBystanderUnlockedMachineDescription =>
+      'あなたが離席している間に、すでにロック解除済みのコンピューターへ誰かが近づき、このアプリを開く状況。';
+
+  @override
+  String get threatLiveRamForensicsLocked => 'ロック状態の端末に対する RAM フォレンジック';
+
+  @override
+  String get threatLiveRamForensicsLockedDescription =>
+      '攻撃者が RAM を凍結したり DMA で取得したりして、アプリがロック中でもスナップショットから残存する鍵素材を引き出します。';
+
+  @override
+  String get threatOsKernelOrKeychainBreach => 'OS カーネルまたはキーチェーンの侵害';
+
+  @override
+  String get threatOsKernelOrKeychainBreachDescription =>
+      'カーネル脆弱性、キーチェーンの窃取、あるいはハードウェアセキュリティチップのバックドア。OS 自体が信頼できる基盤ではなく、攻撃者側の存在になります。';
+
+  @override
+  String get threatOfflineBruteForce => '弱いパスワードへのオフライン総当たり';
+
+  @override
+  String get threatOfflineBruteForceDescription =>
+      'ラップされた鍵や封印ブロブのコピーを持つ攻撃者が、レート制限を一切受けずに自分のペースで全パスワードを試せる状況。';
+
+  @override
+  String get legendProtects => '保護あり';
+
+  @override
+  String get legendDoesNotProtect => '保護なし';
+
+  @override
+  String get legendNotApplicable => '該当なし — この階層にはユーザー秘密がありません';
+
+  @override
+  String get legendWeakPasswordWarning =>
+      '弱いパスワードでも可 — 別の層（ハードウェアのレート制限、またはラップされた鍵のバインディング）が安全性を担います';
+
+  @override
+  String get legendStrongPasswordRecommended =>
+      '長いパスフレーズの使用を強く推奨 — この階層の安全性はそれに依存します';
+
+  @override
+  String get colT0 => 'T0 平文';
+
+  @override
+  String get colT1 => 'T1 キーチェーン';
+
+  @override
+  String get colT1Password => 'T1 + パスワード';
+
+  @override
+  String get colT1PasswordBiometric => 'T1 + パスワード + 生体認証';
+
+  @override
+  String get colT2 => 'T2 ハードウェア';
+
+  @override
+  String get colT2Password => 'T2 + パスワード';
+
+  @override
+  String get colT2PasswordBiometric => 'T2 + パスワード + 生体認証';
+
+  @override
+  String get colParanoid => 'パラノイド';
+
+  @override
+  String get securityComparisonTableTitle => 'セキュリティ階層 — 横並び比較';
+
+  @override
+  String get securityComparisonTableThreatColumn => '脅威';
+
+  @override
+  String get compareAllTiers => '全階層を比較';
+
+  @override
+  String get resetAllDataTitle => 'すべてのデータをリセット';
+
+  @override
+  String get resetAllDataSubtitle =>
+      'すべてのセッション、鍵、設定、セキュリティアーティファクトを削除します。キーチェーンのエントリとハードウェアボールトのスロットもクリアします。';
+
+  @override
+  String get resetAllDataConfirmTitle => 'すべてのデータをリセットしますか？';
+
+  @override
+  String get resetAllDataConfirmBody =>
+      'すべてのセッション、SSH 鍵、known hosts、スニペット、タグ、設定、およびすべてのセキュリティアーティファクト（キーチェーンエントリ、ハードウェアボールトのデータ、生体認証オーバーレイ）が完全に削除されます。この操作は取り消せません。';
+
+  @override
+  String get resetAllDataConfirmAction => 'すべてリセット';
+
+  @override
+  String get resetAllDataInProgress => 'リセット中…';
+
+  @override
+  String get resetAllDataDone => 'すべてのデータをリセットしました';
+
+  @override
+  String get resetAllDataFailed => 'リセットに失敗しました';
+
+  @override
+  String get compareAllTiersSubtitle => '各階層の防御範囲を並べて比較できます。';
+
+  @override
+  String get autoLockRequiresPassword => '自動ロックにはアクティブな階層にパスワードが必要です。';
+
+  @override
+  String get recommendedBadge => '推奨';
+
+  @override
+  String get continueWithRecommended => '推奨設定で続行';
+
+  @override
+  String get customizeSecurity => 'セキュリティをカスタマイズ';
+
+  @override
+  String get tierHardwareSubtitleHonest =>
+      '上級: ハードウェアに紐づく鍵。このデバイスのチップが失われたり交換されたりすると、データは復元できません。';
+
+  @override
+  String get tierParanoidSubtitleHonest =>
+      '代替: マスターパスワードを使用し、OS を信頼しません。OS の侵害から保護しますが、T1/T2 と比べてランタイム保護は向上しません。';
+
+  @override
+  String get mitigationsNoteRuntimeThreats =>
+      'runtime の脅威（同一ユーザーの malware、稼働中プロセスのメモリダンプ）は、すべての階層で ✗ と表示されます。これらは階層選択に関係なく適用される別途の緩和機能によって対処されます。';
+
+  @override
+  String get securitySetupContinue => '続行';
+
+  @override
+  String get currentTierBadge => '現在';
+
+  @override
+  String get paranoidAlternativeHeader => '代替';
+
+  @override
+  String get modifierPasswordLabel => 'パスワード';
+
+  @override
+  String get modifierPasswordSubtitle => 'ボールト解錠前に入力する秘密のゲート。';
+
+  @override
+  String get modifierBiometricLabel => '生体認証ショートカット';
+
+  @override
+  String get modifierBiometricSubtitle =>
+      'パスワードを入力する代わりに、生体認証で保護されたOSスロットから取り出します。';
+
+  @override
+  String get biometricRequiresPassword =>
+      '先にパスワードを有効にしてください — 生体認証は入力のショートカットです。';
+
+  @override
+  String get biometricRequiresActiveTier => '生体認証ロック解除を有効にするには、先にこの階層を選択してください';
+
+  @override
+  String get autoLockRequiresActiveTier => '自動ロックを設定するには、先にこの階層を選択してください';
+
+  @override
+  String get biometricForbiddenParanoid => 'Paranoid は設計上、生体認証を許可しません。';
+
+  @override
+  String get fprintdNotAvailable => 'fprintd がインストールされていないか、指紋が登録されていません。';
+
+  @override
+  String get linuxTpmWithoutPasswordNote =>
+      'パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを解錠できます。';
+
+  @override
+  String get paranoidMasterPasswordNote =>
+      '長いパスフレーズを強く推奨します — Argon2id は総当たり攻撃を遅らせるだけで、阻止はできません。';
+
+  @override
+  String get plaintextWarningTitle => '平文：暗号化なし';
+
+  @override
+  String get plaintextWarningBody =>
+      'セッション、鍵、known hosts は暗号化されずに保存されます。このコンピュータのファイルシステムにアクセスできる人なら誰でも読み取れます。';
+
+  @override
+  String get plaintextAcknowledge => 'データが暗号化されないことを理解しました';
+
+  @override
+  String get plaintextAcknowledgeRequired => '続行する前に理解したことを確認してください。';
+
+  @override
+  String get passwordLabel => 'パスワード';
+
+  @override
+  String get masterPasswordLabel => 'マスターパスワード';
 }
