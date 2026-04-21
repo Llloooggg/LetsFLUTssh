@@ -41,20 +41,39 @@ class _ActionTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
+  /// Tint the subtitle with the theme primary colour — used for
+  /// copy-to-clipboard tiles (Data Location path, Source Code URL)
+  /// where the subtitle is the payload and should read as a link.
+  /// Default (false) keeps the standard dim muted tone.
+  final bool emphasizeSubtitle;
+
+  /// Destructive variant — icon + title turn red. Used by Reset
+  /// All Data. Carries the same `onTap` semantics; only the visual
+  /// weight changes.
+  final bool destructive;
+
   const _ActionTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.emphasizeSubtitle = false,
+    this.destructive = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = destructive ? AppTheme.red : AppTheme.fgDim;
+    final titleColor = destructive ? AppTheme.red : AppTheme.fg;
+    final subtitleColor = emphasizeSubtitle
+        ? theme.colorScheme.primary
+        : AppTheme.fgFaint;
     final body = Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppTheme.fgDim),
+          Icon(icon, size: 16, color: iconColor),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -64,14 +83,14 @@ class _ActionTile extends StatelessWidget {
                   title,
                   style: AppFonts.inter(
                     fontSize: AppFonts.sm,
-                    color: AppTheme.fg,
+                    color: titleColor,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: AppFonts.inter(
                     fontSize: AppFonts.xs,
-                    color: AppTheme.fgFaint,
+                    color: subtitleColor,
                   ),
                 ),
               ],

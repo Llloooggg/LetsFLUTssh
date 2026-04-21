@@ -38,7 +38,112 @@ Future<List<Session>> _resolveSessionKeys(
 class _DataSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(children: [_ExportImportTile(), const _DataPathTile()]);
+    return Column(
+      children: [
+        _ExportImportTile(),
+        const _DataPathTile(),
+        const SizedBox(height: 12),
+        const _ResetAllDataTile(),
+      ],
+    );
+  }
+}
+
+/// Destructive "reset everything" entry. Lives in the Data section
+/// because the action wipes the on-disk database, credential store,
+/// keychain entries, hw-vault sealed blobs, and logs — the union of
+/// "every piece of data this install holds". The Security section
+/// used to carry this tile (since it also resets tier state) but
+/// the scope is broader than security tier config; Data is the
+/// natural home for "manage my data" destructive options, next to
+/// Export / Import.
+///
+/// Stateful wrapper instead of an inline `_ActionTile` so the
+/// confirm-dialog + `WipeAllService` + reinit-signal flow can use
+/// `ref` and `mounted` without leaking `BuildContext` across async
+/// gaps.
+class _ResetAllDataTile extends ConsumerStatefulWidget {
+  const _ResetAllDataTile();
+
+  @override
+  ConsumerState<_ResetAllDataTile> createState() => _ResetAllDataTileState();
+}
+
+class _ResetAllDataTileState extends ConsumerState<_ResetAllDataTile> {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    return _ActionTile(
+      icon: Icons.delete_forever_outlined,
+      title: l10n.resetAllDataTitle,
+      subtitle: l10n.resetAllDataSubtitle,
+      destructive: true,
+      onTap: _run,
+    );
+  }
+
+  Future<void> _run() async {
+    final l10n = S.of(context);
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l10n.resetAllDataConfirmTitle,
+      content: Text(l10n.resetAllDataConfirmBody),
+      confirmLabel: l10n.resetAllDataConfirmAction,
+    );
+    if (!confirmed) return;
+    if (!mounted) return;
+
+    final reporter = ProgressReporter(l10n.resetAllDataInProgress);
+    AppProgressBarDialog.show(context, reporter);
+    try {
+      // Close any active DB handle before we drop its file, otherwise
+      // SQLite keeps a stale fd pointing at a deleted inode and the
+      // next session can't open the fresh one cleanly.
+      final service = WipeAllService();
+      final report = await service.wipeAll();
+      AppLogger.instance.log(
+        'Reset all: deleted=${report.deletedFiles.length} '
+        'failed=${report.failedFiles.length} '
+        'keychain=${report.keychainPurged} '
+        'native=${report.nativeVaultCleared} '
+        'overlay=${report.biometricOverlayCleared}',
+        name: 'Data',
+      );
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWith(security: null));
+      // Kick the app back into the first-launch provisioning path:
+      // closes the (now stale) DB handle, re-runs `_firstLaunchSetup`,
+      // and surfaces the one-shot toast the same way a genuine first
+      // launch does. Without this the wipe leaves the app holding a
+      // dropped DB key and a deleted database file; the first
+      // subsequent UI action would crash on a missing handle.
+      requestSecurityReinit(ref);
+      if (mounted) {
+        Navigator.of(context).pop();
+        Toast.show(
+          context,
+          message: l10n.resetAllDataDone,
+          level: ToastLevel.success,
+        );
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Reset all data failed: $e',
+        name: 'Data',
+        error: e,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        Toast.show(
+          context,
+          message: l10n.resetAllDataFailed,
+          level: ToastLevel.error,
+        );
+      }
+    } finally {
+      reporter.dispose();
+    }
   }
 }
 
@@ -938,6 +1043,7 @@ class _DataPathTile extends StatelessWidget {
           icon: Icons.folder_special,
           title: S.of(context).dataLocation,
           subtitle: path,
+          emphasizeSubtitle: true,
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
             Toast.show(

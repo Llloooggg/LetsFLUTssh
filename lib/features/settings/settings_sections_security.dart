@@ -363,84 +363,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // ladder; a T0 / T1-no-password user sees no dead-lettered
         // toggles in between the cards and the reset-all-data row.
 
-        // Destructive recovery: single place to wipe every piece of
-        // on-disk + keychain + hw-vault state this install holds.
-        // Needed on desktop where uninstall does not purge keychain
-        // entries, and as an escape hatch for forgotten Paranoid
-        // master passwords.
-        _ActionTile(
-          icon: Icons.delete_forever_outlined,
-          title: l10n.resetAllDataTitle,
-          subtitle: l10n.resetAllDataSubtitle,
-          onTap: () => _resetAllData(context),
-        ),
+        // Destructive "reset everything" moved to the Data section —
+        // it wipes session data + credentials + keychain + hw-vault,
+        // which belongs under "manage my data" next to Export /
+        // Import. The Security section keeps only tier-config
+        // controls (ladder + biometric + auto-lock).
       ],
     );
-  }
-
-  Future<void> _resetAllData(BuildContext context) async {
-    final l10n = S.of(context);
-    final confirmed = await ConfirmDialog.show(
-      context,
-      title: l10n.resetAllDataConfirmTitle,
-      content: Text(l10n.resetAllDataConfirmBody),
-      confirmLabel: l10n.resetAllDataConfirmAction,
-    );
-    if (!confirmed) return;
-    if (!context.mounted) return;
-
-    final reporter = ProgressReporter(l10n.resetAllDataInProgress);
-    AppProgressBarDialog.show(context, reporter);
-    try {
-      // Close any active DB handle before we drop its file, otherwise
-      // SQLite keeps a stale fd pointing at a deleted inode and the
-      // next session can't open the fresh one cleanly.
-      final service = WipeAllService();
-      final report = await service.wipeAll();
-      AppLogger.instance.log(
-        'Reset all: deleted=${report.deletedFiles.length} '
-        'failed=${report.failedFiles.length} '
-        'keychain=${report.keychainPurged} '
-        'native=${report.nativeVaultCleared} '
-        'overlay=${report.biometricOverlayCleared}',
-        name: 'Security',
-      );
-      await ref
-          .read(configProvider.notifier)
-          .update((c) => c.copyWith(security: null));
-      // Kick the app back into the first-launch provisioning path:
-      // closes the (now stale) DB handle, re-runs
-      // `_firstLaunchSetup`, and surfaces the one-shot toast the same
-      // way a genuine first launch does. Without this the wipe leaves
-      // the app holding a dropped DB key and a deleted database file;
-      // the first subsequent UI action would crash on a missing
-      // handle.
-      requestSecurityReinit(ref);
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        Toast.show(
-          context,
-          message: l10n.resetAllDataDone,
-          level: ToastLevel.success,
-        );
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Reset all data failed: $e',
-        name: 'Security',
-        error: e,
-      );
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        Toast.show(
-          context,
-          message: l10n.resetAllDataFailed,
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      reporter.dispose();
-    }
   }
 
   Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
