@@ -11,6 +11,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
 import '../providers/security_reinit_provider.dart';
+import '../providers/session_credential_cache_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
@@ -277,7 +278,10 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     // caller's contract is "dialog returns null, unlock flow
     // aborts" and that has to hold.
     try {
-      final report = await WipeAllService().wipeAll();
+      final cache = ref.read(sessionCredentialCacheProvider);
+      final report = await WipeAllService(
+        credentialCacheEvict: cache.evictAll,
+      ).wipeAll();
       AppLogger.instance.log(
         'Forgot-password reset: deleted=${report.deletedFiles.length} '
         'failed=${report.failedFiles.length} '

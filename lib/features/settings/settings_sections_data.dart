@@ -103,7 +103,8 @@ class _ResetAllDataTileState extends ConsumerState<_ResetAllDataTile> {
       // Close any active DB handle before we drop its file, otherwise
       // SQLite keeps a stale fd pointing at a deleted inode and the
       // next session can't open the fresh one cleanly.
-      final service = WipeAllService();
+      final cache = ref.read(sessionCredentialCacheProvider);
+      final service = WipeAllService(credentialCacheEvict: cache.evictAll);
       final report = await service.wipeAll();
       AppLogger.instance.log(
         'Reset all: deleted=${report.deletedFiles.length} '

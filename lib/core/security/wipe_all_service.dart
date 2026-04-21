@@ -58,12 +58,14 @@ class WipeAllService {
     FlutterSecureStorage? keychain,
     MethodChannel? hardwareVaultChannel,
     bool purgeKeychain = true,
+    VoidCallback? credentialCacheEvict,
   }) : _supportDir = supportDirFactory ?? getApplicationSupportDirectory,
        _keychain = keychain ?? const FlutterSecureStorage(),
        _hwChannel =
            hardwareVaultChannel ??
            const MethodChannel(_hardwareVaultChannelName),
-       _purgeKeychain = purgeKeychain;
+       _purgeKeychain = purgeKeychain,
+       _credentialCacheEvict = credentialCacheEvict;
 
   static const _hardwareVaultChannelName = 'com.letsflutssh/hardware_vault';
   static const _wipePendingMarker = '.wipe-pending';
@@ -126,6 +128,15 @@ class WipeAllService {
   final FlutterSecureStorage _keychain;
   final MethodChannel _hwChannel;
   final bool _purgeKeychain;
+
+  /// Optional hook that drops every [SessionCredentialCache] entry
+  /// before the file sweep runs. The cache holds page-locked copies of
+  /// per-session passwords / key bytes; a wipe that deletes the
+  /// Sessions table on disk must also drop these, or a later
+  /// `reconnect` against a now-gone session would still find
+  /// credentials in memory. Nullable because tests and the
+  /// startup-pending-wipe resumption path have no cache to flush.
+  final VoidCallback? _credentialCacheEvict;
 
   /// True if a `.wipe-pending` marker is on disk — the previous run
   /// started a wipe that did not finish. Call sites check this on
@@ -207,6 +218,22 @@ class WipeAllService {
     final deleted = <String>[];
     final failed = <String>[];
     final dir = await _supportDir();
+
+    // 0. Flush the per-session credential cache BEFORE any file
+    //    deletion. The cache is process-RAM-only, so there is no
+    //    crash-safety concern — if the wipe aborts after this step
+    //    the user simply has to re-enter passwords on reconnect,
+    //    same as a cold app start. Doing it first keeps the
+    //    invariant "no cached credentials exist for sessions whose
+    //    on-disk record is about to be deleted".
+    try {
+      _credentialCacheEvict?.call();
+    } catch (e) {
+      AppLogger.instance.log(
+        'WipeAllService: credential-cache evict threw: $e',
+        name: 'WipeAllService',
+      );
+    }
 
     // 1. Drop the marker first so a crash mid-wipe leaves a trace the
     //    next launch can detect.

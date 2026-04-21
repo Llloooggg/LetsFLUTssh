@@ -38,6 +38,7 @@ import '../../providers/key_provider.dart';
 import '../../providers/master_password_provider.dart';
 import '../../providers/security_provider.dart';
 import '../../providers/security_reinit_provider.dart';
+import '../../providers/session_credential_cache_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../core/update/update_service.dart';
