@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "系统文件夹选择器不可用。请尝试其他位置或检查应用的存储权限。",
   "biometricUnlockPrompt": "解锁 LetsFLUTssh",
   "biometricUnlockTitle": "使用生物识别解锁",
-  "biometricUnlockSubtitle": "启动应用时无需输入主密码。",
+  "biometricUnlockSubtitle": "无需输入密码——使用设备生物识别传感器解锁。",
   "biometricNotAvailable": "此设备不支持生物识别解锁。",
   "biometricEnableFailed": "无法启用生物识别解锁。",
   "biometricEnabled": "已启用生物识别解锁",

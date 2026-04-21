@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "انتخابگر پوشهٔ سیستم در دسترس نیست. مکان دیگری را امتحان کنید یا مجوزهای ذخیره‌سازی برنامه را بررسی کنید.",
   "biometricUnlockPrompt": "باز کردن قفل LetsFLUTssh",
   "biometricUnlockTitle": "باز کردن قفل با زیست‌سنجی",
-  "biometricUnlockSubtitle": "هنگام اجرای برنامه نیازی به تایپ گذرواژهٔ اصلی نباشد.",
+  "biometricUnlockSubtitle": "گذرواژه را تایپ نکنید — با حسگر زیست‌سنجی دستگاه قفل را باز کنید.",
   "biometricNotAvailable": "باز کردن قفل زیست‌سنجی روی این دستگاه در دسترس نیست.",
   "biometricEnableFailed": "فعال‌سازی باز کردن قفل زیست‌سنجی ممکن نشد.",
   "biometricEnabled": "باز کردن قفل زیست‌سنجی فعال شد",

@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "Pemilih folder sistem tidak tersedia. Coba lokasi lain atau periksa izin penyimpanan aplikasi.",
   "biometricUnlockPrompt": "Buka kunci LetsFLUTssh",
   "biometricUnlockTitle": "Buka kunci dengan biometrik",
-  "biometricUnlockSubtitle": "Hindari mengetik kata sandi utama saat membuka aplikasi.",
+  "biometricUnlockSubtitle": "Tidak perlu mengetik kata sandi — buka kunci dengan sensor biometrik perangkat.",
   "biometricNotAvailable": "Buka kunci biometrik tidak tersedia di perangkat ini.",
   "biometricEnableFailed": "Tidak dapat mengaktifkan buka kunci biometrik.",
   "biometricEnabled": "Buka kunci biometrik diaktifkan",

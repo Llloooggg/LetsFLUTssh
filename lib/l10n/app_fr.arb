@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "Le sélecteur de dossier système n'est pas disponible. Essayez un autre emplacement ou vérifiez les autorisations de stockage de l'application.",
   "biometricUnlockPrompt": "Déverrouiller LetsFLUTssh",
   "biometricUnlockTitle": "Déverrouiller par biométrie",
-  "biometricUnlockSubtitle": "Évitez de saisir le mot de passe maître au lancement de l'application.",
+  "biometricUnlockSubtitle": "Évitez de saisir le mot de passe — déverrouillez avec le capteur biométrique de l'appareil.",
   "biometricNotAvailable": "Le déverrouillage biométrique n'est pas disponible sur cet appareil.",
   "biometricEnableFailed": "Impossible d'activer le déverrouillage biométrique.",
   "biometricEnabled": "Déverrouillage biométrique activé",

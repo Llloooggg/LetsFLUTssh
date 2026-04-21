@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "システムのフォルダピッカーを利用できません。別の場所を試すか、アプリのストレージ権限を確認してください。",
   "biometricUnlockPrompt": "LetsFLUTssh のロックを解除",
   "biometricUnlockTitle": "生体認証でロック解除",
-  "biometricUnlockSubtitle": "アプリ起動時にマスターパスワードの入力を省略できます。",
+  "biometricUnlockSubtitle": "パスワードを入力せず、デバイスの生体認証センサーでロックを解除します。",
   "biometricNotAvailable": "このデバイスでは生体認証によるロック解除を利用できません。",
   "biometricEnableFailed": "生体認証によるロック解除を有効にできませんでした。",
   "biometricEnabled": "生体認証によるロック解除を有効にしました",

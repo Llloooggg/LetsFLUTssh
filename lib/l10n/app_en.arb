@@ -756,7 +756,7 @@
   "errExportPickerUnavailable": "The system folder picker is unavailable. Try another location or check app storage permissions.",
   "biometricUnlockPrompt": "Unlock LetsFLUTssh",
   "biometricUnlockTitle": "Unlock with biometrics",
-  "biometricUnlockSubtitle": "Skip typing the master password when launching the app.",
+  "biometricUnlockSubtitle": "Skip typing the password — unlock with the device biometric sensor.",
   "biometricNotAvailable": "Biometric unlock is not available on this device.",
   "biometricEnableFailed": "Could not enable biometric unlock.",
   "biometricEnabled": "Biometric unlock enabled",

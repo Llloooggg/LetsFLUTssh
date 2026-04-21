@@ -1349,7 +1349,7 @@ class SVi extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Không cần nhập mật khẩu chính khi khởi động ứng dụng.';
+      'Không cần nhập mật khẩu — mở khóa bằng cảm biến sinh trắc học của thiết bị.';
 
   @override
   String get biometricNotAvailable =>

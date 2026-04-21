@@ -1370,7 +1370,7 @@ class SFr extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Évitez de saisir le mot de passe maître au lancement de l\'application.';
+      'Évitez de saisir le mot de passe — déverrouillez avec le capteur biométrique de l\'appareil.';
 
   @override
   String get biometricNotAvailable =>

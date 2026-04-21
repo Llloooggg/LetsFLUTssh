@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "منتقي المجلدات في النظام غير متاح. جرّب موقعاً آخر أو تحقق من أذونات تخزين التطبيق.",
   "biometricUnlockPrompt": "فتح قفل LetsFLUTssh",
   "biometricUnlockTitle": "الفتح بالمقاييس الحيوية",
-  "biometricUnlockSubtitle": "تجنّب كتابة كلمة المرور الرئيسية عند تشغيل التطبيق.",
+  "biometricUnlockSubtitle": "لا تحتاج إلى كتابة كلمة المرور — افتح القفل باستخدام مستشعر القياسات الحيوية في الجهاز.",
   "biometricNotAvailable": "الفتح بالمقاييس الحيوية غير متاح على هذا الجهاز.",
   "biometricEnableFailed": "تعذّر تفعيل الفتح بالمقاييس الحيوية.",
   "biometricEnabled": "تم تفعيل الفتح بالمقاييس الحيوية",

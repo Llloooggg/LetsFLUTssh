@@ -1316,7 +1316,7 @@ class SJa extends S {
   String get biometricUnlockTitle => '生体認証でロック解除';
 
   @override
-  String get biometricUnlockSubtitle => 'アプリ起動時にマスターパスワードの入力を省略できます。';
+  String get biometricUnlockSubtitle => 'パスワードを入力せず、デバイスの生体認証センサーでロックを解除します。';
 
   @override
   String get biometricNotAvailable => 'このデバイスでは生体認証によるロック解除を利用できません。';

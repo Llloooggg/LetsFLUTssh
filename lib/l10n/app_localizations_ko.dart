@@ -1315,7 +1315,7 @@ class SKo extends S {
   String get biometricUnlockTitle => '생체 인식으로 잠금 해제';
 
   @override
-  String get biometricUnlockSubtitle => '앱을 실행할 때 마스터 비밀번호 입력을 건너뛸 수 있습니다.';
+  String get biometricUnlockSubtitle => '비밀번호 입력 없이 기기의 생체 인식 센서로 잠금을 해제합니다.';
 
   @override
   String get biometricNotAvailable => '이 기기에서는 생체 인식 잠금 해제를 사용할 수 없습니다.';

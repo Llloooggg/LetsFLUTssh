@@ -1361,7 +1361,7 @@ class STr extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Uygulamayı başlatırken ana parolayı yazmaktan kaçının.';
+      'Parolayı yazmayın — cihazın biyometrik sensörüyle kilidi açın.';
 
   @override
   String get biometricNotAvailable =>

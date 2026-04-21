@@ -1365,7 +1365,7 @@ class SEs extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Evita escribir la contraseña maestra al iniciar la aplicación.';
+      'Evita escribir la contraseña: desbloquea con el sensor biométrico del dispositivo.';
 
   @override
   String get biometricNotAvailable =>

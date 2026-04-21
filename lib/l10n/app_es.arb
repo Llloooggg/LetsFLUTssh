@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "El selector de carpetas del sistema no está disponible. Pruebe otra ubicación o verifique los permisos de almacenamiento de la aplicación.",
   "biometricUnlockPrompt": "Desbloquear LetsFLUTssh",
   "biometricUnlockTitle": "Desbloquear con biometría",
-  "biometricUnlockSubtitle": "Evita escribir la contraseña maestra al iniciar la aplicación.",
+  "biometricUnlockSubtitle": "Evita escribir la contraseña: desbloquea con el sensor biométrico del dispositivo.",
   "biometricNotAvailable": "El desbloqueo biométrico no está disponible en este dispositivo.",
   "biometricEnableFailed": "No se pudo activar el desbloqueo biométrico.",
   "biometricEnabled": "Desbloqueo biométrico activado",

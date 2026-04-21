@@ -1356,7 +1356,7 @@ class SRu extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Не вводить мастер-пароль при запуске приложения.';
+      'Не вводить пароль — разблокировать биометрическим сенсором устройства.';
 
   @override
   String get biometricNotAvailable =>

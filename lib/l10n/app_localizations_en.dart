@@ -1348,7 +1348,7 @@ class SEn extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Skip typing the master password when launching the app.';
+      'Skip typing the password — unlock with the device biometric sensor.';
 
   @override
   String get biometricNotAvailable =>

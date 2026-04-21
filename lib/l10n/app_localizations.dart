@@ -2508,7 +2508,7 @@ abstract class S {
   /// No description provided for @biometricUnlockSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Skip typing the master password when launching the app.'**
+  /// **'Skip typing the password — unlock with the device biometric sensor.'**
   String get biometricUnlockSubtitle;
 
   /// No description provided for @biometricNotAvailable.

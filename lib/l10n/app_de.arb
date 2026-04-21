@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "Die System-Ordnerauswahl ist nicht verfügbar. Versuchen Sie einen anderen Speicherort oder überprüfen Sie die Speicherberechtigungen der App.",
   "biometricUnlockPrompt": "LetsFLUTssh entsperren",
   "biometricUnlockTitle": "Mit Biometrie entsperren",
-  "biometricUnlockSubtitle": "Master-Passwort beim Start der App nicht eingeben müssen.",
+  "biometricUnlockSubtitle": "Passwort nicht eingeben — mit dem Biometriesensor des Geräts entsperren.",
   "biometricNotAvailable": "Biometrische Entsperrung ist auf diesem Gerät nicht verfügbar.",
   "biometricEnableFailed": "Biometrische Entsperrung konnte nicht aktiviert werden.",
   "biometricEnabled": "Biometrische Entsperrung aktiviert",

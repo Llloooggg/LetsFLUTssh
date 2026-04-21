@@ -1309,7 +1309,7 @@ class SZh extends S {
   String get biometricUnlockTitle => '使用生物识别解锁';
 
   @override
-  String get biometricUnlockSubtitle => '启动应用时无需输入主密码。';
+  String get biometricUnlockSubtitle => '无需输入密码——使用设备生物识别传感器解锁。';
 
   @override
   String get biometricNotAvailable => '此设备不支持生物识别解锁。';

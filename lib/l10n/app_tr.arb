@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "Sistem klasör seçici kullanılamıyor. Başka bir konum deneyin veya uygulamanın depolama izinlerini kontrol edin.",
   "biometricUnlockPrompt": "LetsFLUTssh kilidini aç",
   "biometricUnlockTitle": "Biyometri ile kilidi aç",
-  "biometricUnlockSubtitle": "Uygulamayı başlatırken ana parolayı yazmaktan kaçının.",
+  "biometricUnlockSubtitle": "Parolayı yazmayın — cihazın biyometrik sensörüyle kilidi açın.",
   "biometricNotAvailable": "Bu cihazda biyometrik kilit açma kullanılamıyor.",
   "biometricEnableFailed": "Biyometrik kilit açma etkinleştirilemedi.",
   "biometricEnabled": "Biyometrik kilit açma etkinleştirildi",

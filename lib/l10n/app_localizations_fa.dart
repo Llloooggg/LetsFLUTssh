@@ -1350,7 +1350,7 @@ class SFa extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'هنگام اجرای برنامه نیازی به تایپ گذرواژهٔ اصلی نباشد.';
+      'گذرواژه را تایپ نکنید — با حسگر زیست‌سنجی دستگاه قفل را باز کنید.';
 
   @override
   String get biometricNotAvailable =>

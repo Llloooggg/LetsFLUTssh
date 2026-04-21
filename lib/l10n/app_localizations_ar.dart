@@ -1349,7 +1349,7 @@ class SAr extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'تجنّب كتابة كلمة المرور الرئيسية عند تشغيل التطبيق.';
+      'لا تحتاج إلى كتابة كلمة المرور — افتح القفل باستخدام مستشعر القياسات الحيوية في الجهاز.';
 
   @override
   String get biometricNotAvailable =>

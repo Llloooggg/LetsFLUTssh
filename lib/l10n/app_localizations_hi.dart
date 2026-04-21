@@ -1353,7 +1353,7 @@ class SHi extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'ऐप शुरू करते समय मास्टर पासवर्ड टाइप करने से बचें।';
+      'पासवर्ड टाइप न करें — डिवाइस के बायोमेट्रिक सेंसर से अनलॉक करें।';
 
   @override
   String get biometricNotAvailable =>

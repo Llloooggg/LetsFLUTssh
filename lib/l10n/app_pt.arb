@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "O seletor de pastas do sistema não está disponível. Tente outro local ou verifique as permissões de armazenamento do aplicativo.",
   "biometricUnlockPrompt": "Desbloquear LetsFLUTssh",
   "biometricUnlockTitle": "Desbloquear com biometria",
-  "biometricUnlockSubtitle": "Evite digitar a senha mestra ao iniciar o aplicativo.",
+  "biometricUnlockSubtitle": "Evite digitar a senha — desbloqueie com o sensor biométrico do dispositivo.",
   "biometricNotAvailable": "O desbloqueio biométrico não está disponível neste dispositivo.",
   "biometricEnableFailed": "Não foi possível ativar o desbloqueio biométrico.",
   "biometricEnabled": "Desbloqueio biométrico ativado",

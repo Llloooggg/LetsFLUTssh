@@ -1361,7 +1361,7 @@ class SPt extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Evite digitar a senha mestra ao iniciar o aplicativo.';
+      'Evite digitar a senha — desbloqueie com o sensor biométrico do dispositivo.';
 
   @override
   String get biometricNotAvailable =>

@@ -421,7 +421,7 @@
   "errExportPickerUnavailable": "Bộ chọn thư mục của hệ thống không khả dụng. Hãy thử vị trí khác hoặc kiểm tra quyền lưu trữ của ứng dụng.",
   "biometricUnlockPrompt": "Mở khóa LetsFLUTssh",
   "biometricUnlockTitle": "Mở khóa bằng sinh trắc học",
-  "biometricUnlockSubtitle": "Không cần nhập mật khẩu chính khi khởi động ứng dụng.",
+  "biometricUnlockSubtitle": "Không cần nhập mật khẩu — mở khóa bằng cảm biến sinh trắc học của thiết bị.",
   "biometricNotAvailable": "Mở khóa sinh trắc học không khả dụng trên thiết bị này.",
   "biometricEnableFailed": "Không thể bật mở khóa sinh trắc học.",
   "biometricEnabled": "Đã bật mở khóa sinh trắc học",

@@ -1359,7 +1359,7 @@ class SId extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Hindari mengetik kata sandi utama saat membuka aplikasi.';
+      'Tidak perlu mengetik kata sandi — buka kunci dengan sensor biometrik perangkat.';
 
   @override
   String get biometricNotAvailable =>

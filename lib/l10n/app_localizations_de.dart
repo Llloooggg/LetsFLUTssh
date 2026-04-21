@@ -1368,7 +1368,7 @@ class SDe extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'Master-Passwort beim Start der App nicht eingeben müssen.';
+      'Passwort nicht eingeben — mit dem Biometriesensor des Geräts entsperren.';
 
   @override
   String get biometricNotAvailable =>

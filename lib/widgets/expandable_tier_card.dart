@@ -380,6 +380,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                   if (_passwordToggleAvailable)
                     _ModifierRow(
                       label: l10n.modifierPasswordLabel,
+                      subtitle: l10n.modifierPasswordSubtitle,
                       icon: Icons.password,
                       value: _passwordEnabled,
                       enabled: widget.tierAvailable,
@@ -394,6 +395,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                   if (widget.biometricSpec != null)
                     _ModifierRow(
                       label: l10n.biometricUnlockTitle,
+                      subtitle: l10n.biometricUnlockSubtitle,
                       icon: Icons.fingerprint,
                       value: widget.biometricSpec!.value,
                       enabled: widget.biometricSpec!.enabled,
@@ -847,6 +849,7 @@ class _ModifierRow extends StatelessWidget {
     required this.enabled,
     required this.onChanged,
     this.icon,
+    this.subtitle,
     this.disabledReason,
   });
 
@@ -861,6 +864,14 @@ class _ModifierRow extends StatelessWidget {
   /// unrelated callers (if any) can skip it.
   final IconData? icon;
 
+  /// Second line under the label — one-sentence caption in `fgDim`
+  /// at `AppFonts.xs`, mirrors the `_SettingsRow.subtitle` shape the
+  /// auto-lock tile renders with. Shared so the three modifier rows
+  /// (password / biometric / auto-lock) read as the same kind of
+  /// setting instead of password+biometric looking like bare
+  /// switches next to an explanatory auto-lock tile.
+  final String? subtitle;
+
   /// Shown as a hover tooltip when the row is disabled — explains
   /// *why* the toggle cannot flip (tier not current, password not
   /// set, biometric unsupported by the platform, etc.). Tooltip is
@@ -870,29 +881,39 @@ class _ModifierRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final labelBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          // Muted (`fgDim`) across every modifier row so password
+          // / biometric / auto-lock labels sit at the same visual
+          // weight. Earlier revisions used `fg` (full white) on
+          // password + biometric while auto-lock used a
+          // `_SettingsRow` with its default mix of `fg` label +
+          // `fgDim` subtitle, which read as "three different
+          // kinds of setting" instead of "three rows of the
+          // same kind". Consistent muting keeps the Switch /
+          // selector as the only element that draws attention.
+          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
+        ),
+        if (subtitle != null && subtitle!.isNotEmpty)
+          Text(
+            subtitle!,
+            style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.xs),
+          ),
+      ],
+    );
     Widget row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
             Icon(icon, size: 16, color: AppTheme.fgDim),
             const SizedBox(width: 10),
           ],
-          Expanded(
-            child: Text(
-              label,
-              // Muted (`fgDim`) across every modifier row so password
-              // / biometric / auto-lock labels sit at the same visual
-              // weight. Earlier revisions used `fg` (full white) on
-              // password + biometric while auto-lock used a
-              // `_SettingsRow` with its default mix of `fg` label +
-              // `fgDim` subtitle, which read as "three different
-              // kinds of setting" instead of "three rows of the
-              // same kind". Consistent muting keeps the Switch /
-              // selector as the only element that draws attention.
-              style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-            ),
-          ),
+          Expanded(child: labelBlock),
           Switch(value: value, onChanged: enabled ? onChanged : null),
         ],
       ),
