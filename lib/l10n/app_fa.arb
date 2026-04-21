@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "مدیریت جفت کلیدهای SSH برای احراز هویت",
   "noKeys": "کلید SSH وجود ندارد. یکی را وارد کنید یا بسازید.",
   "generateKey": "ساخت کلید",
+  "addKey": "افزودن کلید",
+  "filePickerUnavailable": "انتخابگر فایل در این سیستم در دسترس نیست",
   "importKey": "وارد کردن کلید",
   "keyLabel": "نام کلید",
   "keyLabelHint": "مثلاً سرور کاری، GitHub",

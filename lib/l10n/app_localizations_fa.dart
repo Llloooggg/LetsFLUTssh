@@ -1829,6 +1829,13 @@ class SFa extends S {
   String get generateKey => 'ساخت کلید';
 
   @override
+  String get addKey => 'افزودن کلید';
+
+  @override
+  String get filePickerUnavailable =>
+      'انتخابگر فایل در این سیستم در دسترس نیست';
+
+  @override
   String get importKey => 'وارد کردن کلید';
 
   @override

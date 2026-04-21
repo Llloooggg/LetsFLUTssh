@@ -1826,6 +1826,13 @@ class SVi extends S {
   String get generateKey => 'Tạo khóa';
 
   @override
+  String get addKey => 'Thêm khóa';
+
+  @override
+  String get filePickerUnavailable =>
+      'Trình chọn tệp không khả dụng trên hệ thống này';
+
+  @override
   String get importKey => 'Nhập khóa';
 
   @override

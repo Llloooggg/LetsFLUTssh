@@ -3279,6 +3279,18 @@ abstract class S {
   /// **'Generate Key'**
   String get generateKey;
 
+  /// No description provided for @addKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Key'**
+  String get addKey;
+
+  /// No description provided for @filePickerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'File picker unavailable on this system'**
+  String get filePickerUnavailable;
+
   /// No description provided for @importKey.
   ///
   /// In en, this message translates to:

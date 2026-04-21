@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "إدارة أزواج مفاتيح SSH للمصادقة",
   "noKeys": "لا توجد مفاتيح SSH. قم بالاستيراد أو التوليد.",
   "generateKey": "توليد مفتاح",
+  "addKey": "إضافة مفتاح",
+  "filePickerUnavailable": "منتقي الملفات غير متاح في هذا النظام",
   "importKey": "استيراد مفتاح",
   "keyLabel": "اسم المفتاح",
   "keyLabelHint": "مثال: خادم العمل، GitHub",

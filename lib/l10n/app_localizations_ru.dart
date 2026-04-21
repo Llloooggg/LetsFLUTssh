@@ -1844,6 +1844,13 @@ class SRu extends S {
   String get generateKey => 'Сгенерировать ключ';
 
   @override
+  String get addKey => 'Добавить ключ';
+
+  @override
+  String get filePickerUnavailable =>
+      'Файловый пикер недоступен в этой системе';
+
+  @override
   String get importKey => 'Импортировать ключ';
 
   @override

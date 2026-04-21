@@ -1123,6 +1123,8 @@
   "sshKeysSubtitle": "Manage SSH key pairs for authentication",
   "noKeys": "No SSH keys. Import or generate one.",
   "generateKey": "Generate Key",
+  "addKey": "Add Key",
+  "filePickerUnavailable": "File picker unavailable on this system",
   "importKey": "Import Key",
   "keyLabel": "Key Label",
   "keyLabelHint": "e.g. Work Server, GitHub",

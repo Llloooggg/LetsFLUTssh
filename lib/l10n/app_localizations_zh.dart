@@ -1769,6 +1769,12 @@ class SZh extends S {
   String get generateKey => '生成密钥';
 
   @override
+  String get addKey => '添加密钥';
+
+  @override
+  String get filePickerUnavailable => '此系统上无法使用文件选择器';
+
+  @override
   String get importKey => '导入密钥';
 
   @override

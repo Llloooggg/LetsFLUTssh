@@ -1854,6 +1854,13 @@ class SDe extends S {
   String get generateKey => 'Schlüssel generieren';
 
   @override
+  String get addKey => 'Schlüssel hinzufügen';
+
+  @override
+  String get filePickerUnavailable =>
+      'Dateiauswahl auf diesem System nicht verfügbar';
+
+  @override
   String get importKey => 'Schlüssel importieren';
 
   @override

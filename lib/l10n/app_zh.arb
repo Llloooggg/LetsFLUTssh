@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "管理用于身份验证的 SSH 密钥对",
   "noKeys": "没有 SSH 密钥。请导入或生成一个。",
   "generateKey": "生成密钥",
+  "addKey": "添加密钥",
+  "filePickerUnavailable": "此系统上无法使用文件选择器",
   "importKey": "导入密钥",
   "keyLabel": "密钥名称",
   "keyLabelHint": "如：工作服务器、GitHub",

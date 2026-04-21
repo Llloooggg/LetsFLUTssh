@@ -1779,6 +1779,12 @@ class SKo extends S {
   String get generateKey => '키 생성';
 
   @override
+  String get addKey => '키 추가';
+
+  @override
+  String get filePickerUnavailable => '이 시스템에서 파일 선택기를 사용할 수 없습니다';
+
+  @override
   String get importKey => '키 가져오기';
 
   @override

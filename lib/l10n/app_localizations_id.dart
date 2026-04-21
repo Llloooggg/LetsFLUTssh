@@ -1839,6 +1839,13 @@ class SId extends S {
   String get generateKey => 'Buat kunci';
 
   @override
+  String get addKey => 'Tambah kunci';
+
+  @override
+  String get filePickerUnavailable =>
+      'Pemilih berkas tidak tersedia pada sistem ini';
+
+  @override
   String get importKey => 'Impor kunci';
 
   @override

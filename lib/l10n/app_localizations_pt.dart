@@ -1848,6 +1848,13 @@ class SPt extends S {
   String get generateKey => 'Gerar chave';
 
   @override
+  String get addKey => 'Adicionar chave';
+
+  @override
+  String get filePickerUnavailable =>
+      'Seletor de arquivos indisponível neste sistema';
+
+  @override
   String get importKey => 'Importar chave';
 
   @override

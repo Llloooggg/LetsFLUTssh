@@ -1836,6 +1836,13 @@ class SHi extends S {
   String get generateKey => 'कुंजी जनरेट करें';
 
   @override
+  String get addKey => 'कुंजी जोड़ें';
+
+  @override
+  String get filePickerUnavailable =>
+      'इस सिस्टम पर फ़ाइल चयनकर्ता उपलब्ध नहीं है';
+
+  @override
   String get importKey => 'कुंजी आयात करें';
 
   @override

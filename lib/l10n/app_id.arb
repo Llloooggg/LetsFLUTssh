@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "Kelola pasangan kunci SSH untuk autentikasi",
   "noKeys": "Tidak ada kunci SSH. Impor atau buat satu.",
   "generateKey": "Buat kunci",
+  "addKey": "Tambah kunci",
+  "filePickerUnavailable": "Pemilih berkas tidak tersedia pada sistem ini",
   "importKey": "Impor kunci",
   "keyLabel": "Nama kunci",
   "keyLabelHint": "cth. Server Kerja, GitHub",

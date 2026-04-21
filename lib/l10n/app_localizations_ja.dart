@@ -1783,6 +1783,12 @@ class SJa extends S {
   String get generateKey => 'キーを生成';
 
   @override
+  String get addKey => 'キーを追加';
+
+  @override
+  String get filePickerUnavailable => 'このシステムではファイルピッカーを利用できません';
+
+  @override
   String get importKey => 'キーをインポート';
 
   @override

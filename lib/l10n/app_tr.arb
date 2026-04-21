@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "Kimlik doğrulama için SSH anahtar çiftlerini yönetin",
   "noKeys": "SSH anahtarı yok. İçe aktarın veya oluşturun.",
   "generateKey": "Anahtar oluştur",
+  "addKey": "Anahtar ekle",
+  "filePickerUnavailable": "Dosya seçici bu sistemde kullanılamıyor",
   "importKey": "Anahtar içe aktar",
   "keyLabel": "Anahtar adı",
   "keyLabelHint": "örn. İş Sunucusu, GitHub",

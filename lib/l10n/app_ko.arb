@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "인증용 SSH 키 쌍 관리",
   "noKeys": "SSH 키가 없습니다. 가져오거나 생성하세요.",
   "generateKey": "키 생성",
+  "addKey": "키 추가",
+  "filePickerUnavailable": "이 시스템에서 파일 선택기를 사용할 수 없습니다",
   "importKey": "키 가져오기",
   "keyLabel": "키 이름",
   "keyLabelHint": "예: 업무 서버, GitHub",

@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "Quản lý cặp khóa SSH để xác thực",
   "noKeys": "Không có khóa SSH. Nhập hoặc tạo một khóa.",
   "generateKey": "Tạo khóa",
+  "addKey": "Thêm khóa",
+  "filePickerUnavailable": "Trình chọn tệp không khả dụng trên hệ thống này",
   "importKey": "Nhập khóa",
   "keyLabel": "Tên khóa",
   "keyLabelHint": "VD: Máy chủ công việc, GitHub",

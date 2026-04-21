@@ -1845,6 +1845,12 @@ class STr extends S {
   String get generateKey => 'Anahtar oluştur';
 
   @override
+  String get addKey => 'Anahtar ekle';
+
+  @override
+  String get filePickerUnavailable => 'Dosya seçici bu sistemde kullanılamıyor';
+
+  @override
   String get importKey => 'Anahtar içe aktar';
 
   @override

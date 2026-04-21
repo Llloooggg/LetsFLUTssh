@@ -1858,6 +1858,13 @@ class SFr extends S {
   String get generateKey => 'Générer une clé';
 
   @override
+  String get addKey => 'Ajouter une clé';
+
+  @override
+  String get filePickerUnavailable =>
+      'Sélecteur de fichiers indisponible sur ce système';
+
+  @override
   String get importKey => 'Importer une clé';
 
   @override

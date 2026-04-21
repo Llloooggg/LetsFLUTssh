@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "認証用 SSH キーペアの管理",
   "noKeys": "SSH キーがありません。インポートまたは生成してください。",
   "generateKey": "キーを生成",
+  "addKey": "キーを追加",
+  "filePickerUnavailable": "このシステムではファイルピッカーを利用できません",
   "importKey": "キーをインポート",
   "keyLabel": "キー名",
   "keyLabelHint": "例：業務サーバー、GitHub",

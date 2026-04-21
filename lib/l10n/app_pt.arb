@@ -551,6 +551,8 @@
   "sshKeysSubtitle": "Gerenciar pares de chaves SSH para autenticação",
   "noKeys": "Sem chaves SSH. Importe ou gere uma.",
   "generateKey": "Gerar chave",
+  "addKey": "Adicionar chave",
+  "filePickerUnavailable": "Seletor de arquivos indisponível neste sistema",
   "importKey": "Importar chave",
   "keyLabel": "Nome da chave",
   "keyLabelHint": "ex. Servidor de trabalho, GitHub",

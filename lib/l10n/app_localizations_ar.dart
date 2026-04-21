@@ -1832,6 +1832,12 @@ class SAr extends S {
   String get generateKey => 'توليد مفتاح';
 
   @override
+  String get addKey => 'إضافة مفتاح';
+
+  @override
+  String get filePickerUnavailable => 'منتقي الملفات غير متاح في هذا النظام';
+
+  @override
   String get importKey => 'استيراد مفتاح';
 
   @override

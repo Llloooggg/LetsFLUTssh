@@ -1828,6 +1828,12 @@ class SEn extends S {
   String get generateKey => 'Generate Key';
 
   @override
+  String get addKey => 'Add Key';
+
+  @override
+  String get filePickerUnavailable => 'File picker unavailable on this system';
+
+  @override
   String get importKey => 'Import Key';
 
   @override

@@ -1852,6 +1852,13 @@ class SEs extends S {
   String get generateKey => 'Generar clave';
 
   @override
+  String get addKey => 'Agregar clave';
+
+  @override
+  String get filePickerUnavailable =>
+      'Selector de archivos no disponible en este sistema';
+
+  @override
   String get importKey => 'Importar clave';
 
   @override
