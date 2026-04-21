@@ -70,6 +70,7 @@ import 'providers/key_provider.dart';
 import 'providers/master_password_provider.dart';
 import 'providers/security_provider.dart';
 import 'providers/security_reinit_provider.dart';
+import 'providers/session_credential_cache_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/snippet_provider.dart';
 import 'providers/tag_provider.dart';
@@ -338,6 +339,21 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _reinitSecurityFromReset();
       });
+    });
+    // Re-open the drift / SQLCipher handle after a lock → unlock
+    // transition. `AutoLockDetector._triggerLock` now always closes
+    // the DB (so the C-layer page cipher cache is zeroed alongside
+    // the Dart-side `SecretBuffer`), so every unlock needs a fresh
+    // `_injectDatabase` under the key the lock-screen unlock flow
+    // just pushed back into `securityStateProvider`. Previous-state
+    // gate filters the initial false → false emission plus any
+    // redundant lock→lock transitions.
+    ref.listenManual<bool>(lockStateProvider, (prev, next) {
+      if (prev == true && next == false) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await _reopenDatabaseAfterUnlock();
+        });
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
@@ -735,7 +751,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return keyStorage.readKey();
       },
       onReset: () async {
-        await WipeAllService().wipeAll();
+        await WipeAllService(
+          credentialCacheEvict: ref
+              .read(sessionCredentialCacheProvider)
+              .evictAll,
+        ).wipeAll();
         _credentialsWereReset = true;
         // Fire the same reinit signal the Settings → Reset All Data
         // flow uses. Without it the unlock caller falls through to
@@ -798,7 +818,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         return unsealed;
       },
       onReset: () async {
-        await WipeAllService().wipeAll();
+        await WipeAllService(
+          credentialCacheEvict: ref
+              .read(sessionCredentialCacheProvider)
+              .evictAll,
+        ).wipeAll();
         _credentialsWereReset = true;
         // Fire the same reinit signal the Settings → Reset All Data
         // flow uses. Without it the unlock caller falls through to
@@ -1176,6 +1200,43 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     await _handleDatabaseCorruption();
   }
 
+  /// Re-open the drift / SQLCipher handle after a lock → unlock
+  /// transition. The auto-lock path unconditionally closes the DB
+  /// handle so SQLCipher's C-layer page-cipher cache is zeroed
+  /// alongside the Dart-side [SecretBuffer]. On unlock the lock
+  /// screen re-derives the DB key (paranoid master password path)
+  /// or reads it from the biometric vault, pushes it back into
+  /// [securityStateProvider], and flips [lockStateProvider] off —
+  /// this callback then walks the usual injection path so every
+  /// store gets a fresh DB reference. The per-session
+  /// [SessionCredentialCache] is Riverpod-scoped and survives the
+  /// whole cycle, so live connections reconnect without re-prompting.
+  Future<void> _reopenDatabaseAfterUnlock() async {
+    if (!mounted) return;
+    final security = ref.read(securityStateProvider);
+    final key = security.encryptionKey;
+    if (key == null) {
+      AppLogger.instance.log(
+        'Unlock re-open: securityStateProvider has no key — skipping',
+        name: 'App',
+      );
+      return;
+    }
+    final modifiers = ref.read(configProvider).security?.modifiers;
+    // `_injectDatabase` calls `securityStateProvider.set(level, key)`
+    // internally, which copies the bytes into a fresh SecretBuffer
+    // and disposes the old one. Reading the alias here and passing
+    // it through is fine because the copy happens before the dispose
+    // inside the notifier — same contract `_releaseLock` relies on.
+    await _injectDatabase(
+      key: key,
+      level: security.level,
+      modifiers: modifiers,
+    );
+    if (!mounted) return;
+    await ref.read(sessionProvider.notifier).load();
+  }
+
   /// Re-enter the first-launch provisioning path after a user-driven
   /// wipe completed elsewhere (Settings → Reset All Data). Closes
   /// the stale DB handle, re-runs `_firstLaunchSetup`, and re-probes
@@ -1238,7 +1299,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       }
     }
     _activeDatabase = null;
-    await WipeAllService().wipeAll();
+    await WipeAllService(
+      credentialCacheEvict: ref.read(sessionCredentialCacheProvider).evictAll,
+    ).wipeAll();
     await ref
         .read(configProvider.notifier)
         .update((c) => c.copyWith(security: null));
@@ -1739,32 +1802,58 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final activeTab = focusedPanel?.activeTab;
     final reg = AppShortcutRegistry.instance;
 
+    // Keyboard shortcuts can fire through the lock overlay because
+    // the overlay only blocks pointer hit-testing — focus traversal
+    // still lets Ctrl+N / Ctrl+, bubble past the LockScreen Focus
+    // scope into MainScreen's CallbackShortcuts. Auto-lock closes
+    // the encrypted store, so reaching Settings or "new session"
+    // while locked would explode inside drift on the first DB read.
+    // Short-circuit every shortcut via a common gate.
+    bool blocked() => ref.read(lockStateProvider);
+
     return reg.buildCallbackMap({
-      AppShortcut.newSession: () => _newSession(context, ref),
+      AppShortcut.newSession: () {
+        if (blocked()) return;
+        _newSession(context, ref);
+      },
       AppShortcut.closeTab: () {
+        if (blocked()) return;
         if (activeTab != null) {
           notifier.closeTab(ws.focusedPanelId, activeTab.id);
         }
       },
-      AppShortcut.nextTab: () => _switchTab(ws, 1),
-      AppShortcut.prevTab: () => _switchTab(ws, -1),
+      AppShortcut.nextTab: () {
+        if (blocked()) return;
+        _switchTab(ws, 1);
+      },
+      AppShortcut.prevTab: () {
+        if (blocked()) return;
+        _switchTab(ws, -1);
+      },
       AppShortcut.toggleSidebar: () {
+        if (blocked()) return;
         setState(() => _sidebarOpen = !_sidebarOpen);
       },
       AppShortcut.splitRight: () {
+        if (blocked()) return;
         if (activeTab != null) {
           notifier.duplicateTab(ws.focusedPanelId);
         }
       },
       AppShortcut.splitDown: () {
+        if (blocked()) return;
         if (activeTab != null) {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
       },
       AppShortcut.maximizePanel: () {
+        if (blocked()) return;
         notifier.toggleMaximizePanel(ws.focusedPanelId);
       },
-      AppShortcut.openSettings: () => SettingsDialog.show(context),
+      AppShortcut.openSettings: () {
+        if (blocked()) return;
+        SettingsDialog.show(context);
+      },
     });
   }
 

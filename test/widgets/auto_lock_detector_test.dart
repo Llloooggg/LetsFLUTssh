@@ -151,10 +151,15 @@ void main() {
       },
     );
 
-    testWidgets('idle timeout with live sessions locks but keeps the key warm', (
+    testWidgets('idle timeout with live sessions STILL wipes the DB key '
+        '(always-wipe-on-lock policy; SessionCredentialCache keeps reconnect)', (
       tester,
     ) async {
       // One "active" connection so the detector can see the list is non-empty.
+      // Under the old gate the presence of an active session kept the DB key
+      // warm; under the always-wipe-on-lock policy the key is zeroed
+      // regardless, because SessionCredentialCache carries each session's
+      // auth envelope in page-locked memory outside the encrypted store.
       final liveConn = Connection(
         id: 'alive',
         label: 'alive',
@@ -194,10 +199,11 @@ void main() {
       );
       expect(
         container.read(securityStateProvider).encryptionKey,
-        isNotNull,
+        isNull,
         reason:
-            'live sessions need DB reads on unlock — keep the key '
-            'warm even while the UI is locked',
+            'always-wipe-on-lock: the DB key must be zeroed on every '
+            'lock regardless of active sessions; live sessions remain '
+            'reconnectable via SessionCredentialCache, not via a warm key',
       );
     });
 

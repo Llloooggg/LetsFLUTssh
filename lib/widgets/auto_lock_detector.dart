@@ -9,45 +9,40 @@ import '../core/security/session_lock_listener.dart';
 import '../core/security/terminal_scrubber.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
-import '../providers/connection_provider.dart';
 import '../providers/security_provider.dart';
 import '../providers/session_provider.dart';
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
-/// minutes of user inactivity when security level is `masterPassword`.
+/// minutes of user inactivity when a user-typed secret is configured.
 ///
 /// What "lock" means:
 ///   * The global [lockStateProvider] flips to `true`; the root widget
 ///     swaps the UI for a lock screen that blocks interaction until the
-///     user re-authenticates (master password or biometrics). **Always**
-///     fires when the timer expires.
-///   * The in-memory DB key is zeroed via
-///     `securityStateProvider.clearEncryption()` — but **only when no
-///     SSH/SFTP sessions are active**. The session count comes from
-///     [connectionManagerProvider]. The reasoning: clearing the key kills
-///     any future DB read but keeps the live SSH connections alive (they
-///     run in dartssh2 isolates with their own state); however, the user
-///     will likely want to interact with those sessions, and the moment
-///     they tap to bring up SFTP for one we'd hit a locked DB. Easier UX
-///     to just keep the key warm until everything is idle. Re-evaluation
-///     happens on the next idle tick / lifecycle event, so the DB does
-///     eventually get re-locked once the user finishes.
+///     user re-authenticates (master password or biometrics).
+///   * The in-memory DB key is **always** zeroed via
+///     `securityStateProvider.clearEncryption()` — regardless of whether
+///     active SSH sessions are present. Previously the wipe was gated
+///     on `activeSessions.isEmpty` to keep SFTP reachable, which meant
+///     RAM forensics of a locked app could still recover the DB key as
+///     long as one session was connected — flattening T1+password and
+///     T2+password in the threat matrix. The gate is removed; live
+///     session reconnect is satisfied instead by
+///     `SessionCredentialCache` (per-session page-locked auth envelope
+///     that survives the lock), so the encrypted store can close
+///     without losing the "reconnect after unlock" UX.
+///   * The drift / SQLCipher handle is closed so the C-layer page
+///     cipher cache is also zeroed. `main._injectDatabase` opens a
+///     fresh handle after unlock under the re-derived key.
 ///
 /// Triggers:
 ///   * Idle timer (user inactivity past the configured timeout).
 ///   * OS lifecycle going to `paused` / `inactive` / `hidden` — same as
 ///     the user actively switching away. The lock fires immediately so
 ///     the screen is already overlaid by the time the OS lock screen
-///     dismisses. (Same gating: DB only re-locked if no live sessions.)
-///
-/// What it does NOT do:
-///   * Close the drift database file handle. SQLite3MultipleCiphers still
-///     has the cipher key in its internal page-cipher runtime state, so
-///     DB reads continue to work until the app is restarted. Closing and
-///     re-opening the DB would require coordinating with every open SSH
-///     session, which is the trade-off the session-count gate above is
-///     specifically designed to avoid.
+///     dismisses.
+///   * OS session-lock signal (Win+L / Ctrl+Cmd+Q / GNOME screensaver)
+///     via [SessionLockListener].
 ///
 /// Activity tracking: any pointer, keyboard, or focus event resets the
 /// timer. Two mouse moves per second is enough to keep it alive.
@@ -188,12 +183,9 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   void _triggerLock() {
     final locked = ref.read(lockStateProvider);
     if (locked) return;
-    final activeSessions = ref.read(connectionManagerProvider).connections;
-    final hasSessions = activeSessions.isNotEmpty;
     AppLogger.instance.log(
       'Auto-lock triggered (idle=${_timeout.inMinutes}m, '
-      'activeSessions=${activeSessions.length}, '
-      'clearKey=${!hasSessions})',
+      'keyWiped=true, dbClosed=true)',
       name: 'AutoLock',
     );
     // Always overlay the lock screen — that's the user-visible "locked" state.
@@ -206,19 +198,15 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     // read it. Clearing the scrollback is cheap even when no
     // terminals are registered (empty-set iteration).
     TerminalScrubber.instance.scrubAll();
-    // Only clear the in-memory DB key when no SSH sessions are running.
-    // With live sessions, keep the key warm so the user can immediately
-    // interact with their connections after unlocking. The next idle
-    // tick / lifecycle event re-evaluates and eventually re-locks the DB.
-    if (!hasSessions) {
-      ref.read(securityStateProvider.notifier).clearEncryption();
-      // Close the Drift / SQLCipher handle too — the Dart-side key
-      // wipe does not reach SQLCipher's C-layer page cache, which
-      // retains the DB key inside the open handle. Closing the
-      // handle forces SQLCipher to zero its cache. Unlock re-opens
-      // via `main._injectDatabase` under the freshly-supplied key.
-      // Fire-and-forget because the UI should not block on a close.
-      unawaited(ref.read(sessionStoreProvider).closeDatabase());
-    }
+    // Unconditionally zero the in-memory DB key and close the
+    // drift / SQLCipher handle. Live SSH sessions stay reconnectable
+    // because `SessionCredentialCache` (populated on connect, kept
+    // alive across the lock) holds each session's auth envelope in
+    // page-locked memory outside the DB. The next idle tick / unlock
+    // re-opens the DB via `main._injectDatabase` under the freshly
+    // re-derived key.
+    ref.read(securityStateProvider.notifier).clearEncryption();
+    // Fire-and-forget — UI must not block on a close.
+    unawaited(ref.read(sessionStoreProvider).closeDatabase());
   }
 }
