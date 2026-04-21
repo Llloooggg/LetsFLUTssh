@@ -408,6 +408,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       await ref
           .read(configProvider.notifier)
           .update((c) => c.copyWith(security: null));
+      // Kick the app back into the first-launch provisioning path:
+      // closes the (now stale) DB handle, re-runs
+      // `_firstLaunchSetup`, and surfaces the one-shot toast the same
+      // way a genuine first launch does. Without this the wipe leaves
+      // the app holding a dropped DB key and a deleted database file;
+      // the first subsequent UI action would crash on a missing
+      // handle.
+      requestSecurityReinit(ref);
       if (context.mounted) {
         Navigator.of(context).pop();
         Toast.show(

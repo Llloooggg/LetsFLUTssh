@@ -1990,7 +1990,7 @@ class SVi extends S {
 
   @override
   String get dbCorruptBody =>
-      'Cơ sở dữ liệu đã mã hóa trên đĩa không khớp với mức bảo mật được ghi lại cho cài đặt này. Thường có nghĩa là cài đặt trước đó bị gián đoạn hoặc dữ liệu thuộc bản dựng dùng cipher khác.\n\nLetsFLUTssh không thể tiếp tục cho đến khi cơ sở dữ liệu được mở bằng thông tin xác thực đúng của bản dựng tương ứng hoặc bị xóa và thiết lập lại.';
+      'Dữ liệu trên đĩa không mở được. Hãy thử một thông tin xác thực khác, hoặc đặt lại để bắt đầu từ đầu.';
 
   @override
   String get dbCorruptWarning =>

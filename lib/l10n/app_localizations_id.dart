@@ -2002,7 +2002,7 @@ class SId extends S {
 
   @override
   String get dbCorruptBody =>
-      'Basis data terenkripsi di disk tidak cocok dengan tingkat keamanan yang tercatat untuk instalasi ini. Biasanya ini berarti setup sebelumnya terganggu atau data berasal dari build dengan cipher berbeda.\n\nLetsFLUTssh tidak dapat melanjutkan sampai basis data dibuka dengan kredensial yang benar dari build yang cocok atau dihapus dan disiapkan ulang.';
+      'Data di disk tidak dapat dibuka. Coba kredensial lain atau setel ulang untuk mulai dari awal.';
 
   @override
   String get dbCorruptWarning =>

@@ -2027,7 +2027,7 @@ class SFr extends S {
 
   @override
   String get dbCorruptBody =>
-      'La base de données chiffrée sur le disque ne correspond pas au niveau de sécurité enregistré pour cette installation. Cela signifie généralement qu\'une configuration précédente a été interrompue ou que les données proviennent d\'une version avec un chiffrement différent.\n\nLetsFLUTssh ne peut pas continuer tant que la base n\'est pas ouverte avec les bons identifiants d\'une version compatible, ou effacée et reconfigurée.';
+      'Les données sur le disque ne s\'ouvrent pas. Essayez un autre identifiant ou réinitialisez pour repartir à zéro.';
 
   @override
   String get dbCorruptWarning =>

@@ -3558,7 +3558,7 @@ abstract class S {
   /// No description provided for @dbCorruptBody.
   ///
   /// In en, this message translates to:
-  /// **'The encrypted database on disk does not match the security level recorded for this install. This usually means a previous setup was interrupted, or the data is from a build that used a different cipher.\n\nLetsFLUTssh cannot proceed until the database is either opened with the right credentials by a matching build, or wiped and set up fresh.'**
+  /// **'The data on disk cannot be opened. Try a different credential, or reset to start fresh.'**
   String get dbCorruptBody;
 
   /// No description provided for @dbCorruptWarning.

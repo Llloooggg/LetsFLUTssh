@@ -2024,7 +2024,7 @@ class SDe extends S {
 
   @override
   String get dbCorruptBody =>
-      'Die verschlüsselte Datenbank auf der Festplatte passt nicht zur aufgezeichneten Sicherheitsstufe dieser Installation. Meist bedeutet das, dass eine vorherige Einrichtung unterbrochen wurde oder die Daten aus einem Build mit anderem Cipher stammen.\n\nLetsFLUTssh kann nicht fortfahren, bis die Datenbank entweder mit den richtigen Anmeldedaten eines passenden Builds geöffnet oder gelöscht und neu eingerichtet wird.';
+      'Die Daten auf der Festplatte lassen sich nicht öffnen. Probiere andere Anmeldedaten oder setze zurück, um neu zu starten.';
 
   @override
   String get dbCorruptWarning =>

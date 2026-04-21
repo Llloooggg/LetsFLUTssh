@@ -1942,8 +1942,7 @@ class SJa extends S {
   String get dbCorruptTitle => 'データベースを開けません';
 
   @override
-  String get dbCorruptBody =>
-      'ディスク上の暗号化データベースが、このインストールに記録されているセキュリティ階層と一致しません。通常、以前のセットアップが中断されたか、データが別の暗号を使用したビルドのものであることを意味します。\n\n一致するビルドの正しい認証情報でデータベースを開くか、消去して新規にセットアップするまで、LetsFLUTssh は続行できません。';
+  String get dbCorruptBody => 'ディスク上のデータを開けません。別の認証情報を試すか、リセットして最初からやり直してください。';
 
   @override
   String get dbCorruptWarning =>

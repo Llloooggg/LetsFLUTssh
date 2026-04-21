@@ -2009,7 +2009,7 @@ class STr extends S {
 
   @override
   String get dbCorruptBody =>
-      'Diskteki şifrelenmiş veritabanı, bu kurulum için kaydedilen güvenlik düzeyiyle eşleşmiyor. Bu genellikle önceki bir kurulumun kesintiye uğradığı veya verilerin farklı şifreli bir yapıdan kaldığı anlamına gelir.\n\nLetsFLUTssh, veritabanı uygun yapının doğru kimlik bilgileriyle açılana veya silinip yeniden kurulana kadar devam edemez.';
+      'Diskteki veriler açılamıyor. Farklı bir kimlik bilgisi deneyin veya sıfırlayıp baştan başlayın.';
 
   @override
   String get dbCorruptWarning =>

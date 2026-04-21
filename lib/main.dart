@@ -69,6 +69,7 @@ import 'providers/connection_provider.dart';
 import 'providers/key_provider.dart';
 import 'providers/master_password_provider.dart';
 import 'providers/security_provider.dart';
+import 'providers/security_reinit_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/snippet_provider.dart';
 import 'providers/tag_provider.dart';
@@ -312,6 +313,11 @@ class LetsFLUTsshApp extends ConsumerStatefulWidget {
 class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   late final AppLifecycleListener _lifecycleListener;
 
+  /// Last value of `securityReinitProvider` we acted on — lets
+  /// `listenManual` fire `_reinitSecurityFromReset` only when the
+  /// counter goes up, not on the provider's initial read.
+  int _lastReinitTick = 0;
+
   @override
   void initState() {
     super.initState();
@@ -320,6 +326,19 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onRestart: _reloadSessions,
       onResume: _reloadSessions,
     );
+    // Settings → Reset All Data pokes `securityReinitProvider` after
+    // `WipeAllService.wipeAll()` so the app re-enters the same
+    // first-launch provisioning path that runs on a cold-start
+    // fresh install. Without the listener the reset flow would
+    // leave the app in `security: null` with no DB open — every
+    // subsequent UI action would crash on a missing handle.
+    ref.listenManual<int>(securityReinitProvider, (prev, next) {
+      if (next <= _lastReinitTick) return;
+      _lastReinitTick = next;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _reinitSecurityFromReset();
+      });
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(appVersionProvider.notifier).load();
       await _runMigrations();
@@ -1141,6 +1160,44 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       return;
     }
     await _handleDatabaseCorruption();
+  }
+
+  /// Re-enter the first-launch provisioning path after a user-driven
+  /// wipe completed elsewhere (Settings → Reset All Data). Closes
+  /// the stale DB handle, re-runs `_firstLaunchSetup`, and re-probes
+  /// the freshly-opened DB for readability. The wipe itself has
+  /// already happened at the call site via `WipeAllService.wipeAll`;
+  /// this method is only the "now bring the app back to a working
+  /// state" half.
+  ///
+  /// Fired by the listener on [securityReinitProvider] installed in
+  /// `initState`. Keeps `_firstLaunchSetup` + `_handleDatabaseCorruption`
+  /// private to this state class while still letting the Settings
+  /// reset path reach them.
+  Future<void> _reinitSecurityFromReset() async {
+    if (!mounted) return;
+    final db = _activeDatabase;
+    if (db != null) {
+      try {
+        await db.close();
+      } catch (e) {
+        AppLogger.instance.log(
+          'DB close before reinit failed (continuing): $e',
+          name: 'App',
+        );
+      }
+    }
+    _activeDatabase = null;
+    _corruptionRetries = 0;
+    _securityReady = false;
+    if (!mounted) return;
+    final manager = ref.read(masterPasswordProvider);
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    await _firstLaunchSetup(manager, keyStorage);
+    if (!mounted) return;
+    await _handleDatabaseCorruption();
+    if (!mounted) return;
+    await ref.read(sessionProvider.notifier).load();
   }
 
   /// Destructive path — user consented to a full wipe. Closes the

@@ -2020,7 +2020,7 @@ class SEs extends S {
 
   @override
   String get dbCorruptBody =>
-      'La base de datos cifrada en el disco no coincide con el nivel de seguridad registrado para esta instalación. Normalmente significa que una configuración anterior se interrumpió o los datos son de una compilación con otro cifrado.\n\nLetsFLUTssh no puede continuar hasta que la base se abra con las credenciales correctas de una compilación compatible o se borre y configure de nuevo.';
+      'Los datos en el disco no se pueden abrir. Prueba con credenciales distintas o restablece y empieza de nuevo.';
 
   @override
   String get dbCorruptWarning =>
