@@ -87,10 +87,10 @@ installer dropped by a browser) to elevated debug-capable processes.
   (T1 / T2 / Paranoid all do) the attacker gets only ciphertext.
 - **Privileged same-user code** (elevated debug privilege / root /
   jailbreak) → can read our process memory directly. Nothing at app
-  level closes this. Our threat vocabulary (`SecurityThreat` enum,
-  surfaced in the in-app comparison table) marks `sameUserMalware`
-  and `liveProcessMemoryDump` as ✗ across every tier to keep this
-  fact explicit to users.
+  level closes this. These threats are deliberately omitted from the
+  in-app per-tier comparison table (every tier is ✗, so the row adds
+  no signal to the user's tier choice) and are called out here
+  instead so the gap stays explicit rather than hidden.
 
 ## KEK provider hierarchy
 
@@ -312,31 +312,43 @@ so this document and the UI cannot drift. Short summary:
 | Threat | T0 | T1 | T1 + pw | T2 | T2 + pw | Paranoid |
 |---|---|---|---|---|---|---|
 | Cold disk theft | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Keyring / keychain file exfiltration | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ |
+| Offline brute force on password | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
 | Bystander at unlocked machine | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
-| Same-user malware (privileged) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Live process memory dump | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | RAM forensics on locked machine | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
 | OS kernel / keychain breach | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| Offline brute force on weak pwd | n/a | n/a | weak | n/a | strong¹ | weak² |
 
-¹ T2 + pw — wrapped key is hardware-bound; an attacker with the
-sealed blob cannot brute-force it off-device, and on-device attempts
-are rate-limited by the chip's dictionary-attack lockout.
+*Deliberately omitted:* same-user malware and live process memory
+dump are ✗ on every tier. Including them in the per-tier table would
+add no signal for the user's tier choice (the row shape is identical
+across T0…Paranoid); they are covered in the threat-boundary
+discussion above instead, so the gap stays explicit without
+flattening the comparison. The orthogonal mitigations — process
+hardening (`PR_SET_DUMPABLE=0`, `PT_DENY_ATTACH`,
+`SetProcessMitigationPolicy`), `mlock` on the derived key,
+DB-close-on-lock, auto-lock — raise the bar against unprivileged
+same-user code; a privileged same-user attacker defeats everything
+at app level, same as every commercial password manager, SSH client,
+or crypto wallet on consumer hardware.
 
-² Paranoid — the password IS the entire secret. Argon2id slows
-brute force but does not block a determined attacker against a short
-password; a long passphrase is the actual defence.
+*Per-row rationale:*
 
-**Important framing:** `sameUserMalware` and `liveProcessMemoryDump`
-show ✗ across every tier. This is not a gap in the tier choice
-(runtime threats are not a KEK-provider concern); it is covered
-partially by the orthogonal mitigations above — especially process
-hardening, mlock, DB-close-on-lock, and auto-lock — which reduce the
-window and raise the bar against unprivileged same-user code. A
-privileged same-user attacker defeats everything at app level. This
-is a fundamental limit of consumer-app security; no realistic
-open-source client closes it. Commercial password managers, crypto
-wallets, and SSH clients share this ceiling.
+* **Keyring / keychain file exfiltration** splits T1 from T2 without
+  a password: T1 keeps the wrapped key inside the OS keychain file
+  (libsecret `login.keyring`, Windows `Credential Manager .vcrd`,
+  macOS `login.keychain-db`) — a disk attacker reads the file offline
+  and recovers the key. T2 stores the wrapped blob on disk but the
+  unwrap key is inside the TPM / Secure Enclave / StrongBox; the chip
+  refuses key export regardless of whether an auth value is set, so
+  the on-disk blob is useless without the physical hardware.
+* **Offline brute force** is ✓ only when a user password is set —
+  the threat as formulated ("attacker tries passwords offline") does
+  not apply without a password, and Argon2id with production
+  parameters (256 MiB / 3 iterations / 4 parallel) is what turns
+  brute-force attempts into a wall-clock problem. T2 + pw gets the
+  same ✓ as T1 + pw because the blob-plus-chip requirement adds to
+  (not replaces) the Argon2id cost; removing the pw on T2 drops the
+  row to ✗ symmetrically with T1.
 
 ## Import / export
 

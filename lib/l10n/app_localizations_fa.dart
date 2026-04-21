@@ -2554,20 +2554,6 @@ class SFa extends S {
       'در غیاب شما، فردی به رایانهٔ از پیش قفل‌گشودهٔ شما نزدیک می‌شود و برنامه را باز می‌کند.';
 
   @override
-  String get threatSameUserMalware => 'بدافزار با همان حساب کاربری';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'فرایندی مخرب که تحت حساب کاربری خودِ شما اجرا می‌شود. همان دسترسی به فایل‌ها، جاکلیدی و حافظه را دارد که این برنامه دارد — هیچ سطحی در میزبان آلوده در برابر این تهدید محافظت نمی‌کند.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'تخلیهٔ حافظهٔ فرایند در حال اجرا';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'مهاجمی با دسترسی به دیباگر یا ptrace کلید قفل‌گشودهٔ پایگاه داده را مستقیماً از حافظهٔ برنامهٔ در حال اجرا می‌خواند.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'جرم‌یابی حافظهٔ موقت روی دستگاه قفل';
 

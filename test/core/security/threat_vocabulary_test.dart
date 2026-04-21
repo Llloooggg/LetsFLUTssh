@@ -14,8 +14,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "doesNotProtect",
     "offlineBruteForce": "doesNotProtect",
     "bystanderUnlockedMachine": "doesNotProtect",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -24,8 +22,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "doesNotProtect",
     "offlineBruteForce": "doesNotProtect",
     "bystanderUnlockedMachine": "doesNotProtect",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -34,8 +30,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -44,8 +38,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -54,8 +46,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "doesNotProtect",
     "bystanderUnlockedMachine": "doesNotProtect",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -64,8 +54,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -74,8 +62,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "doesNotProtect",
     "osKernelOrKeychainBreach": "doesNotProtect"
   },
@@ -84,8 +70,6 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "sameUserMalware": "doesNotProtect",
-    "liveProcessMemoryDump": "doesNotProtect",
     "liveRamForensicsLocked": "protects",
     "osKernelOrKeychainBreach": "protects"
   }

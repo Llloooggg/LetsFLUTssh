@@ -2547,21 +2547,6 @@ class SVi extends S {
       'Có người tiến lại chiếc máy đã mở khóa của bạn và mở ứng dụng trong lúc bạn vắng mặt.';
 
   @override
-  String get threatSameUserMalware => 'Mã độc chạy cùng tài khoản người dùng';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Một tiến trình thù địch chạy dưới chính tài khoản người dùng của bạn. Nó có cùng quyền truy cập vào tệp, keychain và bộ nhớ như ứng dụng này — không bậc nào phòng được điều này trên một máy chủ đã bị xâm phạm.';
-
-  @override
-  String get threatLiveProcessMemoryDump =>
-      'Kết xuất bộ nhớ tiến trình đang chạy';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Kẻ tấn công có quyền trình gỡ lỗi hoặc ptrace đọc thẳng khóa cơ sở dữ liệu đã mở ra khỏi bộ nhớ của ứng dụng đang chạy.';
-
-  @override
   String get threatLiveRamForensicsLocked => 'Điều tra RAM trên máy đã khóa';
 
   @override

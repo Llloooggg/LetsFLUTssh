@@ -2586,21 +2586,6 @@ class SDe extends S {
       'Jemand tritt an deinen bereits entsperrten Computer und öffnet die App, während du abwesend bist.';
 
   @override
-  String get threatSameUserMalware => 'Schadsoftware im selben Benutzerkonto';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Ein bösartiger Prozess, der unter deinem eigenen Benutzerkonto läuft. Er hat denselben Zugriff auf Dateien, Schlüsselbund und Arbeitsspeicher wie diese App — auf einem kompromittierten Host schützt keine Stufe davor.';
-
-  @override
-  String get threatLiveProcessMemoryDump =>
-      'Speicherauszug des laufenden Prozesses';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Ein Angreifer mit Debugger- oder ptrace-Zugriff liest den entsperrten Datenbankschlüssel direkt aus dem Arbeitsspeicher der laufenden App.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'RAM-Forensik an gesperrtem Rechner';
 

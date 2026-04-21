@@ -94,10 +94,6 @@ String threatTitle(SecurityThreat threat, S l10n) {
       return l10n.threatOfflineBruteForce;
     case SecurityThreat.bystanderUnlockedMachine:
       return l10n.threatBystanderUnlockedMachine;
-    case SecurityThreat.sameUserMalware:
-      return l10n.threatSameUserMalware;
-    case SecurityThreat.liveProcessMemoryDump:
-      return l10n.threatLiveProcessMemoryDump;
     case SecurityThreat.liveRamForensicsLocked:
       return l10n.threatLiveRamForensicsLocked;
     case SecurityThreat.osKernelOrKeychainBreach:
@@ -117,10 +113,6 @@ String threatDescription(SecurityThreat threat, S l10n) {
       return l10n.threatOfflineBruteForceDescription;
     case SecurityThreat.bystanderUnlockedMachine:
       return l10n.threatBystanderUnlockedMachineDescription;
-    case SecurityThreat.sameUserMalware:
-      return l10n.threatSameUserMalwareDescription;
-    case SecurityThreat.liveProcessMemoryDump:
-      return l10n.threatLiveProcessMemoryDumpDescription;
     case SecurityThreat.liveRamForensicsLocked:
       return l10n.threatLiveRamForensicsLockedDescription;
     case SecurityThreat.osKernelOrKeychainBreach:

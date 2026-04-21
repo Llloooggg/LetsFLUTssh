@@ -2595,21 +2595,6 @@ class SFr extends S {
       'Quelqu\'un s\'approche de votre ordinateur déjà déverrouillé et ouvre l\'application pendant que vous êtes absent.';
 
   @override
-  String get threatSameUserMalware =>
-      'Logiciel malveillant dans le même compte';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Un processus hostile s\'exécutant sous votre propre compte utilisateur. Il a le même accès aux fichiers, au trousseau et à la mémoire que cette application — aucun niveau ne protège contre cela sur un hôte compromis.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'Vidage mémoire du processus actif';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Un attaquant disposant d\'un débogueur ou d\'un accès ptrace lit la clé de base de données déverrouillée directement dans la mémoire de l\'application en cours d\'exécution.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'Forensique de RAM sur machine verrouillée';
 

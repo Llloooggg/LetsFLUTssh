@@ -2588,21 +2588,6 @@ class SEs extends S {
       'Alguien se acerca a tu ordenador ya desbloqueado y abre la aplicación mientras estás ausente.';
 
   @override
-  String get threatSameUserMalware => 'Malware con el mismo usuario';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Un proceso hostil ejecutándose bajo tu propia cuenta de usuario. Tiene el mismo acceso a archivos, llavero y memoria que esta aplicación — ningún nivel defiende contra esto en un equipo comprometido.';
-
-  @override
-  String get threatLiveProcessMemoryDump =>
-      'Volcado de memoria del proceso activo';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Un atacante con acceso a depurador o ptrace lee la clave de la base de datos desbloqueada directamente de la memoria de la aplicación en ejecución.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'Análisis forense de RAM en equipo bloqueado';
 

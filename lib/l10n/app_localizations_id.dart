@@ -2565,21 +2565,6 @@ class SId extends S {
       'Seseorang menghampiri komputer Anda yang sudah terbuka kuncinya dan membuka aplikasi saat Anda tidak di tempat.';
 
   @override
-  String get threatSameUserMalware => 'Malware di akun pengguna yang sama';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Proses berbahaya yang berjalan di bawah akun pengguna Anda sendiri. Ia punya akses yang sama ke berkas, keychain, dan memori seperti aplikasi ini — tidak ada tier yang dapat mempertahankan diri terhadap ini pada host yang sudah tercemar.';
-
-  @override
-  String get threatLiveProcessMemoryDump =>
-      'Dump memori proses yang sedang berjalan';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Penyerang dengan akses debugger atau ptrace membaca kunci basis data yang sudah terbuka langsung dari memori aplikasi yang sedang berjalan.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'Forensik RAM pada mesin yang terkunci';
 

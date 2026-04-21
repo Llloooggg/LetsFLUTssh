@@ -2485,20 +2485,6 @@ class SJa extends S {
       'あなたが離席している間に、すでにロック解除済みのコンピューターへ誰かが近づき、このアプリを開く状況。';
 
   @override
-  String get threatSameUserMalware => '同一ユーザー権限のマルウェア';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'あなたのユーザーアカウントで動作する悪意あるプロセス。ファイル・キーチェーン・メモリへの権限はこのアプリと同等であり、侵害済みのホストではどの階層でも防御できません。';
-
-  @override
-  String get threatLiveProcessMemoryDump => '動作中プロセスのメモリダンプ';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'デバッガーや ptrace のアクセス権を持つ攻撃者が、稼働中のアプリのメモリから解錠済みのデータベース鍵を直接読み出します。';
-
-  @override
   String get threatLiveRamForensicsLocked => 'ロック状態の端末に対する RAM フォレンジック';
 
   @override

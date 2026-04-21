@@ -2559,20 +2559,6 @@ class SHi extends S {
       'जब आप दूर होते हैं, कोई आपकी पहले से अनलॉक मशीन के पास आकर ऐप खोल लेता है।';
 
   @override
-  String get threatSameUserMalware => 'उसी उपयोगकर्ता खाते का मैलवेयर';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'आपके अपने उपयोगकर्ता खाते के अंतर्गत चलती एक हानिकारक प्रक्रिया। इसकी फ़ाइलों, कीचेन और मेमोरी तक वही पहुँच होती है जो इस ऐप की है — किसी भी समझौता किए गए होस्ट पर कोई भी टीयर इससे बचाव नहीं करता।';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'चालू प्रक्रिया का मेमोरी डंप';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'डिबगर या ptrace पहुँच वाला हमलावर अनलॉक किए गए डेटाबेस कुंजी को सीधे चालू ऐप की मेमोरी से पढ़ लेता है।';
-
-  @override
   String get threatLiveRamForensicsLocked => 'लॉक मशीन पर RAM फ़ोरेंसिक';
 
   @override

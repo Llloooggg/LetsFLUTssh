@@ -2482,20 +2482,6 @@ class SKo extends S {
       '자리를 비운 사이, 누군가 이미 잠금 해제된 컴퓨터에 다가가 이 앱을 여는 상황입니다.';
 
   @override
-  String get threatSameUserMalware => '동일 사용자 권한의 악성코드';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      '본인 사용자 계정으로 실행되는 악성 프로세스입니다. 파일·키체인·메모리에 대해 이 앱과 동일한 접근 권한을 가지므로, 침해된 호스트에서는 어떤 티어도 이를 막을 수 없습니다.';
-
-  @override
-  String get threatLiveProcessMemoryDump => '실행 중 프로세스 메모리 덤프';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      '디버거 또는 ptrace 권한을 가진 공격자가 실행 중인 앱의 메모리에서 잠금 해제된 데이터베이스 키를 직접 읽어냅니다.';
-
-  @override
   String get threatLiveRamForensicsLocked => '잠긴 기기의 RAM 포렌식';
 
   @override

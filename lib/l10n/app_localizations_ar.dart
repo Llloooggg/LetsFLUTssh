@@ -2560,20 +2560,6 @@ class SAr extends S {
       'يقترب شخص ما من حاسوبك غير المقفول ويفتح التطبيق أثناء غيابك.';
 
   @override
-  String get threatSameUserMalware => 'برمجيات خبيثة بنفس حساب المستخدم';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'عملية خبيثة تعمل تحت حسابك نفسه. تمتلك نفس الوصول إلى الملفات وسلسلة المفاتيح والذاكرة الذي يمتلكه هذا التطبيق — ولا يُدافع أي مستوى عن ذلك على مضيف مخترق.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'تفريغ ذاكرة العملية النشطة';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'مهاجم لديه وصول مصحِّح أو ptrace يقرأ مفتاح قاعدة البيانات المفتوح مباشرة من ذاكرة التطبيق الجاري تشغيله.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'تحليل جنائي للذاكرة على جهاز مقفول';
 

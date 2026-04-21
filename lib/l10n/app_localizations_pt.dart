@@ -2578,20 +2578,6 @@ class SPt extends S {
       'Alguém se aproxima do seu computador já desbloqueado e abre o aplicativo enquanto você está longe.';
 
   @override
-  String get threatSameUserMalware => 'Malware com a mesma conta de usuário';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Um processo hostil executado sob a sua própria conta de usuário. Ele tem o mesmo acesso a arquivos, chaveiro e memória que este aplicativo — nenhum nível defende contra isso em um host comprometido.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'Dump de memória de processo ativo';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Um invasor com acesso a depurador ou ptrace lê a chave do banco de dados já desbloqueada diretamente da memória do aplicativo em execução.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'Perícia de RAM em máquina bloqueada';
 

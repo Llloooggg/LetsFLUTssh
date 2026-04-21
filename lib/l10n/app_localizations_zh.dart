@@ -2461,20 +2461,6 @@ class SZh extends S {
       '你离开时，有人走向你已经解锁的计算机并打开本应用。';
 
   @override
-  String get threatSameUserMalware => '同用户恶意软件';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      '在你自己的用户账户下运行的恶意进程。它对文件、钥匙串和内存拥有与本应用相同的访问权限——在被攻陷的主机上，任何等级都无法防御此类威胁。';
-
-  @override
-  String get threatLiveProcessMemoryDump => '运行进程内存转储';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      '拥有调试器或 ptrace 权限的攻击者直接从运行中的应用内存里读取已解锁的数据库密钥。';
-
-  @override
   String get threatLiveRamForensicsLocked => '锁定设备上的内存取证';
 
   @override

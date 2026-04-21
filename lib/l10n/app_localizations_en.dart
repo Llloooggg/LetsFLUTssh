@@ -2551,20 +2551,6 @@ class SEn extends S {
       'Someone walks up to your already-unlocked computer and opens the app while you are away.';
 
   @override
-  String get threatSameUserMalware => 'Same-user malware';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'A hostile process running under your own user account. It has the same access to files, keychain and memory that this app has — no tier defends against this on a compromised host.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'Live process memory dump';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'An attacker with debugger or ptrace access reads the unlocked database key directly out of the running app\'s memory.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'RAM forensics on a locked machine';
 

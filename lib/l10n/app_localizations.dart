@@ -4503,30 +4503,6 @@ abstract class S {
   /// **'Someone walks up to your already-unlocked computer and opens the app while you are away.'**
   String get threatBystanderUnlockedMachineDescription;
 
-  /// No description provided for @threatSameUserMalware.
-  ///
-  /// In en, this message translates to:
-  /// **'Same-user malware'**
-  String get threatSameUserMalware;
-
-  /// No description provided for @threatSameUserMalwareDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'A hostile process running under your own user account. It has the same access to files, keychain and memory that this app has — no tier defends against this on a compromised host.'**
-  String get threatSameUserMalwareDescription;
-
-  /// No description provided for @threatLiveProcessMemoryDump.
-  ///
-  /// In en, this message translates to:
-  /// **'Live process memory dump'**
-  String get threatLiveProcessMemoryDump;
-
-  /// No description provided for @threatLiveProcessMemoryDumpDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'An attacker with debugger or ptrace access reads the unlocked database key directly out of the running app\'s memory.'**
-  String get threatLiveProcessMemoryDumpDescription;
-
   /// No description provided for @threatLiveRamForensicsLocked.
   ///
   /// In en, this message translates to:

@@ -2575,20 +2575,6 @@ class SRu extends S {
       'Кто-то подходит к уже разблокированному компьютеру и открывает приложение, пока вас нет рядом.';
 
   @override
-  String get threatSameUserMalware => 'Вредонос в вашем аккаунте';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Враждебный процесс, запущенный под вашей учётной записью. У него такой же доступ к файлам, ключнице и памяти, как и у этого приложения — ни один уровень не защищает от этого на скомпрометированном хосте.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'Дамп памяти работающего процесса';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Атакующий с доступом отладчика или ptrace читает разблокированный ключ базы данных прямо из памяти запущенного приложения.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'Криминалистика ОЗУ на заблокированной машине';
 

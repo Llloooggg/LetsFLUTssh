@@ -20,14 +20,21 @@ library;
 ///      exfiltration, offline brute force) — attacker has disk bytes.
 ///   2. Physical-access family (bystander at an unlocked machine) —
 ///      attacker has the running session.
-///   3. Online-process family (same-user malware, live process
-///      memory dump) — attacker runs code alongside the app.
-///   4. Privileged/forensic family (live RAM forensics on a locked
+///   3. Privileged/forensic family (live RAM forensics on a locked
 ///      machine, OS kernel or keychain breach) — attacker has
 ///      kernel-level reach.
 ///
-/// The four groups stay adjacent so a user scanning four tier cards
-/// side-by-side sees the same threat in the same row on every card.
+/// *Threats deliberately not listed:* same-user malware (a hostile
+/// process running as the same OS user holds every grant the app
+/// has) and live process memory dump (ptrace / debugger attached to
+/// the running app) are ✗ on every tier — no config we ship defends
+/// against them, so showing the rows would only tell the user "none
+/// of these options change the answer here". The honest framing is
+/// to omit them from the per-tier comparison and cover them in the
+/// threat-model prose in SECURITY.md instead. If a future tier /
+/// modifier ever moves the needle (e.g. a locked-on-idle mode that
+/// wipes the derived key after N seconds of inactivity), the rows
+/// return.
 enum SecurityThreat {
   /// Cold-disk theft — powered-off machine, drive removed and read
   /// on another box (or the DB file copied off a running machine by
@@ -55,16 +62,6 @@ enum SecurityThreat {
   /// Bystander at an already-unlocked machine — attacker walks up,
   /// opens the app. No authentication prompt = the data is visible.
   bystanderUnlockedMachine,
-
-  /// Same-user malware — hostile process running as the same OS
-  /// user has every grant the app has: FS access, keychain access,
-  /// memory access. No tier protects against this on a compromised
-  /// host.
-  sameUserMalware,
-
-  /// Live process memory dump — attacker with debugger / ptrace on
-  /// the running app reads the unlocked DB key from RAM.
-  liveProcessMemoryDump,
 
   /// Live RAM forensics on a locked machine — attacker freezes RAM
   /// (or dumps via DMA / Firewire / similar) and pulls still-resident
@@ -146,8 +143,6 @@ class ThreatModel {
 /// | Keyring / keychain file exfiltration  | ✗  | ✗  | ✓     | ✓  | ✓     | ✓        |
 /// | Offline brute force on password       | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
 /// | Bystander at unlocked machine         | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
-/// | Same-user malware                     | ✗  | ✗  | ✗     | ✗  | ✗     | ✗        |
-/// | Live process memory dump              | ✗  | ✗  | ✗     | ✗  | ✗     | ✗        |
 /// | Live RAM forensics on locked machine  | ✗  | ✗  | ✗     | ✗  | ✗     | ✓        |
 /// | OS kernel / keychain breach           | ✗  | ✗  | ✗     | ✗  | ✗     | ✓        |
 ///
@@ -209,11 +204,6 @@ Map<SecurityThreat, ThreatStatus> evaluate(ThreatModel model) {
     // advantage lives in keyringFileTheft, not here).
     SecurityThreat.offlineBruteForce: yes(hasUserSecret),
     SecurityThreat.bystanderUnlockedMachine: yes(hasUserSecret),
-    // Same-user malware + live process memory dump: no tier protects.
-    // The unlocked DB key sits in the app process; a malicious
-    // same-user process has every grant the app has.
-    SecurityThreat.sameUserMalware: ThreatStatus.doesNotProtect,
-    SecurityThreat.liveProcessMemoryDump: ThreatStatus.doesNotProtect,
     // Live RAM forensics on a locked machine + OS kernel / keychain
     // breach: only Paranoid holds up. Paranoid derives the key per
     // unlock and zeroises after use; numbered tiers rely on the OS

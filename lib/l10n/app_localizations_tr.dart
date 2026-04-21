@@ -2574,21 +2574,6 @@ class STr extends S {
       'Siz yokken biri, kilidi zaten açık olan bilgisayarınıza yaklaşıp uygulamayı açar.';
 
   @override
-  String get threatSameUserMalware =>
-      'Aynı kullanıcı hesabındaki kötücül yazılım';
-
-  @override
-  String get threatSameUserMalwareDescription =>
-      'Kendi kullanıcı hesabınız altında çalışan kötücül bir süreç. Dosyalara, anahtar zincirine ve belleğe bu uygulamayla aynı erişime sahiptir — tehlikeye atılmış bir ana bilgisayarda hiçbir katman bunu savuşturamaz.';
-
-  @override
-  String get threatLiveProcessMemoryDump => 'Çalışan sürecin bellek dökümü';
-
-  @override
-  String get threatLiveProcessMemoryDumpDescription =>
-      'Hata ayıklayıcıya veya ptrace\'e erişebilen bir saldırgan, kilidi açılmış veritabanı anahtarını doğrudan çalışan uygulamanın belleğinden okur.';
-
-  @override
   String get threatLiveRamForensicsLocked =>
       'Kilitli makinede RAM adli bilişimi';
 
