@@ -2248,6 +2248,62 @@ class STr extends S {
       'Donanım katmanı denemesi başarısız oldu. /dev/tpmrm0 izinlerini ve udev kurallarını kontrol edin — ayrıntılar günlüklerde.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 algılanmadı. UEFI ürün yazılımından fTPM / PTT etkinleştirin veya donanım katmanının bu cihazda kullanılamayacağını kabul edin — uygulama yazılım tabanlı kimlik bilgisi deposuna geri döner.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ne Microsoft Platform Crypto Provider ne de Software Key Storage Provider erişilebilir — muhtemelen bozuk bir Windows kripto alt sistemi veya CNG\'yi engelleyen bir Grup İlkesi. Olay Görüntüleyici → Uygulama ve Hizmet Günlükleri\'ni kontrol edin.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Bu Mac\'te Secure Enclave yok (T1 / T2 güvenlik çipi olmayan 2017 öncesi Intel Mac). Donanım katmanı kullanılamaz; bunun yerine ana parolayı kullanın.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Bu Mac\'te oturum açma parolası ayarlanmamış. Secure Enclave anahtar oluşturma bunu gerektirir — Sistem Ayarları → Touch ID ve Parola (veya Oturum Açma Parolası) bölümünden belirleyin.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Cihaz kodu ayarlanmamış. Secure Enclave anahtar oluşturma bunu gerektirir — Ayarlar → Face ID ve Kod (veya Touch ID ve Kod) bölümünden belirleyin.';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'iOS Simülatöründe çalışıyor, Secure Enclave yok. Donanım katmanı yalnızca fiziksel iOS cihazlarda kullanılabilir.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Donanım katmanı için Android 9 veya üzeri gerekir (StrongBox ve anahtar başına kayıt geçersizliği eski sürümlerde güvenilir değildir).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Bu cihazda biyometrik donanım yok (parmak izi veya yüz). Bunun yerine ana parolayı kullanın.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Biyometri kaydedilmemiş. Ayarlar → Güvenlik ve gizlilik → Biyometri\'den parmak izi veya yüz ekleyin, ardından donanım katmanını yeniden etkinleştirin.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'WSL\'de çalışıyor — Windows Subsystem for Linux konteynerinden erişilebilir bir keyring daemon yok. Ana parolayı kullanın veya uygulamayı gnome-keyring / KWallet ile yerel bir Linux oturumunda çalıştırın.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'D-Bus session bus yok — uygulama headless veya yalnızca SSH oturumunda çalışıyor. Grafik oturumu başlatın veya başlatmadan önce DBUS_SESSION_BUS_ADDRESS değişkenini dışa aktarın.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.';
+
+  @override
+  String get keyringProbeFailed =>
+      'İşletim sistemi anahtar zinciri bu cihazda erişilemez. Platforma özgü hata için günlüklere bakın; uygulama ana parolaya geri döner.';
+
+  @override
   String get snippets => 'Snippet\'ler';
 
   @override

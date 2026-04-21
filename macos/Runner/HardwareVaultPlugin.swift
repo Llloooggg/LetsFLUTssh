@@ -46,6 +46,8 @@ final class HardwareVaultPlugin: NSObject {
       result(isAvailable())
     case "backingLevel":
       result(backingLevel())
+    case "probeDetail":
+      result(probeDetail())
     case "isStored":
       result(FileManager.default.fileExists(atPath: vaultFileURL().path))
     case "store":
@@ -89,6 +91,52 @@ final class HardwareVaultPlugin: NSObject {
 
   private func backingLevel() -> String {
     isAvailable() ? "hardware_secure_enclave" : "unavailable"
+  }
+
+  // Classified probe — mirrors the enum surface Dart exposes as
+  // `HardwareProbeDetail`. Returns one of:
+  //   * `available`                 — Secure Enclave reachable + passcode set.
+  //   * `macosNoSecureEnclave`      — `LAContext` refuses
+  //                                   `.deviceOwnerAuthentication`, typically
+  //                                   a pre-T2 Intel Mac with no Secure
+  //                                   Enclave hardware at all.
+  //   * `macosPasscodeNotSet`       — SE hardware present but device passcode
+  //                                   unset; L3 requires one for
+  //                                   `biometryCurrentSet` binding.
+  //   * `macosGeneric`              — any other LAError fall-through
+  //                                   (e.g. biometryLockout). Logged for
+  //                                   diagnostics; UI shows generic copy.
+  private func probeDetail() -> String {
+    let ctx = LAContext()
+    var err: NSError?
+    let canEval = ctx.canEvaluatePolicy(
+      .deviceOwnerAuthentication, error: &err
+    )
+    if canEval {
+      if SecAccessControlCreateWithFlags(
+        nil,
+        kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+        [.privateKeyUsage],
+        nil
+      ) != nil {
+        return "available"
+      }
+      return "macosGeneric"
+    }
+    guard let laErr = err as? LAError ?? (err.flatMap { LAError(_nsError: $0 as NSError) }) else {
+      return "macosGeneric"
+    }
+    switch laErr.code {
+    case .passcodeNotSet:
+      return "macosPasscodeNotSet"
+    case .biometryNotAvailable, .touchIDNotAvailable:
+      // Intel Mac with no T2, or macOS that explicitly reports biometric
+      // hardware missing. `.deviceOwnerAuthentication` falling through to
+      // `biometryNotAvailable` without a passcode also signals no SE.
+      return "macosNoSecureEnclave"
+    default:
+      return "macosGeneric"
+    }
   }
 
   // MARK: - store / read

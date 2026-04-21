@@ -2967,6 +2967,20 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 
 Paranoid is treated as "already opted out of OS trust" and never shows the upgrade card — offering a user who picked Paranoid an "upgrade to TPM" tile would be wrong-direction advice.
 
+*Classified unavailability reasons.* A tier that reports `isAvailable: false` still needs to tell the user *why*, or the Settings card reads as a dead end. Two providers resolve a typed reason code into a localised hint line rendered under the disabled card:
+
+- [`hardwareProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`HardwareProbeDetail`](../lib/providers/security_provider.dart) case to the `hwProbe*` ARB keys. Linux delegates to [`TpmClient.probe()`](../lib/core/security/linux/tpm_client.dart) which distinguishes `deviceNodeMissing` (no `/dev/tpmrm0`), `binaryMissing` (no `tpm2-tools`), and `probeFailed` (CLI returned non-zero). Windows / macOS / iOS / Android call the `probeDetail` method channel on their native `HardwareVaultPlugin` and receive one of the platform-specific codes:
+  - **Windows** — `windowsSoftwareOnly` (TPM 2.0 absent, only Software KSP reachable), `windowsProvidersMissing` (both CNG providers fail — corrupted crypto subsystem or blocking GPO).
+  - **macOS** — `macosNoSecureEnclave` (pre-T2 Intel Mac), `macosPasscodeNotSet` (SE present, login password absent), `macosGeneric` (any other `LAError`).
+  - **iOS** — `iosPasscodeNotSet`, `iosSimulator` (Simulator has no SEP), `iosGeneric`.
+  - **Android** — `androidApiTooLow` (SDK < 28), `androidBiometricNone` (no fingerprint / face hardware), `androidBiometricNotEnrolled`, `androidBiometricUnavailable` (lockout or pending security update), `androidGeneric`.
+
+  *Why the native side classifies rather than the Dart side:* the backing-level inference Linux does via file + process probes is not portable. On Apple the classifier needs the typed `LAError` code from `canEvaluatePolicy`, on Android it needs the `BiometricManager.canAuthenticate` status constant, on Windows it needs the `NCryptOpenStorageProvider` result. All three live on the native side already; the plugin returning a structured code is simpler than routing the raw error object through the method channel and re-classifying in Dart.
+
+- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. Implemented entirely on the Dart side because the Linux-specific failure modes — no D-Bus session bus, WSL container, no secret-service daemon — are all detectable from `Platform.environment` and the existing `_hasKeychainSupport` gate. Non-Linux platforms fall through to a generic `probeFailed` only on the rare occasion that the live write-read-delete round-trip fails.
+
+Both providers are session-scoped (keyring failure modes on Linux don't change mid-session, hardware probe results are fixed by the boot-time state of the chip). Settings watches both and feeds the resulting reason lines into [`_buildTierCard`](../lib/features/settings/settings_sections_security.dart) as the `unavailableReason` argument.
+
 ### Startup security flow
 
 `_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs (no legacy file detection):

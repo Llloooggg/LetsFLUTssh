@@ -29,6 +29,7 @@ import '../../providers/auto_lock_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../core/security/key_store.dart';
+import '../../core/security/secure_key_storage.dart';
 import '../../core/snippets/snippet.dart';
 import '../../core/snippets/snippet_store.dart';
 import '../../core/tags/tag.dart';

@@ -57,6 +57,8 @@ final class HardwareVaultPlugin: NSObject {
       result(isAvailable())
     case "backingLevel":
       result(backingLevel())
+    case "probeDetail":
+      result(probeDetail())
     case "isStored":
       result(FileManager.default.fileExists(atPath: vaultFileURL().path))
     case "store":
@@ -106,6 +108,50 @@ final class HardwareVaultPlugin: NSObject {
 
   private func backingLevel() -> String {
     isAvailable() ? "hardware_secure_enclave" : "unavailable"
+  }
+
+  // Classified probe — mirrors the macOS plugin's same-named method so
+  // `HardwareProbeDetail` has a single Apple-side switch. Returns one of:
+  //   * `available`                  — SE reachable + passcode set.
+  //   * `iosPasscodeNotSet`          — device has no passcode; SE key
+  //                                    creation with
+  //                                    `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly`
+  //                                    is impossible until the user sets one.
+  //   * `iosSimulator`               — running on the iOS Simulator,
+  //                                    which has no SEP. Dev-mode only;
+  //                                    production devices never hit this.
+  //   * `iosGeneric`                 — any other fall-through. Logged
+  //                                    for diagnostics; UI shows generic copy.
+  private func probeDetail() -> String {
+    let ctx = LAContext()
+    var err: NSError?
+    let canEval = ctx.canEvaluatePolicy(
+      .deviceOwnerAuthentication, error: &err
+    )
+    if canEval {
+      if SecAccessControlCreateWithFlags(
+        nil,
+        kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+        [.privateKeyUsage],
+        nil
+      ) != nil {
+        return "available"
+      }
+      #if targetEnvironment(simulator)
+      return "iosSimulator"
+      #else
+      return "iosGeneric"
+      #endif
+    }
+    guard let laErr = err as? LAError ?? (err.flatMap { LAError(_nsError: $0 as NSError) }) else {
+      return "iosGeneric"
+    }
+    switch laErr.code {
+    case .passcodeNotSet:
+      return "iosPasscodeNotSet"
+    default:
+      return "iosGeneric"
+    }
   }
 
   // MARK: - store / read

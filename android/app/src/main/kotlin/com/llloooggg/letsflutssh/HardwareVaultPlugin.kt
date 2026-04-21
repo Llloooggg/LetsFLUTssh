@@ -81,6 +81,7 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         when (call.method) {
             "isAvailable" -> result.success(isAvailable())
             "backingLevel" -> result.success(backingLevel())
+            "probeDetail" -> result.success(probeDetail())
             "isStored" -> result.success(vaultFile().exists())
             "store" -> store(call, result)
             "read" -> read(call, result)
@@ -105,6 +106,43 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         val bm = BiometricManager.from(activity)
         val status = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
         return status == BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    /**
+     * Classified probe — returns one of the string codes the Dart-side
+     * `HardwareProbeDetail` enum maps to:
+     *
+     *  * `available`                   — biometric-strong is available.
+     *  * `androidApiTooLow`            — pre-Android 9 (SDK < 28).
+     *                                    StrongBox did not exist, and the
+     *                                    T2 tier requires key-level
+     *                                    enrolment invalidation that only
+     *                                    lands in P.
+     *  * `androidBiometricNone`        — no biometric hardware
+     *                                    (BIOMETRIC_ERROR_NO_HARDWARE).
+     *                                    User cannot use fingerprint /
+     *                                    face — they should rely on
+     *                                    master password instead.
+     *  * `androidBiometricNotEnrolled` — hardware present but user has
+     *                                    not enrolled a fingerprint or
+     *                                    face. Actionable.
+     *  * `androidBiometricUnavailable` — hardware present, biometric
+     *                                    temporarily unusable (lockout,
+     *                                    security update required, etc.).
+     *  * `androidGeneric`              — any other status we did not
+     *                                    classify. Logged for diagnostics.
+     */
+    private fun probeDetail(): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return "androidApiTooLow"
+        val bm = BiometricManager.from(activity)
+        return when (bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
+            BiometricManager.BIOMETRIC_SUCCESS -> "available"
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "androidBiometricNone"
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "androidBiometricNotEnrolled"
+            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "androidBiometricUnavailable"
+            BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "androidBiometricUnavailable"
+            else -> "androidGeneric"
+        }
     }
 
     /** "hardware_strongbox", "hardware_tee", or "software". */

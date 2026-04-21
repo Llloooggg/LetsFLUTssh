@@ -108,6 +108,31 @@ class HardwareTierVault {
     return false;
   }
 
+  /// Classified hardware-unavailable reason. Returns an opaque
+  /// platform-specific string code (`windowsSoftwareOnly`,
+  /// `macosNoSecureEnclave`, `androidBiometricNotEnrolled`, …) or
+  /// `available` when the tier is reachable. `unknown` on platforms
+  /// that do not implement the native `probeDetail` method yet, or
+  /// when the channel call fails. The Dart-side provider maps this
+  /// to the `HardwareProbeDetail` enum and the localised hint copy.
+  ///
+  /// Linux is handled by `TpmClient.probe()` at the provider layer
+  /// and never enters this method — the TPM CLI is local, richer,
+  /// and does not round-trip through a method channel.
+  Future<String> probeDetail() async {
+    if (!_usesMethodChannel) return 'unknown';
+    try {
+      final result = await _channel.invokeMethod<String>('probeDetail');
+      return result ?? 'unknown';
+    } catch (e) {
+      AppLogger.instance.log(
+        'HardwareTierVault.probeDetail channel error: $e',
+        name: 'HardwareTierVault',
+      );
+      return 'unknown';
+    }
+  }
+
   /// True when a sealed blob is on disk. Linux inspects
   /// `hardware_vault.bin`; other platforms ask the native side plus
   /// verify that the Dart-side salt file is present (both halves

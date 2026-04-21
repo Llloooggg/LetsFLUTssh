@@ -2265,6 +2265,62 @@ class SDe extends S {
       'Die Hardware-Stufen-Prüfung ist fehlgeschlagen. Prüfe Berechtigungen auf /dev/tpmrm0 und udev-Regeln — Details im Log.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'Kein TPM 2.0 erkannt. Aktiviere fTPM / PTT in der UEFI-Firmware, oder akzeptiere dass die Hardware-Stufe auf diesem Gerät nicht verfügbar ist — die App fällt auf den software-gestützten Anmeldedatenspeicher zurück.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Weder Microsoft Platform Crypto Provider noch Software Key Storage Provider sind erreichbar — wahrscheinlich ein beschädigtes Windows-Krypto-Subsystem oder eine Gruppenrichtlinie, die CNG blockiert. Prüfe Ereignisanzeige → Anwendungs- und Dienstprotokolle.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Dieser Mac hat keine Secure Enclave (Intel-Mac vor 2017 ohne T1 / T2-Sicherheitschip). Die Hardware-Stufe ist nicht verfügbar; verwende stattdessen das Master-Passwort.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Auf diesem Mac ist kein Anmeldepasswort festgelegt. Secure-Enclave-Schlüsselerstellung erfordert eines — setze ein Anmeldepasswort in Systemeinstellungen → Touch ID & Passwort (oder Anmeldepasswort).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Kein Gerätecode festgelegt. Secure-Enclave-Schlüsselerstellung erfordert einen — setze einen Code in Einstellungen → Face ID & Code (oder Touch ID & Code).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Ausführung im iOS-Simulator, der keine Secure Enclave hat. Die Hardware-Stufe ist nur auf physischen iOS-Geräten verfügbar.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Für die Hardware-Stufe ist Android 9 oder neuer erforderlich (StrongBox und per-Key-Enrolment-Invalidierung sind auf älteren Versionen nicht zuverlässig).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Dieses Gerät hat keine Biometrie-Hardware (Fingerabdruck oder Gesicht). Verwende stattdessen das Master-Passwort.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Keine Biometrie registriert. Füge einen Fingerabdruck oder Gesicht in Einstellungen → Sicherheit & Datenschutz → Biometrie hinzu, dann aktiviere die Hardware-Stufe erneut.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Biometrie-Hardware ist vorübergehend unbrauchbar (Sperre nach fehlgeschlagenen Versuchen oder ausstehendes Sicherheitsupdate). Versuche es in ein paar Minuten erneut.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Ausführung in WSL — aus einem Windows-Subsystem-for-Linux-Container ist kein Keyring-Daemon erreichbar. Verwende das Master-Passwort, oder starte die App in einer nativen Linux-Sitzung mit gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'Kein D-Bus-Session-Bus — die App läuft in einer Headless- oder SSH-only-Sitzung. Starte eine grafische Anmeldesitzung, oder exportiere DBUS_SESSION_BUS_ADDRESS vor dem Start.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus läuft, aber kein Secret-Service-Daemon ist aktiv. Installiere gnome-keyring (`sudo apt install gnome-keyring`) oder KWalletManager und stelle sicher, dass es beim Anmelden startet.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Der OS-Schlüsselbund ist auf diesem Gerät nicht erreichbar. Plattformspezifischer Fehler siehe Log; die App fällt auf das Master-Passwort zurück.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

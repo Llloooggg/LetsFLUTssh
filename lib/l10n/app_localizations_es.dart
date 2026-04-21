@@ -2262,6 +2262,62 @@ class SEs extends S {
       'La prueba del nivel de hardware falló. Revisa los permisos de /dev/tpmrm0 y las reglas de udev — detalles en los registros.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'No se detectó TPM 2.0. Activa fTPM / PTT en el firmware UEFI, o acepta que el nivel de hardware no está disponible en este dispositivo — la app recurre al almacén de credenciales por software.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ni el Microsoft Platform Crypto Provider ni el Software Key Storage Provider están accesibles — probablemente un subsistema criptográfico de Windows dañado o una directiva de grupo que bloquea CNG. Revisa Visor de eventos → Registros de aplicaciones y servicios.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Este Mac no tiene Secure Enclave (Intel Mac anterior a 2017 sin chip de seguridad T1 / T2). El nivel de hardware no está disponible; usa la contraseña maestra.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'No hay contraseña de inicio de sesión en este Mac. Secure Enclave requiere una — establece una en Ajustes del sistema → Touch ID y contraseña (o Contraseña de inicio).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'No hay código del dispositivo establecido. Secure Enclave requiere uno — establece un código en Ajustes → Face ID y código (o Touch ID y código).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Ejecutándose en el Simulador de iOS, que no tiene Secure Enclave. El nivel de hardware solo está disponible en dispositivos iOS físicos.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Se requiere Android 9 o superior para el nivel de hardware (StrongBox y la invalidación por cambio de biometría no son fiables en versiones anteriores).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Este dispositivo no tiene hardware biométrico (huella o rostro). Usa la contraseña maestra.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'No hay biometría registrada. Agrega una huella o rostro en Ajustes → Seguridad y privacidad → Biometría, luego vuelve a habilitar el nivel de hardware.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Hardware biométrico temporalmente inutilizable (bloqueo por intentos fallidos o actualización de seguridad pendiente). Reintenta en unos minutos.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Ejecutándose en WSL — no hay keyring daemon accesible desde un contenedor de Windows Subsystem for Linux. Usa la contraseña maestra, o ejecuta la app en una sesión Linux nativa con gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'Sin D-Bus session bus — la app está en una sesión headless o solo por SSH. Inicia una sesión gráfica, o exporta DBUS_SESSION_BUS_ADDRESS antes de iniciar.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus está activo pero ningún secret-service daemon está ejecutándose. Instala gnome-keyring (`sudo apt install gnome-keyring`) o KWalletManager y asegúrate de que se inicie al iniciar sesión.';
+
+  @override
+  String get keyringProbeFailed =>
+      'El keychain del sistema no está accesible en este dispositivo. Consulta los registros para el error específico; la app recurre a la contraseña maestra.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

@@ -2236,6 +2236,62 @@ class SAr extends S {
       'فحص المستوى العتادي فشل. تحقق من صلاحيات /dev/tpmrm0 وقواعد udev — التفاصيل في السجلات.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'لم يتم اكتشاف TPM 2.0. فعّل fTPM / PTT في برنامج UEFI الثابت، أو اقبل أن المستوى العتادي غير متاح على هذا الجهاز — يعود التطبيق إلى مخزن بيانات الاعتماد المستند إلى البرامج.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'لا يمكن الوصول إلى Microsoft Platform Crypto Provider ولا إلى Software Key Storage Provider — من المحتمل أن يكون نظام تشفير Windows الفرعي تالفًا أو أن سياسة المجموعة تحظر CNG. تحقق من عارض الأحداث → سجلات التطبيقات والخدمات.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'هذا الـ Mac لا يحتوي على Secure Enclave (Intel Mac قبل 2017 بدون شريحة أمان T1 / T2). المستوى العتادي غير متاح؛ استخدم كلمة المرور الرئيسية بدلاً من ذلك.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'لم يتم تعيين كلمة مرور تسجيل الدخول على هذا الـ Mac. يتطلب إنشاء مفتاح Secure Enclave ذلك — اضبطها في إعدادات النظام ← Touch ID وكلمة المرور (أو كلمة مرور تسجيل الدخول).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'لم يتم تعيين رمز الجهاز. يتطلب إنشاء مفتاح Secure Enclave ذلك — اضبط الرمز في الإعدادات ← Face ID والرمز (أو Touch ID والرمز).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'يعمل على iOS Simulator الذي لا يحتوي على Secure Enclave. المستوى العتادي متاح فقط على أجهزة iOS الفعلية.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'يتطلب المستوى العتادي Android 9 أو أحدث (StrongBox وإلغاء صلاحية المفتاح عند تغيير التسجيل غير موثوقين في الإصدارات الأقدم).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'لا يحتوي هذا الجهاز على أجهزة بيومترية (بصمة أو وجه). استخدم كلمة المرور الرئيسية.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'لا توجد بصمة مسجلة. أضف بصمة أو وجهًا في الإعدادات ← الأمان والخصوصية ← المقاييس الحيوية، ثم أعد تمكين المستوى العتادي.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'الأجهزة البيومترية غير قابلة للاستخدام مؤقتًا (قفل بعد محاولات فاشلة أو تحديث أمني معلق). أعد المحاولة بعد بضع دقائق.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'يعمل على WSL — لا يمكن الوصول إلى keyring daemon من حاوية Windows Subsystem for Linux. استخدم كلمة المرور الرئيسية، أو شغّل التطبيق في جلسة Linux أصلية مع gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'لا يوجد D-Bus session bus — يعمل التطبيق في جلسة بدون واجهة رسومية أو SSH فقط. ابدأ جلسة تسجيل دخول رسومية، أو صدّر DBUS_SESSION_BUS_ADDRESS قبل التشغيل.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus يعمل ولكن لا يوجد secret-service daemon قيد التشغيل. ثبّت gnome-keyring (`sudo apt install gnome-keyring`) أو KWalletManager وتأكد من بدء تشغيله عند تسجيل الدخول.';
+
+  @override
+  String get keyringProbeFailed =>
+      'لا يمكن الوصول إلى سلسلة مفاتيح نظام التشغيل على هذا الجهاز. راجع السجلات للاطلاع على خطأ المنصة المحدد؛ يعود التطبيق إلى كلمة المرور الرئيسية.';
+
+  @override
   String get snippets => 'المقتطفات';
 
   @override

@@ -2240,6 +2240,62 @@ class SHi extends S {
       'हार्डवेयर स्तर जाँच विफल। /dev/tpmrm0 अनुमतियाँ और udev नियम जाँचें — विवरण लॉग में हैं।';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 नहीं मिला। UEFI फ़र्मवेयर में fTPM / PTT सक्षम करें, या स्वीकारें कि इस डिवाइस पर हार्डवेयर स्तर उपलब्ध नहीं है — ऐप सॉफ़्टवेयर-आधारित क्रेडेंशियल स्टोर पर वापस लौटता है।';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Microsoft Platform Crypto Provider और Software Key Storage Provider दोनों तक पहुँच नहीं है — संभवतः दूषित Windows क्रिप्टो उपप्रणाली या CNG को ब्लॉक करने वाली Group Policy। Event Viewer → Applications and Services Logs जाँचें।';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'इस Mac में Secure Enclave नहीं है (T1 / T2 सुरक्षा चिप के बिना 2017 से पहले का Intel Mac)। हार्डवेयर स्तर उपलब्ध नहीं; मास्टर पासवर्ड का उपयोग करें।';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'इस Mac पर लॉगिन पासवर्ड सेट नहीं है। Secure Enclave कुंजी निर्माण के लिए यह आवश्यक है — System Settings → Touch ID & Password (या Login Password) में सेट करें।';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'डिवाइस पासकोड सेट नहीं है। Secure Enclave कुंजी निर्माण के लिए यह आवश्यक है — Settings → Face ID & Passcode (या Touch ID & Passcode) में सेट करें।';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'iOS Simulator पर चल रहा है, जिसमें Secure Enclave नहीं है। हार्डवेयर स्तर केवल भौतिक iOS डिवाइसों पर उपलब्ध है।';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'हार्डवेयर स्तर के लिए Android 9 या नया आवश्यक है (StrongBox और प्रति-कुंजी एनरोलमेंट अमान्यकरण पुराने संस्करणों पर विश्वसनीय नहीं हैं)।';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'इस डिवाइस में बायोमेट्रिक हार्डवेयर नहीं है (उँगली या चेहरा)। मास्टर पासवर्ड का उपयोग करें।';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'कोई बायोमेट्रिक नामांकित नहीं। Settings → Security & privacy → Biometrics में उँगली या चेहरा जोड़ें, फिर हार्डवेयर स्तर पुनः सक्षम करें।';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'बायोमेट्रिक हार्डवेयर अस्थायी रूप से अनुपयोगी (असफल प्रयासों के बाद लॉकआउट या लंबित सुरक्षा अपडेट)। कुछ मिनटों में पुनः प्रयास करें।';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'WSL पर चल रहा है — Windows Subsystem for Linux कंटेनर से keyring daemon तक कोई पहुँच नहीं। मास्टर पासवर्ड का उपयोग करें, या gnome-keyring / KWallet के साथ मूल Linux सत्र में ऐप चलाएँ।';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'कोई D-Bus session bus नहीं — ऐप headless या केवल SSH सत्र में चल रहा है। ग्राफ़िकल लॉगिन सत्र शुरू करें, या लॉन्च से पहले DBUS_SESSION_BUS_ADDRESS निर्यात करें।';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus चल रहा है लेकिन कोई secret-service daemon नहीं चल रहा। gnome-keyring (`sudo apt install gnome-keyring`) या KWalletManager स्थापित करें और लॉगिन पर शुरू होना सुनिश्चित करें।';
+
+  @override
+  String get keyringProbeFailed =>
+      'इस डिवाइस पर OS कीचेन पहुँच योग्य नहीं। प्लेटफ़ॉर्म-विशिष्ट त्रुटि के लिए लॉग देखें; ऐप मास्टर पासवर्ड पर वापस लौटता है।';
+
+  @override
   String get snippets => 'स्निपेट्स';
 
   @override

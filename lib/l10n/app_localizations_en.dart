@@ -2232,6 +2232,62 @@ class SEn extends S {
       'Hardware-tier probe failed. Check /dev/tpmrm0 permissions / udev rules — see logs for the tpm2-tools error.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'No TPM 2.0 detected. Enable fTPM / PTT in UEFI firmware, or accept that the hardware tier is unavailable on this device — the app falls back to the software-backed credential store.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Neither the Microsoft Platform Crypto Provider nor the Software Key Storage Provider is reachable — likely a corrupted Windows crypto subsystem or a Group Policy that blocks CNG. Check Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'This Mac has no Secure Enclave (pre-2017 Intel Mac without a T1 / T2 security chip). The hardware tier is not available; use master password instead.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'No login password is set on this Mac. Secure Enclave key creation requires one — set a login password in System Settings → Touch ID & Password (or Login Password).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'No device passcode is set. Secure Enclave key creation requires one — set a passcode in Settings → Face ID & Passcode (or Touch ID & Passcode).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Running on the iOS Simulator, which has no Secure Enclave. The hardware tier is only available on physical iOS devices.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Android 9 or newer is required for the hardware tier (StrongBox and per-key enrolment invalidation are not reliable on older versions).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'This device has no biometric hardware (fingerprint or face). Use master password instead.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'No biometric is enrolled. Add a fingerprint or face in Settings → Security & privacy → Biometrics, then re-enable the hardware tier.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Running on WSL — there is no keyring daemon reachable from a Windows Subsystem for Linux container. Use master password, or run the app on a native Linux session with gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'No D-Bus session bus — the app is running in a headless or SSH-only session. Start a graphical login session, or export DBUS_SESSION_BUS_ADDRESS before launching.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus is up but no secret-service daemon is running. Install gnome-keyring (`sudo apt install gnome-keyring`) or KWalletManager and ensure it starts at login.';
+
+  @override
+  String get keyringProbeFailed =>
+      'The OS keychain is unreachable on this device. See logs for the specific platform error; the app falls back to master password.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

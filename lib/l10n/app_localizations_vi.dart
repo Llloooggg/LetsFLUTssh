@@ -2228,6 +2228,62 @@ class SVi extends S {
       'Kiểm tra tầng phần cứng thất bại. Kiểm tra quyền trên /dev/tpmrm0 và các quy tắc udev — xem log để biết chi tiết.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'Không phát hiện TPM 2.0. Bật fTPM / PTT trong phần mềm UEFI, hoặc chấp nhận rằng tầng phần cứng không khả dụng trên thiết bị này — ứng dụng chuyển sang kho thông tin xác thực phần mềm.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Cả Microsoft Platform Crypto Provider lẫn Software Key Storage Provider đều không truy cập được — có thể do hệ thống mật mã Windows bị hỏng hoặc Group Policy chặn CNG. Kiểm tra Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Mac này không có Secure Enclave (Mac Intel trước 2017 không có chip bảo mật T1 / T2). Tầng phần cứng không khả dụng; hãy dùng mật khẩu chính.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Chưa đặt mật khẩu đăng nhập trên Mac này. Tạo khóa Secure Enclave cần có — đặt mật khẩu đăng nhập trong System Settings → Touch ID & Password (hoặc Login Password).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Chưa đặt mã khóa thiết bị. Tạo khóa Secure Enclave cần có — đặt mã trong Settings → Face ID & Passcode (hoặc Touch ID & Passcode).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Đang chạy trên iOS Simulator, không có Secure Enclave. Tầng phần cứng chỉ khả dụng trên thiết bị iOS vật lý.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Cần Android 9 trở lên cho tầng phần cứng (StrongBox và vô hiệu hóa khóa khi thay đổi đăng ký sinh trắc học không đáng tin cậy trên phiên bản cũ hơn).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Thiết bị này không có phần cứng sinh trắc học (vân tay hoặc khuôn mặt). Hãy dùng mật khẩu chính.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Chưa đăng ký sinh trắc học. Thêm vân tay hoặc khuôn mặt trong Settings → Bảo mật và quyền riêng tư → Sinh trắc học, sau đó bật lại tầng phần cứng.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Phần cứng sinh trắc học tạm thời không sử dụng được (khóa sau nhiều lần thất bại hoặc đang chờ cập nhật bảo mật). Thử lại sau vài phút.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Đang chạy trên WSL — không thể truy cập keyring daemon từ container Windows Subsystem for Linux. Dùng mật khẩu chính, hoặc chạy ứng dụng trong phiên Linux gốc với gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'Không có D-Bus session bus — ứng dụng đang chạy trong phiên headless hoặc chỉ SSH. Khởi động phiên đồ họa, hoặc export DBUS_SESSION_BUS_ADDRESS trước khi khởi chạy.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus đang chạy nhưng không có secret-service daemon nào đang hoạt động. Cài đặt gnome-keyring (`sudo apt install gnome-keyring`) hoặc KWalletManager và đảm bảo nó khởi động khi đăng nhập.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Keychain OS không truy cập được trên thiết bị này. Xem log để biết lỗi nền tảng cụ thể; ứng dụng chuyển sang mật khẩu chính.';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

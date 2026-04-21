@@ -111,23 +111,63 @@ class SecureKeyStorage {
   /// On all other platforms, performs a full write → read → delete cycle
   /// with a disposable key. Returns false if any step fails.
   Future<bool> isAvailable() async {
-    if (!_hasKeychainSupport()) return false;
-    if (Platform.isLinux && !_skipPlatformCheck && !await _markerExists()) {
-      return true;
+    return (await probe()) == KeyringProbeResult.available;
+  }
+
+  /// Classified keyring probe — distinguishes *why* the OS keychain is
+  /// unreachable so the Settings UI can surface an actionable hint
+  /// instead of a generic "unavailable on this device" line. The live
+  /// probe (write → read → delete) runs only when the pre-flight env
+  /// check clears it; a locked Linux keyring or a WSL host returns a
+  /// typed code without waking libsecret.
+  Future<KeyringProbeResult> probe() async {
+    if (_skipPlatformCheck || !Platform.isLinux) {
+      // Windows / macOS / iOS / Android: the backing service is
+      // effectively always up on a user device. A failure on these
+      // platforms is a real platform-channel error, not an
+      // installation gap — surface it as a generic failure.
+      try {
+        const marker = 'probe';
+        await _storage.write(key: _probeName, value: marker);
+        final back = await _storage.read(key: _probeName);
+        await _storage.delete(key: _probeName);
+        return back == marker
+            ? KeyringProbeResult.available
+            : KeyringProbeResult.probeFailed;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Keychain probe failed on ${Platform.operatingSystem}: $e',
+          name: 'SecureKeyStorage',
+        );
+        return KeyringProbeResult.probeFailed;
+      }
     }
 
+    // ── Linux ────────────────────────────────────────────────────
+    if (Platform.environment.containsKey('WSL_DISTRO_NAME')) {
+      return KeyringProbeResult.linuxWsl;
+    }
+    final dbus = Platform.environment['DBUS_SESSION_BUS_ADDRESS'];
+    if (dbus == null || dbus.isEmpty) {
+      return KeyringProbeResult.linuxNoDbusSession;
+    }
+    // If the user has not yet opted into keychain storage, optimism
+    // (no live probe) — the write path will surface any real failure.
+    if (!await _markerExists()) return KeyringProbeResult.available;
     try {
-      const probe = 'probe';
-      await _storage.write(key: _probeName, value: probe);
-      final readBack = await _storage.read(key: _probeName);
+      const marker = 'probe';
+      await _storage.write(key: _probeName, value: marker);
+      final back = await _storage.read(key: _probeName);
       await _storage.delete(key: _probeName);
-      return readBack == probe;
+      return back == marker
+          ? KeyringProbeResult.available
+          : KeyringProbeResult.linuxNoSecretService;
     } catch (e) {
       AppLogger.instance.log(
-        'Keychain not available: $e',
+        'Linux libsecret probe failed: $e',
         name: 'SecureKeyStorage',
       );
-      return false;
+      return KeyringProbeResult.linuxNoSecretService;
     }
   }
 
@@ -316,4 +356,33 @@ class SecureKeyStorage {
     }
     if (Platform.isLinux && !_skipPlatformCheck) await _clearMarker();
   }
+}
+
+/// Classified keyring probe outcome. Settings UI consumes this to
+/// render an actionable line under a disabled Keychain tier card
+/// instead of a generic "unavailable" note.
+enum KeyringProbeResult {
+  /// Keychain reachable and round-trips a probe value.
+  available,
+
+  /// Linux host is a WSL distro with no keyring daemon. Fix: use
+  /// master password or paranoid tier on WSL, or run an X11 /
+  /// Wayland session with gnome-keyring / KWallet.
+  linuxWsl,
+
+  /// Linux host has no D-Bus session bus reachable — the user is
+  /// probably on a headless / ssh-tty-only session. Fix: start a
+  /// graphical session or export `DBUS_SESSION_BUS_ADDRESS`.
+  linuxNoDbusSession,
+
+  /// D-Bus is up but libsecret cannot reach the secret-service
+  /// daemon (no gnome-keyring-daemon or KWallet running, or the
+  /// daemon refuses to unlock). Fix: install gnome-keyring or
+  /// KWalletManager and ensure it runs at login.
+  linuxNoSecretService,
+
+  /// Non-Linux host's keychain returned an error — rare, usually a
+  /// locked macOS login keychain or a corrupted Windows Credential
+  /// Manager. UI shows the generic fallback copy.
+  probeFailed,
 }

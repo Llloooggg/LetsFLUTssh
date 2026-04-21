@@ -2151,6 +2151,60 @@ class SZh extends S {
       '硬件等级探测失败。请检查 /dev/tpmrm0 权限与 udev 规则 —— 详情见日志。';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      '未检测到 TPM 2.0。请在 UEFI 固件中启用 fTPM / PTT，或接受此设备上无法使用硬件等级 —— 应用将回退到软件支持的凭据存储。';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      '无法访问 Microsoft Platform Crypto Provider 或 Software Key Storage Provider —— 可能是 Windows 加密子系统损坏或组策略阻止了 CNG。请查看 事件查看器 → 应用程序和服务日志。';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      '此 Mac 没有 Secure Enclave（2017 年之前没有 T1 / T2 安全芯片的 Intel Mac）。硬件等级不可用；请使用主密码。';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      '此 Mac 未设置登录密码。Secure Enclave 密钥创建需要登录密码 —— 请在 系统设置 → 触控 ID 与密码（或登录密码）中设置。';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      '未设置设备密码。Secure Enclave 密钥创建需要密码 —— 请在 设置 → 面容 ID 与密码（或触控 ID 与密码）中设置。';
+
+  @override
+  String get hwProbeIosSimulator =>
+      '在 iOS 模拟器上运行，不具备 Secure Enclave。硬件等级仅在实体 iOS 设备上可用。';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      '硬件等级需要 Android 9 或更高版本（StrongBox 与密钥注册失效在较旧版本上不可靠）。';
+
+  @override
+  String get hwProbeAndroidBiometricNone => '此设备没有生物识别硬件（指纹或人脸）。请改用主密码。';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      '未注册生物识别。请在 设置 → 安全和隐私 → 生物识别 中添加指纹或人脸，然后重新启用硬件等级。';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      '生物识别硬件暂时不可用（失败尝试后锁定或待处理的安全更新）。请几分钟后重试。';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      '正在 WSL 中运行 —— 无法从 Windows Subsystem for Linux 容器访问 keyring daemon。请使用主密码，或在带有 gnome-keyring / KWallet 的原生 Linux 会话中运行应用。';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      '没有 D-Bus 会话总线 —— 应用在无头或仅 SSH 会话中运行。请启动图形登录会话，或在启动前导出 DBUS_SESSION_BUS_ADDRESS。';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。';
+
+  @override
+  String get keyringProbeFailed => '此设备上无法访问操作系统密钥链。请查看日志以获取特定平台错误；应用将回退到主密码。';
+
+  @override
   String get snippets => '代码片段';
 
   @override

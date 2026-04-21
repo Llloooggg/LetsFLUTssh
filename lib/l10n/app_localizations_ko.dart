@@ -2170,6 +2170,62 @@ class SKo extends S {
       '하드웨어 등급 점검이 실패했습니다. /dev/tpmrm0 권한과 udev 규칙을 확인하세요 — 자세한 내용은 로그를 참조하세요.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0이 감지되지 않았습니다. UEFI 펌웨어에서 fTPM / PTT를 활성화하거나 이 기기에서 하드웨어 등급을 사용할 수 없음을 받아들이세요 — 앱은 소프트웨어 기반 자격 증명 저장소로 전환됩니다.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Microsoft Platform Crypto Provider와 Software Key Storage Provider 모두 접근할 수 없습니다 — Windows 암호화 하위 시스템 손상 또는 CNG를 차단하는 그룹 정책일 가능성이 높습니다. 이벤트 뷰어 → 응용 프로그램 및 서비스 로그를 확인하세요.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      '이 Mac에는 Secure Enclave가 없습니다(T1 / T2 보안 칩 없는 2017년 이전 Intel Mac). 하드웨어 등급을 사용할 수 없으므로 마스터 비밀번호를 사용하세요.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      '이 Mac에 로그인 비밀번호가 설정되지 않았습니다. Secure Enclave 키 생성에 필요합니다 — 시스템 설정 → Touch ID 및 비밀번호(또는 로그인 비밀번호)에서 설정하세요.';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      '기기 암호가 설정되지 않았습니다. Secure Enclave 키 생성에 필요합니다 — 설정 → Face ID 및 암호(또는 Touch ID 및 암호)에서 설정하세요.';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Secure Enclave가 없는 iOS 시뮬레이터에서 실행 중입니다. 하드웨어 등급은 실제 iOS 기기에서만 사용할 수 있습니다.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      '하드웨어 등급에는 Android 9 이상이 필요합니다(StrongBox와 키별 등록 무효화는 이전 버전에서 안정적이지 않습니다).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      '이 기기에는 생체 인식 하드웨어(지문 또는 얼굴)가 없습니다. 마스터 비밀번호를 사용하세요.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      '등록된 생체 인식이 없습니다. 설정 → 보안 및 개인정보 보호 → 생체 인식에서 지문 또는 얼굴을 추가한 다음 하드웨어 등급을 다시 활성화하세요.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      '생체 인식 하드웨어를 일시적으로 사용할 수 없습니다(실패한 시도 후 잠금 또는 보류 중인 보안 업데이트). 몇 분 후에 다시 시도하세요.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'WSL에서 실행 중 — Windows Subsystem for Linux 컨테이너에서 keyring 데몬에 접근할 수 없습니다. 마스터 비밀번호를 사용하거나 gnome-keyring / KWallet이 있는 네이티브 Linux 세션에서 앱을 실행하세요.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'D-Bus 세션 버스가 없습니다 — 앱이 헤드리스 또는 SSH 전용 세션에서 실행 중입니다. 그래픽 로그인 세션을 시작하거나 실행 전에 DBUS_SESSION_BUS_ADDRESS를 내보내세요.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus는 작동 중이지만 secret-service 데몬이 실행 중이 아닙니다. gnome-keyring(`sudo apt install gnome-keyring`) 또는 KWalletManager를 설치하고 로그인 시 시작되도록 하세요.';
+
+  @override
+  String get keyringProbeFailed =>
+      '이 기기에서 OS 키체인에 접근할 수 없습니다. 플랫폼별 오류는 로그를 참조하세요. 앱은 마스터 비밀번호로 전환됩니다.';
+
+  @override
   String get snippets => '스니펫';
 
   @override

@@ -2173,6 +2173,62 @@ class SJa extends S {
       'ハードウェア階層のプローブに失敗しました。/dev/tpmrm0 の権限と udev ルールを確認してください — 詳細はログを参照してください。';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 が検出されませんでした。UEFI ファームウェアで fTPM / PTT を有効にするか、このデバイスでハードウェア階層が使用できないことを受け入れてください — アプリはソフトウェアベースの認証情報ストアにフォールバックします。';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Microsoft Platform Crypto Provider も Software Key Storage Provider にも到達できません — Windows 暗号サブシステムの破損、または CNG をブロックするグループポリシーが考えられます。イベントビューアー → アプリケーションとサービスログを確認してください。';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'この Mac には Secure Enclave がありません（T1 / T2 セキュリティチップ非搭載の 2017 年以前の Intel Mac）。ハードウェア階層は利用できません。マスターパスワードを使用してください。';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'この Mac にログインパスワードが設定されていません。Secure Enclave キー作成に必要です — システム設定 → Touch ID とパスワード（またはログインパスワード）で設定してください。';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'デバイスのパスコードが設定されていません。Secure Enclave キー作成に必要です — 設定 → Face ID とパスコード（または Touch ID とパスコード）で設定してください。';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'iOS シミュレーターで実行中で、Secure Enclave がありません。ハードウェア階層は物理 iOS デバイスでのみ利用可能です。';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'ハードウェア階層には Android 9 以降が必要です（StrongBox とキーごとの登録無効化は古いバージョンでは信頼性がありません）。';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'このデバイスには生体認証ハードウェア（指紋または顔）がありません。マスターパスワードを使用してください。';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      '生体認証が登録されていません。設定 → セキュリティとプライバシー → 生体認証で指紋または顔を追加してから、ハードウェア階層を再度有効にしてください。';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      '生体認証ハードウェアが一時的に使用できません（失敗試行後のロックアウトまたは保留中のセキュリティ更新）。数分後に再試行してください。';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'WSL で実行中 — Windows Subsystem for Linux コンテナーから keyring デーモンに到達できません。マスターパスワードを使用するか、gnome-keyring / KWallet 付きのネイティブ Linux セッションでアプリを実行してください。';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'D-Bus セッションバスがありません — アプリはヘッドレスまたは SSH 専用セッションで実行されています。グラフィカルログインセッションを開始するか、起動前に DBUS_SESSION_BUS_ADDRESS をエクスポートしてください。';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus は動作していますが、secret-service デーモンが実行されていません。gnome-keyring（`sudo apt install gnome-keyring`）または KWalletManager をインストールし、ログイン時に起動するようにしてください。';
+
+  @override
+  String get keyringProbeFailed =>
+      'このデバイスでは OS キーチェーンに到達できません。プラットフォーム固有のエラーはログを参照してください。アプリはマスターパスワードにフォールバックします。';
+
+  @override
   String get snippets => 'スニペット';
 
   @override

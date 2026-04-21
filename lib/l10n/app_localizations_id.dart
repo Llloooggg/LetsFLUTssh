@@ -2244,6 +2244,62 @@ class SId extends S {
       'Pemeriksaan tingkat perangkat keras gagal. Periksa izin /dev/tpmrm0 dan aturan udev — lihat log untuk detail.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 tidak terdeteksi. Aktifkan fTPM / PTT di firmware UEFI, atau terima bahwa tingkat perangkat keras tidak tersedia di perangkat ini — aplikasi beralih ke penyimpanan kredensial berbasis perangkat lunak.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Baik Microsoft Platform Crypto Provider maupun Software Key Storage Provider tidak dapat dijangkau — kemungkinan subsistem kripto Windows rusak atau Kebijakan Grup yang memblokir CNG. Periksa Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Mac ini tidak memiliki Secure Enclave (Mac Intel sebelum 2017 tanpa chip keamanan T1 / T2). Tingkat perangkat keras tidak tersedia; gunakan kata sandi utama.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Tidak ada kata sandi login di Mac ini. Pembuatan kunci Secure Enclave memerlukannya — atur kata sandi login di Pengaturan Sistem → Touch ID & Kata Sandi (atau Kata Sandi Login).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Tidak ada kode sandi perangkat yang diatur. Pembuatan kunci Secure Enclave memerlukannya — atur kode sandi di Pengaturan → Face ID & Kode Sandi (atau Touch ID & Kode Sandi).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Berjalan di Simulator iOS, yang tidak memiliki Secure Enclave. Tingkat perangkat keras hanya tersedia di perangkat iOS fisik.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Android 9 atau lebih baru diperlukan untuk tingkat perangkat keras (StrongBox dan invalidasi per-kunci saat pendaftaran tidak dapat diandalkan pada versi lebih lama).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Perangkat ini tidak memiliki perangkat keras biometrik (sidik jari atau wajah). Gunakan kata sandi utama.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Tidak ada biometrik yang terdaftar. Tambahkan sidik jari atau wajah di Pengaturan → Keamanan & privasi → Biometrik, lalu aktifkan kembali tingkat perangkat keras.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Perangkat keras biometrik tidak dapat digunakan sementara (terkunci setelah percobaan gagal atau pembaruan keamanan tertunda). Coba lagi beberapa menit lagi.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Berjalan di WSL — tidak ada keyring daemon yang dapat dijangkau dari kontainer Windows Subsystem for Linux. Gunakan kata sandi utama, atau jalankan aplikasi di sesi Linux native dengan gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'Tidak ada D-Bus session bus — aplikasi berjalan di sesi headless atau hanya SSH. Mulai sesi login grafis, atau ekspor DBUS_SESSION_BUS_ADDRESS sebelum meluncurkan.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus aktif tetapi tidak ada secret-service daemon yang berjalan. Pasang gnome-keyring (`sudo apt install gnome-keyring`) atau KWalletManager dan pastikan berjalan saat login.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Keychain OS tidak dapat dijangkau di perangkat ini. Lihat log untuk error spesifik platform; aplikasi beralih ke kata sandi utama.';
+
+  @override
   String get snippets => 'Snippet';
 
   @override

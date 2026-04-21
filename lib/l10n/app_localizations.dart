@@ -3969,6 +3969,90 @@ abstract class S {
   /// **'Hardware-tier probe failed. Check /dev/tpmrm0 permissions / udev rules — see logs for the tpm2-tools error.'**
   String get hwProbeLinuxProbeFailed;
 
+  /// No description provided for @hwProbeWindowsSoftwareOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'No TPM 2.0 detected. Enable fTPM / PTT in UEFI firmware, or accept that the hardware tier is unavailable on this device — the app falls back to the software-backed credential store.'**
+  String get hwProbeWindowsSoftwareOnly;
+
+  /// No description provided for @hwProbeWindowsProvidersMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Neither the Microsoft Platform Crypto Provider nor the Software Key Storage Provider is reachable — likely a corrupted Windows crypto subsystem or a Group Policy that blocks CNG. Check Event Viewer → Applications and Services Logs.'**
+  String get hwProbeWindowsProvidersMissing;
+
+  /// No description provided for @hwProbeMacosNoSecureEnclave.
+  ///
+  /// In en, this message translates to:
+  /// **'This Mac has no Secure Enclave (pre-2017 Intel Mac without a T1 / T2 security chip). The hardware tier is not available; use master password instead.'**
+  String get hwProbeMacosNoSecureEnclave;
+
+  /// No description provided for @hwProbeMacosPasscodeNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No login password is set on this Mac. Secure Enclave key creation requires one — set a login password in System Settings → Touch ID & Password (or Login Password).'**
+  String get hwProbeMacosPasscodeNotSet;
+
+  /// No description provided for @hwProbeIosPasscodeNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No device passcode is set. Secure Enclave key creation requires one — set a passcode in Settings → Face ID & Passcode (or Touch ID & Passcode).'**
+  String get hwProbeIosPasscodeNotSet;
+
+  /// No description provided for @hwProbeIosSimulator.
+  ///
+  /// In en, this message translates to:
+  /// **'Running on the iOS Simulator, which has no Secure Enclave. The hardware tier is only available on physical iOS devices.'**
+  String get hwProbeIosSimulator;
+
+  /// No description provided for @hwProbeAndroidApiTooLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Android 9 or newer is required for the hardware tier (StrongBox and per-key enrolment invalidation are not reliable on older versions).'**
+  String get hwProbeAndroidApiTooLow;
+
+  /// No description provided for @hwProbeAndroidBiometricNone.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has no biometric hardware (fingerprint or face). Use master password instead.'**
+  String get hwProbeAndroidBiometricNone;
+
+  /// No description provided for @hwProbeAndroidBiometricNotEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'No biometric is enrolled. Add a fingerprint or face in Settings → Security & privacy → Biometrics, then re-enable the hardware tier.'**
+  String get hwProbeAndroidBiometricNotEnrolled;
+
+  /// No description provided for @hwProbeAndroidBiometricUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.'**
+  String get hwProbeAndroidBiometricUnavailable;
+
+  /// No description provided for @keyringProbeLinuxWsl.
+  ///
+  /// In en, this message translates to:
+  /// **'Running on WSL — there is no keyring daemon reachable from a Windows Subsystem for Linux container. Use master password, or run the app on a native Linux session with gnome-keyring / KWallet.'**
+  String get keyringProbeLinuxWsl;
+
+  /// No description provided for @keyringProbeLinuxNoDbusSession.
+  ///
+  /// In en, this message translates to:
+  /// **'No D-Bus session bus — the app is running in a headless or SSH-only session. Start a graphical login session, or export DBUS_SESSION_BUS_ADDRESS before launching.'**
+  String get keyringProbeLinuxNoDbusSession;
+
+  /// No description provided for @keyringProbeLinuxNoSecretService.
+  ///
+  /// In en, this message translates to:
+  /// **'D-Bus is up but no secret-service daemon is running. Install gnome-keyring (`sudo apt install gnome-keyring`) or KWalletManager and ensure it starts at login.'**
+  String get keyringProbeLinuxNoSecretService;
+
+  /// No description provided for @keyringProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The OS keychain is unreachable on this device. See logs for the specific platform error; the app falls back to master password.'**
+  String get keyringProbeFailed;
+
   /// No description provided for @snippets.
   ///
   /// In en, this message translates to:

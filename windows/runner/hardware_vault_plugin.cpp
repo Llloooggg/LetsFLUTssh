@@ -424,6 +424,30 @@ void HardwareVaultPlugin::HandleMethodCall(
     return;
   }
 
+  // Classified probe — the hardware tier is considered unavailable unless
+  // the Microsoft Platform Crypto Provider (TPM 2.0) opens. Software KSP
+  // still works for the rest of the app, but T2 requires real hardware.
+  //
+  // Returned codes mirror the enum surface Dart exposes as
+  // `HardwareProbeDetail`:
+  //   * `available`            — Platform Crypto Provider reachable.
+  //   * `windowsSoftwareOnly`  — only the software KSP is reachable;
+  //                               the host has no TPM 2.0 or it is
+  //                               disabled in UEFI / Group Policy.
+  //   * `windowsProvidersMissing` — neither CNG provider opens. Very
+  //                               unusual — corrupted crypto subsystem
+  //                               or locked-down enterprise config.
+  if (method == "probeDetail") {
+    auto tier = ProbeAvailability();
+    const char* code = tier == AvailabilityTier::kHardware
+                           ? "available"
+                       : tier == AvailabilityTier::kSoftware
+                           ? "windowsSoftwareOnly"
+                           : "windowsProvidersMissing";
+    result->Success(EncodableValue(std::string(code)));
+    return;
+  }
+
   if (method == "isStored") {
     std::error_code ec;
     result->Success(

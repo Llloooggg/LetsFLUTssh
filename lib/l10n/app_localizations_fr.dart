@@ -2268,6 +2268,62 @@ class SFr extends S {
       'La vérification du niveau matériel a échoué. Vérifiez les autorisations de /dev/tpmrm0 et les règles udev — détails dans les journaux.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'Aucun TPM 2.0 détecté. Activez fTPM / PTT dans le firmware UEFI, ou acceptez que le niveau matériel n\'est pas disponible sur cet appareil — l\'app bascule vers le magasin d\'identifiants logiciel.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ni Microsoft Platform Crypto Provider ni Software Key Storage Provider ne sont accessibles — probablement un sous-système cryptographique Windows corrompu ou une stratégie de groupe qui bloque CNG. Vérifiez Observateur d\'événements → Journaux des applications et services.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'Ce Mac n\'a pas de Secure Enclave (Mac Intel avant 2017 sans puce de sécurité T1 / T2). Le niveau matériel n\'est pas disponible ; utilisez le mot de passe maître.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'Aucun mot de passe de session défini sur ce Mac. La création de clé Secure Enclave en requiert un — définissez-le dans Réglages système → Touch ID et mot de passe (ou Mot de passe de connexion).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'Aucun code défini sur l\'appareil. La création de clé Secure Enclave en requiert un — définissez un code dans Réglages → Face ID et code (ou Touch ID et code).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Exécution dans le Simulateur iOS, qui n\'a pas de Secure Enclave. Le niveau matériel n\'est disponible que sur les appareils iOS physiques.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Android 9 ou plus récent est requis pour le niveau matériel (StrongBox et l\'invalidation par changement biométrique ne sont pas fiables sur les versions antérieures).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'Cet appareil n\'a pas de matériel biométrique (empreinte ou visage). Utilisez le mot de passe maître.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Aucune biométrie enregistrée. Ajoutez une empreinte ou un visage dans Paramètres → Sécurité et confidentialité → Biométrie, puis réactivez le niveau matériel.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Matériel biométrique temporairement inutilisable (verrouillage après échecs ou mise à jour de sécurité en attente). Réessayez dans quelques minutes.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Exécution dans WSL — aucun keyring daemon accessible depuis un conteneur Windows Subsystem for Linux. Utilisez le mot de passe maître, ou lancez l\'app dans une session Linux native avec gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'Pas de bus de session D-Bus — l\'app tourne dans une session headless ou SSH uniquement. Démarrez une session graphique, ou exportez DBUS_SESSION_BUS_ADDRESS avant de lancer.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus fonctionne mais aucun secret-service daemon n\'est actif. Installez gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager et assurez-vous qu\'il démarre à la connexion.';
+
+  @override
+  String get keyringProbeFailed =>
+      'Le trousseau de l\'OS n\'est pas accessible sur cet appareil. Voir les logs pour l\'erreur plateforme spécifique ; l\'app bascule vers le mot de passe maître.';
+
+  @override
   String get snippets => 'Snippets';
 
   @override

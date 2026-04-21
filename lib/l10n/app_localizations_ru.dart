@@ -2250,6 +2250,62 @@ class SRu extends S {
       'Проверка аппаратного уровня не прошла. Проверьте права на /dev/tpmrm0 и udev-правила — подробности в логах.';
 
   @override
+  String get hwProbeWindowsSoftwareOnly =>
+      'TPM 2.0 не обнаружен. Включите fTPM / PTT в прошивке UEFI или примите, что аппаратный уровень на этом устройстве недоступен — приложение переходит на программное хранилище учётных данных.';
+
+  @override
+  String get hwProbeWindowsProvidersMissing =>
+      'Ни Microsoft Platform Crypto Provider, ни Software Key Storage Provider недоступны — вероятно, повреждённая криптоподсистема Windows или Group Policy блокирует CNG. Проверьте Event Viewer → Applications and Services Logs.';
+
+  @override
+  String get hwProbeMacosNoSecureEnclave =>
+      'На этом Mac нет Secure Enclave (Intel Mac до 2017 года без чипа безопасности T1 / T2). Аппаратный уровень недоступен — используйте мастер-пароль.';
+
+  @override
+  String get hwProbeMacosPasscodeNotSet =>
+      'На этом Mac не задан пароль входа. Secure Enclave требует его для создания ключа — установите пароль входа в System Settings → Touch ID & Password (или Login Password).';
+
+  @override
+  String get hwProbeIosPasscodeNotSet =>
+      'На устройстве не задан код-пароль. Secure Enclave требует его для создания ключа — установите код-пароль в Настройки → Face ID и код-пароль (или Touch ID и код-пароль).';
+
+  @override
+  String get hwProbeIosSimulator =>
+      'Запуск на iOS Simulator, у которого нет Secure Enclave. Аппаратный уровень доступен только на физических устройствах iOS.';
+
+  @override
+  String get hwProbeAndroidApiTooLow =>
+      'Для аппаратного уровня требуется Android 9 или новее (StrongBox и инвалидация ключа при изменении биометрии не работают надёжно на более старых версиях).';
+
+  @override
+  String get hwProbeAndroidBiometricNone =>
+      'На этом устройстве нет биометрического оборудования (отпечаток или лицо). Используйте мастер-пароль.';
+
+  @override
+  String get hwProbeAndroidBiometricNotEnrolled =>
+      'Биометрия не настроена. Добавьте отпечаток или лицо в Настройки → Безопасность и конфиденциальность → Биометрия, затем повторно включите аппаратный уровень.';
+
+  @override
+  String get hwProbeAndroidBiometricUnavailable =>
+      'Биометрическое оборудование временно недоступно (блокировка после неудачных попыток или ожидание обновления безопасности). Повторите через несколько минут.';
+
+  @override
+  String get keyringProbeLinuxWsl =>
+      'Запуск в WSL — из контейнера Windows Subsystem for Linux нет доступа к keyring daemon. Используйте мастер-пароль или запустите приложение в нативной Linux-сессии с gnome-keyring / KWallet.';
+
+  @override
+  String get keyringProbeLinuxNoDbusSession =>
+      'Нет D-Bus session bus — приложение запущено в headless или SSH-only сессии. Запустите графическую сессию или экспортируйте DBUS_SESSION_BUS_ADDRESS перед стартом.';
+
+  @override
+  String get keyringProbeLinuxNoSecretService =>
+      'D-Bus работает, но secret-service daemon не запущен. Установите gnome-keyring (`sudo apt install gnome-keyring`) или KWalletManager и включите автозапуск при входе.';
+
+  @override
+  String get keyringProbeFailed =>
+      'OS keychain недоступен на этом устройстве. Подробности в логах; приложение переходит на мастер-пароль.';
+
+  @override
   String get snippets => 'Сниппеты';
 
   @override
