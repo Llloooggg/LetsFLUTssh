@@ -135,6 +135,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required SecurityTierModifiers currentModifiers,
     required bool available,
     required String? unavailableReason,
+    required S l10n,
   }) {
     final isCurrent =
         tier == currentLevel ||
@@ -148,6 +149,53 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       unavailableReason: unavailableReason,
       initiallyExpanded: isCurrent,
       onSelect: onSelectTier,
+      activeTierExtras: isCurrent
+          ? _activeTierExtras(currentLevel, currentModifiers, l10n)
+          : null,
+    );
+  }
+
+  /// Biometric unlock + auto-lock rows rendered inside the current
+  /// tier card's expandable. Returns null on tiers where neither
+  /// modifier is meaningful — T0 (nothing to lock), T1 / T2 without
+  /// password (no user secret to gate). Biometric is a shortcut for
+  /// re-entering the password; auto-lock only matters when there is
+  /// a re-auth step to gate.
+  Widget? _activeTierExtras(
+    SecurityTier currentLevel,
+    SecurityTierModifiers modifiers,
+    S l10n,
+  ) {
+    final hasUserSecret =
+        currentLevel == SecurityTier.paranoid ||
+        currentLevel == SecurityTier.keychainWithPassword ||
+        modifiers.password;
+    if (!hasUserSecret) return null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _AutoLockTile(
+          disabledReason: _autoLockDisabledReason(
+            l10n,
+            currentLevel,
+            modifiers,
+          ),
+        ),
+        _Toggle(
+          label: l10n.biometricUnlockTitle,
+          subtitle: _biometricSubtitle(l10n),
+          icon: Icons.fingerprint,
+          value: _biometricEnabled == true,
+          onChanged: _biometricToggleEnabled(currentLevel, modifiers)
+              ? (v) => _toggleBiometricUnlock(context, v)
+              : null,
+          disabledReason: _biometricDisabledReason(
+            l10n,
+            currentLevel,
+            modifiers,
+          ),
+        ),
+      ],
     );
   }
 
@@ -260,6 +308,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentModifiers: modifiers,
           available: true,
           unavailableReason: null,
+          l10n: l10n,
         ),
         _buildTierCard(
           tier: SecurityTier.keychain,
@@ -267,6 +316,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentModifiers: modifiers,
           available: keychainAvail,
           unavailableReason: keychainAvail ? null : kcReason,
+          l10n: l10n,
         ),
         _buildTierCard(
           tier: SecurityTier.hardware,
@@ -274,6 +324,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentModifiers: modifiers,
           available: hardwareAvail,
           unavailableReason: hwReason,
+          l10n: l10n,
         ),
         _buildTierCard(
           tier: SecurityTier.paranoid,
@@ -281,38 +332,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
           currentModifiers: modifiers,
           available: true,
           unavailableReason: null,
+          l10n: l10n,
         ),
         const SizedBox(height: 12),
-        // Auto-lock — orthogonal modifier. Only meaningful when the
-        // active tier holds a user-typed secret; disabled with reason
-        // tooltip otherwise.
-        _AutoLockTile(
-          disabledReason: _autoLockDisabledReason(
-            l10n,
-            secState.level,
-            modifiers,
-          ),
-        ),
-        // Biometric unlock — orthogonal modifier kept as its own row
-        // (not inside the tier cards) because enabling it runs a
-        // BiometricPrompt + stashes the DB key into the biometric-
-        // gated vault. The stash can fail mid-flow in ways the tier
-        // Select button cannot surface, so biometric is applied
-        // after the tier is already stable.
-        _Toggle(
-          label: l10n.biometricUnlockTitle,
-          subtitle: _biometricSubtitle(l10n),
-          icon: Icons.fingerprint,
-          value: _biometricEnabled == true,
-          onChanged: _biometricToggleEnabled(secState.level, modifiers)
-              ? (v) => _toggleBiometricUnlock(context, v)
-              : null,
-          disabledReason: _biometricDisabledReason(
-            l10n,
-            secState.level,
-            modifiers,
-          ),
-        ),
+        // Biometric + auto-lock rows live inside the current tier's
+        // expandable (see _activeTierExtras) — they are orthogonal
+        // "settings of the current tier" and only meaningful when a
+        // user secret exists on the active tier. Keeping them inside
+        // the card keeps the security section to a single scannable
+        // ladder; a T0 / T1-no-password user sees no dead-lettered
+        // toggles in between the cards and the reset-all-data row.
+
         // Destructive recovery: single place to wipe every piece of
         // on-disk + keychain + hw-vault state this install holds.
         // Needed on desktop where uninstall does not purge keychain

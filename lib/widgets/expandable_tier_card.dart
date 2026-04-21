@@ -50,6 +50,7 @@ class ExpandableTierCard extends StatefulWidget {
     required this.onSelect,
     this.unavailableReason,
     this.initiallyExpanded = false,
+    this.activeTierExtras,
   });
 
   final SecurityTier tier;
@@ -70,6 +71,16 @@ class ExpandableTierCard extends StatefulWidget {
   final bool initiallyExpanded;
 
   final TierSelectCallback onSelect;
+
+  /// Rows rendered inside the expandable section, under the Apply
+  /// button and a separator, on the card whose tier matches the
+  /// currently-applied security state. Intended for orthogonal
+  /// "active-tier settings" — biometric unlock, auto-lock — that
+  /// take effect immediately on toggle rather than being queued
+  /// for the Apply button. Null on non-current cards, and also on
+  /// the current card when none of the orthogonal toggles are
+  /// meaningful (e.g. T0, which has no user secret to lock).
+  final Widget? activeTierExtras;
 
   @override
   State<ExpandableTierCard> createState() => _ExpandableTierCardState();
@@ -377,6 +388,17 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                           : Text(_selectLabel(l10n)),
                     ),
                   ),
+                  // Active-tier orthogonal settings (biometric unlock,
+                  // auto-lock). Rendered under a divider so the user
+                  // reads them as "settings of the current tier" and
+                  // not as pending changes gated by Apply. Only the
+                  // current tier card passes a non-null widget here.
+                  if (widget.activeTierExtras != null) ...[
+                    const SizedBox(height: 12),
+                    Divider(height: 1, color: AppTheme.border),
+                    const SizedBox(height: 4),
+                    widget.activeTierExtras!,
+                  ],
                 ],
               ),
             ),
