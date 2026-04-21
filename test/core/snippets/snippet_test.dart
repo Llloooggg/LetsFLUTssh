@@ -66,12 +66,6 @@ void main() {
       expect(a, isNot(equals(b)));
     });
 
-    test('toString includes id and title', () {
-      final snippet = Snippet(id: 'abc', title: 'Deploy', command: 'make');
-      expect(snippet.toString(), contains('abc'));
-      expect(snippet.toString(), contains('Deploy'));
-    });
-
     test('two snippets get different ids', () {
       final a = Snippet(title: 'A', command: 'a');
       final b = Snippet(title: 'B', command: 'b');

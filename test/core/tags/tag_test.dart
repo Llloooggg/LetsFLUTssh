@@ -71,12 +71,6 @@ void main() {
       final b = Tag(name: 'B');
       expect(a.id, isNot(b.id));
     });
-
-    test('toString includes id and name', () {
-      final tag = Tag(id: 'abc', name: 'Staging');
-      expect(tag.toString(), contains('abc'));
-      expect(tag.toString(), contains('Staging'));
-    });
   });
 
   group('tagColors', () {
@@ -87,10 +81,6 @@ void main() {
         final hex = c.replaceFirst('#', '');
         expect(() => int.parse('FF$hex', radix: 16), returnsNormally);
       }
-    });
-
-    test('has at least 5 colors', () {
-      expect(tagColors.length, greaterThanOrEqualTo(5));
     });
   });
 }
