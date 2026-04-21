@@ -297,8 +297,6 @@ class _ThreatLine extends StatelessWidget {
             child: Text(
               threatTitle(threat, l10n),
               style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.xs),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
