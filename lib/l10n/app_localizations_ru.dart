@@ -891,11 +891,11 @@ class SRu extends S {
       'Те же риски компрометации ОС, что и у Keychain';
 
   @override
-  String get tierHardwareLabel => 'Железо';
+  String get tierHardwareLabel => 'Аппаратное';
 
   @override
   String get tierHardwareSubtitle =>
-      'Хранилище, привязанное к железу + короткий PIN с блокировкой';
+      'Хранилище, привязанное к оборудованию + короткий PIN с блокировкой';
 
   @override
   String get tierHardwareProtect1 =>
