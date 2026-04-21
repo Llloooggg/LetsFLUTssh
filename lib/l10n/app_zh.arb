@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "此设备没有生物识别硬件（指纹或人脸）。请改用主密码。",
   "hwProbeAndroidBiometricNotEnrolled": "未注册生物识别。请在 设置 → 安全和隐私 → 生物识别 中添加指纹或人脸，然后重新启用硬件等级。",
   "hwProbeAndroidBiometricUnavailable": "生物识别硬件暂时不可用（失败尝试后锁定或待处理的安全更新）。请几分钟后重试。",
-  "keyringProbeLinuxNoDbusSession": "没有 D-Bus 会话总线 —— 应用在无头或仅 SSH 会话中运行。请启动图形登录会话，或在启动前导出 DBUS_SESSION_BUS_ADDRESS。",
   "keyringProbeLinuxNoSecretService": "D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。",
   "keyringProbeFailed": "此设备上无法访问操作系统密钥链。请查看日志以获取特定平台错误；应用将回退到主密码。",
   "tierCurrentBadge": "当前",

@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Bu cihazda biyometrik donanım yok (parmak izi veya yüz). Bunun yerine ana parolayı kullanın.",
   "hwProbeAndroidBiometricNotEnrolled": "Biyometri kaydedilmemiş. Ayarlar → Güvenlik ve gizlilik → Biyometri'den parmak izi veya yüz ekleyin, ardından donanım katmanını yeniden etkinleştirin.",
   "hwProbeAndroidBiometricUnavailable": "Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.",
-  "keyringProbeLinuxNoDbusSession": "D-Bus session bus yok — uygulama headless veya yalnızca SSH oturumunda çalışıyor. Grafik oturumu başlatın veya başlatmadan önce DBUS_SESSION_BUS_ADDRESS değişkenini dışa aktarın.",
   "keyringProbeLinuxNoSecretService": "D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.",
   "keyringProbeFailed": "İşletim sistemi anahtar zinciri bu cihazda erişilemez. Platforma özgü hata için günlüklere bakın; uygulama ana parolaya geri döner.",
   "tierCurrentBadge": "Mevcut",

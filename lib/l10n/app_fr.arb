@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Cet appareil n'a pas de matériel biométrique (empreinte ou visage). Utilisez le mot de passe maître.",
   "hwProbeAndroidBiometricNotEnrolled": "Aucune biométrie enregistrée. Ajoutez une empreinte ou un visage dans Paramètres → Sécurité et confidentialité → Biométrie, puis réactivez le niveau matériel.",
   "hwProbeAndroidBiometricUnavailable": "Matériel biométrique temporairement inutilisable (verrouillage après échecs ou mise à jour de sécurité en attente). Réessayez dans quelques minutes.",
-  "keyringProbeLinuxNoDbusSession": "Pas de bus de session D-Bus — l'app tourne dans une session headless ou SSH uniquement. Démarrez une session graphique, ou exportez DBUS_SESSION_BUS_ADDRESS avant de lancer.",
   "keyringProbeLinuxNoSecretService": "D-Bus fonctionne mais aucun secret-service daemon n'est actif. Installez gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager et assurez-vous qu'il démarre à la connexion.",
   "keyringProbeFailed": "Le trousseau de l'OS n'est pas accessible sur cet appareil. Voir les logs pour l'erreur plateforme spécifique ; l'app bascule vers le mot de passe maître.",
   "tierCurrentBadge": "Actuel",

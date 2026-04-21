@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "این دستگاه سخت‌افزار بیومتریک ندارد (اثر انگشت یا چهره). از رمز عبور اصلی استفاده کنید.",
   "hwProbeAndroidBiometricNotEnrolled": "هیچ بیومتریکی ثبت نشده است. در تنظیمات ← امنیت و حریم خصوصی ← بیومتریک، اثر انگشت یا چهره اضافه کنید، سپس سطح سخت‌افزاری را دوباره فعال کنید.",
   "hwProbeAndroidBiometricUnavailable": "سخت‌افزار بیومتریک به طور موقت غیرقابل استفاده است (قفل پس از تلاش‌های ناموفق یا به‌روزرسانی امنیتی در انتظار). چند دقیقه دیگر امتحان کنید.",
-  "keyringProbeLinuxNoDbusSession": "D-Bus session bus وجود ندارد — برنامه در جلسه headless یا فقط SSH اجرا می‌شود. یک جلسه ورود گرافیکی شروع کنید، یا قبل از راه‌اندازی DBUS_SESSION_BUS_ADDRESS را صادر کنید.",
   "keyringProbeLinuxNoSecretService": "D-Bus فعال است اما هیچ secret-service daemon در حال اجرا نیست. gnome-keyring (`sudo apt install gnome-keyring`) یا KWalletManager را نصب کنید و مطمئن شوید که هنگام ورود به سیستم اجرا می‌شود.",
   "keyringProbeFailed": "OS keychain در این دستگاه قابل دسترسی نیست. برای خطای مخصوص پلتفرم به لاگ‌ها مراجعه کنید؛ برنامه به رمز عبور اصلی بازمی‌گردد.",
   "tierCurrentBadge": "فعلی",

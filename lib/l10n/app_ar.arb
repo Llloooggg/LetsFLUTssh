@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "لا يحتوي هذا الجهاز على أجهزة بيومترية (بصمة أو وجه). استخدم كلمة المرور الرئيسية.",
   "hwProbeAndroidBiometricNotEnrolled": "لا توجد بصمة مسجلة. أضف بصمة أو وجهًا في الإعدادات ← الأمان والخصوصية ← المقاييس الحيوية، ثم أعد تمكين المستوى العتادي.",
   "hwProbeAndroidBiometricUnavailable": "الأجهزة البيومترية غير قابلة للاستخدام مؤقتًا (قفل بعد محاولات فاشلة أو تحديث أمني معلق). أعد المحاولة بعد بضع دقائق.",
-  "keyringProbeLinuxNoDbusSession": "لا يوجد D-Bus session bus — يعمل التطبيق في جلسة بدون واجهة رسومية أو SSH فقط. ابدأ جلسة تسجيل دخول رسومية، أو صدّر DBUS_SESSION_BUS_ADDRESS قبل التشغيل.",
   "keyringProbeLinuxNoSecretService": "D-Bus يعمل ولكن لا يوجد secret-service daemon قيد التشغيل. ثبّت gnome-keyring (`sudo apt install gnome-keyring`) أو KWalletManager وتأكد من بدء تشغيله عند تسجيل الدخول.",
   "keyringProbeFailed": "لا يمكن الوصول إلى سلسلة مفاتيح نظام التشغيل على هذا الجهاز. راجع السجلات للاطلاع على خطأ المنصة المحدد؛ يعود التطبيق إلى كلمة المرور الرئيسية.",
   "tierCurrentBadge": "الحالي",

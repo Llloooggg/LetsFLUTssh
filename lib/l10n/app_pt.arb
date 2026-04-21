@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Este dispositivo não tem hardware biométrico (impressão digital ou rosto). Use a senha mestra.",
   "hwProbeAndroidBiometricNotEnrolled": "Nenhuma biometria registrada. Adicione uma impressão digital ou rosto em Ajustes → Segurança e privacidade → Biometria, e reative o nível de hardware.",
   "hwProbeAndroidBiometricUnavailable": "Hardware biométrico temporariamente inutilizável (bloqueio após falhas ou atualização de segurança pendente). Tente novamente em alguns minutos.",
-  "keyringProbeLinuxNoDbusSession": "Sem D-Bus session bus — o app está em uma sessão headless ou só por SSH. Inicie uma sessão gráfica, ou exporte DBUS_SESSION_BUS_ADDRESS antes de iniciar.",
   "keyringProbeLinuxNoSecretService": "D-Bus está ativo mas nenhum secret-service daemon está rodando. Instale gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager e certifique-se de que inicia no login.",
   "keyringProbeFailed": "O keychain do SO não está acessível neste dispositivo. Consulte os logs para o erro específico da plataforma; o app recorre à senha mestra.",
   "tierCurrentBadge": "Atual",
