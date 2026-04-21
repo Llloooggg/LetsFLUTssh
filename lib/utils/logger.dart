@@ -64,6 +64,7 @@ class AppLogger {
       await _rotateIfNeeded();
       final file = File(_logPath!);
       _sink = file.openWrite(mode: FileMode.append);
+      await _restrictPermissions(_logPath!);
 
       final now = DateTime.now().toIso8601String();
       _sink!.writeln('--- Log started $now ---');
@@ -74,6 +75,29 @@ class AppLogger {
       _sink!.writeln('');
     } catch (e) {
       dev.log('AppLogger: failed to open log file: $e');
+    }
+  }
+
+  /// Narrow the log file's POSIX permissions to owner-only (`0600`)
+  /// right after creation. `File.openWrite` calls `open(2)` with the
+  /// current umask, which on most desktops is `0022` — i.e. the file
+  /// lands world-readable at `0644`. Anything sensitive that slips
+  /// past [sanitize] (third-party exception text, hex dumps) is then
+  /// readable by every other local user on a shared machine. `chmod
+  /// 600` is the same hardening the rest of the app applies to
+  /// `credentials.*` and `config.json` after atomic writes.
+  ///
+  /// No-op on Windows — the file inherits the app-support directory's
+  /// ACL, which is user-only by default on per-user application data
+  /// paths. Failures are swallowed: a file that existed with wider
+  /// perms before this hook is best-effort tightened; we do not want
+  /// a chmod failure to block logging.
+  Future<void> _restrictPermissions(String path) async {
+    if (Platform.isWindows) return;
+    try {
+      await Process.run('chmod', ['600', path]);
+    } catch (_) {
+      // Best-effort. Logger hardening must never break logging.
     }
   }
 

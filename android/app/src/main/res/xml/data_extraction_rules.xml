@@ -31,6 +31,13 @@
         <exclude domain="file" path="letsflutssh.db-wal" />
         <exclude domain="file" path="letsflutssh.db-shm" />
         <exclude domain="file" path="letsflutssh.db-journal" />
+        <!-- Log directory. AppLogger rotates up to 4 files under
+             app-support/logs/. Default-off + sanitize strips PEM /
+             base64 / IPv4 / IPv6 / user@host / home paths, but a
+             user who ever toggled logging on leaves a file behind
+             that Auto Backup must not copy — third-party exception
+             messages may carry strings no regex catches. -->
+        <exclude domain="file" path="logs" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="credentials.kdf" />
@@ -57,5 +64,6 @@
         <exclude domain="file" path="letsflutssh.db-wal" />
         <exclude domain="file" path="letsflutssh.db-shm" />
         <exclude domain="file" path="letsflutssh.db-journal" />
+        <exclude domain="file" path="logs" />
     </device-transfer>
 </data-extraction-rules>
