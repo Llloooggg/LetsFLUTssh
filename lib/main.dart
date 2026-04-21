@@ -1204,6 +1204,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     _activeDatabase = null;
     _corruptionRetries = 0;
     _securityReady = false;
+    // Drop the cached `FutureProvider` snapshots so Settings UI
+    // reads fresh probe results after the reset. Without this the
+    // Security tier cards showed the pre-wipe availability + reason
+    // strings until the user closed and reopened Settings.
+    ref.invalidate(securityCapabilitiesProvider);
+    ref.invalidate(hardwareProbeDetailProvider);
+    ref.invalidate(keyringProbeDetailProvider);
     if (!mounted) return;
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);

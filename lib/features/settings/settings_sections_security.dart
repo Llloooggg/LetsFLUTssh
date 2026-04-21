@@ -155,22 +155,36 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     );
   }
 
-  /// Biometric unlock + auto-lock rows rendered inside the current
-  /// tier card's expandable. Returns null on tiers where neither
-  /// modifier is meaningful — T0 (nothing to lock), T1 / T2 without
-  /// password (no user secret to gate). Biometric is a shortcut for
-  /// re-entering the password; auto-lock only matters when there is
-  /// a re-auth step to gate.
+  /// Auto-lock + biometric rows rendered inside the current tier
+  /// card's expandable.
+  ///
+  /// Per-tier visibility rules (user-driven design choices, not
+  /// technical constraints):
+  ///
+  ///   * **T0 (plaintext)** — nothing to gate. Returns null, no row
+  ///     rendered; the card keeps its threat-list-only shape.
+  ///   * **T1 / T2 (keychain / hardware)** — both rows always
+  ///     rendered. Auto-lock and biometric visibility is stable
+  ///     across the password-on / password-off states so the user
+  ///     sees the toggles without having to enable the password
+  ///     first. When the password modifier is off, both toggles
+  ///     render disabled with a "password required" tooltip —
+  ///     discoverability without accidental activation.
+  ///   * **Paranoid** — auto-lock rendered, biometric deliberately
+  ///     omitted. Paranoid is the "no OS trust" tier; layering
+  ///     biometric on top routes the DB key back through an OS
+  ///     service that defeats the tier's premise. If the user
+  ///     wants biometric they choose T1 + password or T2 + password.
   Widget? _activeTierExtras(
     SecurityTier currentLevel,
     SecurityTierModifiers modifiers,
     S l10n,
   ) {
-    final hasUserSecret =
-        currentLevel == SecurityTier.paranoid ||
+    if (currentLevel == SecurityTier.plaintext) return null;
+    final showBiometric =
+        currentLevel == SecurityTier.keychain ||
         currentLevel == SecurityTier.keychainWithPassword ||
-        modifiers.password;
-    if (!hasUserSecret) return null;
+        currentLevel == SecurityTier.hardware;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -181,20 +195,21 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             modifiers,
           ),
         ),
-        _Toggle(
-          label: l10n.biometricUnlockTitle,
-          subtitle: _biometricSubtitle(l10n),
-          icon: Icons.fingerprint,
-          value: _biometricEnabled == true,
-          onChanged: _biometricToggleEnabled(currentLevel, modifiers)
-              ? (v) => _toggleBiometricUnlock(context, v)
-              : null,
-          disabledReason: _biometricDisabledReason(
-            l10n,
-            currentLevel,
-            modifiers,
+        if (showBiometric)
+          _Toggle(
+            label: l10n.biometricUnlockTitle,
+            subtitle: _biometricSubtitle(l10n),
+            icon: Icons.fingerprint,
+            value: _biometricEnabled == true,
+            onChanged: _biometricToggleEnabled(currentLevel, modifiers)
+                ? (v) => _toggleBiometricUnlock(context, v)
+                : null,
+            disabledReason: _biometricDisabledReason(
+              l10n,
+              currentLevel,
+              modifiers,
+            ),
           ),
-        ),
       ],
     );
   }
