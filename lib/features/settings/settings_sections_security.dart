@@ -158,11 +158,18 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         tier == currentLevel ||
         (tier == SecurityTier.keychain &&
             currentLevel == SecurityTier.keychainWithPassword);
+    // Same priority order as the biometric row (see
+    // `_biometricSpecFor`), minus the platform-unavailable layer —
+    // auto-lock is a software-only feature, always supported by
+    // the runtime. "Tier available but not current" wins over
+    // "tier unavailable" so the user first sees the actionable
+    // hint (select this tier) before the reason the tier is out
+    // of reach.
     String? reason;
-    if (!tierAvailable) {
-      reason = tierUnavailableReason;
-    } else if (!isCurrent) {
+    if (tierAvailable && !isCurrent) {
       reason = l10n.autoLockRequiresActiveTier;
+    } else if (!tierAvailable) {
+      reason = tierUnavailableReason;
     } else {
       reason = _autoLockDisabledReason(l10n, currentLevel, currentModifiers);
     }
@@ -216,25 +223,30 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       );
     }
 
-    // Priority 2: tier itself not available on this host. Re-use
-    // the tier's own reason string — same message on the tier
-    // pill and on the biometric row keeps the UI coherent.
+    // Priority 2: tier available but not currently applied. Short
+    // "select this tier first" prompt — the tier's actual
+    // availability reason (when applicable) lives on the next
+    // priority step below so the user first sees the "how to
+    // unlock this" action hint before the "why the tier is out
+    // of reach" explanation.
+    if (tierAvailable && !isCurrent) {
+      return BiometricModifierSpec(
+        enabled: false,
+        value: _biometricEnabled == true,
+        onChanged: (_) {},
+        disabledReason: l10n.biometricRequiresActiveTier,
+      );
+    }
+
+    // Priority 3: tier not available on this host. Re-use the
+    // tier's own reason string — same message as the yellow pill
+    // on the tier card keeps the UI coherent.
     if (!tierAvailable) {
       return BiometricModifierSpec(
         enabled: false,
         value: _biometricEnabled == true,
         onChanged: (_) {},
         disabledReason: tierUnavailableReason,
-      );
-    }
-
-    // Priority 3: tier available but not currently applied.
-    if (!isCurrent) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: l10n.biometricRequiresActiveTier,
       );
     }
 
@@ -720,7 +732,7 @@ class _AutoLockTile extends ConsumerWidget {
     final current = ref.watch(autoLockMinutesProvider);
     final enabled = disabledReason == null;
     final trigger = _buildTrigger(l10n, current);
-    return Opacity(
+    Widget body = Opacity(
       opacity: enabled ? 1.0 : 0.5,
       child: _SettingsRow(
         label: l10n.autoLockTitle,
@@ -759,6 +771,14 @@ class _AutoLockTile extends ConsumerWidget {
             : _DisabledDropdownTrigger(reason: disabledReason!, child: trigger),
       ),
     );
+    // Whole-row tooltip on the disabled state so the hover target
+    // matches the biometric `_ModifierRow` above — user hovers
+    // anywhere on the auto-lock line and sees the reason, not only
+    // over the dropdown trigger in the right-hand column.
+    if (!enabled && disabledReason != null && disabledReason!.isNotEmpty) {
+      body = Tooltip(message: disabledReason!, child: body);
+    }
+    return body;
   }
 
   Widget _buildTrigger(S l10n, int current) {

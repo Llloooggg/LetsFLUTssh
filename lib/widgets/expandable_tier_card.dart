@@ -380,6 +380,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                   if (_passwordToggleAvailable)
                     _ModifierRow(
                       label: l10n.modifierPasswordLabel,
+                      icon: Icons.password,
                       value: _passwordEnabled,
                       enabled: widget.tierAvailable,
                       onChanged: (v) {
@@ -393,6 +394,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                   if (widget.biometricSpec != null)
                     _ModifierRow(
                       label: l10n.biometricUnlockTitle,
+                      icon: Icons.fingerprint,
                       value: widget.biometricSpec!.value,
                       enabled: widget.biometricSpec!.enabled,
                       onChanged: widget.biometricSpec!.onChanged,
@@ -844,6 +846,7 @@ class _ModifierRow extends StatelessWidget {
     required this.value,
     required this.enabled,
     required this.onChanged,
+    this.icon,
     this.disabledReason,
   });
 
@@ -851,6 +854,12 @@ class _ModifierRow extends StatelessWidget {
   final bool value;
   final bool enabled;
   final ValueChanged<bool> onChanged;
+
+  /// Leading icon rendered in the muted `fgDim` tone at size 16 to
+  /// match the [_SettingsRow] leading-icon style that the auto-lock
+  /// tile uses. Null hides the icon column — kept optional so
+  /// unrelated callers (if any) can skip it.
+  final IconData? icon;
 
   /// Shown as a hover tooltip when the row is disabled — explains
   /// *why* the toggle cannot flip (tier not current, password not
@@ -865,10 +874,23 @@ class _ModifierRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: AppTheme.fgDim),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Text(
               label,
-              style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.sm),
+              // Muted (`fgDim`) across every modifier row so password
+              // / biometric / auto-lock labels sit at the same visual
+              // weight. Earlier revisions used `fg` (full white) on
+              // password + biometric while auto-lock used a
+              // `_SettingsRow` with its default mix of `fg` label +
+              // `fgDim` subtitle, which read as "three different
+              // kinds of setting" instead of "three rows of the
+              // same kind". Consistent muting keeps the Switch /
+              // selector as the only element that draws attention.
+              style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
             ),
           ),
           Switch(value: value, onChanged: enabled ? onChanged : null),
