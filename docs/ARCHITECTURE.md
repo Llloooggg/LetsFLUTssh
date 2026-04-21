@@ -1386,6 +1386,42 @@ You are bumping the archive `manifest.schema_version`.
 5. Test under `test/core/migration/migrations/archive_v(N-1)_to_v(N)_test.dart`
    with a synthetic input map and the expected output map.
 
+###### Deferred v1 improvements
+
+Three improvements were designed but intentionally not shipped in the
+v1-floor cleanup, because each one would require bumping the archive
+schema (or adding a native dependency) — and "v1 is the permanent
+floor" means the next format bump should be a single coordinated
+v1 → v2 step, not a drip of back-compat flags inside v1:
+
+- **Fast wrong-password canary.** An 8-byte sentinel encrypted with
+  the Argon2id-derived key, placed at a known offset before the main
+  AEAD blob, so a wrong password rejects in microseconds instead of
+  processing the whole ciphertext to fail GCM tag verification.
+  Requires a format bump (new header field) or a reserved offset
+  inside the KdfParams block; both are v1 → v2 changes.
+- **Per-entry `schema_version`.** Each JSON entry (sessions, tags,
+  snippets, …) carries its own schema version so the framework can
+  evolve one entry type without bumping the whole archive. Requires
+  wrapping each entry's top-level shape from `[...]` to
+  `{"schema_version": 1, "entries": [...]}` — again a v1 → v2 change.
+- **Zstd compression.** Would reduce JSON-heavy archives by 30–50 %.
+  No stable pure-Dart zstd implementation on pub.dev today; pulling
+  in a native-code FFI package would break the self-contained-binary
+  invariant ([AGENT_RULES § Self-Contained Binary](./AGENT_RULES.md#self-contained-binary--end-user-installs-nothing))
+  or require a per-platform fallback. Pick this up only if a pure
+  Dart zstd decoder lands or if the binary-size cost of bundling
+  one is judged acceptable.
+
+Streaming archive decode (reading entries from an `InputFileStream`
+instead of loading the whole decompressed archive into memory) is a
+separate axis and sits in the same deferred bucket — the current
+50 MiB cap on encrypted archive size keeps the in-memory cost bounded,
+and encrypted archives have to be decrypted fully before the ZIP is
+readable at all, so streaming would only benefit the unencrypted path
+without touching the hot case. Revisit when a user reports a
+real-world archive pushing the cap.
+
 ###### What the framework will not do for you
 
 - **Reset migrations** — see "Reset migrations are out of scope"
