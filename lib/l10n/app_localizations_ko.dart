@@ -99,10 +99,10 @@ class SKo extends S {
   String get embeddedKeys => '내장 키';
 
   @override
-  String get managerKeys => '관리자의 키';
+  String get managerKeys => '키 관리자 항목';
 
   @override
-  String get managerKeysMayBeLarge => '관리자 키는 QR 크기 제한을 초과할 수 있습니다';
+  String get managerKeysMayBeLarge => '키 관리자 항목은 QR 크기 제한을 초과할 수 있습니다';
 
   @override
   String get qrPasswordWarning => 'SSH 키는 내보내기 시 기본적으로 비활성화됩니다.';
@@ -413,7 +413,7 @@ class SKo extends S {
   String get hintPassword => '••••••••';
 
   @override
-  String get keyPassphrase => '키 암호';
+  String get keyPassphrase => '키 패스프레이즈';
 
   @override
   String get hintOptional => '선택 사항';
@@ -903,7 +903,7 @@ class SKo extends S {
   String get tierParanoidNotes => '이 계층에서는 생체 인식이 설계상 비활성화되어 있습니다.';
 
   @override
-  String get tierHardwareUnavailable => '이 설치에서는 하드웨어 금고를 사용할 수 없습니다.';
+  String get tierHardwareUnavailable => '이 설치본에서는 하드웨어 볼트를 사용할 수 없습니다.';
 
   @override
   String get pinLabel => '비밀번호';
@@ -921,7 +921,7 @@ class SKo extends S {
   String get l3UnlockTitle => '비밀번호 입력';
 
   @override
-  String get l3UnlockHint => '비밀번호로 하드웨어 연결 금고 잠금 해제';
+  String get l3UnlockHint => '비밀번호로 하드웨어 바인딩된 볼트 잠금 해제';
 
   @override
   String get l3WrongPin => '잘못된 비밀번호';
@@ -1858,21 +1858,21 @@ class SKo extends S {
   String get generated => '생성됨';
 
   @override
-  String get passphraseRequired => '암호문 필요';
+  String get passphraseRequired => '패스프레이즈 필요';
 
   @override
   String passphrasePrompt(String host) {
-    return '$host의 SSH 키가 암호화되어 있습니다. 잠금을 해제하려면 암호문을 입력하세요.';
+    return '$host의 SSH 키가 암호화되어 있습니다. 잠금을 해제하려면 패스프레이즈를 입력하세요.';
   }
 
   @override
-  String get passphraseWrong => '암호문이 올바르지 않습니다. 다시 시도하세요.';
+  String get passphraseWrong => '패스프레이즈가 올바르지 않습니다. 다시 시도하세요.';
 
   @override
-  String get passphrase => '암호문';
+  String get passphrase => '패스프레이즈';
 
   @override
-  String get rememberPassphrase => '이 세션에서 기억';
+  String get rememberPassphrase => '이 세션 동안 기억';
 
   @override
   String get masterPasswordSubtitle => '저장된 인증 정보를 비밀번호로 보호';
@@ -1922,7 +1922,7 @@ class SKo extends S {
 
   @override
   String get forgotPasswordWarning =>
-      '저장된 모든 비밀번호, SSH 키, 암호문이 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
+      '저장된 모든 비밀번호, SSH 키, 패스프레이즈가 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
 
   @override
   String get resetAndDeleteCredentials => '재설정 및 데이터 삭제';
@@ -2114,7 +2114,7 @@ class SKo extends S {
 
   @override
   String get wizardReducedBanner =>
-      '이 설치에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 암호(Paranoid) 중에서 선택하세요. Keychain 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
+      '이 설치본에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 비밀번호(Paranoid) 중에서 선택하세요. 키체인 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
 
   @override
   String get tierBlockProtectsHeader => '보호하는 위협';
@@ -2375,10 +2375,10 @@ class SKo extends S {
   String get sessionsOnly => '세션';
 
   @override
-  String get sessionKeysFromManager => '관리자의 세션 키';
+  String get sessionKeysFromManager => '키 관리자의 세션 키';
 
   @override
-  String get allKeysFromManager => '관리자의 모든 키';
+  String get allKeysFromManager => '키 관리자의 모든 키';
 
   @override
   String exportTags(int count) {
@@ -2557,7 +2557,7 @@ class SKo extends S {
   String get colT2PasswordBiometric => 'T2 + 비밀번호 + 생체 인식';
 
   @override
-  String get colParanoid => '편집증';
+  String get colParanoid => 'Paranoid';
 
   @override
   String get securityComparisonTableTitle => '보안 티어 — 나란히 비교';
@@ -2666,7 +2666,7 @@ class SKo extends S {
 
   @override
   String get paranoidMasterPasswordNote =>
-      '긴 암호문을 강력히 권장합니다 — Argon2id는 무차별 대입 공격을 늦출 뿐 막지는 못합니다.';
+      '긴 패스프레이즈를 강력히 권장합니다 — Argon2id는 무차별 대입 공격을 늦출 뿐 차단하지는 못합니다.';
 
   @override
   String get plaintextWarningTitle => '평문: 암호화 없음';

@@ -420,7 +420,7 @@ class SPt extends S {
   String get hintPassword => '••••••••';
 
   @override
-  String get keyPassphrase => 'Senha da Chave';
+  String get keyPassphrase => 'Passphrase da chave';
 
   @override
   String get hintOptional => 'Opcional';
@@ -512,13 +512,13 @@ class SPt extends S {
   String get keyType => 'Tipo de chave';
 
   @override
-  String get fingerprint => 'Impressão digital';
+  String get fingerprint => 'Fingerprint';
 
   @override
-  String get fingerprintCopied => 'Impressão digital copiada';
+  String get fingerprintCopied => 'Fingerprint copiado';
 
   @override
-  String get copyFingerprint => 'Copiar impressão digital';
+  String get copyFingerprint => 'Copiar fingerprint';
 
   @override
   String get acceptAnyway => 'Aceitar Mesmo Assim';
@@ -681,7 +681,7 @@ class SPt extends S {
   String get data => 'Dados';
 
   @override
-  String get logging => 'Registro';
+  String get logging => 'Logs';
 
   @override
   String get updates => 'Atualizações';
@@ -699,7 +699,7 @@ class SPt extends S {
   String get terminalFontSize => 'Tamanho da Fonte do Terminal';
 
   @override
-  String get scrollbackLines => 'Linhas de Histórico';
+  String get scrollbackLines => 'Linhas de scrollback';
 
   @override
   String get keepAliveInterval => 'Intervalo de Keep-Alive (seg)';
@@ -711,7 +711,7 @@ class SPt extends S {
   String get defaultPort => 'Porta Padrão';
 
   @override
-  String get parallelWorkers => 'Trabalhadores Paralelos';
+  String get parallelWorkers => 'Workers paralelos';
 
   @override
   String get maxHistory => 'Histórico Máximo';
@@ -834,7 +834,7 @@ class SPt extends S {
       'A infraestrutura subjacente deste nível ainda não foi lançada. A linha está visível para que você saiba que a opção existe.';
 
   @override
-  String get tierPlaintextLabel => 'Texto simples';
+  String get tierPlaintextLabel => 'Plaintext';
 
   @override
   String get tierPlaintextSubtitle =>
@@ -853,7 +853,7 @@ class SPt extends S {
       'Use apenas em ambientes confiáveis e isolados.';
 
   @override
-  String get tierKeychainLabel => 'Chaveiro';
+  String get tierKeychainLabel => 'Keychain';
 
   @override
   String tierKeychainSubtitle(String keychain) {
@@ -875,7 +875,7 @@ class SPt extends S {
 
   @override
   String get tierKeychainUnavailable =>
-      'Chaveiro do SO não disponível nesta instalação.';
+      'Keychain do SO indisponível nesta instalação.';
 
   @override
   String get tierKeychainPassProtect1 => 'Colega sentado em sua mesa';
@@ -890,7 +890,7 @@ class SPt extends S {
 
   @override
   String get tierKeychainPassThreat2 =>
-      'Mesmos riscos de comprometimento do SO que o chaveiro';
+      'Mesmos riscos de comprometimento do SO que o keychain';
 
   @override
   String get tierHardwareLabel => 'Hardware';
@@ -901,7 +901,7 @@ class SPt extends S {
 
   @override
   String get tierHardwareProtect1 =>
-      'Força bruta offline do PIN (limite de taxa por hardware)';
+      'Força bruta offline do PIN (rate limit em hardware)';
 
   @override
   String get tierHardwareProtect2 => 'Roubo do disco e do blob do chaveiro';
@@ -1015,35 +1015,35 @@ class SPt extends S {
   String get sourceCode => 'Código Fonte';
 
   @override
-  String get enableLogging => 'Ativar Registro';
+  String get enableLogging => 'Ativar logs';
 
   @override
-  String get logIsEmpty => 'O registro está vazio';
+  String get logIsEmpty => 'O log está vazio';
 
   @override
   String logExportedTo(String path) {
-    return 'Registro exportado para: $path';
+    return 'Log exportado para: $path';
   }
 
   @override
   String logExportFailed(String error) {
-    return 'Falha ao exportar registro: $error';
+    return 'Falha ao exportar log: $error';
   }
 
   @override
-  String get logsCleared => 'Registros limpos';
+  String get logsCleared => 'Logs limpos';
 
   @override
   String get copiedToClipboard => 'Copiado para a área de transferência';
 
   @override
-  String get copyLog => 'Copiar registro';
+  String get copyLog => 'Copiar log';
 
   @override
-  String get exportLog => 'Exportar registro';
+  String get exportLog => 'Exportar log';
 
   @override
-  String get clearLogs => 'Limpar registros';
+  String get clearLogs => 'Limpar logs';
 
   @override
   String get local => 'Local';
@@ -1088,7 +1088,7 @@ class SPt extends S {
   }
 
   @override
-  String get saveLogAs => 'Salvar registro como';
+  String get saveLogAs => 'Salvar log como';
 
   @override
   String get chooseSaveLocation => 'Escolher local para salvar';
@@ -1230,7 +1230,7 @@ class SPt extends S {
   String get errReadOnlyFileSystem => 'Sistema de arquivos somente leitura';
 
   @override
-  String get errBrokenPipe => 'Pipe quebrado';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'Nome de arquivo muito longo';
@@ -1252,7 +1252,7 @@ class SPt extends S {
   String get errNetworkIsUnreachable => 'Rede inacessível';
 
   @override
-  String get errConnectionResetByPeer => 'Conexão redefinida pelo par';
+  String get errConnectionResetByPeer => 'Conexão encerrada pelo peer';
 
   @override
   String get errConnectionTimedOut => 'Conexão expirou';
@@ -1414,11 +1414,11 @@ class SPt extends S {
   String get wrongPassword => 'Senha incorreta';
 
   @override
-  String get useKeychain => 'Criptografar com chaveiro do sistema';
+  String get useKeychain => 'Criptografar com keychain do sistema';
 
   @override
   String get useKeychainSubtitle =>
-      'Armazenar a chave do banco de dados no cofre de credenciais do sistema. Desligado = banco de dados em texto simples.';
+      'Armazenar a chave do banco no keychain do sistema. Desativado = banco em texto simples.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
@@ -1453,7 +1453,7 @@ class SPt extends S {
 
   @override
   String get errReleaseSignatureInvalid =>
-      'Atualização rejeitada: os ficheiros transferidos não estão assinados pela chave de lançamento fixada na aplicação. Isto pode significar que a transferência foi adulterada a caminho, ou que o lançamento atual não se destina a esta instalação. NÃO instale — reinstale manualmente a partir da página oficial de lançamentos.';
+      'Atualização rejeitada: os arquivos baixados não estão assinados pela chave de release fixada no app. Pode significar que o download foi adulterado no caminho, ou que este release não é para esta instalação. NÃO instale — reinstale manualmente pela página oficial de releases.';
 
   @override
   String get updateSecurityWarningTitle =>
@@ -1930,22 +1930,21 @@ class SPt extends S {
   String get generated => 'Gerada';
 
   @override
-  String get passphraseRequired => 'Frase secreta necessária';
+  String get passphraseRequired => 'Passphrase necessária';
 
   @override
   String passphrasePrompt(String host) {
-    return 'A chave SSH para $host está criptografada. Digite a frase secreta para desbloqueá-la.';
+    return 'A chave SSH para $host está criptografada. Digite a passphrase para desbloqueá-la.';
   }
 
   @override
-  String get passphraseWrong =>
-      'Frase secreta incorreta. Por favor, tente novamente.';
+  String get passphraseWrong => 'Passphrase incorreta. Tente novamente.';
 
   @override
-  String get passphrase => 'Frase secreta';
+  String get passphrase => 'Passphrase';
 
   @override
-  String get rememberPassphrase => 'Lembrar para esta sessão';
+  String get rememberPassphrase => 'Lembrar nesta sessão';
 
   @override
   String get masterPasswordSubtitle => 'Proteger credenciais salvas com senha';
@@ -1964,15 +1963,14 @@ class SPt extends S {
 
   @override
   String get masterPasswordDisabled =>
-      'Credenciais usam chave auto-gerada (sem senha)';
+      'Credenciais usam chave autogerada (sem senha)';
 
   @override
   String get enterMasterPassword =>
       'Digite a senha mestra para acessar suas credenciais salvas.';
 
   @override
-  String get wrongMasterPassword =>
-      'Senha incorreta. Por favor, tente novamente.';
+  String get wrongMasterPassword => 'Senha incorreta. Tente novamente.';
 
   @override
   String get newPassword => 'Nova senha';
@@ -2050,11 +2048,11 @@ class SPt extends S {
   String get derivingKey => 'Derivando chave de criptografia...';
 
   @override
-  String get reEncrypting => 'Re-criptografando dados...';
+  String get reEncrypting => 'Recriptografando dados...';
 
   @override
   String get confirmRemoveMasterPassword =>
-      'Digite sua senha atual para remover a proteção de senha mestra. As credenciais serão re-criptografadas com uma chave auto-gerada.';
+      'Digite sua senha atual para remover a proteção de senha mestra. As credenciais serão recriptografadas com uma chave autogerada.';
 
   @override
   String get securitySetupTitle => 'Configuração de segurança';
@@ -2081,7 +2079,7 @@ class SPt extends S {
       'Recomendamos definir uma senha mestra para proteger seus dados.';
 
   @override
-  String get continueWithKeychain => 'Continuar com chaveiro';
+  String get continueWithKeychain => 'Continuar com keychain';
 
   @override
   String get continueWithoutEncryption => 'Continuar sem criptografia';
@@ -2093,13 +2091,13 @@ class SPt extends S {
   String get securityLevelPlaintext => 'Nenhum';
 
   @override
-  String get securityLevelKeychain => 'Chaveiro do sistema';
+  String get securityLevelKeychain => 'Keychain do sistema';
 
   @override
   String get securityLevelMasterPassword => 'Senha mestra';
 
   @override
-  String get keychainStatus => 'Chaveiro';
+  String get keychainStatus => 'Keychain';
 
   @override
   String get keychainAvailable => 'Disponível';
@@ -2108,14 +2106,14 @@ class SPt extends S {
   String get keychainNotAvailable => 'Não disponível';
 
   @override
-  String get enableKeychain => 'Ativar criptografia do chaveiro';
+  String get enableKeychain => 'Ativar criptografia com keychain';
 
   @override
   String get enableKeychainSubtitle =>
-      'Recriptografar dados armazenados usando chaveiro do sistema';
+      'Recriptografar dados armazenados usando keychain do sistema';
 
   @override
-  String get keychainEnabled => 'Criptografia do chaveiro ativada';
+  String get keychainEnabled => 'Criptografia com keychain ativada';
 
   @override
   String get manageMasterPassword => 'Gerenciar senha mestra';
@@ -2480,7 +2478,7 @@ class SPt extends S {
   }
 
   @override
-  String get disableKeychain => 'Desativar criptografia do chaveiro';
+  String get disableKeychain => 'Desativar criptografia com keychain';
 
   @override
   String get disableKeychainSubtitle =>
@@ -2491,7 +2489,7 @@ class SPt extends S {
       'O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?';
 
   @override
-  String get keychainDisabled => 'Criptografia do chaveiro desativada';
+  String get keychainDisabled => 'Criptografia com keychain desativada';
 
   @override
   String get presetFullImport => 'Importação completa';
@@ -2529,7 +2527,7 @@ class SPt extends S {
 
   @override
   String get scrollbackLinesSubtitle =>
-      'Tamanho do buffer de histórico do terminal';
+      'Tamanho do buffer de scrollback do terminal';
 
   @override
   String get keepAliveIntervalSubtitle =>
@@ -2543,7 +2541,7 @@ class SPt extends S {
 
   @override
   String get parallelWorkersSubtitle =>
-      'Trabalhadores de transferência SFTP paralelos';
+      'Workers paralelos para transferências SFTP';
 
   @override
   String get maxHistorySubtitle => 'Máximo de comandos salvos no histórico';
@@ -2596,8 +2594,7 @@ class SPt extends S {
       'Alguém se aproxima do seu computador já desbloqueado e abre o aplicativo enquanto você está longe.';
 
   @override
-  String get threatLiveRamForensicsLocked =>
-      'Perícia de RAM em máquina bloqueada';
+  String get threatLiveRamForensicsLocked => 'Dump de RAM em máquina bloqueada';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
@@ -2638,7 +2635,7 @@ class SPt extends S {
       'Uma frase-senha longa é altamente recomendada — a segurança deste nível depende dela';
 
   @override
-  String get colT0 => 'T0 Texto puro';
+  String get colT0 => 'T0 Plaintext';
 
   @override
   String get colT1 => 'T1 Chaveiro';
@@ -2659,7 +2656,7 @@ class SPt extends S {
   String get colT2PasswordBiometric => 'T2 + senha + biometria';
 
   @override
-  String get colParanoid => 'Paranoico';
+  String get colParanoid => 'Paranoid';
 
   @override
   String get securityComparisonTableTitle =>

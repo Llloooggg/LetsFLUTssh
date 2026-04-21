@@ -701,13 +701,13 @@ class SDe extends S {
   String get terminalFontSize => 'Terminal-Schriftgröße';
 
   @override
-  String get scrollbackLines => 'Rücklaufzeilen';
+  String get scrollbackLines => 'Scrollback-Zeilen';
 
   @override
   String get keepAliveInterval => 'Keep-Alive-Intervall (Sek.)';
 
   @override
-  String get sshTimeout => 'SSH-Zeitüberschreitung (Sek.)';
+  String get sshTimeout => 'SSH-Timeout (Sek.)';
 
   @override
   String get defaultPort => 'Standard-Port';
@@ -891,7 +891,7 @@ class SDe extends S {
 
   @override
   String get tierKeychainPassThreat2 =>
-      'Gleiche OS-Kompromittierungs-Risiken wie beim Schlüsselbund';
+      'Die gleichen Risiken einer OS-Kompromittierung wie beim Schlüsselbund';
 
   @override
   String get tierHardwareLabel => 'Hardware';
@@ -902,7 +902,7 @@ class SDe extends S {
 
   @override
   String get tierHardwareProtect1 =>
-      'Offline-Brute-Force der PIN (Hardware-Ratenbegrenzung)';
+      'Offline-Brute-Force der PIN (Hardware-Rate-Limit)';
 
   @override
   String get tierHardwareProtect2 =>
@@ -920,7 +920,7 @@ class SDe extends S {
 
   @override
   String get tierParanoidSubtitle =>
-      'Langes Passwort + Argon2id. Schlüssel berührt OS nicht.';
+      'Langes Passwort + Argon2id. Der Schlüssel gelangt nie ins OS.';
 
   @override
   String get tierParanoidProtect1 => 'Kompromittierung des OS-Schlüsselbundes';
@@ -1167,7 +1167,7 @@ class SDe extends S {
   String get sort => 'Sortieren';
 
   @override
-  String get resizePanelDivider => 'Panelteiler verschieben';
+  String get resizePanelDivider => 'Trennlinie verschieben';
 
   @override
   String get youreRunningLatest => 'Sie verwenden die neueste Version';
@@ -1260,7 +1260,7 @@ class SDe extends S {
       'Verbindung von Gegenstelle zurückgesetzt';
 
   @override
-  String get errConnectionTimedOut => 'Zeitüberschreitung der Verbindung';
+  String get errConnectionTimedOut => 'Verbindungs-Timeout';
 
   @override
   String get errConnectionRefused => 'Verbindung abgelehnt';
@@ -1312,7 +1312,7 @@ class SDe extends S {
 
   @override
   String get errSshParseKeyFailed =>
-      'PEM-Schlüsseldaten konnten nicht analysiert werden';
+      'PEM-Schlüsseldaten konnten nicht geparst werden';
 
   @override
   String get errSshConnectionDisposed => 'Verbindung beendet';
@@ -1325,7 +1325,7 @@ class SDe extends S {
 
   @override
   String errConnectionTimedOutSeconds(int seconds) {
-    return 'Zeitüberschreitung der Verbindung nach $seconds Sekunden';
+    return 'Verbindungs-Timeout nach $seconds Sekunden';
   }
 
   @override
@@ -1425,7 +1425,7 @@ class SDe extends S {
 
   @override
   String get useKeychainSubtitle =>
-      'Den Datenbankschlüssel im Anmeldeinformationsspeicher des Systems ablegen. Aus = Klartext-Datenbank.';
+      'Den Datenbankschlüssel im OS-Schlüsselbund ablegen. Aus = Klartext-Datenbank.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh ist gesperrt';
@@ -2083,7 +2083,7 @@ class SDe extends S {
 
   @override
   String get securitySetupNoKeychainHint =>
-      'Dies ist normal bei WSL, Headless Linux oder Minimalinstallationen. Zur Aktivierung des Schlüsselbunds unter Linux: Installieren Sie libsecret und einen Schlüsselring-Daemon (z.B. gnome-keyring).';
+      'Dies ist normal bei WSL, Headless Linux oder Minimalinstallationen. Zur Aktivierung des Schlüsselbunds unter Linux: Installieren Sie libsecret und einen Keyring-Daemon (z. B. gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
@@ -2172,7 +2172,7 @@ class SDe extends S {
 
   @override
   String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Hardwaregestützter Speicher nicht verfügbar — installiere tpm2-tools und ein TPM 2.0-Gerät, um ihn zu aktivieren.';
+      'Hardwaregestützter Speicher nicht verfügbar — installiere tpm2-tools; außerdem wird ein TPM-2.0-Gerät benötigt.';
 
   @override
   String get firstLaunchSecurityHardwareUnavailableAndroid =>
@@ -2550,7 +2550,7 @@ class SDe extends S {
   String get defaultPortSubtitle => 'Standardport für neue Sitzungen';
 
   @override
-  String get parallelWorkersSubtitle => 'Parallele SFTP-Übertragungsarbeiter';
+  String get parallelWorkersSubtitle => 'Parallele SFTP-Worker';
 
   @override
   String get maxHistorySubtitle => 'Maximal gespeicherte Befehle im Verlauf';
@@ -2589,7 +2589,7 @@ class SDe extends S {
 
   @override
   String get threatKeyringFileTheftDescription =>
-      'Ein Angreifer liest die Anmeldedatenspeicher-Datei der Plattform direkt vom Laufwerk (libsecret-Keyring, Windows Credential Manager, macOS-Login-Keychain) und rekonstruiert daraus den verpackten Datenbankschlüssel. Die Hardware-Stufe wehrt das unabhängig vom Passwort ab, weil der Chip den Export des Schlüsselmaterials verweigert; die Keychain-Stufe braucht zusätzlich ein Passwort, sonst lässt sich die gestohlene Datei mit dem OS-Anmeldepasswort allein entpacken.';
+      'Ein Angreifer liest die Credential-Store-Datei der Plattform direkt vom Laufwerk (libsecret-Keyring, Windows Credential Manager, macOS-Login-Keychain) und rekonstruiert daraus den umhüllten (wrapped) Datenbankschlüssel. Die Hardware-Stufe wehrt das unabhängig vom Passwort ab, weil der Chip den Export des Schlüsselmaterials verweigert; die Keychain-Stufe braucht zusätzlich ein Passwort, sonst lässt sich die gestohlene Datei mit dem OS-Anmeldepasswort allein entschlüsseln.';
 
   @override
   String get modifierOnlyWithPassword => 'nur mit Passwort';
@@ -2634,11 +2634,11 @@ class SDe extends S {
 
   @override
   String get legendNotApplicable =>
-      'Nicht zutreffend — diese Stufe hat kein Benutzergeheimnis';
+      'Nicht zutreffend — auf dieser Stufe gibt es kein eingegebenes Geheimnis';
 
   @override
   String get legendWeakPasswordWarning =>
-      'Schwaches Passwort akzeptabel — eine andere Schicht (Hardware-Ratenbegrenzer oder Schlüsselumhüllung) trägt die Sicherheit';
+      'Schwaches Passwort akzeptabel — eine andere Schicht (Hardware-Rate-Limit oder Key-Wrapping) übernimmt den Schutz';
 
   @override
   String get legendStrongPasswordRecommended =>
@@ -2747,14 +2747,14 @@ class SDe extends S {
 
   @override
   String get modifierPasswordSubtitle =>
-      'Eingetippte Geheimnis-Schranke vor dem Entsperren des Tresors.';
+      'Eingegebenes Passwort, das vor dem Entsperren des Tresors abgefragt wird.';
 
   @override
   String get modifierBiometricLabel => 'Biometrische Verknüpfung';
 
   @override
   String get modifierBiometricSubtitle =>
-      'Das Passwort aus einem biometrisch gesicherten OS-Slot entnehmen, statt es einzutippen.';
+      'Das Passwort aus einem biometrisch gesicherten OS-Slot freigeben, statt es einzutippen.';
 
   @override
   String get biometricRequiresPassword =>

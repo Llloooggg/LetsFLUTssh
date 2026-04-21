@@ -694,7 +694,7 @@ class SFa extends S {
   String get terminalFontSize => 'اندازه فونت ترمینال';
 
   @override
-  String get scrollbackLines => 'خطوط اسکرول بازگشتی';
+  String get scrollbackLines => 'خطوط Scrollback';
 
   @override
   String get keepAliveInterval => 'فاصله ارسال نگه‌داشتن اتصال (ثانیه)';
@@ -706,7 +706,7 @@ class SFa extends S {
   String get defaultPort => 'پورت پیش‌فرض';
 
   @override
-  String get parallelWorkers => 'کارگران موازی';
+  String get parallelWorkers => 'Workerهای موازی';
 
   @override
   String get maxHistory => 'حداکثر تاریخچه';
@@ -847,7 +847,7 @@ class SFa extends S {
       'فقط در محیط‌های مورد اعتماد و منزوی استفاده کنید.';
 
   @override
-  String get tierKeychainLabel => 'زنجیره کلید';
+  String get tierKeychainLabel => 'Keychain';
 
   @override
   String tierKeychainSubtitle(String keychain) {
@@ -890,7 +890,7 @@ class SFa extends S {
 
   @override
   String get tierHardwareSubtitle =>
-      'خزانه مرتبط با سخت‌افزار + PIN کوتاه با قفل';
+      'vault گره‌خورده به سخت‌افزار + PIN کوتاه با lockout';
 
   @override
   String get tierHardwareProtect1 =>
@@ -931,7 +931,7 @@ class SFa extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'گاوصندوق سخت‌افزاری در این نصب در دسترس نیست.';
+      'Vault سخت‌افزاری در این نصب در دسترس نیست.';
 
   @override
   String get pinLabel => 'رمز عبور';
@@ -1221,7 +1221,7 @@ class SFa extends S {
   String get errReadOnlyFileSystem => 'سیستم فایل فقط خواندنی';
 
   @override
-  String get errBrokenPipe => 'لوله شکسته';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'نام فایل بیش از حد طولانی است';
@@ -1350,7 +1350,7 @@ class SFa extends S {
 
   @override
   String get biometricUnlockSubtitle =>
-      'گذرواژه را تایپ نکنید — با حسگر زیست‌سنجی دستگاه قفل را باز کنید.';
+      'گذرواژه را تایپ نکنید — با سنسور بیومتریک دستگاه قفل را باز کنید.';
 
   @override
   String get biometricNotAvailable =>
@@ -1525,7 +1525,7 @@ class SFa extends S {
   String get progressWorking => 'در حال پردازش…';
 
   @override
-  String get importFromLink => 'درون‌ریزی از پیوند QR';
+  String get importFromLink => 'وارد کردن از لینک QR';
 
   @override
   String get importFromLinkSubtitle =>
@@ -1545,7 +1545,7 @@ class SFa extends S {
   String get invalidImportLink => 'پیوند بار معتبر LetsFLUTssh را شامل نیست';
 
   @override
-  String get importAction => 'درون‌ریزی';
+  String get importAction => 'وارد کردن';
 
   @override
   String get saveSessionToAssignTags =>
@@ -1701,7 +1701,7 @@ class SFa extends S {
   }
 
   @override
-  String get dropKeyFileHere => 'فایل کلید را اینجا رها کنید';
+  String get dropKeyFileHere => 'فایل کلید را اینجا بیندازید';
 
   @override
   String get sessionNoCredentials =>
@@ -1909,7 +1909,7 @@ class SFa extends S {
   String get generated => 'ساخته شده';
 
   @override
-  String get passphraseRequired => 'عبارت عبور لازم است';
+  String get passphraseRequired => 'passphrase لازم است';
 
   @override
   String passphrasePrompt(String host) {
@@ -2072,13 +2072,13 @@ class SFa extends S {
   String get securityLevelPlaintext => 'بدون';
 
   @override
-  String get securityLevelKeychain => 'زنجیره کلید سیستم';
+  String get securityLevelKeychain => 'Keychain سیستم';
 
   @override
   String get securityLevelMasterPassword => 'رمز عبور اصلی';
 
   @override
-  String get keychainStatus => 'زنجیره کلید';
+  String get keychainStatus => 'Keychain';
 
   @override
   String get keychainAvailable => 'در دسترس';
@@ -2087,11 +2087,11 @@ class SFa extends S {
   String get keychainNotAvailable => 'در دسترس نیست';
 
   @override
-  String get enableKeychain => 'فعال‌سازی رمزنگاری زنجیره کلید';
+  String get enableKeychain => 'فعال‌سازی رمزنگاری با Keychain';
 
   @override
   String get enableKeychainSubtitle =>
-      'دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از زنجیره کلید سیستم';
+      'دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از Keychain سیستم';
 
   @override
   String get keychainEnabled => 'رمزنگاری زنجیره کلید فعال شد';
@@ -2125,7 +2125,7 @@ class SFa extends S {
 
   @override
   String get firstLaunchSecurityBody =>
-      'داده‌های شما با کلیدی که در کلیدرشتهٔ سیستم نگهداری می‌شود رمزگذاری می‌شوند. باز کردن قفل روی این دستگاه خودکار است.';
+      'داده‌های شما با کلیدی که در Keychain سیستم نگهداری می‌شود رمزگذاری می‌شوند. باز کردن قفل روی این دستگاه خودکار است.';
 
   @override
   String get firstLaunchSecurityUpgradeAvailable =>
@@ -2174,7 +2174,7 @@ class SFa extends S {
 
   @override
   String get wizardReducedBanner =>
-      'کلیدرشتهٔ سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا یک ارائه‌دهندهٔ libsecret دیگر را نصب کنید.';
+      'Keychain سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا ارائه‌دهندهٔ libsecret دیگری را نصب کنید.';
 
   @override
   String get tierBlockProtectsHeader => 'محافظت در برابر';
@@ -2299,7 +2299,7 @@ class SFa extends S {
       'OS keychain در این دستگاه قابل دسترسی نیست. برای خطای مخصوص پلتفرم به لاگ‌ها مراجعه کنید؛ برنامه به رمز عبور اصلی بازمی‌گردد.';
 
   @override
-  String get snippets => 'قطعه‌ها';
+  String get snippets => 'اسنیپت‌ها';
 
   @override
   String get snippetsSubtitle =>
@@ -2376,7 +2376,7 @@ class SFa extends S {
   String get allSnippets => 'همه';
 
   @override
-  String get sendToTerminal => 'ارسال به پایانه';
+  String get sendToTerminal => 'ارسال به ترمینال';
 
   @override
   String get commandCopied => 'دستور کپی شد';
@@ -2460,7 +2460,7 @@ class SFa extends S {
   }
 
   @override
-  String get disableKeychain => 'غیرفعال‌سازی رمزنگاری کلیدستان';
+  String get disableKeychain => 'غیرفعال‌سازی رمزنگاری با Keychain';
 
   @override
   String get disableKeychainSubtitle =>
@@ -2471,7 +2471,7 @@ class SFa extends S {
       'پایگاه داده بدون کلید دوباره رمزنگاری می‌شود. نشست‌ها و کلیدها به‌صورت متن ساده روی دیسک ذخیره خواهند شد. ادامه می‌دهید؟';
 
   @override
-  String get keychainDisabled => 'رمزنگاری کلیدستان غیرفعال شد';
+  String get keychainDisabled => 'رمزنگاری Keychain غیرفعال شد';
 
   @override
   String get presetFullImport => 'واردات کامل';
@@ -2504,10 +2504,10 @@ class SFa extends S {
   String get uiScaleSubtitle => 'مقیاس‌بندی کل رابط کاربری';
 
   @override
-  String get terminalFontSizeSubtitle => 'اندازهٔ قلم در خروجی پایانه';
+  String get terminalFontSizeSubtitle => 'اندازهٔ فونت در خروجی ترمینال';
 
   @override
-  String get scrollbackLinesSubtitle => 'اندازهٔ بافر تاریخچهٔ پایانه';
+  String get scrollbackLinesSubtitle => 'اندازهٔ بافر تاریخچهٔ ترمینال';
 
   @override
   String get keepAliveIntervalSubtitle =>
@@ -2548,7 +2548,7 @@ class SFa extends S {
   String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
 
   @override
-  String get threatColdDiskTheft => 'سرقت دیسک خاموش';
+  String get threatColdDiskTheft => 'سرقت دیسک آفلاین';
 
   @override
   String get threatColdDiskTheftDescription =>
@@ -2572,28 +2572,26 @@ class SFa extends S {
       'در غیاب شما، فردی به رایانهٔ از پیش قفل‌گشودهٔ شما نزدیک می‌شود و برنامه را باز می‌کند.';
 
   @override
-  String get threatLiveRamForensicsLocked =>
-      'جرم‌یابی حافظهٔ موقت روی دستگاه قفل';
+  String get threatLiveRamForensicsLocked => 'فارنزیک RAM روی دستگاه قفل';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
-      'مهاجم حافظهٔ موقت را منجمد می‌کند (یا آن را از طریق DMA می‌گیرد) و مواد کلید هنوز باقی‌مانده در برف‌نمای حافظه را حتی هنگام قفل بودن برنامه بیرون می‌کشد.';
+      'مهاجم RAM را فریز می‌کند (یا از طریق DMA آن را می‌گیرد) و key material هنوز باقی‌مانده در snapshot حافظه را حتی هنگام قفل‌بودن برنامه بیرون می‌کشد.';
 
   @override
   String get threatOsKernelOrKeychainBreach =>
-      'نفوذ به هستهٔ سیستم‌عامل یا جاکلیدی';
+      'نفوذ به kernel سیستم‌عامل یا keychain';
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'آسیب‌پذیری هسته، خروج داده از جاکلیدی، یا درِپشتی در تراشهٔ امنیتی سخت‌افزاری. سیستم‌عامل به جای منبعی قابل اعتماد، خود تبدیل به مهاجم می‌شود.';
+      'آسیب‌پذیری kernel، خروج داده از keychain، یا backdoor در تراشهٔ امنیتی سخت‌افزاری. سیستم‌عامل به جای منبعی قابل اعتماد، خود تبدیل به مهاجم می‌شود.';
 
   @override
-  String get threatOfflineBruteForce =>
-      'حملهٔ جستجوی فراگیر برون‌خط به رمز ضعیف';
+  String get threatOfflineBruteForce => 'حملهٔ brute-force آفلاین به رمز ضعیف';
 
   @override
   String get threatOfflineBruteForceDescription =>
-      'مهاجمی که رونوشتی از کلید پیچیده یا بلوب مهروموم‌شده دارد، بدون هیچ محدودکنندهٔ نرخی، با سرعت دلخواه خود همهٔ رمزها را امتحان می‌کند.';
+      'مهاجمی که کپی کلید wrap‌شده یا blob مهروموم‌شده را دارد، بدون rate limit، با سرعت دلخواه همهٔ رمزها را امتحان می‌کند.';
 
   @override
   String get legendProtects => 'محافظت می‌شود';
@@ -2616,7 +2614,7 @@ class SFa extends S {
   String get colT0 => 'T0 متن ساده';
 
   @override
-  String get colT1 => 'T1 جاکلیدی';
+  String get colT1 => 'T1 Keychain';
 
   @override
   String get colT1Password => 'T1 + رمز';
@@ -2634,7 +2632,7 @@ class SFa extends S {
   String get colT2PasswordBiometric => 'T2 + رمز + زیست‌سنجی';
 
   @override
-  String get colParanoid => 'وسواسی';
+  String get colParanoid => 'Paranoid';
 
   @override
   String get securityComparisonTableTitle => 'سطوح امنیتی — مقایسهٔ کنار هم';

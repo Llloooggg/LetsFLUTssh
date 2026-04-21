@@ -502,7 +502,7 @@ class SFr extends S {
 
   @override
   String get hostKeyChangedWarning =>
-      'ATTENTION : La clé de l\'hôte de ce serveur a changé. Cela pourrait indiquer une attaque de type « man-in-the-middle », ou le serveur a peut-être été réinstallé.';
+      'ATTENTION : la clé de ce serveur a changé. Cela peut indiquer une attaque de type « man-in-the-middle », ou une réinstallation du serveur.';
 
   @override
   String get unknownHostMessage =>
@@ -533,7 +533,7 @@ class SFr extends S {
   String get importData => 'Importer des données';
 
   @override
-  String get masterPassword => 'Mot de passe principal';
+  String get masterPassword => 'Mot de passe maître';
 
   @override
   String get confirmPassword => 'Confirmer le mot de passe';
@@ -862,7 +862,7 @@ class SFr extends S {
 
   @override
   String tierKeychainSubtitle(String keychain) {
-    return 'La clé vit dans $keychain — déverrouillage auto au lancement';
+    return 'La clé est stockée dans $keychain — déverrouillage auto au lancement';
   }
 
   @override
@@ -1411,10 +1411,10 @@ class SFr extends S {
 
   @override
   String get biometricBackingHardware =>
-      'Sauvegardé par le matériel (Secure Enclave / TPM)';
+      'Adossé au matériel (Secure Enclave / TPM)';
 
   @override
-  String get biometricBackingSoftware => 'Sauvegardé par logiciel';
+  String get biometricBackingSoftware => 'Adossé au logiciel';
 
   @override
   String get currentPasswordIncorrect => 'Mot de passe actuel incorrect';
@@ -1444,7 +1444,7 @@ class SFr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Verrouille l’interface après cette durée d’inactivité. La clé de la base est effacée et le magasin chiffré est fermé à chaque verrouillage ; les sessions actives restent connectées grâce à un cache d’identifiants par session qui se vide à la fermeture de la session.';
+      'Verrouille l\'interface après cette durée d\'inactivité. La clé de la base est effacée et le coffre chiffré est fermé à chaque verrouillage ; les sessions actives restent connectées via un cache d\'identifiants par session, vidé à la fermeture de la session.';
 
   @override
   String get autoLockOff => 'Désactivé';
@@ -1485,12 +1485,12 @@ class SFr extends S {
 
   @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
-    return 'L\'archive est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu avant le déchiffrement pour protéger la mémoire.';
+    return 'Archive trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — opération interrompue avant le déchiffrement pour protéger la mémoire.';
   }
 
   @override
   String errLfsKnownHostsTooLarge(String sizeMb, String limitMb) {
-    return 'L\'entrée known_hosts est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu pour garder l\'import réactif.';
+    return 'Entrée known_hosts trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — import interrompu pour rester réactif.';
   }
 
   @override
@@ -1543,7 +1543,7 @@ class SFr extends S {
   String get progressWritingArchive => 'Écriture de l\'archive…';
 
   @override
-  String get progressReencrypting => 'Rechiffrement des magasins…';
+  String get progressReencrypting => 'Rechiffrement des coffres…';
 
   @override
   String get progressWorking => 'Traitement…';
@@ -1958,7 +1958,7 @@ class SFr extends S {
 
   @override
   String get masterPasswordSubtitle =>
-      'Protéger les identifiants enregistrés par mot de passe';
+      'Protéger les identifiants enregistrés par un mot de passe maître';
 
   @override
   String get setMasterPassword => 'Définir le mot de passe principal';
@@ -1971,7 +1971,7 @@ class SFr extends S {
 
   @override
   String get masterPasswordEnabled =>
-      'Les identifiants sont protégés par le mot de passe principal';
+      'Les identifiants sont protégés par le mot de passe maître';
 
   @override
   String get masterPasswordDisabled =>
@@ -1992,13 +1992,13 @@ class SFr extends S {
   String get currentPassword => 'Mot de passe actuel';
 
   @override
-  String get masterPasswordSet => 'Mot de passe principal activé';
+  String get masterPasswordSet => 'Mot de passe maître activé';
 
   @override
-  String get masterPasswordChanged => 'Mot de passe principal modifié';
+  String get masterPasswordChanged => 'Mot de passe maître modifié';
 
   @override
-  String get masterPasswordRemoved => 'Mot de passe principal supprimé';
+  String get masterPasswordRemoved => 'Mot de passe maître supprimé';
 
   @override
   String get masterPasswordWarning =>
@@ -2027,7 +2027,7 @@ class SFr extends S {
 
   @override
   String get dbCorruptBody =>
-      'Les données sur le disque ne s\'ouvrent pas. Essayez un autre identifiant ou réinitialisez pour repartir à zéro.';
+      'Impossible d\'ouvrir les données sur le disque. Essayez d\'autres identifiants ou réinitialisez pour repartir de zéro.';
 
   @override
   String get dbCorruptWarning =>
@@ -2047,7 +2047,7 @@ class SFr extends S {
 
   @override
   String get tierResetBody =>
-      'Cette installation contient des données de sécurité d\'une ancienne version de LetsFLUTssh qui utilisait un modèle de niveaux différent. Le nouveau modèle introduit une rupture — il n\'y a pas de chemin de migration automatique. Pour continuer, toutes les sessions enregistrées, identifiants, clés SSH et hôtes connus de cette installation doivent être effacés et l\'assistant de configuration initiale exécuté à nouveau.';
+      'Cette installation contient des données de sécurité d\'une ancienne version de LetsFLUTssh qui utilisait un modèle de niveaux différent. Le nouveau modèle casse la compatibilité — aucune migration automatique n\'est possible. Pour continuer, toutes les sessions enregistrées, identifiants, clés SSH et hôtes connus de cette installation doivent être effacés et l\'assistant de configuration initiale relancé depuis le début.';
 
   @override
   String get tierResetWarning =>
@@ -2063,7 +2063,7 @@ class SFr extends S {
   String get derivingKey => 'Dérivation de la clé de chiffrement...';
 
   @override
-  String get reEncrypting => 'Re-chiffrement des données...';
+  String get reEncrypting => 'Rechiffrement des données...';
 
   @override
   String get confirmRemoveMasterPassword =>
@@ -2146,7 +2146,7 @@ class SFr extends S {
 
   @override
   String get changeSecurityTierConfirm =>
-      'Re-chiffrement de la base avec le nouveau niveau. Ne pas interrompre — laissez l\'app ouverte jusqu\'à la fin.';
+      'Rechiffrement de la base avec le nouveau niveau. Ne pas interrompre — gardez l\'app ouverte jusqu\'à la fin.';
 
   @override
   String get changeSecurityTierDone => 'Niveau de sécurité modifié';
@@ -2164,7 +2164,7 @@ class SFr extends S {
 
   @override
   String get firstLaunchSecurityUpgradeAvailable =>
-      'Un stockage matériel est disponible sur cet appareil. Passez par Paramètres → Sécurité pour une liaison TPM / Secure Enclave.';
+      'Un stockage adossé au matériel est disponible sur cet appareil. Allez dans Paramètres → Sécurité pour activer la liaison TPM / Secure Enclave.';
 
   @override
   String get firstLaunchSecurityHardwareUnavailableWindows =>
@@ -2269,7 +2269,7 @@ class SFr extends S {
 
   @override
   String get hwProbeWindowsSoftwareOnly =>
-      'Aucun TPM 2.0 détecté. Activez fTPM / PTT dans le firmware UEFI, ou acceptez que le niveau matériel n\'est pas disponible sur cet appareil — l\'app bascule vers le magasin d\'identifiants logiciel.';
+      'Aucun TPM 2.0 détecté. Activez fTPM / PTT dans le firmware UEFI, ou acceptez que le niveau matériel n\'est pas disponible sur cet appareil — l\'app bascule vers le coffre d\'identifiants logiciel.';
 
   @override
   String get hwProbeWindowsProvidersMissing =>
@@ -2600,7 +2600,7 @@ class SFr extends S {
 
   @override
   String get threatKeyringFileTheftDescription =>
-      'Un attaquant lit directement le fichier du magasin d\'identifiants de la plateforme depuis le disque (libsecret keyring, Credential Manager Windows, login keychain macOS) et en extrait la clé de base de données encapsulée. Le niveau matériel bloque cela indépendamment du mot de passe car la puce refuse d\'exporter le matériel de clé ; le niveau keychain nécessite en plus un mot de passe, sinon le fichier volé se déchiffre avec le seul mot de passe de connexion du système.';
+      'Un attaquant lit directement le fichier du coffre d\'identifiants de la plateforme depuis le disque (libsecret keyring, Credential Manager Windows, login keychain macOS) et en extrait la clé de base de données encapsulée. Le niveau matériel bloque cela indépendamment du mot de passe car la puce refuse d\'exporter le matériel cryptographique ; le niveau keychain exige en plus un mot de passe, sans quoi le fichier volé se déchiffrerait avec le seul mot de passe de session du système.';
 
   @override
   String get modifierOnlyWithPassword => 'uniquement avec mot de passe';
@@ -2619,7 +2619,7 @@ class SFr extends S {
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
-      'Un attaquant gèle la RAM (ou la capture via DMA) et extrait du matériel de clé encore présent dans l\'instantané, même si l\'application est verrouillée.';
+      'Un attaquant gèle la RAM (ou la capture via DMA) et en extrait le matériel cryptographique encore présent, même lorsque l\'application est verrouillée.';
 
   @override
   String get threatOsKernelOrKeychainBreach =>
@@ -2742,7 +2742,7 @@ class SFr extends S {
 
   @override
   String get mitigationsNoteRuntimeThreats =>
-      'Les menaces runtime (malware du même utilisateur, vidage mémoire d\'un processus actif) sont affichées avec ✗ à tous les niveaux. Elles sont traitées par des fonctions de mitigation distinctes appliquées indépendamment du niveau choisi.';
+      'Les menaces runtime (malware exécuté sous le même utilisateur, dump mémoire d\'un processus actif) sont marquées ✗ à tous les niveaux. Elles sont couvertes par des mitigations distinctes, appliquées quel que soit le niveau choisi.';
 
   @override
   String get securitySetupContinue => 'Continuer';
@@ -2765,7 +2765,7 @@ class SFr extends S {
 
   @override
   String get modifierBiometricSubtitle =>
-      'Récupérer le mot de passe depuis un emplacement du système protégé par biométrie au lieu de le saisir.';
+      'Récupérer le mot de passe depuis un emplacement système protégé par biométrie, au lieu de le saisir.';
 
   @override
   String get biometricRequiresPassword =>
@@ -2808,7 +2808,7 @@ class SFr extends S {
 
   @override
   String get plaintextAcknowledgeRequired =>
-      'Confirmez votre compréhension avant de continuer.';
+      'Cochez la case pour confirmer avant de continuer.';
 
   @override
   String get passwordLabel => 'Mot de passe';

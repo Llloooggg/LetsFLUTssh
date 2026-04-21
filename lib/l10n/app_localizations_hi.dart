@@ -708,7 +708,7 @@ class SHi extends S {
   String get defaultPort => 'डिफ़ॉल्ट पोर्ट';
 
   @override
-  String get parallelWorkers => 'समानांतर वर्कर';
+  String get parallelWorkers => 'Parallel workers';
 
   @override
   String get maxHistory => 'अधिकतम इतिहास';
@@ -1189,7 +1189,7 @@ class SHi extends S {
   String get errIoError => 'I/O त्रुटि';
 
   @override
-  String get errBadFileDescriptor => 'खराब फ़ाइल डिस्क्रिप्टर';
+  String get errBadFileDescriptor => 'अमान्य फ़ाइल डिस्क्रिप्टर';
 
   @override
   String get errResourceTemporarilyUnavailable =>
@@ -1223,7 +1223,7 @@ class SHi extends S {
   String get errReadOnlyFileSystem => 'केवल-पठन फ़ाइल सिस्टम';
 
   @override
-  String get errBrokenPipe => 'टूटा हुआ पाइप';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'फ़ाइल का नाम बहुत लंबा';
@@ -1339,7 +1339,7 @@ class SHi extends S {
 
   @override
   String get errDecryptionFailed =>
-      'क्रेडेंशियल डिक्रिप्ट करने में विफल। कुंजी फ़ाइल दूषित हो सकती है।';
+      'Credentials decrypt करने में विफल। Key file corrupt हो सकती है।';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1457,7 +1457,8 @@ class SHi extends S {
   String get errLfsNotArchive => 'चयनित फ़ाइल LetsFLUTssh संग्रह नहीं है।';
 
   @override
-  String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
+  String get errLfsDecryptFailed =>
+      'गलत master password या corrupt .lfs archive';
 
   @override
   String get errLfsArchiveTruncated =>
@@ -2001,14 +2002,14 @@ class SHi extends S {
 
   @override
   String get dbCorruptBody =>
-      'डिस्क पर डेटा नहीं खुल पा रहा है। किसी दूसरी प्रमाणिका से प्रयास करें या रीसेट करके नए सिरे से शुरू करें.';
+      'डिस्क पर data नहीं खुल पा रहा। दूसरे credentials से try करें या reset करके नए सिरे से शुरू करें।';
 
   @override
   String get dbCorruptWarning =>
       'रीसेट एन्क्रिप्टेड डेटाबेस और सुरक्षा संबंधी सभी फ़ाइलें स्थायी रूप से हटा देगा। कोई डेटा पुनर्प्राप्त नहीं होगा।';
 
   @override
-  String get dbCorruptTryOther => 'दूसरी प्रमाणिकाएँ आज़माएँ';
+  String get dbCorruptTryOther => 'दूसरे credentials आज़माएँ';
 
   @override
   String get dbCorruptResetContinue => 'रीसेट और नया सेटअप';
@@ -2584,11 +2585,12 @@ class SHi extends S {
       'हमलावर RAM को फ़्रीज़ करता है (या DMA के ज़रिए कैप्चर करता है) और ऐप लॉक होने पर भी स्नैपशॉट से अब भी मौजूद कुंजी सामग्री निकाल लेता है।';
 
   @override
-  String get threatOsKernelOrKeychainBreach => 'OS कर्नल या कीचेन की सेंधमारी';
+  String get threatOsKernelOrKeychainBreach =>
+      'OS kernel या keychain का compromise';
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'कर्नल की कमज़ोरी, कीचेन से डेटा बाहर निकालना, या हार्डवेयर सुरक्षा चिप में बैकडोर। ऑपरेटिंग सिस्टम विश्वसनीय संसाधन के बजाय स्वयं हमलावर बन जाता है।';
+      'Kernel vulnerability, keychain से डेटा exfiltrate करना, या hardware security chip में backdoor। OS खुद attacker बन जाता है, trusted resource नहीं।';
 
   @override
   String get threatOfflineBruteForce =>
@@ -2596,7 +2598,7 @@ class SHi extends S {
 
   @override
   String get threatOfflineBruteForceDescription =>
-      'रैप की गई कुंजी या सील्ड ब्लॉब की प्रति रखने वाला हमलावर किसी दर-सीमक के बिना, अपनी गति से हर पासवर्ड आज़माता है।';
+      'Wrapped key या sealed blob की कॉपी रखने वाला attacker बिना किसी rate limiter के, अपनी गति से हर पासवर्ड try करता है।';
 
   @override
   String get legendProtects => 'सुरक्षित';
@@ -2610,7 +2612,7 @@ class SHi extends S {
 
   @override
   String get legendWeakPasswordWarning =>
-      'कमज़ोर पासवर्ड स्वीकार्य — सुरक्षा का भार कोई और परत (हार्डवेयर दर-सीमक या रैप की गई कुंजी की बाइंडिंग) उठाती है';
+      'कमज़ोर पासवर्ड चलेगा — security का बोझ दूसरी layer (hardware rate limiter या wrapped-key binding) उठाती है';
 
   @override
   String get legendStrongPasswordRecommended =>
@@ -2698,7 +2700,7 @@ class SHi extends S {
 
   @override
   String get tierParanoidSubtitleHonest =>
-      'विकल्प: मास्टर पासवर्ड, OS पर भरोसा नहीं। OS से समझौता होने पर सुरक्षा करता है। T1/T2 की तुलना में रनटाइम सुरक्षा में सुधार नहीं करता।';
+      'विकल्प: master password, OS पर भरोसा नहीं। OS compromise होने पर बचाता है। T1/T2 की तुलना में runtime security बेहतर नहीं करता।';
 
   @override
   String get mitigationsNoteRuntimeThreats =>
@@ -2718,7 +2720,7 @@ class SHi extends S {
 
   @override
   String get modifierPasswordSubtitle =>
-      'वॉल्ट खुलने से पहले टाइप किया गया गुप्त द्वार।';
+      'Vault खुलने से पहले टाइप किया जाने वाला secret।';
 
   @override
   String get modifierBiometricLabel => 'बायोमेट्रिक शॉर्टकट';

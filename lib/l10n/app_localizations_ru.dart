@@ -2568,18 +2568,18 @@ class SRu extends S {
   String get continueWithoutPassword => 'Продолжить без пароля';
 
   @override
-  String get threatColdDiskTheft => 'Кража холодного диска';
+  String get threatColdDiskTheft => 'Кража диска с выключенной машины';
 
   @override
   String get threatColdDiskTheftDescription =>
-      'Выключенный компьютер с извлечённым диском, прочитанным на другой машине, либо копия файла базы данных, сделанная тем, у кого есть доступ к вашему домашнему каталогу.';
+      'Машина выключена, диск вытащили и прочитали на другом компе — или кто-то с доступом к вашему home-каталогу скопировал файл базы.';
 
   @override
   String get threatKeyringFileTheft => 'Кража файла keyring / keychain';
 
   @override
   String get threatKeyringFileTheftDescription =>
-      'Атакующий читает файл OS-хранилища учётных данных прямо с диска (libsecret keyring, Windows Credential Manager, macOS login keychain) и восстанавливает завёрнутый ключ БД. Аппаратный уровень защищает независимо от пароля — чип отказывает в экспорте ключа; для keychain-уровня нужен пароль сверху, иначе украденный файл расшифровывается одним лишь OS-паролем входа.';
+      'Атакующий читает файл системного хранилища прямо с диска (libsecret keyring, Windows Credential Manager, macOS login keychain) и вытаскивает оттуда wrapped-ключ базы. Hardware-tier защищает независимо от пароля — чип не отдаёт ключ наружу. Для keychain-tier нужен пароль сверху, иначе украденный файл расшифровывается одним OS-паролем входа.';
 
   @override
   String get modifierOnlyWithPassword => 'только с паролем';
@@ -2590,30 +2590,30 @@ class SRu extends S {
 
   @override
   String get threatBystanderUnlockedMachineDescription =>
-      'Кто-то подходит к уже разблокированному компьютеру и открывает приложение, пока вас нет рядом.';
+      'Кто-то подходит к уже разблокированной машине и открывает приложение, пока вас нет рядом.';
 
   @override
   String get threatLiveRamForensicsLocked =>
-      'Криминалистика ОЗУ на заблокированной машине';
+      'Снятие дампа ОЗУ с заблокированной машины';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
-      'Атакующий замораживает ОЗУ (или снимает её через DMA) и извлекает ещё находящийся там ключевой материал из слепка, даже когда приложение заблокировано.';
+      'Атакующий морозит ОЗУ (или снимает дамп через DMA) и вытаскивает из дампа ещё живые ключи — даже если приложение заблокировано.';
 
   @override
   String get threatOsKernelOrKeychainBreach =>
-      'Компрометация ядра ОС или ключницы';
+      'Компрометация ядра ОС или keychain';
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'Уязвимость ядра, эксфильтрация ключницы или бэкдор в аппаратном чипе безопасности. Операционная система становится атакующим, а не доверенным ресурсом.';
+      'Дыра в ядре, утечка keychain или бэкдор в hardware-чипе безопасности. Сама ОС становится атакующим — полагаться на неё больше нельзя.';
 
   @override
   String get threatOfflineBruteForce => 'Офлайн-перебор слабого пароля';
 
   @override
   String get threatOfflineBruteForceDescription =>
-      'Атакующий, имеющий копию обёрнутого ключа или запечатанного блока, перебирает все пароли в своём темпе, без каких-либо ограничений частоты.';
+      'У атакующего есть копия wrapped key или sealed blob — он перебирает пароли в своём темпе, без rate-limit.';
 
   @override
   String get legendProtects => 'Защищает';
