@@ -1260,6 +1260,19 @@ this; the runner sorts via Kahn's algorithm and throws
 is not specified — do not rely on it; declare the dependency if order
 matters.
 
+Dangling edges are tolerated on purpose. `buildAppMigrationRegistry()`
+declares vault dependencies ahead of the vault artefacts themselves
+(the vault wrappers land in a later change), so the runner skips any
+edge whose `artefactId` is not in the registered set — both endpoints
+must be known for the edge to contribute to `indegree`. Without this
+guard a fresh install hit `indegree[unregistered_id]!` during the
+Kahn sweep, the error surfaced as "dependency cycle: Null check
+operator used on a null value" in `report.fatalError`, and
+`_handleMigrationFailure` routed every first-launch user through
+`DbCorruptDialog`. The tolerance keeps forward-declared deps cheap:
+register the vault artefact later and the pre-declared edge starts
+taking effect automatically.
+
 ##### Reset migrations are out of scope
 
 When the target state of an "upgrade" is "user runs the setup wizard

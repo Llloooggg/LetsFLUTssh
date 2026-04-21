@@ -242,6 +242,28 @@ void main() {
       final report = await MigrationRunner(reg).runOnStartup();
       expect(report.fatalError, isA<StateError>());
     });
+
+    test(
+      'tolerates dependencies whose dependent id is not registered',
+      () async {
+        // Regression: buildAppMigrationRegistry declares deps for
+        // vault artefacts that are not yet registered. The old
+        // _topoSort mis-reported this as "dependency cycle: Null
+        // check operator used on a null value" on every fresh
+        // install, routing the user through the corrupt-DB dialog.
+        final reg = MigrationRegistry();
+        reg.registerArtefact(
+          _StubArtefact(id: 'config', targetVersion: 1, onDiskVersion: -1),
+        );
+        reg.declareDependencies(
+          const ['unregistered_vault', 'unregistered_hash'],
+          const ['config'],
+        );
+        final report = await MigrationRunner(reg).runOnStartup();
+        expect(report.fatalError, isNull);
+        expect(report.hasFailures, isFalse);
+      },
+    );
   });
 
   group('MigrationRegistry guards', () {

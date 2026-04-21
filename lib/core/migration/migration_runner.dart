@@ -251,11 +251,16 @@ class MigrationRunner {
       for (final a in artefacts) a.id: <String>[],
     };
 
+    // Registry may declare dependencies for artefacts that are not yet
+    // registered (future-proofing for vault / hash artefacts). Skip
+    // both sides when either endpoint is unknown so dangling deps do
+    // not poison the indegree map with ids `byId` cannot resolve.
     deps.forEach((id, after) {
+      if (!byId.containsKey(id)) return;
       for (final pre in after) {
         if (!byId.containsKey(pre)) continue;
         adj[pre]!.add(id);
-        indegree[id] = (indegree[id] ?? 0) + 1;
+        indegree[id] = indegree[id]! + 1;
       }
     });
 

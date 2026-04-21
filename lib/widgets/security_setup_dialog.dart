@@ -419,15 +419,29 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
 
         const SizedBox(height: 18),
         Wrap(
-          alignment: WrapAlignment.spaceBetween,
+          // spaceBetween keeps Cancel on the left and Apply on the right
+          // on the edit path (two buttons present). On the first-launch
+          // path Cancel is hidden (see note below), so the Wrap holds a
+          // single child — end-align in that branch so the primary
+          // action lands on the right instead of drifting to the left
+          // edge (spaceBetween with one child collapses to start).
+          alignment: widget.dismissible
+              ? WrapAlignment.spaceBetween
+              : WrapAlignment.end,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 8,
           runSpacing: 8,
           children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).maybePop(),
-              child: Text(l10n.cancel),
-            ),
+            // Cancel is only meaningful on the edit path (Settings →
+            // change tier). On first-launch the dialog is
+            // non-dismissible (`PopScope(canPop: false)`), so a Cancel
+            // button there is a dead control — hide it to avoid
+            // confusing the user.
+            if (widget.dismissible)
+              TextButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                child: Text(l10n.cancel),
+              ),
             FilledButton(
               onPressed: _canSubmit() ? _submit : null,
               // "Apply" on the edit path (user is already set up and
