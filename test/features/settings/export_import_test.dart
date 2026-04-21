@@ -420,19 +420,22 @@ void main() {
     });
   });
 
-  group('ExportImport — pre-v1 archive rejection', () {
-    test('legacy headerless PBKDF2 archive is rejected', () async {
+  group('ExportImport — unknown archive version rejection', () {
+    test('archive with no LFSE magic is rejected', () async {
       final zipBytes = _buildTestZip();
-      final headerless = ExportImport.encryptLegacyHeaderlessForTesting(
-        zipBytes,
-        'pw',
-      );
-      final legacyPath = '${tempDir.path}/pbkdf2-headerless.lfs';
-      await File(legacyPath).writeAsBytes(headerless);
+      final bogus = <int>[
+        0xDE, 0xAD, 0xBE, 0xEF, // wrong magic
+        0x02,
+        ...List<int>.generate(32, (i) => i),
+        ...List<int>.generate(12, (i) => i + 100),
+        ...zipBytes,
+      ];
+      final path = '${tempDir.path}/no-magic.lfs';
+      await File(path).writeAsBytes(bogus);
 
       await expectLater(
         ExportImport.import_(
-          filePath: legacyPath,
+          filePath: path,
           masterPassword: 'pw',
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),
@@ -449,19 +452,18 @@ void main() {
       );
     });
 
-    test('v2 PBKDF2 header (0x01) archive is rejected', () async {
+    test('archive with known-bad version byte (0x01) is rejected', () async {
       final zipBytes = _buildTestZip();
-      final v2Bytes = ExportImport.encryptLegacyPbkdf2ForTesting(
-        zipBytes,
-        'pw',
-        iterations: 1,
+      final v1 = ExportImport.encryptInvalidVersionForTesting(
+        Uint8List.fromList(zipBytes),
+        versionByte: 0x01,
       );
-      final v2Path = '${tempDir.path}/pbkdf2-v2.lfs';
-      await File(v2Path).writeAsBytes(v2Bytes);
+      final path = '${tempDir.path}/v1.lfs';
+      await File(path).writeAsBytes(v1);
 
       await expectLater(
         ExportImport.import_(
-          filePath: v2Path,
+          filePath: path,
           masterPassword: 'pw',
           mode: ImportMode.merge,
           options: const ExportOptions(includeConfig: true),

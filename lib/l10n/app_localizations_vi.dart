@@ -1972,23 +1972,6 @@ class SVi extends S {
   String get credentialsReset => 'Tất cả thông tin đăng nhập đã lưu đã bị xóa';
 
   @override
-  String get legacyKdfTitle => 'Cần nâng cấp bảo mật';
-
-  @override
-  String get legacyKdfBody =>
-      'Bản cài đặt này bảo vệ mật khẩu chính của bạn bằng một thuật toán dẫn xuất khóa cũ (PBKDF2). Thuật toán này đã được thay thế bằng Argon2id, có khả năng chống bẻ khóa bằng GPU/ASIC mạnh hơn nhiều. Định dạng mới không tương thích ngược, vì vậy tập tin salt cũ không thể được di chuyển tự động.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Chọn «Đặt lại và Tiếp tục» sẽ xóa vĩnh viễn tất cả thông tin đăng nhập đã lưu (mật khẩu, khóa SSH, máy chủ đã biết). Các phiên và cài đặt của bạn sẽ được giữ nguyên. Nếu bạn cần khôi phục thông tin đăng nhập, hãy thoát ứng dụng và cài đặt lại phiên bản trước của LetsFLUTssh để xuất dữ liệu trước.';
-
-  @override
-  String get legacyKdfResetContinue => 'Đặt lại và Tiếp tục';
-
-  @override
-  String get legacyKdfExit => 'Thoát LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'Không thể mở cơ sở dữ liệu';
 
   @override

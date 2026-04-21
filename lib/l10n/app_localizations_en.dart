@@ -1975,23 +1975,6 @@ class SEn extends S {
   String get credentialsReset => 'All saved credentials have been deleted';
 
   @override
-  String get legacyKdfTitle => 'Security upgrade required';
-
-  @override
-  String get legacyKdfBody =>
-      'This install protects your master password with an older key-derivation algorithm (PBKDF2). It has been replaced with Argon2id for much stronger resistance to GPU/ASIC cracking. The new format is not backwards-compatible, so the old salt file cannot be migrated automatically.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Choosing Reset & Continue will permanently delete all saved credentials (passwords, SSH keys, known hosts). Your sessions and settings will be kept. If you need to recover your credentials, quit the app and reinstall the previous version of LetsFLUTssh to export your data first.';
-
-  @override
-  String get legacyKdfResetContinue => 'Reset & Continue';
-
-  @override
-  String get legacyKdfExit => 'Quit LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'Database cannot be opened';
 
   @override

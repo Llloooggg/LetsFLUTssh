@@ -28,18 +28,9 @@ import 'password_rate_limiter.dart';
 /// ```
 /// Verification: `credentials.verify` contains AES-256-GCM encrypted known
 /// plaintext, validated on unlock to detect wrong passwords without needing
-/// to decrypt the full credential store. Its on-disk layout is unchanged.
-///
-/// **Legacy PBKDF2 format** (old `credentials.salt`) is no longer readable —
-/// this is a force-breaking migration. [hasLegacyFormat] lets the app detect
-/// it and prompt the user to reset credentials or exit.
+/// to decrypt the full credential store.
 class MasterPasswordManager {
-  /// New Argon2id salt file.
   static const _kdfFileName = 'credentials.kdf';
-
-  /// Legacy PBKDF2 raw-salt file — detected but no longer decrypted.
-  static const _legacySaltFileName = 'credentials.salt';
-
   static const _verifierFileName = 'credentials.verify';
   static const _keyFileName = 'credentials.key';
   static const _fileMagic = <int>[0x4C, 0x46, 0x4B, 0x44]; // 'LFKD'
@@ -94,24 +85,11 @@ class MasterPasswordManager {
     return _basePath!;
   }
 
-  /// Whether master password protection is enabled — either the new
-  /// Argon2id KDF file or the legacy PBKDF2 salt exists. Callers that
-  /// must differentiate should also check [hasLegacyFormat].
+  /// Whether master password protection is enabled — the Argon2id
+  /// KDF file exists.
   Future<bool> isEnabled() async {
     final basePath = await _getBasePath();
-    if (await File('$basePath/$_kdfFileName').exists()) return true;
-    if (await File('$basePath/$_legacySaltFileName').exists()) return true;
-    return false;
-  }
-
-  /// True when the install still carries the legacy PBKDF2 `credentials.salt`
-  /// file and no migrated `credentials.kdf`. The startup flow shows a
-  /// reset-or-exit dialog in this case.
-  Future<bool> hasLegacyFormat() async {
-    final basePath = await _getBasePath();
-    final hasNew = await File('$basePath/$_kdfFileName').exists();
-    if (hasNew) return false;
-    return File('$basePath/$_legacySaltFileName').exists();
+    return File('$basePath/$_kdfFileName').exists();
   }
 
   /// Derive a 256-bit key from password using the on-disk KDF params.
@@ -254,33 +232,28 @@ class MasterPasswordManager {
 
   /// Disable master password protection.
   ///
-  /// Deletes salt and verifier files (both legacy and new paths). The
-  /// caller is responsible for re-encrypting stores with a new random key
-  /// and saving it to `credentials.key`.
+  /// Deletes KDF and verifier files. The caller is responsible for
+  /// re-encrypting stores with a new random key and saving it to
+  /// `credentials.key`.
   Future<void> disable() async {
     final basePath = await _getBasePath();
-    for (final name in [_kdfFileName, _legacySaltFileName, _verifierFileName]) {
+    for (final name in [_kdfFileName, _verifierFileName]) {
       final f = File('$basePath/$name');
       if (await f.exists()) await f.delete();
     }
     AppLogger.instance.log('Master password disabled', name: 'MasterPassword');
   }
 
-  /// Reset all encrypted data (used when password is forgotten or when the
-  /// legacy PBKDF2 format is detected on a force-breaking upgrade).
+  /// Reset all encrypted data (used when password is forgotten).
   ///
-  /// Deletes KDF salt (both formats), verifier, key, and all encrypted
-  /// store files. This is destructive — all saved passwords and keys are
-  /// lost.
+  /// Deletes KDF salt, verifier, and key files. Destructive — all saved
+  /// passwords and keys are lost.
   Future<void> reset() async {
     final basePath = await _getBasePath();
     final files = [
       '$basePath/$_kdfFileName',
-      '$basePath/$_legacySaltFileName',
       '$basePath/$_verifierFileName',
       '$basePath/$_keyFileName',
-      '$basePath/credentials.enc',
-      '$basePath/keys.enc',
     ];
     for (final path in files) {
       final file = File(path);
@@ -318,11 +291,6 @@ class MasterPasswordManager {
     final basePath = await _getBasePath();
     final kdfFile = File('$basePath/$_kdfFileName');
     if (!await kdfFile.exists()) {
-      if (await File('$basePath/$_legacySaltFileName').exists()) {
-        throw const MasterPasswordException(
-          'Legacy PBKDF2 format detected. Reset credentials to continue.',
-        );
-      }
       throw const MasterPasswordException('Master password is not enabled');
     }
     final bytes = await kdfFile.readAsBytes();

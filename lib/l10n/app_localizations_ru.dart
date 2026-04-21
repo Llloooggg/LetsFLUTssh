@@ -1991,23 +1991,6 @@ class SRu extends S {
   String get credentialsReset => 'Все сохранённые учётные данные удалены';
 
   @override
-  String get legacyKdfTitle => 'Требуется обновление безопасности';
-
-  @override
-  String get legacyKdfBody =>
-      'В этой установке мастер-пароль защищён устаревшим алгоритмом деривации ключа (PBKDF2). Он заменён на Argon2id, который значительно лучше сопротивляется взлому на GPU/ASIC. Новый формат несовместим со старым, поэтому файл соли нельзя перенести автоматически.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Выбор «Сбросить и продолжить» безвозвратно удалит все сохранённые учётные данные (пароли, SSH-ключи, известные хосты). Сессии и настройки будут сохранены. Если нужно восстановить учётные данные, закройте приложение и переустановите предыдущую версию LetsFLUTssh, чтобы сначала экспортировать данные.';
-
-  @override
-  String get legacyKdfResetContinue => 'Сбросить и продолжить';
-
-  @override
-  String get legacyKdfExit => 'Выйти из LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'Не удалось открыть базу данных';
 
   @override

@@ -34,10 +34,10 @@ import '../../utils/logger.dart';
 ///
 /// GCM's auth tag protects archive integrity end-to-end, so the manifest
 /// carries metadata only — no redundant content hash. v1 is the permanent
-/// floor; pre-v1 formats (legacy headerless PBKDF2, v2 PBKDF2 header,
-/// missing manifest) are rejected with [UnsupportedLfsVersionException].
-/// Future format changes ship a [Migration] registered in
-/// `archive_registry.dart` rather than another read-only back-compat path.
+/// floor; any on-disk archive reporting a different `schema_version`, a
+/// missing manifest, an unrecognised header byte, or no `LFSE` magic is
+/// rejected with [UnsupportedLfsVersionException]. Future format changes
+/// ship a [Migration] registered in `archive_registry.dart`.
 class ExportImport {
   /// Current .lfs schema version. Bump on format-breaking changes; every
   /// bump ships a corresponding archive `Migration`. Sourced from
@@ -48,10 +48,7 @@ class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;
 
-  /// Header magic + single supported version byte. Argon2id-only after
-  /// the pre-v1 back-compat drop.
-  ///
-  ///   `0x02` → Argon2id (the only accepted version).
+  /// Header magic + single supported version byte (Argon2id).
   static const List<int> _encHeaderMagic = [0x4C, 0x46, 0x53, 0x45]; // 'LFSE'
   static const int _encVersionArgon2id = 0x02;
 
@@ -87,7 +84,7 @@ class ExportImport {
 
   /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
   /// decryption or decompression so a pathologically large file can't OOM
-  /// the process — PBKDF2 + AES-GCM both hold the full plaintext in memory
+  /// the process — Argon2id + AES-GCM both hold the full plaintext in memory
   /// on mobile. Legitimate exports are dominated by session credentials and
   /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
   /// is generous for normal use but catches zip-bomb-scale inputs.
@@ -671,12 +668,10 @@ class ExportImport {
     enforceDecompressedSizeCap(archive);
 
     final manifest = _parseManifest(archive);
-    // Archive format is Argon2id-only since the pre-v1 drop. Any
-    // schema_version that is not exactly [currentSchemaVersion]
-    // (future OR past) is rejected — future archives can't be read
-    // by this build, past archives were dropped with the rest of the
-    // legacy KDF paths. Future format bumps add migrations to
-    // archive_registry.dart instead.
+    // Any schema_version that is not exactly [currentSchemaVersion]
+    // (future OR past) is rejected — future archives can't be read by
+    // this build, past archives fall below the v1 floor. Future format
+    // bumps register migrations in archive_registry.dart.
     if (manifest.schemaVersion != currentSchemaVersion) {
       throw UnsupportedLfsVersionException(
         found: manifest.schemaVersion,
@@ -731,11 +726,10 @@ class ExportImport {
     );
   }
 
-  /// Parse the manifest entry. Manifest is mandatory after the pre-v1
-  /// back-compat drop — absence or malformed content throws
-  /// [UnsupportedLfsVersionException] so the caller surfaces a clear
-  /// "archive from an older app version; re-export" error. `found: 0`
-  /// is the sentinel for "manifest missing or unreadable".
+  /// Parse the manifest entry. The manifest is mandatory — absence or
+  /// malformed content throws [UnsupportedLfsVersionException] so the
+  /// caller surfaces a clear "archive not recognised; re-export" error.
+  /// `found: 0` is the sentinel for "manifest missing or unreadable".
   static LfsManifest _parseManifest(Archive archive) {
     final file = archive.findFile(_manifestFile);
     if (file == null) {
@@ -940,12 +934,10 @@ class ExportImport {
     }
   }
 
-  /// Decrypt bytes with a password-derived key.
-  ///
-  /// Argon2id-only since the pre-v1 back-compat drop. Pre-magic archives
-  /// (legacy headerless PBKDF2) and `0x01` (v2 PBKDF2 header) are
-  /// rejected with [UnsupportedLfsVersionException]. Any other version
-  /// byte surfaces the same exception with the observed byte as `found`.
+  /// Decrypt bytes with a password-derived key. Argon2id-only. Missing
+  /// `LFSE` magic or a header version byte other than
+  /// [_encVersionArgon2id] is rejected with
+  /// [UnsupportedLfsVersionException].
   static Uint8List _decryptWithPassword(Uint8List data, String password) {
     final bytes = Uint8List.fromList(data);
 
@@ -1060,21 +1052,15 @@ class ExportImport {
     }
   }
 
-  /// Build a v2 PBKDF2 archive (LFSE magic + 0x01). Used only by
-  /// tests that exercise the rejection path — production code never
-  /// writes this format. Kept as a test helper so the rejection path
-  /// can be exercised without having to handcraft binary buffers.
+  /// Build an archive with an unknown version byte. Used only by tests
+  /// that assert the rejection path — the header layout is well-formed
+  /// but the version byte is not [_encVersionArgon2id], so
+  /// [_decryptWithPassword] rejects it before any cipher runs.
   @visibleForTesting
-  static Uint8List encryptLegacyPbkdf2ForTesting(
-    Uint8List data,
-    String password, {
-    required int iterations,
+  static Uint8List encryptInvalidVersionForTesting(
+    Uint8List data, {
+    required int versionByte,
   }) {
-    // The body is intentionally not a real PBKDF2 encryption — the
-    // rejection happens on the version byte long before the cipher
-    // runs. Returning a well-formed header with garbage payload is
-    // sufficient for every test that asserts
-    // [UnsupportedLfsVersionException] is thrown on `0x01`.
     final random = Random.secure();
     final salt = Uint8List.fromList(
       List.generate(_saltLen, (_) => random.nextInt(256)),
@@ -1082,33 +1068,13 @@ class ExportImport {
     final iv = Uint8List.fromList(
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
-    final header = <int>[
+    return Uint8List.fromList([
       ..._encHeaderMagic,
-      0x01, // legacy PBKDF2 version — rejected by _decryptWithPassword
-      (iterations >> 24) & 0xFF,
-      (iterations >> 16) & 0xFF,
-      (iterations >> 8) & 0xFF,
-      iterations & 0xFF,
-    ];
-    return Uint8List.fromList([...header, ...salt, ...iv, ...data]);
-  }
-
-  /// Build a legacy raw-salt PBKDF2 archive (no magic header). Used
-  /// only by tests that assert the rejection path for pre-v1
-  /// archives.
-  @visibleForTesting
-  static Uint8List encryptLegacyHeaderlessForTesting(
-    Uint8List data,
-    String password,
-  ) {
-    final random = Random.secure();
-    final salt = Uint8List.fromList(
-      List.generate(_saltLen, (_) => random.nextInt(256)),
-    );
-    final iv = Uint8List.fromList(
-      List.generate(_ivLen, (_) => random.nextInt(256)),
-    );
-    return Uint8List.fromList([...salt, ...iv, ...data]);
+      versionByte,
+      ...salt,
+      ...iv,
+      ...data,
+    ]);
   }
 }
 

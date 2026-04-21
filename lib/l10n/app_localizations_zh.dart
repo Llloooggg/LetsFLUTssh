@@ -1911,23 +1911,6 @@ class SZh extends S {
   String get credentialsReset => '所有已保存的凭据已删除';
 
   @override
-  String get legacyKdfTitle => '需要进行安全升级';
-
-  @override
-  String get legacyKdfBody =>
-      '此安装使用较旧的密钥派生算法（PBKDF2）保护您的主密码。该算法已被 Argon2id 取代，对 GPU/ASIC 破解具有更强的抵抗能力。新格式与旧格式不向后兼容，因此无法自动迁移旧的盐文件。';
-
-  @override
-  String get legacyKdfWarning =>
-      '选择「重置并继续」将永久删除所有已保存的凭据（密码、SSH 密钥、已知主机）。您的会话和设置将被保留。如果您需要恢复凭据，请退出应用并先重新安装旧版本的 LetsFLUTssh 以导出数据。';
-
-  @override
-  String get legacyKdfResetContinue => '重置并继续';
-
-  @override
-  String get legacyKdfExit => '退出 LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => '无法打开数据库';
 
   @override

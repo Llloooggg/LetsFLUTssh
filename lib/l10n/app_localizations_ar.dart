@@ -1979,23 +1979,6 @@ class SAr extends S {
   String get credentialsReset => 'تم حذف جميع بيانات الاعتماد المحفوظة';
 
   @override
-  String get legacyKdfTitle => 'يلزم تحديث أمني';
-
-  @override
-  String get legacyKdfBody =>
-      'يحمي هذا التثبيت كلمة المرور الرئيسية بخوارزمية قديمة لاشتقاق المفاتيح (PBKDF2). وقد تم استبدالها بـ Argon2id لتوفير مقاومة أقوى بكثير ضد الكسر عبر GPU/ASIC. التنسيق الجديد غير متوافق مع التنسيق السابق، لذا لا يمكن ترحيل ملف الملح القديم تلقائيًا.';
-
-  @override
-  String get legacyKdfWarning =>
-      'سيؤدي اختيار «إعادة التعيين والمتابعة» إلى حذف جميع بيانات الاعتماد المحفوظة بشكل دائم (كلمات المرور، مفاتيح SSH، المضيفون المعروفون). سيتم الاحتفاظ بجلساتك وإعداداتك. إذا كنت بحاجة إلى استرداد بيانات الاعتماد، فأغلق التطبيق وأعد تثبيت الإصدار السابق من LetsFLUTssh لتصدير بياناتك أولًا.';
-
-  @override
-  String get legacyKdfResetContinue => 'إعادة التعيين والمتابعة';
-
-  @override
-  String get legacyKdfExit => 'إنهاء LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'تعذر فتح قاعدة البيانات';
 
   @override

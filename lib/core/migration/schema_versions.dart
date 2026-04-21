@@ -6,65 +6,42 @@
 /// the chain of migrations needed to reach it.
 ///
 /// **Rules:**
+/// - v1 is the permanent floor. Any on-disk state reporting a version
+///   below 1 (pre-framework legacy layouts, unrecognised formats) is
+///   treated as corrupt and routed through the reset path — never
+///   migrated.
 /// - Bump only when shipping a new [Migration] that targets the new
 ///   version. A bump without the matching migration registered in
-///   `registry.dart` is detected by [MigrationRunner.runOnStartup] —
-///   the artefact's first post-upgrade boot raises a fatal error and
-///   the report's `hasFailures` is true. Add a registry / migration
-///   unit test to catch this at PR time instead of first install.
+///   `registry.dart` is caught by the registry-completeness unit test.
 /// - Never reuse a previous version number. Versions are monotonic.
-/// - Version 0 = "unversioned legacy" (no envelope header). The
-///   v0_to_v1 migration for an artefact reads the legacy structure
-///   and rewrites it under [VersionedBlob] envelope.
-///
-/// Initial state: every binary artefact at version 0 (legacy). Drift
-/// DB and KDF stay at their existing internal versions — they already
-/// track schema themselves.
 class SchemaVersions {
-  /// `config.json` payload format.
-  ///
-  /// v1 — pre-3-tier-refactor; no explicit `config_schema_version`
-  ///      field in the JSON. Detected as legacy on upgrade; routed
-  ///      through the tier-reset dialog + [WipeAllService] so the
-  ///      post-refactor install starts from a clean slate under the
-  ///      new native-plugin ACL shape.
-  /// v2 — current. `config_schema_version: 2` is written into every
-  ///      `config.json` by `ConfigStore.save`. `SecurityConfig`
-  ///      modifiers carry `password` + `biometric` fields in their
-  ///      final shape.
-  static const int config = 2;
+  /// `config.json` payload format. `config_schema_version` is stamped
+  /// by `ConfigStore.save` on every write; a missing / mismatched field
+  /// on read = corrupt.
+  static const int config = 1;
 
-  /// `credentials.kdf` (Argon2id params). Already self-versioned via
-  /// `KdfParams` magic; tracked here so the migration framework knows
-  /// it exists and can route future format bumps through itself.
+  /// `credentials.kdf` (Argon2id params + salt). Self-versioned inside
+  /// the file via `'LFKD'` magic + version byte; tracked here so the
+  /// framework can route future format bumps through itself.
   static const int kdf = 1;
 
-  /// Drift DB schema. Already migrated via Drift's `MigrationStrategy`;
-  /// tracked here so the framework reports its presence.
-  static const int db = 2;
+  /// Drift DB schema. Migrated intra-DB via drift's `MigrationStrategy`;
+  /// presence-only in the framework.
+  static const int db = 1;
 
-  /// `security_pass_hash.bin` — keychain password gate. Currently a
-  /// raw JSON blob (version 0); a future migration wraps it in the
-  /// standard [VersionedBlob] envelope and bumps to 1.
-  static const int passGate = 0;
+  /// `security_pass_hash.bin` — keychain password gate.
+  static const int passGate = 1;
 
-  /// `hardware_vault_*.bin` — per-platform hw vault blob. Currently
-  /// legacy formats (version 0); future migrations bump to 1 when
-  /// each platform's blob layout stabilises on its final shape.
-  static const int hwVaultAndroid = 0;
-  static const int hwVaultApple = 0;
-  static const int hwVaultWindows = 0;
-  static const int hwVaultLinux = 0;
+  /// `hardware_vault_*.bin` — per-platform hw vault blob.
+  static const int hwVaultAndroid = 1;
+  static const int hwVaultApple = 1;
+  static const int hwVaultWindows = 1;
+  static const int hwVaultLinux = 1;
 
-  /// `hardware_vault_salt.bin` — raw 32-byte salt. Currently legacy
-  /// (version 0); a future migration wraps it in the envelope.
-  static const int hwSalt = 0;
+  /// `hardware_vault_salt.bin` — raw 32-byte salt.
+  static const int hwSalt = 1;
 
-  /// `.lfs` archive schema carried in `manifest.json`. Pre-v1 formats
-  /// (legacy headerless PBKDF2, v2 PBKDF2 header, missing manifest)
-  /// have been dropped; v1 is the permanent floor and future breaking
-  /// format changes ship a proper archive-side [Migration] registered
-  /// in [archiveMigrationRegistry].
+  /// `.lfs` archive schema carried in `manifest.json`.
   static const int archive = 1;
 }
 

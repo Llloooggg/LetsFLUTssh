@@ -230,26 +230,20 @@ class UiConfig {
 }
 
 /// App behavior settings: logging, update checks, skipped versions.
+///
+/// Auto-lock timeout is NOT here — it lives in the encrypted DB
+/// (`AppConfigs.auto_lock_minutes`) so an attacker with plaintext-disk
+/// access cannot weaken the security control by editing a plaintext
+/// file. See [AutoLockStore].
 class BehaviorConfig {
   final bool enableLogging;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
 
-  /// **Legacy field** — auto-lock timeout used to live in this plaintext
-  /// `config.json`. As of schema v2 the authoritative value lives in the
-  /// encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with
-  /// disk access cannot weaken the security control by editing a
-  /// plaintext file. The notifier (`autoLockMinutesProvider`) reads this
-  /// field exactly once on first DB unlock to migrate any pre-existing
-  /// value, then resets it to `0`. New writes go straight to the DB and
-  /// never touch this field. Kept for the migration window only.
-  final int autoLockMinutes;
-
   const BehaviorConfig({
     this.enableLogging = false,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
-    this.autoLockMinutes = 0,
   });
 
   static const defaults = BehaviorConfig();
@@ -261,14 +255,12 @@ class BehaviorConfig {
     bool? enableLogging,
     bool? checkUpdatesOnStart,
     Object? skippedVersion = _unset,
-    int? autoLockMinutes,
   }) => BehaviorConfig(
     enableLogging: enableLogging ?? this.enableLogging,
     checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
     skippedVersion: identical(skippedVersion, _unset)
         ? this.skippedVersion
         : skippedVersion as String?,
-    autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
   );
 
   @override
@@ -277,22 +269,16 @@ class BehaviorConfig {
       other is BehaviorConfig &&
           enableLogging == other.enableLogging &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
-          skippedVersion == other.skippedVersion &&
-          autoLockMinutes == other.autoLockMinutes;
+          skippedVersion == other.skippedVersion;
 
   @override
-  int get hashCode => Object.hash(
-    enableLogging,
-    checkUpdatesOnStart,
-    skippedVersion,
-    autoLockMinutes,
-  );
+  int get hashCode =>
+      Object.hash(enableLogging, checkUpdatesOnStart, skippedVersion);
 
   Map<String, dynamic> toJson() => {
     'enable_logging': enableLogging,
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
-    'auto_lock_minutes': autoLockMinutes,
   };
 
   factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
@@ -302,8 +288,6 @@ class BehaviorConfig {
       checkUpdatesOnStart:
           json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
-      autoLockMinutes:
-          (json['auto_lock_minutes'] as num?)?.toInt() ?? d.autoLockMinutes,
     );
   }
 }

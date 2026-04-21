@@ -174,7 +174,6 @@ lib/
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
 │   ├── import_preview_dialog.dart   # Source-agnostic typedefs (ImportPreviewCounts/Selection) shared by archive + link preview
-│   ├── legacy_kdf_dialog.dart       # Non-dismissible migration prompt for pre-Argon2id PBKDF2 credentials
 │   ├── lfs_import_dialog.dart       # .lfs import password + mode dialog
 │   ├── lfs_import_preview_dialog.dart # .lfs archive preview before import
 │   ├── link_import_preview_dialog.dart # letsflutssh:// link / QR payload preview (flags + merge/replace)
@@ -190,7 +189,7 @@ lib/
 │   ├── secure_password_field.dart   # TextField pre-configured for secret entry — IME spellcheck/autofill/history disabled
 │   ├── secure_screen_scope.dart     # Scope opting subtree into OS screen-capture protection (Android FLAG_SECURE)
 │   ├── security_comparison_table.dart # Threat × tier matrix — horizontally scrollable on desktop, transposed on mobile
-│   ├── security_setup_dialog.dart   # First-launch wizard result — carries both legacy and modifier-shape tier choice
+│   ├── security_setup_dialog.dart   # First-launch wizard — plain tier + modifier-shape choice
 │   ├── security_threat_list.dart    # Single-tier threat inventory with ✓ / ✗ / — / ! glyphs
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
@@ -199,7 +198,7 @@ lib/
 │   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
 │   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
-│   ├── tier_reset_dialog.dart       # Non-dismissible migration prompt for legacy security state lacking a tier field
+│   ├── tier_reset_dialog.dart       # Non-dismissible reset prompt when the resolved tier no longer matches on-disk artefacts
 │   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / L3 PIN unlock shell with retry + cooldown
 │   ├── tier_threat_block.dart       # Single-tier presentation block (header + threat split) used by wizard + Settings
 │   ├── toast.dart                   # Stacked notification toasts
@@ -713,9 +712,9 @@ encryption — the active tier is opaque to them.
    **and** any managed artefact exists on disk, show
    `TierResetDialog`. The dialog routes through
    `WipeAllService.wipeAll()` on user confirm; on cancel the app
-   quits. This single gate covers both "pre-v1 tier model, can't
-   read the sealed blob under the new ACL" and "loose legacy files
-   from a half-broken install".
+   quits. Covers both "resolved tier does not match the sealed blob
+   under the expected ACL" and "orphan files from a half-broken
+   install".
 4. When the config has a tier, dispatch to the matching unlock path
    (`_unlockParanoid`, `_unlockKeychainWithPassword`, `_unlockHardware`,
    `_unlockKeychain`, or the plaintext short-circuit).
@@ -753,15 +752,13 @@ flowchart LR
 
 The algorithm id + params block is defined in [`KdfParams`](../lib/core/security/kdf_params.dart) — new algorithms can be added without changing the file-layout header. Production defaults are [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart) (Argon2id m=46 MiB t=2 p=1, chosen as the OWASP 2024 recommended floor that balances mid-tier mobile wall-clock against GPU/ASIC resistance).
 
-**Legacy PBKDF2 migration (force-breaking)**: installs from before the Argon2id rollout carry an older `credentials.salt` file with raw PBKDF2 salt (no header). [`MasterPasswordManager.hasLegacyFormat()`](../lib/core/security/master_password.dart) detects this at startup and `main._initSecurity()` shows the non-dismissible [`LegacyKdfDialog`](../lib/widgets/legacy_kdf_dialog.dart) — the user must choose *Reset & Continue* (wipes encrypted stores, fresh start with default keychain mode) or *Quit LetsFLUTssh* (leaves the old data intact so the user can reinstall a previous build and export their credentials first). PBKDF2 key derivation code is no longer on any runtime path for the DB key. Pre-v1 `.lfs` archives (headerless PBKDF2 and v2 PBKDF2 header) are no longer readable — they reject at import with `UnsupportedLfsVersionException` (see [§3.9 Import → .lfs format](#39-import-coreimport)). Future breaking archive-format changes ship through the migration framework's `archiveMigrationRegistry` rather than another read-only back-compat path.
-
 #### In-memory DB key (page-locked)
 
-The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the PBKDF2-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
+The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the Argon2id-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
 
 #### Unlock-path single KDF
 
-Every master-password unlock must verify the password *and* produce the derived DB key. The legacy code called `verify()` then `deriveKey()` — two isolate spawns + two KDF runs, adding up to several seconds on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so this single-call optimisation matters even more than it did for PBKDF2.
+Every master-password unlock must verify the password *and* produce the derived DB key. An earlier implementation called `verify()` then `deriveKey()` — two isolate spawns + two KDF runs, adding up to several seconds on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so the single-call optimisation saves real wall-clock on every unlock.
 
 #### Switching tiers on the fly — always-rekey invariant
 
@@ -910,7 +907,7 @@ Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Us
 
 #### Auto-lock
 
-Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`, schema v2) — moving it out of plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. A one-shot migration on first DB unlock copies any pre-existing value from the legacy `config.json` field into the DB. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
+Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) — storing it there rather than in plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
 
 **Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
@@ -972,7 +969,7 @@ All calls are wrapped in try/catch; a failed hardening call never blocks startup
 
 * *Core dumps* — covered on every POSIX target (prctl + setrlimit on Linux/Android, ptrace PT_DENY_ATTACH + setrlimit on macOS). Windows WER is disabled for the process via SetErrorMode. No gap.
 * *Ptrace attach* — Linux requires `CAP_SYS_PTRACE` after `PR_SET_DUMPABLE, 0`; macOS blocked via `PT_DENY_ATTACH`; Windows equivalent is covered by the WER disable + the debugger-detection Windows already surfaces. No gap.
-* *mlock coverage* — every long-lived DB/crypto secret (`SecurityStateNotifier`'s current DB key, `MasterPasswordManager.verifyAndDerive` intermediate, `ExportImport._encryptWithPassword` / `_decryptWithPassword` PBKDF2-derived keys) lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every entry point zeros the source after copy.
+* *mlock coverage* — every long-lived DB/crypto secret (`SecurityStateNotifier`'s current DB key, `MasterPasswordManager.verifyAndDerive` intermediate, `ExportImport._encryptWithPassword` / `_decryptWithPassword` Argon2id-derived keys) lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every entry point zeros the source after copy.
 * *Stack canaries* — the Dart VM + `flutter` engine are compiled with `-fstack-protector-strong` by upstream; the project does not link any native code of its own that would opt out. No action.
 * *Isolate cross-talk* — Dart isolates have isolated heaps by design; the project uses one secondary isolate (`MasterPasswordManager.verifyAndDerive` spawns a short-lived isolate for Argon2id) and explicitly disposes its secret buffers before the isolate terminates. No cross-talk surface.
 * *Android manifest debuggable flag* — Flutter release builds set `debuggable=false` by default via Gradle; the project never overrides it. No action.
@@ -1148,8 +1145,8 @@ for new binary state is a bug — it skips both the envelope header and
 the atomic-rename pattern.
 
 `VersionedBlob.read(path)` and `tryParse(bytes)` return `null` when
-the magic does not match — callers treat null as "legacy unversioned
-blob, route through the v0 migration".
+the magic does not match — callers treat null as unrecognised state
+and let the runner surface the mismatch via the fatal-report path.
 
 The header is intentionally absent for two artefacts: drift's DB file
 (drift owns its own schema and reads its own version via `PRAGMA
@@ -1167,12 +1164,17 @@ The return value drives the runner's decision tree:
 | Return value | Meaning | Runner action |
 |---|---|---|
 | `-1` | Artefact does not exist on disk yet (clean install for this slot) | Skip — nothing to migrate |
-| `0` | Artefact present but unversioned (pre-framework legacy format) | Look for a `v0_to_v1` Migration and apply it |
 | `>= 1` | Artefact present, header-versioned at the returned value | Walk the Migration chain up to `targetVersion` |
 
+v1 is the permanent floor for every artefact. Unrecognised headers,
+missing schema fields, malformed payloads must **throw** — the runner
+catches the throw and records it as a fatal `MigrationReport` entry so
+the caller can route the user through the reset dialog. Never return a
+made-up version for unrecognised state.
+
 `targetVersion` must be read straight from a `SchemaVersions.<x>`
-constant — never inline a number. The constant is the single source
-of truth and the CI guard greps for stale literals.
+constant — never inline a number. The constant is the single source of
+truth and the registry-completeness unit test greps for stale literals.
 
 ##### MigrationRunner lifecycle
 
@@ -1199,8 +1201,6 @@ below):
      error**: the runner appends a failed `MigrationStep` and aborts
      the whole run with `report.fatalError` set.
    - Call `apply()`. If it throws, record the failure and abort.
-   - Call `validate()`. If it returns `false`, record the failure and
-     abort.
    - Otherwise advance `current` to `step.toVersion` and continue.
 
 The runner returns a `MigrationReport`:
@@ -1209,36 +1209,33 @@ The runner returns a `MigrationReport`:
 |---|---|
 | `steps` | Per-step record (artefactId, fromVersion, toVersion, succeeded, error) |
 | `futureVersions` | List of `UnsupportedFutureVersionException` for artefacts ahead of the build |
-| `fatalError` | First fatal error (missing migration, apply throw, validate false, dependency cycle) |
+| `fatalError` | First fatal error (missing migration, apply throw, dependency cycle, corrupt header) |
 | `noOp` | True iff no migrations ran and no failures recorded |
 | `hasFailures` | True iff any step failed, any future version was seen, or fatal is set |
 | `migratedCount` | Successful step count — used in the post-run log line |
 
-Today `main._runMigrations` only logs the report and continues into
-`_initSecurity` regardless of `hasFailures`; the user-facing failure
-surfaces (blocking dialog, toast, force-reset) land alongside the
-first real migration that can actually fail. The reasoning: with the
-empty registry the runner is a no-op on every install where on-disk
-state already matches `SchemaVersions`, so wiring a UI surface for a
-failure that cannot occur would just add dead code.
+`main._runMigrations` inspects `report.hasFailures` (fatal error,
+future-version artefact, or any failed step) and routes the user
+through the corrupt-state dialog + `WipeAllService` on any non-clean
+run. The registry is empty today, so on a current-version install the
+report is always `noOp == true` and the app proceeds into
+`_initSecurity` normally; the failure surface is wired up ahead of time
+so the first real migration inherits a complete path.
 
-##### Atomicity and rollback
+##### Atomicity
 
 `Migration.apply()` is responsible for atomicity end-to-end. The
 standard recipe is `VersionedBlob.write(...)` (tmp + rename + chmod);
 custom payloads follow the same pattern via `writeBytesAtomic` in
 `utils/file_utils.dart`. If `apply` throws before the rename, the
-original file is untouched and the runner reports the failure.
+original file is untouched and the runner records the failure as a
+fatal `MigrationStep`.
 
-`validate()` is a sanity net (round-trip read, schema check, magic
-header check) that runs after `apply`. Returning `false` flags the
-step as failed in the report but **does not roll the file back** —
-the runner has no backup to swap to. Migrations that need
-post-validate rollback must keep their own `.bak` sibling and perform
-the swap-back inside `apply` themselves before signalling failure.
-This is the contract the `Migration` abstract class documents and
-what the runner actually implements; earlier docs in this section
-overstated runner-side rollback.
+There is no post-apply validate hook. A migration that needs to sanity-
+check its own output does so inside `apply` and throws on mismatch —
+the runner has no backup to swap to and no separate validate phase to
+couple rollback to. Migrations that want true rollback must hold their
+own `.bak` sibling inside `apply`.
 
 ##### Topology — declareDependency
 
@@ -1246,34 +1243,35 @@ Some artefacts must be migrated only after others (the canonical
 example: every per-platform `hardware_vault_*.bin` depends on
 `config.json` because the vault layout reads its tier and modifier
 shape from the post-migration config). The registry exposes
-`declareDependency(artefactId, [otherIds...])` to encode this; the
-runner sorts via Kahn's algorithm and throws `StateError('Cycle in
-migration dependencies')` (captured as `report.fatalError`) on any
-cycle. Order between independent artefacts is not specified — do not
-rely on it; declare the dependency if order matters.
+`declareDependency(artefactId, [otherIds...])` — and its bulk variant
+`declareDependencies([artefactIds...], [otherIds...])` — to encode
+this; the runner sorts via Kahn's algorithm and throws
+`StateError('Cycle in migration dependencies')` (captured as
+`report.fatalError`) on any cycle. Order between independent artefacts
+is not specified — do not rely on it; declare the dependency if order
+matters.
 
 ##### Reset migrations are out of scope
 
 When the target state of an "upgrade" is "user runs the setup wizard
-again, nothing to salvage" (legacy security state with no tier
-field, pre-Argon2id PBKDF2 credentials), the migration framework is
-the wrong place. Those route through the `_initSecurity` tier-reset
-gate via `TierResetDialog` → `WipeAllService.wipeAll()` (or
-`LegacyKdfDialog` for the PBKDF2 case) — user-consented destructive
-operations, not silent format bumps. The framework is for silent
-automated format bumps only; if there is no automatable transform,
-escalate to a reset dialog instead.
+again, nothing to salvage", the migration framework is the wrong
+place. Those route through `TierResetDialog` / `DbCorruptDialog` →
+`WipeAllService.wipeAll()` — user-consented destructive operations,
+not silent format bumps. The framework is for silent automated format
+bumps only; if there is no automatable transform, escalate to a reset
+dialog instead.
 
 ##### Archive format migrations
 
 `ArchiveMigrationRegistry` + the `archiveMigrationRegistry` singleton
 mirror the on-disk registry but for `.lfs` archive contents. Different
 lifecycle (import-time, not startup) but same `Migration` interface.
-v1 is the permanent floor after the pre-v1 back-compat drop; pre-v1
-formats reject at import with `UnsupportedLfsVersionException` (see
+v1 is the permanent floor; archives whose `schema_version` does not
+match the current [`SchemaVersions.archive`](../lib/core/migration/schema_versions.dart)
+are rejected at import with `UnsupportedLfsVersionException` (see
 [§3.9 Import → .lfs format](#39-import-coreimport)). Future breaking
-format changes register here rather than growing another read-only
-back-compat path.
+format changes register a `Migration` here rather than growing a
+read-only back-compat path.
 
 ##### Developer guide — how to ship a format change
 
@@ -1294,8 +1292,8 @@ the framework from day one.
 1. Pick a stable 1-byte id and add it to `ArtefactIds` in
    `schema_versions.dart`. Never reuse a previous value — even for
    ids that were once registered and removed.
-2. Add a `SchemaVersions.<name>` constant set to `1` (the first real
-   version; `0` is reserved for "legacy unversioned").
+2. Add a `SchemaVersions.<name>` constant set to `1` (the permanent
+   floor — v1 is the lowest legal version in the framework).
 3. Implement `<name>_artefact.dart` under `core/migration/artefacts/`
    extending `Artefact`. Override `id` (use the on-disk filename),
    `targetVersion` (`SchemaVersions.<name>`), and `readVersion()` —
@@ -1311,8 +1309,8 @@ the framework from day one.
    directly for envelope artefacts.
 6. Add a unit test under `test/core/migration/artefacts/` exercising
    each `readVersion()` path (missing file, malformed, current
-   version, legacy version). Pass an injected `supportDir` so the
-   test owns a temp directory.
+   version). Pass an injected `supportDir` so the test owns a temp
+   directory.
 
 No Migration is needed yet — the artefact ships at v1 from the start
 and the runner is a no-op on every install.
@@ -1383,7 +1381,7 @@ You are bumping the archive `manifest.schema_version`.
 
 - **Reset migrations** — see "Reset migrations are out of scope"
   above. If the upgrade has no automatable transform, escalate to
-  `TierResetDialog` / `LegacyKdfDialog` instead.
+  `TierResetDialog` / `DbCorruptDialog` instead.
 - **Cross-artefact migrations in a single Migration** — one migration
   covers exactly one `(artefactId, fromVersion → toVersion)`. If a
   format change touches two artefacts, ship two migrations and
@@ -1493,7 +1491,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, PBKDF2 600k iterations). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
+| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, Argon2id-derived key). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
 | `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
@@ -1530,16 +1528,15 @@ u32 BE + iterations u32 BE + parallelism u8 = 9 bytes). The reader picks
 up the exact cost used to write the archive — a future release can tune
 parameters without having to break or re-encrypt existing files.
 
-Argon2id is the only supported KDF since the pre-v1 back-compat drop.
-Pre-v1 archives (headerless PBKDF2 and `0x01` v2 PBKDF2 header) are
-rejected at import with `UnsupportedLfsVersionException` — users on
-those archives must re-export from the current app version. Future
-breaking format changes ship a `Migration` registered in
-`lib/core/migration/archive_registry.dart` — see
-[§3.6 → Migration framework](#migration-framework-coremigration)
-for the framework, which runs at import time (not startup) for
-archive artefacts but uses the same `Migration` interface as the
-on-disk artefacts.
+Argon2id is the only supported KDF. Archives with a header version byte
+other than `0x02`, missing `LFSE` magic, or no manifest are rejected at
+import with `UnsupportedLfsVersionException` — users must re-export from
+the current app version. Future breaking format changes ship a
+`Migration` registered in `lib/core/migration/archive_registry.dart` —
+see [§3.6 → Migration framework](#migration-framework-coremigration)
+for the framework, which runs at import time (not startup) for archive
+artefacts but uses the same `Migration` interface as the on-disk
+artefacts.
 
 | On-disk form | Version byte | KDF | Notes |
 |---|---|---|---|
@@ -1570,12 +1567,13 @@ password prompt:
     check inside `_decryptAndParseArchive` is the final arbiter.
 ```
 
-Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**). The
-manifest is written on every export and validated on import — archives with a
-higher `schema_version` throw `UnsupportedLfsVersionException` rather than
-silently dropping unknown fields. Archives without a manifest are treated as
-legacy v1 (back-compat). GCM's auth tag already protects archive integrity
-end-to-end, so no separate content hash is stored in the manifest.
+Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**,
+sourced from `SchemaVersions.archive`). The manifest is written on every
+export and validated on import — archives with any `schema_version` other
+than the current one, or no manifest at all, throw
+`UnsupportedLfsVersionException`. GCM's auth tag already protects archive
+integrity end-to-end, so no separate content hash is stored in the
+manifest.
 
 #### Import modes
 
@@ -2673,7 +2671,7 @@ Single dialog covering both QR and `.lfs` export. Top of the dialog flips betwee
 
 ## 6.1 Security & Tier Wizard Widgets
 
-Cluster of widgets that implement the first-launch security wizard, the Settings → Security ladder, the lock screen, and the legacy-state migration prompts. They consume / mutate state owned by `core/security/` ([§3.6](#36-security--encryption-coresecurity)) and the security providers ([§4.2 Provider Catalog](#42-provider-catalog) — `securityProvider`, `lockStateProvider`, `autoLockMinutesProvider`, `firstLaunchBannerProvider`, `masterPasswordProvider`).
+Cluster of widgets that implement the first-launch security wizard, the Settings → Security ladder, the lock screen, and the reset prompts for mismatched on-disk state. They consume / mutate state owned by `core/security/` ([§3.6](#36-security--encryption-coresecurity)) and the security providers ([§4.2 Provider Catalog](#42-provider-catalog) — `securityProvider`, `lockStateProvider`, `autoLockMinutesProvider`, `firstLaunchBannerProvider`, `masterPasswordProvider`).
 
 ### AppInfoButton
 
@@ -2809,7 +2807,7 @@ class SecuritySetupResult { … }
 SecuritySetupDialog({Key? key})
 SecuritySetupDialog.show(context) → Future<SecuritySetupResult?>
 ```
-Reduced-wizard fallback: shown on first launch **only when both T1 (keychain) and T2 (hardware) are unavailable** — a rare environment where the user genuinely has to pick between T0 (plaintext) and Paranoid (master password) because no OS-backed secret store is reachable. On the common path (keychain reachable) `_firstLaunchSetup` auto-selects T1 silently and surfaces a `FirstLaunchSecurityToast` instead of this modal — the toast is non-blocking because the auto-setup already made a safe choice for the user. Carries both the legacy (tier + typed-secret-field) shape and the bank-style (tier + modifiers) shape on `SecuritySetupResult` so downstream call sites can consume either form.
+Reduced-wizard fallback: shown on first launch **only when both T1 (keychain) and T2 (hardware) are unavailable** — a rare environment where the user genuinely has to pick between T0 (plaintext) and Paranoid (master password) because no OS-backed secret store is reachable. On the common path (keychain reachable) `_firstLaunchSetup` auto-selects T1 silently and surfaces a `FirstLaunchSecurityToast` instead of this modal — the toast is non-blocking because the auto-setup already made a safe choice for the user. `SecuritySetupResult` carries both the plain `(tier + typed-secret-field)` shape and the bank-style `(tier + modifiers)` shape so downstream call sites can consume either form.
 
 ### FirstLaunchSecurityToast
 
@@ -2833,15 +2831,6 @@ TierSecretUnlockDialog.show(context, {
 ```
 Shared L2 (short password) / L3 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns the resulting key (or null on wrong secret); the dialog handles the cooldown back-off and the "wrong, try again" copy.
 
-### LegacyKdfDialog
-
-```dart
-enum LegacyKdfChoice { wipe, exit }
-
-LegacyKdfDialog.show(context) → Future<LegacyKdfChoice>
-```
-Non-dismissible migration prompt for pre-Argon2id PBKDF2 credentials. Two outcomes: wipe all encrypted data and continue with a fresh credential set, or exit the app. No "skip" option — an old KDF blob blocks startup until the user picks one.
-
 ### TierResetDialog
 
 ```dart
@@ -2849,7 +2838,7 @@ enum TierResetChoice { resetAndContinue, exit }
 
 TierResetDialog.show(context) → Future<TierResetChoice>
 ```
-Non-dismissible migration prompt for legacy security state that lacks a tier field. Outcomes: wipe every legacy security file + DB and run the new-version setup wizard, or exit.
+Non-dismissible prompt shown when the resolved security tier no longer matches the on-disk artefact shape. Outcomes: wipe every security file + DB and run the setup wizard, or exit.
 
 ### DbCorruptDialog
 
@@ -2989,9 +2978,9 @@ All long operations surface progress through this type — `ExportImport.export/
 
 `LfsDecryptionFailedException` (from `ExportImport`) wraps GCM auth-tag failures and ZIP decoder failures so the UI can render a single localized "wrong master password or corrupted archive" message without leaking `InvalidCipherTextException` stack traces.
 
-`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before PBKDF2 + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
+`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before Argon2id + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
 
-`UnsupportedLfsVersionException` fires in three cases: missing `manifest.json`, malformed `schema_version`, and a `schema_version` that does not match `ExportImport.currentSchemaVersion`. Pre-v1 archives (headerless PBKDF2, v2 PBKDF2 header, missing manifest) all route through this one exception — users re-export from the current app version to recover.
+`UnsupportedLfsVersionException` fires when an archive is not at the current `SchemaVersions.archive`: missing `manifest.json`, malformed `schema_version`, a `schema_version` that does not match `ExportImport.currentSchemaVersion`, missing `LFSE` magic, or a header version byte other than the current Argon2id one. v1 is the permanent floor — users re-export from the current app version to recover.
 
 `.lfs` writes use a tmp-then-rename pattern (`<path>.tmp` → `<path>`) so an I/O failure mid-export can't leave a partially-written file that would fail decryption on next import.
 
@@ -3435,19 +3424,12 @@ All files live in the platform's app-support directory (see **Location** below).
 |------|-----------|--------|---------|--------------|
 | `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
 | `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
-| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout has been moved to the encrypted DB; the field is kept here only for one-shot migration | First config save |
-| `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled. Legacy `credentials.salt` (PBKDF2, pre-migration) is detected by `MasterPasswordManager.hasLegacyFormat()` and routes through `LegacyKdfDialog` — no runtime read of PBKDF2 material | Master password setup |
+| `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs, `config_schema_version`. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout lives in the encrypted DB, not here | First config save |
+| `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled | Master password setup |
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
 | `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
 | `logs/letsflutssh.log.1`…`.3` | No | Text | Rotated log files | After log rotation |
 | `app.lock` | No | PID text | Single-instance lock — exclusive `RandomAccessFile.lock`. OS releases on process exit | Each app start (desktop only) |
-
-**Legacy files** (created by older versions, no longer used — safe to delete):
-- `sessions.json`, `sessions.enc` — replaced by `letsflutssh.db` in v4.0
-- `keys.json`, `keys.enc` — replaced by `SshKeys` table
-- `known_hosts`, `known_hosts.enc` — replaced by `KnownHosts` table
-- `credentials.enc` — replaced by SQLCipher-encrypted DB
-- `credential.key` — eliminated; key now lives only in the OS keychain
 
 ### Database initialization
 
@@ -3458,7 +3440,7 @@ All files live in the platform's app-support directory (see **Location** below).
 - Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
 - **POSIX permissions:** `restrictDatabaseFilePermissions()` runs on every open and forces `chmod 600` on `letsflutssh.db` and any existing `-journal` / `-wal` / `-shm` sidecar (Linux/macOS via `chmod`, Windows via `icacls`). Idempotent; logs and continues if the call fails so a permission-system quirk never blocks startup. The file is pre-created before SQLite touches it so the very first encrypted page lands on a 0600 inode.
 
-**Config split:** `config.json` is loaded before the database opens because it carries pre-unlock UI state (theme, locale, window size) — anything that has to render before the user types the master password. The auto-lock timeout, by contrast, is a security control: it now lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with disk access cannot weaken it. The legacy field in `config.json` is read once on first DB unlock for migration, then zeroed.
+**Config split:** `config.json` is loaded before the database opens because it carries pre-unlock UI state (theme, locale, window size) — anything that has to render before the user types the master password. The auto-lock timeout, by contrast, is a security control: it lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with disk access cannot weaken it.
 
 **Location:** `path_provider` → `getApplicationSupportDirectory()`
 - Linux: `~/.local/share/letsflutssh/`
@@ -3469,9 +3451,9 @@ All files live in the platform's app-support directory (see **Location** below).
 
 **Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `ImportService.applyResult` wraps its entire body in `AppDatabase.transaction(...)` via the injected `runInTransaction` hook, so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback before the replace-mode snapshot restore runs).
 
-**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `onUpgrade` → per-version steps, `beforeOpen` → `PRAGMA foreign_keys = ON`). Bump `schemaVersion` when adding/renaming columns or tables and append a `from{N-1}to{N}` branch to `onUpgrade`. Never skip a version — the schema history above the `schemaVersion` getter documents every bump.
+**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `beforeOpen` → `PRAGMA foreign_keys = ON`). v1 is the permanent floor — a DB on disk at any other version is treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Bump `schemaVersion` when adding/renaming columns or tables and append a `from{N-1}to{N}` branch to `onUpgrade`; never skip a version.
 
-Drift's `MigrationStrategy` is **only** for intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework-coremigration) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: drift owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so that an entirely missing or future-version DB still routes through the same `MigrationRunner.runOnStartup()` decision path as every other artefact, instead of crashing inside drift.
+Drift's `MigrationStrategy` is **only** for intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework-coremigration) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: drift owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch is caught by drift itself on open and surfaced via `DbCorruptDialog`.
 
 ### Uninstall behavior
 
@@ -3626,11 +3608,10 @@ Both providers are session-scoped (keyring failure modes on Linux don't change m
 
 ### Startup security flow
 
-`_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs (no legacy file detection):
-1. DB file exists + `hasLegacyFormat()` → show `LegacyKdfDialog` → reset or quit
-2. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
-3. DB file exists + keychain has key → read from keychain
-4. DB file exists but no encryption → plaintext mode
+`_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs:
+1. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
+2. DB file exists + keychain has key → read from keychain
+3. DB file exists but no encryption → plaintext mode
 5. No DB file → first launch → probe capabilities, auto-select T1 when the keychain is reachable (queue the post-setup banner on `firstLaunchBannerProvider`), or show `SecuritySetupDialog` in its T0-vs-Paranoid form when the keychain is not reachable (see [First-launch auto-select](#first-launch-auto-select))
 6. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
@@ -3644,10 +3625,10 @@ flowchart LR
     k --> db["letsflutssh.db<br/>PRAGMA key = x'hex'"]
 ```
 
-- **Detection:** `credentials.kdf` exists (or legacy `credentials.salt` — routes through `LegacyKdfDialog`)
+- **Detection:** `credentials.kdf` exists
 - **Verification:** `credentials.verify` = AES-256-GCM(known plaintext "LetsFLUTssh-verify")
 - **Enable flow:** derive key → re-open database with new key → delete keychain key if present
-- **Disable flow:** try keychain → generate random key → re-open database → delete `credentials.kdf` (+ any residual legacy salt) + verifier. No keychain → plaintext fallback
+- **Disable flow:** try keychain → generate random key → re-open database → delete `credentials.kdf` + verifier. No keychain → plaintext fallback
 - **Change flow:** verify old → derive new → re-open database with new key
 - **Forgot password:** deletes encrypted database + kdf/salt/verifier files
 
@@ -3701,17 +3682,17 @@ transport layer on top of the release signature.
 ### .lfs export
 
 ```
-v3 header (current writer):
+v1 header:
   ['LFSE' 4] [0x02 version 1] [KdfParams block ≤16] [salt 32B] [IV 12B]
   [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
 
 Key = Argon2id(password, salt, m=46 MiB, t=2, p=1)
 ```
 
-Read-only legacy paths: v2 archives (`[LFSE][0x01][iters][salt][iv][ct]`)
-and v1 headerless archives (raw salt, no magic) still decrypt via
-PBKDF2-SHA256 for backward compatibility with user backups. See the
-.lfs format table in §3.7 for the full layout.
+v1 is the permanent floor — archives with any other header version,
+missing magic, or no manifest are rejected with
+`UnsupportedLfsVersionException`. See the .lfs format table in §3.9 for
+the full layout.
 
 Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
 
@@ -4025,8 +4006,7 @@ flowchart TD
 | Decision | Rationale |
 |----------|-----------|
 | Argon2id m=46 MiB t=2 p=1 | OWASP 2024 recommended floor — memory-hard, resists GPU/ASIC cracking much better than PBKDF2 |
-| Force-breaking DB KDF migration | No backward compat for `credentials.salt`: `LegacyKdfDialog` forces reset-or-exit. Keeps the attack surface to a single KDF at runtime |
-| .lfs import keeps PBKDF2 read path | User backups can't be regenerated; new writes use Argon2id |
+| v1 floor across every persisted artefact | Anything below the current schema is treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Keeps the attack surface to a single KDF and a single wire format at runtime |
 | chmod 600 | Minimal permissions on sensitive files |
 | TOFU reject without callback | Fail-safe: if no UI → reject |
 | `CredentialStoreException` with two types | Distinguish "no credentials" from "corrupt key" |

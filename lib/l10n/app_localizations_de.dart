@@ -2006,23 +2006,6 @@ class SDe extends S {
       'Alle gespeicherten Anmeldedaten wurden gelöscht';
 
   @override
-  String get legacyKdfTitle => 'Sicherheits-Upgrade erforderlich';
-
-  @override
-  String get legacyKdfBody =>
-      'Diese Installation schützt Ihr Master-Passwort mit einem älteren Schlüsselableitungsalgorithmus (PBKDF2). Dieser wurde durch Argon2id ersetzt, das deutlich besseren Schutz gegen GPU/ASIC-Angriffe bietet. Das neue Format ist nicht abwärtskompatibel, daher kann die alte Salt-Datei nicht automatisch migriert werden.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Wenn Sie „Zurücksetzen & Fortfahren“ wählen, werden alle gespeicherten Anmeldedaten (Passwörter, SSH-Schlüssel, bekannte Hosts) dauerhaft gelöscht. Ihre Sitzungen und Einstellungen bleiben erhalten. Wenn Sie Ihre Anmeldedaten wiederherstellen möchten, beenden Sie die App und installieren Sie zunächst die vorherige Version von LetsFLUTssh erneut, um Ihre Daten zu exportieren.';
-
-  @override
-  String get legacyKdfResetContinue => 'Zurücksetzen & Fortfahren';
-
-  @override
-  String get legacyKdfExit => 'LetsFLUTssh beenden';
-
-  @override
   String get dbCorruptTitle => 'Datenbank kann nicht geöffnet werden';
 
   @override

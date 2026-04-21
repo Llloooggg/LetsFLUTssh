@@ -3525,36 +3525,6 @@ abstract class S {
   /// **'All saved credentials have been deleted'**
   String get credentialsReset;
 
-  /// No description provided for @legacyKdfTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Security upgrade required'**
-  String get legacyKdfTitle;
-
-  /// No description provided for @legacyKdfBody.
-  ///
-  /// In en, this message translates to:
-  /// **'This install protects your master password with an older key-derivation algorithm (PBKDF2). It has been replaced with Argon2id for much stronger resistance to GPU/ASIC cracking. The new format is not backwards-compatible, so the old salt file cannot be migrated automatically.'**
-  String get legacyKdfBody;
-
-  /// No description provided for @legacyKdfWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Choosing Reset & Continue will permanently delete all saved credentials (passwords, SSH keys, known hosts). Your sessions and settings will be kept. If you need to recover your credentials, quit the app and reinstall the previous version of LetsFLUTssh to export your data first.'**
-  String get legacyKdfWarning;
-
-  /// No description provided for @legacyKdfResetContinue.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset & Continue'**
-  String get legacyKdfResetContinue;
-
-  /// No description provided for @legacyKdfExit.
-  ///
-  /// In en, this message translates to:
-  /// **'Quit LetsFLUTssh'**
-  String get legacyKdfExit;
-
   /// No description provided for @dbCorruptTitle.
   ///
   /// In en, this message translates to:

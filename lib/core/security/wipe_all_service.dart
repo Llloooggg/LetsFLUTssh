@@ -39,8 +39,8 @@ class WipeReport {
 ///
 /// * Settings → Reset all data (user-initiated; double-confirmed).
 /// * DbCorruptDialog (automatic on failed cipher-under-tier probe).
-/// * TierResetDialog (automatic when a v1-era tier is detected on
-///   first launch under the v2 build).
+/// * TierResetDialog (automatic when the resolved tier no longer
+///   matches the on-disk artefact shape).
 ///
 /// Crash safety: before any delete runs, the service writes a
 /// `.wipe-pending` marker to app-support. The next launch treats a
@@ -50,8 +50,8 @@ class WipeReport {
 ///
 /// Intentionally *not* tied to the migration framework's `Artefact`
 /// interface: wipe is a cross-cutting concern that touches files even
-/// the migration framework does not track (logs, legacy markers,
-/// keychain aliases), so a stand-alone list keeps the cleanup total.
+/// the migration framework does not track (logs, markers, keychain
+/// aliases), so a stand-alone list keeps the cleanup total.
 class WipeAllService {
   WipeAllService({
     Future<Directory> Function()? supportDirFactory,
@@ -86,7 +86,7 @@ class WipeAllService {
     'hardware_vault_password_overlay_apple.bin',
     'hardware_vault_password_overlay_windows.bin',
 
-    // Password gate (L2-era + current bank-style password layer)
+    // Password gate
     'security_pass_hash.bin',
 
     // Hardware vault primary blobs — one per platform
@@ -99,12 +99,8 @@ class WipeAllService {
     'hardware_vault_linux.bin',
     'hardware_vault_salt.bin',
 
-    // Legacy biometric-vault + TPM blobs predating the tier model
-    'biometric_vault.tpm',
-
-    // KDF descriptors (Paranoid / Argon2id params)
+    // KDF descriptors (Argon2id params) + verifier + key
     'credentials.kdf',
-    'credentials.salt',
     'credentials.verify',
     'credentials.key',
 
@@ -166,8 +162,8 @@ class WipeAllService {
   /// next launch sees "orphan state" → offers reset again. Neither
   /// file carries credential material; they are settings. The real
   /// "orphan install" signal is a KDF descriptor, a hw-vault blob,
-  /// a DB file, or a legacy credentials artefact — all of which stay
-  /// in the scan list below.
+  /// a DB file, or a credentials artefact — all of which stay in the
+  /// scan list below.
   static const _orphanProbeFiles = <String>[
     '.tier-transition-pending',
     'keychain_enabled',
@@ -184,9 +180,7 @@ class WipeAllService {
     'hardware_vault_windows.bin',
     'hardware_vault_linux.bin',
     'hardware_vault_salt.bin',
-    'biometric_vault.tpm',
     'credentials.kdf',
-    'credentials.salt',
     'credentials.verify',
     'credentials.key',
     'letsflutssh.db',

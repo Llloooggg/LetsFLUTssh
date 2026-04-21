@@ -1991,23 +1991,6 @@ class STr extends S {
   String get credentialsReset => 'Tüm kayıtlı kimlik bilgileri silindi';
 
   @override
-  String get legacyKdfTitle => 'Güvenlik yükseltmesi gerekli';
-
-  @override
-  String get legacyKdfBody =>
-      'Bu kurulum, ana parolanızı eski bir anahtar türetme algoritmasıyla (PBKDF2) koruyor. Bu algoritma, GPU/ASIC ile kırılmaya karşı çok daha güçlü direnç sağlayan Argon2id ile değiştirildi. Yeni biçim geriye dönük uyumlu olmadığından eski salt dosyası otomatik olarak taşınamıyor.';
-
-  @override
-  String get legacyKdfWarning =>
-      '«Sıfırla ve Devam Et» seçeneği, kayıtlı tüm kimlik bilgilerini (parolalar, SSH anahtarları, bilinen sunucular) kalıcı olarak siler. Oturumlarınız ve ayarlarınız korunur. Kimlik bilgilerinizi kurtarmanız gerekiyorsa, uygulamadan çıkın ve verilerinizi önce dışa aktarmak için LetsFLUTssh\'un önceki sürümünü yeniden yükleyin.';
-
-  @override
-  String get legacyKdfResetContinue => 'Sıfırla ve Devam Et';
-
-  @override
-  String get legacyKdfExit => 'LetsFLUTssh\'tan Çık';
-
-  @override
   String get dbCorruptTitle => 'Veritabanı açılamıyor';
 
   @override

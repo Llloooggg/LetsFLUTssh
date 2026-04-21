@@ -1975,23 +1975,6 @@ class SFa extends S {
   String get credentialsReset => 'تمام اعتبارنامه‌های ذخیره شده حذف شدند';
 
   @override
-  String get legacyKdfTitle => 'به‌روزرسانی امنیتی لازم است';
-
-  @override
-  String get legacyKdfBody =>
-      'این نصب از الگوریتم قدیمی اشتقاق کلید (PBKDF2) برای محافظت از رمز عبور اصلی شما استفاده می‌کند. این الگوریتم با Argon2id جایگزین شده است که مقاومت بسیار بیشتری در برابر شکستن با GPU/ASIC دارد. قالب جدید با قالب قبلی سازگار نیست، بنابراین فایل نمک قدیمی نمی‌تواند به‌طور خودکار منتقل شود.';
-
-  @override
-  String get legacyKdfWarning =>
-      'انتخاب «بازنشانی و ادامه» تمام اعتبارنامه‌های ذخیره شده (رمزهای عبور، کلیدهای SSH، میزبان‌های شناخته‌شده) را برای همیشه حذف می‌کند. جلسات و تنظیمات شما حفظ خواهند شد. اگر نیاز به بازیابی اعتبارنامه‌های خود دارید، از برنامه خارج شوید و نسخه قبلی LetsFLUTssh را دوباره نصب کنید تا ابتدا داده‌های خود را صادر کنید.';
-
-  @override
-  String get legacyKdfResetContinue => 'بازنشانی و ادامه';
-
-  @override
-  String get legacyKdfExit => 'خروج از LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'باز کردن پایگاه داده ممکن نیست';
 
   @override

@@ -30,26 +30,18 @@ part 'database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
-  /// Schema version. Bump this when adding/renaming columns or tables and
-  /// extend [migration] with a `from{N-1}to{N}` step. Never skip a version.
-  ///
-  /// History:
-  ///   1 — initial schema (first public release).
-  ///   2 — `app_configs.auto_lock_minutes` column. Moves the auto-lock
-  ///       timeout out of plaintext `config.json` into the encrypted DB
-  ///       so an attacker with disk access cannot tamper with it.
+  /// Schema version. v1 is the permanent floor — any on-disk DB that
+  /// does not match this version (older or newer) is treated as corrupt
+  /// and routed through [DbCorruptDialog] + [WipeAllService]. Bump this
+  /// when adding/renaming columns or tables and append a `from{N-1}to{N}`
+  /// step to [migration]; never skip a version.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
-    },
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.addColumn(appConfigs, appConfigs.autoLockMinutes);
-      }
     },
     beforeOpen: (details) async {
       // Foreign keys are also set in database_opener; repeat here so drift's

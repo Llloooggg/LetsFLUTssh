@@ -30,12 +30,11 @@ void main() {
     });
 
     test(
-      'reports version 1 when config.json exists without the schema_version field '
-      '(legacy config written before the field was introduced)',
+      'throws when config.json is missing the schema_version field',
       () async {
         File(p.join(tempDir.path, 'config.json')).writeAsStringSync('{}');
         final a = ConfigArtefact(supportDir: dirFactory);
-        expect(await a.readVersion(), 1);
+        expect(() => a.readVersion(), throwsA(isA<FormatException>()));
       },
     );
 
@@ -51,13 +50,13 @@ void main() {
     );
 
     test(
-      'reports 1 when the file is corrupt — runner routes through the reset path',
+      'throws when the file is corrupt — runner routes through the reset path',
       () async {
         File(
           p.join(tempDir.path, 'config.json'),
         ).writeAsStringSync('{ not json');
         final a = ConfigArtefact(supportDir: dirFactory);
-        expect(await a.readVersion(), 1);
+        expect(() => a.readVersion(), throwsA(isA<FormatException>()));
       },
     );
 

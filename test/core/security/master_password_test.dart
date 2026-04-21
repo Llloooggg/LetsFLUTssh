@@ -34,7 +34,6 @@ void main() {
   group('MasterPasswordManager', () {
     test('isEnabled returns false when no kdf file', () async {
       expect(await manager.isEnabled(), isFalse);
-      expect(await manager.hasLegacyFormat(), isFalse);
     });
 
     test('enable creates credentials.kdf and verifier files', () async {
@@ -45,7 +44,6 @@ void main() {
       expect(await kdfFile.exists(), isTrue);
       expect(await verifierFile.exists(), isTrue);
       expect(await manager.isEnabled(), isTrue);
-      expect(await manager.hasLegacyFormat(), isFalse);
     });
 
     test('credentials.kdf starts with the LFKD magic + version 0x01', () async {
@@ -57,39 +55,6 @@ void main() {
       expect(bytes[3], 0x44); // 'D'
       expect(bytes[4], 0x01, reason: 'file version');
       expect(bytes[5], 0x01, reason: 'KDF algorithm id (Argon2id)');
-    });
-
-    test(
-      'hasLegacyFormat is true when only credentials.salt is present',
-      () async {
-        await File(
-          '${tempDir.path}/credentials.salt',
-        ).writeAsBytes(List<int>.filled(32, 0));
-        expect(await manager.hasLegacyFormat(), isTrue);
-        expect(await manager.isEnabled(), isTrue);
-      },
-    );
-
-    test('hasLegacyFormat is false when both files are present', () async {
-      await manager.enable('testpassword');
-      await File(
-        '${tempDir.path}/credentials.salt',
-      ).writeAsBytes(List<int>.filled(32, 0));
-      expect(
-        await manager.hasLegacyFormat(),
-        isFalse,
-        reason: 'new format takes precedence',
-      );
-    });
-
-    test('verifyAndDerive throws on legacy-only install', () async {
-      await File(
-        '${tempDir.path}/credentials.salt',
-      ).writeAsBytes(List<int>.filled(32, 0));
-      expect(
-        () => manager.verifyAndDerive('anything'),
-        throwsA(isA<MasterPasswordException>()),
-      );
     });
 
     test('enable returns 32-byte key', () async {
@@ -195,19 +160,14 @@ void main() {
       expect(await manager.verify('newpass12'), isTrue);
     });
 
-    test('disable removes kdf, legacy salt, and verifier files', () async {
+    test('disable removes kdf and verifier files', () async {
       await manager.enable('password');
-      // Also drop a legacy salt stub to ensure disable cleans both.
-      await File(
-        '${tempDir.path}/credentials.salt',
-      ).writeAsBytes(List<int>.filled(32, 0));
       expect(await manager.isEnabled(), isTrue);
 
       await manager.disable();
       expect(await manager.isEnabled(), isFalse);
 
       expect(await File('${tempDir.path}/credentials.kdf').exists(), isFalse);
-      expect(await File('${tempDir.path}/credentials.salt').exists(), isFalse);
       expect(
         await File('${tempDir.path}/credentials.verify').exists(),
         isFalse,
@@ -219,24 +179,19 @@ void main() {
       expect(await manager.isEnabled(), isFalse);
     });
 
-    test('reset deletes all encrypted files', () async {
-      // Create files that reset should delete.
-      await File('${tempDir.path}/credentials.salt').writeAsBytes([1, 2, 3]);
+    test('reset deletes all credential files', () async {
+      await File('${tempDir.path}/credentials.kdf').writeAsBytes([1, 2, 3]);
       await File('${tempDir.path}/credentials.verify').writeAsBytes([4, 5, 6]);
       await File('${tempDir.path}/credentials.key').writeAsBytes([7, 8, 9]);
-      await File('${tempDir.path}/credentials.enc').writeAsBytes([10, 11]);
-      await File('${tempDir.path}/keys.enc').writeAsBytes([12, 13]);
 
       await manager.reset();
 
-      expect(await File('${tempDir.path}/credentials.salt').exists(), isFalse);
+      expect(await File('${tempDir.path}/credentials.kdf').exists(), isFalse);
       expect(
         await File('${tempDir.path}/credentials.verify').exists(),
         isFalse,
       );
       expect(await File('${tempDir.path}/credentials.key').exists(), isFalse);
-      expect(await File('${tempDir.path}/credentials.enc').exists(), isFalse);
-      expect(await File('${tempDir.path}/keys.enc').exists(), isFalse);
     });
 
     test('enable then re-enable with different password works', () async {

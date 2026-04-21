@@ -26,10 +26,13 @@ abstract class Artefact {
   /// Conventions:
   /// - `-1` → artefact does not exist on disk yet (clean install for
   ///   this artefact). Runner skips migrations for it.
-  /// - `0` → artefact present but unversioned (legacy format from
-  ///   before the framework existed). Runner will look for a
-  ///   `v0_to_v1` migration.
-  /// - `>=1` → artefact present, header-versioned. Runner looks for
-  ///   the next-step migration.
+  /// - `>= 1` → artefact present; runner walks the migration chain
+  ///   from this value up to [targetVersion].
+  ///
+  /// Values below 1 (corrupt headers, missing schema fields, pre-v1
+  /// legacy layouts) must **throw** — the runner surfaces the throw
+  /// as a fatal [MigrationReport] entry so the caller can route the
+  /// user through the reset dialog. Never return a made-up version
+  /// for unrecognised state.
   Future<int> readVersion();
 }

@@ -4,11 +4,11 @@ import 'migration.dart';
 import 'registry.dart';
 
 /// Thrown when an artefact on disk reports a version greater than
-/// anything the current build knows how to handle. The user is
-/// running an older binary against newer-format state — usually the
-/// result of downgrading after a forward migration ran. Runner
-/// surfaces this via the report and refuses to start the unlock
-/// flow; data is preserved so a re-upgrade recovers cleanly.
+/// anything the current build knows how to handle. The user is running
+/// an older binary against newer-format state — usually the result of
+/// downgrading after a forward migration ran. Runner surfaces this via
+/// the report and refuses to start the unlock flow; data is preserved
+/// so a re-upgrade recovers cleanly.
 class UnsupportedFutureVersionException implements Exception {
   final String artefactId;
   final int onDiskVersion;
@@ -75,12 +75,12 @@ class MigrationReport {
 }
 
 /// Orchestrator that walks the [MigrationRegistry] and applies any
-/// migrations needed to bring on-disk state up to date with the
-/// current build's [SchemaVersions].
+/// migrations needed to bring on-disk state up to date with the current
+/// build's [SchemaVersions].
 ///
 /// Always called at app startup, BEFORE the security init path opens
-/// any artefact. Idempotent — calling twice in a row is a no-op on
-/// the second call.
+/// any artefact. Idempotent — calling twice in a row is a no-op on the
+/// second call.
 class MigrationRunner {
   MigrationRunner(this._registry);
 
@@ -156,20 +156,6 @@ class MigrationRunner {
 
         try {
           await step.apply();
-          final ok = await step.validate();
-          if (!ok) {
-            final err = StateError('Validation failed after $step');
-            steps.add(
-              MigrationStep(
-                artefactId: artefact.id,
-                fromVersion: step.fromVersion,
-                toVersion: step.toVersion,
-                succeeded: false,
-                error: err,
-              ),
-            );
-            return MigrationReport(steps: steps, fatalError: err);
-          }
           steps.add(
             MigrationStep(
               artefactId: artefact.id,
@@ -199,6 +185,49 @@ class MigrationRunner {
     }
 
     return MigrationReport(steps: steps, futureVersions: future);
+  }
+
+  /// Return the migration chain that [runOnStartup] would execute
+  /// without actually applying anything. Useful for debug builds,
+  /// diagnostics, and the registry-completeness unit test. The
+  /// returned steps all have `succeeded: false` (they were not run).
+  Future<List<MigrationStep>> plan() async {
+    final steps = <MigrationStep>[];
+    final ordered = _topoSort(_registry.artefacts, _registry.dependencies);
+    for (final artefact in ordered) {
+      final onDisk = await artefact.readVersion();
+      if (onDisk < 0) continue;
+      final target = artefact.targetVersion;
+      if (onDisk >= target) continue;
+      var current = onDisk;
+      while (current < target) {
+        final step = _findMigration(artefact.id, current);
+        if (step == null) {
+          steps.add(
+            MigrationStep(
+              artefactId: artefact.id,
+              fromVersion: current,
+              toVersion: current + 1,
+              succeeded: false,
+              error: StateError(
+                'No migration registered for ${artefact.id} from $current',
+              ),
+            ),
+          );
+          break;
+        }
+        steps.add(
+          MigrationStep(
+            artefactId: artefact.id,
+            fromVersion: step.fromVersion,
+            toVersion: step.toVersion,
+            succeeded: false,
+          ),
+        );
+        current = step.toVersion;
+      }
+    }
+    return steps;
   }
 
   Migration? _findMigration(String artefactId, int fromVersion) {

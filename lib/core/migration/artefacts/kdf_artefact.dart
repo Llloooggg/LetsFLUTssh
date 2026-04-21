@@ -3,17 +3,14 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../utils/logger.dart';
 import '../artefact.dart';
 import '../schema_versions.dart';
 
-/// `credentials.kdf` — Argon2id parameter blob written by
-/// `KdfParams`. Already self-versioned via its own magic header;
-/// the framework just registers the file's presence so the
-/// migration runner has a complete world view.
-///
-/// Presence-only check today; future format bumps register a proper
-/// [Migration] that reads the inner KdfParams version byte.
+/// `credentials.kdf` — Argon2id parameter blob written by `KdfParams`.
+/// Self-versioned inside the file via `'LFKD'` magic + version byte;
+/// the framework just registers the file's presence so the migration
+/// runner has a complete world view. A future format bump registers a
+/// proper [Migration] that reads the inner version byte.
 class KdfArtefact extends Artefact {
   KdfArtefact({Future<Directory> Function()? supportDir})
     : _supportDir = supportDir ?? getApplicationSupportDirectory;
@@ -30,16 +27,8 @@ class KdfArtefact extends Artefact {
 
   @override
   Future<int> readVersion() async {
-    try {
-      final dir = await _supportDir();
-      final exists = await File(p.join(dir.path, _fileName)).exists();
-      return exists ? targetVersion : -1;
-    } catch (e) {
-      AppLogger.instance.log(
-        'KdfArtefact.readVersion failed: $e',
-        name: 'KdfArtefact',
-      );
-      return -1;
-    }
+    final dir = await _supportDir();
+    final exists = await File(p.join(dir.path, _fileName)).exists();
+    return exists ? targetVersion : -1;
   }
 }

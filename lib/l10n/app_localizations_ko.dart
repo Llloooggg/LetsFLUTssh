@@ -1921,23 +1921,6 @@ class SKo extends S {
   String get credentialsReset => '저장된 모든 인증 정보가 삭제되었습니다';
 
   @override
-  String get legacyKdfTitle => '보안 업그레이드 필요';
-
-  @override
-  String get legacyKdfBody =>
-      '이 설치본은 이전 키 파생 알고리즘(PBKDF2)으로 마스터 비밀번호를 보호하고 있습니다. 이 알고리즘은 GPU/ASIC 크래킹에 훨씬 강한 저항력을 가진 Argon2id로 교체되었습니다. 새로운 형식은 하위 호환되지 않으므로 기존 솔트 파일은 자동으로 마이그레이션할 수 없습니다.';
-
-  @override
-  String get legacyKdfWarning =>
-      '「재설정 및 계속」을 선택하면 저장된 모든 인증 정보(비밀번호, SSH 키, 알려진 호스트)가 영구적으로 삭제됩니다. 세션과 설정은 유지됩니다. 인증 정보를 복구해야 하는 경우 앱을 종료하고 LetsFLUTssh의 이전 버전을 다시 설치하여 데이터를 먼저 내보내세요.';
-
-  @override
-  String get legacyKdfResetContinue => '재설정 및 계속';
-
-  @override
-  String get legacyKdfExit => 'LetsFLUTssh 종료';
-
-  @override
   String get dbCorruptTitle => '데이터베이스를 열 수 없습니다';
 
   @override

@@ -220,11 +220,12 @@ architecture.
 
 - **Encrypted `.lfs` export / import** — Argon2id-derived AES-256-GCM
   key, pre-decrypt size cap, atomic tmp-then-rename writes, and a
-  mandatory manifest. Pre-v1 archive formats (legacy headerless
-  PBKDF2, v2 PBKDF2 header, missing manifest) are rejected with
-  `UnsupportedLfsVersionException` — users re-export from the current
-  app version to cross upgrade boundaries. Archives never carry
-  per-machine security setup.
+  mandatory manifest. v1 is the permanent floor; any archive whose
+  header version byte is not the current Argon2id one, whose magic is
+  missing, or whose manifest `schema_version` does not match is
+  rejected with `UnsupportedLfsVersionException` — users re-export
+  from the current app version to cross upgrade boundaries. Archives
+  never carry per-machine security setup.
 - **Auto-lock** — idle-timer lock + mobile lifecycle-paused lock +
   OS workstation-lock hook. Any tier with a typed secret arms the
   timer (Paranoid + any tier with the password modifier). Locking

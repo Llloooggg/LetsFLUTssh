@@ -65,6 +65,15 @@ class MigrationRegistry {
     _dependencies.putIfAbsent(artefactId, () => []).addAll(after);
   }
 
+  /// Bulk variant of [declareDependency] — every id in [artefactIds]
+  /// becomes dependent on every id in [after]. Keeps composition-root
+  /// wiring terse when many artefacts share the same prerequisite.
+  void declareDependencies(List<String> artefactIds, List<String> after) {
+    for (final id in artefactIds) {
+      declareDependency(id, after);
+    }
+  }
+
   /// Convenience constant for the default empty registry — used as
   /// initial state in tests + on first app launch before any
   /// registration happens.
@@ -86,17 +95,22 @@ MigrationRegistry buildAppMigrationRegistry({
   reg.registerArtefact(ConfigArtefact(supportDir: supportDir));
   reg.registerArtefact(KdfArtefact(supportDir: supportDir));
   reg.registerArtefact(DbArtefact(supportDir: supportDir));
-  // Vault layout depends on tier read from config — keep config
-  // ahead of any future vault artefact in the dependency graph.
-  // Declared up front so vault artefacts can be added later without
-  // having to re-state the relationship.
-  reg.declareDependency('hardware_vault.bin', ['config.json']);
-  reg.declareDependency('hardware_vault_android.bin', ['config.json']);
-  reg.declareDependency('hardware_vault_ios.bin', ['config.json']);
-  reg.declareDependency('hardware_vault_macos.bin', ['config.json']);
-  reg.declareDependency('hardware_vault_windows.bin', ['config.json']);
-  reg.declareDependency('hardware_vault_linux.bin', ['config.json']);
-  reg.declareDependency('hardware_vault_salt.bin', ['config.json']);
-  reg.declareDependency('security_pass_hash.bin', ['config.json']);
+  // Vault + password-gate layouts depend on tier read from config —
+  // keep config ahead of every future vault artefact in the dependency
+  // graph. Declared up front so vault artefacts can be added later
+  // without having to re-state the relationship.
+  reg.declareDependencies(
+    const [
+      'hardware_vault.bin',
+      'hardware_vault_android.bin',
+      'hardware_vault_ios.bin',
+      'hardware_vault_macos.bin',
+      'hardware_vault_windows.bin',
+      'hardware_vault_linux.bin',
+      'hardware_vault_salt.bin',
+      'security_pass_hash.bin',
+    ],
+    const ['config.json'],
+  );
   return reg;
 }

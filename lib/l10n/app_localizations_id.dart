@@ -1984,23 +1984,6 @@ class SId extends S {
   String get credentialsReset => 'Semua kredensial tersimpan telah dihapus';
 
   @override
-  String get legacyKdfTitle => 'Peningkatan keamanan diperlukan';
-
-  @override
-  String get legacyKdfBody =>
-      'Instalasi ini melindungi kata sandi utama Anda dengan algoritma derivasi kunci lama (PBKDF2). Algoritma tersebut telah digantikan oleh Argon2id, yang memberikan ketahanan jauh lebih kuat terhadap peretasan GPU/ASIC. Format baru tidak kompatibel dengan versi sebelumnya, sehingga berkas salt lama tidak dapat dimigrasikan secara otomatis.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Memilih «Atur Ulang & Lanjutkan» akan menghapus semua kredensial tersimpan secara permanen (kata sandi, kunci SSH, host yang dikenal). Sesi dan pengaturan Anda akan dipertahankan. Jika Anda perlu memulihkan kredensial, keluar dari aplikasi dan instal ulang versi LetsFLUTssh sebelumnya untuk mengekspor data Anda terlebih dahulu.';
-
-  @override
-  String get legacyKdfResetContinue => 'Atur Ulang & Lanjutkan';
-
-  @override
-  String get legacyKdfExit => 'Keluar dari LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'Basis data tidak dapat dibuka';
 
   @override

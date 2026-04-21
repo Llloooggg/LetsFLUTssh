@@ -37,7 +37,6 @@ import 'widgets/tier_secret_unlock_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/db_corrupt_dialog.dart';
 import 'widgets/first_launch_security_toast.dart';
-import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
 import 'core/security/keychain_password_gate.dart';
@@ -591,29 +590,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
       // Legacy-inference path — no explicit tier field yet.
 
-      // 0. Legacy PBKDF2 format — reject with a force-breaking migration
-      // notice. The only paths forward are reset (wipes credentials) or
-      // quit (lets the user reinstall an older build and export first).
-      if (await manager.hasLegacyFormat()) {
-        final choice = await _showLegacyKdfDialog();
-        if (choice == LegacyKdfChoice.exitApp) {
-          AppLogger.instance.log(
-            'Legacy KDF detected — user chose to exit',
-            name: 'App',
-          );
-          await SystemNavigator.pop();
-          exit(0);
-        }
-        await manager.reset();
-        AppLogger.instance.log(
-          'Legacy KDF detected — credentials reset, starting fresh',
-          name: 'App',
-        );
-        _credentialsWereReset = true;
-        await _injectDatabase();
-        return;
-      }
-
       if (await manager.isEnabled()) {
         await _unlockParanoid(manager);
         return;
@@ -1100,15 +1076,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (!ok) return null;
     final vault = ref.read(biometricKeyVaultProvider);
     return vault.read();
-  }
-
-  /// Show the legacy-KDF reset-or-exit dialog. The call site has already
-  /// awaited async work, so we pull the current navigator context here
-  /// and pass it through synchronously.
-  Future<LegacyKdfChoice> _showLegacyKdfDialog() {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return Future.value(LegacyKdfChoice.exitApp);
-    return LegacyKdfDialog.show(ctx);
   }
 
   /// Show the tier-reset dialog shown once per install to users

@@ -5,20 +5,21 @@ import 'migration.dart';
 /// The archive lives inside a user-supplied `.zip` container and is
 /// opened per-import (not at app startup), so it has a different
 /// lifecycle from the on-disk `MigrationRegistry`. Both share the
-/// `Migration` interface so future archive format bumps read like
-/// any other migration.
+/// `Migration` interface so future archive format bumps read like any
+/// other migration.
 ///
-/// Today the baseline is v1 (the current manifest `schema_version`);
-/// no migrations are registered — every supported archive is already
-/// at v1. Pre-v1 formats (legacy headerless PBKDF2, v2 PBKDF2 header,
-/// missing manifest) are rejected with `UnsupportedLfsVersionException`
-/// inside `ExportImport._decryptWithPassword` / `_parseManifest`.
+/// v1 is the permanent floor; no migrations are registered today — every
+/// supported archive is at v1 by definition. Archives whose
+/// `schema_version` does not match the current [SchemaVersions.archive]
+/// (missing manifest, older, or newer) are rejected with
+/// `UnsupportedLfsVersionException` inside
+/// `ExportImport._decryptWithPassword` / `_parseManifest`.
 ///
 /// When bumping archive schema_version to 2:
 /// 1. Add a new `Migration` subclass in `lib/core/migration/migrations/
 ///    archive_v1_to_v2.dart` that rewrites archive contents in memory
 ///    (add a field, rename a key, adjust structure).
-/// 2. Register it here via `archiveMigrations.add(...)`.
+/// 2. Register it here via `archiveMigrationRegistry.register(...)`.
 /// 3. Bump `SchemaVersions.archive` to 2.
 /// 4. The import path walks this list and applies matching migrations
 ///    before entries are parsed.

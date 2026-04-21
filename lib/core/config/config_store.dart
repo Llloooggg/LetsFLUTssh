@@ -58,10 +58,10 @@ class ConfigStore {
   Future<void> save(AppConfig config) async {
     await init();
     _config = config;
-    // Stamp the current schema version on every write so the
-    // migration runner on the next launch can route a legacy config
-    // (no field → version 1) through the reset path and a fresh
-    // config through untouched.
+    // Stamp the current schema version on every write so the migration
+    // runner on the next launch can detect any version other than the
+    // current [SchemaVersions.config] and route the user through the
+    // reset path.
     final payload = <String, dynamic>{
       'config_schema_version': SchemaVersions.config,
       ...config.toJson(),

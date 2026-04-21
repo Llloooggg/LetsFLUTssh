@@ -29,7 +29,6 @@ class _RecordingMigration extends Migration {
     required this.fromVersion,
     required this.toVersion,
     this.onApply,
-    this.validateResult = true,
     this.shouldThrow = false,
     List<String>? log,
   }) : _log = log ?? <String>[];
@@ -42,7 +41,6 @@ class _RecordingMigration extends Migration {
   final int toVersion;
 
   final Future<void> Function()? onApply;
-  final bool validateResult;
   final bool shouldThrow;
   final List<String> _log;
   List<String> get log => _log;
@@ -52,12 +50,6 @@ class _RecordingMigration extends Migration {
     _log.add('apply:$artefactId:$fromVersion->$toVersion');
     if (shouldThrow) throw StateError('boom');
     if (onApply != null) await onApply!();
-  }
-
-  @override
-  Future<bool> validate() async {
-    _log.add('validate:$artefactId:$fromVersion->$toVersion');
-    return validateResult;
   }
 }
 
@@ -137,11 +129,8 @@ void main() {
       expect(report.steps.map((s) => s.toVersion).toList(), [1, 2, 3]);
       expect(shared, [
         'apply:config:0->1',
-        'validate:config:0->1',
         'apply:config:1->2',
-        'validate:config:1->2',
         'apply:config:2->3',
-        'validate:config:2->3',
       ]);
     });
 
@@ -200,24 +189,6 @@ void main() {
       expect(report.fatalError, isA<StateError>());
       expect(report.steps, hasLength(1));
       expect(report.steps.first.succeeded, isFalse);
-    });
-
-    test('halts when validate returns false', () async {
-      final reg = MigrationRegistry();
-      reg.registerArtefact(
-        _StubArtefact(id: 'config', targetVersion: 1, onDiskVersion: 0),
-      );
-      reg.registerMigration(
-        _RecordingMigration(
-          artefactId: 'config',
-          fromVersion: 0,
-          toVersion: 1,
-          validateResult: false,
-        ),
-      );
-      final report = await MigrationRunner(reg).runOnStartup();
-      expect(report.fatalError, isA<StateError>());
-      expect(report.steps.last.succeeded, isFalse);
     });
 
     test('runs artefacts in declared dependency order', () async {

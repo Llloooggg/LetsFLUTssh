@@ -1996,23 +1996,6 @@ class SPt extends S {
   String get credentialsReset => 'Todas as credenciais salvas foram excluídas';
 
   @override
-  String get legacyKdfTitle => 'Atualização de segurança necessária';
-
-  @override
-  String get legacyKdfBody =>
-      'Esta instalação protege sua senha mestra com um algoritmo antigo de derivação de chave (PBKDF2). Ele foi substituído por Argon2id, que oferece resistência muito maior a ataques de quebra por GPU/ASIC. O novo formato não é retrocompatível, portanto o arquivo de sal antigo não pode ser migrado automaticamente.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Escolher «Redefinir e continuar» excluirá permanentemente todas as credenciais salvas (senhas, chaves SSH, hosts conhecidos). Suas sessões e configurações serão mantidas. Se precisar recuperar suas credenciais, saia do aplicativo e reinstale a versão anterior do LetsFLUTssh para exportar seus dados primeiro.';
-
-  @override
-  String get legacyKdfResetContinue => 'Redefinir e continuar';
-
-  @override
-  String get legacyKdfExit => 'Sair do LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'Não é possível abrir o banco de dados';
 
   @override

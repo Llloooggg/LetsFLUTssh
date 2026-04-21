@@ -2002,23 +2002,6 @@ class SEs extends S {
       'Todas las credenciales guardadas han sido eliminadas';
 
   @override
-  String get legacyKdfTitle => 'Se requiere actualización de seguridad';
-
-  @override
-  String get legacyKdfBody =>
-      'Esta instalación protege su contraseña maestra con un algoritmo de derivación de clave antiguo (PBKDF2). Ha sido reemplazado por Argon2id, que ofrece una resistencia mucho mayor frente a ataques con GPU/ASIC. El nuevo formato no es compatible con el anterior, por lo que el archivo de sal antiguo no puede migrarse automáticamente.';
-
-  @override
-  String get legacyKdfWarning =>
-      'Elegir «Restablecer y continuar» eliminará permanentemente todas las credenciales guardadas (contraseñas, claves SSH, hosts conocidos). Sus sesiones y configuración se conservarán. Si necesita recuperar sus credenciales, cierre la aplicación y reinstale la versión anterior de LetsFLUTssh para exportar sus datos primero.';
-
-  @override
-  String get legacyKdfResetContinue => 'Restablecer y continuar';
-
-  @override
-  String get legacyKdfExit => 'Salir de LetsFLUTssh';
-
-  @override
   String get dbCorruptTitle => 'No se puede abrir la base de datos';
 
   @override
