@@ -250,8 +250,18 @@ class MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `Flexible + ellipsis` keeps long-locale menu entries (Russian
+    // "Переместить в корзину", German "In den Papierkorb
+    // verschieben") from overflowing the popup-menu width when the
+    // menu anchors near the right edge of a narrow file pane. The
+    // menu itself grows its maxWidth from the caller; we add the
+    // truncation safety net here instead of at every call site.
     return Row(
-      children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(text)],
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
+      ],
     );
   }
 }
