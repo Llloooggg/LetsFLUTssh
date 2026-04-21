@@ -2264,6 +2264,10 @@ class SPt extends S {
       'Nenhuma senha de login definida neste Mac. A criação de chave Secure Enclave requer uma — defina uma em Ajustes do Sistema → Touch ID e Senha (ou Senha de Login).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'O Secure Enclave rejeitou a identidade de assinatura do aplicativo (-34018). Execute o script `macos-resign.sh` incluído no lançamento para dar a esta instalação uma identidade autoassinada estável e reinicie o aplicativo.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'Nenhum código do dispositivo definido. A criação de chave Secure Enclave requer um — defina em Ajustes → Face ID e Código (ou Touch ID e Código).';
 
@@ -2286,6 +2290,10 @@ class SPt extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Hardware biométrico temporariamente inutilizável (bloqueio após falhas ou atualização de segurança pendente). Tente novamente em alguns minutos.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'O Keystore do Android recusou-se a respaldar uma chave de hardware nesta build do dispositivo (StrongBox indisponível, ROM personalizada ou falha no driver). O nível de hardware não está disponível.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

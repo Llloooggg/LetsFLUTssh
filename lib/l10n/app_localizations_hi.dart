@@ -2249,6 +2249,10 @@ class SHi extends S {
       'इस Mac पर लॉगिन पासवर्ड सेट नहीं है। Secure Enclave कुंजी निर्माण के लिए यह आवश्यक है — System Settings → Touch ID & Password (या Login Password) में सेट करें।';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave ने ऐप की साइनिंग आइडेंटिटी अस्वीकार की (-34018)। रिलीज़ के साथ शामिल `macos-resign.sh` स्क्रिप्ट चलाएँ ताकि इस इंस्टॉल को एक स्थिर सेल्फ़-साइन आइडेंटिटी मिले, फिर ऐप पुनः आरंभ करें।';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'डिवाइस पासकोड सेट नहीं है। Secure Enclave कुंजी निर्माण के लिए यह आवश्यक है — Settings → Face ID & Passcode (या Touch ID & Passcode) में सेट करें।';
 
@@ -2271,6 +2275,10 @@ class SHi extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'बायोमेट्रिक हार्डवेयर अस्थायी रूप से अनुपयोगी (असफल प्रयासों के बाद लॉकआउट या लंबित सुरक्षा अपडेट)। कुछ मिनटों में पुनः प्रयास करें।';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore ने इस डिवाइस बिल्ड पर हार्डवेयर कुंजी समर्थन देने से इनकार किया (StrongBox अनुपलब्ध, कस्टम ROM, या ड्राइवर समस्या)। हार्डवेयर टियर उपलब्ध नहीं है।';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

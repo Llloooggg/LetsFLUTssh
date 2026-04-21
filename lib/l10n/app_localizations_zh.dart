@@ -2158,6 +2158,10 @@ class SZh extends S {
       '此 Mac 未设置登录密码。Secure Enclave 密钥创建需要登录密码 —— 请在 系统设置 → 触控 ID 与密码（或登录密码）中设置。';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave 拒绝了应用的签名身份 (-34018)。请运行随版本一同发布的 `macos-resign.sh` 脚本，为此次安装赋予稳定的自签名身份，然后重新启动应用。';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       '未设置设备密码。Secure Enclave 密钥创建需要密码 —— 请在 设置 → 面容 ID 与密码（或触控 ID 与密码）中设置。';
 
@@ -2179,6 +2183,10 @@ class SZh extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       '生物识别硬件暂时不可用（失败尝试后锁定或待处理的安全更新）。请几分钟后重试。';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore 拒绝在此设备版本上备份硬件密钥（StrongBox 不可用、自定义 ROM 或驱动故障）。硬件层级不可用。';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

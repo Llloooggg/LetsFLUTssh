@@ -2245,6 +2245,10 @@ class SAr extends S {
       'لم يتم تعيين كلمة مرور تسجيل الدخول على هذا الـ Mac. يتطلب إنشاء مفتاح Secure Enclave ذلك — اضبطها في إعدادات النظام ← Touch ID وكلمة المرور (أو كلمة مرور تسجيل الدخول).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'رفض Secure Enclave هوية توقيع التطبيق (-34018). شغّل سكربت `macos-resign.sh` المرفق بالإصدار لمنح هذه النسخة هوية موقَّعة ذاتيًا وثابتة، ثم أعد تشغيل التطبيق.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'لم يتم تعيين رمز الجهاز. يتطلب إنشاء مفتاح Secure Enclave ذلك — اضبط الرمز في الإعدادات ← Face ID والرمز (أو Touch ID والرمز).';
 
@@ -2267,6 +2271,10 @@ class SAr extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'الأجهزة البيومترية غير قابلة للاستخدام مؤقتًا (قفل بعد محاولات فاشلة أو تحديث أمني معلق). أعد المحاولة بعد بضع دقائق.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'رفض Android Keystore دعم مفتاح أجهزة في نسخة هذا الجهاز (StrongBox غير متوفر، أو ROM مخصص، أو خلل في برنامج التشغيل). مستوى الأجهزة غير متاح.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

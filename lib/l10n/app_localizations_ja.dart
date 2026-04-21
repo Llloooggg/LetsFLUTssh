@@ -2181,6 +2181,10 @@ class SJa extends S {
       'この Mac にログインパスワードが設定されていません。Secure Enclave キー作成に必要です — システム設定 → Touch ID とパスワード（またはログインパスワード）で設定してください。';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave がアプリの署名 ID を拒否しました (-34018)。リリースに同梱の `macos-resign.sh` スクリプトを実行してこのインストールに安定した自己署名 ID を付与し、アプリを再起動してください。';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'デバイスのパスコードが設定されていません。Secure Enclave キー作成に必要です — 設定 → Face ID とパスコード（または Touch ID とパスコード）で設定してください。';
 
@@ -2203,6 +2207,10 @@ class SJa extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       '生体認証ハードウェアが一時的に使用できません（失敗試行後のロックアウトまたは保留中のセキュリティ更新）。数分後に再試行してください。';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore がこのデバイスビルドでハードウェアキーのバックを拒否しました（StrongBox 非対応、カスタム ROM、またはドライバーの不具合）。ハードウェア層は利用できません。';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

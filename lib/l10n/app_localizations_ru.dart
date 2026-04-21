@@ -2259,6 +2259,10 @@ class SRu extends S {
       'На этом Mac не задан пароль входа. Secure Enclave требует его для создания ключа — установите пароль входа в System Settings → Touch ID & Password (или Login Password).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave отклонил подпись приложения (-34018). Запустите скрипт `macos-resign.sh` из релизного архива, чтобы дать установке стабильную самоподписанную идентичность, и перезапустите приложение.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'На устройстве не задан код-пароль. Secure Enclave требует его для создания ключа — установите код-пароль в Настройки → Face ID и код-пароль (или Touch ID и код-пароль).';
 
@@ -2281,6 +2285,10 @@ class SRu extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Биометрическое оборудование временно недоступно (блокировка после неудачных попыток или ожидание обновления безопасности). Повторите через несколько минут.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore отказал в создании аппаратного ключа на этой сборке устройства (StrongBox недоступен, кастомная ROM или сбой драйвера). Аппаратный уровень недоступен.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

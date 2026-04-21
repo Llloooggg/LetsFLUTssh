@@ -2274,6 +2274,10 @@ class SDe extends S {
       'Auf diesem Mac ist kein Anmeldepasswort festgelegt. Secure-Enclave-Schlüsselerstellung erfordert eines — setze ein Anmeldepasswort in Systemeinstellungen → Touch ID & Passwort (oder Anmeldepasswort).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave hat die Signaturidentität der App abgelehnt (-34018). Führe das mitgelieferte Skript `macos-resign.sh` aus dem Release aus, um diesem Build eine stabile selbstsignierte Identität zu geben, und starte die App neu.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'Kein Gerätecode festgelegt. Secure-Enclave-Schlüsselerstellung erfordert einen — setze einen Code in Einstellungen → Face ID & Code (oder Touch ID & Code).';
 
@@ -2296,6 +2300,10 @@ class SDe extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Biometrie-Hardware ist vorübergehend unbrauchbar (Sperre nach fehlgeschlagenen Versuchen oder ausstehendes Sicherheitsupdate). Versuche es in ein paar Minuten erneut.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Der Android-Keystore hat das Erstellen eines Hardware-Schlüssels für diese Geräteversion abgelehnt (StrongBox nicht verfügbar, Custom-ROM oder Treiberfehler). Die Hardware-Stufe ist nicht verfügbar.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

@@ -2179,6 +2179,10 @@ class SKo extends S {
       '이 Mac에 로그인 비밀번호가 설정되지 않았습니다. Secure Enclave 키 생성에 필요합니다 — 시스템 설정 → Touch ID 및 비밀번호(또는 로그인 비밀번호)에서 설정하세요.';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave가 앱의 서명 ID를 거부했습니다 (-34018). 릴리스에 포함된 `macos-resign.sh` 스크립트를 실행하여 이 설치에 안정된 자체 서명 ID를 부여한 후 앱을 다시 시작하세요.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       '기기 암호가 설정되지 않았습니다. Secure Enclave 키 생성에 필요합니다 — 설정 → Face ID 및 암호(또는 Touch ID 및 암호)에서 설정하세요.';
 
@@ -2201,6 +2205,10 @@ class SKo extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       '생체 인식 하드웨어를 일시적으로 사용할 수 없습니다(실패한 시도 후 잠금 또는 보류 중인 보안 업데이트). 몇 분 후에 다시 시도하세요.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore가 이 기기 빌드에서 하드웨어 키 지원을 거부했습니다(StrongBox 사용 불가, 커스텀 ROM 또는 드라이버 오류). 하드웨어 계층을 사용할 수 없습니다.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

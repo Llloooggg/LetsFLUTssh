@@ -100,21 +100,38 @@ final class HardwareVaultPlugin: NSObject {
     return probeRealSecureEnclaveWrite()
   }
 
-  /// Actual Secure Enclave write round-trip. Creates a throw-away
-  /// P-256 key under `kSecAttrTokenIDSecureEnclave`, deletes it,
-  /// returns true on success. Failure covers every case where the
-  /// `isAvailable` shallow check would have lied — missing signing
-  /// identity, corrupted SE state, entitlement rejection. Deletion
-  /// is best-effort: a leftover probe key would be garbage-collected
-  /// by the OS on next reboot and does not gate any user data.
+  /// True when [probeRealSecureEnclaveWriteCode] returns
+  /// `"available"`. Convenience wrapper for `isAvailable`.
   private func probeRealSecureEnclaveWrite() -> Bool {
+    return probeRealSecureEnclaveWriteCode() == "available"
+  }
+
+  /// Same Secure Enclave write round-trip as
+  /// [probeRealSecureEnclaveWrite] but returns the classified
+  /// reason code:
+  ///
+  /// * `available` — the throw-away SE key created and deleted
+  ///   without error.
+  /// * `macosSigningIdentityMissing` — `SecKeyCreateRandomKey`
+  ///   failed with `errSecMissingEntitlement` (-34018), the
+  ///   signature ad-hoc Code Directory hash macOS Keychain Services
+  ///   refuses to bind keys to. The user fix is to run the bundled
+  ///   `macos-resign.sh` script which gives the bundle a stable
+  ///   self-signed identity.
+  /// * `macosGeneric` — any other `SecKeyCreateRandomKey` failure.
+  ///   Logged but no narrower copy.
+  ///
+  /// Deletion is best-effort: a leftover probe key would be
+  /// garbage-collected by the OS on next reboot and does not gate
+  /// any user data.
+  private func probeRealSecureEnclaveWriteCode() -> String {
     let probeTag = "com.letsflutssh.hw_vault.probe"
     guard let ac = SecAccessControlCreateWithFlags(
       nil,
       kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
       [.privateKeyUsage],
       nil
-    ) else { return false }
+    ) else { return "macosGeneric" }
     let attrs: [String: Any] = [
       kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
       kSecAttrKeySizeInBits as String: 256,
@@ -129,11 +146,14 @@ final class HardwareVaultPlugin: NSObject {
     var createErr: Unmanaged<CFError>?
     guard let key = SecKeyCreateRandomKey(attrs as CFDictionary, &createErr)
     else {
-      // The CFError here is where `errSecMissingEntitlement` (-34018)
-      // actually surfaces on ad-hoc bundles. No logging — the
-      // classifier in `probeDetail` is what surfaces the reason to
-      // the user; this method only answers true / false.
-      return false
+      // Classify the CFError code so the wizard can point the user
+      // at the macos-resign.sh script when the failure is
+      // signing-identity rejection rather than a generic SE issue.
+      // -34018 (`errSecMissingEntitlement`) is what ad-hoc-signed
+      // bundles surface on every macOS release tested so far.
+      let code = createErr?.takeRetainedValue().map { CFErrorGetCode($0) } ?? 0
+      if code == -34018 { return "macosSigningIdentityMissing" }
+      return "macosGeneric"
     }
     // Drop the probe key immediately. The macOS Security framework
     // deletes it by matching on the application tag.
@@ -147,7 +167,7 @@ final class HardwareVaultPlugin: NSObject {
     _ = SecItemDelete(delQuery as CFDictionary)
     // Reference `key` so ARC holds it past the delete call.
     _ = key
-    return true
+    return "available"
   }
 
   private func backingLevel() -> String {
@@ -156,17 +176,25 @@ final class HardwareVaultPlugin: NSObject {
 
   // Classified probe — mirrors the enum surface Dart exposes as
   // `HardwareProbeDetail`. Returns one of:
-  //   * `available`                 — Secure Enclave reachable + passcode set.
-  //   * `macosNoSecureEnclave`      — `LAContext` refuses
-  //                                   `.deviceOwnerAuthentication`, typically
-  //                                   a pre-T2 Intel Mac with no Secure
-  //                                   Enclave hardware at all.
-  //   * `macosPasscodeNotSet`       — SE hardware present but device passcode
-  //                                   unset; L3 requires one for
-  //                                   `biometryCurrentSet` binding.
-  //   * `macosGeneric`              — any other LAError fall-through
-  //                                   (e.g. biometryLockout). Logged for
-  //                                   diagnostics; UI shows generic copy.
+  //   * `available`                       — Secure Enclave reachable + passcode set.
+  //   * `macosNoSecureEnclave`            — `LAContext` refuses
+  //                                         `.deviceOwnerAuthentication`, typically
+  //                                         a pre-T2 Intel Mac with no Secure
+  //                                         Enclave hardware at all.
+  //   * `macosPasscodeNotSet`             — SE hardware present but device passcode
+  //                                         unset; L3 requires one for
+  //                                         `biometryCurrentSet` binding.
+  //   * `macosSigningIdentityMissing`     — Secure Enclave rejected the real
+  //                                         key-create with -34018
+  //                                         (`errSecMissingEntitlement`). Ad-hoc
+  //                                         signing without a stable identity is
+  //                                         the usual cause; the wizard surfaces
+  //                                         the bundled `macos-resign.sh` script
+  //                                         as the actionable fix.
+  //   * `macosGeneric`                    — any other LAError fall-through
+  //                                         (e.g. biometryLockout) or any other
+  //                                         SE create failure. Logged for
+  //                                         diagnostics; UI shows generic copy.
   private func probeDetail() -> String {
     let ctx = LAContext()
     var err: NSError?
@@ -183,13 +211,11 @@ final class HardwareVaultPlugin: NSObject {
         // Real Secure Enclave write round-trip — the shallow checks
         // above both pass on ad-hoc-signed bundles that the SE will
         // then reject with `errSecMissingEntitlement` (-34018) on the
-        // first actual key create. Probe it once so the wizard does
-        // not show T2 as "available" only to silent-drop to T0 when
-        // the user picks it.
-        if probeRealSecureEnclaveWrite() {
-          return "available"
-        }
-        return "macosGeneric"
+        // first actual key create. Probe it once and use the typed
+        // reason code so the wizard can route the user at the right
+        // fix (resign script vs generic "unavailable") instead of
+        // silent-dropping to T0.
+        return probeRealSecureEnclaveWriteCode()
       }
       return "macosGeneric"
     }

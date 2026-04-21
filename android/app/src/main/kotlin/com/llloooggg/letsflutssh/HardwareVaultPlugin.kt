@@ -202,12 +202,13 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         }
         // Biometric half passed — run the real Keystore write probe
         // so `probeDetail` and `isAvailable` agree on availability.
-        // A Keystore that refuses to back a key surfaces as
-        // `androidGeneric` (no narrower code: the failure can be any
-        // of StrongBoxUnavailable, UnknownError, or a driver glitch,
-        // none of which are actionable for the user beyond "use a
-        // different tier").
-        return if (probeRealKeystoreWrite()) "available" else "androidGeneric"
+        // Failure surfaces as `androidKeystoreRejected` so the UI can
+        // distinguish "biometric ok but Keystore refused" from the
+        // catch-all `androidGeneric`. Keystore rejections cover
+        // StrongBox-unavailable, UnknownError, custom-ROM-stripped-
+        // TEE and similar — none individually actionable for the
+        // user, but the typed reason explains why T2 is greyed out.
+        return if (probeRealKeystoreWrite()) "available" else "androidKeystoreRejected"
     }
 
     /** "hardware_strongbox", "hardware_tee", or "software". */

@@ -2253,6 +2253,10 @@ class SId extends S {
       'Tidak ada kata sandi login di Mac ini. Pembuatan kunci Secure Enclave memerlukannya — atur kata sandi login di Pengaturan Sistem → Touch ID & Kata Sandi (atau Kata Sandi Login).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave menolak identitas penandatanganan aplikasi (-34018). Jalankan skrip `macos-resign.sh` yang disertakan di rilis untuk memberikan instalasi ini identitas swatandatangan yang stabil, lalu mulai ulang aplikasi.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'Tidak ada kode sandi perangkat yang diatur. Pembuatan kunci Secure Enclave memerlukannya — atur kode sandi di Pengaturan → Face ID & Kode Sandi (atau Touch ID & Kode Sandi).';
 
@@ -2275,6 +2279,10 @@ class SId extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Perangkat keras biometrik tidak dapat digunakan sementara (terkunci setelah percobaan gagal atau pembaruan keamanan tertunda). Coba lagi beberapa menit lagi.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore menolak menyimpan kunci perangkat keras pada build perangkat ini (StrongBox tidak tersedia, ROM kustom, atau gangguan driver). Tingkat perangkat keras tidak tersedia.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

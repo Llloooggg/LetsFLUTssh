@@ -135,6 +135,16 @@ enum HardwareProbeDetail {
   /// Any other LAContext error on iOS. Logged for diagnostics.
   iosGeneric,
 
+  /// macOS Secure Enclave rejected the real key-create probe with
+  /// `errSecMissingEntitlement` (-34018). Ad-hoc-signed bundles
+  /// (every release we ship without an Apple Developer ID cert)
+  /// surface this on the first SE write because Keychain Services
+  /// bind every item to the Code Directory hash and the ad-hoc hash
+  /// changes per release. Wizard / Settings copy points the user at
+  /// the bundled `macos-resign.sh` helper which gives the install a
+  /// stable self-signed identity.
+  macosSigningIdentityMissing,
+
   // ── Android ──────────────────────────────────────────────────────
   /// Android < 9 (API level < 28). StrongBox does not exist and the
   /// `setInvalidatedByBiometricEnrollment` flag behaves unreliably on
@@ -153,6 +163,13 @@ enum HardwareProbeDetail {
   /// Biometric temporarily unusable — lockout after too many failures
   /// or pending security update. UI copy asks user to retry later.
   androidBiometricUnavailable,
+
+  /// Biometric half OK but the real Keystore key-create probe
+  /// failed. Covers StrongBox-unavailable, UnknownError, custom-ROM-
+  /// stripped-TEE and similar — none individually actionable for
+  /// the user, but the typed reason explains why T2 is greyed out
+  /// instead of leaving them on a generic "unavailable" string.
+  androidKeystoreRejected,
 
   /// Any other BiometricManager status we didn't map. Logged for
   /// diagnostics.
@@ -200,6 +217,8 @@ HardwareProbeDetail decodeHardwareProbeCode(String code) {
       return HardwareProbeDetail.macosNoSecureEnclave;
     case 'macosPasscodeNotSet':
       return HardwareProbeDetail.macosPasscodeNotSet;
+    case 'macosSigningIdentityMissing':
+      return HardwareProbeDetail.macosSigningIdentityMissing;
     case 'macosGeneric':
       return HardwareProbeDetail.macosGeneric;
     case 'iosPasscodeNotSet':
@@ -216,6 +235,8 @@ HardwareProbeDetail decodeHardwareProbeCode(String code) {
       return HardwareProbeDetail.androidBiometricNotEnrolled;
     case 'androidBiometricUnavailable':
       return HardwareProbeDetail.androidBiometricUnavailable;
+    case 'androidKeystoreRejected':
+      return HardwareProbeDetail.androidKeystoreRejected;
     case 'androidGeneric':
       return HardwareProbeDetail.androidGeneric;
     default:
@@ -269,6 +290,8 @@ String hardwareProbeDetailText(S l10n, HardwareProbeDetail detail) {
       return l10n.hwProbeMacosNoSecureEnclave;
     case HardwareProbeDetail.macosPasscodeNotSet:
       return l10n.hwProbeMacosPasscodeNotSet;
+    case HardwareProbeDetail.macosSigningIdentityMissing:
+      return l10n.hwProbeMacosSigningIdentityMissing;
     case HardwareProbeDetail.macosGeneric:
       return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
     case HardwareProbeDetail.iosPasscodeNotSet:
@@ -285,6 +308,8 @@ String hardwareProbeDetailText(S l10n, HardwareProbeDetail detail) {
       return l10n.hwProbeAndroidBiometricNotEnrolled;
     case HardwareProbeDetail.androidBiometricUnavailable:
       return l10n.hwProbeAndroidBiometricUnavailable;
+    case HardwareProbeDetail.androidKeystoreRejected:
+      return l10n.hwProbeAndroidKeystoreRejected;
     case HardwareProbeDetail.androidGeneric:
       return l10n.firstLaunchSecurityHardwareUnavailableGeneric;
   }

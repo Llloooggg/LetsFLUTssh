@@ -2237,6 +2237,10 @@ class SVi extends S {
       'Chưa đặt mật khẩu đăng nhập trên Mac này. Tạo khóa Secure Enclave cần có — đặt mật khẩu đăng nhập trong System Settings → Touch ID & Password (hoặc Login Password).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave từ chối danh tính chữ ký của ứng dụng (-34018). Chạy script `macos-resign.sh` đi kèm bản phát hành để gán cho bản cài đặt này một danh tính tự ký ổn định, sau đó khởi động lại ứng dụng.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'Chưa đặt mã khóa thiết bị. Tạo khóa Secure Enclave cần có — đặt mã trong Settings → Face ID & Passcode (hoặc Touch ID & Passcode).';
 
@@ -2259,6 +2263,10 @@ class SVi extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Phần cứng sinh trắc học tạm thời không sử dụng được (khóa sau nhiều lần thất bại hoặc đang chờ cập nhật bảo mật). Thử lại sau vài phút.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore từ chối hỗ trợ khóa phần cứng trên bản dựng thiết bị này (StrongBox không có, ROM tùy chỉnh hoặc lỗi trình điều khiển). Lớp phần cứng không khả dụng.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

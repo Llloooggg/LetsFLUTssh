@@ -2277,6 +2277,10 @@ class SFr extends S {
       'Aucun mot de passe de session défini sur ce Mac. La création de clé Secure Enclave en requiert un — définissez-le dans Réglages système → Touch ID et mot de passe (ou Mot de passe de connexion).';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave a rejeté l\'identité de signature de l\'application (-34018). Exécutez le script `macos-resign.sh` fourni avec la version pour donner à cette installation une identité auto-signée stable, puis redémarrez l\'application.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'Aucun code défini sur l\'appareil. La création de clé Secure Enclave en requiert un — définissez un code dans Réglages → Face ID et code (ou Touch ID et code).';
 
@@ -2299,6 +2303,10 @@ class SFr extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Matériel biométrique temporairement inutilisable (verrouillage après échecs ou mise à jour de sécurité en attente). Réessayez dans quelques minutes.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Le Keystore Android a refusé de créer une clé matérielle sur cette build d\'appareil (StrongBox indisponible, ROM personnalisée ou bogue du pilote). Le niveau matériel n\'est pas disponible.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

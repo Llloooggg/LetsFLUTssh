@@ -2242,6 +2242,10 @@ class SFa extends S {
       'رمز عبور ورود روی این Mac تنظیم نشده است. ایجاد کلید Secure Enclave به آن نیاز دارد — در System Settings ← Touch ID & Password (یا Login Password) تنظیم کنید.';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave هویت امضای برنامه را رد کرد (-34018). اسکریپت `macos-resign.sh` همراه نسخه را اجرا کنید تا به این نصب یک هویت پایدار خودامضا داده شود، سپس برنامه را دوباره راه‌اندازی کنید.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'رمز دستگاه تنظیم نشده است. ایجاد کلید Secure Enclave به آن نیاز دارد — در تنظیمات ← Face ID & Passcode (یا Touch ID & Passcode) تنظیم کنید.';
 
@@ -2264,6 +2268,10 @@ class SFa extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'سخت‌افزار بیومتریک به طور موقت غیرقابل استفاده است (قفل پس از تلاش‌های ناموفق یا به‌روزرسانی امنیتی در انتظار). چند دقیقه دیگر امتحان کنید.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore در این نسخهٔ دستگاه از پشتیبانی کلید سخت‌افزاری امتناع کرد (StrongBox در دسترس نیست، ROM سفارشی یا خطای درایور). لایهٔ سخت‌افزاری در دسترس نیست.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

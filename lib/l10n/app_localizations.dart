@@ -3981,6 +3981,12 @@ abstract class S {
   /// **'No login password is set on this Mac. Secure Enclave key creation requires one — set a login password in System Settings → Touch ID & Password (or Login Password).'**
   String get hwProbeMacosPasscodeNotSet;
 
+  /// No description provided for @hwProbeMacosSigningIdentityMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Enclave rejected the app\'s signing identity (-34018). Run the bundled `macos-resign.sh` script (download from the same release) to give this install a stable self-signed identity, then relaunch.'**
+  String get hwProbeMacosSigningIdentityMissing;
+
   /// No description provided for @hwProbeIosPasscodeNotSet.
   ///
   /// In en, this message translates to:
@@ -4016,6 +4022,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.'**
   String get hwProbeAndroidBiometricUnavailable;
+
+  /// No description provided for @hwProbeAndroidKeystoreRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The Android Keystore refused to back a hardware key on this device build (StrongBox unavailable, custom ROM stripping, or driver glitch). The hardware tier is not available.'**
+  String get hwProbeAndroidKeystoreRejected;
 
   /// No description provided for @keyringProbeLinuxNoSecretService.
   ///

@@ -2257,6 +2257,10 @@ class STr extends S {
       'Bu Mac\'te oturum açma parolası ayarlanmamış. Secure Enclave anahtar oluşturma bunu gerektirir — Sistem Ayarları → Touch ID ve Parola (veya Oturum Açma Parolası) bölümünden belirleyin.';
 
   @override
+  String get hwProbeMacosSigningIdentityMissing =>
+      'Secure Enclave uygulamanın imza kimliğini reddetti (-34018). Bu yüklemeye sabit bir kendi imzalı kimlik vermek için sürümle birlikte gelen `macos-resign.sh` betiğini çalıştırın ve ardından uygulamayı yeniden başlatın.';
+
+  @override
   String get hwProbeIosPasscodeNotSet =>
       'Cihaz kodu ayarlanmamış. Secure Enclave anahtar oluşturma bunu gerektirir — Ayarlar → Face ID ve Kod (veya Touch ID ve Kod) bölümünden belirleyin.';
 
@@ -2279,6 +2283,10 @@ class STr extends S {
   @override
   String get hwProbeAndroidBiometricUnavailable =>
       'Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.';
+
+  @override
+  String get hwProbeAndroidKeystoreRejected =>
+      'Android Keystore bu cihaz sürümünde donanım anahtarını oluşturmayı reddetti (StrongBox yok, özel ROM veya sürücü hatası). Donanım katmanı kullanılamıyor.';
 
   @override
   String get keyringProbeLinuxNoSecretService =>
