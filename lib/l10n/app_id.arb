@@ -450,6 +450,7 @@
   "updateReinstallAction": "Buka halaman Rilis",
   "errLfsNotArchive": "Berkas yang dipilih bukan arsip LetsFLUTssh.",
   "errLfsDecryptFailed": "Kata sandi utama salah atau arsip .lfs rusak",
+  "errLfsArchiveTruncated": "Arsip tidak lengkap. Unduh ulang atau ekspor ulang dari perangkat asal.",
   "errLfsArchiveTooLarge": "Arsip terlalu besar ({sizeMb} MB). Batasnya adalah {limitMb} MB — dibatalkan sebelum dekripsi untuk melindungi memori.",
   "errLfsImportRolledBack": "Impor gagal — data Anda telah dipulihkan ke kondisi sebelum impor. ({cause})",
   "errLfsKnownHostsTooLarge": "Entri known_hosts terlalu besar ({sizeMb} MB). Batasnya adalah {limitMb} MB — dibatalkan agar impor tetap responsif.",

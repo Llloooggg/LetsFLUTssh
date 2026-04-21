@@ -102,6 +102,50 @@ class ExportImport {
   /// JSON content still fit, but anything pathological is rejected.
   static const int maxDecompressedBytes = 200 * 1024 * 1024;
 
+  /// Scan [zipBytes] from the tail for the End-of-Central-Directory
+  /// signature (`PK\x05\x06`, `0x50 0x4B 0x05 0x06`). Returns false when
+  /// the signature is not present in the last 64 KiB — the PKZip spec
+  /// allows up to 64 KiB of ZIP comment after the signature, so a
+  /// signature further back cannot be valid.
+  static bool _hasEocdSignature(Uint8List zipBytes) {
+    const eocdSig = [0x50, 0x4B, 0x05, 0x06];
+    const maxCommentLen = 0xFFFF; // 64 KiB ZIP spec cap.
+    final windowStart = zipBytes.length > maxCommentLen + 22
+        ? zipBytes.length - maxCommentLen - 22
+        : 0;
+    for (var i = zipBytes.length - 4; i >= windowStart; i--) {
+      if (zipBytes[i] == eocdSig[0] &&
+          zipBytes[i + 1] == eocdSig[1] &&
+          zipBytes[i + 2] == eocdSig[2] &&
+          zipBytes[i + 3] == eocdSig[3]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Walk every entry in [archive] and force a read of its decompressed
+  /// bytes. A truncated archive whose central directory survived but
+  /// whose payload section was cut off (the common mid-transfer failure)
+  /// decodes into an [Archive] object that only throws when an entry is
+  /// actually read — pulling the bytes early lets us surface the
+  /// truncation with a typed exception before any parser touches it.
+  ///
+  /// Throws [LfsArchiveTruncatedException].
+  @visibleForTesting
+  static void validateArchiveEntriesReadable(Archive archive) {
+    for (final entry in archive) {
+      if (!entry.isFile) continue;
+      try {
+        // Touching `.content` forces the decoder to decompress the
+        // entry's payload; for truncated entries this throws.
+        entry.content;
+      } catch (e) {
+        throw LfsArchiveTruncatedException(cause: e, entryName: entry.name);
+      }
+    }
+  }
+
   /// Walk every entry in [archive] and refuse if the cumulative declared
   /// uncompressed size exceeds [maxDecompressedBytes].
   ///
@@ -657,15 +701,39 @@ class ExportImport {
       }
     }
     progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
+    // EOCD guard: the ZipDecoder in the `archive` package is lenient
+    // with truncated files — it scans forward from local file headers
+    // instead of anchoring on the End-of-Central-Directory record, so a
+    // ZIP whose tail (central directory + EOCD) has been cut off still
+    // decodes into an `Archive` containing only the entries that
+    // happened to survive. That collapses into a "manifest missing"
+    // error deeper in the flow, which reads as "archive from the wrong
+    // version" to the user. Scan for `PK\x05\x06` up front so
+    // truncation surfaces with its own typed exception — it means
+    // "archive is incomplete; re-download or re-export", not "wrong
+    // password" or "unsupported version".
+    if (!_hasEocdSignature(zipBytes)) {
+      throw const LfsArchiveTruncatedException();
+    }
     final Archive archive;
     try {
       archive = ZipDecoder().decodeBytes(zipBytes);
     } catch (e) {
-      throw LfsDecryptionFailedException(cause: e);
+      // A structurally broken ZIP that still carried EOCD but can't be
+      // decoded in full shares the UI copy with a successful EOCD-less
+      // truncation — either way the archive is incomplete.
+      throw LfsArchiveTruncatedException(cause: e);
     }
     // Zip-bomb guard: refuse before the manifest / session readers start
     // pulling entry bytes into memory.
     enforceDecompressedSizeCap(archive);
+    // Integrity guard: the ZipDecoder validates the central directory
+    // record but not each entry's compressed payload — a file truncated
+    // inside an entry's data section would still decode into an Archive
+    // whose first `entry.content` access throws. Force-read every entry
+    // up front so a truncation surfaces here with a typed exception
+    // rather than deep inside one of the per-entry parsers.
+    validateArchiveEntriesReadable(archive);
 
     final manifest = _parseManifest(archive);
     // Any schema_version that is not exactly [currentSchemaVersion]
@@ -1204,6 +1272,24 @@ class LfsDecryptionFailedException implements Exception {
 
   @override
   String toString() => 'LfsDecryptionFailedException';
+}
+
+/// Thrown when the ZIP container inside a .lfs archive is incomplete —
+/// End-of-Central-Directory record is missing or corrupt, or an entry's
+/// payload was cut off mid-stream (distinguishable at force-read time).
+/// Typical cause: the file was copied before a download / SAF write
+/// finished. UI should prompt the user to re-download or re-export
+/// from the original device.
+class LfsArchiveTruncatedException implements Exception {
+  final Object? cause;
+  final String? entryName;
+  const LfsArchiveTruncatedException({this.cause, this.entryName});
+
+  @override
+  String toString() {
+    final where = entryName == null ? '' : ' at entry "$entryName"';
+    return 'LfsArchiveTruncatedException$where';
+  }
 }
 
 /// The encrypted-archive header carried a value that we refuse to honour

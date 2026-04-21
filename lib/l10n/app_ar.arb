@@ -450,6 +450,7 @@
   "updateReinstallAction": "فتح صفحة الإصدارات",
   "errLfsNotArchive": "الملف المحدد ليس أرشيف LetsFLUTssh.",
   "errLfsDecryptFailed": "كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف",
+  "errLfsArchiveTruncated": "الأرشيف غير مكتمل. أعد التنزيل أو إعادة التصدير من الجهاز الأصلي.",
   "errLfsArchiveTooLarge": "الأرشيف كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.",
   "errLfsImportRolledBack": "فشل الاستيراد — تمت استعادة بياناتك إلى الحالة السابقة. ({cause})",
   "errLfsKnownHostsTooLarge": "إدخال known_hosts كبير جدًا ({sizeMb} ميجابايت). الحد الأقصى هو {limitMb} ميجابايت — تم الإلغاء للحفاظ على استجابة الاستيراد.",

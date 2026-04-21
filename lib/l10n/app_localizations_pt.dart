@@ -1471,6 +1471,10 @@ class SPt extends S {
       'Senha mestra incorreta ou arquivo .lfs corrompido';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'O arquivo está incompleto. Baixe novamente ou reexporte do dispositivo original.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Arquivo muito grande ($sizeMb MB). O limite é de $limitMb MB — interrompido antes da descriptografia para proteger a memória.';
   }

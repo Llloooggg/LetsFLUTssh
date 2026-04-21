@@ -1466,6 +1466,10 @@ class SId extends S {
       'Kata sandi utama salah atau arsip .lfs rusak';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'Arsip tidak lengkap. Unduh ulang atau ekspor ulang dari perangkat asal.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Arsip terlalu besar ($sizeMb MB). Batasnya adalah $limitMb MB — dibatalkan sebelum dekripsi untuk melindungi memori.';
   }

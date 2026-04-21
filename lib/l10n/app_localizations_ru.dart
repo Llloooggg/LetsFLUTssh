@@ -1467,6 +1467,10 @@ class SRu extends S {
       'Неверный мастер-пароль или повреждённый архив .lfs';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'Архив неполный. Перекачайте или пересоздайте его на исходном устройстве.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Архив слишком большой ($sizeMb МБ). Лимит — $limitMb МБ — прерывание до расшифровки для защиты памяти.';
   }

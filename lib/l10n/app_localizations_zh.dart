@@ -1406,6 +1406,9 @@ class SZh extends S {
   String get errLfsDecryptFailed => '主密码错误或 .lfs 归档已损坏';
 
   @override
+  String get errLfsArchiveTruncated => '存档不完整。请重新下载或从原始设备重新导出。';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return '归档过大（$sizeMb MB）。上限为 $limitMb MB — 已在解密前中止以保护内存。';
   }

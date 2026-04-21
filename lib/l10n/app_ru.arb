@@ -450,6 +450,7 @@
   "updateReinstallAction": "Открыть страницу Releases",
   "errLfsNotArchive": "Выбранный файл не является архивом LetsFLUTssh.",
   "errLfsDecryptFailed": "Неверный мастер-пароль или повреждённый архив .lfs",
+  "errLfsArchiveTruncated": "Архив неполный. Перекачайте или пересоздайте его на исходном устройстве.",
   "errLfsArchiveTooLarge": "Архив слишком большой ({sizeMb} МБ). Лимит — {limitMb} МБ — прерывание до расшифровки для защиты памяти.",
   "errLfsImportRolledBack": "Импорт не удался — данные восстановлены до состояния перед импортом. ({cause})",
   "errLfsKnownHostsTooLarge": "Запись known_hosts слишком большая ({sizeMb} МБ). Лимит — {limitMb} МБ — импорт прерван, чтобы интерфейс оставался отзывчивым.",

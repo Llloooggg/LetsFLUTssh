@@ -1455,6 +1455,10 @@ class SVi extends S {
   String get errLfsDecryptFailed => 'Mật khẩu chính sai hoặc tệp .lfs bị hỏng';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'Kho lưu trữ không hoàn chỉnh. Hãy tải lại hoặc xuất lại từ thiết bị gốc.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Tệp lưu trữ quá lớn ($sizeMb MB). Giới hạn là $limitMb MB — đã hủy trước khi giải mã để bảo vệ bộ nhớ.';
   }

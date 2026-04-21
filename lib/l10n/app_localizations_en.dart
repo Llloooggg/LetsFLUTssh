@@ -1455,6 +1455,10 @@ class SEn extends S {
       'Wrong master password or corrupted .lfs archive';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'Archive is incomplete. Re-download or re-export from the original device.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Archive is too large ($sizeMb MB). The limit is $limitMb MB — aborted before decryption to protect memory.';
   }

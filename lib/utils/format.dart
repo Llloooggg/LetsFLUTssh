@@ -11,6 +11,7 @@ import '../core/update/update_service.dart'
 import '../features/settings/export_import.dart'
     show
         LfsArchiveTooLargeException,
+        LfsArchiveTruncatedException,
         LfsDecryptionFailedException,
         LfsKnownHostsTooLargeException,
         UnsupportedLfsVersionException;
@@ -179,6 +180,9 @@ String? _tryLocalizeLfsError(S l10n, Object error) {
   }
   if (error is LfsDecryptionFailedException) {
     return l10n.errLfsDecryptFailed;
+  }
+  if (error is LfsArchiveTruncatedException) {
+    return l10n.errLfsArchiveTruncated;
   }
   return null;
 }

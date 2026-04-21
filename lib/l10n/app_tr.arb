@@ -450,6 +450,7 @@
   "updateReinstallAction": "Sürümler sayfasını aç",
   "errLfsNotArchive": "Seçilen dosya bir LetsFLUTssh arşivi değil.",
   "errLfsDecryptFailed": "Yanlış ana parola veya bozulmuş .lfs arşivi",
+  "errLfsArchiveTruncated": "Arşiv eksik. Yeniden indirin veya orijinal cihazdan yeniden dışa aktarın.",
   "errLfsArchiveTooLarge": "Arşiv çok büyük ({sizeMb} MB). Sınır {limitMb} MB — belleği korumak için şifre çözme öncesi iptal edildi.",
   "errLfsImportRolledBack": "İçe aktarma başarısız — verileriniz içe aktarma öncesi duruma geri yüklendi. ({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts girdisi çok büyük ({sizeMb} MB). Sınır {limitMb} MB — içe aktarma yanıt verir kalsın diye iptal edildi.",

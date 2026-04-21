@@ -2679,6 +2679,12 @@ abstract class S {
   /// **'Wrong master password or corrupted .lfs archive'**
   String get errLfsDecryptFailed;
 
+  /// No description provided for @errLfsArchiveTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive is incomplete. Re-download or re-export from the original device.'**
+  String get errLfsArchiveTruncated;
+
   /// No description provided for @errLfsArchiveTooLarge.
   ///
   /// In en, this message translates to:

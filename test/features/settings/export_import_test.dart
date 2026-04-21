@@ -306,6 +306,37 @@ void main() {
         throwsA(isA<LfsDecryptionFailedException>()),
       );
     });
+
+    test(
+      'truncated unencrypted archive throws LfsArchiveTruncatedException',
+      () async {
+        // Build a valid plain-ZIP .lfs, then chop its tail so the EOCD
+        // record is destroyed. Real-world cause: interrupted SAF copy
+        // on Android, partial download.
+        final outputPath = '${tempDir.path}/truncated.lfs';
+        await ExportImport.export(
+          masterPassword: '',
+          outputPath: outputPath,
+          input: const LfsExportInput(sessions: [], config: AppConfig.defaults),
+        );
+        final file = File(outputPath);
+        final bytes = await file.readAsBytes();
+        // Cut the file in half — wipes the EOCD record and the central
+        // directory for sure, matches the "interrupted SAF copy" shape
+        // exactly (front of the file intact, tail missing).
+        await file.writeAsBytes(bytes.sublist(0, bytes.length ~/ 2));
+
+        expect(
+          () => ExportImport.import_(
+            filePath: outputPath,
+            masterPassword: '',
+            mode: ImportMode.merge,
+            options: const ExportOptions(includeConfig: true),
+          ),
+          throwsA(isA<LfsArchiveTruncatedException>()),
+        );
+      },
+    );
   });
 
   group('ExportImport — encryption header (v3 LFSE / Argon2id)', () {

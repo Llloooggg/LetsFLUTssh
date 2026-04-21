@@ -1475,6 +1475,10 @@ class SEs extends S {
       'Contraseña maestra incorrecta o archivo .lfs dañado';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'El archivo está incompleto. Descárguelo de nuevo o reexpórtelo desde el dispositivo original.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'El archivo es demasiado grande ($sizeMb MB). El límite es de $limitMb MB: cancelado antes del descifrado para proteger la memoria.';
   }

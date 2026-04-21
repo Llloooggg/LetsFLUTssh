@@ -1415,6 +1415,10 @@ class SJa extends S {
   String get errLfsDecryptFailed => 'マスターパスワードが間違っているか、.lfs アーカイブが破損しています';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'アーカイブが不完全です。再ダウンロードするか、元のデバイスから再エクスポートしてください。';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'アーカイブが大きすぎます ($sizeMb MB)。上限は $limitMb MB です。メモリ保護のため、復号前に中止しました。';
   }

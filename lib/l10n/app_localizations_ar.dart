@@ -1460,6 +1460,10 @@ class SAr extends S {
       'كلمة المرور الرئيسية خاطئة أو أرشيف .lfs تالف';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'الأرشيف غير مكتمل. أعد التنزيل أو إعادة التصدير من الجهاز الأصلي.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'الأرشيف كبير جدًا ($sizeMb ميجابايت). الحد الأقصى هو $limitMb ميجابايت — تم الإلغاء قبل فك التشفير لحماية الذاكرة.';
   }

@@ -450,6 +450,7 @@
   "updateReinstallAction": "Abrir página de lançamentos",
   "errLfsNotArchive": "O arquivo selecionado não é um arquivo do LetsFLUTssh.",
   "errLfsDecryptFailed": "Senha mestra incorreta ou arquivo .lfs corrompido",
+  "errLfsArchiveTruncated": "O arquivo está incompleto. Baixe novamente ou reexporte do dispositivo original.",
   "errLfsArchiveTooLarge": "Arquivo muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido antes da descriptografia para proteger a memória.",
   "errLfsImportRolledBack": "Falha na importação — seus dados foram restaurados ao estado anterior. ({cause})",
   "errLfsKnownHostsTooLarge": "Entrada known_hosts muito grande ({sizeMb} MB). O limite é de {limitMb} MB — interrompido para manter a importação responsiva.",

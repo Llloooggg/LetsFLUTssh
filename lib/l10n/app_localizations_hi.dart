@@ -1460,6 +1460,10 @@ class SHi extends S {
   String get errLfsDecryptFailed => 'गलत मास्टर पासवर्ड या दूषित .lfs संग्रह';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'संग्रह अधूरा है। मूल डिवाइस से पुनः डाउनलोड या पुनः निर्यात करें।';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'संग्रह बहुत बड़ा है ($sizeMb MB). सीमा $limitMb MB है — मेमोरी की सुरक्षा के लिए डिक्रिप्शन से पहले रोका गया.';
   }

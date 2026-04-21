@@ -450,6 +450,7 @@
   "updateReinstallAction": "Releases-Seite öffnen",
   "errLfsNotArchive": "Die ausgewählte Datei ist kein LetsFLUTssh-Archiv.",
   "errLfsDecryptFailed": "Falsches Master-Passwort oder beschädigtes .lfs-Archiv",
+  "errLfsArchiveTruncated": "Archiv ist unvollständig. Erneut herunterladen oder vom Originalgerät neu exportieren.",
   "errLfsArchiveTooLarge": "Archiv ist zu groß ({sizeMb} MB). Das Limit beträgt {limitMb} MB – Abbruch vor der Entschlüsselung zum Schutz des Speichers.",
   "errLfsImportRolledBack": "Import fehlgeschlagen – Ihre Daten wurden auf den Stand vor dem Import zurückgesetzt. ({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts-Eintrag ist zu groß ({sizeMb} MB). Das Limit beträgt {limitMb} MB – abgebrochen, damit der Import reaktionsfähig bleibt.",

@@ -450,6 +450,7 @@
   "updateReinstallAction": "リリースページを開く",
   "errLfsNotArchive": "選択したファイルは LetsFLUTssh のアーカイブではありません。",
   "errLfsDecryptFailed": "マスターパスワードが間違っているか、.lfs アーカイブが破損しています",
+  "errLfsArchiveTruncated": "アーカイブが不完全です。再ダウンロードするか、元のデバイスから再エクスポートしてください。",
   "errLfsArchiveTooLarge": "アーカイブが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。メモリ保護のため、復号前に中止しました。",
   "errLfsImportRolledBack": "インポート失敗 — データはインポート前の状態に復元されました。({cause})",
   "errLfsKnownHostsTooLarge": "known_hosts エントリが大きすぎます ({sizeMb} MB)。上限は {limitMb} MB です。インポートの応答性を保つため中止しました。",

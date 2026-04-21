@@ -1478,6 +1478,10 @@ class SDe extends S {
       'Falsches Master-Passwort oder beschädigtes .lfs-Archiv';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'Archiv ist unvollständig. Erneut herunterladen oder vom Originalgerät neu exportieren.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Archiv ist zu groß ($sizeMb MB). Das Limit beträgt $limitMb MB – Abbruch vor der Entschlüsselung zum Schutz des Speichers.';
   }

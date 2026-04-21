@@ -1468,6 +1468,10 @@ class STr extends S {
       'Yanlış ana parola veya bozulmuş .lfs arşivi';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'Arşiv eksik. Yeniden indirin veya orijinal cihazdan yeniden dışa aktarın.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'Arşiv çok büyük ($sizeMb MB). Sınır $limitMb MB — belleği korumak için şifre çözme öncesi iptal edildi.';
   }

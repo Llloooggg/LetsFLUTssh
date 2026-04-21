@@ -1414,6 +1414,10 @@ class SKo extends S {
   String get errLfsDecryptFailed => '마스터 비밀번호가 잘못되었거나 .lfs 아카이브가 손상되었습니다';
 
   @override
+  String get errLfsArchiveTruncated =>
+      '아카이브가 불완전합니다. 다시 다운로드하거나 원본 장치에서 다시 내보내세요.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return '아카이브가 너무 큽니다 ($sizeMb MB). 제한은 $limitMb MB이며, 메모리 보호를 위해 복호화 전에 중단되었습니다.';
   }

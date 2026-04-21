@@ -1480,6 +1480,10 @@ class SFr extends S {
       'Mot de passe maître incorrect ou archive .lfs corrompue';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'L\'archive est incomplète. Retéléchargez-la ou réexportez-la depuis l\'appareil d\'origine.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'L\'archive est trop volumineuse ($sizeMb Mo). La limite est de $limitMb Mo — interrompu avant le déchiffrement pour protéger la mémoire.';
   }

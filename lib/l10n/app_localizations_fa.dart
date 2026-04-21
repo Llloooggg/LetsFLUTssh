@@ -1456,6 +1456,10 @@ class SFa extends S {
   String get errLfsDecryptFailed => 'رمز اصلی اشتباه یا بایگانی .lfs خراب';
 
   @override
+  String get errLfsArchiveTruncated =>
+      'بایگانی ناقص است. دوباره دانلود کنید یا از دستگاه اصلی دوباره صادر کنید.';
+
+  @override
   String errLfsArchiveTooLarge(String sizeMb, String limitMb) {
     return 'بایگانی بسیار بزرگ است ($sizeMb مگابایت). محدودیت $limitMb مگابایت است — برای محافظت از حافظه، پیش از رمزگشایی لغو شد.';
   }
