@@ -179,8 +179,17 @@ enum HardwareProbeDetail {
 final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
   ref,
 ) async {
+  // Derive from the cached capability snapshot instead of running a
+  // second deep probe. `securityCapabilitiesProvider` already ran
+  // `hardwareVault.probeDetail` (Windows / macOS / iOS / Android) and
+  // stashed the raw code string on `caps.hardwareProbeCode`; Linux
+  // drops through that path with `'unknown'` because the TPM probe
+  // lives in `TpmClient` at this layer. One deep probe per session
+  // instead of three (capabilities + hardware-detail + keyring-detail
+  // each used to trigger their own round-trip, and the Windows
+  // createprimary + macOS SE probe each take hundreds of ms — Settings
+  // visibly hung on open while they ran in series).
   final caps = await ref.watch(securityCapabilitiesProvider.future);
-  if (caps.hardwareVaultAvailable) return HardwareProbeDetail.available;
   if (Platform.isLinux) {
     final result = await TpmClient().probe();
     switch (result) {
@@ -196,9 +205,7 @@ final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
         return HardwareProbeDetail.generic;
     }
   }
-  // Windows / macOS / iOS / Android: delegate to the native plugin.
-  final code = await ref.read(hardwareTierVaultProvider).probeDetail();
-  return decodeHardwareProbeCode(code);
+  return decodeHardwareProbeCode(caps.hardwareProbeCode);
 });
 
 /// Map an opaque native probe code to the typed [HardwareProbeDetail].
@@ -250,7 +257,15 @@ HardwareProbeDetail decodeHardwareProbeCode(String code) {
 final keyringProbeDetailProvider = FutureProvider<KeyringProbeResult>((
   ref,
 ) async {
-  return ref.read(secureKeyStorageProvider).probe();
+  // Same "derive from the capability snapshot" dance as
+  // `hardwareProbeDetailProvider`: `securityCapabilitiesProvider`
+  // already ran `SecureKeyStorage.probe` and stashed the classified
+  // result. Re-running it here doubled the keychain write-read-delete
+  // round-trip on every Settings open, which visibly hung on macOS
+  // ad-hoc bundles where the keychain retries before returning
+  // `errSecMissingEntitlement`.
+  final caps = await ref.watch(securityCapabilitiesProvider.future);
+  return caps.keychainProbe;
 });
 
 /// Resolve the localised user-facing copy for a [KeyringProbeResult].

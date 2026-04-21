@@ -118,9 +118,15 @@ Future<SecurityCapabilities> probeCapabilities({
     }
   }
 
+  // Single probe per capability — deep probes are expensive (real
+  // SE / Keystore / TPM round-trip) so every duplicate call shows
+  // up as a UI stutter when Settings opens. `hardwareVault.probeDetail`
+  // already runs the same round-trip as `hardwareVault.isAvailable`,
+  // so we skip the separate `isAvailable` call and derive the bool
+  // from the reason code; same trick for keychain, where `probe()`
+  // returns a classified enum and the bool is "probe says available".
   final results = await Future.wait<Object>([
     safely(keyStorage.probe, KeyringProbeResult.probeFailed),
-    safely(hardwareVault.isAvailable, false),
     safely(() async {
       final res = await bio.availability();
       return res == null;
@@ -141,14 +147,15 @@ Future<SecurityCapabilities> probeCapabilities({
   ]);
 
   final keyringProbe = results[0] as KeyringProbeResult;
+  final hardwareCode = results[3] as String;
   return SecurityCapabilities(
     keychainAvailable: keyringProbe == KeyringProbeResult.available,
-    hardwareVaultAvailable: results[1] as bool,
-    biometricAvailable: results[2] as bool,
-    fprintdAvailable: results[3] as bool,
+    hardwareVaultAvailable: hardwareCode == 'available',
+    biometricAvailable: results[1] as bool,
+    fprintdAvailable: results[2] as bool,
     isLinuxHost: linux,
     keychainProbe: keyringProbe,
-    hardwareProbeCode: results[4] as String,
+    hardwareProbeCode: hardwareCode,
   );
 }
 
