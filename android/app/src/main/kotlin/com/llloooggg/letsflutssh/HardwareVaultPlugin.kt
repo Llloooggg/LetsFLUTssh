@@ -104,7 +104,64 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
     private fun isAvailable(): Boolean {
         val bm = BiometricManager.from(activity)
         val status = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-        return status == BiometricManager.BIOMETRIC_SUCCESS
+        if (status != BiometricManager.BIOMETRIC_SUCCESS) return false
+        // `canAuthenticate` only covers the biometric half; the
+        // Keystore half can still reject with
+        // `KeyStoreException.UNKNOWN_ERROR` (custom ROMs that strip
+        // TEE, some emulators, corrupted Keystore state). Do a real
+        // write round-trip: generate a throw-away AES key under a
+        // scratch alias, delete it, return true iff both operations
+        // succeeded. No biometric prompt is raised because the probe
+        // key omits `setUserAuthenticationRequired`.
+        return probeRealKeystoreWrite()
+    }
+
+    /**
+     * Throw-away Keystore key round-trip. Creates + deletes a
+     * single-purpose AES-256 entry under a scratch alias so a host
+     * where `BiometricManager.canAuthenticate` reports success but
+     * `AndroidKeyStore` cannot actually materialise a StrongBox /
+     * TEE-backed key surfaces as unavailable here, not as a silent
+     * drop later when the real `store()` call fires. StrongBox is
+     * preferred; on
+     * `StrongBoxUnavailableException` the TEE path is attempted
+     * second before giving up.
+     */
+    private fun probeRealKeystoreWrite(): Boolean {
+        val probeAlias = "letsflutssh_hw_vault_probe"
+        val ks = try {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        } catch (_: Throwable) {
+            return false
+        }
+        // Clean up a stale probe key left over from an earlier
+        // interrupted probe so the new attempt starts from scratch.
+        runCatching { if (ks.containsAlias(probeAlias)) ks.deleteEntry(probeAlias) }
+        val kg = try {
+            KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        } catch (_: Throwable) {
+            return false
+        }
+        fun attemptWith(strongBox: Boolean): Boolean {
+            val builder = KeyGenParameterSpec.Builder(
+                probeAlias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+            if (strongBox) builder.setIsStrongBoxBacked(true)
+            return try {
+                kg.init(builder.build())
+                kg.generateKey()
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
+        val ok = attemptWith(strongBox = true) || attemptWith(strongBox = false)
+        runCatching { if (ks.containsAlias(probeAlias)) ks.deleteEntry(probeAlias) }
+        return ok
     }
 
     /**
@@ -132,14 +189,25 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
      */
     private fun probeDetail(): String {
         val bm = BiometricManager.from(activity)
-        return when (bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
-            BiometricManager.BIOMETRIC_SUCCESS -> "available"
-            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "androidBiometricNone"
-            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "androidBiometricNotEnrolled"
-            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "androidBiometricUnavailable"
-            BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "androidBiometricUnavailable"
-            else -> "androidGeneric"
+        val bioStatus =
+            bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+        if (bioStatus != BiometricManager.BIOMETRIC_SUCCESS) {
+            return when (bioStatus) {
+                BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "androidBiometricNone"
+                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "androidBiometricNotEnrolled"
+                BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "androidBiometricUnavailable"
+                BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "androidBiometricUnavailable"
+                else -> "androidGeneric"
+            }
         }
+        // Biometric half passed — run the real Keystore write probe
+        // so `probeDetail` and `isAvailable` agree on availability.
+        // A Keystore that refuses to back a key surfaces as
+        // `androidGeneric` (no narrower code: the failure can be any
+        // of StrongBoxUnavailable, UnknownError, or a driver glitch,
+        // none of which are actionable for the user beyond "use a
+        // different tier").
+        return if (probeRealKeystoreWrite()) "available" else "androidGeneric"
     }
 
     /** "hardware_strongbox", "hardware_tee", or "software". */

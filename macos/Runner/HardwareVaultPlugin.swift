@@ -75,18 +75,79 @@ final class HardwareVaultPlugin: NSObject {
     // Silent primary key — passcode-only policy is enough, biometric
     // Touch ID on Mac is an optional modifier overlay handled
     // separately.
+    //
+    // `canEvaluatePolicy` + `SecAccessControlCreateWithFlags` only
+    // verify that SE hardware is present and the API surface exists;
+    // they don't detect the signing-identity rejection that happens
+    // on ad-hoc-signed bundles (`errSecMissingEntitlement` / -34018).
+    // Do a real write probe at the end: create a short-lived SE
+    // private key under a scratch tag, delete it immediately. The
+    // SE materialises the key lazily on first use, so the round-trip
+    // is the only way to catch identity-based rejection short of
+    // invoking `store` on real user data.
     let ctx = LAContext()
     var err: NSError?
     let canEval = ctx.canEvaluatePolicy(
       .deviceOwnerAuthentication, error: &err
     )
     guard canEval else { return false }
-    return SecAccessControlCreateWithFlags(
+    guard SecAccessControlCreateWithFlags(
       nil,
       kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
       [.privateKeyUsage],
       nil
-    ) != nil
+    ) != nil else { return false }
+    return probeRealSecureEnclaveWrite()
+  }
+
+  /// Actual Secure Enclave write round-trip. Creates a throw-away
+  /// P-256 key under `kSecAttrTokenIDSecureEnclave`, deletes it,
+  /// returns true on success. Failure covers every case where the
+  /// `isAvailable` shallow check would have lied — missing signing
+  /// identity, corrupted SE state, entitlement rejection. Deletion
+  /// is best-effort: a leftover probe key would be garbage-collected
+  /// by the OS on next reboot and does not gate any user data.
+  private func probeRealSecureEnclaveWrite() -> Bool {
+    let probeTag = "com.letsflutssh.hw_vault.probe"
+    guard let ac = SecAccessControlCreateWithFlags(
+      nil,
+      kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+      [.privateKeyUsage],
+      nil
+    ) else { return false }
+    let attrs: [String: Any] = [
+      kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+      kSecAttrKeySizeInBits as String: 256,
+      kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
+      kSecPrivateKeyAttrs as String: [
+        kSecAttrIsPermanent as String: true,
+        kSecAttrApplicationTag as String:
+          probeTag.data(using: .utf8) as Any,
+        kSecAttrAccessControl as String: ac,
+      ] as [String: Any],
+    ]
+    var createErr: Unmanaged<CFError>?
+    guard let key = SecKeyCreateRandomKey(attrs as CFDictionary, &createErr)
+    else {
+      // The CFError here is where `errSecMissingEntitlement` (-34018)
+      // actually surfaces on ad-hoc bundles. No logging — the
+      // classifier in `probeDetail` is what surfaces the reason to
+      // the user; this method only answers true / false.
+      return false
+    }
+    // Drop the probe key immediately. The macOS Security framework
+    // deletes it by matching on the application tag.
+    let delQuery: [String: Any] = [
+      kSecClass as String: kSecClassKey,
+      kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+      kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
+      kSecAttrApplicationTag as String:
+        probeTag.data(using: .utf8) as Any,
+    ]
+    _ = SecItemDelete(delQuery as CFDictionary)
+    // Reference `key` so ARC holds it past the delete call.
+    _ = key
+    return true
   }
 
   private func backingLevel() -> String {
@@ -119,7 +180,16 @@ final class HardwareVaultPlugin: NSObject {
         [.privateKeyUsage],
         nil
       ) != nil {
-        return "available"
+        // Real Secure Enclave write round-trip — the shallow checks
+        // above both pass on ad-hoc-signed bundles that the SE will
+        // then reject with `errSecMissingEntitlement` (-34018) on the
+        // first actual key create. Probe it once so the wizard does
+        // not show T2 as "available" only to silent-drop to T0 when
+        // the user picks it.
+        if probeRealSecureEnclaveWrite() {
+          return "available"
+        }
+        return "macosGeneric"
       }
       return "macosGeneric"
     }

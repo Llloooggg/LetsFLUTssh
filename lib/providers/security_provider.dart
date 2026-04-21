@@ -181,14 +181,14 @@ final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
   }
   // Windows / macOS / iOS / Android: delegate to the native plugin.
   final code = await ref.read(hardwareTierVaultProvider).probeDetail();
-  return _decodeHardwareProbeCode(code);
+  return decodeHardwareProbeCode(code);
 });
 
 /// Map an opaque native probe code to the typed [HardwareProbeDetail].
 /// Unknown codes fall through to [HardwareProbeDetail.generic] so a
 /// plugin that adds a new reason ahead of the Dart enum degrades to the
 /// generic copy instead of crashing the Settings screen.
-HardwareProbeDetail _decodeHardwareProbeCode(String code) {
+HardwareProbeDetail decodeHardwareProbeCode(String code) {
   switch (code) {
     case 'available':
       return HardwareProbeDetail.available;

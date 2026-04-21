@@ -38,12 +38,30 @@ class SecurityCapabilities {
   /// note when the user picks T2 without the password modifier.
   final bool isLinuxHost;
 
+  /// Classified outcome of [SecureKeyStorage.probe] — the enum the
+  /// Dart layer uses to map to localised "why the keyring is
+  /// unavailable" copy. `available` on healthy hosts. Populated
+  /// alongside [keychainAvailable] so the wizard can render a
+  /// specific reason instead of a generic "unavailable" string.
+  final KeyringProbeResult keychainProbe;
+
+  /// Raw platform-specific hardware-vault detail code (the string
+  /// returned by `HardwareTierVault.probeDetail()` on Android /
+  /// iOS / macOS / Windows, or the TPM-CLI outcome on Linux mapped
+  /// into the same shape). `available` on healthy hosts, `unknown`
+  /// when the native probe is unreachable. Wizard / Settings UI map
+  /// this to the `HardwareProbeDetail` enum + localised copy via
+  /// `hardwareProbeDetailText`.
+  final String hardwareProbeCode;
+
   const SecurityCapabilities({
     this.keychainAvailable = false,
     this.hardwareVaultAvailable = false,
     this.biometricAvailable = false,
     this.fprintdAvailable = false,
     this.isLinuxHost = false,
+    this.keychainProbe = KeyringProbeResult.probeFailed,
+    this.hardwareProbeCode = 'unknown',
   });
 
   SecurityCapabilities copyWith({
@@ -52,6 +70,8 @@ class SecurityCapabilities {
     bool? biometricAvailable,
     bool? fprintdAvailable,
     bool? isLinuxHost,
+    KeyringProbeResult? keychainProbe,
+    String? hardwareProbeCode,
   }) {
     return SecurityCapabilities(
       keychainAvailable: keychainAvailable ?? this.keychainAvailable,
@@ -60,6 +80,8 @@ class SecurityCapabilities {
       biometricAvailable: biometricAvailable ?? this.biometricAvailable,
       fprintdAvailable: fprintdAvailable ?? this.fprintdAvailable,
       isLinuxHost: isLinuxHost ?? this.isLinuxHost,
+      keychainProbe: keychainProbe ?? this.keychainProbe,
+      hardwareProbeCode: hardwareProbeCode ?? this.hardwareProbeCode,
     );
   }
 
@@ -97,7 +119,7 @@ Future<SecurityCapabilities> probeCapabilities({
   }
 
   final results = await Future.wait<Object>([
-    safely(keyStorage.isAvailable, false),
+    safely(keyStorage.probe, KeyringProbeResult.probeFailed),
     safely(hardwareVault.isAvailable, false),
     safely(() async {
       final res = await bio.availability();
@@ -109,14 +131,24 @@ Future<SecurityCapabilities> probeCapabilities({
             return hash != null && hash.isNotEmpty;
           }, false)
         : Future.value(false),
+    // Raw platform-specific hardware-vault reason code. Carried as a
+    // string so `core/security` does not need to import the
+    // `HardwareProbeDetail` enum from the providers layer (which
+    // would invert the dependency direction); the wizard + Settings
+    // code at the widgets/providers layer map the code back to an
+    // enum + localised reason copy.
+    safely(hardwareVault.probeDetail, 'unknown'),
   ]);
 
+  final keyringProbe = results[0] as KeyringProbeResult;
   return SecurityCapabilities(
-    keychainAvailable: results[0] as bool,
+    keychainAvailable: keyringProbe == KeyringProbeResult.available,
     hardwareVaultAvailable: results[1] as bool,
     biometricAvailable: results[2] as bool,
     fprintdAvailable: results[3] as bool,
     isLinuxHost: linux,
+    keychainProbe: keyringProbe,
+    hardwareProbeCode: results[4] as String,
   );
 }
 

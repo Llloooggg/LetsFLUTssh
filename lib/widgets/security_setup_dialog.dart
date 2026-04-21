@@ -7,6 +7,11 @@ import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/security_provider.dart'
+    show
+        hardwareProbeDetailText,
+        keyringProbeDetailText,
+        decodeHardwareProbeCode;
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'password_strength_meter.dart';
@@ -381,9 +386,25 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
                 widget.currentTier == SecurityTier.keychain ||
                 widget.currentTier == SecurityTier.keychainWithPassword,
             recommended: _recommendedTier(caps) == WizardTier.keychain,
+            // Prefer the classified probe reason over the generic
+            // "tierKeychainUnavailable" copy so the user sees WHY
+            // the row is greyed (no secret-service on Linux, ad-hoc
+            // signing entitlement error on macOS, etc.). Fall back
+            // to the generic string when the probe classifier
+            // returns `available` yet some earlier gate still said
+            // unavailable — defensive, should not happen in
+            // practice.
             disabledReason: caps.keychainAvailable
                 ? null
-                : l10n.tierKeychainUnavailable,
+                : () {
+                    final reason = keyringProbeDetailText(
+                      l10n,
+                      caps.keychainProbe,
+                    );
+                    return reason.isEmpty
+                        ? l10n.tierKeychainUnavailable
+                        : reason;
+                  }(),
             onSelect: caps.keychainAvailable
                 ? () => setState(() => _selected = WizardTier.keychain)
                 : null,
@@ -397,9 +418,25 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             selected: _selected == WizardTier.hardware,
             current: widget.currentTier == SecurityTier.hardware,
             recommended: _recommendedTier(caps) == WizardTier.hardware,
+            // Same "prefer classified reason over generic copy"
+            // pattern as the T1 row. The raw code comes from the
+            // native `HardwareTierVault.probeDetail` channel or
+            // from the Linux TPM CLI wrapper; `decodeHardwareProbeCode`
+            // maps it to the `HardwareProbeDetail` enum and the
+            // existing `hardwareProbeDetailText` helper supplies the
+            // localised string. Unknown / missing codes fall through
+            // to the generic "unavailable" copy.
             disabledReason: caps.hardwareVaultAvailable
                 ? null
-                : l10n.tierHardwareUnavailable,
+                : () {
+                    final detail = decodeHardwareProbeCode(
+                      caps.hardwareProbeCode,
+                    );
+                    final reason = hardwareProbeDetailText(l10n, detail);
+                    return reason.isEmpty
+                        ? l10n.tierHardwareUnavailable
+                        : reason;
+                  }(),
             onSelect: caps.hardwareVaultAvailable
                 ? () => setState(() {
                     _selected = WizardTier.hardware;

@@ -89,21 +89,68 @@ final class HardwareVaultPlugin: NSObject {
     // the primary SE key no longer gates on biometric — a device
     // without Face / Touch ID but with a passcode can still use T2.
     // The biometric modifier overlay has its own separate probe.
+    //
+    // The shallow `canEvaluatePolicy` + `SecAccessControlCreateWithFlags`
+    // checks only verify SE hardware + API availability; they don't
+    // catch the signing-identity rejection that can surface on an
+    // ad-hoc-signed build. Close the gap with a real SE key create /
+    // delete round-trip — mirrors the macOS plugin.
     let ctx = LAContext()
     var err: NSError?
     let canEval = ctx.canEvaluatePolicy(
       .deviceOwnerAuthentication, error: &err
     )
     guard canEval else { return false }
-    // Sanity check: ensure the device is SEP-capable by attempting a
-    // lightweight access-control build. Failure here means the API
-    // path is not usable (Simulator, old hardware).
-    return SecAccessControlCreateWithFlags(
+    guard SecAccessControlCreateWithFlags(
       nil,
       kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
       [.privateKeyUsage],
       nil
-    ) != nil
+    ) != nil else { return false }
+    return probeRealSecureEnclaveWrite()
+  }
+
+  /// Actual Secure Enclave write round-trip — creates a throw-away
+  /// P-256 key under a scratch tag, deletes it, returns true on
+  /// success. Covers every case where the shallow `isAvailable`
+  /// would have lied (missing entitlement on ad-hoc, corrupt SEP
+  /// state, kernel refusal). Deletion is best-effort: a leftover
+  /// probe key sits outside any user-data path and is collected by
+  /// the OS on next reboot if the delete call misses.
+  private func probeRealSecureEnclaveWrite() -> Bool {
+    let probeTag = "com.letsflutssh.hw_vault.probe"
+    guard let ac = SecAccessControlCreateWithFlags(
+      nil,
+      kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+      [.privateKeyUsage],
+      nil
+    ) else { return false }
+    let attrs: [String: Any] = [
+      kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+      kSecAttrKeySizeInBits as String: 256,
+      kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
+      kSecPrivateKeyAttrs as String: [
+        kSecAttrIsPermanent as String: true,
+        kSecAttrApplicationTag as String:
+          probeTag.data(using: .utf8) as Any,
+        kSecAttrAccessControl as String: ac,
+      ] as [String: Any],
+    ]
+    var createErr: Unmanaged<CFError>?
+    guard let key = SecKeyCreateRandomKey(attrs as CFDictionary, &createErr)
+    else {
+      return false
+    }
+    let delQuery: [String: Any] = [
+      kSecClass as String: kSecClassKey,
+      kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+      kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
+      kSecAttrApplicationTag as String:
+        probeTag.data(using: .utf8) as Any,
+    ]
+    _ = SecItemDelete(delQuery as CFDictionary)
+    _ = key
+    return true
   }
 
   private func backingLevel() -> String {
@@ -135,7 +182,18 @@ final class HardwareVaultPlugin: NSObject {
         [.privateKeyUsage],
         nil
       ) != nil {
-        return "available"
+        // Deep probe — matches `isAvailable` so the two methods
+        // agree on availability. A shallow "available" here would
+        // let the wizard offer T2 on a host where the real SE
+        // create would fail (ad-hoc signing, corrupt SEP).
+        if probeRealSecureEnclaveWrite() {
+          return "available"
+        }
+        #if targetEnvironment(simulator)
+        return "iosSimulator"
+        #else
+        return "iosGeneric"
+        #endif
       }
       #if targetEnvironment(simulator)
       return "iosSimulator"

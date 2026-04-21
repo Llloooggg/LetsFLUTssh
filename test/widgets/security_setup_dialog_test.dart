@@ -140,18 +140,34 @@ void main() {
     testWidgets('T1 row disabled-subtitle text when keychain missing', (
       tester,
     ) async {
+      // Default `SecurityCapabilities.keychainProbe` is
+      // `KeyringProbeResult.probeFailed` (the classified fallback
+      // when no probe ran); the wizard prefers that classified copy
+      // over the generic `tierKeychainUnavailable` string. If a
+      // platform ever classifies the failure more specifically the
+      // test fixture's `keychainProbe` override keeps this expectation
+      // narrow.
       await openDialog(tester, caps: noKeychain);
       final context = tester.element(find.byType(SecuritySetupDialog));
-      expect(find.text(S.of(context).tierKeychainUnavailable), findsOneWidget);
+      expect(find.text(S.of(context).keyringProbeFailed), findsOneWidget);
     });
 
     testWidgets(
       'T2 row disabled-subtitle text when hardware vault unavailable',
       (tester) async {
+        // Same reasoning as the T1 test above: the default
+        // `hardwareProbeCode` is `'unknown'`, which
+        // `decodeHardwareProbeCode` maps to `HardwareProbeDetail.generic`
+        // and `hardwareProbeDetailText` maps to
+        // `firstLaunchSecurityHardwareUnavailableGeneric`. The
+        // classified copy is preferred over the generic
+        // `tierHardwareUnavailable` string.
         await openDialog(tester, caps: noHardware);
         final context = tester.element(find.byType(SecuritySetupDialog));
         expect(
-          find.text(S.of(context).tierHardwareUnavailable),
+          find.text(
+            S.of(context).firstLaunchSecurityHardwareUnavailableGeneric,
+          ),
           findsOneWidget,
         );
       },
