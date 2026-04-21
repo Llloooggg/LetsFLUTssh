@@ -143,11 +143,15 @@ final class HardwareVaultPlugin: NSObject {
       return "iosGeneric"
       #endif
     }
-    guard let laErr = err as? LAError ?? (err.flatMap { LAError(_nsError: $0 as NSError) }) else {
+    // Integer code check against LAErrorDomain — the Swift
+    // `LAError(_nsError:)` initialiser is internal and varies across
+    // SDK releases; the NSError code on the LAErrorDomain is the
+    // stable wire contract.
+    guard let nsErr = err, nsErr.domain == LAErrorDomain else {
       return "iosGeneric"
     }
-    switch laErr.code {
-    case .passcodeNotSet:
+    switch LAError.Code(rawValue: nsErr.code) {
+    case .some(.passcodeNotSet):
       return "iosPasscodeNotSet"
     default:
       return "iosGeneric"

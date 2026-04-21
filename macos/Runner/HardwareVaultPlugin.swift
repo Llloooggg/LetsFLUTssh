@@ -123,13 +123,17 @@ final class HardwareVaultPlugin: NSObject {
       }
       return "macosGeneric"
     }
-    guard let laErr = err as? LAError ?? (err.flatMap { LAError(_nsError: $0 as NSError) }) else {
+    // Classify via the NSError code against LAError.Code rather than
+    // the Swift bridge — the `_nsError:` initialiser on LAError is
+    // internal API and varies across SDK releases. Integer codes are
+    // stable on the LAErrorDomain wire protocol.
+    guard let nsErr = err, nsErr.domain == LAErrorDomain else {
       return "macosGeneric"
     }
-    switch laErr.code {
-    case .passcodeNotSet:
+    switch LAError.Code(rawValue: nsErr.code) {
+    case .some(.passcodeNotSet):
       return "macosPasscodeNotSet"
-    case .biometryNotAvailable, .touchIDNotAvailable:
+    case .some(.biometryNotAvailable), .some(.touchIDNotAvailable):
       // Intel Mac with no T2, or macOS that explicitly reports biometric
       // hardware missing. `.deviceOwnerAuthentication` falling through to
       // `biometryNotAvailable` without a passcode also signals no SE.
