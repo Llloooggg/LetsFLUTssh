@@ -36,7 +36,7 @@ import 'widgets/security_setup_dialog.dart';
 import 'widgets/tier_secret_unlock_dialog.dart';
 import 'widgets/unlock_dialog.dart';
 import 'widgets/db_corrupt_dialog.dart';
-import 'widgets/first_launch_security_dialog.dart';
+import 'widgets/first_launch_security_toast.dart';
 import 'widgets/legacy_kdf_dialog.dart';
 import 'widgets/tier_reset_dialog.dart';
 import 'core/security/hardware_tier_vault.dart';
@@ -1377,7 +1377,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = navigatorKey.currentContext;
         if (ctx == null || !ctx.mounted) return;
-        FirstLaunchSecurityDialog.show(
+        // Top-right toast — the auto-selected tier is a safe default
+        // the app already landed on, so a blocking modal would be
+        // out of scale for what the user has to do (nothing). The
+        // toast surfaces the same copy + the upgrade path when T2
+        // is within reach, and auto-dismisses on a timer. The
+        // reduced-wizard path (both keychain + hardware out of
+        // reach) still routes through the full SecuritySetupDialog
+        // modal — that is a real decision the user has to make.
+        FirstLaunchSecurityToast.show(
           ctx,
           data: next,
           onOpenSettings: () {
@@ -1389,11 +1397,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               SettingsDialog.show(inner);
             }
           },
-        ).whenComplete(() {
-          if (mounted) {
-            ref.read(firstLaunchBannerProvider.notifier).set(null);
-          }
-        });
+          onDismiss: () {
+            if (mounted) {
+              ref.read(firstLaunchBannerProvider.notifier).set(null);
+            }
+          },
+        );
       });
     }, fireImmediately: true);
   }

@@ -2578,6 +2578,16 @@ class SEs extends S {
       'Equipo apagado con la unidad extraída y leída en otro ordenador, o una copia del archivo de la base de datos hecha por alguien con acceso a tu carpeta personal.';
 
   @override
+  String get threatKeyringFileTheft => 'Robo del archivo keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Un atacante lee el archivo del almacén de credenciales del sistema directamente del disco (libsecret keyring, Credential Manager de Windows, login keychain de macOS) y recupera de él la clave de la base de datos envuelta. El nivel de hardware lo bloquea con independencia de la contraseña porque el chip se niega a exportar el material de clave; el nivel de keychain necesita además una contraseña, de lo contrario el archivo robado se desenvuelve con la sola contraseña de inicio de sesión del SO.';
+
+  @override
+  String get modifierOnlyWithPassword => 'solo con contraseña';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Curioso frente a un equipo desbloqueado';
 

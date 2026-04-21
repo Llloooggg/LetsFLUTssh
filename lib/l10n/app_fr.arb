@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Cet appareil n'a pas de matériel biométrique (empreinte ou visage). Utilisez le mot de passe maître.",
   "hwProbeAndroidBiometricNotEnrolled": "Aucune biométrie enregistrée. Ajoutez une empreinte ou un visage dans Paramètres → Sécurité et confidentialité → Biométrie, puis réactivez le niveau matériel.",
   "hwProbeAndroidBiometricUnavailable": "Matériel biométrique temporairement inutilisable (verrouillage après échecs ou mise à jour de sécurité en attente). Réessayez dans quelques minutes.",
-  "keyringProbeLinuxWsl": "Exécution dans WSL — aucun keyring daemon accessible depuis un conteneur Windows Subsystem for Linux. Utilisez le mot de passe maître, ou lancez l'app dans une session Linux native avec gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "Pas de bus de session D-Bus — l'app tourne dans une session headless ou SSH uniquement. Démarrez une session graphique, ou exportez DBUS_SESSION_BUS_ADDRESS avant de lancer.",
   "keyringProbeLinuxNoSecretService": "D-Bus fonctionne mais aucun secret-service daemon n'est actif. Installez gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager et assurez-vous qu'il démarre à la connexion.",
   "keyringProbeFailed": "Le trousseau de l'OS n'est pas accessible sur cet appareil. Voir les logs pour l'erreur plateforme spécifique ; l'app bascule vers le mot de passe maître.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Vol de disque éteint",
   "threatColdDiskTheftDescription": "Machine éteinte dont le disque est retiré et lu sur un autre ordinateur, ou copie du fichier de base de données prise par quelqu'un ayant accès à votre dossier personnel.",
+  "threatKeyringFileTheft": "Vol du fichier keyring / keychain",
+  "threatKeyringFileTheftDescription": "Un attaquant lit directement le fichier du magasin d'identifiants de la plateforme depuis le disque (libsecret keyring, Credential Manager Windows, login keychain macOS) et en extrait la clé de base de données encapsulée. Le niveau matériel bloque cela indépendamment du mot de passe car la puce refuse d'exporter le matériel de clé ; le niveau keychain nécessite en plus un mot de passe, sinon le fichier volé se déchiffre avec le seul mot de passe de connexion du système.",
+  "modifierOnlyWithPassword": "uniquement avec mot de passe",
   "threatBystanderUnlockedMachine": "Témoin devant une machine déverrouillée",
   "threatBystanderUnlockedMachineDescription": "Quelqu'un s'approche de votre ordinateur déjà déverrouillé et ouvre l'application pendant que vous êtes absent.",
   "threatSameUserMalware": "Logiciel malveillant dans le même compte",

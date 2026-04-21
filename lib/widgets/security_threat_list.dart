@@ -88,6 +88,10 @@ String threatTitle(SecurityThreat threat, S l10n) {
   switch (threat) {
     case SecurityThreat.coldDiskTheft:
       return l10n.threatColdDiskTheft;
+    case SecurityThreat.keyringFileTheft:
+      return l10n.threatKeyringFileTheft;
+    case SecurityThreat.offlineBruteForce:
+      return l10n.threatOfflineBruteForce;
     case SecurityThreat.bystanderUnlockedMachine:
       return l10n.threatBystanderUnlockedMachine;
     case SecurityThreat.sameUserMalware:
@@ -98,8 +102,6 @@ String threatTitle(SecurityThreat threat, S l10n) {
       return l10n.threatLiveRamForensicsLocked;
     case SecurityThreat.osKernelOrKeychainBreach:
       return l10n.threatOsKernelOrKeychainBreach;
-    case SecurityThreat.offlineBruteForce:
-      return l10n.threatOfflineBruteForce;
   }
 }
 
@@ -109,6 +111,10 @@ String threatDescription(SecurityThreat threat, S l10n) {
   switch (threat) {
     case SecurityThreat.coldDiskTheft:
       return l10n.threatColdDiskTheftDescription;
+    case SecurityThreat.keyringFileTheft:
+      return l10n.threatKeyringFileTheftDescription;
+    case SecurityThreat.offlineBruteForce:
+      return l10n.threatOfflineBruteForceDescription;
     case SecurityThreat.bystanderUnlockedMachine:
       return l10n.threatBystanderUnlockedMachineDescription;
     case SecurityThreat.sameUserMalware:
@@ -119,7 +125,5 @@ String threatDescription(SecurityThreat threat, S l10n) {
       return l10n.threatLiveRamForensicsLockedDescription;
     case SecurityThreat.osKernelOrKeychainBreach:
       return l10n.threatOsKernelOrKeychainBreachDescription;
-    case SecurityThreat.offlineBruteForce:
-      return l10n.threatOfflineBruteForceDescription;
   }
 }

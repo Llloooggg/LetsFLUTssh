@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "لا يحتوي هذا الجهاز على أجهزة بيومترية (بصمة أو وجه). استخدم كلمة المرور الرئيسية.",
   "hwProbeAndroidBiometricNotEnrolled": "لا توجد بصمة مسجلة. أضف بصمة أو وجهًا في الإعدادات ← الأمان والخصوصية ← المقاييس الحيوية، ثم أعد تمكين المستوى العتادي.",
   "hwProbeAndroidBiometricUnavailable": "الأجهزة البيومترية غير قابلة للاستخدام مؤقتًا (قفل بعد محاولات فاشلة أو تحديث أمني معلق). أعد المحاولة بعد بضع دقائق.",
-  "keyringProbeLinuxWsl": "يعمل على WSL — لا يمكن الوصول إلى keyring daemon من حاوية Windows Subsystem for Linux. استخدم كلمة المرور الرئيسية، أو شغّل التطبيق في جلسة Linux أصلية مع gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "لا يوجد D-Bus session bus — يعمل التطبيق في جلسة بدون واجهة رسومية أو SSH فقط. ابدأ جلسة تسجيل دخول رسومية، أو صدّر DBUS_SESSION_BUS_ADDRESS قبل التشغيل.",
   "keyringProbeLinuxNoSecretService": "D-Bus يعمل ولكن لا يوجد secret-service daemon قيد التشغيل. ثبّت gnome-keyring (`sudo apt install gnome-keyring`) أو KWalletManager وتأكد من بدء تشغيله عند تسجيل الدخول.",
   "keyringProbeFailed": "لا يمكن الوصول إلى سلسلة مفاتيح نظام التشغيل على هذا الجهاز. راجع السجلات للاطلاع على خطأ المنصة المحدد؛ يعود التطبيق إلى كلمة المرور الرئيسية.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "سرقة القرص أثناء إيقاف التشغيل",
   "threatColdDiskTheftDescription": "جهاز متوقف عن التشغيل يُنزع قرصه ويُقرأ على حاسوب آخر، أو نسخة من ملف قاعدة البيانات أخذها شخص لديه وصول إلى مجلدك الشخصي.",
+  "threatKeyringFileTheft": "سرقة ملف keyring / keychain",
+  "threatKeyringFileTheftDescription": "يقرأ المهاجم ملف مخزن بيانات الاعتماد الخاص بالمنصة مباشرة من القرص (libsecret keyring، Windows Credential Manager، macOS login keychain) ويستعيد منه مفتاح قاعدة البيانات الملفوف. يمنع المستوى العتادي ذلك بصرف النظر عن كلمة المرور لأن الشريحة ترفض تصدير مادة المفتاح؛ ومستوى keychain يحتاج إلى كلمة مرور إضافية وإلا فُتح الملف المسروق بكلمة مرور تسجيل دخول النظام وحدها.",
+  "modifierOnlyWithPassword": "مع كلمة مرور فقط",
   "threatBystanderUnlockedMachine": "متطفّل على جهاز غير مقفول",
   "threatBystanderUnlockedMachineDescription": "يقترب شخص ما من حاسوبك غير المقفول ويفتح التطبيق أثناء غيابك.",
   "threatSameUserMalware": "برمجيات خبيثة بنفس حساب المستخدم",

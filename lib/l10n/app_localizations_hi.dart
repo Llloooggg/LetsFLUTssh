@@ -2550,6 +2550,16 @@ class SHi extends S {
       'बंद मशीन से ड्राइव निकालकर किसी दूसरे कंप्यूटर पर पढ़ी जाए, या आपके होम डायरेक्टरी तक पहुँच रखने वाले किसी व्यक्ति द्वारा डेटाबेस फ़ाइल की नकल ले ली जाए।';
 
   @override
+  String get threatKeyringFileTheft => 'keyring / keychain फ़ाइल चोरी';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'हमलावर प्लेटफ़ॉर्म की क्रेडेंशियल स्टोर फ़ाइल को सीधे डिस्क से पढ़ लेता है (libsecret keyring, Windows Credential Manager, macOS login keychain) और उसमें लिपटी डेटाबेस कुंजी को पुनः प्राप्त कर लेता है। हार्डवेयर स्तर पासवर्ड से स्वतंत्र रूप से इसे रोकता है क्योंकि चिप कुंजी सामग्री निर्यात करने से इनकार करता है; keychain स्तर के लिए अतिरिक्त पासवर्ड आवश्यक है, अन्यथा चोरी की गई फ़ाइल केवल OS लॉगिन पासवर्ड से खोली जा सकती है।';
+
+  @override
+  String get modifierOnlyWithPassword => 'केवल पासवर्ड के साथ';
+
+  @override
   String get threatBystanderUnlockedMachine => 'अनलॉक मशीन पर मौजूद अजनबी';
 
   @override

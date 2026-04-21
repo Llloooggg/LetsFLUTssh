@@ -4485,6 +4485,24 @@ abstract class S {
   /// **'Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.'**
   String get threatColdDiskTheftDescription;
 
+  /// No description provided for @threatKeyringFileTheft.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyring / keychain file exfiltration'**
+  String get threatKeyringFileTheft;
+
+  /// No description provided for @threatKeyringFileTheftDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Attacker reads the platform\'s credential-store file directly off the disk (libsecret keyring, Windows Credential Manager, macOS login keychain) and recovers the wrapped database key from it. The hardware tier defeats this regardless of password because the chip refuses to export key material; the keychain tier needs a password on top so the stolen file cannot be unwrapped by the OS login password alone.'**
+  String get threatKeyringFileTheftDescription;
+
+  /// No description provided for @modifierOnlyWithPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'only with password'**
+  String get modifierOnlyWithPassword;
+
   /// No description provided for @threatBystanderUnlockedMachine.
   ///
   /// In en, this message translates to:

@@ -2545,6 +2545,16 @@ class SFa extends S {
       'دستگاهی که خاموش است، درایو آن بیرون کشیده شده و روی رایانهٔ دیگری خوانده می‌شود، یا رونوشتی از فایل پایگاه داده که کسی با دسترسی به پوشهٔ خانگی شما برداشته است.';
 
   @override
+  String get threatKeyringFileTheft => 'سرقت فایل keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'مهاجم فایل مخزن اعتبارنامه پلتفرم را مستقیماً از دیسک می‌خواند (libsecret keyring، Windows Credential Manager، macOS login keychain) و کلید بسته‌بندی‌شدهٔ پایگاه داده را از آن بازیابی می‌کند. سطح سخت‌افزاری این را بدون توجه به رمز عبور مسدود می‌کند زیرا تراشه از خروج‌دهی مواد کلید سر باز می‌زند؛ سطح keychain به رمز عبور اضافی نیاز دارد و در غیر این صورت فایل دزدیده‌شده تنها با رمز ورود سیستم‌عامل باز می‌شود.';
+
+  @override
+  String get modifierOnlyWithPassword => 'فقط با رمز عبور';
+
+  @override
   String get threatBystanderUnlockedMachine => 'ناظر کنار دستگاه قفل‌گشوده';
 
   @override

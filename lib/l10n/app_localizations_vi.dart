@@ -2538,6 +2538,16 @@ class SVi extends S {
       'Máy đã tắt bị tháo ổ đĩa ra và đọc trên một máy khác, hoặc ai đó có quyền truy cập thư mục cá nhân của bạn sao chép tệp cơ sở dữ liệu.';
 
   @override
+  String get threatKeyringFileTheft => 'Đánh cắp tệp keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Kẻ tấn công đọc trực tiếp tệp kho thông tin xác thực của hệ điều hành từ ổ đĩa (libsecret keyring, Windows Credential Manager, macOS login keychain) và khôi phục khóa cơ sở dữ liệu được gói bên trong. Tầng phần cứng chặn điều này bất kể mật khẩu vì chip từ chối xuất vật liệu khóa; tầng keychain cần thêm mật khẩu, nếu không tệp bị đánh cắp có thể mở chỉ bằng mật khẩu đăng nhập hệ điều hành.';
+
+  @override
+  String get modifierOnlyWithPassword => 'chỉ với mật khẩu';
+
+  @override
   String get threatBystanderUnlockedMachine => 'Người ngoài bên máy đã mở khóa';
 
   @override

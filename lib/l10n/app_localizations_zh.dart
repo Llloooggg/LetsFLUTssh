@@ -2452,6 +2452,16 @@ class SZh extends S {
       '关机后拆下硬盘并在另一台计算机上读取，或者有权访问你主目录的人复制了数据库文件。';
 
   @override
+  String get threatKeyringFileTheft => 'keyring / keychain 文件外泄';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      '攻击者直接从磁盘读取平台的凭据存储文件（libsecret keyring、Windows Credential Manager、macOS login keychain），并从中恢复被包装的数据库密钥。硬件等级无论是否有密码都能阻止此攻击，因为芯片拒绝导出密钥材料；keychain 等级还需要密码，否则仅凭 OS 登录密码即可解包被盗文件。';
+
+  @override
+  String get modifierOnlyWithPassword => '仅在设置密码时';
+
+  @override
   String get threatBystanderUnlockedMachine => '已解锁设备旁的旁观者';
 
   @override

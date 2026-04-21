@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Dieses Gerät hat keine Biometrie-Hardware (Fingerabdruck oder Gesicht). Verwende stattdessen das Master-Passwort.",
   "hwProbeAndroidBiometricNotEnrolled": "Keine Biometrie registriert. Füge einen Fingerabdruck oder Gesicht in Einstellungen → Sicherheit & Datenschutz → Biometrie hinzu, dann aktiviere die Hardware-Stufe erneut.",
   "hwProbeAndroidBiometricUnavailable": "Biometrie-Hardware ist vorübergehend unbrauchbar (Sperre nach fehlgeschlagenen Versuchen oder ausstehendes Sicherheitsupdate). Versuche es in ein paar Minuten erneut.",
-  "keyringProbeLinuxWsl": "Ausführung in WSL — aus einem Windows-Subsystem-for-Linux-Container ist kein Keyring-Daemon erreichbar. Verwende das Master-Passwort, oder starte die App in einer nativen Linux-Sitzung mit gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "Kein D-Bus-Session-Bus — die App läuft in einer Headless- oder SSH-only-Sitzung. Starte eine grafische Anmeldesitzung, oder exportiere DBUS_SESSION_BUS_ADDRESS vor dem Start.",
   "keyringProbeLinuxNoSecretService": "D-Bus läuft, aber kein Secret-Service-Daemon ist aktiv. Installiere gnome-keyring (`sudo apt install gnome-keyring`) oder KWalletManager und stelle sicher, dass es beim Anmelden startet.",
   "keyringProbeFailed": "Der OS-Schlüsselbund ist auf diesem Gerät nicht erreichbar. Plattformspezifischer Fehler siehe Log; die App fällt auf das Master-Passwort zurück.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Diebstahl bei ausgeschaltetem Gerät",
   "threatColdDiskTheftDescription": "Ausgeschalteter Rechner, dessen Laufwerk ausgebaut und an einem anderen Computer gelesen wird, oder eine Kopie der Datenbankdatei, die jemand mit Zugriff auf dein Home-Verzeichnis erstellt hat.",
+  "threatKeyringFileTheft": "Diebstahl der Keyring-/Keychain-Datei",
+  "threatKeyringFileTheftDescription": "Ein Angreifer liest die Anmeldedatenspeicher-Datei der Plattform direkt vom Laufwerk (libsecret-Keyring, Windows Credential Manager, macOS-Login-Keychain) und rekonstruiert daraus den verpackten Datenbankschlüssel. Die Hardware-Stufe wehrt das unabhängig vom Passwort ab, weil der Chip den Export des Schlüsselmaterials verweigert; die Keychain-Stufe braucht zusätzlich ein Passwort, sonst lässt sich die gestohlene Datei mit dem OS-Anmeldepasswort allein entpacken.",
+  "modifierOnlyWithPassword": "nur mit Passwort",
   "threatBystanderUnlockedMachine": "Umstehende an einem entsperrten Gerät",
   "threatBystanderUnlockedMachineDescription": "Jemand tritt an deinen bereits entsperrten Computer und öffnet die App, während du abwesend bist.",
   "threatSameUserMalware": "Schadsoftware im selben Benutzerkonto",

@@ -2473,6 +2473,16 @@ class SKo extends S {
       '전원이 꺼진 기기에서 드라이브를 꺼내 다른 컴퓨터에서 읽거나, 홈 디렉터리에 접근할 수 있는 사람이 데이터베이스 파일을 복사하는 경우입니다.';
 
   @override
+  String get threatKeyringFileTheft => 'keyring / keychain 파일 탈취';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      '공격자가 플랫폼의 자격 증명 저장소 파일을 디스크에서 직접 읽어(libsecret keyring, Windows Credential Manager, macOS 로그인 keychain), 그 안에 래핑된 데이터베이스 키를 복구합니다. 하드웨어 등급은 비밀번호와 무관하게 이를 차단합니다. 칩이 키 자료 내보내기를 거부하기 때문입니다. keychain 등급은 추가로 비밀번호가 필요하며, 그렇지 않으면 도난당한 파일이 OS 로그인 비밀번호만으로 풀립니다.';
+
+  @override
+  String get modifierOnlyWithPassword => '비밀번호가 있을 때만';
+
+  @override
   String get threatBystanderUnlockedMachine => '잠금 해제된 기기 옆의 제3자';
 
   @override

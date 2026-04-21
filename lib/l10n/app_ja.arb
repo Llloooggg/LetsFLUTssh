@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "このデバイスには生体認証ハードウェア（指紋または顔）がありません。マスターパスワードを使用してください。",
   "hwProbeAndroidBiometricNotEnrolled": "生体認証が登録されていません。設定 → セキュリティとプライバシー → 生体認証で指紋または顔を追加してから、ハードウェア階層を再度有効にしてください。",
   "hwProbeAndroidBiometricUnavailable": "生体認証ハードウェアが一時的に使用できません（失敗試行後のロックアウトまたは保留中のセキュリティ更新）。数分後に再試行してください。",
-  "keyringProbeLinuxWsl": "WSL で実行中 — Windows Subsystem for Linux コンテナーから keyring デーモンに到達できません。マスターパスワードを使用するか、gnome-keyring / KWallet 付きのネイティブ Linux セッションでアプリを実行してください。",
   "keyringProbeLinuxNoDbusSession": "D-Bus セッションバスがありません — アプリはヘッドレスまたは SSH 専用セッションで実行されています。グラフィカルログインセッションを開始するか、起動前に DBUS_SESSION_BUS_ADDRESS をエクスポートしてください。",
   "keyringProbeLinuxNoSecretService": "D-Bus は動作していますが、secret-service デーモンが実行されていません。gnome-keyring（`sudo apt install gnome-keyring`）または KWalletManager をインストールし、ログイン時に起動するようにしてください。",
   "keyringProbeFailed": "このデバイスでは OS キーチェーンに到達できません。プラットフォーム固有のエラーはログを参照してください。アプリはマスターパスワードにフォールバックします。",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "電源オフ時のディスク窃取",
   "threatColdDiskTheftDescription": "電源を切った端末からドライブを取り外して別のコンピューターで読み出す、あるいはホームディレクトリへアクセスできる者がデータベースファイルを複製するケース。",
+  "threatKeyringFileTheft": "keyring / keychain ファイルの窃取",
+  "threatKeyringFileTheftDescription": "攻撃者がプラットフォームの認証情報ストアファイル（libsecret keyring、Windows Credential Manager、macOS ログイン keychain）をディスクから直接読み取り、そこにラップされたデータベースキーを復元するケース。ハードウェア階層はパスワードに関係なくこれを防ぎます。チップが鍵マテリアルのエクスポートを拒否するためです。keychain 階層では追加でパスワードが必要で、そうでなければ盗まれたファイルは OS ログインパスワードだけで解けてしまいます。",
+  "modifierOnlyWithPassword": "パスワード必須",
   "threatBystanderUnlockedMachine": "ロック解除済み端末のそばにいる第三者",
   "threatBystanderUnlockedMachineDescription": "あなたが離席している間に、すでにロック解除済みのコンピューターへ誰かが近づき、このアプリを開く状況。",
   "threatSameUserMalware": "同一ユーザー権限のマルウェア",

@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "此设备没有生物识别硬件（指纹或人脸）。请改用主密码。",
   "hwProbeAndroidBiometricNotEnrolled": "未注册生物识别。请在 设置 → 安全和隐私 → 生物识别 中添加指纹或人脸，然后重新启用硬件等级。",
   "hwProbeAndroidBiometricUnavailable": "生物识别硬件暂时不可用（失败尝试后锁定或待处理的安全更新）。请几分钟后重试。",
-  "keyringProbeLinuxWsl": "正在 WSL 中运行 —— 无法从 Windows Subsystem for Linux 容器访问 keyring daemon。请使用主密码，或在带有 gnome-keyring / KWallet 的原生 Linux 会话中运行应用。",
   "keyringProbeLinuxNoDbusSession": "没有 D-Bus 会话总线 —— 应用在无头或仅 SSH 会话中运行。请启动图形登录会话，或在启动前导出 DBUS_SESSION_BUS_ADDRESS。",
   "keyringProbeLinuxNoSecretService": "D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。",
   "keyringProbeFailed": "此设备上无法访问操作系统密钥链。请查看日志以获取特定平台错误；应用将回退到主密码。",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "冷盘窃取",
   "threatColdDiskTheftDescription": "关机后拆下硬盘并在另一台计算机上读取，或者有权访问你主目录的人复制了数据库文件。",
+  "threatKeyringFileTheft": "keyring / keychain 文件外泄",
+  "threatKeyringFileTheftDescription": "攻击者直接从磁盘读取平台的凭据存储文件（libsecret keyring、Windows Credential Manager、macOS login keychain），并从中恢复被包装的数据库密钥。硬件等级无论是否有密码都能阻止此攻击，因为芯片拒绝导出密钥材料；keychain 等级还需要密码，否则仅凭 OS 登录密码即可解包被盗文件。",
+  "modifierOnlyWithPassword": "仅在设置密码时",
   "threatBystanderUnlockedMachine": "已解锁设备旁的旁观者",
   "threatBystanderUnlockedMachineDescription": "你离开时，有人走向你已经解锁的计算机并打开本应用。",
   "threatSameUserMalware": "同用户恶意软件",

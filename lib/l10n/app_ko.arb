@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "이 기기에는 생체 인식 하드웨어(지문 또는 얼굴)가 없습니다. 마스터 비밀번호를 사용하세요.",
   "hwProbeAndroidBiometricNotEnrolled": "등록된 생체 인식이 없습니다. 설정 → 보안 및 개인정보 보호 → 생체 인식에서 지문 또는 얼굴을 추가한 다음 하드웨어 등급을 다시 활성화하세요.",
   "hwProbeAndroidBiometricUnavailable": "생체 인식 하드웨어를 일시적으로 사용할 수 없습니다(실패한 시도 후 잠금 또는 보류 중인 보안 업데이트). 몇 분 후에 다시 시도하세요.",
-  "keyringProbeLinuxWsl": "WSL에서 실행 중 — Windows Subsystem for Linux 컨테이너에서 keyring 데몬에 접근할 수 없습니다. 마스터 비밀번호를 사용하거나 gnome-keyring / KWallet이 있는 네이티브 Linux 세션에서 앱을 실행하세요.",
   "keyringProbeLinuxNoDbusSession": "D-Bus 세션 버스가 없습니다 — 앱이 헤드리스 또는 SSH 전용 세션에서 실행 중입니다. 그래픽 로그인 세션을 시작하거나 실행 전에 DBUS_SESSION_BUS_ADDRESS를 내보내세요.",
   "keyringProbeLinuxNoSecretService": "D-Bus는 작동 중이지만 secret-service 데몬이 실행 중이 아닙니다. gnome-keyring(`sudo apt install gnome-keyring`) 또는 KWalletManager를 설치하고 로그인 시 시작되도록 하세요.",
   "keyringProbeFailed": "이 기기에서 OS 키체인에 접근할 수 없습니다. 플랫폼별 오류는 로그를 참조하세요. 앱은 마스터 비밀번호로 전환됩니다.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "전원 꺼진 디스크 탈취",
   "threatColdDiskTheftDescription": "전원이 꺼진 기기에서 드라이브를 꺼내 다른 컴퓨터에서 읽거나, 홈 디렉터리에 접근할 수 있는 사람이 데이터베이스 파일을 복사하는 경우입니다.",
+  "threatKeyringFileTheft": "keyring / keychain 파일 탈취",
+  "threatKeyringFileTheftDescription": "공격자가 플랫폼의 자격 증명 저장소 파일을 디스크에서 직접 읽어(libsecret keyring, Windows Credential Manager, macOS 로그인 keychain), 그 안에 래핑된 데이터베이스 키를 복구합니다. 하드웨어 등급은 비밀번호와 무관하게 이를 차단합니다. 칩이 키 자료 내보내기를 거부하기 때문입니다. keychain 등급은 추가로 비밀번호가 필요하며, 그렇지 않으면 도난당한 파일이 OS 로그인 비밀번호만으로 풀립니다.",
+  "modifierOnlyWithPassword": "비밀번호가 있을 때만",
   "threatBystanderUnlockedMachine": "잠금 해제된 기기 옆의 제3자",
   "threatBystanderUnlockedMachineDescription": "자리를 비운 사이, 누군가 이미 잠금 해제된 컴퓨터에 다가가 이 앱을 여는 상황입니다.",
   "threatSameUserMalware": "동일 사용자 권한의 악성코드",

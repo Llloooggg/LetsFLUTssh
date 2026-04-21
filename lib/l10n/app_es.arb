@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Este dispositivo no tiene hardware biométrico (huella o rostro). Usa la contraseña maestra.",
   "hwProbeAndroidBiometricNotEnrolled": "No hay biometría registrada. Agrega una huella o rostro en Ajustes → Seguridad y privacidad → Biometría, luego vuelve a habilitar el nivel de hardware.",
   "hwProbeAndroidBiometricUnavailable": "Hardware biométrico temporalmente inutilizable (bloqueo por intentos fallidos o actualización de seguridad pendiente). Reintenta en unos minutos.",
-  "keyringProbeLinuxWsl": "Ejecutándose en WSL — no hay keyring daemon accesible desde un contenedor de Windows Subsystem for Linux. Usa la contraseña maestra, o ejecuta la app en una sesión Linux nativa con gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "Sin D-Bus session bus — la app está en una sesión headless o solo por SSH. Inicia una sesión gráfica, o exporta DBUS_SESSION_BUS_ADDRESS antes de iniciar.",
   "keyringProbeLinuxNoSecretService": "D-Bus está activo pero ningún secret-service daemon está ejecutándose. Instala gnome-keyring (`sudo apt install gnome-keyring`) o KWalletManager y asegúrate de que se inicie al iniciar sesión.",
   "keyringProbeFailed": "El keychain del sistema no está accesible en este dispositivo. Consulta los registros para el error específico; la app recurre a la contraseña maestra.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Robo de disco apagado",
   "threatColdDiskTheftDescription": "Equipo apagado con la unidad extraída y leída en otro ordenador, o una copia del archivo de la base de datos hecha por alguien con acceso a tu carpeta personal.",
+  "threatKeyringFileTheft": "Robo del archivo keyring / keychain",
+  "threatKeyringFileTheftDescription": "Un atacante lee el archivo del almacén de credenciales del sistema directamente del disco (libsecret keyring, Credential Manager de Windows, login keychain de macOS) y recupera de él la clave de la base de datos envuelta. El nivel de hardware lo bloquea con independencia de la contraseña porque el chip se niega a exportar el material de clave; el nivel de keychain necesita además una contraseña, de lo contrario el archivo robado se desenvuelve con la sola contraseña de inicio de sesión del SO.",
+  "modifierOnlyWithPassword": "solo con contraseña",
   "threatBystanderUnlockedMachine": "Curioso frente a un equipo desbloqueado",
   "threatBystanderUnlockedMachineDescription": "Alguien se acerca a tu ordenador ya desbloqueado y abre la aplicación mientras estás ausente.",
   "threatSameUserMalware": "Malware con el mismo usuario",

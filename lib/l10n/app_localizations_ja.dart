@@ -2476,6 +2476,16 @@ class SJa extends S {
       '電源を切った端末からドライブを取り外して別のコンピューターで読み出す、あるいはホームディレクトリへアクセスできる者がデータベースファイルを複製するケース。';
 
   @override
+  String get threatKeyringFileTheft => 'keyring / keychain ファイルの窃取';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      '攻撃者がプラットフォームの認証情報ストアファイル（libsecret keyring、Windows Credential Manager、macOS ログイン keychain）をディスクから直接読み取り、そこにラップされたデータベースキーを復元するケース。ハードウェア階層はパスワードに関係なくこれを防ぎます。チップが鍵マテリアルのエクスポートを拒否するためです。keychain 階層では追加でパスワードが必要で、そうでなければ盗まれたファイルは OS ログインパスワードだけで解けてしまいます。';
+
+  @override
+  String get modifierOnlyWithPassword => 'パスワード必須';
+
+  @override
   String get threatBystanderUnlockedMachine => 'ロック解除済み端末のそばにいる第三者';
 
   @override

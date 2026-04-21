@@ -2563,6 +2563,17 @@ class STr extends S {
       'Kapalı bir bilgisayardan sürücünün çıkarılıp başka bir bilgisayarda okunması ya da ev dizininize erişimi olan biri tarafından veritabanı dosyasının kopyalanması.';
 
   @override
+  String get threatKeyringFileTheft =>
+      'Keyring / keychain dosyasının çalınması';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Saldırgan, platformun kimlik bilgisi deposu dosyasını doğrudan diskten okur (libsecret keyring, Windows Credential Manager, macOS login keychain) ve sarılmış veritabanı anahtarını bundan çıkarır. Donanım katmanı bunu paroladan bağımsız engeller çünkü çip anahtar malzemesini dışa aktarmayı reddeder; keychain katmanı için ek olarak parola gerekir, aksi halde çalınan dosya yalnızca OS oturum açma parolası ile açılır.';
+
+  @override
+  String get modifierOnlyWithPassword => 'yalnızca parola ile';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Kilidi açık makinenin yanındaki yabancı';
 

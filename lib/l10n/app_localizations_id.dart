@@ -2555,6 +2555,16 @@ class SId extends S {
       'Komputer dalam keadaan mati yang drive-nya dilepas lalu dibaca di komputer lain, atau salinan berkas basis data yang diambil oleh seseorang dengan akses ke direktori home Anda.';
 
   @override
+  String get threatKeyringFileTheft => 'Pencurian berkas keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Penyerang membaca berkas penyimpanan kredensial platform langsung dari disk (libsecret keyring, Windows Credential Manager, macOS login keychain) dan memulihkan kunci basis data yang dibungkus dari dalamnya. Tingkat perangkat keras memblokirnya terlepas dari kata sandi karena chip menolak mengekspor material kunci; tingkat keychain memerlukan kata sandi tambahan, jika tidak berkas yang dicuri dapat dibuka hanya dengan kata sandi login OS.';
+
+  @override
+  String get modifierOnlyWithPassword => 'hanya dengan kata sandi';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Orang lain di dekat mesin yang sudah terbuka';
 

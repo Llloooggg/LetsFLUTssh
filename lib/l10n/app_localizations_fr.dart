@@ -2585,6 +2585,16 @@ class SFr extends S {
       'Machine éteinte dont le disque est retiré et lu sur un autre ordinateur, ou copie du fichier de base de données prise par quelqu\'un ayant accès à votre dossier personnel.';
 
   @override
+  String get threatKeyringFileTheft => 'Vol du fichier keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Un attaquant lit directement le fichier du magasin d\'identifiants de la plateforme depuis le disque (libsecret keyring, Credential Manager Windows, login keychain macOS) et en extrait la clé de base de données encapsulée. Le niveau matériel bloque cela indépendamment du mot de passe car la puce refuse d\'exporter le matériel de clé ; le niveau keychain nécessite en plus un mot de passe, sinon le fichier volé se déchiffre avec le seul mot de passe de connexion du système.';
+
+  @override
+  String get modifierOnlyWithPassword => 'uniquement avec mot de passe';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Témoin devant une machine déverrouillée';
 

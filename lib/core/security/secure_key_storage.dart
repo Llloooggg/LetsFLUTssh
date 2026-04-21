@@ -116,10 +116,32 @@ class SecureKeyStorage {
 
   /// Classified keyring probe — distinguishes *why* the OS keychain is
   /// unreachable so the Settings UI can surface an actionable hint
-  /// instead of a generic "unavailable on this device" line. The live
-  /// probe (write → read → delete) runs only when the pre-flight env
-  /// check clears it; a locked Linux keyring or a WSL host returns a
-  /// typed code without waking libsecret.
+  /// instead of a generic "unavailable on this device" line.
+  ///
+  /// Design: *concrete probe, not distro guessing.* Early iterations
+  /// pattern-matched `WSL_DISTRO_NAME` to infer "no keyring here";
+  /// that was a proxy (WSL happens to ship without a keyring daemon)
+  /// that mis-classifies any native Linux session that happens to set
+  /// the same env var and any WSL install that ran `systemctl start
+  /// gnome-keyring-daemon` manually. The only honest signal is an
+  /// actual round-trip against the secret-service:
+  ///
+  ///   1. Non-Linux platforms → live write/read/delete against
+  ///      `flutter_secure_storage`. Failure = `probeFailed`.
+  ///   2. Linux, [DBUS_SESSION_BUS_ADDRESS] unset → the D-Bus protocol
+  ///      itself has no session bus address to connect to, so
+  ///      libsecret cannot even begin. Classified `linuxNoDbusSession`.
+  ///      Not distro guessing — this is the documented bootstrap
+  ///      variable every D-Bus client library reads.
+  ///   3. Linux, D-Bus address set, marker file absent → the user
+  ///      has not yet opted into keychain storage; return
+  ///      `available` without running a probe that would wake the
+  ///      keyring unlock prompt. The first write attempt on the
+  ///      opt-in path carries the real success/failure.
+  ///   4. Linux, D-Bus set, marker present → live write/read/delete
+  ///      cycle through libsecret. Failure = `linuxNoSecretService`
+  ///      (D-Bus up, secret-service daemon not responding — usually
+  ///      no `gnome-keyring-daemon` / `kwalletd`).
   Future<KeyringProbeResult> probe() async {
     if (_skipPlatformCheck || !Platform.isLinux) {
       // Windows / macOS / iOS / Android: the backing service is
@@ -144,9 +166,13 @@ class SecureKeyStorage {
     }
 
     // ── Linux ────────────────────────────────────────────────────
-    if (Platform.environment.containsKey('WSL_DISTRO_NAME')) {
-      return KeyringProbeResult.linuxWsl;
-    }
+    // D-Bus session bus address is the concrete bootstrap signal —
+    // every Linux D-Bus client (libsecret included) reads it to find
+    // the session bus socket. Absent value = no session bus = no
+    // point probing further. This catches both headless/SSH-only
+    // sessions and WSL containers that lack a `dbus-daemon --session`
+    // — without having to guess which of those it is from other env
+    // vars like `WSL_DISTRO_NAME`.
     final dbus = Platform.environment['DBUS_SESSION_BUS_ADDRESS'];
     if (dbus == null || dbus.isEmpty) {
       return KeyringProbeResult.linuxNoDbusSession;
@@ -174,19 +200,19 @@ class SecureKeyStorage {
   /// Quick pre-flight check before touching the native keychain API.
   ///
   /// On Linux, libsecret requires a running keyring daemon reachable via
-  /// D-Bus. Without it, every call logs a noisy `g_warning` to stderr that
-  /// we cannot suppress from Dart. Detect this early and skip.
+  /// D-Bus. Without it, every call logs a noisy `g_warning` to stderr
+  /// that we cannot suppress from Dart. The only concrete signal we can
+  /// check without spawning a subprocess is the session-bus address
+  /// environment variable every D-Bus client reads at startup — if it
+  /// is unset, libsecret cannot even begin. Earlier revisions also
+  /// pattern-matched `WSL_DISTRO_NAME` to short-circuit WSL hosts, but
+  /// that was a distro guess (WSL happens to ship without a keyring
+  /// daemon) that mis-classifies any WSL install with libsecret
+  /// configured. The D-Bus address check catches the real signal —
+  /// headless sessions and bare WSL both lack it — without pretending
+  /// to know why.
   bool _hasKeychainSupport() {
     if (_skipPlatformCheck || !Platform.isLinux) return true;
-
-    // WSL has no keyring daemon.
-    if (Platform.environment.containsKey('WSL_DISTRO_NAME')) {
-      AppLogger.instance.log(
-        'WSL detected — skipping keychain probe',
-        name: 'SecureKeyStorage',
-      );
-      return false;
-    }
 
     // No D-Bus session → no keyring.
     final dbus = Platform.environment['DBUS_SESSION_BUS_ADDRESS'];
@@ -365,14 +391,13 @@ enum KeyringProbeResult {
   /// Keychain reachable and round-trips a probe value.
   available,
 
-  /// Linux host is a WSL distro with no keyring daemon. Fix: use
-  /// master password or paranoid tier on WSL, or run an X11 /
-  /// Wayland session with gnome-keyring / KWallet.
-  linuxWsl,
-
-  /// Linux host has no D-Bus session bus reachable — the user is
-  /// probably on a headless / ssh-tty-only session. Fix: start a
-  /// graphical session or export `DBUS_SESSION_BUS_ADDRESS`.
+  /// Linux host has no D-Bus session bus reachable — the user is on
+  /// a headless / ssh-tty-only session, or a WSL container without
+  /// `dbus-daemon --session` running. Fix: start a graphical session
+  /// or export `DBUS_SESSION_BUS_ADDRESS` before launching. This
+  /// subsumes the earlier `linuxWsl` case — the D-Bus address check
+  /// is the concrete signal; pattern-matching distro names was a
+  /// guess that caught WSL by coincidence.
   linuxNoDbusSession,
 
   /// D-Bus is up but libsecret cannot reach the secret-service

@@ -2551,6 +2551,16 @@ class SAr extends S {
       'جهاز متوقف عن التشغيل يُنزع قرصه ويُقرأ على حاسوب آخر، أو نسخة من ملف قاعدة البيانات أخذها شخص لديه وصول إلى مجلدك الشخصي.';
 
   @override
+  String get threatKeyringFileTheft => 'سرقة ملف keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'يقرأ المهاجم ملف مخزن بيانات الاعتماد الخاص بالمنصة مباشرة من القرص (libsecret keyring، Windows Credential Manager، macOS login keychain) ويستعيد منه مفتاح قاعدة البيانات الملفوف. يمنع المستوى العتادي ذلك بصرف النظر عن كلمة المرور لأن الشريحة ترفض تصدير مادة المفتاح؛ ومستوى keychain يحتاج إلى كلمة مرور إضافية وإلا فُتح الملف المسروق بكلمة مرور تسجيل دخول النظام وحدها.';
+
+  @override
+  String get modifierOnlyWithPassword => 'مع كلمة مرور فقط';
+
+  @override
   String get threatBystanderUnlockedMachine => 'متطفّل على جهاز غير مقفول';
 
   @override

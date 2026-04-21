@@ -83,7 +83,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
 
   final _passwordCtrl = TextEditingController();
   final _passwordConfirmCtrl = TextEditingController();
-  final _pinCtrl = TextEditingController();
   final _masterPasswordCtrl = TextEditingController();
   final _masterPasswordConfirmCtrl = TextEditingController();
 
@@ -102,12 +101,10 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   void dispose() {
     _passwordCtrl.wipeAndClear();
     _passwordConfirmCtrl.wipeAndClear();
-    _pinCtrl.wipeAndClear();
     _masterPasswordCtrl.wipeAndClear();
     _masterPasswordConfirmCtrl.wipeAndClear();
     _passwordCtrl.dispose();
     _passwordConfirmCtrl.dispose();
-    _pinCtrl.dispose();
     _masterPasswordCtrl.dispose();
     _masterPasswordConfirmCtrl.dispose();
     super.dispose();
@@ -168,13 +165,19 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   // own Settings row below the ladder, same as before.
   bool get _biometricToggleAvailable => false;
 
+  /// T1 and T2 use the same short-password input path when the
+  /// password modifier toggle is on. T2 historically had a
+  /// separate "PIN" field; it was renamed to "password" in the UI
+  /// so users do not have to learn two terms for the same thing.
+  /// The underlying semantics (T1: brute-force resistance from a
+  /// long password; T2: brute-force resistance from the hardware
+  /// lockout on a short password) are surfaced as a hint under
+  /// the field, not as a different field name.
   bool get _requiresPasswordInput =>
       !_matchesCurrentConfig &&
-      widget.tier == SecurityTier.keychain &&
+      (widget.tier == SecurityTier.keychain ||
+          widget.tier == SecurityTier.hardware) &&
       _passwordEnabled;
-
-  bool get _requiresPinInput =>
-      !_matchesCurrentConfig && widget.tier == SecurityTier.hardware;
 
   bool get _requiresMasterPasswordInput =>
       !_matchesCurrentConfig && widget.tier == SecurityTier.paranoid;
@@ -183,9 +186,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     if (_requiresPasswordInput) {
       if (_passwordCtrl.text.isEmpty) return false;
       if (_passwordCtrl.text != _passwordConfirmCtrl.text) return false;
-    }
-    if (_requiresPinInput) {
-      if (_pinCtrl.text.isEmpty) return false;
     }
     if (_requiresMasterPasswordInput) {
       if (_masterPasswordCtrl.text.isEmpty) return false;
@@ -235,11 +235,22 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
         biometric: _biometricEnabled,
       );
+      // T1 uses `shortPassword` against the keychain-password gate;
+      // T2 uses the same value as the PIN HMAC input to the hw
+      // vault. Same UX field, different backend consumer — the
+      // tier switcher routes it. Paranoid uses `masterPassword`.
+      final shortPw =
+          _requiresPasswordInput && widget.tier == SecurityTier.keychain
+          ? _passwordCtrl.text
+          : null;
+      final pin = _requiresPasswordInput && widget.tier == SecurityTier.hardware
+          ? _passwordCtrl.text
+          : null;
       await widget.onSelect(
         tier: target,
         modifiers: mods,
-        shortPassword: _requiresPasswordInput ? _passwordCtrl.text : null,
-        pin: _requiresPinInput ? _pinCtrl.text : null,
+        shortPassword: shortPw,
+        pin: pin,
         masterPassword: _requiresMasterPasswordInput
             ? _masterPasswordCtrl.text
             : null,
@@ -251,7 +262,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         // local controllers retain what the user typed until dispose.
         _passwordCtrl.wipeAndClear();
         _passwordConfirmCtrl.wipeAndClear();
-        _pinCtrl.wipeAndClear();
         _masterPasswordCtrl.wipeAndClear();
         _masterPasswordConfirmCtrl.wipeAndClear();
         setState(() => _busy = false);
@@ -265,8 +275,15 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     final accent = _accentFor(widget.tier);
     final dim = !widget.tierAvailable && !_isCurrent;
 
+    // `clipBehavior: Clip.antiAlias` on the container stops the
+    // header `InkWell` hover / splash from painting over the
+    // rounded border when the pointer enters from outside the
+    // card's clip shape — the hover halo otherwise bleeds onto
+    // the top strip. Safe with decoration + borderRadius; Flutter
+    // uses the decoration's border radius as the clip path.
     Widget body = Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: AppTheme.radiusSm,
@@ -293,7 +310,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _SplitThreatListCompact(model: _previewModel, l10n: l10n),
+                  _ThreatListFixed(model: _previewModel, l10n: l10n),
                   if (!widget.tierAvailable &&
                       widget.unavailableReason != null) ...[
                     const SizedBox(height: 8),
@@ -333,13 +350,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
                       confirm: _passwordConfirmCtrl,
                       primaryHint: l10n.passwordLabel,
                       confirmHint: l10n.confirmPassword,
-                      onChanged: () => setState(() {}),
-                    ),
-                  ],
-                  if (_requiresPinInput) ...[
-                    const SizedBox(height: 8),
-                    _PinField(
-                      controller: _pinCtrl,
                       onChanged: () => setState(() {}),
                     ),
                   ],
@@ -578,8 +588,17 @@ class _CurrentBadge extends StatelessWidget {
   }
 }
 
-class _SplitThreatListCompact extends StatelessWidget {
-  const _SplitThreatListCompact({required this.model, required this.l10n});
+/// Fixed-order threat list — same 8 items, same positions, on every
+/// tier card. Users scanning four cards side-by-side compare the
+/// ✓/✗ column vertically without re-reading labels, so a split into
+/// "protects" vs "doesn't" halves (the earlier design) would destroy
+/// positional comparison and is intentionally avoided.
+///
+/// Rows whose status would flip to ✓ if the password modifier were
+/// enabled render an "only with password" hint in a muted tone so
+/// the user can tell at a glance which threats the toggle unlocks.
+class _ThreatListFixed extends StatelessWidget {
+  const _ThreatListFixed({required this.model, required this.l10n});
 
   final ThreatModel model;
   final S l10n;
@@ -587,25 +606,33 @@ class _SplitThreatListCompact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusMap = evaluate(model);
-    final protects = <SecurityThreat>[];
-    final doesNot = <SecurityThreat>[];
-    for (final t in SecurityThreat.values) {
-      final s = statusMap[t]!;
-      if (s == ThreatStatus.protects) {
-        protects.add(t);
-      } else {
-        doesNot.add(t);
+    // "Would this flip to ✓ if we turned password on?" — compute by
+    // re-evaluating the hypothetical model with password=true and
+    // comparing. The hint only shows when (a) this tier has a
+    // password toggle (T1 or T2), (b) the toggle is currently off,
+    // and (c) the threat is currently ✗ but would become ✓.
+    final flippableWithPassword = <SecurityThreat>{};
+    if (!model.password &&
+        (model.tier == ThreatTier.keychain ||
+            model.tier == ThreatTier.hardware)) {
+      final withPw = evaluate(ThreatModel(tier: model.tier, password: true));
+      for (final t in SecurityThreat.values) {
+        if (statusMap[t] == ThreatStatus.doesNotProtect &&
+            withPw[t] == ThreatStatus.protects) {
+          flippableWithPassword.add(t);
+        }
       }
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final t in protects)
-          _ThreatLine(threat: t, protects: true, l10n: l10n),
-        if (protects.isNotEmpty && doesNot.isNotEmpty)
-          Divider(height: 6, thickness: 1, color: AppTheme.border),
-        for (final t in doesNot)
-          _ThreatLine(threat: t, protects: false, l10n: l10n),
+        for (final t in SecurityThreat.values)
+          _ThreatLine(
+            threat: t,
+            protects: statusMap[t] == ThreatStatus.protects,
+            showsPasswordHint: flippableWithPassword.contains(t),
+            l10n: l10n,
+          ),
       ],
     );
   }
@@ -615,11 +642,13 @@ class _ThreatLine extends StatelessWidget {
   const _ThreatLine({
     required this.threat,
     required this.protects,
+    required this.showsPasswordHint,
     required this.l10n,
   });
 
   final SecurityThreat threat;
   final bool protects;
+  final bool showsPasswordHint;
   final S l10n;
 
   @override
@@ -639,11 +668,30 @@ class _ThreatLine extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              threatTitle(threat, l10n),
-              style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.xs),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    threatTitle(threat, l10n),
+                    style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.xs),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (showsPasswordHint) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${l10n.modifierOnlyWithPassword})',
+                    style: TextStyle(
+                      color: AppTheme.fgDim,
+                      fontSize: AppFonts.xs,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -758,27 +806,6 @@ class _PasswordPair extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PinField extends StatelessWidget {
-  const _PinField({required this.controller, required this.onChanged});
-
-  final TextEditingController controller;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SecurePasswordField(
-      controller: controller,
-      onChanged: (_) => onChanged(),
-      keyboardType: TextInputType.number,
-      decoration: const InputDecoration(
-        labelText: 'PIN',
-        border: OutlineInputBorder(),
-        isDense: true,
-      ),
     );
   }
 }

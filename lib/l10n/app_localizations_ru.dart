@@ -2565,6 +2565,16 @@ class SRu extends S {
       'Выключенный компьютер с извлечённым диском, прочитанным на другой машине, либо копия файла базы данных, сделанная тем, у кого есть доступ к вашему домашнему каталогу.';
 
   @override
+  String get threatKeyringFileTheft => 'Кража файла keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Атакующий читает файл OS-хранилища учётных данных прямо с диска (libsecret keyring, Windows Credential Manager, macOS login keychain) и восстанавливает завёрнутый ключ БД. Аппаратный уровень защищает независимо от пароля — чип отказывает в экспорте ключа; для keychain-уровня нужен пароль сверху, иначе украденный файл расшифровывается одним лишь OS-паролем входа.';
+
+  @override
+  String get modifierOnlyWithPassword => 'только с паролем';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Посторонний у разблокированной машины';
 

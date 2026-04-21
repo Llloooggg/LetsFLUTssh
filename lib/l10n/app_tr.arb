@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Bu cihazda biyometrik donanım yok (parmak izi veya yüz). Bunun yerine ana parolayı kullanın.",
   "hwProbeAndroidBiometricNotEnrolled": "Biyometri kaydedilmemiş. Ayarlar → Güvenlik ve gizlilik → Biyometri'den parmak izi veya yüz ekleyin, ardından donanım katmanını yeniden etkinleştirin.",
   "hwProbeAndroidBiometricUnavailable": "Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.",
-  "keyringProbeLinuxWsl": "WSL'de çalışıyor — Windows Subsystem for Linux konteynerinden erişilebilir bir keyring daemon yok. Ana parolayı kullanın veya uygulamayı gnome-keyring / KWallet ile yerel bir Linux oturumunda çalıştırın.",
   "keyringProbeLinuxNoDbusSession": "D-Bus session bus yok — uygulama headless veya yalnızca SSH oturumunda çalışıyor. Grafik oturumu başlatın veya başlatmadan önce DBUS_SESSION_BUS_ADDRESS değişkenini dışa aktarın.",
   "keyringProbeLinuxNoSecretService": "D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.",
   "keyringProbeFailed": "İşletim sistemi anahtar zinciri bu cihazda erişilemez. Platforma özgü hata için günlüklere bakın; uygulama ana parolaya geri döner.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Kapalı makineden disk hırsızlığı",
   "threatColdDiskTheftDescription": "Kapalı bir bilgisayardan sürücünün çıkarılıp başka bir bilgisayarda okunması ya da ev dizininize erişimi olan biri tarafından veritabanı dosyasının kopyalanması.",
+  "threatKeyringFileTheft": "Keyring / keychain dosyasının çalınması",
+  "threatKeyringFileTheftDescription": "Saldırgan, platformun kimlik bilgisi deposu dosyasını doğrudan diskten okur (libsecret keyring, Windows Credential Manager, macOS login keychain) ve sarılmış veritabanı anahtarını bundan çıkarır. Donanım katmanı bunu paroladan bağımsız engeller çünkü çip anahtar malzemesini dışa aktarmayı reddeder; keychain katmanı için ek olarak parola gerekir, aksi halde çalınan dosya yalnızca OS oturum açma parolası ile açılır.",
+  "modifierOnlyWithPassword": "yalnızca parola ile",
   "threatBystanderUnlockedMachine": "Kilidi açık makinenin yanındaki yabancı",
   "threatBystanderUnlockedMachineDescription": "Siz yokken biri, kilidi zaten açık olan bilgisayarınıza yaklaşıp uygulamayı açar.",
   "threatSameUserMalware": "Aynı kullanıcı hesabındaki kötücül yazılım",

@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Este dispositivo não tem hardware biométrico (impressão digital ou rosto). Use a senha mestra.",
   "hwProbeAndroidBiometricNotEnrolled": "Nenhuma biometria registrada. Adicione uma impressão digital ou rosto em Ajustes → Segurança e privacidade → Biometria, e reative o nível de hardware.",
   "hwProbeAndroidBiometricUnavailable": "Hardware biométrico temporariamente inutilizável (bloqueio após falhas ou atualização de segurança pendente). Tente novamente em alguns minutos.",
-  "keyringProbeLinuxWsl": "Executando em WSL — não há keyring daemon acessível de um contêiner Windows Subsystem for Linux. Use a senha mestra, ou execute o app em uma sessão Linux nativa com gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "Sem D-Bus session bus — o app está em uma sessão headless ou só por SSH. Inicie uma sessão gráfica, ou exporte DBUS_SESSION_BUS_ADDRESS antes de iniciar.",
   "keyringProbeLinuxNoSecretService": "D-Bus está ativo mas nenhum secret-service daemon está rodando. Instale gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager e certifique-se de que inicia no login.",
   "keyringProbeFailed": "O keychain do SO não está acessível neste dispositivo. Consulte os logs para o erro específico da plataforma; o app recorre à senha mestra.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Furto de disco desligado",
   "threatColdDiskTheftDescription": "Máquina desligada com a unidade removida e lida em outro computador, ou uma cópia do arquivo do banco de dados tirada por alguém com acesso ao seu diretório pessoal.",
+  "threatKeyringFileTheft": "Roubo do arquivo keyring / keychain",
+  "threatKeyringFileTheftDescription": "Um invasor lê o arquivo do armazenamento de credenciais do sistema diretamente do disco (libsecret keyring, Credential Manager do Windows, login keychain do macOS) e recupera dele a chave do banco de dados empacotada. O nível de hardware bloqueia isso independentemente da senha porque o chip recusa exportar o material da chave; o nível de keychain precisa adicionalmente de uma senha, caso contrário o arquivo roubado é desempacotado apenas com a senha de login do SO.",
+  "modifierOnlyWithPassword": "apenas com senha",
   "threatBystanderUnlockedMachine": "Curioso em máquina desbloqueada",
   "threatBystanderUnlockedMachineDescription": "Alguém se aproxima do seu computador já desbloqueado e abre o aplicativo enquanto você está longe.",
   "threatSameUserMalware": "Malware com a mesma conta de usuário",

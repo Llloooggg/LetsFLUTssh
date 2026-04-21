@@ -239,8 +239,6 @@ String keyringProbeDetailText(S l10n, KeyringProbeResult result) {
   switch (result) {
     case KeyringProbeResult.available:
       return '';
-    case KeyringProbeResult.linuxWsl:
-      return l10n.keyringProbeLinuxWsl;
     case KeyringProbeResult.linuxNoDbusSession:
       return l10n.keyringProbeLinuxNoDbusSession;
     case KeyringProbeResult.linuxNoSecretService:

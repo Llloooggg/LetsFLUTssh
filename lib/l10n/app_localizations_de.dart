@@ -2576,6 +2576,16 @@ class SDe extends S {
       'Ausgeschalteter Rechner, dessen Laufwerk ausgebaut und an einem anderen Computer gelesen wird, oder eine Kopie der Datenbankdatei, die jemand mit Zugriff auf dein Home-Verzeichnis erstellt hat.';
 
   @override
+  String get threatKeyringFileTheft => 'Diebstahl der Keyring-/Keychain-Datei';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Ein Angreifer liest die Anmeldedatenspeicher-Datei der Plattform direkt vom Laufwerk (libsecret-Keyring, Windows Credential Manager, macOS-Login-Keychain) und rekonstruiert daraus den verpackten Datenbankschlüssel. Die Hardware-Stufe wehrt das unabhängig vom Passwort ab, weil der Chip den Export des Schlüsselmaterials verweigert; die Keychain-Stufe braucht zusätzlich ein Passwort, sonst lässt sich die gestohlene Datei mit dem OS-Anmeldepasswort allein entpacken.';
+
+  @override
+  String get modifierOnlyWithPassword => 'nur mit Passwort';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Umstehende an einem entsperrten Gerät';
 

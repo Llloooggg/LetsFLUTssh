@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "Perangkat ini tidak memiliki perangkat keras biometrik (sidik jari atau wajah). Gunakan kata sandi utama.",
   "hwProbeAndroidBiometricNotEnrolled": "Tidak ada biometrik yang terdaftar. Tambahkan sidik jari atau wajah di Pengaturan → Keamanan & privasi → Biometrik, lalu aktifkan kembali tingkat perangkat keras.",
   "hwProbeAndroidBiometricUnavailable": "Perangkat keras biometrik tidak dapat digunakan sementara (terkunci setelah percobaan gagal atau pembaruan keamanan tertunda). Coba lagi beberapa menit lagi.",
-  "keyringProbeLinuxWsl": "Berjalan di WSL — tidak ada keyring daemon yang dapat dijangkau dari kontainer Windows Subsystem for Linux. Gunakan kata sandi utama, atau jalankan aplikasi di sesi Linux native dengan gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "Tidak ada D-Bus session bus — aplikasi berjalan di sesi headless atau hanya SSH. Mulai sesi login grafis, atau ekspor DBUS_SESSION_BUS_ADDRESS sebelum meluncurkan.",
   "keyringProbeLinuxNoSecretService": "D-Bus aktif tetapi tidak ada secret-service daemon yang berjalan. Pasang gnome-keyring (`sudo apt install gnome-keyring`) atau KWalletManager dan pastikan berjalan saat login.",
   "keyringProbeFailed": "Keychain OS tidak dapat dijangkau di perangkat ini. Lihat log untuk error spesifik platform; aplikasi beralih ke kata sandi utama.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Pencurian disk saat mati",
   "threatColdDiskTheftDescription": "Komputer dalam keadaan mati yang drive-nya dilepas lalu dibaca di komputer lain, atau salinan berkas basis data yang diambil oleh seseorang dengan akses ke direktori home Anda.",
+  "threatKeyringFileTheft": "Pencurian berkas keyring / keychain",
+  "threatKeyringFileTheftDescription": "Penyerang membaca berkas penyimpanan kredensial platform langsung dari disk (libsecret keyring, Windows Credential Manager, macOS login keychain) dan memulihkan kunci basis data yang dibungkus dari dalamnya. Tingkat perangkat keras memblokirnya terlepas dari kata sandi karena chip menolak mengekspor material kunci; tingkat keychain memerlukan kata sandi tambahan, jika tidak berkas yang dicuri dapat dibuka hanya dengan kata sandi login OS.",
+  "modifierOnlyWithPassword": "hanya dengan kata sandi",
   "threatBystanderUnlockedMachine": "Orang lain di dekat mesin yang sudah terbuka",
   "threatBystanderUnlockedMachineDescription": "Seseorang menghampiri komputer Anda yang sudah terbuka kuncinya dan membuka aplikasi saat Anda tidak di tempat.",
   "threatSameUserMalware": "Malware di akun pengguna yang sama",

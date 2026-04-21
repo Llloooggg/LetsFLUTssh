@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "На этом устройстве нет биометрического оборудования (отпечаток или лицо). Используйте мастер-пароль.",
   "hwProbeAndroidBiometricNotEnrolled": "Биометрия не настроена. Добавьте отпечаток или лицо в Настройки → Безопасность и конфиденциальность → Биометрия, затем повторно включите аппаратный уровень.",
   "hwProbeAndroidBiometricUnavailable": "Биометрическое оборудование временно недоступно (блокировка после неудачных попыток или ожидание обновления безопасности). Повторите через несколько минут.",
-  "keyringProbeLinuxWsl": "Запуск в WSL — из контейнера Windows Subsystem for Linux нет доступа к keyring daemon. Используйте мастер-пароль или запустите приложение в нативной Linux-сессии с gnome-keyring / KWallet.",
   "keyringProbeLinuxNoDbusSession": "Нет D-Bus session bus — приложение запущено в headless или SSH-only сессии. Запустите графическую сессию или экспортируйте DBUS_SESSION_BUS_ADDRESS перед стартом.",
   "keyringProbeLinuxNoSecretService": "D-Bus работает, но secret-service daemon не запущен. Установите gnome-keyring (`sudo apt install gnome-keyring`) или KWalletManager и включите автозапуск при входе.",
   "keyringProbeFailed": "OS keychain недоступен на этом устройстве. Подробности в логах; приложение переходит на мастер-пароль.",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "Кража холодного диска",
   "threatColdDiskTheftDescription": "Выключенный компьютер с извлечённым диском, прочитанным на другой машине, либо копия файла базы данных, сделанная тем, у кого есть доступ к вашему домашнему каталогу.",
+  "threatKeyringFileTheft": "Кража файла keyring / keychain",
+  "threatKeyringFileTheftDescription": "Атакующий читает файл OS-хранилища учётных данных прямо с диска (libsecret keyring, Windows Credential Manager, macOS login keychain) и восстанавливает завёрнутый ключ БД. Аппаратный уровень защищает независимо от пароля — чип отказывает в экспорте ключа; для keychain-уровня нужен пароль сверху, иначе украденный файл расшифровывается одним лишь OS-паролем входа.",
+  "modifierOnlyWithPassword": "только с паролем",
   "threatBystanderUnlockedMachine": "Посторонний у разблокированной машины",
   "threatBystanderUnlockedMachineDescription": "Кто-то подходит к уже разблокированному компьютеру и открывает приложение, пока вас нет рядом.",
   "threatSameUserMalware": "Вредонос в вашем аккаунте",

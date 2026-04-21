@@ -2568,6 +2568,16 @@ class SPt extends S {
       'Máquina desligada com a unidade removida e lida em outro computador, ou uma cópia do arquivo do banco de dados tirada por alguém com acesso ao seu diretório pessoal.';
 
   @override
+  String get threatKeyringFileTheft => 'Roubo do arquivo keyring / keychain';
+
+  @override
+  String get threatKeyringFileTheftDescription =>
+      'Um invasor lê o arquivo do armazenamento de credenciais do sistema diretamente do disco (libsecret keyring, Credential Manager do Windows, login keychain do macOS) e recupera dele a chave do banco de dados empacotada. O nível de hardware bloqueia isso independentemente da senha porque o chip recusa exportar o material da chave; o nível de keychain precisa adicionalmente de uma senha, caso contrário o arquivo roubado é desempacotado apenas com a senha de login do SO.';
+
+  @override
+  String get modifierOnlyWithPassword => 'apenas com senha';
+
+  @override
   String get threatBystanderUnlockedMachine =>
       'Curioso em máquina desbloqueada';
 

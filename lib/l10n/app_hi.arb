@@ -770,7 +770,6 @@
   "hwProbeAndroidBiometricNone": "इस डिवाइस में बायोमेट्रिक हार्डवेयर नहीं है (उँगली या चेहरा)। मास्टर पासवर्ड का उपयोग करें।",
   "hwProbeAndroidBiometricNotEnrolled": "कोई बायोमेट्रिक नामांकित नहीं। Settings → Security & privacy → Biometrics में उँगली या चेहरा जोड़ें, फिर हार्डवेयर स्तर पुनः सक्षम करें।",
   "hwProbeAndroidBiometricUnavailable": "बायोमेट्रिक हार्डवेयर अस्थायी रूप से अनुपयोगी (असफल प्रयासों के बाद लॉकआउट या लंबित सुरक्षा अपडेट)। कुछ मिनटों में पुनः प्रयास करें।",
-  "keyringProbeLinuxWsl": "WSL पर चल रहा है — Windows Subsystem for Linux कंटेनर से keyring daemon तक कोई पहुँच नहीं। मास्टर पासवर्ड का उपयोग करें, या gnome-keyring / KWallet के साथ मूल Linux सत्र में ऐप चलाएँ।",
   "keyringProbeLinuxNoDbusSession": "कोई D-Bus session bus नहीं — ऐप headless या केवल SSH सत्र में चल रहा है। ग्राफ़िकल लॉगिन सत्र शुरू करें, या लॉन्च से पहले DBUS_SESSION_BUS_ADDRESS निर्यात करें।",
   "keyringProbeLinuxNoSecretService": "D-Bus चल रहा है लेकिन कोई secret-service daemon नहीं चल रहा। gnome-keyring (`sudo apt install gnome-keyring`) या KWalletManager स्थापित करें और लॉगिन पर शुरू होना सुनिश्चित करें।",
   "keyringProbeFailed": "इस डिवाइस पर OS कीचेन पहुँच योग्य नहीं। प्लेटफ़ॉर्म-विशिष्ट त्रुटि के लिए लॉग देखें; ऐप मास्टर पासवर्ड पर वापस लौटता है।",
@@ -784,6 +783,9 @@
 
   "threatColdDiskTheft": "बंद डिस्क की चोरी",
   "threatColdDiskTheftDescription": "बंद मशीन से ड्राइव निकालकर किसी दूसरे कंप्यूटर पर पढ़ी जाए, या आपके होम डायरेक्टरी तक पहुँच रखने वाले किसी व्यक्ति द्वारा डेटाबेस फ़ाइल की नकल ले ली जाए।",
+  "threatKeyringFileTheft": "keyring / keychain फ़ाइल चोरी",
+  "threatKeyringFileTheftDescription": "हमलावर प्लेटफ़ॉर्म की क्रेडेंशियल स्टोर फ़ाइल को सीधे डिस्क से पढ़ लेता है (libsecret keyring, Windows Credential Manager, macOS login keychain) और उसमें लिपटी डेटाबेस कुंजी को पुनः प्राप्त कर लेता है। हार्डवेयर स्तर पासवर्ड से स्वतंत्र रूप से इसे रोकता है क्योंकि चिप कुंजी सामग्री निर्यात करने से इनकार करता है; keychain स्तर के लिए अतिरिक्त पासवर्ड आवश्यक है, अन्यथा चोरी की गई फ़ाइल केवल OS लॉगिन पासवर्ड से खोली जा सकती है।",
+  "modifierOnlyWithPassword": "केवल पासवर्ड के साथ",
   "threatBystanderUnlockedMachine": "अनलॉक मशीन पर मौजूद अजनबी",
   "threatBystanderUnlockedMachineDescription": "जब आप दूर होते हैं, कोई आपकी पहले से अनलॉक मशीन के पास आकर ऐप खोल लेता है।",
   "threatSameUserMalware": "उसी उपयोगकर्ता खाते का मैलवेयर",
