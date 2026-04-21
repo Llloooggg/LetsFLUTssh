@@ -115,38 +115,24 @@ class SecureKeyStorage {
 
   /// Probe whether OS keychain is available at runtime.
   ///
-  /// Fast path — env-var + marker-file checks only. No subprocess
-  /// spawn, no gdbus ping. Used by the startup [probeCapabilities]
-  /// flow where a slow Process.run would delay first-frame render
-  /// and confuse test harnesses that pump widgets under FakeAsync
-  /// (the pending-timer from `.timeout()` is flagged as a leak).
+  /// Delegates to the classified [probe] so `isAvailable` and
+  /// `probe` never disagree — earlier revisions split the two paths
+  /// (fast env check vs gdbus ping), which left
+  /// `probeCapabilities` on Linux seeing the optimistic
+  /// env-variable answer (`DBUS_SESSION_BUS_ADDRESS` set → "ok")
+  /// while the Settings reason line saw the concrete gdbus answer
+  /// ("no secret-service"). On WSL + WSLg the split caused the
+  /// first-launch flow to auto-select T1, silently hit a libsecret
+  /// write failure, and fall through to plaintext without the user
+  /// ever seeing the reduced-wizard T0-vs-Paranoid prompt.
   ///
-  /// The classified [probe] method — called by the Settings UI to
-  /// render an actionable "why" line — runs the full gdbus-ping
-  /// path. There is no behavioural gap: a system where gdbus
-  /// reports "no secret-service" would also fail the very first
-  /// `writeKey` attempt, so the user sees the failure either from
-  /// the classified Settings tier card or from a one-time write
-  /// failure when enabling T1. The classified probe is the
-  /// diagnostic; the fast probe is the runtime gate.
+  /// Widget tests that run without `enableRuntimeSubprocessProbes`
+  /// skip the gdbus path inside [probe] and receive an optimistic
+  /// `KeyringProbeResult.available`, which maps back to `true`
+  /// here — same behaviour as the earlier fast-path, same harness
+  /// compatibility.
   Future<bool> isAvailable() async {
-    if (!_hasKeychainSupport()) return false;
-    if (Platform.isLinux && !_skipPlatformCheck && !await _markerExists()) {
-      return true;
-    }
-    try {
-      const probe = 'probe';
-      await _storage.write(key: _probeName, value: probe);
-      final readBack = await _storage.read(key: _probeName);
-      await _storage.delete(key: _probeName);
-      return readBack == probe;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Keychain not available: $e',
-        name: 'SecureKeyStorage',
-      );
-      return false;
-    }
+    return (await probe()) == KeyringProbeResult.available;
   }
 
   /// Classified keyring probe — concrete backend ping, no env-var
