@@ -126,14 +126,18 @@ The build is **ad-hoc signed**, not Developer-ID signed (no Apple account). On f
 xattr -dr com.apple.quarantine /Applications/LetsFLUTssh.app
 ```
 
-**Keychain tier (T1) needs a personal re-sign.** The ad-hoc Code Directory hash changes every release, and macOS Keychain Services bind stored items to that hash — first write fails with `errSecMissingEntitlement` and the app silently drops back to T0 (or surfaces the wizard with T1 greyed out after the fix). A one-shot helper script is shipped with the macOS release assets; download `macos-resign.sh` from the same release, then:
+**Keychain tier (T1) needs a personal re-sign.** The ad-hoc Code Directory hash changes every release, and macOS Keychain Services bind stored items to that hash — first write fails with `errSecMissingEntitlement` and the app surfaces the wizard with T1 greyed out. A one-shot helper script is shipped with the macOS release assets; download `macos-resign.sh` from the same release, then:
 
 ```bash
 chmod +x macos-resign.sh
-./macos-resign.sh
+./macos-resign.sh sign           # default action — `./macos-resign.sh` also works
+./macos-resign.sh uninstall      # later, to remove the personal cert
+./macos-resign.sh help           # full options
 ```
 
-The script creates a personal self-signed code-signing cert the first time it runs (stored in your login keychain, trusted for codesign only), re-signs the installed app with it, and drops quarantine. Re-run after each release — the cert is reused so Keychain Services keeps treating the app as the same identity across upgrades. Nothing is granted system-wide; no admin password is needed beyond `sudo` for the codesign step if the app lives in `/Applications`.
+`sign` creates a personal self-signed code-signing cert the first time it runs (stored in your login keychain, trusted for codesign only), re-signs the installed app with it, and drops quarantine. Re-run after each release — the cert is reused so Keychain Services keeps treating the app as the same identity across upgrades. Nothing is granted system-wide; no admin password is needed beyond `sudo` for the codesign step if the app lives in `/Applications`.
+
+`uninstall` removes the personal cert from your login keychain and the trust database. The app stays installed but any keychain items written under the cert become unreadable — the first launch after uninstall will surface the tier wizard again so you can switch to Paranoid or T0.
 
 If you do not need T1 (keychain) unlock, the **Paranoid** tier (master password, Argon2id-derived DB key) works without the script and gives stronger encryption at the cost of a password prompt on every launch.
 
