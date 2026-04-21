@@ -588,10 +588,15 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         if (await manager.isEnabled()) await manager.disable();
         await bioVault.clear();
       case SecurityTier.hardware:
-        final pin = result.pin;
-        if (pin == null || pin.isEmpty) throw StateError('pin missing');
+        // Hardware tier now accepts a passwordless seal: when the
+        // wizard returns `pin == null` (user left the password
+        // modifier off for T2) the vault derives an empty auth
+        // value and seals under SE/TPM isolation alone. The
+        // modifiers snapshot `mods.password` stays the source of
+        // truth for later unlock flows, so persisting it alongside
+        // the tier keeps the read side in sync.
         final key = AesGcm.generateKey();
-        final sealed = await hwVault.store(dbKey: key, pin: pin);
+        final sealed = await hwVault.store(dbKey: key, pin: result.pin);
         if (!sealed) throw StateError('hardware seal failed');
         await _applyAlwaysRekey(key, SecurityTier.hardware, mods);
         await keyStorage.deleteKey();

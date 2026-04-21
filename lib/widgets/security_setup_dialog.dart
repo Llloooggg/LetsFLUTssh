@@ -197,13 +197,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         _password = true;
         return WizardTier.paranoid;
       case null:
-        if (caps.hardwareVaultAvailable) {
-          // Same invariant as the explicit-hardware onSelect handler:
-          // T2 needs a PIN, so prime the password modifier when the
-          // wizard opens already pointing at hardware.
-          _password = true;
-          return WizardTier.hardware;
-        }
+        if (caps.hardwareVaultAvailable) return WizardTier.hardware;
         if (caps.keychainAvailable) return WizardTier.keychain;
         return WizardTier.plaintext;
     }
@@ -227,13 +221,12 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     if (_selected == WizardTier.paranoid) return false;
     // Plaintext has no secret to add.
     if (_selected == WizardTier.plaintext) return false;
-    // Hardware (T2) requires a PIN today — `HardwareTierVault.store`
-    // rejects a null secret, and the downstream `_firstLaunchHardware`
-    // helper silently drops to plaintext when it receives one. Lock
-    // the toggle on for T2 so the user cannot configure the app into
-    // that silent-drop state; a future passwordless T2 flow will flip
-    // this back to interactive.
-    if (_selected == WizardTier.hardware) return false;
+    // T1 / T2 — both allow the password modifier to be on or off.
+    // Passwordless T2 seals the DB key under an empty auth value and
+    // relies on SE / TPM isolation alone; the unlock path in
+    // `_unlockHardware` reads the modifier back and skips the PIN
+    // pad when the user opted out. The earlier force-on for T2 is
+    // gone — the downstream code handles both branches now.
     return true;
   }
 
@@ -438,17 +431,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
                         : reason;
                   }(),
             onSelect: caps.hardwareVaultAvailable
-                ? () => setState(() {
-                    _selected = WizardTier.hardware;
-                    // Hardware tier requires a PIN in the current
-                    // code path (see `_passwordToggleEnabled`). Flip
-                    // the password modifier on so the secret form
-                    // appears and the toggle reads "on, locked"
-                    // instead of "off, locked" — the locked-off
-                    // state was what let users submit a T2 choice
-                    // that silently dropped to plaintext.
-                    _password = true;
-                  })
+                ? () => setState(() => _selected = WizardTier.hardware)
                 : null,
           ),
 

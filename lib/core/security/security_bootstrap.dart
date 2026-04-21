@@ -170,11 +170,13 @@ Future<SecurityCapabilities> probeCapabilities({
 /// length or digit-only-ness; a full textual password works there
 /// identically to a 6-digit PIN.
 ///
-/// T2 without any password is NOT accepted at this transitional
-/// phase: downstream code still requires a secret for
-/// HardwareTierVault.store. The wizard disables the "no password" T2
-/// option with a tooltip until Phase F wires the passwordless code
-/// path end-to-end.
+/// T2 without a password is now accepted: `HardwareTierVault.store`
+/// / `read` treat null pin as the "empty auth value" path documented
+/// in `resolveAuthValue`, and the unlock path reads
+/// `modifiers.password` back to decide whether to prompt. Wizard
+/// passes the typed secret through unchanged; callers downstream
+/// (`_firstLaunchHardware`, `_applyTierChange`) deal with the
+/// nullability correctly.
 class MappedSetupChoice {
   final SecurityTier tier;
   final SecurityTierModifiers modifiers;

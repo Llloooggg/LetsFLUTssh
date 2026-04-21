@@ -814,6 +814,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// [HardwareTierVault.read] which asks the hardware module to
   /// unseal the DB key under `HMAC(salt, pin)`. Hardware rate-limit
   /// is the real brake against brute force.
+  ///
+  /// Passwordless T2 branch: when `config.security.modifiers.password`
+  /// is false the vault sealed the DB key under an empty auth value
+  /// at setup time. We skip the PIN pad entirely and unseal with
+  /// `pin == null` — matching the store-side derivation. Failures
+  /// fall through to the same plaintext-fallback path so a corrupted
+  /// vault state still yields a usable (but wiped-style) app rather
+  /// than a hung spinner.
   Future<void> _unlockHardware() async {
     final vault = ref.read(hardwareTierVaultProvider);
     if (!await vault.isStored()) {
@@ -825,11 +833,35 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
       return;
     }
+    final mods = ref.read(configProvider).security?.modifiers;
+    if (mods != null && !mods.password) {
+      final unsealed = await vault.read(null);
+      if (unsealed != null) {
+        await _injectDatabase(
+          key: Uint8List.fromList(unsealed),
+          level: SecurityTier.hardware,
+          modifiers: mods,
+        );
+        AppLogger.instance.log(
+          'L3 hardware-vault unlocked (passwordless)',
+          name: 'App',
+        );
+        return;
+      }
+      _credentialsWereReset = true;
+      await _injectDatabase();
+      AppLogger.instance.log(
+        'L3 passwordless unseal failed — plaintext fallback',
+        name: 'App',
+      );
+      return;
+    }
     final key = await _showL3UnlockDialog(vault);
     if (key != null) {
       await _injectDatabase(
         key: Uint8List.fromList(key),
         level: SecurityTier.hardware,
+        modifiers: mods,
       );
       AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
       return;
@@ -851,8 +883,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       hint: l10n.l3UnlockHint,
       inputLabel: l10n.pinLabel,
       wrongSecretLabel: l10n.l3WrongPin,
-      numeric: true,
-      maxLength: 6,
+      // T2 used to enforce a 4-6 digit numeric PIN. We now surface
+      // the field as a free-form password per user-facing
+      // terminology: any characters, any length, so a user who wants
+      // a real password (not just a PIN) can set one. The hardware
+      // rate limiter still throttles brute force at the TPM / SE
+      // layer — length is not the security control.
       rateLimiter: limiter,
       verify: (pin) async {
         final unsealed = await vault.read(pin);
@@ -1089,14 +1125,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
   /// L3 first-launch: generate a DB key, seal it in the hardware vault
   /// under `HMAC(salt, pin)`, and open the DB with that key.
+  ///
+  /// Passwordless T2 (`pin == null || pin.isEmpty`) is now a first-
+  /// class path: the vault seals under an empty auth value instead
+  /// of rejecting the secret, and the DB opens under the hardware
+  /// tier without prompting for a PIN on future unlocks (the
+  /// `SecurityTierModifiers.password = false` flag persisted here
+  /// tells the read side to skip the prompt).
   Future<void> _firstLaunchHardware(
     String? pin, [
     SecurityTierModifiers? modifiers,
   ]) async {
-    if (pin == null || pin.isEmpty) {
-      await _injectDatabase();
-      return;
-    }
     final vault = ref.read(hardwareTierVaultProvider);
     final key = AesGcm.generateKey();
     final stored = await vault.store(dbKey: key, pin: pin);

@@ -161,7 +161,14 @@ class HardwareTierVault {
 
   /// Seal [dbKey] under `HMAC(pin, salt)`. Generates a fresh salt,
   /// writes `{salt, sealedBlob}` to disk, returns true on success.
-  Future<bool> store({required Uint8List dbKey, required String pin}) async {
+  ///
+  /// When [pin] is null or empty the auth value is a fixed empty
+  /// byte string — the "passwordless T2" path from the bank-style
+  /// modifier model. An attacker still needs TPM / Secure Enclave
+  /// access to unseal (cold-disk-theft is still mitigated); there
+  /// is simply no user-typed gate on top. The [read] path mirrors
+  /// this: passing null there unseals without prompting.
+  Future<bool> store({required Uint8List dbKey, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
       final salt = _randomBytes(_saltLength);
@@ -206,7 +213,13 @@ class HardwareTierVault {
   /// Unseal the DB key using [pin]. Returns null on wrong PIN,
   /// missing state, unsupported platform, or any other failure —
   /// the rate limiter layered on top is responsible for backoff.
-  Future<Uint8List?> read(String pin) async {
+  ///
+  /// When [pin] is null or empty the derivation mirrors [store]'s
+  /// passwordless branch (empty auth value), so a vault sealed
+  /// without a PIN unseals without a PIN. Callers that persist
+  /// `SecurityTierModifiers.password = false` go through this
+  /// branch silently — no unlock dialog.
+  Future<Uint8List?> read(String? pin) async {
     try {
       if (!await isAvailable()) return null;
       if (Platform.isLinux) {
@@ -301,7 +314,13 @@ class HardwareTierVault {
   /// would only slow the legitimate user. Salting still matters —
   /// it keeps the sealed blob device-specific even when two users
   /// pick the same PIN.
-  Uint8List _deriveAuth(String pin, Uint8List salt) {
+  /// HMAC the typed pin under the per-install [salt], or return an
+  /// empty auth value when the caller passed null / empty — the
+  /// "passwordless T2" path. The empty value is a stable choice:
+  /// every store / read pair derived this way agrees byte-for-byte,
+  /// so a vault sealed passwordless always unseals passwordless.
+  Uint8List _deriveAuth(String? pin, Uint8List salt) {
+    if (pin == null || pin.isEmpty) return Uint8List(0);
     final mac = Hmac(sha256, salt);
     return Uint8List.fromList(mac.convert(utf8.encode(pin)).bytes);
   }
