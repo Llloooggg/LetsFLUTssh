@@ -2273,10 +2273,6 @@ class SFa extends S {
       'سخت‌افزار بیومتریک به طور موقت غیرقابل استفاده است (قفل پس از تلاش‌های ناموفق یا به‌روزرسانی امنیتی در انتظار). چند دقیقه دیگر امتحان کنید.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'در WSL اجرا می‌شود — از کانتینر Windows Subsystem for Linux به keyring daemon دسترسی ندارد. از رمز عبور اصلی استفاده کنید، یا برنامه را در جلسه Linux بومی با gnome-keyring / KWallet اجرا کنید.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'D-Bus session bus وجود ندارد — برنامه در جلسه headless یا فقط SSH اجرا می‌شود. یک جلسه ورود گرافیکی شروع کنید، یا قبل از راه‌اندازی DBUS_SESSION_BUS_ADDRESS را صادر کنید.';
 

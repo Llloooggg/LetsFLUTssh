@@ -2276,10 +2276,6 @@ class SAr extends S {
       'الأجهزة البيومترية غير قابلة للاستخدام مؤقتًا (قفل بعد محاولات فاشلة أو تحديث أمني معلق). أعد المحاولة بعد بضع دقائق.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'يعمل على WSL — لا يمكن الوصول إلى keyring daemon من حاوية Windows Subsystem for Linux. استخدم كلمة المرور الرئيسية، أو شغّل التطبيق في جلسة Linux أصلية مع gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'لا يوجد D-Bus session bus — يعمل التطبيق في جلسة بدون واجهة رسومية أو SSH فقط. ابدأ جلسة تسجيل دخول رسومية، أو صدّر DBUS_SESSION_BUS_ADDRESS قبل التشغيل.';
 

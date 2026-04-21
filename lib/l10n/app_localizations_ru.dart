@@ -2290,10 +2290,6 @@ class SRu extends S {
       'Биометрическое оборудование временно недоступно (блокировка после неудачных попыток или ожидание обновления безопасности). Повторите через несколько минут.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'Запуск в WSL — из контейнера Windows Subsystem for Linux нет доступа к keyring daemon. Используйте мастер-пароль или запустите приложение в нативной Linux-сессии с gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'Нет D-Bus session bus — приложение запущено в headless или SSH-only сессии. Запустите графическую сессию или экспортируйте DBUS_SESSION_BUS_ADDRESS перед стартом.';
 

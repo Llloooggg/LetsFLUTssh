@@ -2305,10 +2305,6 @@ class SDe extends S {
       'Biometrie-Hardware ist vorübergehend unbrauchbar (Sperre nach fehlgeschlagenen Versuchen oder ausstehendes Sicherheitsupdate). Versuche es in ein paar Minuten erneut.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'Ausführung in WSL — aus einem Windows-Subsystem-for-Linux-Container ist kein Keyring-Daemon erreichbar. Verwende das Master-Passwort, oder starte die App in einer nativen Linux-Sitzung mit gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'Kein D-Bus-Session-Bus — die App läuft in einer Headless- oder SSH-only-Sitzung. Starte eine grafische Anmeldesitzung, oder exportiere DBUS_SESSION_BUS_ADDRESS vor dem Start.';
 

@@ -2210,10 +2210,6 @@ class SKo extends S {
       '생체 인식 하드웨어를 일시적으로 사용할 수 없습니다(실패한 시도 후 잠금 또는 보류 중인 보안 업데이트). 몇 분 후에 다시 시도하세요.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'WSL에서 실행 중 — Windows Subsystem for Linux 컨테이너에서 keyring 데몬에 접근할 수 없습니다. 마스터 비밀번호를 사용하거나 gnome-keyring / KWallet이 있는 네이티브 Linux 세션에서 앱을 실행하세요.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'D-Bus 세션 버스가 없습니다 — 앱이 헤드리스 또는 SSH 전용 세션에서 실행 중입니다. 그래픽 로그인 세션을 시작하거나 실행 전에 DBUS_SESSION_BUS_ADDRESS를 내보내세요.';
 

@@ -2280,10 +2280,6 @@ class SHi extends S {
       'बायोमेट्रिक हार्डवेयर अस्थायी रूप से अनुपयोगी (असफल प्रयासों के बाद लॉकआउट या लंबित सुरक्षा अपडेट)। कुछ मिनटों में पुनः प्रयास करें।';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'WSL पर चल रहा है — Windows Subsystem for Linux कंटेनर से keyring daemon तक कोई पहुँच नहीं। मास्टर पासवर्ड का उपयोग करें, या gnome-keyring / KWallet के साथ मूल Linux सत्र में ऐप चलाएँ।';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'कोई D-Bus session bus नहीं — ऐप headless या केवल SSH सत्र में चल रहा है। ग्राफ़िकल लॉगिन सत्र शुरू करें, या लॉन्च से पहले DBUS_SESSION_BUS_ADDRESS निर्यात करें।';
 

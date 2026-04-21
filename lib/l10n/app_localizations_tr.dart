@@ -2288,10 +2288,6 @@ class STr extends S {
       'Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'WSL\'de çalışıyor — Windows Subsystem for Linux konteynerinden erişilebilir bir keyring daemon yok. Ana parolayı kullanın veya uygulamayı gnome-keyring / KWallet ile yerel bir Linux oturumunda çalıştırın.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'D-Bus session bus yok — uygulama headless veya yalnızca SSH oturumunda çalışıyor. Grafik oturumu başlatın veya başlatmadan önce DBUS_SESSION_BUS_ADDRESS değişkenini dışa aktarın.';
 

@@ -2308,10 +2308,6 @@ class SFr extends S {
       'Matériel biométrique temporairement inutilisable (verrouillage après échecs ou mise à jour de sécurité en attente). Réessayez dans quelques minutes.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'Exécution dans WSL — aucun keyring daemon accessible depuis un conteneur Windows Subsystem for Linux. Utilisez le mot de passe maître, ou lancez l\'app dans une session Linux native avec gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'Pas de bus de session D-Bus — l\'app tourne dans une session headless ou SSH uniquement. Démarrez une session graphique, ou exportez DBUS_SESSION_BUS_ADDRESS avant de lancer.';
 

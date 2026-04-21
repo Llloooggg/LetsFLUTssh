@@ -2213,10 +2213,6 @@ class SJa extends S {
       '生体認証ハードウェアが一時的に使用できません（失敗試行後のロックアウトまたは保留中のセキュリティ更新）。数分後に再試行してください。';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'WSL で実行中 — Windows Subsystem for Linux コンテナーから keyring デーモンに到達できません。マスターパスワードを使用するか、gnome-keyring / KWallet 付きのネイティブ Linux セッションでアプリを実行してください。';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'D-Bus セッションバスがありません — アプリはヘッドレスまたは SSH 専用セッションで実行されています。グラフィカルログインセッションを開始するか、起動前に DBUS_SESSION_BUS_ADDRESS をエクスポートしてください。';
 

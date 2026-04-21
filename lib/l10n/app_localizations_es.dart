@@ -2302,10 +2302,6 @@ class SEs extends S {
       'Hardware biométrico temporalmente inutilizable (bloqueo por intentos fallidos o actualización de seguridad pendiente). Reintenta en unos minutos.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'Ejecutándose en WSL — no hay keyring daemon accesible desde un contenedor de Windows Subsystem for Linux. Usa la contraseña maestra, o ejecuta la app en una sesión Linux nativa con gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'Sin D-Bus session bus — la app está en una sesión headless o solo por SSH. Inicia una sesión gráfica, o exporta DBUS_SESSION_BUS_ADDRESS antes de iniciar.';
 

@@ -2295,10 +2295,6 @@ class SPt extends S {
       'Hardware biométrico temporariamente inutilizável (bloqueio após falhas ou atualização de segurança pendente). Tente novamente em alguns minutos.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'Executando em WSL — não há keyring daemon acessível de um contêiner Windows Subsystem for Linux. Use a senha mestra, ou execute o app em uma sessão Linux nativa com gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'Sem D-Bus session bus — o app está em uma sessão headless ou só por SSH. Inicie uma sessão gráfica, ou exporte DBUS_SESSION_BUS_ADDRESS antes de iniciar.';
 

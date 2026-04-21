@@ -2268,10 +2268,6 @@ class SVi extends S {
       'Phần cứng sinh trắc học tạm thời không sử dụng được (khóa sau nhiều lần thất bại hoặc đang chờ cập nhật bảo mật). Thử lại sau vài phút.';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      'Đang chạy trên WSL — không thể truy cập keyring daemon từ container Windows Subsystem for Linux. Dùng mật khẩu chính, hoặc chạy ứng dụng trong phiên Linux gốc với gnome-keyring / KWallet.';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       'Không có D-Bus session bus — ứng dụng đang chạy trong phiên headless hoặc chỉ SSH. Khởi động phiên đồ họa, hoặc export DBUS_SESSION_BUS_ADDRESS trước khi khởi chạy.';
 

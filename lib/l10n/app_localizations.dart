@@ -4029,12 +4029,6 @@ abstract class S {
   /// **'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.'**
   String get hwProbeAndroidBiometricUnavailable;
 
-  /// No description provided for @keyringProbeLinuxWsl.
-  ///
-  /// In en, this message translates to:
-  /// **'Running on WSL — there is no keyring daemon reachable from a Windows Subsystem for Linux container. Use master password, or run the app on a native Linux session with gnome-keyring / KWallet.'**
-  String get keyringProbeLinuxWsl;
-
   /// No description provided for @keyringProbeLinuxNoDbusSession.
   ///
   /// In en, this message translates to:

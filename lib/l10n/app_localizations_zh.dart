@@ -2190,10 +2190,6 @@ class SZh extends S {
       '生物识别硬件暂时不可用（失败尝试后锁定或待处理的安全更新）。请几分钟后重试。';
 
   @override
-  String get keyringProbeLinuxWsl =>
-      '正在 WSL 中运行 —— 无法从 Windows Subsystem for Linux 容器访问 keyring daemon。请使用主密码，或在带有 gnome-keyring / KWallet 的原生 Linux 会话中运行应用。';
-
-  @override
   String get keyringProbeLinuxNoDbusSession =>
       '没有 D-Bus 会话总线 —— 应用在无头或仅 SSH 会话中运行。请启动图形登录会话，或在启动前导出 DBUS_SESSION_BUS_ADDRESS。';
 
