@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 
 void main() {
@@ -114,6 +117,50 @@ void main() {
       addTearDown(container.dispose);
       final storage = container.read(secureKeyStorageProvider);
       expect(storage, isA<Object>()); // SecureKeyStorage instance
+    });
+  });
+
+  group('probe detail text helpers', () {
+    late S l10n;
+
+    setUpAll(() async {
+      l10n = await S.delegate.load(const Locale('en'));
+    });
+
+    test('hardwareProbeDetailText returns non-empty for every non-available '
+        'case so a missing switch arm is caught by the analyser', () {
+      for (final detail in HardwareProbeDetail.values) {
+        final text = hardwareProbeDetailText(l10n, detail);
+        if (detail == HardwareProbeDetail.available) {
+          expect(
+            text,
+            isEmpty,
+            reason: 'available returns empty — UI hides the card entirely',
+          );
+        } else {
+          expect(
+            text,
+            isNotEmpty,
+            reason: '$detail must surface an actionable line to the user',
+          );
+        }
+      }
+    });
+
+    test('keyringProbeDetailText returns non-empty for every non-available '
+        'case', () {
+      for (final result in KeyringProbeResult.values) {
+        final text = keyringProbeDetailText(l10n, result);
+        if (result == KeyringProbeResult.available) {
+          expect(text, isEmpty);
+        } else {
+          expect(
+            text,
+            isNotEmpty,
+            reason: '$result must surface an actionable line to the user',
+          );
+        }
+      }
     });
   });
 }
