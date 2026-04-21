@@ -2272,10 +2272,6 @@ class SEn extends S {
       'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'No D-Bus session bus — the app is running in a headless or SSH-only session. Start a graphical login session, or export DBUS_SESSION_BUS_ADDRESS before launching.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus is up but no secret-service daemon is running. Install gnome-keyring (`sudo apt install gnome-keyring`) or KWalletManager and ensure it starts at login.';
 

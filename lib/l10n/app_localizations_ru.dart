@@ -2290,10 +2290,6 @@ class SRu extends S {
       'Биометрическое оборудование временно недоступно (блокировка после неудачных попыток или ожидание обновления безопасности). Повторите через несколько минут.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'Нет D-Bus session bus — приложение запущено в headless или SSH-only сессии. Запустите графическую сессию или экспортируйте DBUS_SESSION_BUS_ADDRESS перед стартом.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus работает, но secret-service daemon не запущен. Установите gnome-keyring (`sudo apt install gnome-keyring`) или KWalletManager и включите автозапуск при входе.';
 

@@ -2280,10 +2280,6 @@ class SHi extends S {
       'बायोमेट्रिक हार्डवेयर अस्थायी रूप से अनुपयोगी (असफल प्रयासों के बाद लॉकआउट या लंबित सुरक्षा अपडेट)। कुछ मिनटों में पुनः प्रयास करें।';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'कोई D-Bus session bus नहीं — ऐप headless या केवल SSH सत्र में चल रहा है। ग्राफ़िकल लॉगिन सत्र शुरू करें, या लॉन्च से पहले DBUS_SESSION_BUS_ADDRESS निर्यात करें।';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus चल रहा है लेकिन कोई secret-service daemon नहीं चल रहा। gnome-keyring (`sudo apt install gnome-keyring`) या KWalletManager स्थापित करें और लॉगिन पर शुरू होना सुनिश्चित करें।';
 

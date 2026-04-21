@@ -2308,10 +2308,6 @@ class SFr extends S {
       'Matériel biométrique temporairement inutilisable (verrouillage après échecs ou mise à jour de sécurité en attente). Réessayez dans quelques minutes.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'Pas de bus de session D-Bus — l\'app tourne dans une session headless ou SSH uniquement. Démarrez une session graphique, ou exportez DBUS_SESSION_BUS_ADDRESS avant de lancer.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus fonctionne mais aucun secret-service daemon n\'est actif. Installez gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager et assurez-vous qu\'il démarre à la connexion.';
 

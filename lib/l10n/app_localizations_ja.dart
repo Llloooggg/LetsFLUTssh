@@ -2213,10 +2213,6 @@ class SJa extends S {
       '生体認証ハードウェアが一時的に使用できません（失敗試行後のロックアウトまたは保留中のセキュリティ更新）。数分後に再試行してください。';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'D-Bus セッションバスがありません — アプリはヘッドレスまたは SSH 専用セッションで実行されています。グラフィカルログインセッションを開始するか、起動前に DBUS_SESSION_BUS_ADDRESS をエクスポートしてください。';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus は動作していますが、secret-service デーモンが実行されていません。gnome-keyring（`sudo apt install gnome-keyring`）または KWalletManager をインストールし、ログイン時に起動するようにしてください。';
 

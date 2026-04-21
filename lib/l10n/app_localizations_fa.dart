@@ -2273,10 +2273,6 @@ class SFa extends S {
       'سخت‌افزار بیومتریک به طور موقت غیرقابل استفاده است (قفل پس از تلاش‌های ناموفق یا به‌روزرسانی امنیتی در انتظار). چند دقیقه دیگر امتحان کنید.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'D-Bus session bus وجود ندارد — برنامه در جلسه headless یا فقط SSH اجرا می‌شود. یک جلسه ورود گرافیکی شروع کنید، یا قبل از راه‌اندازی DBUS_SESSION_BUS_ADDRESS را صادر کنید.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus فعال است اما هیچ secret-service daemon در حال اجرا نیست. gnome-keyring (`sudo apt install gnome-keyring`) یا KWalletManager را نصب کنید و مطمئن شوید که هنگام ورود به سیستم اجرا می‌شود.';
 

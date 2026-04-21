@@ -237,4 +237,4 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 
 ## Security
 
-See [SECURITY.md](../.github/SECURITY.md) for reporting vulnerabilities.
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.

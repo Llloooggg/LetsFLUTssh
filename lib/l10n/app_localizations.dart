@@ -4029,12 +4029,6 @@ abstract class S {
   /// **'Biometric hardware is temporarily unusable (lockout after failed attempts, or pending security update). Retry in a few minutes.'**
   String get hwProbeAndroidBiometricUnavailable;
 
-  /// No description provided for @keyringProbeLinuxNoDbusSession.
-  ///
-  /// In en, this message translates to:
-  /// **'No D-Bus session bus — the app is running in a headless or SSH-only session. Start a graphical login session, or export DBUS_SESSION_BUS_ADDRESS before launching.'**
-  String get keyringProbeLinuxNoDbusSession;
-
   /// No description provided for @keyringProbeLinuxNoSecretService.
   ///
   /// In en, this message translates to:

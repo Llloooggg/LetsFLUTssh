@@ -2276,10 +2276,6 @@ class SAr extends S {
       'الأجهزة البيومترية غير قابلة للاستخدام مؤقتًا (قفل بعد محاولات فاشلة أو تحديث أمني معلق). أعد المحاولة بعد بضع دقائق.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'لا يوجد D-Bus session bus — يعمل التطبيق في جلسة بدون واجهة رسومية أو SSH فقط. ابدأ جلسة تسجيل دخول رسومية، أو صدّر DBUS_SESSION_BUS_ADDRESS قبل التشغيل.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus يعمل ولكن لا يوجد secret-service daemon قيد التشغيل. ثبّت gnome-keyring (`sudo apt install gnome-keyring`) أو KWalletManager وتأكد من بدء تشغيله عند تسجيل الدخول.';
 

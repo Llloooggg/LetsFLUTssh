@@ -2295,10 +2295,6 @@ class SPt extends S {
       'Hardware biométrico temporariamente inutilizável (bloqueio após falhas ou atualização de segurança pendente). Tente novamente em alguns minutos.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'Sem D-Bus session bus — o app está em uma sessão headless ou só por SSH. Inicie uma sessão gráfica, ou exporte DBUS_SESSION_BUS_ADDRESS antes de iniciar.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus está ativo mas nenhum secret-service daemon está rodando. Instale gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager e certifique-se de que inicia no login.';
 

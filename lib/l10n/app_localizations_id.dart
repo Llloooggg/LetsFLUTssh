@@ -2284,10 +2284,6 @@ class SId extends S {
       'Perangkat keras biometrik tidak dapat digunakan sementara (terkunci setelah percobaan gagal atau pembaruan keamanan tertunda). Coba lagi beberapa menit lagi.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'Tidak ada D-Bus session bus — aplikasi berjalan di sesi headless atau hanya SSH. Mulai sesi login grafis, atau ekspor DBUS_SESSION_BUS_ADDRESS sebelum meluncurkan.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus aktif tetapi tidak ada secret-service daemon yang berjalan. Pasang gnome-keyring (`sudo apt install gnome-keyring`) atau KWalletManager dan pastikan berjalan saat login.';
 

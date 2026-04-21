@@ -641,7 +641,7 @@ class ForegroundServiceManager {
 > The code-level reference lives in this section; the user-facing
 > threat model (scope, threat boundary, KEK provider hierarchy,
 > per-platform trust backing, combined matrix, vulnerability
-> reporting) lives in [`SECURITY.md`](../.github/SECURITY.md). Keep
+> reporting) lives in [`SECURITY.md`](SECURITY.md). Keep
 > the two in lockstep: code design decisions documented here should
 > cross-link out to the SECURITY section that motivates them, never
 > duplicate the threat-model prose.
@@ -665,7 +665,7 @@ feature-gating goes through predicates on `SecurityConfig`
 | **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Password (optional, via modifier) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
 | **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only in `SecretBuffer` during the unlocked window |
 
-See [`SECURITY.md §KEK provider hierarchy`](../.github/SECURITY.md#kek-provider-hierarchy)
+See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
 for the threat-model rationale behind offering both T1 (convenience,
 OS-keychain-backed) and T2 (off-device extraction resistance,
 bypasses the OS keychain layer).
@@ -1620,8 +1620,8 @@ Supporting classes in the same directory:
   `<artifact>.sig` file against them via `pinenacl`. Multi-pin so the
   maintainer can rotate a leaked key without breaking already-installed
   builds. See [§13 Update channel integrity](#update-channel-integrity)
-  for the end-to-end picture and `.github/SECURITY.md` for the rotation
-  playbook.
+  for the end-to-end picture and [`SECURITY.md`](SECURITY.md) for the
+  rotation playbook.
 - **`CertPinning`** (`cert_pinning.dart`) — installs a
   `badCertificateCallback` on the update-download HTTP client that
   checks the leaf cert's SPKI against a per-host pin set. Pin map is
@@ -2752,15 +2752,34 @@ Single-tier presentation block used by both Settings → Security (read-only inf
 
 ```dart
 typedef TierSelectCallback =
-    Future<void> Function(SecurityTier tier, SecurityModifiers modifiers);
+    Future<void> Function({
+      required SecurityTier tier,
+      required SecurityTierModifiers modifiers,
+      String? shortPassword,
+      String? pin,
+      String? masterPassword,
+    });
 
 ExpandableTierCard({
   required SecurityTier tier,
-  required SecurityState state,
+  required SecurityTier currentTier,
+  required SecurityTierModifiers currentModifiers,
+  required bool tierAvailable,
   required TierSelectCallback onSelect,
+  String? unavailableReason,
+  bool initiallyExpanded = false,
+  Widget? activeTierExtras,
 })
 ```
-Settings → Security ladder unit. Collapsed state shows the tier header; expanded state surfaces modifier toggles + secret inputs inline so the user picks a config and taps Select in one shot. The Settings side routes the `onSelect` request through the security provider after running the relevant migration / re-encryption path.
+Settings → Security ladder unit. Collapsed state shows the tier header (badge + title + subtitle + a trailing "Current" pill on the active row). Expanded state surfaces:
+
+1. A fixed-order threat list — the same 8 rows in the same sequence on every tier card, each with a ✓/✗ icon computed by `evaluate()` in `threat_vocabulary.dart`. Rows that would flip to ✓ if the password modifier were enabled carry an "(only with password)" hint in muted italics so the user can tell at a glance which threats the toggle unlocks. Earlier iterations split the list into "protects" / "doesn't protect" halves; dropped because cross-tier comparison requires positional alignment that halves-split destroyed.
+2. Password and biometric modifier toggles where applicable — T1 and T2 both carry the password toggle; the underlying auth value (long password vs PIN) is semantically different but rendered as the same `SecurePasswordField + confirm` pair under a unified "password" label. The brute-force-resistance distinction (length on T1, hardware lockout on T2) lives in the threat-row copy, not in a second field name.
+3. Secret input fields — shown only when the corresponding modifier is on (password+confirm for T1/T2, master password+confirm for Paranoid).
+4. An Apply / "✓ Current" button — Apply routes through `onSelect` into the same atomic always-rekey pipeline the old wizard invoked.
+5. `activeTierExtras` — an optional widget slot rendered under the Apply button with a divider separating it. Used by the Settings section to inline the biometric-unlock toggle and the auto-lock tile into the current tier's expandable, because both are orthogonal "settings of the currently applied tier" rather than pending changes queued for Apply. Non-current cards pass null; the slot stays hidden there.
+
+Unavailable tiers (T2 without TPM, T1 with gdbus probe reporting no secret-service) keep the card expandable so the user can still read the threat split. The Select button is disabled and the `unavailableReason` line renders under the threat list as a yellow pill.
 
 ### SecuritySetupDialog
 
@@ -2770,14 +2789,18 @@ class SecuritySetupResult { … }
 SecuritySetupDialog({Key? key})
 SecuritySetupDialog.show(context) → Future<SecuritySetupResult?>
 ```
-First-launch security setup wizard. Carries both the legacy (tier + typed-secret-field) shape and the new bank-style (tier + modifiers) shape on `SecuritySetupResult` so downstream call sites can migrate gradually.
+Reduced-wizard fallback: shown on first launch **only when both T1 (keychain) and T2 (hardware) are unavailable** — a rare environment where the user genuinely has to pick between T0 (plaintext) and Paranoid (master password) because no OS-backed secret store is reachable. On the common path (keychain reachable) `_firstLaunchSetup` auto-selects T1 silently and surfaces a `FirstLaunchSecurityToast` instead of this modal — the toast is non-blocking because the auto-setup already made a safe choice for the user. Carries both the legacy (tier + typed-secret-field) shape and the bank-style (tier + modifiers) shape on `SecuritySetupResult` so downstream call sites can consume either form.
 
-### FirstLaunchSecurityDialog
+### FirstLaunchSecurityToast
 
 ```dart
-FirstLaunchSecurityDialog.show(context) → Future<void>
+FirstLaunchSecurityToast.show(context, {
+  required FirstLaunchBannerData data,
+  required VoidCallback onOpenSettings,
+  required VoidCallback onDismiss,
+}) → void
 ```
-One-shot dialog shown once after the first-launch auto-setup lands on a tier. Tells the user what the app just decided, surfaces the hardware-upgrade path, and explains why the upgrade is unavailable when it is. Drives `firstLaunchBannerProvider` so it never reopens.
+Top-right `Overlay`-based toast shown once after the first-launch auto-setup lands on a tier. Replaces the earlier blocking `FirstLaunchSecurityDialog` — the auto-selected T1 is a safe default the app already landed on, so a dismiss-to-continue modal is out of scale for what the user has to do (nothing). Carries the same copy (what we picked + whether a hardware upgrade is within reach), offers the Settings action when `data.hardwareUpgradeAvailable`, and auto-dismisses after 8 seconds. Drives `firstLaunchBannerProvider` the same way the dialog did — `onDismiss` clears the provider so the toast never re-opens. The reduced-wizard path (both keychain + hardware unreachable) still shows `SecuritySetupDialog` as a blocking modal because that branch is a real decision the user has to make.
 
 ### TierSecretUnlockDialog
 
@@ -3556,7 +3579,7 @@ Encryption is applied at the database level via SQLite3MultipleCiphers — a sin
 
 *Why auto-select on top of the existing wizard:* the wizard was jarring as a first-run experience. Five tiers × two modifiers = ten combinations staring at a user who just wanted an SSH client. T1 is a solid default — protects against cold-disk theft, unlocks silently, zero friction — and the upgrade path to T2 / Paranoid is one tap away in Settings. The banner is the honest middle ground: we picked for you, here is what we picked, here is the upgrade path or the reason it is not available.
 
-*Post-setup banner:* [`FirstLaunchSecurityDialog`](../lib/widgets/first_launch_security_dialog.dart) shown by `_MainScreenState` when the provider fires. Buttons: **Got it** (primary, dismisses) and **Open Settings** (only when `caps.hardwareVaultAvailable == true && current tier != hardware` — otherwise the upgrade is not reachable so offering the button would be dishonest). No persistence: the banner belongs to the launch where the auto-setup ran, and the auto-setup only runs when no DB file exists, so a restart never re-opens it.
+*Post-setup banner:* [`FirstLaunchSecurityToast`](../lib/widgets/first_launch_security_toast.dart) — top-right `Overlay`-based toast shown by `_MainScreenState` when the provider fires. Replaces an earlier blocking `FirstLaunchSecurityDialog`: the auto-selected T1 is a safe default the app already landed on, so a modal that pins the user to click Dismiss before touching anything else is heavier than the choice warrants. The toast carries the same copy (what we picked + whether a hardware upgrade is within reach), offers an **Open Settings** action when `caps.hardwareVaultAvailable == true && current tier != hardware`, auto-dismisses after 8 seconds, and never blocks input. `onDismiss` clears the provider so the toast never re-opens; same no-persistence property as the dialog it replaced.
 
 *Settings discoverability cards:* the Security section consumes the same capabilities snapshot via [`securityCapabilitiesProvider`](../lib/providers/security_provider.dart) (a session-scoped `FutureProvider` — TPM / Secure Enclave / libsecret don't appear or disappear mid-session, so one probe per container is correct). When the current tier is below `SecurityTier.hardware`, Settings renders one of two cards right under the active-tier info tile:
 
@@ -3575,9 +3598,11 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
 
   *Why the native side classifies rather than the Dart side:* the backing-level inference Linux does via file + process probes is not portable. On Apple the classifier needs the typed `LAError` code from `canEvaluatePolicy`, on Android it needs the `BiometricManager.canAuthenticate` status constant, on Windows it needs the `NCryptOpenStorageProvider` result. All three live on the native side already; the plugin returning a structured code is simpler than routing the raw error object through the method channel and re-classifying in Dart.
 
-- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. Implemented entirely on the Dart side because the Linux-specific failure modes — no D-Bus session bus, WSL container, no secret-service daemon — are all detectable from `Platform.environment` and the existing `_hasKeychainSupport` gate. Non-Linux platforms fall through to a generic `probeFailed` only on the rare occasion that the live write-read-delete round-trip fails.
+- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe is a single concrete `gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.DBus.Peer.Ping` subprocess — exit 0 = service registered and responds, any other exit (bus down, no daemon, `gdbus` binary missing) = `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. Earlier iterations pattern-matched `WSL_DISTRO_NAME` or checked `DBUS_SESSION_BUS_ADDRESS` — both proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so the env-var branches gave the wrong answer. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `flutter_secure_storage`; failure = `probeFailed`.
 
-Both providers are session-scoped (keyring failure modes on Linux don't change mid-session, hardware probe results are fixed by the boot-time state of the chip). Settings watches both and feeds the resulting reason lines into [`_buildTierCard`](../lib/features/settings/settings_sections_security.dart) as the `unavailableReason` argument.
+The Linux subprocess path is guarded by `SecureKeyStorage.enableRuntimeSubprocessProbes`, called from `main.dart` at app startup. Widget tests running under FakeAsync do not reach that entry point, so the flag stays false and the probe short-circuits to an optimistic `available` — necessary because `Process.run` inside FakeAsync-managed code leaks a Timer onto the pending-timer list and fails unrelated widget tests.
+
+Both providers are session-scoped (keyring failure modes on Linux don't change mid-session, hardware probe results are fixed by the boot-time state of the chip). Tier cards read the classified probe's `AsyncValue` as the authoritative availability signal too, not just for the reason-line copy — the fast-path `SecureKeyStorage.isAvailable()` uses only env + marker-file checks and would falsely mark WSL as "keychain available", leaving the Select button enabled on a broken system; the classified `probe()` is the actual truth. `caps.keychainAvailable` from the startup capabilities snapshot is kept as a fallback while the classified probe's future is still resolving, so the card renders optimistically on the first frame and snaps to the correct state milliseconds later.
 
 ### Startup security flow
 
@@ -3642,7 +3667,7 @@ key ever leaks the maintainer swaps the `RELEASE_SIGNING_KEY` secret
 to the backup, generates a fresh backup pair offline, and ships the
 next release with `[backup, fresh-backup]` in `release_signing.dart`.
 Already-installed builds keep verifying via the (now-active) backup
-pin. Full playbook in `.github/SECURITY.md`.
+pin. Full playbook in [`SECURITY.md`](SECURITY.md).
 
 **SPKI pinning (optional, off by default):** `CertPinning` adds a
 `badCertificateCallback` on the update HTTP client that checks the

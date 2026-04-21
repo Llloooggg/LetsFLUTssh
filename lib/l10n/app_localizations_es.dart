@@ -2302,10 +2302,6 @@ class SEs extends S {
       'Hardware biométrico temporalmente inutilizable (bloqueo por intentos fallidos o actualización de seguridad pendiente). Reintenta en unos minutos.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'Sin D-Bus session bus — la app está en una sesión headless o solo por SSH. Inicia una sesión gráfica, o exporta DBUS_SESSION_BUS_ADDRESS antes de iniciar.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus está activo pero ningún secret-service daemon está ejecutándose. Instala gnome-keyring (`sudo apt install gnome-keyring`) o KWalletManager y asegúrate de que se inicie al iniciar sesión.';
 

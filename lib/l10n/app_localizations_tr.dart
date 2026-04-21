@@ -2288,10 +2288,6 @@ class STr extends S {
       'Biyometrik donanım geçici olarak kullanılamıyor (başarısız denemelerden sonra kilit veya bekleyen güvenlik güncellemesi). Birkaç dakika sonra tekrar deneyin.';
 
   @override
-  String get keyringProbeLinuxNoDbusSession =>
-      'D-Bus session bus yok — uygulama headless veya yalnızca SSH oturumunda çalışıyor. Grafik oturumu başlatın veya başlatmadan önce DBUS_SESSION_BUS_ADDRESS değişkenini dışa aktarın.';
-
-  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.';
 
