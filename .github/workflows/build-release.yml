@@ -338,14 +338,20 @@ jobs:
         # flows (where the skipping bug matters), but for ad-hoc signing
         # it is the only path that produces the identity macOS 26
         # requires. Verified by user-side `sudo codesign --force
-        # --deep --sign -` workaround — the same command we now run in
-        # CI rescues a previously-broken per-file bundle on disk.
+        # --deep --sign - /Applications/letsflutssh.app` workaround.
+        #
+        # **Do NOT pass `--options=runtime`.** Hardened Runtime is
+        # designed to pair with a Developer ID signature — pairing it
+        # with an ad-hoc sig produces a partially-valid state that
+        # macOS 26 dyld rejects at launch (same misleading "different
+        # Team IDs" error). The user-side workaround that rescues
+        # broken installs omits `--options=runtime`; CI must match the
+        # exact flag set that was verified to work.
         run: |
           set -euxo pipefail
           APP="build/macos/Build/Products/Release/letsflutssh.app"
 
-          codesign --force --deep --sign - \
-            --options=runtime --timestamp=none "$APP"
+          codesign --force --deep --sign - "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
 
           # Sanity gate: every Mach-O binary in the bundle must carry an
