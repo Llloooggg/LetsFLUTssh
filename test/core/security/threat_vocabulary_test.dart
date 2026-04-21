@@ -54,16 +54,16 @@ const _goldenJson = r'''
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "liveRamForensicsLocked": "doesNotProtect",
-    "osKernelOrKeychainBreach": "doesNotProtect"
+    "liveRamForensicsLocked": "protects",
+    "osKernelOrKeychainBreach": "protects"
   },
   "T2+pw+bio": {
     "coldDiskTheft": "protects",
     "keyringFileTheft": "protects",
     "offlineBruteForce": "protects",
     "bystanderUnlockedMachine": "protects",
-    "liveRamForensicsLocked": "doesNotProtect",
-    "osKernelOrKeychainBreach": "doesNotProtect"
+    "liveRamForensicsLocked": "protects",
+    "osKernelOrKeychainBreach": "protects"
   },
   "Paranoid": {
     "coldDiskTheft": "protects",
@@ -108,17 +108,76 @@ void main() {
       }
     });
 
-    test('Paranoid is the only tier that defeats kernel/keychain breach', () {
+    test('Paranoid defeats kernel/keychain breach regardless of modifiers', () {
       for (final tier in ThreatTier.values) {
         final m = evaluate(
           ThreatModel(tier: tier, password: tier == ThreatTier.paranoid),
         );
-        final expected = tier == ThreatTier.paranoid
-            ? ThreatStatus.protects
-            : ThreatStatus.doesNotProtect;
-        expect(m[SecurityThreat.osKernelOrKeychainBreach], expected);
-        expect(m[SecurityThreat.liveRamForensicsLocked], expected);
+        if (tier == ThreatTier.paranoid) {
+          expect(
+            m[SecurityThreat.osKernelOrKeychainBreach],
+            ThreatStatus.protects,
+          );
+          expect(
+            m[SecurityThreat.liveRamForensicsLocked],
+            ThreatStatus.protects,
+          );
+        } else if (tier == ThreatTier.hardware) {
+          // Without password, hardware tier has no user-typed secret
+          // on the unlock path — a kernel breach can drive the chip
+          // freely. ✓ only comes when password is on, exercised in
+          // the separate T2+password test below.
+          expect(
+            m[SecurityThreat.osKernelOrKeychainBreach],
+            ThreatStatus.doesNotProtect,
+          );
+          expect(
+            m[SecurityThreat.liveRamForensicsLocked],
+            ThreatStatus.doesNotProtect,
+          );
+        } else {
+          expect(
+            m[SecurityThreat.osKernelOrKeychainBreach],
+            ThreatStatus.doesNotProtect,
+          );
+          expect(
+            m[SecurityThreat.liveRamForensicsLocked],
+            ThreatStatus.doesNotProtect,
+          );
+        }
       }
+    });
+
+    test('T2 + password defeats RAM forensics + kernel compromise', () {
+      // Always-wipe-on-lock policy + chip opacity: the DB key
+      // never lives in app RAM while locked, and what remains on
+      // disk (sealed blob) is meaningless without the physical
+      // chip answering an auth prompt that is rate-limited by
+      // hardware lockout. Matches T1+password failing both rows
+      // (keychain daemon retains key outside our wipe) and
+      // Paranoid protecting both (no at-rest key at all).
+      final t2pw = evaluate(
+        const ThreatModel(tier: ThreatTier.hardware, password: true),
+      );
+      expect(
+        t2pw[SecurityThreat.liveRamForensicsLocked],
+        ThreatStatus.protects,
+      );
+      expect(
+        t2pw[SecurityThreat.osKernelOrKeychainBreach],
+        ThreatStatus.protects,
+      );
+      final t1pw = evaluate(
+        const ThreatModel(tier: ThreatTier.keychain, password: true),
+      );
+      expect(
+        t1pw[SecurityThreat.liveRamForensicsLocked],
+        ThreatStatus.doesNotProtect,
+      );
+      expect(
+        t1pw[SecurityThreat.osKernelOrKeychainBreach],
+        ThreatStatus.doesNotProtect,
+      );
     });
 
     test('password flag enables bystander defence on T1 and T2', () {

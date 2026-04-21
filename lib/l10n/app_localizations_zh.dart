@@ -1374,7 +1374,7 @@ class SZh extends S {
 
   @override
   String get autoLockSubtitle =>
-      '在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。';
+      '在闲置达到此时长后锁定界面。每次锁定都会清除数据库密钥并关闭加密存储；活动会话通过按会话缓存的凭据保持连接，该缓存会在会话关闭时清空。';
 
   @override
   String get autoLockOff => '关闭';

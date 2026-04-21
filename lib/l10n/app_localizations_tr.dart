@@ -1435,7 +1435,7 @@ class STr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Bu süre boyunca boşta kalındığında arayüzü kilitler. Şifrelenmiş veritabanı yalnızca aktif SSH oturumu yokken yeniden kilitlenir, uzun süreli işlemler bağlı kalır.';
+      'Bu süre boyunca boşta kalındığında arayüzü kilitler. Her kilitlenmede veritabanı anahtarı silinir ve şifrelenmiş depo kapatılır; etkin oturumlar, oturum kapandığında temizlenen oturum bazlı bir kimlik bilgisi önbelleği sayesinde bağlı kalır.';
 
   @override
   String get autoLockOff => 'Kapalı';

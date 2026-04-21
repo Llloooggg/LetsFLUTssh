@@ -442,7 +442,7 @@
   "lockScreenSubtitle": "Digite a senha mestra ou use a biometria para continuar.",
   "unlock": "Desbloquear",
   "autoLockTitle": "Bloquear automaticamente após inatividade",
-  "autoLockSubtitle": "Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.",
+  "autoLockSubtitle": "Bloqueia a interface após este período de inatividade. A chave do banco é apagada e o armazenamento criptografado é fechado a cada bloqueio; as sessões ativas permanecem conectadas por meio de um cache de credenciais por sessão, que é limpo ao encerrar a sessão.",
   "autoLockOff": "Desativado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errReleaseSignatureInvalid": "Atualização rejeitada: os ficheiros transferidos não estão assinados pela chave de lançamento fixada na aplicação. Isto pode significar que a transferência foi adulterada a caminho, ou que o lançamento atual não se destina a esta instalação. NÃO instale — reinstale manualmente a partir da página oficial de lançamentos.",

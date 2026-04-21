@@ -1382,7 +1382,7 @@ class SKo extends S {
 
   @override
   String get autoLockSubtitle =>
-      '이 시간 동안 활동이 없으면 UI를 잠급니다. 활성 SSH 세션이 없을 때에만 암호화된 데이터베이스가 다시 잠겨, 장시간 작업은 끊기지 않습니다.';
+      '이 시간 동안 활동이 없으면 UI를 잠급니다. 잠금이 걸릴 때마다 데이터베이스 키가 지워지고 암호화된 저장소가 닫힙니다. 활성 세션은 세션별 자격 증명 캐시 덕분에 연결이 유지되며, 세션을 닫으면 캐시는 비워집니다.';
 
   @override
   String get autoLockOff => '끔';

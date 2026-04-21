@@ -232,9 +232,20 @@ architecture.
   `SessionLockListener` — Windows WTS, macOS
   `NSDistributedNotificationCenter`, Linux systemd-logind D-Bus — so
   the in-app lock fires even when the user hasn't been idle long
-  enough to trip the timer. The DB handle is closed on lock where
-  configured, clearing the SQLCipher page cache in addition to the
-  Dart-side key reference.
+  enough to trip the timer. **Every lock unconditionally wipes the
+  DB key and closes the drift / SQLCipher handle**, zeroing both the
+  Dart-side `SecretBuffer` and the C-layer page-cipher cache.
+  Previously the wipe was gated on "no active SSH sessions" so the
+  user's reconnect UX survived; that gate left the DB key warm
+  whenever any session was connected, which flattened T1+password
+  and T2+password in the threat matrix. The gate is gone now. Live
+  sessions stay reconnectable through a per-session credential
+  cache (`SessionCredentialCache`) — each session's password / key
+  bytes / passphrase are kept in `mlock`-pinned native memory
+  outside the encrypted store, so closing the store on lock does
+  not cost the user their connections. The cache is evicted on
+  explicit disconnect, on any wipe / reset path, and on app
+  shutdown.
 - **Page-locked in-memory secrets** — DB key, Argon2id-derived keys,
   and biometric-stored passwords live in FFI-allocated buffers
   locked into physical RAM with `mlock` (POSIX) or `VirtualLock`
@@ -315,8 +326,8 @@ so this document and the UI cannot drift. Short summary:
 | Keyring / keychain file exfiltration | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | Offline brute force on password | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
 | Bystander at unlocked machine | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
-| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
+| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
 
 *Deliberately omitted:* same-user malware and live process memory
 dump are ✗ on every tier. Including them in the per-tier table would
@@ -349,6 +360,25 @@ or crypto wallet on consumer hardware.
   same ✓ as T1 + pw because the blob-plus-chip requirement adds to
   (not replaces) the Argon2id cost; removing the pw on T2 drops the
   row to ✗ symmetrically with T1.
+* **RAM forensics on locked machine** and **OS kernel / keychain
+  breach** split T1 + pw from T2 + pw because the always-wipe-on-lock
+  policy zeroes the DB key the moment the lock fires, so what remains
+  of the wrapping key at rest differs by tier. T1 keeps its wrapping
+  key in the OS keychain daemon — a separate process, outside the
+  app's wipe reach — so a RAM dump of the locked device still finds
+  the daemon's copy and a kernel / keychain breach reads the daemon
+  memory or the `login.keyring` / `.vcrd` file directly; T1 + pw
+  stays ✗. T2 keeps its wrapping key inside the TPM / Secure Enclave
+  / StrongBox / Windows Hello NCrypt handle; the on-disk blob is
+  ciphertext the chip refuses to export (`NCRYPT_EXPORT_POLICY`
+  rejects export, Secure Enclave attributes mark the key
+  non-extractable, TPM sealed blobs are bound to the TPM's storage
+  key), and unsealing requires the chip to answer a user-auth prompt
+  that is rate-limited by hardware lockout. Kernel breach can drive
+  the chip but not faster than the lockout allows. T2 + pw becomes
+  ✓. Paranoid remains ✓ by construction — the key is derived per
+  unlock via Argon2id + master password and never persisted, so no
+  at-rest key exists for either vector to reach.
 
 ## Import / export
 

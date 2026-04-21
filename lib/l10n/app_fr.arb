@@ -442,7 +442,7 @@
   "lockScreenSubtitle": "Saisissez le mot de passe maître ou utilisez la biométrie pour continuer.",
   "unlock": "Déverrouiller",
   "autoLockTitle": "Verrouillage automatique après inactivité",
-  "autoLockSubtitle": "Verrouille l’interface après cette durée d’inactivité. La base de données chiffrée n’est reverrouillée que lorsqu’aucune session SSH n’est active, afin que les opérations longues restent connectées.",
+  "autoLockSubtitle": "Verrouille l’interface après cette durée d’inactivité. La clé de la base est effacée et le magasin chiffré est fermé à chaque verrouillage ; les sessions actives restent connectées grâce à un cache d’identifiants par session qui se vide à la fermeture de la session.",
   "autoLockOff": "Désactivé",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minute} other{{minutes} minutes}}",
   "errReleaseSignatureInvalid": "Mise à jour rejetée : les fichiers téléchargés ne sont pas signés par la clé de publication ancrée dans l'application. Cela peut signifier que le téléchargement a été altéré en transit, ou que la version actuelle n'est pas destinée à cette installation. N'INSTALLEZ PAS — réinstallez manuellement depuis la page officielle des versions.",

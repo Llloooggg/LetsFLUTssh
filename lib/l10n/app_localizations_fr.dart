@@ -1444,7 +1444,7 @@ class SFr extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Verrouille l’interface après cette durée d’inactivité. La base de données chiffrée n’est reverrouillée que lorsqu’aucune session SSH n’est active, afin que les opérations longues restent connectées.';
+      'Verrouille l’interface après cette durée d’inactivité. La clé de la base est effacée et le magasin chiffré est fermé à chaque verrouillage ; les sessions actives restent connectées grâce à un cache d’identifiants par session qui se vide à la fermeture de la session.';
 
   @override
   String get autoLockOff => 'Désactivé';

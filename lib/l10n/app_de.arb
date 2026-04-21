@@ -442,7 +442,7 @@
   "lockScreenSubtitle": "Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.",
   "unlock": "Entsperren",
   "autoLockTitle": "Automatisch sperren bei Inaktivität",
-  "autoLockSubtitle": "Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Die verschlüsselte Datenbank wird nur dann erneut gesperrt, wenn keine SSH-Sitzungen aktiv sind – laufende Operationen bleiben verbunden.",
+  "autoLockSubtitle": "Sperrt die Oberfläche nach dieser Inaktivitätsdauer. Der Datenbankschlüssel wird bei jeder Sperre gelöscht und der verschlüsselte Speicher geschlossen; aktive Sitzungen bleiben dank eines Sitzungs-Anmeldedaten-Caches verbunden, der beim Schließen der Sitzung geleert wird.",
   "autoLockOff": "Aus",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} Minute} other{{minutes} Minuten}}",
   "errReleaseSignatureInvalid": "Aktualisierung abgelehnt: Die heruntergeladenen Dateien sind nicht mit dem in der App verankerten Release-Schlüssel signiert. Dies kann bedeuten, dass der Download unterwegs manipuliert wurde, oder die aktuelle Version ist nicht für diese Installation bestimmt. NICHT installieren — stattdessen manuell von der offiziellen Releases-Seite neu installieren.",

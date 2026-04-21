@@ -1435,7 +1435,7 @@ class SPt extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Bloqueia a interface após este período de inatividade. O banco de dados criptografado só é re-bloqueado quando não há sessões SSH ativas, para não interromper operações longas.';
+      'Bloqueia a interface após este período de inatividade. A chave do banco é apagada e o armazenamento criptografado é fechado a cada bloqueio; as sessões ativas permanecem conectadas por meio de um cache de credenciais por sessão, que é limpo ao encerrar a sessão.';
 
   @override
   String get autoLockOff => 'Desativado';

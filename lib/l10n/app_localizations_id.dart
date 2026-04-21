@@ -1433,7 +1433,7 @@ class SId extends S {
 
   @override
   String get autoLockSubtitle =>
-      'Mengunci UI setelah tidak aktif selama durasi ini. Basis data terenkripsi hanya dikunci ulang ketika tidak ada sesi SSH aktif, agar operasi panjang tetap berjalan.';
+      'Mengunci UI setelah tidak aktif selama durasi ini. Kunci basis data dihapus dan penyimpanan terenkripsi ditutup pada setiap penguncian; sesi aktif tetap tersambung melalui cache kredensial per sesi yang dibersihkan saat sesi ditutup.';
 
   @override
   String get autoLockOff => 'Mati';

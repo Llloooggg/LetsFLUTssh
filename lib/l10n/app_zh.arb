@@ -442,7 +442,7 @@
   "lockScreenSubtitle": "输入主密码或使用生物识别以继续。",
   "unlock": "解锁",
   "autoLockTitle": "闲置后自动锁定",
-  "autoLockSubtitle": "在闲置达到此时长后锁定界面。仅当没有活动的 SSH 会话时才会重新锁定加密数据库，长时间运行的操作不会被中断。",
+  "autoLockSubtitle": "在闲置达到此时长后锁定界面。每次锁定都会清除数据库密钥并关闭加密存储；活动会话通过按会话缓存的凭据保持连接，该缓存会在会话关闭时清空。",
   "autoLockOff": "关闭",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分钟}}",
   "errReleaseSignatureInvalid": "更新已拒绝：下载的文件未使用应用中固定的发布密钥签名。这可能意味着下载过程中被篡改，或者当前版本并非适用于此安装。请勿安装 — 请从官方发布页面手动重新安装。",

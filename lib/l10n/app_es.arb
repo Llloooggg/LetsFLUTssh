@@ -442,7 +442,7 @@
   "lockScreenSubtitle": "Introduce la contraseña maestra o usa la biometría para continuar.",
   "unlock": "Desbloquear",
   "autoLockTitle": "Bloqueo automático por inactividad",
-  "autoLockSubtitle": "Bloquea la interfaz tras este periodo de inactividad. La base de datos cifrada solo se vuelve a bloquear cuando no hay sesiones SSH activas, para no interrumpir operaciones largas.",
+  "autoLockSubtitle": "Bloquea la interfaz tras este periodo de inactividad. La clave de la base de datos se borra y el almacén cifrado se cierra en cada bloqueo; las sesiones activas siguen conectadas gracias a una caché de credenciales por sesión que se limpia al cerrar la sesión.",
   "autoLockOff": "Desactivado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errReleaseSignatureInvalid": "Actualización rechazada: los archivos descargados no están firmados por la clave de lanzamiento fijada en la aplicación. Esto puede significar que la descarga fue manipulada en tránsito, o que el lanzamiento actual no es para esta instalación. NO instale — reinstale manualmente desde la página oficial de lanzamientos.",

@@ -2634,7 +2634,7 @@ abstract class S {
   /// No description provided for @autoLockSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Block the UI when idle for this long. The encrypted database is only re-locked when no SSH sessions are active, so long-running operations stay connected.'**
+  /// **'Block the UI when idle for this long. The database key is wiped and the encrypted store is closed on every lock; active sessions stay connected through a per-session credential cache that clears when the session is closed.'**
   String get autoLockSubtitle;
 
   /// No description provided for @autoLockOff.

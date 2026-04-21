@@ -143,8 +143,8 @@ class ThreatModel {
 /// | Keyring / keychain file exfiltration  | ✗  | ✗  | ✓     | ✓  | ✓     | ✓        |
 /// | Offline brute force on password       | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
 /// | Bystander at unlocked machine         | ✗  | ✗  | ✓     | ✗  | ✓     | ✓        |
-/// | Live RAM forensics on locked machine  | ✗  | ✗  | ✗     | ✗  | ✗     | ✓        |
-/// | OS kernel / keychain breach           | ✗  | ✗  | ✗     | ✗  | ✗     | ✓        |
+/// | Live RAM forensics on locked machine  | ✗  | ✗  | ✗     | ✗  | ✓     | ✓        |
+/// | OS kernel / keychain breach           | ✗  | ✗  | ✗     | ✗  | ✓     | ✓        |
 ///
 /// *Why keyring file exfiltration splits T1 from T2 without password:*
 /// T1 keeps the DB wrapping key inside the OS keychain file (libsecret
@@ -170,6 +170,32 @@ class ThreatModel {
 /// "no on-disk brute-force target" — clever but confusing: users read
 /// the password modifier as the only way ✓ appears on the brute-force
 /// row, and the lopsided ✓ broke that mental model.
+///
+/// *Why T2+password now defeats RAM forensics + OS kernel breach
+/// (but T1+password does not):* auto-lock unconditionally wipes the
+/// DB key and closes the encrypted store (see `AutoLockDetector`).
+/// What remains on disk differs by tier:
+///
+///   * **T1+password**: the wrapping key sits in the OS keychain
+///     daemon — a separate process outside our wipe's reach. A RAM
+///     dump of a locked machine still yields the daemon's plaintext
+///     copy; an OS kernel / keychain breach reads the daemon's
+///     memory or the on-disk keychain file directly. Still ✗.
+///   * **T2+password**: the wrapping key never leaves the TPM /
+///     Secure Enclave / StrongBox / Windows Hello NCrypt handle
+///     (NCRYPT_EXPORT_POLICY refuses export). A RAM dump sees only
+///     the sealed blob (ciphertext from the attacker's view).
+///     Kernel breach can ask the chip to unseal, but rate-limit
+///     lockout throttles that into infeasibility. Becomes ✓.
+///   * **Paranoid**: key is derived per unlock from the master
+///     password via Argon2id; no at-rest key anywhere. ✓ regardless.
+///
+/// The always-wipe-on-lock policy is the enabler — without it the
+/// DB key sat in app RAM for as long as any SSH session was active,
+/// collapsing T2+pw and T1+pw onto the same ✗ row. The per-session
+/// [SessionCredentialCache] satisfies the UX requirement (live
+/// reconnects keep working through a lock) without keeping the DB
+/// key warm.
 ///
 /// Pure function — no I/O, no locale lookups, no platform probes.
 /// Every UI surface consumes this map and renders ✓ / ✗ per threat.
@@ -205,14 +231,19 @@ Map<SecurityThreat, ThreatStatus> evaluate(ThreatModel model) {
     SecurityThreat.offlineBruteForce: yes(hasUserSecret),
     SecurityThreat.bystanderUnlockedMachine: yes(hasUserSecret),
     // Live RAM forensics on a locked machine + OS kernel / keychain
-    // breach: only Paranoid holds up. Paranoid derives the key per
-    // unlock and zeroises after use; numbered tiers rely on the OS
-    // to keep the wrapped key secret.
+    // breach: Paranoid derives the key per unlock and zeroises
+    // after use; T2 relies on chip opacity (key never leaves the
+    // TPM / Secure Enclave / StrongBox, sealed blob on disk is
+    // meaningless without the physical chip + auth value). T1
+    // fails both because the keychain daemon is a separate process
+    // whose memory / on-disk file sit outside our wipe.
     SecurityThreat.liveRamForensicsLocked: yes(
-      model.tier == ThreatTier.paranoid,
+      model.tier == ThreatTier.paranoid ||
+          (model.tier == ThreatTier.hardware && model.password),
     ),
     SecurityThreat.osKernelOrKeychainBreach: yes(
-      model.tier == ThreatTier.paranoid,
+      model.tier == ThreatTier.paranoid ||
+          (model.tier == ThreatTier.hardware && model.password),
     ),
   };
 }
