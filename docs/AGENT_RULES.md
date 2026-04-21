@@ -17,7 +17,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Add a new dependency or feature that needs an OS capability | [§ Conventions → Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs |
 | Tempted to propose per-platform native rewrite of a working feature ("true X", "real X", "verified X") | [§ Conventions → Don't Escalate Working Baselines](#dont-escalate-working-baselines) — don't escalate; document the gap, don't fill it with code unless the user asks |
 | Write or update a test | [§ Testing Methodology](#testing-methodology) |
-| Add/change a user-facing string | [§ Conventions → Localization](#localization-i18n) + [§ Doc Maintenance](#documentation-maintenance-checklist) row "user-facing string" |
+| Add/change a user-facing string | [§ Conventions → Localization](#localization-i18n) + [§ Localization Tone](#localization-tone--native-it-register-not-dictionary-calques) + [§ Doc Maintenance](#documentation-maintenance-checklist) row "user-facing string" |
 | Add a new widget / helper / mixin / style constant / store | [§ Conventions → Reuse First](#reuse-first-project-wide-not-just-ui) — search shared modules first |
 | Add/change a UI control | [§ Conventions → Reuse First](#reuse-first-project-wide-not-just-ui) + [§ UI Components](#ui-components) (disable-vs-hide) |
 | Add a new file in `lib/` | [§ Doc Maintenance](#documentation-maintenance-checklist) (which §s of ARCHITECTURE.md to update) |
@@ -281,6 +281,57 @@ OneDark theme: centralized in `app_theme.dart`, semantic color constants, no har
 
 ### Localization (i18n)
 All user-facing strings MUST use `S.of(context).xxx`. Never hardcode strings in widgets — treat this as a bug. Add keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`, use `S.of(context).newKey`. Exceptions: constructor defaults (no context), log messages, `_AlreadyRunningApp`. Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See [§8.1 i18n](ARCHITECTURE.md#81-internationalization-i18n)
+
+### Localization Tone — Native IT Register, Not Dictionary Calques
+Audience is engineers and sysadmins. Strings must read like a dev explaining to a colleague, not a textbook, not machine-translated output. Two rules, both mandatory.
+
+**1. Technical terms follow each locale's real IT register — not a mechanical "keep English" rule.**
+
+The goal is: write what a native-speaking senior dev would actually type to a colleague. Calques of English compounds into native words almost always read amateur, but over-Latinizing a locale that normally transliterates (JA katakana, KO hangul, ZH Apple consumer terms) also reads off. Rough per-locale guide:
+
+| Locale | Dominant pattern for tech terms |
+|---|---|
+| RU | Latin for tech (SSH, keychain, hardware, wrapped key). Prose Russian. |
+| ES, PT-BR, FR, DE, IT | Latin for dev-tool tech (SSH, Keychain, Hardware, Log, Timeout, Worker, Fingerprint, Passphrase, Scrollback, Release, rate limit). Apple / MS consumer-UI natives (trousseau, Schlüsselbund, llavero) OK only for macOS-specific labels, not dev-tool chrome. |
+| TR, ID | Heavy English in dev context. TDK / KBBI / öztürkçe / baku calques read textbook. |
+| AR, FA, HI, VI | Latin tech terms inside native prose is normal. Native coinages for SSH/TPM/keychain/forensics/wrapping sound amateur. |
+| JA | Katakana (キーチェーン, ハードウェア, スナップショット) for loan words; Latin (SSH, TPM, DMA, CVE, Argon2id) for acronyms. Mirror how native JP dev docs write. |
+| KO | Hangul transliteration (키체인, 하드웨어) or Latin — both valid. Match native dev doc convention. |
+| ZH | Latin for protocols/acronyms always (SSH, TPM, DMA, CVE, TLS). Common words translate (硬件, 密码). Apple term 钥匙串 OK but `keychain` Latin also works in dev tools. |
+
+**Anti-patterns seen across locales — never do these:**
+- Coin a native word for "keychain" when native devs don't use one (RU ключница, VI chuỗi khóa, FA کلیدستان / جاکلیدی, KO 열쇠고리, ZH 钥匙链 as an invented new compound — amateur).
+- Translate Unix "pipe" as literal water pipe (RU труба, PT Pipa, TR Boru, AR أنبوب, HI पाइप-as-plumbing, VI Ống, ID Pipa — canonical POSIX error `Broken pipe` is recognized verbatim).
+- Translate "worker" as human laborer (PT Trabalhadores, AR العمال, TR İşçi, HI मज़दूर, VI công nhân, ID Pekerja — evokes factory, not concurrency).
+- Translate "Paranoid" (tier codename) as psychiatric diagnosis (AR جنون الارتياب, VI Hoang tưởng, KO 편집증 alone without qualifier, FA وسواسی, ES Paranoico — tier names stay English/parenthesized).
+- Translate "forensics" as legal/courtroom term (RU криминалистика, PT Perícia, FA جرم‌یابی, AR تحليل جنائي — use "memory dump / RAM dump / RAM forensics" instead).
+- Translate "wrapped key" / "sealed blob" as literal wrapping/sealing native idioms (AR المفتاح الملفوف = cabbage roll, ZH 被包装的 = gift-wrapped — keep `wrapped key` / `sealed blob` Latin or use `封装/umhüllt/empacotada`-style crypto-register verb).
+- Translate SSH "fingerprint" with biometric word when the app also has biometric auth (ES Huella digital, PT Impressão digital, TR Parmak izi — this collides with biometric-unlock UI in the same screen).
+
+**2. Prose reads as living language, not as word-for-word English grammar.**
+
+- Use action verbs, not noun piles.
+- No word-for-word copy of English sentence structure.
+- Short sentences > long participle/relative chains.
+- No "please" in error messages (RU пожалуйста, ES Por favor, PT Por favor, JA ください-inflation, TR lütfen — drop all).
+- No Apple-sir / keigo / ustedeo register inflation beyond what the locale's real dev UIs use.
+- Do not mix dialects (PT BR vs PT PT `ficheiros`/`arquivos`; ES tuteo vs ustedeo; DE du vs Sie) — pick one per file and hold.
+- Do not use different translations for the same English term in the same file (every audited locale showed this: 3–5 renderings of `keychain`, mixed `log`/`registro`, `Paranoid`/`Paranoico`, `tier`/`kademe`/`katman`/`cấp`/`lớp`, etc.). Pick one term → use everywhere.
+
+**Critical semantic-inversion traps observed** (fix these wherever they appear):
+- ES `restablecida` / PT `redefinida` for "connection reset by peer" — both mean `re-established` / `redefined`, opposite of `reset`. Use `reiniciada por el peer` / `encerrada pelo peer`.
+- KO `암호문` for "passphrase" — 암호문 means `ciphertext` in crypto. Use `패스프레이즈`.
+- JA `解錠` for "decrypt/unwrap" — 解錠 is picking a physical lock. Use `復号`.
+- JA `ボルト` for "vault" — ボルト is bolt/volt. Correct is `ボールト`.
+- HI `समझौता` for "compromise" — means `agreement/deal`. Use `कॉम्प्रोमाइज़` or rephrase.
+- FR `sauvegardé` for "backed by" — false friend, means `backed up (to backup)`. Use `adossé à` / `reposant sur`.
+
+**Self-test before shipping a string:** read it aloud in your head. If it sounds like a textbook or a machine-translation glossary entry → rewrite. If it sounds like a message you'd send a colleague in Slack → ship.
+
+**Do localization work yourself — do not delegate translation to sub-agents.** Sub-agents get a short context brief and miss the conversation register, the user's feedback on prior strings, the per-locale norms already established in this project, and the decisions made earlier in the session. They fall back to "safe" dictionary calques — the exact failure mode we are trying to avoid. Survey-style use (read the 1000-line file, flag candidates) is acceptable; the actual tone decisions and rewrites stay in the main thread.
+
+**Watchlist — terms that routinely get miscalqued** (keep English / native IT form unless the locale's dev community genuinely uses a native equivalent):
+SSH, SFTP, SCP, TLS, DNS, proxy, TCP, known_hosts, TPM, TEE, DMA, Secure Enclave, StrongBox, HSM, keychain, keyring, Keystore, Credential Manager, key material, wrapped key, sealed blob, KDF, PBKDF2, Argon2id, AES, HMAC, AEAD, passphrase, fingerprint (disambiguate from biometric), host, host key, port, login, logging/log, worker, scrollback, release, timeout, keep-alive, rate limit, backdoor, plaintext, snapshot, forensics, dump, probe, breaking change, driver, distro, config, credential, slot, vault, kernel, build, runtime, mitigation, lockout, idle.
 
 ### Diagrams in Docs — Mermaid, Not ASCII Box-Art
 Every diagram in `docs/**/*.md`, `README.md`, `SECURITY.md` and any other git-tracked markdown MUST be a ` ```mermaid ` fenced block (`flowchart`, `stateDiagram-v2`, `sequenceDiagram`, `classDiagram`, etc.). GitHub renders these as SVG; plain ASCII `┌─┐`/`└─┘` box-art gets dumped as monospace and breaks on narrow viewports — do not write new ones. When editing an existing ASCII diagram, convert it to Mermaid in the same commit.

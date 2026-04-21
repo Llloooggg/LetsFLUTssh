@@ -472,7 +472,7 @@ class SZh extends S {
   String get noPasswordsInQr => '此 QR 码中不包含密码或密钥';
 
   @override
-  String get qrContainsCredentialsWarning => '此二维码包含凭据。请保持屏幕隐私。';
+  String get qrContainsCredentialsWarning => '此二维码包含凭据。请注意屏幕隐私。';
 
   @override
   String get copyLink => '复制链接';
@@ -864,13 +864,13 @@ class SZh extends S {
   String get tierHardwareLabel => '硬件';
 
   @override
-  String get tierHardwareSubtitle => '绑定硬件的保险库 + 带锁定的短 PIN';
+  String get tierHardwareSubtitle => '硬件绑定的 vault + 带锁定的短 PIN';
 
   @override
   String get tierHardwareProtect1 => 'PIN 的离线暴力破解（硬件速率限制）';
 
   @override
-  String get tierHardwareProtect2 => '偷窃磁盘和钥匙串 blob';
+  String get tierHardwareProtect2 => '磁盘或 keychain blob 被盗';
 
   @override
   String get tierHardwareThreat1 => '安全模块上的操作系统或固件 CVE';
@@ -1983,7 +1983,7 @@ class SZh extends S {
 
   @override
   String get securitySetupNoKeychainHint =>
-      '这在 WSL、无头 Linux 或最小安装中是正常的。要在 Linux 上启用钥匙串：安装 libsecret 和钥匙环守护进程（如 gnome-keyring）。';
+      '这在 WSL、无头 Linux 或最小安装中很正常。要在 Linux 上启用 keychain：安装 libsecret 和 keyring daemon（如 gnome-keyring）。';
 
   @override
   String get securitySetupRecommendMasterPassword => '建议设置主密码以保护您的数据。';
@@ -2208,7 +2208,8 @@ class SZh extends S {
       'D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。';
 
   @override
-  String get keyringProbeFailed => '此设备上无法访问操作系统密钥链。请查看日志以获取特定平台错误；应用将回退到主密码。';
+  String get keyringProbeFailed =>
+      '此设备上无法访问 OS keychain。请查看日志了解具体的平台错误；应用将回退到主密码。';
 
   @override
   String get snippets => '代码片段';
@@ -2462,7 +2463,7 @@ class SZh extends S {
 
   @override
   String get threatKeyringFileTheftDescription =>
-      '攻击者直接从磁盘读取平台的凭据存储文件（libsecret keyring、Windows Credential Manager、macOS login keychain），并从中恢复被包装的数据库密钥。硬件等级无论是否有密码都能阻止此攻击，因为芯片拒绝导出密钥材料；keychain 等级还需要密码，否则仅凭 OS 登录密码即可解包被盗文件。';
+      '攻击者直接从磁盘读取系统的凭据存储文件（libsecret keyring、Windows Credential Manager、macOS login keychain），并从中还原出被封装的数据库密钥。硬件等级无论是否设置密码都能阻止此攻击，因为芯片拒绝导出密钥材料；keychain 等级则必须叠加密码，否则攻击者仅凭 OS 登录密码就能解包被盗文件。';
 
   @override
   String get modifierOnlyWithPassword => '仅在设置密码时';
@@ -2493,7 +2494,7 @@ class SZh extends S {
 
   @override
   String get threatOfflineBruteForceDescription =>
-      '持有已封装密钥或密封数据副本的攻击者，可以不受任何频率限制，按自己的节奏尝试每一个密码。';
+      '持有被封装密钥或已密封 blob 副本的攻击者，可以不受任何速率限制，按自己的节奏逐个尝试密码。';
 
   @override
   String get legendProtects => '已保护';
@@ -2505,7 +2506,7 @@ class SZh extends S {
   String get legendNotApplicable => '不适用——此等级没有用户密钥';
 
   @override
-  String get legendWeakPasswordWarning => '可接受弱密码——由另一层（硬件频率限制器或密钥封装绑定）承担安全性';
+  String get legendWeakPasswordWarning => '可接受弱密码 — 安全性由另一层承担（硬件速率限制或密钥封装绑定）';
 
   @override
   String get legendStrongPasswordRecommended => '强烈建议使用长口令——此等级的安全性依赖于它';
@@ -2613,7 +2614,7 @@ class SZh extends S {
   String get modifierBiometricLabel => '生物识别快捷方式';
 
   @override
-  String get modifierBiometricSubtitle => '从受生物识别保护的系统槽位中获取密码，无需手动输入。';
+  String get modifierBiometricSubtitle => '从受生物识别保护的系统密钥槽中获取密码，无需手动输入。';
 
   @override
   String get biometricRequiresPassword => '请先启用密码——生物识别只是输入密码的快捷方式。';

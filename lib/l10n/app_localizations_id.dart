@@ -520,7 +520,7 @@ class SId extends S {
   String get copyFingerprint => 'Salin sidik jari';
 
   @override
-  String get acceptAnyway => 'Terima Saja';
+  String get acceptAnyway => 'Tetap Terima';
 
   @override
   String get accept => 'Terima';
@@ -595,7 +595,7 @@ class SId extends S {
   String get root => 'Root';
 
   @override
-  String get controllersNotInitialized => 'Kontroler belum diinisialisasi';
+  String get controllersNotInitialized => 'Controller belum diinisialisasi';
 
   @override
   String get initializingSftp => 'Menginisialisasi SFTP...';
@@ -895,7 +895,7 @@ class SId extends S {
 
   @override
   String get tierHardwareSubtitle =>
-      'Brankas terikat hardware + PIN pendek dengan lockout';
+      'Vault terikat hardware + PIN pendek dengan lockout';
 
   @override
   String get tierHardwareProtect1 =>
@@ -908,7 +908,8 @@ class SId extends S {
   String get tierHardwareThreat1 => 'CVE OS atau firmware pada modul aman';
 
   @override
-  String get tierHardwareThreat2 => 'Buka biometrik paksa (jika diaktifkan)';
+  String get tierHardwareThreat2 =>
+      'Buka kunci biometrik secara paksa (jika diaktifkan)';
 
   @override
   String get tierParanoidLabel => 'Kata sandi utama (Paranoid)';
@@ -929,7 +930,7 @@ class SId extends S {
 
   @override
   String get tierParanoidThreat2 =>
-      'Kata sandi lemah + peretasan Argon2id offline';
+      'Kata sandi lemah + brute-force Argon2id offline';
 
   @override
   String get tierParanoidNotes =>
@@ -937,7 +938,7 @@ class SId extends S {
 
   @override
   String get tierHardwareUnavailable =>
-      'Brankas perangkat keras tidak tersedia pada instalasi ini.';
+      'Hardware vault tidak tersedia pada instalasi ini.';
 
   @override
   String get pinLabel => 'Kata sandi';
@@ -956,15 +957,14 @@ class SId extends S {
   String get l3UnlockTitle => 'Masukkan kata sandi';
 
   @override
-  String get l3UnlockHint =>
-      'Kata sandi membuka brankas terikat perangkat keras';
+  String get l3UnlockHint => 'Kata sandi membuka hardware vault';
 
   @override
   String get l3WrongPin => 'Kata sandi salah';
 
   @override
   String tierCooldownHint(int seconds) {
-    return 'Coba lagi dalam $seconds d';
+    return 'Coba lagi dalam $seconds dtk';
   }
 
   @override
@@ -1048,7 +1048,7 @@ class SId extends S {
   String get local => 'Lokal';
 
   @override
-  String get remote => 'Jarak Jauh';
+  String get remote => 'Remote';
 
   @override
   String get pickFolder => 'Pilih Folder';
@@ -1195,7 +1195,7 @@ class SId extends S {
   String get errIoError => 'Kesalahan I/O';
 
   @override
-  String get errBadFileDescriptor => 'Deskriptor file buruk';
+  String get errBadFileDescriptor => 'File descriptor tidak valid';
 
   @override
   String get errResourceTemporarilyUnavailable =>
@@ -1211,10 +1211,10 @@ class SId extends S {
   String get errFileExists => 'File sudah ada';
 
   @override
-  String get errNotADirectory => 'Bukan sebuah direktori';
+  String get errNotADirectory => 'Bukan direktori';
 
   @override
-  String get errIsADirectory => 'Adalah sebuah direktori';
+  String get errIsADirectory => 'Target adalah direktori';
 
   @override
   String get errInvalidArgument => 'Argumen tidak valid';
@@ -1229,7 +1229,7 @@ class SId extends S {
   String get errReadOnlyFileSystem => 'Sistem file hanya-baca';
 
   @override
-  String get errBrokenPipe => 'Pipa rusak';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'Nama file terlalu panjang';
@@ -1251,7 +1251,7 @@ class SId extends S {
   String get errNetworkIsUnreachable => 'Jaringan tidak dapat dijangkau';
 
   @override
-  String get errConnectionResetByPeer => 'Koneksi direset oleh rekan';
+  String get errConnectionResetByPeer => 'Koneksi direset oleh peer';
 
   @override
   String get errConnectionTimedOut => 'Koneksi habis waktu';
@@ -1400,10 +1400,10 @@ class SId extends S {
 
   @override
   String get biometricBackingHardware =>
-      'Didukung perangkat keras (Secure Enclave / TPM)';
+      'Didukung hardware (Secure Enclave / TPM)';
 
   @override
-  String get biometricBackingSoftware => 'Didukung perangkat lunak';
+  String get biometricBackingSoftware => 'Didukung software';
 
   @override
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
@@ -1712,7 +1712,7 @@ class SId extends S {
   }
 
   @override
-  String get dropKeyFileHere => 'Seret file kunci ke sini';
+  String get dropKeyFileHere => 'Letakkan file kunci di sini';
 
   @override
   String get sessionNoCredentials =>
@@ -2022,7 +2022,7 @@ class SId extends S {
 
   @override
   String get tierResetBody =>
-      'Instalasi ini membawa data keamanan dari versi LetsFLUTssh lama yang menggunakan model tingkatan berbeda. Model baru merupakan perubahan tidak kompatibel — tidak ada jalur migrasi otomatis. Untuk melanjutkan, semua sesi tersimpan, kredensial, kunci SSH, dan host yang dikenal pada instalasi ini harus dihapus dan wisaya pengaturan pertama dijalankan dari awal.';
+      'Instalasi ini membawa data keamanan dari versi LetsFLUTssh lama yang memakai model tier berbeda. Model baru adalah breaking change — tidak ada jalur migrasi otomatis. Untuk melanjutkan, semua sesi tersimpan, kredensial, kunci SSH, dan known-host di instalasi ini harus dihapus dan wizard setup pertama dijalankan ulang.';
 
   @override
   String get tierResetWarning =>
@@ -2049,7 +2049,7 @@ class SId extends S {
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'Rantai kunci sistem terdeteksi ($keychainName). Data Anda akan dienkripsi secara otomatis menggunakan rantai kunci sistem.';
+    return 'Keychain sistem terdeteksi ($keychainName). Data Anda akan otomatis dienkripsi menggunakan keychain sistem.';
   }
 
   @override
@@ -2058,18 +2058,18 @@ class SId extends S {
 
   @override
   String get securitySetupNoKeychain =>
-      'Rantai kunci sistem tidak terdeteksi. Tanpa rantai kunci, data sesi (host, kata sandi, kunci) akan disimpan dalam teks biasa.';
+      'Keychain sistem tidak terdeteksi. Tanpa keychain, data sesi (host, kata sandi, kunci) akan disimpan dalam teks biasa.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'Ini normal di WSL, Linux tanpa GUI, atau instalasi minimal. Untuk mengaktifkan rantai kunci di Linux: instal libsecret dan daemon rantai kunci (cth. gnome-keyring).';
+      'Ini normal di WSL, Linux headless, atau instalasi minimal. Untuk mengaktifkan keychain di Linux: instal libsecret dan keyring daemon (mis. gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
       'Kami sarankan mengatur kata sandi utama untuk melindungi data Anda.';
 
   @override
-  String get continueWithKeychain => 'Lanjutkan dengan rantai kunci';
+  String get continueWithKeychain => 'Lanjutkan dengan keychain';
 
   @override
   String get continueWithoutEncryption => 'Lanjutkan tanpa enkripsi';
@@ -2081,13 +2081,13 @@ class SId extends S {
   String get securityLevelPlaintext => 'Tidak ada';
 
   @override
-  String get securityLevelKeychain => 'Rantai kunci sistem';
+  String get securityLevelKeychain => 'Keychain sistem';
 
   @override
   String get securityLevelMasterPassword => 'Kata sandi utama';
 
   @override
-  String get keychainStatus => 'Rantai kunci';
+  String get keychainStatus => 'Keychain';
 
   @override
   String get keychainAvailable => 'Tersedia';
@@ -2096,11 +2096,11 @@ class SId extends S {
   String get keychainNotAvailable => 'Tidak tersedia';
 
   @override
-  String get enableKeychain => 'Aktifkan enkripsi rantai kunci';
+  String get enableKeychain => 'Aktifkan enkripsi keychain';
 
   @override
   String get enableKeychainSubtitle =>
-      'Enkripsi ulang data tersimpan menggunakan rantai kunci sistem';
+      'Enkripsi ulang data tersimpan menggunakan keychain sistem';
 
   @override
   String get keychainEnabled => 'Enkripsi rantai kunci diaktifkan';
@@ -2584,7 +2584,7 @@ class SId extends S {
 
   @override
   String get threatLiveRamForensicsLocked =>
-      'Forensik RAM pada mesin yang terkunci';
+      'Dump RAM pada mesin yang terkunci';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
@@ -2596,7 +2596,7 @@ class SId extends S {
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'Kerentanan kernel, eksfiltrasi keychain, atau pintu belakang pada chip keamanan perangkat keras. Sistem operasi berubah dari sumber daya tepercaya menjadi penyerang itu sendiri.';
+      'Kerentanan kernel, eksfiltrasi keychain, atau backdoor pada chip keamanan hardware. OS berubah dari sumber daya tepercaya menjadi penyerang.';
 
   @override
   String get threatOfflineBruteForce =>
@@ -2735,7 +2735,7 @@ class SId extends S {
 
   @override
   String get modifierBiometricSubtitle =>
-      'Melepas kata sandi dari slot OS yang dilindungi biometrik, alih-alih mengetiknya.';
+      'Mengambil kata sandi dari slot OS yang dijaga biometrik, alih-alih mengetiknya.';
 
   @override
   String get biometricRequiresPassword =>

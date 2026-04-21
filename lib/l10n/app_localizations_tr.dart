@@ -395,7 +395,7 @@ class STr extends S {
   String get hintMyServer => 'Sunucum';
 
   @override
-  String get hostRequired => 'Ana Bilgisayar *';
+  String get hostRequired => 'Host *';
 
   @override
   String get hintHost => '192.168.1.1';
@@ -491,21 +491,21 @@ class STr extends S {
   String get linkCopied => 'Bağlantı panoya kopyalandı';
 
   @override
-  String get hostKeyChanged => 'Ana Bilgisayar Anahtarı Değişti!';
+  String get hostKeyChanged => 'Host anahtarı değişti!';
 
   @override
-  String get unknownHost => 'Bilinmeyen Ana Bilgisayar';
+  String get unknownHost => 'Bilinmeyen host';
 
   @override
   String get hostKeyChangedWarning =>
-      'UYARI: Bu sunucunun ana bilgisayar anahtarı değişti. Bu, ortadaki adam saldırısına veya sunucunun yeniden kurulmasına işaret edebilir.';
+      'UYARI: Bu sunucunun host anahtarı değişti. Bu bir MITM saldırısına ya da sunucunun yeniden kurulduğuna işaret edebilir.';
 
   @override
   String get unknownHostMessage =>
-      'Bu ana bilgisayarın kimliği doğrulanamıyor. Bağlanmaya devam etmek istediğinizden emin misiniz?';
+      'Bu host\'un kimliği doğrulanamıyor. Bağlanmaya devam etmek istediğinizden emin misiniz?';
 
   @override
-  String get host => 'Ana Bilgisayar';
+  String get host => 'Host';
 
   @override
   String get keyType => 'Anahtar türü';
@@ -595,7 +595,7 @@ class STr extends S {
   String get root => 'Kök';
 
   @override
-  String get controllersNotInitialized => 'Denetleyiciler başlatılmadı';
+  String get controllersNotInitialized => 'Controller\'lar başlatılmadı';
 
   @override
   String get initializingSftp => 'SFTP başlatılıyor...';
@@ -698,10 +698,10 @@ class STr extends S {
   String get terminalFontSize => 'Terminal Yazı Boyutu';
 
   @override
-  String get scrollbackLines => 'Geri Kaydırma Satırları';
+  String get scrollbackLines => 'Scrollback satır sayısı';
 
   @override
-  String get keepAliveInterval => 'Canlı Tutma Aralığı (sn)';
+  String get keepAliveInterval => 'Keep-alive aralığı (sn)';
 
   @override
   String get sshTimeout => 'SSH Zaman Aşımı (sn)';
@@ -710,7 +710,7 @@ class STr extends S {
   String get defaultPort => 'Varsayılan Port';
 
   @override
-  String get parallelWorkers => 'Paralel İşçiler';
+  String get parallelWorkers => 'Paralel Worker Sayısı';
 
   @override
   String get maxHistory => 'Maks Geçmiş';
@@ -852,7 +852,7 @@ class STr extends S {
       'Yalnızca güvenilir, yalıtılmış ortamlarda kullanın.';
 
   @override
-  String get tierKeychainLabel => 'Anahtarlık';
+  String get tierKeychainLabel => 'Keychain';
 
   @override
   String tierKeychainSubtitle(String keychain) {
@@ -1232,7 +1232,7 @@ class STr extends S {
   String get errReadOnlyFileSystem => 'Salt okunur dosya sistemi';
 
   @override
-  String get errBrokenPipe => 'Boru kırıldı';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'Dosya adı çok uzun';
@@ -1262,10 +1262,10 @@ class STr extends S {
   String get errConnectionRefused => 'Bağlantı reddedildi';
 
   @override
-  String get errHostIsDown => 'Ana bilgisayar çalışmıyor';
+  String get errHostIsDown => 'Host kapalı';
 
   @override
-  String get errNoRouteToHost => 'Ana bilgisayara yol bulunamadı';
+  String get errNoRouteToHost => 'Host\'a rota yok';
 
   @override
   String get errConnectionAborted => 'Bağlantı iptal edildi';
@@ -1296,7 +1296,7 @@ class STr extends S {
 
   @override
   String errSshHostKeyRejected(String host, int port) {
-    return '$host:$port için ana bilgisayar anahtarı reddedildi — anahtarı kabul edin veya known_hosts dosyasını kontrol edin';
+    return '$host:$port için host anahtarı reddedildi — anahtarı kabul edin veya known_hosts dosyasını kontrol edin';
   }
 
   @override
@@ -1779,34 +1779,33 @@ class STr extends S {
   String get security => 'Güvenlik';
 
   @override
-  String get knownHosts => 'Bilinen Sunucular';
+  String get knownHosts => 'Bilinen Host\'lar';
 
   @override
-  String get knownHostsSubtitle =>
-      'Güvenilir SSH sunucu parmak izlerini yönetin';
+  String get knownHostsSubtitle => 'Güvenilen SSH host parmak izlerini yönetin';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count bilinen sunucu',
-      one: '1 bilinen sunucu',
-      zero: 'Bilinen sunucu yok',
+      other: '$count bilinen host',
+      one: '1 bilinen host',
+      zero: 'Bilinen host yok',
     );
     return '$_temp0';
   }
 
   @override
   String get knownHostsEmpty =>
-      'Bilinen sunucu yok. Eklemek için bir sunucuya bağlanın.';
+      'Bilinen host yok. Eklemek için bir host\'a bağlanın.';
 
   @override
-  String get removeHost => 'Sunucuyu kaldır';
+  String get removeHost => 'Host\'u kaldır';
 
   @override
   String removeHostConfirm(String host) {
-    return '$host bilinen sunuculardan kaldırılsın mı? Sonraki bağlantıda anahtar yeniden doğrulanacak.';
+    return '$host bilinen host\'lardan kaldırılsın mı? Sonraki bağlantıda anahtar yeniden doğrulanacak.';
   }
 
   @override
@@ -1889,10 +1888,10 @@ class STr extends S {
   }
 
   @override
-  String get publicKey => 'Genel anahtar';
+  String get publicKey => 'Public key';
 
   @override
-  String get publicKeyCopied => 'Genel anahtar panoya kopyalandı';
+  String get publicKeyCopied => 'Public key panoya kopyalandı';
 
   @override
   String get pastePrivateKey => 'Özel anahtarı yapıştır (PEM)';
@@ -1925,21 +1924,21 @@ class STr extends S {
   String get generated => 'Oluşturuldu';
 
   @override
-  String get passphraseRequired => 'Parola gerekli';
+  String get passphraseRequired => 'Passphrase gerekli';
 
   @override
   String passphrasePrompt(String host) {
-    return '$host için SSH anahtarı şifrelenmiş. Kilidini açmak için parolayı girin.';
+    return '$host için SSH anahtarı şifrelenmiş. Kilidini açmak için passphrase girin.';
   }
 
   @override
-  String get passphraseWrong => 'Yanlış parola. Lütfen tekrar deneyin.';
+  String get passphraseWrong => 'Yanlış passphrase. Tekrar deneyin.';
 
   @override
-  String get passphrase => 'Parola';
+  String get passphrase => 'Passphrase';
 
   @override
-  String get rememberPassphrase => 'Bu oturum için hatırla';
+  String get rememberPassphrase => 'Bu oturumluk hatırla';
 
   @override
   String get masterPasswordSubtitle =>
@@ -2055,7 +2054,7 @@ class STr extends S {
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'Sistem anahtar zinciri algılandı ($keychainName). Verileriniz sistem anahtar zinciri kullanılarak otomatik şifrelenecek.';
+    return 'Sistem keychain\'i algılandı ($keychainName). Verileriniz sistem keychain\'i kullanılarak otomatik şifrelenecek.';
   }
 
   @override
@@ -2087,13 +2086,13 @@ class STr extends S {
   String get securityLevelPlaintext => 'Yok';
 
   @override
-  String get securityLevelKeychain => 'Sistem anahtar zinciri';
+  String get securityLevelKeychain => 'Sistem keychain\'i';
 
   @override
   String get securityLevelMasterPassword => 'Ana şifre';
 
   @override
-  String get keychainStatus => 'Anahtar zinciri';
+  String get keychainStatus => 'Keychain';
 
   @override
   String get keychainAvailable => 'Kullanılabilir';
@@ -2102,11 +2101,11 @@ class STr extends S {
   String get keychainNotAvailable => 'Kullanılamaz';
 
   @override
-  String get enableKeychain => 'Anahtar zinciri şifrelemesini etkinleştir';
+  String get enableKeychain => 'Keychain şifrelemesini etkinleştir';
 
   @override
   String get enableKeychainSubtitle =>
-      'Sistem anahtar zincirini kullanarak saklanan verileri yeniden şifrele';
+      'Sistem keychain\'ini kullanarak saklanan verileri yeniden şifrele';
 
   @override
   String get keychainEnabled => 'Anahtar zinciri şifrelemesi etkinleştirildi';
@@ -2523,7 +2522,7 @@ class STr extends S {
       'Terminal çıktısındaki yazı tipi boyutu';
 
   @override
-  String get scrollbackLinesSubtitle => 'Terminal geçmiş arabelleği boyutu';
+  String get scrollbackLinesSubtitle => 'Terminal scrollback buffer boyutu';
 
   @override
   String get keepAliveIntervalSubtitle =>
@@ -2537,7 +2536,8 @@ class STr extends S {
       'Yeni oturumlar için varsayılan bağlantı noktası';
 
   @override
-  String get parallelWorkersSubtitle => 'Paralel SFTP aktarım işçileri';
+  String get parallelWorkersSubtitle =>
+      'Eş zamanlı SFTP transfer worker sayısı';
 
   @override
   String get maxHistorySubtitle => 'Geçmişte saklanan maksimum komut sayısı';
@@ -2592,7 +2592,7 @@ class STr extends S {
 
   @override
   String get threatLiveRamForensicsLocked =>
-      'Kilitli makinede RAM adli bilişimi';
+      'Kilitli makinede RAM dump / bellek forensics';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
@@ -2600,19 +2600,19 @@ class STr extends S {
 
   @override
   String get threatOsKernelOrKeychainBreach =>
-      'İşletim sistemi çekirdeği veya anahtar zinciri ele geçirme';
+      'OS kernel veya keychain ele geçirilmesi';
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'Çekirdek güvenlik açığı, anahtar zinciri sızdırılması ya da donanımsal güvenlik yongasındaki arka kapı. İşletim sistemi güvenilir bir kaynak olmaktan çıkıp saldırganın kendisi haline gelir.';
+      'Kernel güvenlik açığı, keychain sızdırılması ya da donanımsal güvenlik çipindeki arka kapı. OS, güvenilir bir kaynak olmaktan çıkıp saldırganın kendisi haline gelir.';
 
   @override
   String get threatOfflineBruteForce =>
-      'Zayıf parolaya karşı çevrimdışı kaba kuvvet';
+      'Zayıf parolaya karşı offline brute-force';
 
   @override
   String get threatOfflineBruteForceDescription =>
-      'Sarılmış anahtarın veya mühürlü blobun kopyasına sahip bir saldırgan, hiçbir hız sınırlayıcı olmadan kendi temposunda her parolayı dener.';
+      'Wrapped key veya sealed blob kopyasına sahip bir saldırgan, hiçbir rate limit olmadan kendi temposunda her parolayı dener.';
 
   @override
   String get legendProtects => 'Korunuyor';
@@ -2630,7 +2630,7 @@ class STr extends S {
 
   @override
   String get legendStrongPasswordRecommended =>
-      'Uzun bir parola ifadesi şiddetle önerilir — bu katmanın güvenliği buna bağlıdır';
+      'Uzun bir passphrase kesinlikle önerilir — bu katmanın güvenliği buna bağlıdır';
 
   @override
   String get colT0 => 'T0 Düz metin';
@@ -2770,7 +2770,7 @@ class STr extends S {
 
   @override
   String get paranoidMasterPasswordNote =>
-      'Uzun bir parola ifadesi kesinlikle önerilir — Argon2id kaba kuvvet saldırısını yalnızca yavaşlatır, engellemez.';
+      'Uzun bir passphrase kesinlikle önerilir — Argon2id brute-force\'u yalnızca yavaşlatır, engellemez.';
 
   @override
   String get plaintextWarningTitle => 'Düz metin: şifreleme yok';

@@ -420,7 +420,7 @@ class SEs extends S {
   String get hintPassword => '••••••••';
 
   @override
-  String get keyPassphrase => 'Frase de paso de la clave';
+  String get keyPassphrase => 'Passphrase de la clave';
 
   @override
   String get hintOptional => 'Opcional';
@@ -513,16 +513,16 @@ class SEs extends S {
   String get keyType => 'Tipo de clave';
 
   @override
-  String get fingerprint => 'Huella digital';
+  String get fingerprint => 'Fingerprint';
 
   @override
-  String get fingerprintCopied => 'Huella digital copiada';
+  String get fingerprintCopied => 'Fingerprint copiado';
 
   @override
-  String get copyFingerprint => 'Copiar huella digital';
+  String get copyFingerprint => 'Copiar fingerprint';
 
   @override
-  String get acceptAnyway => 'Aceptar de todos modos';
+  String get acceptAnyway => 'Aceptar igualmente';
 
   @override
   String get accept => 'Aceptar';
@@ -597,7 +597,7 @@ class SEs extends S {
   String get root => 'Raíz';
 
   @override
-  String get controllersNotInitialized => 'Controladores no inicializados';
+  String get controllersNotInitialized => 'Controllers no inicializados';
 
   @override
   String get initializingSftp => 'Inicializando SFTP...';
@@ -682,7 +682,7 @@ class SEs extends S {
   String get data => 'Datos';
 
   @override
-  String get logging => 'Registro';
+  String get logging => 'Logs';
 
   @override
   String get updates => 'Actualizaciones';
@@ -700,19 +700,19 @@ class SEs extends S {
   String get terminalFontSize => 'Tamaño de fuente del terminal';
 
   @override
-  String get scrollbackLines => 'Líneas de desplazamiento';
+  String get scrollbackLines => 'Líneas de scrollback';
 
   @override
   String get keepAliveInterval => 'Intervalo de Keep-Alive (seg)';
 
   @override
-  String get sshTimeout => 'Tiempo de espera SSH (seg)';
+  String get sshTimeout => 'Timeout SSH (s)';
 
   @override
   String get defaultPort => 'Puerto predeterminado';
 
   @override
-  String get parallelWorkers => 'Trabajadores en paralelo';
+  String get parallelWorkers => 'Workers en paralelo';
 
   @override
   String get maxHistory => 'Historial máximo';
@@ -853,7 +853,7 @@ class SEs extends S {
       'Usar solo en entornos confiables y aislados.';
 
   @override
-  String get tierKeychainLabel => 'Llavero';
+  String get tierKeychainLabel => 'Keychain';
 
   @override
   String tierKeychainSubtitle(String keychain) {
@@ -1018,35 +1018,35 @@ class SEs extends S {
   String get sourceCode => 'Código fuente';
 
   @override
-  String get enableLogging => 'Activar registro';
+  String get enableLogging => 'Activar logs';
 
   @override
-  String get logIsEmpty => 'El registro está vacío';
+  String get logIsEmpty => 'El log está vacío';
 
   @override
   String logExportedTo(String path) {
-    return 'Registro exportado a: $path';
+    return 'Log exportado a: $path';
   }
 
   @override
   String logExportFailed(String error) {
-    return 'Error al exportar el registro: $error';
+    return 'Error al exportar el log: $error';
   }
 
   @override
-  String get logsCleared => 'Registros borrados';
+  String get logsCleared => 'Logs borrados';
 
   @override
   String get copiedToClipboard => 'Copiado al portapapeles';
 
   @override
-  String get copyLog => 'Copiar registro';
+  String get copyLog => 'Copiar log';
 
   @override
-  String get exportLog => 'Exportar registro';
+  String get exportLog => 'Exportar log';
 
   @override
-  String get clearLogs => 'Borrar registros';
+  String get clearLogs => 'Borrar logs';
 
   @override
   String get local => 'Local';
@@ -1083,7 +1083,7 @@ class SEs extends S {
 
   @override
   String get anotherInstanceRunning =>
-      'Otra instancia de LetsFLUTssh ya está en ejecución.';
+      'Ya se está ejecutando otra instancia de LetsFLUTssh.';
 
   @override
   String importFailedShort(String error) {
@@ -1091,7 +1091,7 @@ class SEs extends S {
   }
 
   @override
-  String get saveLogAs => 'Guardar registro como';
+  String get saveLogAs => 'Guardar log como';
 
   @override
   String get chooseSaveLocation => 'Elegir ubicación de guardado';
@@ -1234,7 +1234,7 @@ class SEs extends S {
   String get errReadOnlyFileSystem => 'Sistema de archivos de solo lectura';
 
   @override
-  String get errBrokenPipe => 'Tubería rota';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'Nombre de archivo demasiado largo';
@@ -1256,7 +1256,7 @@ class SEs extends S {
   String get errNetworkIsUnreachable => 'La red es inaccesible';
 
   @override
-  String get errConnectionResetByPeer => 'Conexión restablecida por el par';
+  String get errConnectionResetByPeer => 'Conexión reiniciada por el peer';
 
   @override
   String get errConnectionTimedOut => 'Conexión agotada por tiempo';
@@ -1418,11 +1418,11 @@ class SEs extends S {
   String get wrongPassword => 'Contraseña incorrecta';
 
   @override
-  String get useKeychain => 'Cifrar con el llavero del sistema';
+  String get useKeychain => 'Cifrar con el keychain del sistema';
 
   @override
   String get useKeychainSubtitle =>
-      'Guardar la clave de la base de datos en el almacén de credenciales del sistema. Desactivado = base de datos sin cifrar.';
+      'Guardar la clave de la base de datos en el keychain del sistema. Desactivado = base de datos sin cifrar.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
@@ -1933,22 +1933,21 @@ class SEs extends S {
   String get generated => 'Generada';
 
   @override
-  String get passphraseRequired => 'Frase de contraseña requerida';
+  String get passphraseRequired => 'Passphrase requerido';
 
   @override
   String passphrasePrompt(String host) {
-    return 'La clave SSH para $host está cifrada. Ingrese la frase de contraseña para desbloquearla.';
+    return 'La clave SSH para $host está cifrada. Introduce el passphrase para desbloquearla.';
   }
 
   @override
-  String get passphraseWrong =>
-      'Frase de contraseña incorrecta. Por favor, inténtelo de nuevo.';
+  String get passphraseWrong => 'Passphrase incorrecto. Inténtalo de nuevo.';
 
   @override
-  String get passphrase => 'Frase de contraseña';
+  String get passphrase => 'Passphrase';
 
   @override
-  String get rememberPassphrase => 'Recordar para esta sesión';
+  String get rememberPassphrase => 'Recordar durante esta sesión';
 
   @override
   String get masterPasswordSubtitle =>
@@ -1969,7 +1968,7 @@ class SEs extends S {
 
   @override
   String get masterPasswordDisabled =>
-      'Las credenciales usan clave auto-generada (sin contraseña)';
+      'Las credenciales usan clave autogenerada (sin contraseña)';
 
   @override
   String get enterMasterPassword =>
@@ -2003,7 +2002,7 @@ class SEs extends S {
 
   @override
   String get forgotPasswordWarning =>
-      'Esto eliminará TODAS las contraseñas, claves SSH y frases de contraseña guardadas. Las sesiones y configuraciones se conservarán. Esta acción es irreversible.';
+      'Esto eliminará TODAS las contraseñas, claves SSH y passphrases guardadas. Las sesiones y ajustes se conservarán. Esta acción es irreversible.';
 
   @override
   String get resetAndDeleteCredentials => 'Restablecer y eliminar datos';
@@ -2056,11 +2055,11 @@ class SEs extends S {
   String get derivingKey => 'Derivando clave de cifrado...';
 
   @override
-  String get reEncrypting => 'Re-cifrando datos...';
+  String get reEncrypting => 'Recifrando datos...';
 
   @override
   String get confirmRemoveMasterPassword =>
-      'Ingrese su contraseña actual para eliminar la protección de contraseña maestra. Las credenciales serán re-cifradas con una clave auto-generada.';
+      'Introduce tu contraseña actual para eliminar la protección de contraseña maestra. Las credenciales se recifrarán con una clave autogenerada.';
 
   @override
   String get securitySetupTitle => 'Configuración de seguridad';
@@ -2096,16 +2095,16 @@ class SEs extends S {
   String get securityLevel => 'Nivel de seguridad';
 
   @override
-  String get securityLevelPlaintext => 'Ninguno';
+  String get securityLevelPlaintext => 'Plaintext';
 
   @override
-  String get securityLevelKeychain => 'Llavero del sistema';
+  String get securityLevelKeychain => 'Keychain del sistema';
 
   @override
   String get securityLevelMasterPassword => 'Contraseña maestra';
 
   @override
-  String get keychainStatus => 'Llavero';
+  String get keychainStatus => 'Keychain';
 
   @override
   String get keychainAvailable => 'Disponible';
@@ -2114,11 +2113,11 @@ class SEs extends S {
   String get keychainNotAvailable => 'No disponible';
 
   @override
-  String get enableKeychain => 'Activar cifrado de llavero';
+  String get enableKeychain => 'Activar cifrado con keychain';
 
   @override
   String get enableKeychainSubtitle =>
-      'Volver a cifrar datos almacenados usando llavero del sistema';
+      'Recifrar datos almacenados usando el keychain del sistema';
 
   @override
   String get keychainEnabled => 'Cifrado de llavero activado';
@@ -2202,7 +2201,7 @@ class SEs extends S {
 
   @override
   String get wizardReducedBanner =>
-      'El llavero del sistema no es accesible en esta instalación. Elige entre sin cifrado (T0) y una contraseña maestra (Paranoid). Instala gnome-keyring, kwallet u otro proveedor de libsecret para habilitar el nivel Keychain.';
+      'El keychain del sistema no es accesible en esta instalación. Elige entre sin cifrado (T0) y una contraseña maestra (Paranoid). Instala gnome-keyring, kwallet u otro proveedor de libsecret para habilitar el nivel Keychain.';
 
   @override
   String get tierBlockProtectsHeader => 'PROTEGE CONTRA';
@@ -2489,7 +2488,7 @@ class SEs extends S {
   }
 
   @override
-  String get disableKeychain => 'Desactivar cifrado del llavero';
+  String get disableKeychain => 'Desactivar cifrado con keychain';
 
   @override
   String get disableKeychainSubtitle =>
@@ -2538,14 +2537,14 @@ class SEs extends S {
 
   @override
   String get scrollbackLinesSubtitle =>
-      'Tamaño del búfer de historial de la terminal';
+      'Tamaño del buffer de scrollback de la terminal';
 
   @override
   String get keepAliveIntervalSubtitle =>
       'Segundos entre paquetes SSH keep-alive (0 = desactivado)';
 
   @override
-  String get sshTimeoutSubtitle => 'Tiempo de espera de conexión en segundos';
+  String get sshTimeoutSubtitle => 'Timeout de conexión en segundos';
 
   @override
   String get defaultPortSubtitle =>
@@ -2553,7 +2552,7 @@ class SEs extends S {
 
   @override
   String get parallelWorkersSubtitle =>
-      'Trabajadores SFTP de transferencia en paralelo';
+      'Workers SFTP de transferencia en paralelo';
 
   @override
   String get maxHistorySubtitle => 'Comandos máximos guardados en el historial';
@@ -2568,7 +2567,7 @@ class SEs extends S {
 
   @override
   String get enableLoggingSubtitle =>
-      'Escribir los eventos de la app en un archivo de registro rotativo';
+      'Escribir los eventos de la app en un archivo de log rotativo';
 
   @override
   String get exportWithoutPassword => '¿Exportar sin contraseña?';
@@ -2669,7 +2668,7 @@ class SEs extends S {
   String get colT2PasswordBiometric => 'T2 + contraseña + biometría';
 
   @override
-  String get colParanoid => 'Paranoico';
+  String get colParanoid => 'Paranoid';
 
   @override
   String get securityComparisonTableTitle =>

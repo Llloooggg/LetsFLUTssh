@@ -416,7 +416,7 @@ class SVi extends S {
   String get hintPassword => '••••••••';
 
   @override
-  String get keyPassphrase => 'Mật khẩu khóa';
+  String get keyPassphrase => 'Key passphrase';
 
   @override
   String get hintOptional => 'Tùy chọn';
@@ -487,14 +487,14 @@ class SVi extends S {
   String get linkCopied => 'Đã sao chép liên kết vào bộ nhớ tạm';
 
   @override
-  String get hostKeyChanged => 'Khóa máy chủ đã thay đổi!';
+  String get hostKeyChanged => 'Host key đã thay đổi!';
 
   @override
   String get unknownHost => 'Máy chủ không xác định';
 
   @override
   String get hostKeyChangedWarning =>
-      'CẢNH BÁO: Khóa máy chủ của server này đã thay đổi. Điều này có thể là dấu hiệu của tấn công man-in-the-middle, hoặc server đã được cài đặt lại.';
+      'CẢNH BÁO: Host key của server này đã thay đổi. Có thể là dấu hiệu tấn công man-in-the-middle, hoặc server đã được cài lại.';
 
   @override
   String get unknownHostMessage =>
@@ -507,13 +507,13 @@ class SVi extends S {
   String get keyType => 'Loại khóa';
 
   @override
-  String get fingerprint => 'Dấu vân tay';
+  String get fingerprint => 'Fingerprint';
 
   @override
-  String get fingerprintCopied => 'Đã sao chép dấu vân tay';
+  String get fingerprintCopied => 'Đã sao chép fingerprint';
 
   @override
-  String get copyFingerprint => 'Sao chép dấu vân tay';
+  String get copyFingerprint => 'Sao chép fingerprint';
 
   @override
   String get acceptAnyway => 'Vẫn chấp nhận';
@@ -675,7 +675,7 @@ class SVi extends S {
   String get data => 'Dữ liệu';
 
   @override
-  String get logging => 'Nhật ký';
+  String get logging => 'Log';
 
   @override
   String get updates => 'Cập nhật';
@@ -827,14 +827,15 @@ class SVi extends S {
       'Cơ sở hạ tầng nền của tầng này chưa được phát hành. Hàng này hiển thị để bạn biết tùy chọn tồn tại.';
 
   @override
-  String get tierPlaintextLabel => 'Văn bản thuần';
+  String get tierPlaintextLabel => 'Plaintext';
 
   @override
-  String get tierPlaintextSubtitle => 'Không mã hóa — chỉ quyền tập tin';
+  String get tierPlaintextSubtitle =>
+      'Không mã hóa — chỉ dựa vào file permissions';
 
   @override
   String get tierPlaintextThreat1 =>
-      'Bất kỳ ai có quyền truy cập hệ thống tệp đều đọc được dữ liệu của bạn';
+      'Bất kỳ ai truy cập được filesystem đều đọc được dữ liệu của bạn';
 
   @override
   String get tierPlaintextThreat2 =>
@@ -889,14 +890,14 @@ class SVi extends S {
 
   @override
   String get tierHardwareSubtitle =>
-      'Két ràng buộc phần cứng + PIN ngắn có khóa';
+      'Vault gắn với hardware + PIN ngắn có lockout';
 
   @override
   String get tierHardwareProtect1 =>
-      'Brute force offline PIN (giới hạn tốc độ phần cứng)';
+      'Brute force offline PIN (rate limit ở hardware)';
 
   @override
-  String get tierHardwareProtect2 => 'Đánh cắp đĩa và blob keychain';
+  String get tierHardwareProtect2 => 'Đánh cắp disk và blob keychain';
 
   @override
   String get tierHardwareThreat1 => 'CVE HĐH hoặc firmware trên mô-đun bảo mật';
@@ -909,10 +910,10 @@ class SVi extends S {
 
   @override
   String get tierParanoidSubtitle =>
-      'Mật khẩu dài + Argon2id. Khóa không bao giờ đi vào HĐH.';
+      'Passphrase dài + Argon2id. Key không bao giờ đi vào OS.';
 
   @override
-  String get tierParanoidProtect1 => 'Xâm phạm keychain HĐH';
+  String get tierParanoidProtect1 => 'Keychain OS bị xâm phạm';
 
   @override
   String get tierParanoidProtect2 =>
@@ -922,15 +923,15 @@ class SVi extends S {
   String get tierParanoidThreat1 => 'Keylogger bắt mật khẩu của bạn';
 
   @override
-  String get tierParanoidThreat2 => 'Mật khẩu yếu + bẻ khóa Argon2id offline';
+  String get tierParanoidThreat2 =>
+      'Mật khẩu yếu + brute force Argon2id offline';
 
   @override
-  String get tierParanoidNotes =>
-      'Sinh trắc học bị tắt theo thiết kế ở tầng này.';
+  String get tierParanoidNotes => 'Biometric bị tắt theo thiết kế ở tier này.';
 
   @override
   String get tierHardwareUnavailable =>
-      'Kho phần cứng không có sẵn trên cài đặt này.';
+      'Hardware vault không khả dụng trên bản cài này.';
 
   @override
   String get pinLabel => 'Mật khẩu';
@@ -1005,10 +1006,10 @@ class SVi extends S {
   String get sourceCode => 'Mã nguồn';
 
   @override
-  String get enableLogging => 'Bật nhật ký';
+  String get enableLogging => 'Bật log';
 
   @override
-  String get logIsEmpty => 'Nhật ký trống';
+  String get logIsEmpty => 'Log trống';
 
   @override
   String logExportedTo(String path) {
@@ -1021,19 +1022,19 @@ class SVi extends S {
   }
 
   @override
-  String get logsCleared => 'Đã xóa nhật ký';
+  String get logsCleared => 'Đã xóa log';
 
   @override
   String get copiedToClipboard => 'Đã sao chép vào bộ nhớ tạm';
 
   @override
-  String get copyLog => 'Sao chép nhật ký';
+  String get copyLog => 'Copy log';
 
   @override
-  String get exportLog => 'Xuất nhật ký';
+  String get exportLog => 'Xuất log';
 
   @override
-  String get clearLogs => 'Xóa nhật ký';
+  String get clearLogs => 'Xóa log';
 
   @override
   String get local => 'Nội bộ';
@@ -1126,7 +1127,7 @@ class SVi extends S {
   String get hintFolderExample => 'ví dụ: Production';
 
   @override
-  String get credentialsNotSet => 'Chưa đặt thông tin xác thực';
+  String get credentialsNotSet => 'Chưa có credential';
 
   @override
   String get exportSessionsViaQr => 'Xuất phiên qua QR';
@@ -1159,7 +1160,7 @@ class SVi extends S {
   String get youreRunningLatest => 'Bạn đang sử dụng phiên bản mới nhất';
 
   @override
-  String get liveLog => 'Nhật ký trực tiếp';
+  String get liveLog => 'Live log';
 
   @override
   String transferNItems(int count) {
@@ -1185,7 +1186,7 @@ class SVi extends S {
   String get errIoError => 'Lỗi I/O';
 
   @override
-  String get errBadFileDescriptor => 'Mô tả tệp không hợp lệ';
+  String get errBadFileDescriptor => 'File descriptor không hợp lệ';
 
   @override
   String get errResourceTemporarilyUnavailable =>
@@ -1220,7 +1221,7 @@ class SVi extends S {
   String get errReadOnlyFileSystem => 'Hệ thống tệp chỉ đọc';
 
   @override
-  String get errBrokenPipe => 'Ống dẫn bị hỏng';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'Tên tệp quá dài';
@@ -1345,15 +1346,15 @@ class SVi extends S {
   String get biometricUnlockPrompt => 'Mở khóa LetsFLUTssh';
 
   @override
-  String get biometricUnlockTitle => 'Mở khóa bằng sinh trắc học';
+  String get biometricUnlockTitle => 'Mở khóa bằng biometric';
 
   @override
   String get biometricUnlockSubtitle =>
-      'Không cần nhập mật khẩu — mở khóa bằng cảm biến sinh trắc học của thiết bị.';
+      'Không cần nhập mật khẩu — mở khóa bằng cảm biến biometric của thiết bị.';
 
   @override
   String get biometricNotAvailable =>
-      'Mở khóa sinh trắc học không khả dụng trên thiết bị này.';
+      'Mở khóa biometric không khả dụng trên thiết bị này.';
 
   @override
   String get biometricEnableFailed => 'Không thể bật mở khóa sinh trắc học.';
@@ -1373,7 +1374,7 @@ class SVi extends S {
 
   @override
   String get biometricNotEnrolled =>
-      'Không có thông tin sinh trắc học nào được đăng ký trên thiết bị này.';
+      'Chưa đăng ký biometric nào trên thiết bị này.';
 
   @override
   String get biometricRequiresMasterPassword =>
@@ -1381,7 +1382,7 @@ class SVi extends S {
 
   @override
   String get biometricSensorNotAvailable =>
-      'Thiết bị này không có cảm biến sinh trắc học.';
+      'Thiết bị này không có cảm biến biometric.';
 
   @override
   String get biometricSystemServiceMissing =>
@@ -1764,32 +1765,32 @@ class SVi extends S {
   String get security => 'Bảo mật';
 
   @override
-  String get knownHosts => 'Máy chủ đã biết';
+  String get knownHosts => 'Known hosts';
 
   @override
-  String get knownHostsSubtitle => 'Quản lý dấu vân tay máy chủ SSH tin cậy';
+  String get knownHostsSubtitle => 'Quản lý fingerprint của host SSH tin cậy';
 
   @override
   String knownHostsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count máy chủ đã biết',
-      zero: 'Không có máy chủ đã biết',
+      other: '$count known host',
+      zero: 'Không có known host',
     );
     return '$_temp0';
   }
 
   @override
   String get knownHostsEmpty =>
-      'Không có máy chủ đã biết. Kết nối tới máy chủ để thêm.';
+      'Chưa có known host. Kết nối tới một host để thêm.';
 
   @override
-  String get removeHost => 'Xóa máy chủ';
+  String get removeHost => 'Xóa host';
 
   @override
   String removeHostConfirm(String host) {
-    return 'Xóa $host khỏi máy chủ đã biết? Khóa sẽ được xác minh lại khi kết nối tiếp theo.';
+    return 'Xóa $host khỏi known hosts? Key sẽ được xác minh lại ở lần kết nối sau.';
   }
 
   @override
@@ -1906,21 +1907,21 @@ class SVi extends S {
   String get generated => 'Đã tạo';
 
   @override
-  String get passphraseRequired => 'Cần cụm mật khẩu';
+  String get passphraseRequired => 'Cần passphrase';
 
   @override
   String passphrasePrompt(String host) {
-    return 'Khóa SSH cho $host được mã hóa. Nhập cụm mật khẩu để mở khóa.';
+    return 'SSH key cho $host được mã hóa. Nhập passphrase để mở khóa.';
   }
 
   @override
-  String get passphraseWrong => 'Cụm mật khẩu sai. Vui lòng thử lại.';
+  String get passphraseWrong => 'Passphrase sai. Thử lại.';
 
   @override
-  String get passphrase => 'Cụm mật khẩu';
+  String get passphrase => 'Passphrase';
 
   @override
-  String get rememberPassphrase => 'Ghi nhớ cho phiên này';
+  String get rememberPassphrase => 'Nhớ passphrase cho phiên này';
 
   @override
   String get masterPasswordSubtitle =>
@@ -1974,7 +1975,7 @@ class SVi extends S {
 
   @override
   String get forgotPasswordWarning =>
-      'Thao tác này sẽ xóa TẤT CẢ mật khẩu, khóa SSH và cụm mật khẩu đã lưu. Các phiên và cài đặt sẽ được giữ lại. Không thể hoàn tác.';
+      'Thao tác này sẽ xóa TẤT CẢ mật khẩu, SSH key và passphrase đã lưu. Các phiên và cài đặt vẫn được giữ. Không thể hoàn tác.';
 
   @override
   String get resetAndDeleteCredentials => 'Đặt lại và xóa dữ liệu';
@@ -1990,7 +1991,7 @@ class SVi extends S {
 
   @override
   String get dbCorruptBody =>
-      'Dữ liệu trên đĩa không mở được. Hãy thử một thông tin xác thực khác, hoặc đặt lại để bắt đầu từ đầu.';
+      'Dữ liệu trên disk không mở được. Hãy thử credential khác, hoặc reset để bắt đầu lại.';
 
   @override
   String get dbCorruptWarning =>
@@ -2037,7 +2038,7 @@ class SVi extends S {
 
   @override
   String securitySetupKeychainFound(String keychainName) {
-    return 'Đã phát hiện chuỗi khóa hệ thống ($keychainName). Dữ liệu của bạn sẽ được tự động mã hóa bằng chuỗi khóa hệ thống.';
+    return 'Đã phát hiện keychain hệ thống ($keychainName). Dữ liệu của bạn sẽ được tự động mã hóa bằng keychain hệ thống.';
   }
 
   @override
@@ -2046,18 +2047,18 @@ class SVi extends S {
 
   @override
   String get securitySetupNoKeychain =>
-      'Không phát hiện chuỗi khóa hệ thống. Không có chuỗi khóa, dữ liệu phiên (máy chủ, mật khẩu, khóa) sẽ được lưu dạng văn bản thuần.';
+      'Không phát hiện keychain hệ thống. Không có keychain, dữ liệu phiên (host, mật khẩu, key) sẽ được lưu dạng plaintext.';
 
   @override
   String get securitySetupNoKeychainHint =>
-      'Điều này bình thường trên WSL, Linux không giao diện hoặc cài đặt tối thiểu. Để bật chuỗi khóa trên Linux: cài libsecret và daemon chuỗi khóa (VD: gnome-keyring).';
+      'Bình thường trên WSL, Linux headless hoặc cài đặt tối thiểu. Để bật keychain trên Linux: cài libsecret và keychain daemon (ví dụ: gnome-keyring).';
 
   @override
   String get securitySetupRecommendMasterPassword =>
       'Chúng tôi khuyên bạn nên đặt mật khẩu chính để bảo vệ dữ liệu.';
 
   @override
-  String get continueWithKeychain => 'Tiếp tục với chuỗi khóa';
+  String get continueWithKeychain => 'Tiếp tục với keychain';
 
   @override
   String get continueWithoutEncryption => 'Tiếp tục không mã hóa';
@@ -2069,13 +2070,13 @@ class SVi extends S {
   String get securityLevelPlaintext => 'Không';
 
   @override
-  String get securityLevelKeychain => 'Chuỗi khóa hệ thống';
+  String get securityLevelKeychain => 'Keychain hệ thống';
 
   @override
   String get securityLevelMasterPassword => 'Mật khẩu chính';
 
   @override
-  String get keychainStatus => 'Chuỗi khóa';
+  String get keychainStatus => 'Keychain';
 
   @override
   String get keychainAvailable => 'Khả dụng';
@@ -2084,14 +2085,14 @@ class SVi extends S {
   String get keychainNotAvailable => 'Không khả dụng';
 
   @override
-  String get enableKeychain => 'Bật mã hóa chuỗi khóa';
+  String get enableKeychain => 'Bật mã hóa keychain';
 
   @override
   String get enableKeychainSubtitle =>
-      'Mã hóa lại dữ liệu được lưu bằng chuỗi khóa hệ thống';
+      'Mã hóa lại dữ liệu đã lưu bằng keychain hệ thống';
 
   @override
-  String get keychainEnabled => 'Mã hóa chuỗi khóa đã được bật';
+  String get keychainEnabled => 'Đã bật mã hóa keychain';
 
   @override
   String get manageMasterPassword => 'Quản lý mật khẩu chính';
@@ -2528,7 +2529,7 @@ class SVi extends S {
 
   @override
   String get enableLoggingSubtitle =>
-      'Ghi các sự kiện ứng dụng vào tệp nhật ký xoay vòng';
+      'Ghi sự kiện ứng dụng vào file log xoay vòng';
 
   @override
   String get exportWithoutPassword => 'Xuất không có mật khẩu?';
@@ -2565,19 +2566,19 @@ class SVi extends S {
       'Có người tiến lại chiếc máy đã mở khóa của bạn và mở ứng dụng trong lúc bạn vắng mặt.';
 
   @override
-  String get threatLiveRamForensicsLocked => 'Điều tra RAM trên máy đã khóa';
+  String get threatLiveRamForensicsLocked => 'RAM forensics trên máy đã khóa';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
-      'Kẻ tấn công đóng băng RAM (hoặc thu qua DMA) và lôi ra những mẩu khóa vẫn còn đọng lại trong ảnh chụp, ngay cả khi ứng dụng đang bị khóa.';
+      'Kẻ tấn công đóng băng RAM (hoặc dump qua DMA) và trích xuất các mảnh key còn sót lại trong snapshot, ngay cả khi ứng dụng đang bị khóa.';
 
   @override
   String get threatOsKernelOrKeychainBreach =>
-      'Xâm phạm nhân hệ điều hành hoặc keychain';
+      'Xâm phạm kernel OS hoặc keychain';
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'Lỗ hổng nhân, rò rỉ keychain, hoặc cửa hậu trong chip bảo mật phần cứng. Hệ điều hành từ tài nguyên tin cậy trở thành chính kẻ tấn công.';
+      'Lỗ hổng kernel, rò rỉ keychain, hoặc backdoor trong chip bảo mật. OS từ thành phần tin cậy trở thành chính kẻ tấn công.';
 
   @override
   String get threatOfflineBruteForce => 'Dò mật khẩu yếu ngoại tuyến';
@@ -2605,7 +2606,7 @@ class SVi extends S {
       'Rất khuyến nghị dùng cụm mật khẩu dài — tính bảo mật của bậc này phụ thuộc vào nó';
 
   @override
-  String get colT0 => 'T0 Văn bản thuần';
+  String get colT0 => 'T0 Plaintext';
 
   @override
   String get colT1 => 'T1 Keychain';
@@ -2614,7 +2615,7 @@ class SVi extends S {
   String get colT1Password => 'T1 + mật khẩu';
 
   @override
-  String get colT1PasswordBiometric => 'T1 + mật khẩu + sinh trắc';
+  String get colT1PasswordBiometric => 'T1 + mật khẩu + biometric';
 
   @override
   String get colT2 => 'T2 Phần cứng';
@@ -2623,10 +2624,10 @@ class SVi extends S {
   String get colT2Password => 'T2 + mật khẩu';
 
   @override
-  String get colT2PasswordBiometric => 'T2 + mật khẩu + sinh trắc';
+  String get colT2PasswordBiometric => 'T2 + mật khẩu + biometric';
 
   @override
-  String get colParanoid => 'Hoang tưởng';
+  String get colParanoid => 'Paranoid';
 
   @override
   String get securityComparisonTableTitle =>
@@ -2707,10 +2708,10 @@ class SVi extends S {
 
   @override
   String get modifierPasswordSubtitle =>
-      'Cổng bí mật cần gõ trước khi mở két dữ liệu.';
+      'Mật khẩu cần nhập trước khi mở vault dữ liệu.';
 
   @override
-  String get modifierBiometricLabel => 'Lối tắt sinh trắc';
+  String get modifierBiometricLabel => 'Shortcut biometric';
 
   @override
   String get modifierBiometricSubtitle =>
@@ -2745,11 +2746,11 @@ class SVi extends S {
       'Rất khuyến nghị dùng cụm mật khẩu dài — Argon2id chỉ làm chậm tấn công vét cạn, không ngăn chặn được.';
 
   @override
-  String get plaintextWarningTitle => 'Văn bản thuần: không mã hóa';
+  String get plaintextWarningTitle => 'Plaintext: không mã hóa';
 
   @override
   String get plaintextWarningBody =>
-      'Phiên, khóa và known hosts sẽ được lưu mà không mã hóa. Bất kỳ ai có quyền truy cập vào hệ thống tệp của máy tính này đều có thể đọc chúng.';
+      'Phiên, key và known hosts sẽ được lưu không mã hóa. Bất kỳ ai truy cập được filesystem của máy này đều có thể đọc.';
 
   @override
   String get plaintextAcknowledge =>

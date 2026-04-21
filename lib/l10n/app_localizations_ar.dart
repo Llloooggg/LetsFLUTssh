@@ -702,7 +702,7 @@ class SAr extends S {
   String get terminalFontSize => 'حجم خط الطرفية';
 
   @override
-  String get scrollbackLines => 'عدد أسطر التمرير';
+  String get scrollbackLines => 'عدد أسطر scrollback';
 
   @override
   String get keepAliveInterval => 'فترة الإبقاء على الاتصال (ثانية)';
@@ -714,7 +714,7 @@ class SAr extends S {
   String get defaultPort => 'المنفذ الافتراضي';
 
   @override
-  String get parallelWorkers => 'العمال المتوازيون';
+  String get parallelWorkers => 'Workers المتوازية';
 
   @override
   String get maxHistory => 'الحد الأقصى للسجل';
@@ -899,7 +899,7 @@ class SAr extends S {
       'القوة الغاشمة دون اتصال للـ PIN (حد معدل أجهزة)';
 
   @override
-  String get tierHardwareProtect2 => 'سرقة القرص وكتلة سلسلة المفاتيح';
+  String get tierHardwareProtect2 => 'سرقة القرص وblob سلسلة المفاتيح';
 
   @override
   String get tierHardwareThreat1 =>
@@ -909,7 +909,7 @@ class SAr extends S {
   String get tierHardwareThreat2 => 'فتح قسري بالبيومتريا (إذا كان مفعّلًا)';
 
   @override
-  String get tierParanoidLabel => 'كلمة المرور الرئيسية (جنون الارتياب)';
+  String get tierParanoidLabel => 'كلمة المرور الرئيسية (Paranoid)';
 
   @override
   String get tierParanoidSubtitle =>
@@ -1219,7 +1219,7 @@ class SAr extends S {
   String get errReadOnlyFileSystem => 'نظام ملفات للقراءة فقط';
 
   @override
-  String get errBrokenPipe => 'أنبوب مكسور';
+  String get errBrokenPipe => 'Broken pipe';
 
   @override
   String get errFileNameTooLong => 'اسم الملف طويل جداً';
@@ -1288,7 +1288,7 @@ class SAr extends S {
   }
 
   @override
-  String get errSshOpenShellFailed => 'فشل فتح الصدفة';
+  String get errSshOpenShellFailed => 'فشل فتح جلسة shell';
 
   @override
   String get errSshLoadKeyFileFailed => 'فشل تحميل ملف مفتاح SSH';
@@ -1315,7 +1315,7 @@ class SAr extends S {
 
   @override
   String errShellError(String error) {
-    return 'خطأ في الصدفة: $error';
+    return 'خطأ في shell: $error';
   }
 
   @override
@@ -1345,44 +1345,41 @@ class SAr extends S {
   String get biometricUnlockPrompt => 'فتح قفل LetsFLUTssh';
 
   @override
-  String get biometricUnlockTitle => 'الفتح بالمقاييس الحيوية';
+  String get biometricUnlockTitle => 'الفتح بالبصمة';
 
   @override
   String get biometricUnlockSubtitle =>
-      'لا تحتاج إلى كتابة كلمة المرور — افتح القفل باستخدام مستشعر القياسات الحيوية في الجهاز.';
+      'لا تحتاج إلى كتابة كلمة المرور — افتح القفل باستخدام مستشعر البصمة في الجهاز.';
 
   @override
-  String get biometricNotAvailable =>
-      'الفتح بالمقاييس الحيوية غير متاح على هذا الجهاز.';
+  String get biometricNotAvailable => 'الفتح بالبصمة غير متاح على هذا الجهاز.';
 
   @override
-  String get biometricEnableFailed => 'تعذّر تفعيل الفتح بالمقاييس الحيوية.';
+  String get biometricEnableFailed => 'تعذّر تفعيل الفتح بالبصمة.';
 
   @override
-  String get biometricEnabled => 'تم تفعيل الفتح بالمقاييس الحيوية';
+  String get biometricEnabled => 'تم تفعيل الفتح بالبصمة';
 
   @override
-  String get biometricDisabled => 'تم تعطيل الفتح بالمقاييس الحيوية';
+  String get biometricDisabled => 'تم تعطيل الفتح بالبصمة';
 
   @override
   String get biometricUnlockFailed =>
-      'فشل فتح القفل بالبيانات الحيوية. أدخل كلمة المرور الرئيسية.';
+      'فشل الفتح بالبصمة. أدخل كلمة المرور الرئيسية.';
 
   @override
-  String get biometricUnlockCancelled =>
-      'تم إلغاء فتح القفل بالبيانات الحيوية.';
+  String get biometricUnlockCancelled => 'تم إلغاء الفتح بالبصمة.';
 
   @override
-  String get biometricNotEnrolled =>
-      'لا توجد بيانات حيوية مسجلة على هذا الجهاز.';
+  String get biometricNotEnrolled => 'لا توجد بصمة مسجلة على هذا الجهاز.';
 
   @override
   String get biometricRequiresMasterPassword =>
-      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين فتح القفل بالبيانات الحيوية.';
+      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين الفتح بالبصمة.';
 
   @override
   String get biometricSensorNotAvailable =>
-      'لا يحتوي هذا الجهاز على مستشعر بيومتري.';
+      'لا يحتوي هذا الجهاز على مستشعر بصمة.';
 
   @override
   String get biometricSystemServiceMissing =>
@@ -2526,7 +2523,7 @@ class SAr extends S {
   String get defaultPortSubtitle => 'المنفذ الافتراضي للجلسات الجديدة';
 
   @override
-  String get parallelWorkersSubtitle => 'عدد عمال نقل SFTP المتزامنين';
+  String get parallelWorkersSubtitle => 'عدد workers نقل SFTP المتزامنة';
 
   @override
   String get maxHistorySubtitle => 'الحد الأقصى للأوامر المحفوظة في السجل';
@@ -2564,7 +2561,7 @@ class SAr extends S {
 
   @override
   String get threatKeyringFileTheftDescription =>
-      'يقرأ المهاجم ملف مخزن بيانات الاعتماد الخاص بالمنصة مباشرة من القرص (libsecret keyring، Windows Credential Manager، macOS login keychain) ويستعيد منه مفتاح قاعدة البيانات الملفوف. يمنع المستوى العتادي ذلك بصرف النظر عن كلمة المرور لأن الشريحة ترفض تصدير مادة المفتاح؛ ومستوى keychain يحتاج إلى كلمة مرور إضافية وإلا فُتح الملف المسروق بكلمة مرور تسجيل دخول النظام وحدها.';
+      'يقرأ المهاجم ملف مخزن بيانات الاعتماد الخاص بالمنصة مباشرة من القرص (libsecret keyring، Windows Credential Manager، macOS login keychain) ويستخرج منه wrapped key الخاص بقاعدة البيانات. يمنع المستوى العتادي ذلك بصرف النظر عن كلمة المرور لأن الشريحة ترفض تصدير مادة المفاتيح؛ أما مستوى keychain فيحتاج كلمة مرور إضافية وإلا أمكن فتح الملف المسروق بكلمة مرور تسجيل دخول النظام وحدها.';
 
   @override
   String get modifierOnlyWithPassword => 'مع كلمة مرور فقط';
@@ -2577,12 +2574,11 @@ class SAr extends S {
       'يقترب شخص ما من حاسوبك غير المقفول ويفتح التطبيق أثناء غيابك.';
 
   @override
-  String get threatLiveRamForensicsLocked =>
-      'تحليل جنائي للذاكرة على جهاز مقفول';
+  String get threatLiveRamForensicsLocked => 'تفريغ RAM على جهاز مقفول';
 
   @override
   String get threatLiveRamForensicsLockedDescription =>
-      'يُجمِّد المهاجم الذاكرة العشوائية (أو يلتقطها عبر DMA) ويستخرج المواد المفتاحية التي لا تزال موجودة من اللقطة، حتى عندما يكون التطبيق مقفولاً.';
+      'يُجمِّد المهاجم RAM (أو يلتقطها عبر DMA) ويستخرج مادة المفاتيح التي ما زالت حاضرة في اللقطة، حتى والتطبيق مقفول.';
 
   @override
   String get threatOsKernelOrKeychainBreach =>
@@ -2594,11 +2590,11 @@ class SAr extends S {
 
   @override
   String get threatOfflineBruteForce =>
-      'قوة عمياء بلا اتصال على كلمة مرور ضعيفة';
+      'هجوم brute-force بلا اتصال على كلمة مرور ضعيفة';
 
   @override
   String get threatOfflineBruteForceDescription =>
-      'مهاجم يملك نسخة من المفتاح الملفوف أو الكتلة المختومة يجرّب كل كلمات المرور بوتيرته الخاصة دون أي محدِّد لمعدل المحاولات.';
+      'مهاجم يملك نسخة من wrapped key أو sealed blob يجرّب كل كلمات المرور بوتيرته الخاصة دون أي rate limit.';
 
   @override
   String get legendProtects => 'محمي';
@@ -2612,7 +2608,7 @@ class SAr extends S {
 
   @override
   String get legendWeakPasswordWarning =>
-      'كلمة المرور الضعيفة مقبولة — تتكفّل طبقة أخرى (مُحدِّد معدل عتادي أو ربط المفتاح الملفوف) بالأمان';
+      'كلمة المرور الضعيفة مقبولة — تتكفّل طبقة أخرى (rate limiter عتادي أو ربط wrapped key) بالأمان';
 
   @override
   String get legendStrongPasswordRecommended =>
@@ -2640,7 +2636,7 @@ class SAr extends S {
   String get colT2PasswordBiometric => 'T2 + كلمة مرور + بصمة حيوية';
 
   @override
-  String get colParanoid => 'مذعور';
+  String get colParanoid => 'Paranoid';
 
   @override
   String get securityComparisonTableTitle =>
@@ -2657,14 +2653,14 @@ class SAr extends S {
 
   @override
   String get resetAllDataSubtitle =>
-      'حذف جميع الجلسات والمفاتيح والإعدادات ومكونات الأمان. يتم أيضاً مسح إدخالات سلسلة المفاتيح وفتحات الخزنة الصلبة.';
+      'حذف جميع الجلسات والمفاتيح والإعدادات ومكونات الأمان. يُمسح أيضاً مدخلات سلسلة المفاتيح وفتحات hardware vault.';
 
   @override
   String get resetAllDataConfirmTitle => 'إعادة تعيين جميع البيانات؟';
 
   @override
   String get resetAllDataConfirmBody =>
-      'سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (إدخالات سلسلة المفاتيح، بيانات الخزنة الصلبة، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.';
+      'سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known_hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (مدخلات سلسلة المفاتيح، بيانات hardware vault، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
   String get resetAllDataConfirmAction => 'إعادة تعيين كل شيء';

@@ -834,14 +834,14 @@ class SJa extends S {
 
   @override
   String tierKeychainSubtitle(String keychain) {
-    return 'キーは $keychain に存在 — 起動時に自動ロック解除';
+    return '鍵は $keychain に保管 — 起動時に自動でロック解除';
   }
 
   @override
   String get tierKeychainProtect1 => '同じマシン上の他のユーザー';
 
   @override
-  String get tierKeychainProtect2 => 'OSログインなしで盗まれたディスク';
+  String get tierKeychainProtect2 => 'OS にログインせずディスクだけ盗まれたケース';
 
   @override
   String get tierKeychainThreat1 => 'あなたのOSアカウントで動作するマルウェア';
@@ -853,40 +853,40 @@ class SJa extends S {
   String get tierKeychainUnavailable => 'このインストールではOSキーチェーンが利用できません。';
 
   @override
-  String get tierKeychainPassProtect1 => 'あなたの机に座る同僚';
+  String get tierKeychainPassProtect1 => 'あなたの席に居座る同僚';
 
   @override
-  String get tierKeychainPassProtect2 => 'ロック解除アクセスを持つ通行人';
+  String get tierKeychainPassProtect2 => 'ロック解除された画面にアクセスできる通りすがりの人';
 
   @override
   String get tierKeychainPassThreat1 => 'ディスク上のファイルを持つオフライン攻撃者';
 
   @override
-  String get tierKeychainPassThreat2 => 'キーチェーンと同じOS侵害リスク';
+  String get tierKeychainPassThreat2 => 'キーチェーン階層と同じく OS 侵害のリスクあり';
 
   @override
   String get tierHardwareLabel => 'ハードウェア';
 
   @override
-  String get tierHardwareSubtitle => 'ハードウェアバウンドボルト + ロックアウト付き短いPIN';
+  String get tierHardwareSubtitle => 'ハードウェアに紐付いたボールト + 試行回数制限付きの短い PIN';
 
   @override
-  String get tierHardwareProtect1 => 'PINのオフラインブルートフォース（ハードウェアレート制限）';
+  String get tierHardwareProtect1 => 'PIN のオフライン総当たり攻撃（ハードウェアによるレート制限）';
 
   @override
-  String get tierHardwareProtect2 => 'ディスクとキーチェーンブロブの盗難';
+  String get tierHardwareProtect2 => 'ディスクおよびキーチェーン blob の盗難';
 
   @override
-  String get tierHardwareThreat1 => 'セキュアモジュールのOSまたはファームウェアのCVE';
+  String get tierHardwareThreat1 => 'セキュアモジュールの OS / ファームウェアの CVE';
 
   @override
-  String get tierHardwareThreat2 => '強制生体認証ロック解除（有効な場合）';
+  String get tierHardwareThreat2 => '生体認証の強制的なロック解除（有効にしている場合）';
 
   @override
   String get tierParanoidLabel => 'マスターパスワード（Paranoid）';
 
   @override
-  String get tierParanoidSubtitle => '長いパスワード + Argon2id。キーはOSに入りません。';
+  String get tierParanoidSubtitle => '長いパスワード + Argon2id。鍵は OS に渡りません。';
 
   @override
   String get tierParanoidProtect1 => 'OSキーチェーン侵害';
@@ -895,7 +895,7 @@ class SJa extends S {
   String get tierParanoidProtect2 => '盗まれたディスク（パスワードが強い限り）';
 
   @override
-  String get tierParanoidThreat1 => 'パスワードをキャプチャするキーロガー';
+  String get tierParanoidThreat1 => 'パスワードを盗み取るキーロガー';
 
   @override
   String get tierParanoidThreat2 => '弱いパスワード + オフラインArgon2idクラッキング';
@@ -922,7 +922,7 @@ class SJa extends S {
   String get l3UnlockTitle => 'パスワードを入力';
 
   @override
-  String get l3UnlockHint => 'パスワードでハードウェア連携のボールトを解除';
+  String get l3UnlockHint => 'パスワードでハードウェアに紐付いたボールトを解除';
 
   @override
   String get l3WrongPin => 'パスワードが違います';
@@ -1201,7 +1201,7 @@ class SJa extends S {
   String get errAddressAlreadyInUse => 'アドレスが既に使用中です';
 
   @override
-  String get errCannotAssignAddress => '要求されたアドレスを割り当てできません';
+  String get errCannotAssignAddress => '要求されたアドレスを割り当てられません';
 
   @override
   String get errNetworkIsDown => 'ネットワークがダウンしています';
@@ -1316,7 +1316,7 @@ class SJa extends S {
   String get biometricUnlockTitle => '生体認証でロック解除';
 
   @override
-  String get biometricUnlockSubtitle => 'パスワードを入力せず、デバイスの生体認証センサーでロックを解除します。';
+  String get biometricUnlockSubtitle => 'パスワードを入力せず、デバイスの生体認証でロック解除できます。';
 
   @override
   String get biometricNotAvailable => 'このデバイスでは生体認証によるロック解除を利用できません。';
@@ -1383,7 +1383,7 @@ class SJa extends S {
 
   @override
   String get autoLockSubtitle =>
-      'この時間操作がないと UI をロックします。ロックのたびにデータベースキーが消去され暗号化ストアが閉じられます。アクティブなセッションはセッションごとの資格情報キャッシュで接続が維持され、セッション終了時にキャッシュはクリアされます。';
+      'この時間操作がないと UI をロックします。ロックのたびに DB 鍵を消去し、暗号化ストアを閉じます。アクティブなセッションはセッションごとの認証情報キャッシュで接続を維持し、セッション終了時にそのキャッシュはクリアされます。';
 
   @override
   String get autoLockOff => 'オフ';
@@ -1400,7 +1400,7 @@ class SJa extends S {
 
   @override
   String get errReleaseSignatureInvalid =>
-      '更新が拒否されました：ダウンロードされたファイルが、アプリに固定されているリリース鍵で署名されていません。ダウンロードが途中で改ざんされたか、現在のリリースがこのインストールに対応していない可能性があります。インストールしないでください — 公式リリースページから手動で再インストールしてください。';
+      'アップデートを拒否しました：ダウンロードしたファイルが、アプリに埋め込まれたリリース鍵で署名されていません。ダウンロード中に改ざんされたか、このリリースがこのインストールに対応していない可能性があります。インストールしないでください — 公式リリースページから手動で再インストールしてください。';
 
   @override
   String get updateSecurityWarningTitle => '更新の検証に失敗しました';
@@ -1961,7 +1961,7 @@ class SJa extends S {
 
   @override
   String get tierResetBody =>
-      'このインストールには、異なる層モデルを使用していた以前のバージョンのLetsFLUTsshのセキュリティデータが含まれています。新しいモデルは互換性のない変更であり、自動移行パスはありません。続行するには、このインストールに保存されているすべてのセッション、認証情報、SSHキー、既知のホストを消去し、初回起動のセットアップウィザードをゼロから実行する必要があります。';
+      'このインストールには、以前のバージョンの LetsFLUTssh（別の階層モデルを使用）のセキュリティデータが残っています。新しいモデルは破壊的変更のため、自動マイグレーションはありません。続行するには、このインストールに保存されたセッション・認証情報・SSH 鍵・既知のホストをすべて消去し、初回起動のセットアップウィザードを最初から実行する必要があります。';
 
   @override
   String get tierResetWarning =>
@@ -2172,7 +2172,7 @@ class SJa extends S {
 
   @override
   String get hwProbeWindowsSoftwareOnly =>
-      'TPM 2.0 が検出されませんでした。UEFI ファームウェアで fTPM / PTT を有効にするか、このデバイスでハードウェア階層が使用できないことを受け入れてください — アプリはソフトウェアベースの認証情報ストアにフォールバックします。';
+      'TPM 2.0 が検出されませんでした。UEFI ファームウェアで fTPM / PTT を有効にしてください。対応していないデバイスではハードウェア階層は使用できず、アプリはソフトウェアベースの認証情報ストアにフォールバックします。';
 
   @override
   String get hwProbeWindowsProvidersMissing =>
@@ -2200,7 +2200,7 @@ class SJa extends S {
 
   @override
   String get hwProbeAndroidApiTooLow =>
-      'ハードウェア階層には Android 9 以降が必要です（StrongBox とキーごとの登録無効化は古いバージョンでは信頼性がありません）。';
+      'ハードウェア階層には Android 9 以降が必要です（StrongBox と鍵ごとの enrolment 無効化は古いバージョンでは信頼性に欠けます）。';
 
   @override
   String get hwProbeAndroidBiometricNone =>
@@ -2487,7 +2487,7 @@ class SJa extends S {
 
   @override
   String get threatKeyringFileTheftDescription =>
-      '攻撃者がプラットフォームの認証情報ストアファイル（libsecret keyring、Windows Credential Manager、macOS ログイン keychain）をディスクから直接読み取り、そこにラップされたデータベースキーを復元するケース。ハードウェア階層はパスワードに関係なくこれを防ぎます。チップが鍵マテリアルのエクスポートを拒否するためです。keychain 階層では追加でパスワードが必要で、そうでなければ盗まれたファイルは OS ログインパスワードだけで解けてしまいます。';
+      '攻撃者がプラットフォームの認証情報ストアファイル（libsecret keyring、Windows Credential Manager、macOS ログインキーチェーン）をディスクから直接読み取り、そこからラップされたデータベース鍵を取り出すケース。ハードウェア階層ではパスワードの有無に関係なくこの攻撃を防げます。チップが鍵マテリアルの書き出しを拒否するためです。一方キーチェーン階層ではパスワードの併用が必須です。そうしないと盗まれたファイルは OS のログインパスワードだけで復号できてしまいます。';
 
   @override
   String get modifierOnlyWithPassword => 'パスワード必須';
@@ -2511,14 +2511,14 @@ class SJa extends S {
 
   @override
   String get threatOsKernelOrKeychainBreachDescription =>
-      'カーネル脆弱性、キーチェーンの窃取、あるいはハードウェアセキュリティチップのバックドア。OS 自体が信頼できる基盤ではなく、攻撃者側の存在になります。';
+      'カーネルの脆弱性、キーチェーンの漏洩、あるいはハードウェアセキュリティチップのバックドア。OS そのものが信頼できる基盤ではなく、攻撃者側に回ってしまう状況です。';
 
   @override
   String get threatOfflineBruteForce => '弱いパスワードへのオフライン総当たり';
 
   @override
   String get threatOfflineBruteForceDescription =>
-      'ラップされた鍵や封印ブロブのコピーを持つ攻撃者が、レート制限を一切受けずに自分のペースで全パスワードを試せる状況。';
+      'ラップされた鍵や封印済み blob のコピーを入手した攻撃者が、レート制限を一切受けずに自分のペースで総当たりを行える状況。';
 
   @override
   String get legendProtects => '保護あり';
@@ -2636,14 +2636,14 @@ class SJa extends S {
   String get modifierPasswordLabel => 'パスワード';
 
   @override
-  String get modifierPasswordSubtitle => 'ボールト解錠前に入力する秘密のゲート。';
+  String get modifierPasswordSubtitle => 'ボールトを復号する前に入力する秘密のゲート。';
 
   @override
   String get modifierBiometricLabel => '生体認証ショートカット';
 
   @override
   String get modifierBiometricSubtitle =>
-      'パスワードを入力する代わりに、生体認証で保護されたOSスロットから取り出します。';
+      'パスワードを入力する代わりに、生体認証で保護された OS のスロットから取り出します。';
 
   @override
   String get biometricRequiresPassword =>
@@ -2663,7 +2663,7 @@ class SJa extends S {
 
   @override
   String get linuxTpmWithoutPasswordNote =>
-      'パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを解錠できます。';
+      'パスワードなしの TPM は分離を提供するだけで、認証にはなりません。このアプリを実行できる人なら誰でもデータを復号できます。';
 
   @override
   String get paranoidMasterPasswordNote =>
