@@ -120,11 +120,22 @@ Available formats: **.dmg**, **tar.gz**. Universal binary (Intel + Apple Silicon
 - **.dmg:** open, drag `LetsFLUTssh.app` to `/Applications/`.
 - **tar.gz:** extract, move `LetsFLUTssh.app` to `/Applications/`.
 
-The build is **unsigned**. On first launch macOS Gatekeeper will block it — right-click the app and choose **Open**, then confirm. Or remove the quarantine attribute once:
+The build is **ad-hoc signed**, not Developer-ID signed (no Apple account). On first launch macOS Gatekeeper will block it — right-click the app and choose **Open**, then confirm. Or remove the quarantine attribute once:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/LetsFLUTssh.app
 ```
+
+**Keychain tier (T1) needs a personal re-sign.** The ad-hoc Code Directory hash changes every release, and macOS Keychain Services bind stored items to that hash — first write fails with `errSecMissingEntitlement` and the app silently drops back to T0 (or surfaces the wizard with T1 greyed out after the fix). A one-shot helper script is shipped with the macOS release assets; download `macos-resign.sh` from the same release, then:
+
+```bash
+chmod +x macos-resign.sh
+./macos-resign.sh
+```
+
+The script creates a personal self-signed code-signing cert the first time it runs (stored in your login keychain, trusted for codesign only), re-signs the installed app with it, and drops quarantine. Re-run after each release — the cert is reused so Keychain Services keeps treating the app as the same identity across upgrades. Nothing is granted system-wide; no admin password is needed beyond `sudo` for the codesign step if the app lives in `/Applications`.
+
+If you do not need T1 (keychain) unlock, the **Paranoid** tier (master password, Argon2id-derived DB key) works without the script and gives stronger encryption at the cost of a password prompt on every launch.
 
 ### Android
 
