@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.",
   "continueWithoutPassword": "Ohne Passwort fortfahren",
   "tierHardwareUnavailable": "Hardware-Tresor in dieser Installation nicht verfügbar.",
-  "pinLabel": "PIN",
+  "pinLabel": "Passwort",
   "l2UnlockTitle": "Passwort erforderlich",
   "l2UnlockHint": "Geben Sie Ihr kurzes Passwort ein, um fortzufahren",
   "l2WrongPassword": "Falsches Passwort",
-  "l3UnlockTitle": "PIN eingeben",
-  "l3UnlockHint": "Kurzer PIN entsperrt den hardwaregebundenen Tresor",
-  "l3WrongPin": "Falscher PIN",
+  "l3UnlockTitle": "Passwort eingeben",
+  "l3UnlockHint": "Passwort entsperrt den hardwaregebundenen Tresor",
+  "l3WrongPin": "Falsches Passwort",
   "tierCooldownHint": "Erneut versuchen in {seconds} s",
   "@tierCooldownHint": {
     "placeholders": {

@@ -907,7 +907,7 @@ class SJa extends S {
   String get tierHardwareUnavailable => 'このインストールではハードウェアボールトを利用できません。';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'パスワード';
 
   @override
   String get l2UnlockTitle => 'パスワードが必要です';
@@ -919,13 +919,13 @@ class SJa extends S {
   String get l2WrongPassword => 'パスワードが違います';
 
   @override
-  String get l3UnlockTitle => 'PIN を入力';
+  String get l3UnlockTitle => 'パスワードを入力';
 
   @override
-  String get l3UnlockHint => '短い PIN でハードウェア連携のボールトを解除';
+  String get l3UnlockHint => 'パスワードでハードウェア連携のボールトを解除';
 
   @override
-  String get l3WrongPin => 'PIN が違います';
+  String get l3WrongPin => 'パスワードが違います';
 
   @override
   String tierCooldownHint(int seconds) {

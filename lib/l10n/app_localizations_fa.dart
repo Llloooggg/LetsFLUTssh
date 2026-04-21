@@ -934,7 +934,7 @@ class SFa extends S {
       'گاوصندوق سخت‌افزاری در این نصب در دسترس نیست.';
 
   @override
-  String get pinLabel => 'پین';
+  String get pinLabel => 'رمز عبور';
 
   @override
   String get l2UnlockTitle => 'گذرواژه لازم است';
@@ -946,14 +946,14 @@ class SFa extends S {
   String get l2WrongPassword => 'گذرواژه اشتباه';
 
   @override
-  String get l3UnlockTitle => 'پین را وارد کنید';
+  String get l3UnlockTitle => 'رمز عبور را وارد کنید';
 
   @override
   String get l3UnlockHint =>
-      'پین کوتاه، گاوصندوق وابسته به سخت‌افزار را باز می‌کند';
+      'رمز عبور، گاوصندوق وابسته به سخت‌افزار را باز می‌کند';
 
   @override
-  String get l3WrongPin => 'پین اشتباه';
+  String get l3WrongPin => 'رمز عبور اشتباه';
 
   @override
   String tierCooldownHint(int seconds) {

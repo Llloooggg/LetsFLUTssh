@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.",
   "continueWithoutPassword": "Lanjutkan tanpa kata sandi",
   "tierHardwareUnavailable": "Brankas perangkat keras tidak tersedia pada instalasi ini.",
-  "pinLabel": "PIN",
+  "pinLabel": "Kata sandi",
   "l2UnlockTitle": "Kata sandi diperlukan",
   "l2UnlockHint": "Masukkan kata sandi pendek Anda untuk melanjutkan",
   "l2WrongPassword": "Kata sandi salah",
-  "l3UnlockTitle": "Masukkan PIN",
-  "l3UnlockHint": "PIN pendek membuka brankas terikat perangkat keras",
-  "l3WrongPin": "PIN salah",
+  "l3UnlockTitle": "Masukkan kata sandi",
+  "l3UnlockHint": "Kata sandi membuka brankas terikat perangkat keras",
+  "l3WrongPin": "Kata sandi salah",
   "tierCooldownHint": "Coba lagi dalam {seconds} d",
   "@tierCooldownHint": {
     "placeholders": {

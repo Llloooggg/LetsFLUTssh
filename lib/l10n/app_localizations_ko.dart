@@ -906,7 +906,7 @@ class SKo extends S {
   String get tierHardwareUnavailable => '이 설치에서는 하드웨어 금고를 사용할 수 없습니다.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => '비밀번호';
 
   @override
   String get l2UnlockTitle => '비밀번호 필요';
@@ -918,13 +918,13 @@ class SKo extends S {
   String get l2WrongPassword => '잘못된 비밀번호';
 
   @override
-  String get l3UnlockTitle => 'PIN 입력';
+  String get l3UnlockTitle => '비밀번호 입력';
 
   @override
-  String get l3UnlockHint => '짧은 PIN으로 하드웨어 연결 금고 잠금 해제';
+  String get l3UnlockHint => '비밀번호로 하드웨어 연결 금고 잠금 해제';
 
   @override
-  String get l3WrongPin => '잘못된 PIN';
+  String get l3WrongPin => '잘못된 비밀번호';
 
   @override
   String tierCooldownHint(int seconds) {

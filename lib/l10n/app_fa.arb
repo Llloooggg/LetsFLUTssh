@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.",
   "continueWithoutPassword": "بدون رمز عبور ادامه بده",
   "tierHardwareUnavailable": "گاوصندوق سخت‌افزاری در این نصب در دسترس نیست.",
-  "pinLabel": "پین",
+  "pinLabel": "رمز عبور",
   "l2UnlockTitle": "گذرواژه لازم است",
   "l2UnlockHint": "برای ادامه گذرواژه کوتاه خود را وارد کنید",
   "l2WrongPassword": "گذرواژه اشتباه",
-  "l3UnlockTitle": "پین را وارد کنید",
-  "l3UnlockHint": "پین کوتاه، گاوصندوق وابسته به سخت‌افزار را باز می‌کند",
-  "l3WrongPin": "پین اشتباه",
+  "l3UnlockTitle": "رمز عبور را وارد کنید",
+  "l3UnlockHint": "رمز عبور، گاوصندوق وابسته به سخت‌افزار را باز می‌کند",
+  "l3WrongPin": "رمز عبور اشتباه",
   "tierCooldownHint": "{seconds} ثانیه دیگر تلاش کنید",
   "@tierCooldownHint": {
     "placeholders": {

@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.",
   "continueWithoutPassword": "Tiếp tục không dùng mật khẩu",
   "tierHardwareUnavailable": "Kho phần cứng không có sẵn trên cài đặt này.",
-  "pinLabel": "PIN",
+  "pinLabel": "Mật khẩu",
   "l2UnlockTitle": "Cần mật khẩu",
   "l2UnlockHint": "Nhập mật khẩu ngắn để tiếp tục",
   "l2WrongPassword": "Sai mật khẩu",
-  "l3UnlockTitle": "Nhập PIN",
-  "l3UnlockHint": "PIN ngắn mở khóa kho liên kết phần cứng",
-  "l3WrongPin": "Sai PIN",
+  "l3UnlockTitle": "Nhập mật khẩu",
+  "l3UnlockHint": "Mật khẩu mở khóa kho liên kết phần cứng",
+  "l3WrongPin": "Sai mật khẩu",
   "tierCooldownHint": "Thử lại sau {seconds} giây",
   "@tierCooldownHint": {
     "placeholders": {

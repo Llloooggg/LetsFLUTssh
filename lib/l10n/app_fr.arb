@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "L'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.",
   "continueWithoutPassword": "Continuer sans mot de passe",
   "tierHardwareUnavailable": "Coffre matériel indisponible sur cette installation.",
-  "pinLabel": "PIN",
+  "pinLabel": "Mot de passe",
   "l2UnlockTitle": "Mot de passe requis",
   "l2UnlockHint": "Saisissez votre mot de passe court pour continuer",
   "l2WrongPassword": "Mot de passe incorrect",
-  "l3UnlockTitle": "Saisir le PIN",
-  "l3UnlockHint": "Le PIN court déverrouille le coffre lié au matériel",
-  "l3WrongPin": "PIN incorrect",
+  "l3UnlockTitle": "Saisir le mot de passe",
+  "l3UnlockHint": "Le mot de passe déverrouille le coffre lié au matériel",
+  "l3WrongPin": "Mot de passe incorrect",
   "tierCooldownHint": "Réessayer dans {seconds} s",
   "@tierCooldownHint": {
     "placeholders": {

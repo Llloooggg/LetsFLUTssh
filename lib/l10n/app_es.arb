@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "El archivo no se cifrará. Cualquiera con acceso al archivo podrá leer tus datos, incluidas contraseñas y claves privadas.",
   "continueWithoutPassword": "Continuar sin contraseña",
   "tierHardwareUnavailable": "Bóveda de hardware no disponible en esta instalación.",
-  "pinLabel": "PIN",
+  "pinLabel": "Contraseña",
   "l2UnlockTitle": "Contraseña requerida",
   "l2UnlockHint": "Introduce tu contraseña corta para continuar",
   "l2WrongPassword": "Contraseña incorrecta",
-  "l3UnlockTitle": "Introducir PIN",
-  "l3UnlockHint": "El PIN corto desbloquea la bóveda vinculada al hardware",
-  "l3WrongPin": "PIN incorrecto",
+  "l3UnlockTitle": "Introducir contraseña",
+  "l3UnlockHint": "La contraseña desbloquea la bóveda vinculada al hardware",
+  "l3WrongPin": "Contraseña incorrecta",
   "tierCooldownHint": "Reintentar en {seconds} s",
   "@tierCooldownHint": {
     "placeholders": {

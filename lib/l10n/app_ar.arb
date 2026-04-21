@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.",
   "continueWithoutPassword": "المتابعة بدون كلمة مرور",
   "tierHardwareUnavailable": "خزينة الأجهزة غير متاحة في هذا التثبيت.",
-  "pinLabel": "PIN",
+  "pinLabel": "كلمة المرور",
   "l2UnlockTitle": "كلمة المرور مطلوبة",
   "l2UnlockHint": "أدخل كلمة المرور القصيرة للمتابعة",
   "l2WrongPassword": "كلمة مرور خاطئة",
-  "l3UnlockTitle": "أدخل رمز PIN",
-  "l3UnlockHint": "يفتح رمز PIN القصير الخزينة المرتبطة بالأجهزة",
-  "l3WrongPin": "رمز PIN خاطئ",
+  "l3UnlockTitle": "أدخل كلمة المرور",
+  "l3UnlockHint": "كلمة المرور تفتح الخزينة المرتبطة بالأجهزة",
+  "l3WrongPin": "كلمة مرور خاطئة",
   "tierCooldownHint": "أعد المحاولة بعد {seconds} ث",
   "@tierCooldownHint": {
     "placeholders": {

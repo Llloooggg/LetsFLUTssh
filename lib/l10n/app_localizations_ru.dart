@@ -939,7 +939,7 @@ class SRu extends S {
       'Аппаратное хранилище недоступно на этой установке.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Пароль';
 
   @override
   String get l2UnlockTitle => 'Требуется пароль';
@@ -951,13 +951,13 @@ class SRu extends S {
   String get l2WrongPassword => 'Неверный пароль';
 
   @override
-  String get l3UnlockTitle => 'Введите PIN';
+  String get l3UnlockTitle => 'Введите пароль';
 
   @override
-  String get l3UnlockHint => 'Короткий PIN разблокирует аппаратное хранилище';
+  String get l3UnlockHint => 'Пароль разблокирует аппаратное хранилище';
 
   @override
-  String get l3WrongPin => 'Неверный PIN';
+  String get l3WrongPin => 'Неверный пароль';
 
   @override
   String tierCooldownHint(int seconds) {

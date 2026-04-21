@@ -503,13 +503,13 @@
   "tierParanoidThreat2": "Weak password + offline Argon2id cracking",
   "tierParanoidNotes": "Biometric is disabled by design on this tier.",
   "tierHardwareUnavailable": "Hardware vault not available on this install.",
-  "pinLabel": "PIN",
+  "pinLabel": "Password",
   "l2UnlockTitle": "Password required",
   "l2UnlockHint": "Enter your short password to continue",
   "l2WrongPassword": "Wrong password",
-  "l3UnlockTitle": "Enter PIN",
-  "l3UnlockHint": "Short PIN unlocks the hardware-bound vault",
-  "l3WrongPin": "Wrong PIN",
+  "l3UnlockTitle": "Enter password",
+  "l3UnlockHint": "Password unlocks the hardware-bound vault",
+  "l3WrongPin": "Wrong password",
   "tierCooldownHint": "Try again in {seconds}s",
   "@tierCooldownHint": {
     "placeholders": {

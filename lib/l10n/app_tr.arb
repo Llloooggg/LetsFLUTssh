@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.",
   "continueWithoutPassword": "Parolasız devam et",
   "tierHardwareUnavailable": "Bu kurulumda donanım kasası kullanılamıyor.",
-  "pinLabel": "PIN",
+  "pinLabel": "Parola",
   "l2UnlockTitle": "Şifre gerekli",
   "l2UnlockHint": "Devam etmek için kısa şifrenizi girin",
   "l2WrongPassword": "Yanlış şifre",
-  "l3UnlockTitle": "PIN girin",
-  "l3UnlockHint": "Kısa PIN, donanıma bağlı kasanın kilidini açar",
-  "l3WrongPin": "Yanlış PIN",
+  "l3UnlockTitle": "Parolayı girin",
+  "l3UnlockHint": "Parola donanıma bağlı kasanın kilidini açar",
+  "l3WrongPin": "Yanlış parola",
   "tierCooldownHint": "{seconds} sn sonra tekrar deneyin",
   "@tierCooldownHint": {
     "placeholders": {

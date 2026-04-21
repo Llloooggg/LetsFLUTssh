@@ -935,7 +935,7 @@ class SAr extends S {
       'خزينة الأجهزة غير متاحة في هذا التثبيت.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'كلمة المرور';
 
   @override
   String get l2UnlockTitle => 'كلمة المرور مطلوبة';
@@ -947,13 +947,13 @@ class SAr extends S {
   String get l2WrongPassword => 'كلمة مرور خاطئة';
 
   @override
-  String get l3UnlockTitle => 'أدخل رمز PIN';
+  String get l3UnlockTitle => 'أدخل كلمة المرور';
 
   @override
-  String get l3UnlockHint => 'يفتح رمز PIN القصير الخزينة المرتبطة بالأجهزة';
+  String get l3UnlockHint => 'كلمة المرور تفتح الخزينة المرتبطة بالأجهزة';
 
   @override
-  String get l3WrongPin => 'رمز PIN خاطئ';
+  String get l3WrongPin => 'كلمة مرور خاطئة';
 
   @override
   String tierCooldownHint(int seconds) {

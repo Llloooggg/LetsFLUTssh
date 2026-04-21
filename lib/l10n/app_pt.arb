@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.",
   "continueWithoutPassword": "Continuar sem senha",
   "tierHardwareUnavailable": "Cofre de hardware indisponível nesta instalação.",
-  "pinLabel": "PIN",
+  "pinLabel": "Senha",
   "l2UnlockTitle": "Senha necessária",
   "l2UnlockHint": "Digite sua senha curta para continuar",
   "l2WrongPassword": "Senha incorreta",
-  "l3UnlockTitle": "Digite o PIN",
-  "l3UnlockHint": "O PIN curto desbloqueia o cofre vinculado ao hardware",
-  "l3WrongPin": "PIN incorreto",
+  "l3UnlockTitle": "Digite a senha",
+  "l3UnlockHint": "A senha desbloqueia o cofre vinculado ao hardware",
+  "l3WrongPin": "Senha incorreta",
   "tierCooldownHint": "Tentar novamente em {seconds} s",
   "@tierCooldownHint": {
     "placeholders": {

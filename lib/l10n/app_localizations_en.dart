@@ -933,7 +933,7 @@ class SEn extends S {
       'Hardware vault not available on this install.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Password';
 
   @override
   String get l2UnlockTitle => 'Password required';
@@ -945,13 +945,13 @@ class SEn extends S {
   String get l2WrongPassword => 'Wrong password';
 
   @override
-  String get l3UnlockTitle => 'Enter PIN';
+  String get l3UnlockTitle => 'Enter password';
 
   @override
-  String get l3UnlockHint => 'Short PIN unlocks the hardware-bound vault';
+  String get l3UnlockHint => 'Password unlocks the hardware-bound vault';
 
   @override
-  String get l3WrongPin => 'Wrong PIN';
+  String get l3WrongPin => 'Wrong password';
 
   @override
   String tierCooldownHint(int seconds) {

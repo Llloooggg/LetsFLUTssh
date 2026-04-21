@@ -945,7 +945,7 @@ class SDe extends S {
       'Hardware-Tresor in dieser Installation nicht verfügbar.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Passwort';
 
   @override
   String get l2UnlockTitle => 'Passwort erforderlich';
@@ -958,14 +958,13 @@ class SDe extends S {
   String get l2WrongPassword => 'Falsches Passwort';
 
   @override
-  String get l3UnlockTitle => 'PIN eingeben';
+  String get l3UnlockTitle => 'Passwort eingeben';
 
   @override
-  String get l3UnlockHint =>
-      'Kurzer PIN entsperrt den hardwaregebundenen Tresor';
+  String get l3UnlockHint => 'Passwort entsperrt den hardwaregebundenen Tresor';
 
   @override
-  String get l3WrongPin => 'Falscher PIN';
+  String get l3WrongPin => 'Falsches Passwort';
 
   @override
   String tierCooldownHint(int seconds) {

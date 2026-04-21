@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.",
   "continueWithoutPassword": "비밀번호 없이 계속",
   "tierHardwareUnavailable": "이 설치에서는 하드웨어 금고를 사용할 수 없습니다.",
-  "pinLabel": "PIN",
+  "pinLabel": "비밀번호",
   "l2UnlockTitle": "비밀번호 필요",
   "l2UnlockHint": "계속하려면 짧은 비밀번호를 입력하세요",
   "l2WrongPassword": "잘못된 비밀번호",
-  "l3UnlockTitle": "PIN 입력",
-  "l3UnlockHint": "짧은 PIN으로 하드웨어 연결 금고 잠금 해제",
-  "l3WrongPin": "잘못된 PIN",
+  "l3UnlockTitle": "비밀번호 입력",
+  "l3UnlockHint": "비밀번호로 하드웨어 연결 금고 잠금 해제",
+  "l3WrongPin": "잘못된 비밀번호",
   "tierCooldownHint": "{seconds}초 후 재시도",
   "@tierCooldownHint": {
     "placeholders": {

@@ -947,7 +947,7 @@ class SFr extends S {
       'Coffre matériel indisponible sur cette installation.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Mot de passe';
 
   @override
   String get l2UnlockTitle => 'Mot de passe requis';
@@ -960,14 +960,14 @@ class SFr extends S {
   String get l2WrongPassword => 'Mot de passe incorrect';
 
   @override
-  String get l3UnlockTitle => 'Saisir le PIN';
+  String get l3UnlockTitle => 'Saisir le mot de passe';
 
   @override
   String get l3UnlockHint =>
-      'Le PIN court déverrouille le coffre lié au matériel';
+      'Le mot de passe déverrouille le coffre lié au matériel';
 
   @override
-  String get l3WrongPin => 'PIN incorrect';
+  String get l3WrongPin => 'Mot de passe incorrect';
 
   @override
   String tierCooldownHint(int seconds) {

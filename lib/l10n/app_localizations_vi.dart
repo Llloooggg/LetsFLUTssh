@@ -933,7 +933,7 @@ class SVi extends S {
       'Kho phần cứng không có sẵn trên cài đặt này.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Mật khẩu';
 
   @override
   String get l2UnlockTitle => 'Cần mật khẩu';
@@ -945,13 +945,13 @@ class SVi extends S {
   String get l2WrongPassword => 'Sai mật khẩu';
 
   @override
-  String get l3UnlockTitle => 'Nhập PIN';
+  String get l3UnlockTitle => 'Nhập mật khẩu';
 
   @override
-  String get l3UnlockHint => 'PIN ngắn mở khóa kho liên kết phần cứng';
+  String get l3UnlockHint => 'Mật khẩu mở khóa kho liên kết phần cứng';
 
   @override
-  String get l3WrongPin => 'Sai PIN';
+  String get l3WrongPin => 'Sai mật khẩu';
 
   @override
   String tierCooldownHint(int seconds) {

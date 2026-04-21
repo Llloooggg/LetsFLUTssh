@@ -1764,7 +1764,7 @@ abstract class S {
   /// No description provided for @pinLabel.
   ///
   /// In en, this message translates to:
-  /// **'PIN'**
+  /// **'Password'**
   String get pinLabel;
 
   /// No description provided for @l2UnlockTitle.
@@ -1788,19 +1788,19 @@ abstract class S {
   /// No description provided for @l3UnlockTitle.
   ///
   /// In en, this message translates to:
-  /// **'Enter PIN'**
+  /// **'Enter password'**
   String get l3UnlockTitle;
 
   /// No description provided for @l3UnlockHint.
   ///
   /// In en, this message translates to:
-  /// **'Short PIN unlocks the hardware-bound vault'**
+  /// **'Password unlocks the hardware-bound vault'**
   String get l3UnlockHint;
 
   /// No description provided for @l3WrongPin.
   ///
   /// In en, this message translates to:
-  /// **'Wrong PIN'**
+  /// **'Wrong password'**
   String get l3WrongPin;
 
   /// No description provided for @tierCooldownHint.

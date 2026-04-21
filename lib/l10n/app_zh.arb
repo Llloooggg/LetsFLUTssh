@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。",
   "continueWithoutPassword": "不设密码继续",
   "tierHardwareUnavailable": "此安装不支持硬件保险库。",
-  "pinLabel": "PIN",
+  "pinLabel": "密码",
   "l2UnlockTitle": "需要密码",
   "l2UnlockHint": "输入您的短密码以继续",
   "l2WrongPassword": "密码错误",
-  "l3UnlockTitle": "输入 PIN",
-  "l3UnlockHint": "短 PIN 解锁硬件绑定的保险库",
-  "l3WrongPin": "PIN 错误",
+  "l3UnlockTitle": "输入密码",
+  "l3UnlockHint": "密码解锁硬件绑定的保险库",
+  "l3WrongPin": "密码错误",
   "tierCooldownHint": "{seconds} 秒后重试",
   "@tierCooldownHint": {
     "placeholders": {

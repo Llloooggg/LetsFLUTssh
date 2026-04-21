@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。",
   "continueWithoutPassword": "パスワードなしで続行",
   "tierHardwareUnavailable": "このインストールではハードウェアボールトを利用できません。",
-  "pinLabel": "PIN",
+  "pinLabel": "パスワード",
   "l2UnlockTitle": "パスワードが必要です",
   "l2UnlockHint": "短いパスワードを入力して続行",
   "l2WrongPassword": "パスワードが違います",
-  "l3UnlockTitle": "PIN を入力",
-  "l3UnlockHint": "短い PIN でハードウェア連携のボールトを解除",
-  "l3WrongPin": "PIN が違います",
+  "l3UnlockTitle": "パスワードを入力",
+  "l3UnlockHint": "パスワードでハードウェア連携のボールトを解除",
+  "l3WrongPin": "パスワードが違います",
   "tierCooldownHint": "{seconds} 秒後に再試行",
   "@tierCooldownHint": {
     "placeholders": {

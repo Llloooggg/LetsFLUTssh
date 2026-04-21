@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.",
   "continueWithoutPassword": "Продолжить без пароля",
   "tierHardwareUnavailable": "Аппаратное хранилище недоступно на этой установке.",
-  "pinLabel": "PIN",
+  "pinLabel": "Пароль",
   "l2UnlockTitle": "Требуется пароль",
   "l2UnlockHint": "Введите короткий пароль для продолжения",
   "l2WrongPassword": "Неверный пароль",
-  "l3UnlockTitle": "Введите PIN",
-  "l3UnlockHint": "Короткий PIN разблокирует аппаратное хранилище",
-  "l3WrongPin": "Неверный PIN",
+  "l3UnlockTitle": "Введите пароль",
+  "l3UnlockHint": "Пароль разблокирует аппаратное хранилище",
+  "l3WrongPin": "Неверный пароль",
   "tierCooldownHint": "Повтор через {seconds} с",
   "@tierCooldownHint": {
     "placeholders": {

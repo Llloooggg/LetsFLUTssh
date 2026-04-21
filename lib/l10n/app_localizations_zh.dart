@@ -903,7 +903,7 @@ class SZh extends S {
   String get tierHardwareUnavailable => '此安装不支持硬件保险库。';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => '密码';
 
   @override
   String get l2UnlockTitle => '需要密码';
@@ -915,13 +915,13 @@ class SZh extends S {
   String get l2WrongPassword => '密码错误';
 
   @override
-  String get l3UnlockTitle => '输入 PIN';
+  String get l3UnlockTitle => '输入密码';
 
   @override
-  String get l3UnlockHint => '短 PIN 解锁硬件绑定的保险库';
+  String get l3UnlockHint => '密码解锁硬件绑定的保险库';
 
   @override
-  String get l3WrongPin => 'PIN 错误';
+  String get l3WrongPin => '密码错误';
 
   @override
   String tierCooldownHint(int seconds) {

@@ -935,7 +935,7 @@ class SHi extends S {
       'इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।';
 
   @override
-  String get pinLabel => 'पिन';
+  String get pinLabel => 'पासवर्ड';
 
   @override
   String get l2UnlockTitle => 'पासवर्ड आवश्यक';
@@ -947,13 +947,13 @@ class SHi extends S {
   String get l2WrongPassword => 'गलत पासवर्ड';
 
   @override
-  String get l3UnlockTitle => 'पिन दर्ज करें';
+  String get l3UnlockTitle => 'पासवर्ड दर्ज करें';
 
   @override
-  String get l3UnlockHint => 'छोटा पिन हार्डवेयर-बाउंड वॉल्ट खोलता है';
+  String get l3UnlockHint => 'पासवर्ड हार्डवेयर-बाउंड वॉल्ट खोलता है';
 
   @override
-  String get l3WrongPin => 'गलत पिन';
+  String get l3WrongPin => 'गलत पासवर्ड';
 
   @override
   String tierCooldownHint(int seconds) {

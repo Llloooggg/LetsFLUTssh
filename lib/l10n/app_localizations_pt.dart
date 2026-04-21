@@ -942,7 +942,7 @@ class SPt extends S {
       'Cofre de hardware indisponível nesta instalação.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Senha';
 
   @override
   String get l2UnlockTitle => 'Senha necessária';
@@ -954,14 +954,14 @@ class SPt extends S {
   String get l2WrongPassword => 'Senha incorreta';
 
   @override
-  String get l3UnlockTitle => 'Digite o PIN';
+  String get l3UnlockTitle => 'Digite a senha';
 
   @override
   String get l3UnlockHint =>
-      'O PIN curto desbloqueia o cofre vinculado ao hardware';
+      'A senha desbloqueia o cofre vinculado ao hardware';
 
   @override
-  String get l3WrongPin => 'PIN incorreto';
+  String get l3WrongPin => 'Senha incorreta';
 
   @override
   String tierCooldownHint(int seconds) {

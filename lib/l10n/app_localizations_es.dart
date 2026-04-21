@@ -945,7 +945,7 @@ class SEs extends S {
       'Bóveda de hardware no disponible en esta instalación.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Contraseña';
 
   @override
   String get l2UnlockTitle => 'Contraseña requerida';
@@ -957,14 +957,14 @@ class SEs extends S {
   String get l2WrongPassword => 'Contraseña incorrecta';
 
   @override
-  String get l3UnlockTitle => 'Introducir PIN';
+  String get l3UnlockTitle => 'Introducir contraseña';
 
   @override
   String get l3UnlockHint =>
-      'El PIN corto desbloquea la bóveda vinculada al hardware';
+      'La contraseña desbloquea la bóveda vinculada al hardware';
 
   @override
-  String get l3WrongPin => 'PIN incorrecto';
+  String get l3WrongPin => 'Contraseña incorrecta';
 
   @override
   String tierCooldownHint(int seconds) {

@@ -707,13 +707,13 @@
   "exportWithoutPasswordWarning": "संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।",
   "continueWithoutPassword": "बिना पासवर्ड के जारी रखें",
   "tierHardwareUnavailable": "इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।",
-  "pinLabel": "पिन",
+  "pinLabel": "पासवर्ड",
   "l2UnlockTitle": "पासवर्ड आवश्यक",
   "l2UnlockHint": "जारी रखने के लिए अपना छोटा पासवर्ड दर्ज करें",
   "l2WrongPassword": "गलत पासवर्ड",
-  "l3UnlockTitle": "पिन दर्ज करें",
-  "l3UnlockHint": "छोटा पिन हार्डवेयर-बाउंड वॉल्ट खोलता है",
-  "l3WrongPin": "गलत पिन",
+  "l3UnlockTitle": "पासवर्ड दर्ज करें",
+  "l3UnlockHint": "पासवर्ड हार्डवेयर-बाउंड वॉल्ट खोलता है",
+  "l3WrongPin": "गलत पासवर्ड",
   "tierCooldownHint": "{seconds} सेकंड में फिर कोशिश करें",
   "@tierCooldownHint": {
     "placeholders": {

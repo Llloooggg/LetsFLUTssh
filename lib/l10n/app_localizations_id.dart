@@ -940,7 +940,7 @@ class SId extends S {
       'Brankas perangkat keras tidak tersedia pada instalasi ini.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Kata sandi';
 
   @override
   String get l2UnlockTitle => 'Kata sandi diperlukan';
@@ -953,14 +953,14 @@ class SId extends S {
   String get l2WrongPassword => 'Kata sandi salah';
 
   @override
-  String get l3UnlockTitle => 'Masukkan PIN';
+  String get l3UnlockTitle => 'Masukkan kata sandi';
 
   @override
   String get l3UnlockHint =>
-      'PIN pendek membuka brankas terikat perangkat keras';
+      'Kata sandi membuka brankas terikat perangkat keras';
 
   @override
-  String get l3WrongPin => 'PIN salah';
+  String get l3WrongPin => 'Kata sandi salah';
 
   @override
   String tierCooldownHint(int seconds) {

@@ -944,7 +944,7 @@ class STr extends S {
       'Bu kurulumda donanım kasası kullanılamıyor.';
 
   @override
-  String get pinLabel => 'PIN';
+  String get pinLabel => 'Parola';
 
   @override
   String get l2UnlockTitle => 'Şifre gerekli';
@@ -956,13 +956,13 @@ class STr extends S {
   String get l2WrongPassword => 'Yanlış şifre';
 
   @override
-  String get l3UnlockTitle => 'PIN girin';
+  String get l3UnlockTitle => 'Parolayı girin';
 
   @override
-  String get l3UnlockHint => 'Kısa PIN, donanıma bağlı kasanın kilidini açar';
+  String get l3UnlockHint => 'Parola donanıma bağlı kasanın kilidini açar';
 
   @override
-  String get l3WrongPin => 'Yanlış PIN';
+  String get l3WrongPin => 'Yanlış parola';
 
   @override
   String tierCooldownHint(int seconds) {
