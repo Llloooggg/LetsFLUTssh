@@ -1975,6 +1975,9 @@ class SEn extends S {
   String get credentialsReset => 'All saved credentials have been deleted';
 
   @override
+  String get migrationToast => 'Storage upgraded to the latest format';
+
+  @override
   String get dbCorruptTitle => 'Database cannot be opened';
 
   @override

@@ -2009,6 +2009,9 @@ class SFr extends S {
       'Tous les identifiants enregistrés ont été supprimés';
 
   @override
+  String get migrationToast => 'Stockage mis à jour au format actuel';
+
+  @override
   String get dbCorruptTitle => 'Impossible d\'ouvrir la base de données';
 
   @override

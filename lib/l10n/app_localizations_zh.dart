@@ -1911,6 +1911,9 @@ class SZh extends S {
   String get credentialsReset => '所有已保存的凭据已删除';
 
   @override
+  String get migrationToast => '存储已升级到最新格式';
+
+  @override
   String get dbCorruptTitle => '无法打开数据库';
 
   @override

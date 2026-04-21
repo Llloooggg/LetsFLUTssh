@@ -1984,6 +1984,9 @@ class SId extends S {
   String get credentialsReset => 'Semua kredensial tersimpan telah dihapus';
 
   @override
+  String get migrationToast => 'Penyimpanan ditingkatkan ke format terbaru';
+
+  @override
   String get dbCorruptTitle => 'Basis data tidak dapat dibuka';
 
   @override

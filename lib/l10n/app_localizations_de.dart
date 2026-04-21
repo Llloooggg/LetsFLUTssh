@@ -2006,6 +2006,9 @@ class SDe extends S {
       'Alle gespeicherten Anmeldedaten wurden gelöscht';
 
   @override
+  String get migrationToast => 'Speicher auf aktuelles Format aktualisiert';
+
+  @override
   String get dbCorruptTitle => 'Datenbank kann nicht geöffnet werden';
 
   @override

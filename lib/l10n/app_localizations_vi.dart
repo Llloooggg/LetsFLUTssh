@@ -1972,6 +1972,9 @@ class SVi extends S {
   String get credentialsReset => 'Tất cả thông tin đăng nhập đã lưu đã bị xóa';
 
   @override
+  String get migrationToast => 'Bộ nhớ đã được nâng cấp lên định dạng mới nhất';
+
+  @override
   String get dbCorruptTitle => 'Không thể mở cơ sở dữ liệu';
 
   @override

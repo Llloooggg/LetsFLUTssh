@@ -1975,6 +1975,9 @@ class SFa extends S {
   String get credentialsReset => 'تمام اعتبارنامه‌های ذخیره شده حذف شدند';
 
   @override
+  String get migrationToast => 'ذخیره‌سازی به آخرین فرمت ارتقا یافت';
+
+  @override
   String get dbCorruptTitle => 'باز کردن پایگاه داده ممکن نیست';
 
   @override

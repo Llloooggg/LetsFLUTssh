@@ -1996,6 +1996,9 @@ class SPt extends S {
   String get credentialsReset => 'Todas as credenciais salvas foram excluídas';
 
   @override
+  String get migrationToast => 'Armazenamento atualizado para o formato atual';
+
+  @override
   String get dbCorruptTitle => 'Não é possível abrir o banco de dados';
 
   @override

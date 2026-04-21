@@ -1979,6 +1979,9 @@ class SAr extends S {
   String get credentialsReset => 'تم حذف جميع بيانات الاعتماد المحفوظة';
 
   @override
+  String get migrationToast => 'تمت ترقية التخزين إلى أحدث تنسيق';
+
+  @override
   String get dbCorruptTitle => 'تعذر فتح قاعدة البيانات';
 
   @override

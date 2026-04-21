@@ -1925,6 +1925,9 @@ class SJa extends S {
   String get credentialsReset => '保存された認証情報がすべて削除されました';
 
   @override
+  String get migrationToast => 'ストレージを最新の形式にアップグレードしました';
+
+  @override
   String get dbCorruptTitle => 'データベースを開けません';
 
   @override

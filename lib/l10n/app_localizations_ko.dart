@@ -1921,6 +1921,9 @@ class SKo extends S {
   String get credentialsReset => '저장된 모든 인증 정보가 삭제되었습니다';
 
   @override
+  String get migrationToast => '저장소가 최신 형식으로 업그레이드되었습니다';
+
+  @override
   String get dbCorruptTitle => '데이터베이스를 열 수 없습니다';
 
   @override

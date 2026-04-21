@@ -1991,6 +1991,9 @@ class SRu extends S {
   String get credentialsReset => 'Все сохранённые учётные данные удалены';
 
   @override
+  String get migrationToast => 'Хранилище обновлено до текущего формата';
+
+  @override
   String get dbCorruptTitle => 'Не удалось открыть базу данных';
 
   @override

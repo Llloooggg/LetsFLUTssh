@@ -1206,6 +1206,7 @@
   "forgotPasswordWarning": "This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.",
   "resetAndDeleteCredentials": "Reset & Delete Credentials",
   "credentialsReset": "All saved credentials have been deleted",
+  "migrationToast": "Storage upgraded to the latest format",
   "dbCorruptTitle": "Database cannot be opened",
   "dbCorruptBody": "The data on disk cannot be opened. Try a different credential, or reset to start fresh.",
   "dbCorruptWarning": "Reset will permanently delete the encrypted database and every security-related file. No data will be recovered.",

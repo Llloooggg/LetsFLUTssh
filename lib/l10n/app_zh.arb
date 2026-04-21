@@ -592,6 +592,7 @@
   "forgotPasswordWarning": "这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。",
   "resetAndDeleteCredentials": "重置并删除凭据",
   "credentialsReset": "所有已保存的凭据已删除",
+  "migrationToast": "存储已升级到最新格式",
   "tierResetTitle": "需要重置安全设置",
   "tierResetBody": "此安装携带使用不同层级模型的早期版本 LetsFLUTssh 的安全数据。新模型是不兼容的变更 — 没有自动迁移路径。要继续，必须清除此安装中的所有已保存会话、凭据、SSH 密钥和已知主机，并从头运行首次启动设置向导。",
   "tierResetWarning": "选择「重置并重新设置」将永久删除加密数据库和所有与安全相关的文件。如果您需要恢复数据，请立即退出应用并重新安装旧版本的 LetsFLUTssh 以先导出数据。",

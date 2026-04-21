@@ -2002,6 +2002,9 @@ class SEs extends S {
       'Todas las credenciales guardadas han sido eliminadas';
 
   @override
+  String get migrationToast => 'Almacenamiento actualizado al formato actual';
+
+  @override
   String get dbCorruptTitle => 'No se puede abrir la base de datos';
 
   @override

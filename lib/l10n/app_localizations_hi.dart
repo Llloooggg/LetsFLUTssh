@@ -1983,6 +1983,9 @@ class SHi extends S {
   String get credentialsReset => 'सभी सहेजे गए क्रेडेंशियल हटा दिए गए';
 
   @override
+  String get migrationToast => 'स्टोरेज को नवीनतम प्रारूप में अपग्रेड किया गया';
+
+  @override
   String get dbCorruptTitle => 'डेटाबेस नहीं खोला जा सकता';
 
   @override

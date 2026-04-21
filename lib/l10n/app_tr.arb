@@ -592,6 +592,7 @@
   "forgotPasswordWarning": "Bu işlem TÜM kayıtlı şifreleri, SSH anahtarlarını ve parolaları silecek. Oturumlar ve ayarlar korunacak. Bu işlem geri alınamaz.",
   "resetAndDeleteCredentials": "Sıfırla ve verileri sil",
   "credentialsReset": "Tüm kayıtlı kimlik bilgileri silindi",
+  "migrationToast": "Depolama en son biçime yükseltildi",
   "tierResetTitle": "Güvenlik sıfırlaması gerekli",
   "tierResetBody": "Bu kurulum, farklı bir katman modeli kullanan LetsFLUTssh'un önceki sürümünden güvenlik verileri taşıyor. Yeni model geriye dönük uyumsuz bir değişikliktir — otomatik geçiş yolu yoktur. Devam etmek için bu kurulumda kayıtlı tüm oturumlar, kimlik bilgileri, SSH anahtarları ve bilinen sunucular silinmeli ve ilk kurulum sihirbazı baştan çalıştırılmalıdır.",
   "tierResetWarning": "«Sıfırla ve Yeniden Kur» seçeneği şifreli veritabanını ve güvenlikle ilgili tüm dosyaları kalıcı olarak siler. Verilerinizi kurtarmanız gerekiyorsa, uygulamadan şimdi çıkın ve önce dışa aktarmak için LetsFLUTssh'un önceki sürümünü yeniden yükleyin.",

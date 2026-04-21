@@ -592,6 +592,7 @@
   "forgotPasswordWarning": "Isso excluirá TODAS as senhas, chaves SSH e frases secretas salvas. Sessões e configurações serão mantidas. Esta ação é irreversível.",
   "resetAndDeleteCredentials": "Redefinir e excluir dados",
   "credentialsReset": "Todas as credenciais salvas foram excluídas",
+  "migrationToast": "Armazenamento atualizado para o formato atual",
   "tierResetTitle": "Redefinição de segurança necessária",
   "tierResetBody": "Esta instalação contém dados de segurança de uma versão anterior do LetsFLUTssh que usava um modelo de níveis diferente. O novo modelo é uma mudança incompatível — não há caminho de migração automática. Para continuar, todas as sessões salvas, credenciais, chaves SSH e hosts conhecidos nesta instalação precisam ser apagados e o assistente de configuração inicial executado do zero.",
   "tierResetWarning": "Escolher «Redefinir e configurar novamente» excluirá permanentemente o banco de dados criptografado e todos os arquivos relacionados à segurança. Se precisar recuperar seus dados, saia do aplicativo agora e reinstale a versão anterior do LetsFLUTssh para exportá-los primeiro.",

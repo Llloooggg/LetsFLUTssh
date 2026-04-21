@@ -592,6 +592,7 @@
   "forgotPasswordWarning": "Ceci supprimera TOUS les mots de passe, clés SSH et phrases secrètes enregistrés. Les sessions et paramètres seront conservés. Cette action est irréversible.",
   "resetAndDeleteCredentials": "Réinitialiser et supprimer les données",
   "credentialsReset": "Tous les identifiants enregistrés ont été supprimés",
+  "migrationToast": "Stockage mis à jour au format actuel",
   "tierResetTitle": "Réinitialisation de sécurité requise",
   "tierResetBody": "Cette installation contient des données de sécurité d'une ancienne version de LetsFLUTssh qui utilisait un modèle de niveaux différent. Le nouveau modèle introduit une rupture — il n'y a pas de chemin de migration automatique. Pour continuer, toutes les sessions enregistrées, identifiants, clés SSH et hôtes connus de cette installation doivent être effacés et l'assistant de configuration initiale exécuté à nouveau.",
   "tierResetWarning": "Choisir « Réinitialiser et reconfigurer » supprimera définitivement la base de données chiffrée et tous les fichiers liés à la sécurité. Si vous devez récupérer vos données, quittez l'application maintenant et réinstallez la version précédente de LetsFLUTssh pour d'abord les exporter.",

@@ -471,6 +471,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       'MigrationRunner: ${report.migratedCount} artefact(s) migrated',
       name: 'App',
     );
+    if (report.migratedCount > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Toast.show(
+            ctx,
+            message: S.of(ctx).migrationToast,
+            level: ToastLevel.info,
+          );
+        }
+      });
+    }
     return true;
   }
 

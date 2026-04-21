@@ -1991,6 +1991,9 @@ class STr extends S {
   String get credentialsReset => 'Tüm kayıtlı kimlik bilgileri silindi';
 
   @override
+  String get migrationToast => 'Depolama en son biçime yükseltildi';
+
+  @override
   String get dbCorruptTitle => 'Veritabanı açılamıyor';
 
   @override

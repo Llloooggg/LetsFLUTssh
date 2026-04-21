@@ -3525,6 +3525,12 @@ abstract class S {
   /// **'All saved credentials have been deleted'**
   String get credentialsReset;
 
+  /// No description provided for @migrationToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage upgraded to the latest format'**
+  String get migrationToast;
+
   /// No description provided for @dbCorruptTitle.
   ///
   /// In en, this message translates to:
