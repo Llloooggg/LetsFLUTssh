@@ -2958,6 +2958,8 @@ class AppLogger {
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 `dispose()` sets `_enabled = false` so no writes occur after disposal.
 
+**Always-on by default.** `init()` resolves the log path **and** opens the sink in one shot (when `_enabled` is true, which is the default). Previously the logger stayed silent until the user ticked Settings → Enable Logging, which meant a fresh install that crashed before that toggle left no forensic trail — exactly the window where a trail is most useful. The Settings toggle still exists as an explicit opt-out: flipping it off closes the sink and stops file writes (`main` honours `config.enableLogging` on startup by calling `setEnabled(false)` when persisted false). Entries already on disk stay until the user hits "Clear" in the Logging section. All writes pass through [sanitize](#sanitize) and the file is chmod-0600 on POSIX (same hardening as `credentials.*` and `config.json`).
+
 **Rule:** `AppLogger.instance.log(message, name: 'Tag')` everywhere. Never `print()` / `debugPrint()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
 
 ### Sanitize

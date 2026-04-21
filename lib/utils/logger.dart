@@ -5,12 +5,22 @@ import 'package:path_provider/path_provider.dart';
 
 import 'sanitize.dart';
 
-/// File-based logger controlled by user setting.
+/// File-based logger.
 ///
 /// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the app data.
 /// Automatically rotates when the log file exceeds [maxLogSizeBytes].
-/// Disabled by default — user enables via Settings → Enable Logging.
-/// Never logs sensitive data (passwords, keys, credentials).
+///
+/// **Always-on by default.** Every log call hits the file sink once [init]
+/// resolves the path and opens the sink. The previous "disabled by default"
+/// behaviour meant a fresh install that crashed before the user flipped the
+/// Settings toggle left no forensic trail — exactly the window where a trail
+/// is most needed. [setEnabled]`(false)` is still honoured as an explicit
+/// opt-out: it closes the sink and stops writes; logs already on disk stay
+/// until the user hits "Clear" in Settings.
+///
+/// All messages pass through [sanitize] (PEM blobs, IPv4 / user@host,
+/// home-directory paths are redacted) and the file is chmod-0600 on POSIX —
+/// same hardening as `credentials.*` and `config.json`.
 class AppLogger {
   static AppLogger? _instance;
   static const maxLogSizeBytes = 5 * 1024 * 1024; // 5 MB
@@ -18,7 +28,12 @@ class AppLogger {
 
   IOSink? _sink;
   String? _logPath;
-  bool _enabled = false;
+  // Tracks whether the user has explicitly opted out via Settings. The
+  // default is "logs are on" — the sink is opened eagerly by [init] so
+  // startup crashes and first-launch failures land on disk without
+  // waiting for a user toggle. Flipping this to `false` via [setEnabled]
+  // closes the sink for the rest of the session; flipping back re-opens.
+  bool _enabled = true;
 
   AppLogger._();
 
@@ -42,8 +57,13 @@ class AppLogger {
     }
   }
 
-  /// Initialize the logger — resolves the log path but does NOT start writing.
-  /// Call [setEnabled(true)] to start writing (triggered by config load).
+  /// Initialize the logger — resolves the log path AND opens the sink
+  /// so the first [log] call writes straight to disk. Called very early
+  /// in `main` (before `runApp`) so even pre-`runZonedGuarded` crashes
+  /// have a chance to be captured.
+  ///
+  /// Failures here (path resolution, directory create, sink open) never
+  /// throw — the logger degrades to `dart:developer` output only.
   Future<void> init() async {
     try {
       final dir = await getApplicationSupportDirectory();
@@ -54,6 +74,10 @@ class AppLogger {
       _logPath = '${logDir.path}/letsflutssh.log';
     } catch (e) {
       dev.log('AppLogger: failed to init: $e');
+      return;
+    }
+    if (_enabled) {
+      await _openSink();
     }
   }
 

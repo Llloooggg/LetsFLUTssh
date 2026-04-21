@@ -639,7 +639,7 @@ void main() {
         expect(config.ui, const UiConfig());
         expect(config.transferWorkers, 2);
         expect(config.maxHistory, 500);
-        expect(config.enableLogging, false);
+        expect(config.enableLogging, true);
         expect(config.checkUpdatesOnStart, true);
         expect(config.skippedVersion, isNull);
       });
@@ -1073,7 +1073,7 @@ void main() {
         // AppConfig-level keys
         expect(json, containsPair('transfer_workers', 2));
         expect(json, containsPair('max_history', 500));
-        expect(json, containsPair('enable_logging', false));
+        expect(json, containsPair('enable_logging', true));
         expect(json, containsPair('check_updates_on_start', true));
       });
 
@@ -1130,9 +1130,9 @@ void main() {
         expect(config.enableLogging, true);
       });
 
-      test('fromJson() defaults enableLogging to false', () {
+      test('fromJson() defaults enableLogging to true', () {
         final config = AppConfig.fromJson({});
-        expect(config.enableLogging, false);
+        expect(config.enableLogging, true);
       });
 
       test('fromJson() preserves checkUpdatesOnStart false', () {

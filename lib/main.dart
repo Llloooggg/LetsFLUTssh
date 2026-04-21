@@ -188,8 +188,15 @@ Future<void> main() async {
   // reads the real config instead of defaults.
   final configStore = ConfigStore();
   final config = await configStore.load();
-  await loggerInit; // ensure log path resolved before enabling file logging
-  AppLogger.instance.setEnabled(config.enableLogging);
+  await loggerInit; // ensure log path resolved + sink opened before writes
+  // `AppLogger` is always-on by default (see class docs) so startup
+  // crashes and first-launch failures land on disk without waiting for
+  // a user toggle. The Settings toggle persists as an explicit opt-out;
+  // only honour it when the user has turned logging off, otherwise the
+  // sink [init] already opened stays open.
+  if (!config.enableLogging) {
+    await AppLogger.instance.setEnabled(false);
+  }
 
   // Wrap the entire app in runZonedGuarded to catch all async errors.
   // This catches errors from onPressed, Futures, streams, timers, etc.

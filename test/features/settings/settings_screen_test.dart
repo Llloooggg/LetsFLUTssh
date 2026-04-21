@@ -2122,16 +2122,25 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      // The toggle pill near "Check for Updates on Startup" should have accent color (on)
-      final toggleContainer = find.byWidgetPredicate(
-        (w) =>
-            w is Container &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).color == AppTheme.accent &&
-            (w.decoration as BoxDecoration).borderRadius ==
-                BorderRadius.circular(9),
+      // The toggle pill near "Check for Updates on Startup" should have
+      // accent color (on). Multiple tiles in the Updates + Logging
+      // sections now default to on (logging flipped to always-on so
+      // startup crashes land on disk), so scope the predicate to the
+      // single toggle that sits next to the expected label instead of
+      // counting every accent-filled pill on the screen.
+      final labelFinder = find.text('Check for Updates on Startup');
+      final toggleContainer = find.descendant(
+        of: find.ancestor(of: labelFinder, matching: find.byType(Row)),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).color == AppTheme.accent &&
+              (w.decoration as BoxDecoration).borderRadius ==
+                  BorderRadius.circular(9),
+        ),
       );
-      expect(toggleContainer, findsOneWidget);
+      expect(toggleContainer, findsWidgets);
     });
 
     testWidgets('renders check button', (tester) async {
