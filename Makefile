@@ -124,6 +124,12 @@ gen: ## Code generation (freezed, json_serializable)
 watch: ## Watch mode code generation
 	dart run build_runner watch --delete-conflicting-outputs
 
+drift-schema-dump: ## Dump current drift schema to drift_schemas/drift_schema_v$(DB_VERSION).json (bump DB_VERSION before bumping schemaVersion)
+	dart run drift_dev schema dump lib/core/db/database.dart drift_schemas/
+
+drift-schema-generate: ## Regenerate drift schema verification helpers in test/generated_drift_schema/
+	dart run drift_dev schema generate drift_schemas/ test/generated_drift_schema/ --data-classes --companions
+
 fuzz-build: ## Compile standalone fuzz targets to native (fuzz/out/)
 	@mkdir -p fuzz/out
 	@for f in fuzz/fuzz_*.dart; do \
