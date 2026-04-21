@@ -4,6 +4,7 @@ import '../../core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_selection_area.dart';
 import '../../widgets/hover_region.dart';
 import '../key_manager/key_manager_dialog.dart';
 import '../settings/known_hosts_manager.dart';
@@ -83,7 +84,7 @@ class _ToolsDialogState extends State<ToolsDialog> {
       // MainScreen sits below this modal in the Overlay stack, so
       // drag-to-select would not reach Text widgets inside the
       // dialog without an inner wrapper.
-      child: SelectionArea(
+      child: AppSelectionArea(
         child: CallbackShortcuts(
           bindings: AppShortcutRegistry.instance.buildCallbackMap({
             AppShortcut.dismissDialog: () => Navigator.of(context).pop(),

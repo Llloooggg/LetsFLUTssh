@@ -54,6 +54,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_selection_area.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/form_submit_chain.dart';
@@ -256,7 +257,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
       // on the root Navigator, above the MainScreen-level
       // `SelectionArea` — so without an inner one the body's Text
       // widgets would lose drag-to-select.
-      body: SelectionArea(
+      body: AppSelectionArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
@@ -384,7 +385,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       // is selectable again. The root `SelectionArea` cannot be
       // moved up to MaterialApp.builder because widget tests
       // without a MaterialApp crash looking for an Overlay.
-      child: SelectionArea(
+      child: AppSelectionArea(
         child: CallbackShortcuts(
           bindings: AppShortcutRegistry.instance.buildCallbackMap({
             AppShortcut.dismissDialog: () => Navigator.of(context).pop(),

@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/platform.dart';
 import 'app_icon_button.dart';
+import 'app_selection_area.dart';
 import 'hover_region.dart';
 
 // ════════════════════════════════════════════════════════════════════
@@ -109,7 +110,7 @@ class AppDialog extends StatelessWidget {
       // gives every caller the right behaviour with zero per-site
       // code. A `SelectionArea` that is a no-op on a button-only
       // dialog costs nothing at runtime.
-      child: SelectionArea(child: child),
+      child: AppSelectionArea(child: child),
     );
   }
 }

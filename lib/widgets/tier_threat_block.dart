@@ -127,7 +127,12 @@ class TierThreatBlock extends StatelessWidget {
     );
 
     if (dimmed) {
-      body = Opacity(opacity: 0.55, child: body);
+      // 0.5 matches the Settings-section disabled dimming (auto-lock
+      // tile, toggle rows, expandable-tier-card body) so threat /
+      // protection blocks inside a dimmed tier card settle at the
+      // same alpha as the surrounding text rather than reading as a
+      // slightly different severity.
+      body = Opacity(opacity: 0.5, child: body);
     }
     if (onTap != null) {
       body = InkWell(

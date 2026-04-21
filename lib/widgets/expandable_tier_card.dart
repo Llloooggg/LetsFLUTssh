@@ -455,7 +455,11 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       ),
     );
 
-    if (dim) body = Opacity(opacity: 0.55, child: body);
+    // 0.5 matches the `_AutoLockTile` and `_Toggle` disabled
+    // dimming — keeping every Settings-section disabled state on the
+    // same alpha so the user does not read "password" as a different
+    // severity of disabled than "auto-lock".
+    if (dim) body = Opacity(opacity: 0.5, child: body);
     return body;
   }
 
