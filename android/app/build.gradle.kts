@@ -33,9 +33,16 @@ android {
 
     defaultConfig {
         applicationId = "com.llloooggg.letsflutssh"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Pinned explicitly to Android 9 (Pie / API 28) instead of
+        // inheriting `flutter.minSdkVersion` (API 24 at Dart 3.11).
+        // API 28 is where BiometricPrompt became a first-class API, so
+        // the L3 hardware-vault path drops its FingerprintManager
+        // fallback. It is also the boundary where `local_auth_android`
+        // stops needing its legacy compat shim — running lower would
+        // keep us perpetually on the API-24 floor plugins have already
+        // been drifting away from. Android 9 covers ~90% of active
+        // devices in 2026; earlier releases are <5% and shrinking.
+        minSdk = 28
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -3656,7 +3656,7 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
   - **Windows** — `windowsSoftwareOnly` (TPM 2.0 absent, only Software KSP reachable), `windowsProvidersMissing` (both CNG providers fail — corrupted crypto subsystem or blocking GPO).
   - **macOS** — `macosNoSecureEnclave` (pre-T2 Intel Mac), `macosPasscodeNotSet` (SE present, login password absent), `macosGeneric` (any other `LAError`).
   - **iOS** — `iosPasscodeNotSet`, `iosSimulator` (Simulator has no SEP), `iosGeneric`.
-  - **Android** — `androidApiTooLow` (SDK < 28), `androidBiometricNone` (no fingerprint / face hardware), `androidBiometricNotEnrolled`, `androidBiometricUnavailable` (lockout or pending security update), `androidGeneric`.
+  - **Android** — `androidBiometricNone` (no fingerprint / face hardware), `androidBiometricNotEnrolled`, `androidBiometricUnavailable` (lockout or pending security update), `androidGeneric`. `androidApiTooLow` is still exposed by the Dart enum as a defensive fallback but the native plugin no longer emits it — `minSdk = 28` (see [`android/app/build.gradle.kts`](../android/app/build.gradle.kts)) guarantees StrongBox and BiometricPrompt are available.
 
   *Why the native side classifies rather than the Dart side:* the backing-level inference Linux does via file + process probes is not portable. On Apple the classifier needs the typed `LAError` code from `canEvaluatePolicy`, on Android it needs the `BiometricManager.canAuthenticate` status constant, on Windows it needs the `NCryptOpenStorageProvider` result. All three live on the native side already; the plugin returning a structured code is simpler than routing the raw error object through the method channel and re-classifying in Dart.
 

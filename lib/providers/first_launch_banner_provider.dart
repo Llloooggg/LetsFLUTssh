@@ -58,8 +58,10 @@ enum HardwareUnavailableReason {
   noTpm2Tools,
 
   /// Android StrongBox / TEE probe came back false — most likely a
-  /// very old device (API 24 era) or a custom ROM that strips
-  /// Keystore.
+  /// custom ROM that strips Keystore, or a pre-API-28 device on a
+  /// build predating the current minSdk pin (the app refuses to
+  /// install on those, but the enum value is retained as a defensive
+  /// fallback).
   noAndroidKeystoreHardware,
 
   /// Fallback when the probe could not classify a specific reason.

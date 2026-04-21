@@ -42,11 +42,13 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 | Platform | Version | Status |
 |---|---|---|
-| **Windows** | 10+ (x64) | primary test platform |
-| **Android** | 7.0+ (API 24) | primary test platform |
+| **Windows** | 10+ (x64)¹ | primary test platform |
+| **Android** | 9.0+ (API 28) | primary test platform |
 | **Linux** | x64, GTK 3 | occasionally tested |
 | **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested |
 | **iOS** | 13.0+ | not built |
+
+¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `local_auth`) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
 
 ## Installation
 

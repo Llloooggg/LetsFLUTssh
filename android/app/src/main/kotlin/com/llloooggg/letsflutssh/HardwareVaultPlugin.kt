@@ -102,7 +102,6 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
     }
 
     private fun isAvailable(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
         val bm = BiometricManager.from(activity)
         val status = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
         return status == BiometricManager.BIOMETRIC_SUCCESS
@@ -113,11 +112,6 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
      * `HardwareProbeDetail` enum maps to:
      *
      *  * `available`                   — biometric-strong is available.
-     *  * `androidApiTooLow`            — pre-Android 9 (SDK < 28).
-     *                                    StrongBox did not exist, and the
-     *                                    T2 tier requires key-level
-     *                                    enrolment invalidation that only
-     *                                    lands in P.
      *  * `androidBiometricNone`        — no biometric hardware
      *                                    (BIOMETRIC_ERROR_NO_HARDWARE).
      *                                    User cannot use fingerprint /
@@ -131,9 +125,12 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
      *                                    security update required, etc.).
      *  * `androidGeneric`              — any other status we did not
      *                                    classify. Logged for diagnostics.
+     *
+     * `androidApiTooLow` used to be a possible code here (SDK < 28 had
+     * no StrongBox and no key-level enrolment invalidation), but the
+     * app now pins `minSdk = 28` so that branch is unreachable.
      */
     private fun probeDetail(): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return "androidApiTooLow"
         val bm = BiometricManager.from(activity)
         return when (bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
             BiometricManager.BIOMETRIC_SUCCESS -> "available"
@@ -290,12 +287,14 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
             .setKeySize(256)
             .setUserAuthenticationRequired(true)
             .setInvalidatedByBiometricEnrollment(true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            try {
-                builder.setIsStrongBoxBacked(true)
-            } catch (_: Throwable) {
-                // StrongBox not present — fall through to TEE-backed.
-            }
+        try {
+            builder.setIsStrongBoxBacked(true)
+        } catch (_: Throwable) {
+            // StrongBox not present on this device — fall through to
+            // TEE-backed Keystore automatically. minSdk=28 guarantees
+            // the API exists; the try/catch covers the
+            // StrongBoxUnavailableException thrown at init() time on
+            // devices whose hardware does not expose StrongBox.
         }
         kg.init(builder.build())
         kg.generateKey()
@@ -378,13 +377,12 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setKeySize(256)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            try {
-                builder.setIsStrongBoxBacked(true)
-            } catch (_: Throwable) {
-                // StrongBox not present on this device — fall through
-                // to TEE-backed Keystore automatically.
-            }
+        try {
+            builder.setIsStrongBoxBacked(true)
+        } catch (_: Throwable) {
+            // StrongBox not present on this device — fall through to
+            // TEE-backed Keystore automatically. minSdk=28 guarantees
+            // `setIsStrongBoxBacked` exists.
         }
         kg.init(builder.build())
         kg.generateKey()
