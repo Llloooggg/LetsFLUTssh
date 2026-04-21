@@ -5,6 +5,7 @@ import '../core/connection/connection.dart';
 import '../core/connection/connection_manager.dart';
 import '../core/connection/foreground_service.dart';
 import '../core/ssh/known_hosts.dart';
+import 'session_credential_cache_provider.dart';
 
 /// Known hosts manager — singleton.
 final knownHostsProvider = Provider<KnownHostsManager>((ref) {
@@ -22,8 +23,10 @@ final foregroundServiceProvider = Provider<ForegroundServiceManager>((ref) {
 final connectionManagerProvider = Provider<ConnectionManager>((ref) {
   final knownHosts = ref.watch(knownHostsProvider);
   final foreground = ref.watch(foregroundServiceProvider);
+  final credentialCache = ref.watch(sessionCredentialCacheProvider);
   final manager = ConnectionManager(
     knownHosts: knownHosts,
+    credentialCache: credentialCache,
     onActiveCountChanged: (count) => foreground.onConnectionCountChanged(count),
   );
   ref.onDispose(() => manager.dispose());

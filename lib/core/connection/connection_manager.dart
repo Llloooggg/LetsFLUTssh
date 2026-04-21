@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 import '../../utils/logger.dart';
+import '../security/session_credential_cache.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
@@ -34,6 +35,14 @@ class ConnectionManager {
   final KnownHostsManager knownHosts;
   final SSHConnectionFactory _connectionFactory;
 
+  /// Page-locked per-session credential cache. Populated on successful
+  /// auth; read by the reconnect path so `auto-lock` can close the
+  /// encrypted store (which strips plaintext from `SessionStore.load`)
+  /// without breaking active connections' reconnects. Nullable only for
+  /// legacy constructor callers in tests that don't care about
+  /// reconnect-after-lock. See [SessionCredentialCache].
+  final SessionCredentialCache? _credentialCache;
+
   /// Called whenever the number of *connected* sessions changes.
   /// Used by [ForegroundServiceManager] on Android to start/stop the service.
   ActiveCountCallback? onActiveCountChanged;
@@ -50,8 +59,10 @@ class ConnectionManager {
   ConnectionManager({
     required this.knownHosts,
     SSHConnectionFactory? connectionFactory,
+    SessionCredentialCache? credentialCache,
     this.onActiveCountChanged,
-  }) : _connectionFactory =
+  }) : _credentialCache = credentialCache,
+       _connectionFactory =
            connectionFactory ??
            ((config, kh) => SSHConnection(config: config, knownHosts: kh));
 
@@ -106,7 +117,7 @@ class ConnectionManager {
     SSHConfig config,
     int generation,
   ) async {
-    final effectiveConfig = _withCachedPassphrase(conn, config);
+    final effectiveConfig = _withCredentialOverlay(conn, config);
     final sshConn = _connectionFactory(effectiveConfig, knownHosts);
     sshConn.onDisconnect = () {
       conn.state = SSHConnectionState.disconnected;
@@ -128,6 +139,7 @@ class ConnectionManager {
 
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
+      _cachePostAuthCredentials(conn, effectiveConfig);
       AppLogger.instance.log(
         'Connected: <label> (id=${conn.id})',
         name: 'Connection',
@@ -157,13 +169,59 @@ class ConnectionManager {
     }
   }
 
-  /// Inject cached passphrase from a previous interactive prompt (reconnect).
-  SSHConfig _withCachedPassphrase(Connection conn, SSHConfig config) {
-    if (conn.cachedPassphrase == null || config.passphrase.isNotEmpty) {
-      return config;
+  /// Overlay credentials onto [config] from two defensive sources, in
+  /// order of precedence:
+  ///   1. [SessionCredentialCache] — page-locked copies kept alive across
+  ///      auto-lock, so a reconnect issued while the encrypted store is
+  ///      closed (see `AutoLockDetector`) still sees the user's password,
+  ///      key bytes, and passphrase. Applied only when the session has a
+  ///      stable id — quick-connect sessions have nothing to key on.
+  ///   2. [Connection.cachedPassphrase] — populated on interactive
+  ///      passphrase prompts with the "remember" box ticked. Strictly
+  ///      narrower than the session cache; applied only when neither the
+  ///      config nor the session cache carry a passphrase. Kept so the
+  ///      "remember for this session" UX still works for one-off keys
+  ///      that aren't in the session store.
+  SSHConfig _withCredentialOverlay(Connection conn, SSHConfig config) {
+    var auth = config.auth;
+    final sessionId = conn.sessionId;
+    final cache = _credentialCache;
+    if (sessionId != null && cache != null) {
+      final cached = cache.read(sessionId);
+      if (cached != null) {
+        if (auth.password.isEmpty && cached.passwordString != null) {
+          auth = auth.copyWith(password: cached.passwordString);
+        }
+        if (auth.keyData.isEmpty && cached.keyDataString != null) {
+          auth = auth.copyWith(keyData: cached.keyDataString);
+        }
+        if (auth.passphrase.isEmpty && cached.keyPassphraseString != null) {
+          auth = auth.copyWith(passphrase: cached.keyPassphraseString);
+        }
+      }
     }
-    return config.copyWith(
-      auth: config.auth.copyWith(passphrase: conn.cachedPassphrase!),
+    if (auth.passphrase.isEmpty && conn.cachedPassphrase != null) {
+      auth = auth.copyWith(passphrase: conn.cachedPassphrase);
+    }
+    return identical(auth, config.auth) ? config : config.copyWith(auth: auth);
+  }
+
+  /// Store the post-auth credential envelope so a later reconnect
+  /// (possibly after auto-lock closed the encrypted store) does not
+  /// need to re-read `Session.auth`. Cache writes only happen for
+  /// stored sessions — quick-connect has no stable key, and the next
+  /// `reconnect` call already carries the full config.
+  void _cachePostAuthCredentials(Connection conn, SSHConfig config) {
+    final cache = _credentialCache;
+    final sessionId = conn.sessionId;
+    if (cache == null || sessionId == null) return;
+    cache.store(
+      sessionId: sessionId,
+      password: config.auth.password.isEmpty ? null : config.auth.password,
+      keyData: config.auth.keyData.isEmpty ? null : config.auth.keyData,
+      keyPassphrase: config.auth.passphrase.isEmpty
+          ? null
+          : config.auth.passphrase,
     );
   }
 
@@ -241,6 +299,16 @@ class ConnectionManager {
     // Drop the cached passphrase BEFORE losing the Connection reference
     // so the GC can reclaim the String once our map stops pinning it.
     conn.clearCachedCredentials();
+    // Explicit disconnect is the signal that the user is done with the
+    // session — wipe the session-wide credential cache entry so the
+    // plaintext does not linger in mlock'd memory across a later
+    // reconnect-from-scratch. Auto-lock does NOT go through this path
+    // (it never calls `disconnect`), so active sessions retain their
+    // cache entries through a lock.
+    final sessionId = conn.sessionId;
+    if (sessionId != null) {
+      _credentialCache?.evict(sessionId);
+    }
     _connections.remove(id);
     _connectGeneration.remove(id);
     _notify();
@@ -255,6 +323,10 @@ class ConnectionManager {
       conn.sshConnection?.disconnect();
       conn.completeReady();
       conn.clearCachedCredentials();
+      final sessionId = conn.sessionId;
+      if (sessionId != null) {
+        _credentialCache?.evict(sessionId);
+      }
     }
     _connections.clear();
     _connectGeneration.clear();

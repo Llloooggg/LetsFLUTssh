@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
+import 'package:letsflutssh/core/security/session_credential_cache.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_client.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -833,6 +834,120 @@ void main() {
 
       mgr.dispose();
     });
+  });
+
+  group('ConnectionManager + SessionCredentialCache', () {
+    test(
+      'successful connect with sessionId populates the credential cache',
+      () async {
+        final cache = SessionCredentialCache();
+        final mgr = ConnectionManager(
+          knownHosts: knownHosts,
+          credentialCache: cache,
+          connectionFactory: (config, kh) =>
+              FakeSSHConnection(config: config, knownHosts: kh),
+        );
+
+        const config = SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+          auth: SshAuth(password: 'pw', passphrase: 'pass'),
+        );
+        final conn = mgr.connectAsync(config, sessionId: 'sess-1');
+        await conn.ready;
+
+        final entry = cache.read('sess-1');
+        expect(entry, isNotNull);
+        expect(entry!.passwordString, 'pw');
+        expect(entry.keyPassphraseString, 'pass');
+
+        mgr.dispose();
+        cache.evictAll();
+      },
+    );
+
+    test('quick-connect (no sessionId) does not touch the cache', () async {
+      final cache = SessionCredentialCache();
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        credentialCache: cache,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+      );
+
+      const config = SSHConfig(
+        server: ServerAddress(host: 'h', user: 'u'),
+        auth: SshAuth(password: 'pw'),
+      );
+      final conn = mgr.connectAsync(config);
+      await conn.ready;
+
+      expect(cache.size, 0);
+
+      mgr.dispose();
+    });
+
+    test('disconnect evicts the session entry from the cache', () async {
+      final cache = SessionCredentialCache();
+      final mgr = ConnectionManager(
+        knownHosts: knownHosts,
+        credentialCache: cache,
+        connectionFactory: (config, kh) =>
+            FakeSSHConnection(config: config, knownHosts: kh),
+      );
+
+      const config = SSHConfig(
+        server: ServerAddress(host: 'h', user: 'u'),
+        auth: SshAuth(password: 'pw'),
+      );
+      final conn = mgr.connectAsync(config, sessionId: 'sess-evict');
+      await conn.ready;
+      expect(cache.read('sess-evict'), isNotNull);
+
+      mgr.disconnect(conn.id);
+      expect(cache.read('sess-evict'), isNull);
+
+      mgr.dispose();
+    });
+
+    test(
+      'reconnect on a session with empty auth uses the cached envelope',
+      () async {
+        final cache = SessionCredentialCache();
+        // Pre-seed the cache as if a prior connect succeeded while the
+        // DB was open, and now the caller supplies a config whose auth
+        // was stripped (the pattern exercised after auto-lock closes
+        // the encrypted store).
+        cache.store(
+          sessionId: 'sess-reuse',
+          password: 'cached-pw',
+          keyPassphrase: 'cached-phrase',
+        );
+
+        SSHConfig? observed;
+        final mgr = ConnectionManager(
+          knownHosts: knownHosts,
+          credentialCache: cache,
+          connectionFactory: (config, kh) {
+            observed = config;
+            return FakeSSHConnection(config: config, knownHosts: kh);
+          },
+        );
+
+        const stripped = SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+          auth: SshAuth(),
+        );
+        final conn = mgr.connectAsync(stripped, sessionId: 'sess-reuse');
+        await conn.ready;
+
+        expect(observed, isNotNull);
+        expect(observed!.auth.password, 'cached-pw');
+        expect(observed!.auth.passphrase, 'cached-phrase');
+
+        mgr.dispose();
+        cache.evictAll();
+      },
+    );
   });
 }
 
