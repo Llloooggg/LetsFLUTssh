@@ -178,12 +178,22 @@ class AppDialogFooter extends StatelessWidget {
   }
 
   Widget _desktopLayout() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: _intersperse(
-        const SizedBox(width: 8),
-        actions.map((a) => Flexible(child: a)).toList(),
-      ),
+    // `Wrap` instead of `Row` so long-locale button labels (Russian
+    // "Сгенерировать ключ", German "Passwort generieren", etc.) fall
+    // to a second line inside the modal instead of overflowing the
+    // right edge. `FittedBox(fit: BoxFit.scaleDown)` inside
+    // `AppDialogAction.build` used to shrink the font to fit; on
+    // narrow modals that produced barely-readable 10-pt labels, and
+    // on very long translations the scaled result still clipped.
+    // Wrapping keeps the button text at its native size and lets the
+    // footer grow vertically instead. `alignment: end` preserves the
+    // desktop convention of primary CTA on the right.
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: actions,
     );
   }
 

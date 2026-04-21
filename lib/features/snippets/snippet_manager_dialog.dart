@@ -7,9 +7,11 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable snippet manager — toolbar + list with CRUD.
@@ -69,29 +71,20 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   }
 
   Widget _buildToolbar(S s) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppDataSearchBar(
-              onChanged: (v) => setState(() => _filter = v),
-              hintText: s.search,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            s.snippetCount(_snippets.length),
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            onPressed: _addSnippet,
-            icon: const Icon(Icons.add, size: 16),
-            label: Text(s.addSnippet, style: TextStyle(fontSize: AppFonts.sm)),
-          ),
-        ],
+    return AppCollectionToolbar(
+      hasItems: _snippets.isNotEmpty,
+      search: AppDataSearchBar(
+        onChanged: (v) => setState(() => _filter = v),
+        hintText: s.search,
       ),
+      countLabel: s.snippetCount(_snippets.length),
+      actions: [
+        TextButton.icon(
+          onPressed: _addSnippet,
+          icon: const Icon(Icons.add, size: 16),
+          label: Text(s.addSnippet, style: TextStyle(fontSize: AppFonts.sm)),
+        ),
+      ],
     );
   }
 
@@ -100,21 +93,11 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_snippets.isEmpty) {
-      return Center(
-        child: Text(
-          s.noSnippets,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noSnippets);
     }
     final visible = _filtered();
     if (visible.isEmpty) {
-      return Center(
-        child: Text(
-          s.noResults,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noResults);
     }
     return ListView.separated(
       itemCount: visible.length,

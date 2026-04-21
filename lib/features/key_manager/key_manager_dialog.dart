@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/import/key_file_helper.dart';
 import '../../core/security/key_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
@@ -11,7 +14,9 @@ import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable SSH key manager — toolbar + list with CRUD.
@@ -60,28 +65,21 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Widget _buildToolbar(S s) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Text(
-            s.keyCount(_keys.length),
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
-          ),
-          const Spacer(),
-          _ToolbarButton(
-            icon: Icons.file_download_outlined,
-            label: s.importKey,
-            onTap: _importKey,
-          ),
-          const SizedBox(width: 8),
-          _ToolbarButton(
-            icon: Icons.add,
-            label: s.generateKey,
-            onTap: _generateKey,
-          ),
-        ],
-      ),
+    return AppCollectionToolbar(
+      hasItems: _keys.isNotEmpty,
+      countLabel: s.keyCount(_keys.length),
+      actions: [
+        _ToolbarButton(
+          icon: Icons.file_download_outlined,
+          label: s.importKey,
+          onTap: _importKey,
+        ),
+        _ToolbarButton(
+          icon: Icons.add,
+          label: s.generateKey,
+          onTap: _generateKey,
+        ),
+      ],
     );
   }
 
@@ -90,12 +88,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
     if (_keys.isEmpty) {
-      return Center(
-        child: Text(
-          s.noKeys,
-          style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
-        ),
-      );
+      return AppEmptyState(message: s.noKeys);
     }
     return ListView.separated(
       itemCount: _keys.length,
@@ -414,7 +407,22 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
             ),
             autofocus: true,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          // Two entry points: pick the PEM from a file (the obvious
+          // action for a button labelled "Import") or paste it into
+          // the textarea below (the path users who already have the
+          // PEM in their clipboard reach for). The button fills the
+          // `pemCtrl` on success so the two paths share the same
+          // validation + navigation pop below.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.folder_open, size: 16),
+              label: Text(s.selectKeyFile),
+              onPressed: _pickKeyFile,
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _pemCtrl,
             maxLines: 5,
@@ -432,6 +440,46 @@ class _ImportKeyDialogState extends State<_ImportKeyDialog> {
         AppDialogAction.primary(label: s.importKey, onTap: _doImport),
       ],
     );
+  }
+
+  Future<void> _pickKeyFile() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        dialogTitle: S.of(context).selectKeyFile,
+        allowMultiple: false,
+        type: FileType.any,
+      );
+      if (!mounted || result == null) return;
+      final path = result.files.single.path;
+      if (path == null) return;
+      final pem = KeyFileHelper.tryReadPemKey(path);
+      if (pem == null) {
+        // File picked but content not PEM-shaped. Fall back to
+        // loading raw bytes as text so the user can see what they
+        // picked; the `_doImport` validation layer rejects a bad
+        // PEM cleanly via the outer catch in `_importKey`.
+        final raw = await File(path).readAsString();
+        setState(() => _pemCtrl.text = raw);
+        return;
+      }
+      setState(() {
+        _pemCtrl.text = pem;
+        // Prefill the label from the file name so the user does not
+        // have to type one for the common case. They can overwrite
+        // if they want.
+        if (_labelCtrl.text.trim().isEmpty) {
+          final name = path.split(Platform.pathSeparator).last;
+          _labelCtrl.text = name;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).invalidPem,
+        level: ToastLevel.error,
+      );
+    }
   }
 
   void _doImport() {
