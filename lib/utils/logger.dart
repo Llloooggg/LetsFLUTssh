@@ -10,13 +10,17 @@ import 'sanitize.dart';
 /// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the app data.
 /// Automatically rotates when the log file exceeds [maxLogSizeBytes].
 ///
-/// **Always-on by default.** Every log call hits the file sink once [init]
-/// resolves the path and opens the sink. The previous "disabled by default"
-/// behaviour meant a fresh install that crashed before the user flipped the
-/// Settings toggle left no forensic trail — exactly the window where a trail
-/// is most needed. [setEnabled]`(false)` is still honoured as an explicit
-/// opt-out: it closes the sink and stops writes; logs already on disk stay
-/// until the user hits "Clear" in Settings.
+/// **Routine logs are opt-in.** Disabled by default — user enables via
+/// Settings → Enable Logging. This preserves the privacy-by-default stance
+/// for the steady-state stream of info / debug lines.
+///
+/// **Critical paths bypass the toggle.** [logCritical] writes straight to
+/// disk regardless of [enabled] state so crash boundaries, migration
+/// fatals and DB-integrity-probe failures always leave a forensic
+/// breadcrumb — the window where a trace matters most is exactly the one
+/// where the user has not yet flipped the toggle. The write uses
+/// [FileMode.append] on [logPath] directly, never touches [_sink], so
+/// it does not leak routine entries past the opt-out gate.
 ///
 /// All messages pass through [sanitize] (PEM blobs, IPv4 / user@host,
 /// home-directory paths are redacted) and the file is chmod-0600 on POSIX —
@@ -28,12 +32,10 @@ class AppLogger {
 
   IOSink? _sink;
   String? _logPath;
-  // Tracks whether the user has explicitly opted out via Settings. The
-  // default is "logs are on" — the sink is opened eagerly by [init] so
-  // startup crashes and first-launch failures land on disk without
-  // waiting for a user toggle. Flipping this to `false` via [setEnabled]
-  // closes the sink for the rest of the session; flipping back re-opens.
-  bool _enabled = true;
+  // Routine logs default OFF — the user opts in via Settings. Critical
+  // paths ([logCritical]) bypass this gate entirely so crash breadcrumbs
+  // survive even when routine logging is disabled.
+  bool _enabled = false;
 
   AppLogger._();
 
@@ -57,13 +59,14 @@ class AppLogger {
     }
   }
 
-  /// Initialize the logger — resolves the log path AND opens the sink
-  /// so the first [log] call writes straight to disk. Called very early
-  /// in `main` (before `runApp`) so even pre-`runZonedGuarded` crashes
-  /// have a chance to be captured.
+  /// Initialize the logger — resolves the log path but does NOT open
+  /// the routine sink. Called from `main.dart` before `runApp` so that
+  /// [logCritical] has a resolved path ready for any pre-`runZonedGuarded`
+  /// crash. The main write sink opens only when the user has routine
+  /// logging enabled (handled by `ConfigProvider.load` → [setEnabled]).
   ///
-  /// Failures here (path resolution, directory create, sink open) never
-  /// throw — the logger degrades to `dart:developer` output only.
+  /// Failures here (path resolution, directory create) never throw —
+  /// [logCritical] degrades to `dart:developer` when [_logPath] is null.
   Future<void> init() async {
     try {
       final dir = await getApplicationSupportDirectory();
@@ -74,10 +77,6 @@ class AppLogger {
       _logPath = '${logDir.path}/letsflutssh.log';
     } catch (e) {
       dev.log('AppLogger: failed to init: $e');
-      return;
-    }
-    if (_enabled) {
-      await _openSink();
     }
   }
 
@@ -173,6 +172,62 @@ class AppLogger {
       }
     } catch (_) {
       // Don't crash the app for logging failures.
+    }
+  }
+
+  /// Crash-path logger. Writes straight to the on-disk log file even
+  /// when the user has routine logging turned off, so global error
+  /// boundaries, migration fatals and DB-integrity-probe failures
+  /// always leave a forensic breadcrumb. Never opens or closes the
+  /// main sink [_sink] — a direct append keeps the write independent
+  /// of user-toggle state and avoids leaking subsequent routine entries.
+  ///
+  /// Privacy: the file is still chmod-0600 (same hardening as routine
+  /// logs), the message still passes through [sanitize], and rotation
+  /// handled by [_openSink] still applies the next time the user
+  /// flips the toggle on. Bypassing the toggle on crash paths only is
+  /// the narrowest exception needed to meet the "fresh install
+  /// crashes should be debuggable without a pre-flip" requirement.
+  ///
+  /// Best-effort — any I/O error swallowed so a broken disk does not
+  /// amplify into a second crash inside the crash handler.
+  Future<void> logCritical(
+    String message, {
+    String? name,
+    Object? error,
+    StackTrace? stackTrace,
+  }) async {
+    final tag = name ?? 'App';
+    final safeMsg = sanitize(message);
+    final safeError = error == null ? null : sanitize(error.toString());
+    // Always forward to dart:developer too, same contract as [log].
+    dev.log(safeMsg, name: tag, error: safeError);
+    if (_logPath == null) return;
+    try {
+      final now = DateTime.now();
+      final ts =
+          '${now.hour.toString().padLeft(2, '0')}:'
+          '${now.minute.toString().padLeft(2, '0')}:'
+          '${now.second.toString().padLeft(2, '0')}';
+      final buf = StringBuffer()..writeln('$ts [$tag] $safeMsg');
+      if (safeError != null) buf.writeln('  Error: $safeError');
+      if (stackTrace != null) {
+        buf.writeln('  Stack trace:');
+        buf.writeln(sanitize('$stackTrace'));
+      }
+      final file = File(_logPath!);
+      // Ensure the parent directory exists — [init] already creates
+      // it, but a user-side `clearLogs` can remove the whole `logs/`
+      // folder between init and the first crit write.
+      await file.parent.create(recursive: true);
+      await file.writeAsString(
+        buf.toString(),
+        mode: FileMode.append,
+        flush: true,
+      );
+      await _restrictPermissions(_logPath!);
+    } catch (_) {
+      // Swallow — never crash inside the crash handler.
     }
   }
 

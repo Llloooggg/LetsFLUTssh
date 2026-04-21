@@ -241,7 +241,7 @@ class BehaviorConfig {
   final String? skippedVersion;
 
   const BehaviorConfig({
-    this.enableLogging = true,
+    this.enableLogging = false,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
   });

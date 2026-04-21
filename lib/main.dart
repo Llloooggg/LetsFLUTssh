@@ -114,25 +114,32 @@ Future<void> main() async {
   final loggerInit = AppLogger.instance.init();
 
   // Global error boundary — catch unhandled Flutter framework errors
-  // (build, layout, paint errors — logged but don't show dialog)
+  // (build, layout, paint errors — logged but don't show dialog).
+  // `logCritical` bypasses the user toggle so crash traces land on
+  // disk even when routine logging is disabled, which is exactly the
+  // window where a trace matters most.
   FlutterError.onError = (details) {
     final sanitizedMsg = sanitizeErrorMessage(details.exceptionAsString());
-    AppLogger.instance.log(
-      'FlutterError: $sanitizedMsg',
-      name: 'ErrorBoundary',
-      error: details.exception,
-      stackTrace: details.stack,
+    unawaited(
+      AppLogger.instance.logCritical(
+        'FlutterError: $sanitizedMsg',
+        name: 'ErrorBoundary',
+        error: details.exception,
+        stackTrace: details.stack,
+      ),
     );
   };
 
   // Catch errors that escape the Flutter zone entirely (timers, isolate messages)
   PlatformDispatcher.instance.onError = (error, stack) {
     final sanitizedMsg = sanitizeErrorMessage(error.toString());
-    AppLogger.instance.log(
-      'Unhandled platform error: $sanitizedMsg',
-      name: 'ErrorBoundary',
-      error: error,
-      stackTrace: stack,
+    unawaited(
+      AppLogger.instance.logCritical(
+        'Unhandled platform error: $sanitizedMsg',
+        name: 'ErrorBoundary',
+        error: error,
+        stackTrace: stack,
+      ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = navigatorKey.currentContext;
@@ -189,15 +196,8 @@ Future<void> main() async {
   // reads the real config instead of defaults.
   final configStore = ConfigStore();
   final config = await configStore.load();
-  await loggerInit; // ensure log path resolved + sink opened before writes
-  // `AppLogger` is always-on by default (see class docs) so startup
-  // crashes and first-launch failures land on disk without waiting for
-  // a user toggle. The Settings toggle persists as an explicit opt-out;
-  // only honour it when the user has turned logging off, otherwise the
-  // sink [init] already opened stays open.
-  if (!config.enableLogging) {
-    await AppLogger.instance.setEnabled(false);
-  }
+  await loggerInit; // ensure log path resolved before enabling file logging
+  AppLogger.instance.setEnabled(config.enableLogging);
 
   // Wrap the entire app in runZonedGuarded to catch all async errors.
   // This catches errors from onPressed, Futures, streams, timers, etc.
@@ -212,11 +212,13 @@ Future<void> main() async {
     },
     (error, stack) {
       final sanitizedMsg = sanitizeErrorMessage(error.toString());
-      AppLogger.instance.log(
-        'Unhandled async error: $sanitizedMsg',
-        name: 'ErrorBoundary',
-        error: error,
-        stackTrace: stack,
+      unawaited(
+        AppLogger.instance.logCritical(
+          'Unhandled async error: $sanitizedMsg',
+          name: 'ErrorBoundary',
+          error: error,
+          stackTrace: stack,
+        ),
       );
       // Show dialog after next frame — ensures Navigator is available
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -454,7 +456,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       final registry = buildAppMigrationRegistry();
       report = await MigrationRunner(registry).runOnStartup();
     } catch (e, st) {
-      AppLogger.instance.log(
+      // Uncaught migration failure is a crash-class event — the user
+      // is about to see the `DbCorruptDialog`, so guarantee the
+      // underlying exception lands on disk regardless of the routine
+      // logging toggle.
+      await AppLogger.instance.logCritical(
         'MigrationRunner threw uncaught: $e',
         name: 'App',
         error: e,
@@ -465,7 +471,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
     if (report.noOp) return true;
     if (report.hasFailures) {
-      AppLogger.instance.log(
+      // Reported failure follows the same breadcrumb rule as the
+      // uncaught-throw branch above — the `DbCorruptDialog` comes
+      // next, so the failure summary must survive even when routine
+      // logging is off.
+      await AppLogger.instance.logCritical(
         'MigrationRunner reported failures '
         '(steps=${report.steps.length}, '
         'futureVersions=${report.futureVersions.length}, '
@@ -1193,7 +1203,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       return;
     }
 
-    AppLogger.instance.log(
+    // Probe failure is a crash-class event — the user is about to
+    // see `DbCorruptDialog` and might pick "Reset" or "Quit"; either
+    // way the breadcrumb must survive the routine-log toggle so we
+    // can reason about the failure post-mortem.
+    await AppLogger.instance.logCritical(
       'Database readability probe failed — offering reset dialog',
       name: 'App',
     );
