@@ -44,7 +44,7 @@ dependencies:
   archive: ^4.0.4
 
   # OS drag&drop into app (desktop)
-  desktop_drop: ^0.7.0
+  desktop_drop: ^0.7.1
 
 
   # Foreground service (keeps SSH alive on Android screen lock)
