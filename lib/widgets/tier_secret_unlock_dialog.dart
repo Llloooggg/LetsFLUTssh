@@ -7,6 +7,7 @@ import '../core/security/password_rate_limiter.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'app_dialog.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
@@ -181,6 +182,13 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
     Navigator.of(context).pop(key);
   }
 
+  /// Confirmation uses [AppDialog] so the body copy is selectable
+  /// via the global dialog-level [SelectionArea] and the button
+  /// labels match the Settings → Data → Reset All Data flow
+  /// exactly. Earlier revisions used raw [AlertDialog] with its own
+  /// bespoke button text ("Reset and delete credentials"), which
+  /// drifted from the Settings path and gave the user two copies
+  /// for the same action.
   Future<void> _reset() async {
     final onReset = widget.onReset;
     if (onReset == null) return;
@@ -188,21 +196,20 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
       context: context,
       builder: (ctx) {
         final l10n = S.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.forgotPassword),
+        return AppDialog(
+          title: l10n.resetAllDataConfirmTitle,
           content: Text(
-            l10n.forgotPasswordWarning,
-            style: TextStyle(color: AppTheme.fgDim),
+            l10n.resetAllDataConfirmBody,
+            style: TextStyle(color: AppTheme.fg),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.cancel),
+            AppDialogAction.secondary(
+              label: l10n.cancel,
+              onTap: () => Navigator.pop(ctx, false),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppTheme.red),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.resetAndDeleteCredentials),
+            AppDialogAction.destructive(
+              label: l10n.resetAllDataConfirmAction,
+              onTap: () => Navigator.pop(ctx, true),
             ),
           ],
         );

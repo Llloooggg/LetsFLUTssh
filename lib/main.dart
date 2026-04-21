@@ -737,6 +737,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onReset: () async {
         await WipeAllService().wipeAll();
         _credentialsWereReset = true;
+        // Fire the same reinit signal the Settings → Reset All Data
+        // flow uses. Without it the unlock caller falls through to
+        // `_injectDatabase()` (plaintext) and the app ends up in a
+        // decrypted-but-empty state; with it, the listener on
+        // `_LetsFLUTsshAppState` takes over and re-runs
+        // `_firstLaunchSetup` to provision T1 cleanly.
+        requestSecurityReinit(ref);
       },
     );
   }
@@ -793,6 +800,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onReset: () async {
         await WipeAllService().wipeAll();
         _credentialsWereReset = true;
+        // Fire the same reinit signal the Settings → Reset All Data
+        // flow uses. Without it the unlock caller falls through to
+        // `_injectDatabase()` (plaintext) and the app ends up in a
+        // decrypted-but-empty state; with it, the listener on
+        // `_LetsFLUTsshAppState` takes over and re-runs
+        // `_firstLaunchSetup` to provision T1 cleanly.
+        requestSecurityReinit(ref);
       },
     );
   }

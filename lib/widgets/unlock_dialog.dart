@@ -6,11 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
+import '../core/security/wipe_all_service.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
+import '../providers/security_reinit_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
+import 'app_dialog.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
@@ -253,14 +257,69 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     Navigator.of(context).pop(key);
   }
 
+  /// Forgot-password path routes through the same
+  /// [WipeAllService] + [requestSecurityReinit] flow the Settings
+  /// "Reset All Data" tile uses. Previous revisions called
+  /// `manager.reset()` only — that deleted the KDF salt + verifier
+  /// + a couple of credential files, but left the encrypted DB,
+  /// keychain entries, hw-vault blobs, and logs on disk. Two entry
+  /// points into the same "nuke everything" action were drifting
+  /// apart; unifying them on the shared service keeps what "reset"
+  /// means consistent wherever the user invokes it.
   Future<void> _forgotPassword() async {
     final confirmed = await _showResetConfirmation();
     if (confirmed != true || !mounted) return;
 
-    await widget.manager.reset();
-    if (mounted) {
-      Navigator.of(context).pop(null);
+    // Best-effort wipe — individual step failures are logged but
+    // must never block the dialog from popping. The reinit listener
+    // on the root state picks up the signal and re-runs
+    // `_firstLaunchSetup` regardless of what succeeded here; the
+    // caller's contract is "dialog returns null, unlock flow
+    // aborts" and that has to hold.
+    try {
+      final report = await WipeAllService().wipeAll();
+      AppLogger.instance.log(
+        'Forgot-password reset: deleted=${report.deletedFiles.length} '
+        'failed=${report.failedFiles.length} '
+        'keychain=${report.keychainPurged} '
+        'native=${report.nativeVaultCleared} '
+        'overlay=${report.biometricOverlayCleared}',
+        name: 'UnlockDialog',
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Forgot-password WipeAllService failed: $e',
+        name: 'UnlockDialog',
+        error: e,
+      );
     }
+    if (!mounted) return;
+    try {
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWith(security: null));
+    } catch (e) {
+      AppLogger.instance.log(
+        'Forgot-password config clear failed: $e',
+        name: 'UnlockDialog',
+        error: e,
+      );
+    }
+    try {
+      requestSecurityReinit(ref);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Forgot-password reinit signal failed: $e',
+        name: 'UnlockDialog',
+        error: e,
+      );
+    }
+    if (!mounted) return;
+    // Dialog pop is the single observable side effect the caller
+    // depends on — runs even when the wipe partially failed so the
+    // caller can fall through to the plaintext unlock path while
+    // the reinit listener converges the security state.
+    Navigator.of(context).pop(null);
   }
 
   Future<bool?> _showResetConfirmation() {
@@ -268,21 +327,20 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
       context: context,
       builder: (ctx) {
         final l10n = S.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.forgotPassword),
+        return AppDialog(
+          title: l10n.resetAllDataConfirmTitle,
           content: Text(
-            l10n.forgotPasswordWarning,
-            style: TextStyle(color: AppTheme.fgDim),
+            l10n.resetAllDataConfirmBody,
+            style: TextStyle(color: AppTheme.fg),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.cancel),
+            AppDialogAction.secondary(
+              label: l10n.cancel,
+              onTap: () => Navigator.pop(ctx, false),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppTheme.red),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.resetAndDeleteCredentials),
+            AppDialogAction.destructive(
+              label: l10n.resetAllDataConfirmAction,
+              onTap: () => Navigator.pop(ctx, true),
             ),
           ],
         );
