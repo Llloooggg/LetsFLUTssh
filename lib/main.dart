@@ -1274,6 +1274,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// the "try other" button effectively available.
   Future<void> _retryUnlockUnderDifferentTier() async {
     _corruptionRetries++;
+    // Gate every DB-backed read while the retry is mid-flight. Drift
+    // queries against the closed handle throw
+    // `DatabaseClosedException`, and any widget that rebuilds between
+    // `db.close()` below and the subsequent `_injectDatabase` inside
+    // `_initSecurity` will hit that path. Tests + Android lifecycle
+    // callbacks both use `_securityReady` as the "can touch the DB?"
+    // gate, so flipping it off reuses the existing guard.
+    _securityReady = false;
     final db = _activeDatabase;
     if (db != null) {
       try {
@@ -1283,9 +1291,26 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       }
     }
     _activeDatabase = null;
+    // Invalidate the cached capability + probe snapshots so the next
+    // `_initSecurity` / wizard re-probes against the current state
+    // instead of reading pre-retry results. The Settings reset path
+    // does the same dance (see `_reinitSecurityFromReset`); this
+    // retry path was missing it, so a wipe + re-open could re-use a
+    // stale "keychain unavailable" verdict and skip the auto-setup
+    // branch that would otherwise succeed.
+    ref.invalidate(securityCapabilitiesProvider);
+    ref.invalidate(hardwareProbeDetailProvider);
+    ref.invalidate(keyringProbeDetailProvider);
     await ref
         .read(configProvider.notifier)
         .update((c) => c.copyWith(security: null));
+    // Clear the reset-toast flag before re-entering the security
+    // pipeline: the nested `_initSecurity` paths set it in half a
+    // dozen places (`legacy-orphan wipe`, `_unlockParanoid`,
+    // `_firstLaunchHardware`, `_wipeAndRestartFromScratch`), and
+    // without the pre-clear the toast can fire twice or leak across
+    // the next launch.
+    _credentialsWereReset = false;
     AppLogger.instance.log(
       'DB corruption: retrying unlock under legacy-infer path '
       '(attempt $_corruptionRetries/$_maxCorruptionRetries)',
@@ -1293,6 +1318,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     );
     if (!mounted) return;
     await _initSecurity();
+    if (!mounted) return;
     if (_corruptionRetries > _maxCorruptionRetries) {
       // Ran out of retries — any further probe failure must go to
       // the destructive / quit branches, so force the dialog without
@@ -1390,6 +1416,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// [WipeAllService], zeroes `config.security`, and re-runs the
   /// first-launch wizard from a clean slate.
   Future<void> _wipeAndRestartFromScratch() async {
+    // Same rationale as `_retryUnlockUnderDifferentTier`: block DB
+    // reads from any widget that rebuilds while the wipe + re-setup
+    // is in flight. Invalidate cached probe snapshots so the first
+    // launch wizard sees the current state instead of a pre-wipe
+    // cached verdict.
+    _securityReady = false;
+    ref.invalidate(securityCapabilitiesProvider);
+    ref.invalidate(hardwareProbeDetailProvider);
+    ref.invalidate(keyringProbeDetailProvider);
     final db = _activeDatabase;
     if (db != null) {
       try {
