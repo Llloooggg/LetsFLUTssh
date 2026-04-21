@@ -103,13 +103,29 @@ void main() {
       expect(find.text('Known Hosts'), findsOneWidget);
     });
 
-    testWidgets('search field is present in dialog', (tester) async {
+    testWidgets('search field appears once the list has at least one host', (
+      tester,
+    ) async {
+      // The shared `AppCollectionToolbar` hides the search bar on
+      // the empty branch — the centered empty-state below it owns
+      // that signal already, and a useless search box above no
+      // content was visual noise. Confirm the toolbar switches
+      // back to showing the search bar once a host lands in the
+      // list.
+      //
+      // `importFromString` awaits the real-zone `_loadFuture` from
+      // setUp, which FakeAsync inside `testWidgets` can't advance
+      // — must run it via `tester.runAsync`, same pattern as
+      // `populate` below.
+      await tester.runAsync(
+        () => manager.importFromString(
+          'example.com ssh-ed25519 AAAAAAAAAAAAAAAAAAAAAAAA\n',
+        ),
+      );
       await tester.pumpWidget(buildApp(manager));
       await openDialog(tester);
 
-      // Search field is present
-      final searchField = find.byType(TextField);
-      expect(searchField, findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
     });
 
     testWidgets('clear all button is hidden when empty', (tester) async {

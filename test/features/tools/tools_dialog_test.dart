@@ -75,8 +75,13 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    // Key manager panel shows key-related content
-    expect(find.text('No keys'), findsOneWidget);
+    // Key manager panel shows the empty-state body text. Earlier
+    // tests matched `"No keys"` which came from the `keyCount(0)`
+    // ICU plural rendered in the toolbar; the toolbar now hides the
+    // count label on the empty branch (the centered empty state
+    // below it owns the signal), so the body text is the stable
+    // signal to assert against.
+    expect(find.text('No SSH keys. Import or generate one.'), findsOneWidget);
   });
 
   testWidgets('tapping Snippets switches to snippet panel', (tester) async {
@@ -88,7 +93,7 @@ void main() {
     await tester.tap(find.text('Snippets'));
     await tester.pumpAndSettle();
 
-    expect(find.text('No snippets'), findsOneWidget);
+    expect(find.text('No snippets yet'), findsOneWidget);
   });
 
   testWidgets('tapping Tags switches to tag panel', (tester) async {
@@ -100,7 +105,7 @@ void main() {
     await tester.tap(find.text('Tags'));
     await tester.pumpAndSettle();
 
-    expect(find.text('No tags'), findsOneWidget);
+    expect(find.text('No tags yet'), findsOneWidget);
   });
 
   testWidgets('close button dismisses dialog', (tester) async {

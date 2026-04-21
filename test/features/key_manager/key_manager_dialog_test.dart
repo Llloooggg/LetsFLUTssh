@@ -217,14 +217,16 @@ void main() {
       expect(find.text('Ed25519'), findsOneWidget);
     });
 
-    testWidgets('import key button opens import dialog', (tester) async {
+    testWidgets('add key button opens paste dialog', (tester) async {
+      // Import + Add split per feat(keys) — Import now goes straight
+      // to the file picker, Add opens the label + paste dialog.
       fakeStore = FakeKeyStore();
       await openDialog(tester);
 
-      await tester.tap(find.text('Import Key'));
+      await tester.tap(find.text('Add Key'));
       await tester.pumpAndSettle();
 
-      // Import dialog contains label and PEM fields.
+      // Paste dialog contains label and PEM fields.
       expect(find.text('Key Label'), findsOneWidget);
       expect(find.text('Paste Private Key (PEM)'), findsOneWidget);
     });
@@ -266,15 +268,17 @@ void main() {
     );
 
     testWidgets(
-      'successful import saves the entry and shows the keyImported toast',
-      // Spec (L222-233): a successful importKey path runs store.save and
-      // pushes a keyImported(label) toast. Regression guard — the error
-      // path was already tested; the happy path needs its own pinning.
+      'successful paste saves the entry and shows the keyImported toast',
+      // Spec (L222-233): the paste happy path runs store.save +
+      // `keyImported(label)` toast. The underlying handler is
+      // `_persistImportedKey`, shared between the Add (paste) and
+      // Import (file picker) entry points — asserting against the
+      // Add path exercises the same save + toast chain.
       (tester) async {
         fakeStore = FakeKeyStore(); // default: importThrows=false
         await openDialog(tester);
 
-        await tester.tap(find.text('Import Key'));
+        await tester.tap(find.text('Add Key'));
         await tester.pumpAndSettle();
 
         await tester.enterText(
@@ -286,7 +290,9 @@ void main() {
           '-----BEGIN OPENSSH PRIVATE KEY-----\nAAA\n-----END OPENSSH PRIVATE KEY-----',
         );
 
-        await tester.tap(find.text('Import Key').last);
+        // Paste dialog footer's primary action is also labelled
+        // "Add Key"; `.last` picks it from the toolbar + footer pair.
+        await tester.tap(find.text('Add Key').last);
         await tester.pumpAndSettle();
 
         // FakeKeyStore.importKey returns a synthesized SshKeyEntry with the
@@ -302,13 +308,13 @@ void main() {
       },
     );
 
-    testWidgets('import with invalid PEM shows error toast', (tester) async {
+    testWidgets('paste with invalid PEM shows error toast', (tester) async {
       fakeStore = FakeKeyStore();
       fakeStore.importThrows = true;
       await openDialog(tester);
 
-      // Open import dialog.
-      await tester.tap(find.text('Import Key'));
+      // Open paste dialog.
+      await tester.tap(find.text('Add Key'));
       await tester.pumpAndSettle();
 
       // Fill in label and PEM fields.
@@ -321,10 +327,10 @@ void main() {
         'not-a-pem',
       );
 
-      // The import dialog has its own "Import Key" button — tap it.
-      // There may be multiple "Import Key" texts (toolbar + dialog button).
-      // The dialog's action button is the last one visible.
-      await tester.tap(find.text('Import Key').last);
+      // The paste dialog footer has its own "Add Key" action — tap
+      // the trailing one (the first is the toolbar button that
+      // opened the dialog).
+      await tester.tap(find.text('Add Key').last);
       await tester.pumpAndSettle();
 
       // Error toast should appear with the invalid PEM message.
