@@ -85,6 +85,72 @@ class SecurityCapabilities {
     );
   }
 
+  /// JSON shape matches the hand-rolled flat layout the rest of
+  /// `app_config.dart` uses — one scalar per key, enums as their
+  /// stable Dart `name`. Used by the `security_probe_cache` block in
+  /// `config.json` so a fresh app start can serve the Settings cards
+  /// straight from the snapshot instead of paying the real probe
+  /// cost on every launch. The Recheck button + destructive security
+  /// paths clear this cache so the next read reprobes.
+  Map<String, dynamic> toJson() => {
+    'keychain_available': keychainAvailable,
+    'hardware_vault_available': hardwareVaultAvailable,
+    'biometric_available': biometricAvailable,
+    'fprintd_available': fprintdAvailable,
+    'is_linux_host': isLinuxHost,
+    'keychain_probe': keychainProbe.name,
+    'hardware_probe_code': hardwareProbeCode,
+  };
+
+  static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    // Every field is guarded with a type check because the file is
+    // user-writable and may carry a partial / corrupted snapshot from
+    // a previous build. A malformed cache is treated as "no cache" so
+    // the next call reprobes fresh — we never parse past a bad type
+    // into a default.
+    final probeName = json['keychain_probe'];
+    if (probeName is! String) return null;
+    final probe = KeyringProbeResult.values
+        .where((v) => v.name == probeName)
+        .firstOrNull;
+    if (probe == null) return null;
+    final hardwareCode = json['hardware_probe_code'];
+    if (hardwareCode is! String) return null;
+    return SecurityCapabilities(
+      keychainAvailable: json['keychain_available'] == true,
+      hardwareVaultAvailable: json['hardware_vault_available'] == true,
+      biometricAvailable: json['biometric_available'] == true,
+      fprintdAvailable: json['fprintd_available'] == true,
+      isLinuxHost: json['is_linux_host'] == true,
+      keychainProbe: probe,
+      hardwareProbeCode: hardwareCode,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SecurityCapabilities &&
+          keychainAvailable == other.keychainAvailable &&
+          hardwareVaultAvailable == other.hardwareVaultAvailable &&
+          biometricAvailable == other.biometricAvailable &&
+          fprintdAvailable == other.fprintdAvailable &&
+          isLinuxHost == other.isLinuxHost &&
+          keychainProbe == other.keychainProbe &&
+          hardwareProbeCode == other.hardwareProbeCode;
+
+  @override
+  int get hashCode => Object.hash(
+    keychainAvailable,
+    hardwareVaultAvailable,
+    biometricAvailable,
+    fprintdAvailable,
+    isLinuxHost,
+    keychainProbe,
+    hardwareProbeCode,
+  );
+
   /// True when biometric modifier is at all offerable on this host —
   /// on Linux this also requires fprintd+enrolment, on every other
   /// platform the platform biometric API suffices. Password-dependency

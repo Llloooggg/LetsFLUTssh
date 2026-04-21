@@ -13,6 +13,7 @@ import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
+import 'config_provider.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
@@ -42,19 +43,37 @@ final hardwareTierVaultProvider = Provider<HardwareTierVault>(
   (_) => HardwareTierVault(),
 );
 
-/// OS / hardware capabilities snapshot, probed asynchronously and
-/// cached for the lifetime of the Riverpod container. TPM / Secure
-/// Enclave / libsecret do not appear or disappear mid-session, so a
-/// one-shot probe is correct — the Settings upgrade banner consumes
-/// this to decide whether to surface the "hardware tier available"
-/// row or the "hardware tier unavailable — why" notice.
+/// OS / hardware capabilities snapshot — served from the
+/// persisted-cache in `config.json` (`security_probe_cache`) when
+/// one exists, otherwise probed live and written back to the cache
+/// so subsequent launches can skip the round-trip entirely.
+///
+/// Invalidation is explicit: the Settings "Re-check tier support"
+/// button clears the cache + invalidates this provider; the
+/// corruption-retry + wipe-restart paths do the same. Hosts where
+/// the TPM / Secure Enclave / keychain state is stable across
+/// launches therefore pay the probe cost exactly once per fresh
+/// install (or never, if the user imports a per-host config that
+/// already carries a cache — which we strip on export to prevent
+/// exactly that stale-positive case).
 final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
   ref,
 ) async {
-  return probeCapabilities(
+  final cached = ref.read(configProvider).securityProbeCache;
+  if (cached != null) return cached;
+  final fresh = await probeCapabilities(
     keyStorage: ref.read(secureKeyStorageProvider),
     hardwareVault: ref.read(hardwareTierVaultProvider),
   );
+  // Persist the snapshot so the next cold start returns from the
+  // `cached != null` branch above. `update` is awaited so the save
+  // is durable before the provider settles — a crash between probe
+  // and write would drop the cache for the next launch, which is the
+  // safe direction.
+  await ref
+      .read(configProvider.notifier)
+      .update((c) => c.copyWith(securityProbeCache: fresh));
+  return fresh;
 });
 
 /// Classified reason the hardware tier is unavailable on this host.

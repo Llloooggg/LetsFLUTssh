@@ -1,3 +1,4 @@
+import '../security/security_bootstrap.dart' show SecurityCapabilities;
 import '../security/security_tier.dart';
 
 /// Terminal display settings.
@@ -312,6 +313,21 @@ class AppConfig {
   /// the wizard has already run and the tier is authoritative.
   final SecurityConfig? security;
 
+  /// Cached snapshot of the last `probeCapabilities` run — keychain
+  /// + hardware-vault + biometric availability plus the raw probe
+  /// reason codes. The `securityCapabilitiesProvider` reads this on
+  /// startup and returns it instead of paying the real SE / TPM /
+  /// Keystore round-trip cost, so Settings opens against ready data
+  /// and the tier cards stop flickering during the first paint.
+  ///
+  /// Null = no probe has run yet (fresh install) or the cache was
+  /// invalidated (Recheck button, corruption-retry path, wipe).
+  /// Stale-positive risk is by design — probe is host state, the
+  /// Recheck button is the user's tool to force a fresh read after
+  /// they change the host (enable TPM in BIOS, run
+  /// `macos-resign.sh`, enrol a biometric, etc.).
+  final SecurityCapabilities? securityProbeCache;
+
   /// Locale codes supported by the app.
   static const supportedLocales = [
     'en',
@@ -340,6 +356,7 @@ class AppConfig {
     this.maxHistory = 500,
     this.locale,
     this.security,
+    this.securityProbeCache,
   });
 
   static const AppConfig defaults = AppConfig();
@@ -385,6 +402,7 @@ class AppConfig {
           ? locale
           : null,
       security: security,
+      securityProbeCache: securityProbeCache,
     );
   }
 
@@ -400,6 +418,7 @@ class AppConfig {
     int? maxHistory,
     Object? locale = _unset,
     Object? security = _unset,
+    Object? securityProbeCache = _unset,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -412,6 +431,9 @@ class AppConfig {
       security: identical(security, _unset)
           ? this.security
           : security as SecurityConfig?,
+      securityProbeCache: identical(securityProbeCache, _unset)
+          ? this.securityProbeCache
+          : securityProbeCache as SecurityCapabilities?,
     );
   }
 
@@ -426,7 +448,8 @@ class AppConfig {
           transferWorkers == other.transferWorkers &&
           maxHistory == other.maxHistory &&
           locale == other.locale &&
-          security == other.security;
+          security == other.security &&
+          securityProbeCache == other.securityProbeCache;
 
   @override
   int get hashCode => Object.hash(
@@ -438,6 +461,7 @@ class AppConfig {
     maxHistory,
     locale,
     security,
+    securityProbeCache,
   );
 
   /// JSON stays flat for backward compatibility.
@@ -451,6 +475,8 @@ class AppConfig {
     if (locale != null) 'locale': locale,
     if (security != null) 'security_tier': _tierName(security!.tier),
     if (security != null) 'security_modifiers': security!.modifiers.toJson(),
+    if (securityProbeCache != null)
+      'security_probe_cache': securityProbeCache!.toJson(),
   };
 
   /// Portable JSON for `.lfs` archive export. Strips every field that
@@ -464,6 +490,11 @@ class AppConfig {
     final json = toJson();
     json.remove('security_tier');
     json.remove('security_modifiers');
+    // Probe cache is strictly per-host — whether the target machine
+    // has a TPM / Secure Enclave / keychain the exporter had is
+    // never the right thing to inherit. Strip it so the importer
+    // reprobes on first launch instead.
+    json.remove('security_probe_cache');
     json.remove('config_schema_version');
     return json;
   }
@@ -479,6 +510,9 @@ class AppConfig {
       maxHistory: json['max_history'] as int? ?? d.maxHistory,
       locale: json['locale'] as String?,
       security: _readSecurityConfig(json),
+      securityProbeCache: SecurityCapabilities.fromJson(
+        json['security_probe_cache'] as Map<String, dynamic>?,
+      ),
     ).sanitized();
   }
 }

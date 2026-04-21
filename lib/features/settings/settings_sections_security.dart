@@ -505,6 +505,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       data: (c) => c.hardwareVaultAvailable,
       orElse: () => false,
     );
+    // Clear the persisted cache before invalidating the provider —
+    // otherwise the provider's re-run would read the stale cache
+    // back and skip the real probe, defeating the button. The next
+    // provider read sees `null` cache → runs a fresh probe → writes
+    // the new snapshot back to config.
+    await ref
+        .read(configProvider.notifier)
+        .update((c) => c.copyWith(securityProbeCache: null));
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);

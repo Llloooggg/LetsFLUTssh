@@ -1306,19 +1306,19 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       }
     }
     _activeDatabase = null;
-    // Invalidate the cached capability + probe snapshots so the next
-    // `_initSecurity` / wizard re-probes against the current state
-    // instead of reading pre-retry results. The Settings reset path
-    // does the same dance (see `_reinitSecurityFromReset`); this
-    // retry path was missing it, so a wipe + re-open could re-use a
-    // stale "keychain unavailable" verdict and skip the auto-setup
-    // branch that would otherwise succeed.
+    // Clear the cached capability + probe snapshots. The persisted
+    // `securityProbeCache` in config.json has to be nulled alongside
+    // the in-memory providers — otherwise the next provider read
+    // would rehydrate from the stale on-disk snapshot and skip the
+    // real probe. The combined update also clears `security: null`,
+    // so the same `configProvider.notifier.update` call handles both
+    // wipes in one debounced write.
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(security: null));
+        .update((c) => c.copyWith(security: null, securityProbeCache: null));
     // Clear the reset-toast flag before re-entering the security
     // pipeline: the nested `_initSecurity` paths set it in half a
     // dozen places (`legacy-orphan wipe`, `_unlockParanoid`,
@@ -1457,7 +1457,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ).wipeAll();
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(security: null));
+        .update((c) => c.copyWith(security: null, securityProbeCache: null));
     _credentialsWereReset = true;
     _corruptionRetries = 0;
     if (!mounted) return;
