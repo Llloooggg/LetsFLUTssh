@@ -313,6 +313,7 @@
   "shareViaQrCode": "Bagikan via Kode QR",
   "shareViaQrSubtitle": "Ekspor sesi ke kode QR untuk dipindai perangkat lain",
   "dataLocation": "Lokasi Data",
+  "dataStorageSection": "Penyimpanan",
   "pathCopied": "Jalur disalin ke clipboard",
   "urlCopied": "URL disalin ke clipboard",
   "aboutSubtitle": "v{version} — Klien SSH/SFTP",

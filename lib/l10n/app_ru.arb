@@ -313,6 +313,7 @@
   "shareViaQrCode": "Поделиться через QR-код",
   "shareViaQrSubtitle": "Экспортировать сессии в QR для сканирования другим устройством",
   "dataLocation": "Расположение данных",
+  "dataStorageSection": "Хранилище",
   "pathCopied": "Путь скопирован в буфер обмена",
   "urlCopied": "URL скопирован в буфер обмена",
   "aboutSubtitle": "v{version} — SSH/SFTP клиент",

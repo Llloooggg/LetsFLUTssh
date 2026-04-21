@@ -313,6 +313,7 @@
   "shareViaQrCode": "Per QR-Code teilen",
   "shareViaQrSubtitle": "Sitzungen als QR exportieren, um sie mit einem anderen Gerät zu scannen",
   "dataLocation": "Datenspeicherort",
+  "dataStorageSection": "Speicher",
   "pathCopied": "Pfad in Zwischenablage kopiert",
   "urlCopied": "URL in Zwischenablage kopiert",
   "aboutSubtitle": "v{version} — SSH/SFTP-Client",

@@ -988,6 +988,9 @@ class SVi extends S {
   String get dataLocation => 'Vị trí dữ liệu';
 
   @override
+  String get dataStorageSection => 'Lưu trữ';
+
+  @override
   String get pathCopied => 'Đã sao chép đường dẫn vào bộ nhớ tạm';
 
   @override

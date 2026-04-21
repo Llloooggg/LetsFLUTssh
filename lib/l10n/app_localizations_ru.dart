@@ -994,6 +994,9 @@ class SRu extends S {
   String get dataLocation => 'Расположение данных';
 
   @override
+  String get dataStorageSection => 'Хранилище';
+
+  @override
   String get pathCopied => 'Путь скопирован в буфер обмена';
 
   @override

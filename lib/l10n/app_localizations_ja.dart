@@ -961,6 +961,9 @@ class SJa extends S {
   String get dataLocation => 'データの保存場所';
 
   @override
+  String get dataStorageSection => 'ストレージ';
+
+  @override
   String get pathCopied => 'パスをクリップボードにコピーしました';
 
   @override

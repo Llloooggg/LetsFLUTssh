@@ -313,6 +313,7 @@
   "shareViaQrCode": "مشاركة عبر رمز QR",
   "shareViaQrSubtitle": "تصدير الجلسات إلى رمز QR لمسحه من جهاز آخر",
   "dataLocation": "موقع البيانات",
+  "dataStorageSection": "التخزين",
   "pathCopied": "تم نسخ المسار إلى الحافظة",
   "urlCopied": "تم نسخ الرابط إلى الحافظة",
   "aboutSubtitle": "v{version} — عميل SSH/SFTP",

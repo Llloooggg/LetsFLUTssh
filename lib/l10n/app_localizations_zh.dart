@@ -957,6 +957,9 @@ class SZh extends S {
   String get dataLocation => '数据位置';
 
   @override
+  String get dataStorageSection => '存储';
+
+  @override
   String get pathCopied => '路径已复制到剪贴板';
 
   @override

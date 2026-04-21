@@ -997,6 +997,9 @@ class SId extends S {
   String get dataLocation => 'Lokasi Data';
 
   @override
+  String get dataStorageSection => 'Penyimpanan';
+
+  @override
   String get pathCopied => 'Jalur disalin ke clipboard';
 
   @override

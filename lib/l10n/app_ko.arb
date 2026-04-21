@@ -313,6 +313,7 @@
   "shareViaQrCode": "QR 코드로 공유",
   "shareViaQrSubtitle": "다른 기기에서 스캔할 수 있도록 세션을 QR로 내보내기",
   "dataLocation": "데이터 위치",
+  "dataStorageSection": "저장소",
   "pathCopied": "경로가 클립보드에 복사되었습니다",
   "urlCopied": "URL이 클립보드에 복사되었습니다",
   "aboutSubtitle": "v{version} — SSH/SFTP 클라이언트",

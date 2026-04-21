@@ -313,6 +313,7 @@
   "shareViaQrCode": "اشتراک‌گذاری از طریق کد QR",
   "shareViaQrSubtitle": "خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر",
   "dataLocation": "محل داده",
+  "dataStorageSection": "ذخیره‌سازی",
   "pathCopied": "مسیر در کلیپ‌بورد کپی شد",
   "urlCopied": "آدرس در کلیپ‌بورد کپی شد",
   "aboutSubtitle": "v{version} — کلاینت SSH/SFTP",

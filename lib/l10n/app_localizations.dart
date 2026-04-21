@@ -1857,6 +1857,12 @@ abstract class S {
   /// **'Data Location'**
   String get dataLocation;
 
+  /// No description provided for @dataStorageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get dataStorageSection;
+
   /// No description provided for @pathCopied.
   ///
   /// In en, this message translates to:

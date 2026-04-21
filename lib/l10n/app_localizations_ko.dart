@@ -960,6 +960,9 @@ class SKo extends S {
   String get dataLocation => '데이터 위치';
 
   @override
+  String get dataStorageSection => '저장소';
+
+  @override
   String get pathCopied => '경로가 클립보드에 복사되었습니다';
 
   @override

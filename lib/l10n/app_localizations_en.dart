@@ -988,6 +988,9 @@ class SEn extends S {
   String get dataLocation => 'Data Location';
 
   @override
+  String get dataStorageSection => 'Storage';
+
+  @override
   String get pathCopied => 'Path copied to clipboard';
 
   @override

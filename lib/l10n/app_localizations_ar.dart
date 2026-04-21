@@ -989,6 +989,9 @@ class SAr extends S {
   String get dataLocation => 'موقع البيانات';
 
   @override
+  String get dataStorageSection => 'التخزين';
+
+  @override
   String get pathCopied => 'تم نسخ المسار إلى الحافظة';
 
   @override

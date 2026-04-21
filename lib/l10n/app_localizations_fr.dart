@@ -1004,6 +1004,9 @@ class SFr extends S {
   String get dataLocation => 'Emplacement des données';
 
   @override
+  String get dataStorageSection => 'Stockage';
+
+  @override
   String get pathCopied => 'Chemin copié dans le presse-papiers';
 
   @override

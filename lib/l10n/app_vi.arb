@@ -313,6 +313,7 @@
   "shareViaQrCode": "Chia sẻ qua mã QR",
   "shareViaQrSubtitle": "Xuất phiên sang mã QR để quét từ thiết bị khác",
   "dataLocation": "Vị trí dữ liệu",
+  "dataStorageSection": "Lưu trữ",
   "pathCopied": "Đã sao chép đường dẫn vào bộ nhớ tạm",
   "urlCopied": "Đã sao chép URL vào bộ nhớ tạm",
   "aboutSubtitle": "v{version} — Ứng dụng SSH/SFTP",

@@ -313,6 +313,7 @@
   "shareViaQrCode": "Compartilhar via Código QR",
   "shareViaQrSubtitle": "Exportar sessões para QR para escaneamento por outro dispositivo",
   "dataLocation": "Local dos Dados",
+  "dataStorageSection": "Armazenamento",
   "pathCopied": "Caminho copiado para a área de transferência",
   "urlCopied": "URL copiada para a área de transferência",
   "aboutSubtitle": "v{version} — Cliente SSH/SFTP",

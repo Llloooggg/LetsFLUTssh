@@ -998,6 +998,9 @@ class SPt extends S {
   String get dataLocation => 'Local dos Dados';
 
   @override
+  String get dataStorageSection => 'Armazenamento';
+
+  @override
   String get pathCopied => 'Caminho copiado para a área de transferência';
 
   @override

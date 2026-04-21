@@ -538,6 +538,7 @@
   "shareViaQrCode": "Share via QR Code",
   "shareViaQrSubtitle": "Export sessions to QR for scanning by another device",
   "dataLocation": "Data Location",
+  "dataStorageSection": "Storage",
   "pathCopied": "Path copied to clipboard",
   "urlCopied": "URL copied to clipboard",
   "aboutSubtitle": "v{version} — SSH/SFTP client",

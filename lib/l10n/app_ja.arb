@@ -313,6 +313,7 @@
   "shareViaQrCode": "QRコードで共有",
   "shareViaQrSubtitle": "セッションをQRコードにエクスポートして別のデバイスでスキャン",
   "dataLocation": "データの保存場所",
+  "dataStorageSection": "ストレージ",
   "pathCopied": "パスをクリップボードにコピーしました",
   "urlCopied": "URLをクリップボードにコピーしました",
   "aboutSubtitle": "v{version} — SSH/SFTPクライアント",

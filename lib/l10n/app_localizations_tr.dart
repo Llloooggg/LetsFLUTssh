@@ -999,6 +999,9 @@ class STr extends S {
   String get dataLocation => 'Veri Konumu';
 
   @override
+  String get dataStorageSection => 'Depolama';
+
+  @override
   String get pathCopied => 'Yol panoya kopyalandı';
 
   @override

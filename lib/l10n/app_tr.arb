@@ -313,6 +313,7 @@
   "shareViaQrCode": "QR Kodu ile Paylaş",
   "shareViaQrSubtitle": "Oturumları başka bir cihazdan taranmak üzere QR koduna aktar",
   "dataLocation": "Veri Konumu",
+  "dataStorageSection": "Depolama",
   "pathCopied": "Yol panoya kopyalandı",
   "urlCopied": "URL panoya kopyalandı",
   "aboutSubtitle": "v{version} — SSH/SFTP istemcisi",

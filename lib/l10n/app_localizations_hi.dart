@@ -990,6 +990,9 @@ class SHi extends S {
   String get dataLocation => 'डेटा स्थान';
 
   @override
+  String get dataStorageSection => 'संग्रहण';
+
+  @override
   String get pathCopied => 'पथ क्लिपबोर्ड पर कॉपी किया गया';
 
   @override

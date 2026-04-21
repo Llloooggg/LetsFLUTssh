@@ -1001,6 +1001,9 @@ class SEs extends S {
   String get dataLocation => 'Ubicación de los datos';
 
   @override
+  String get dataStorageSection => 'Almacenamiento';
+
+  @override
   String get pathCopied => 'Ruta copiada al portapapeles';
 
   @override

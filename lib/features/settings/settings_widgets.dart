@@ -52,6 +52,12 @@ class _ActionTile extends StatelessWidget {
   /// weight changes.
   final bool destructive;
 
+  /// Hide the trailing chevron. Tiles that are informational
+  /// (tap-to-copy Data Location, tap-to-copy Source Code URL)
+  /// should not carry a drill-down affordance — the chevron reads
+  /// as "navigate further" which this tile does not do.
+  final bool showChevron;
+
   const _ActionTile({
     required this.icon,
     required this.title,
@@ -59,6 +65,7 @@ class _ActionTile extends StatelessWidget {
     required this.onTap,
     this.emphasizeSubtitle = false,
     this.destructive = false,
+    this.showChevron = true,
   });
 
   @override
@@ -96,7 +103,8 @@ class _ActionTile extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right, size: 18, color: AppTheme.fgFaint),
+          if (showChevron)
+            Icon(Icons.chevron_right, size: 18, color: AppTheme.fgFaint),
         ],
       ),
     );

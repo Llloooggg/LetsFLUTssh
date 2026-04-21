@@ -313,6 +313,7 @@
   "shareViaQrCode": "通过 QR 码分享",
   "shareViaQrSubtitle": "将会话导出为 QR 码，供其他设备扫描",
   "dataLocation": "数据位置",
+  "dataStorageSection": "存储",
   "pathCopied": "路径已复制到剪贴板",
   "urlCopied": "URL 已复制到剪贴板",
   "aboutSubtitle": "v{version} — SSH/SFTP 客户端",

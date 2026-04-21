@@ -990,6 +990,9 @@ class SFa extends S {
   String get dataLocation => 'محل داده';
 
   @override
+  String get dataStorageSection => 'ذخیره‌سازی';
+
+  @override
   String get pathCopied => 'مسیر در کلیپ‌بورد کپی شد';
 
   @override

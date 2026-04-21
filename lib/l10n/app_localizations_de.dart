@@ -1002,6 +1002,9 @@ class SDe extends S {
   String get dataLocation => 'Datenspeicherort';
 
   @override
+  String get dataStorageSection => 'Speicher';
+
+  @override
   String get pathCopied => 'Pfad in Zwischenablage kopiert';
 
   @override

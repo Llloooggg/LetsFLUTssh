@@ -313,6 +313,7 @@
   "shareViaQrCode": "QR कोड से साझा करें",
   "shareViaQrSubtitle": "दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें",
   "dataLocation": "डेटा स्थान",
+  "dataStorageSection": "संग्रहण",
   "pathCopied": "पथ क्लिपबोर्ड पर कॉपी किया गया",
   "urlCopied": "URL क्लिपबोर्ड पर कॉपी किया गया",
   "aboutSubtitle": "v{version} — SSH/SFTP क्लाइंट",
