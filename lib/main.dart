@@ -358,12 +358,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onRestart: _reloadSessions,
       onResume: _reloadSessions,
     );
-    // Settings → Reset All Data pokes `securityReinitProvider` after
-    // `WipeAllService.wipeAll()` so the app re-enters the same
-    // first-launch provisioning path that runs on a cold-start
-    // fresh install. Without the listener the reset flow would
-    // leave the app in `security: null` with no DB open — every
-    // subsequent UI action would crash on a missing handle.
+    _wireReinitListener();
+    _wireLockStateListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  /// Settings → Reset All Data pokes `securityReinitProvider` after
+  /// `WipeAllService.wipeAll()` so the app re-enters the same first-
+  /// launch provisioning path that runs on a cold-start fresh
+  /// install. Without the listener the reset flow would leave the
+  /// app in `security: null` with no DB open — every subsequent UI
+  /// action would crash on a missing handle.
+  void _wireReinitListener() {
     ref.listenManual<int>(securityReinitProvider, (prev, next) {
       if (next <= _lastReinitTick) return;
       _lastReinitTick = next;
@@ -371,14 +377,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         await _reinitSecurityFromReset();
       });
     });
-    // Re-open the drift / SQLCipher handle after a lock → unlock
-    // transition. `AutoLockDetector._triggerLock` now always closes
-    // the DB (so the C-layer page cipher cache is zeroed alongside
-    // the Dart-side `SecretBuffer`), so every unlock needs a fresh
-    // `_injectDatabase` under the key the lock-screen unlock flow
-    // just pushed back into `securityStateProvider`. Previous-state
-    // gate filters the initial false → false emission plus any
-    // redundant lock→lock transitions.
+  }
+
+  /// Re-open the drift / SQLCipher handle after a lock → unlock
+  /// transition. `AutoLockDetector._triggerLock` now always closes
+  /// the DB (so the C-layer page cipher cache is zeroed alongside
+  /// the Dart-side `SecretBuffer`), so every unlock needs a fresh
+  /// `_injectDatabase` under the key the lock-screen unlock flow
+  /// just pushed back into `securityStateProvider`. Previous-state
+  /// gate filters the initial false → false emission plus any
+  /// redundant lock→lock transitions.
+  void _wireLockStateListener() {
     ref.listenManual<bool>(lockStateProvider, (prev, next) {
       if (prev == true && next == false) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -386,62 +395,76 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         });
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(appVersionProvider.notifier).load();
-      // Migration runner gates everything else — a failed or mismatched
-      // artefact would make both the unlock flow and the corrupt-DB
-      // probe read stale state. When it surfaces a reset, the migration
-      // handler runs the full wipe + wizard on its own, so skip the
-      // follow-up _initSecurity / corruption probe.
-      final migrationOk = await _runMigrations();
-      if (!migrationOk) return;
-      await _initSecurity();
-      // Integrity probe: if the DB file on disk cannot be read under
-      // the cipher we just opened it with, the chosen tier does not
-      // match the actual file — fall into the reset dialog instead of
-      // surfacing drift's "file is not a database" from a later async
-      // gap. The user is the only one who can consent to a wipe;
-      // `_handleDatabaseCorruption` shows the non-dismissible reset /
-      // quit choice and never auto-deletes anything.
-      await _handleDatabaseCorruption();
-      await ref.read(sessionProvider.notifier).load();
-      if (_credentialsWereReset) {
-        _credentialsWereReset = false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final ctx = navigatorKey.currentContext;
-          if (ctx != null && ctx.mounted) {
-            Toast.show(
-              ctx,
-              message: S.of(ctx).credentialsReset,
-              level: ToastLevel.warning,
-            );
-          }
-        });
-      }
-      if (plat.isMobilePlatform) {
-        AppLogger.instance.log('Initializing foreground service', name: 'App');
-        ref.read(foregroundServiceProvider).init();
-      }
-      // Eager-prefetch the capability + probe snapshots off the main
-      // bootstrap path. `securityCapabilitiesProvider` is a
-      // FutureProvider — the first `ref.watch` on it inside Settings
-      // (or the wizard) would otherwise trigger the deep probes on
-      // the Dart async gap where the user first interacts. With
-      // Android + macOS deep probes now running real SE / Keystore
-      // round-trips, the lazy path made tier cards flash
-      // "unavailable → available" as the probe raced the first frame.
-      // Warming the cache here means Settings opens against ready
-      // data — no flicker. A user-facing "Re-check" button in
-      // Settings → Security invalidates + re-awaits the same cache
-      // when the user wants a fresh result.
-      unawaited(ref.read(securityCapabilitiesProvider.future));
-      unawaited(ref.read(hardwareProbeDetailProvider.future));
-      unawaited(ref.read(keyringProbeDetailProvider.future));
-      if (ref.read(configProvider).checkUpdatesOnStart) {
-        AppLogger.instance.log('Checking for updates on start', name: 'App');
-        ref.read(updateProvider.notifier).check();
+  }
+
+  /// App bootstrap sequence — run once on the first frame after
+  /// `initState`. Split from `initState` so the method body stays
+  /// under the S3776 cognitive-complexity threshold and so each
+  /// step (migrations, security init, corruption probe, session
+  /// load, foreground service, probe warm-up, update check) can
+  /// be read top-to-bottom as the startup contract.
+  Future<void> _bootstrap() async {
+    await ref.read(appVersionProvider.notifier).load();
+    // Migration runner gates everything else — a failed or mismatched
+    // artefact would make both the unlock flow and the corrupt-DB
+    // probe read stale state. When it surfaces a reset, the migration
+    // handler runs the full wipe + wizard on its own, so skip the
+    // follow-up _initSecurity / corruption probe.
+    final migrationOk = await _runMigrations();
+    if (!migrationOk) return;
+    await _initSecurity();
+    // Integrity probe: if the DB file on disk cannot be read under
+    // the cipher we just opened it with, the chosen tier does not
+    // match the actual file — fall into the reset dialog instead of
+    // surfacing drift's "file is not a database" from a later async
+    // gap. The user is the only one who can consent to a wipe;
+    // `_handleDatabaseCorruption` shows the non-dismissible reset /
+    // quit choice and never auto-deletes anything.
+    await _handleDatabaseCorruption();
+    await ref.read(sessionProvider.notifier).load();
+    _maybeShowCredentialsResetToast();
+    if (plat.isMobilePlatform) {
+      AppLogger.instance.log('Initializing foreground service', name: 'App');
+      ref.read(foregroundServiceProvider).init();
+    }
+    _warmProbeCaches();
+    if (ref.read(configProvider).checkUpdatesOnStart) {
+      AppLogger.instance.log('Checking for updates on start', name: 'App');
+      ref.read(updateProvider.notifier).check();
+    }
+  }
+
+  void _maybeShowCredentialsResetToast() {
+    if (!_credentialsWereReset) return;
+    _credentialsWereReset = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Toast.show(
+          ctx,
+          message: S.of(ctx).credentialsReset,
+          level: ToastLevel.warning,
+        );
       }
     });
+  }
+
+  /// Eager-prefetch the capability + probe snapshots off the main
+  /// bootstrap path. `securityCapabilitiesProvider` is a
+  /// FutureProvider — the first `ref.watch` on it inside Settings
+  /// (or the wizard) would otherwise trigger the deep probes on
+  /// the Dart async gap where the user first interacts. With
+  /// Android + macOS deep probes now running real SE / Keystore
+  /// round-trips, the lazy path made tier cards flash "unavailable
+  /// → available" as the probe raced the first frame. Warming the
+  /// cache here means Settings opens against ready data — no
+  /// flicker. A user-facing "Re-check" button in Settings →
+  /// Security invalidates + re-awaits the same cache when the user
+  /// wants a fresh result.
+  void _warmProbeCaches() {
+    unawaited(ref.read(securityCapabilitiesProvider.future));
+    unawaited(ref.read(hardwareProbeDetailProvider.future));
+    unawaited(ref.read(keyringProbeDetailProvider.future));
   }
 
   @override
