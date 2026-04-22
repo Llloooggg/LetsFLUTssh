@@ -639,37 +639,72 @@ jobs:
           FEATURES=""
           FIXES=""
           IMPROVEMENTS=""
+          SECURITY=""
+          LOCALIZATION=""
+          REVERTS=""
           DEPS=""
 
-          # Parse conventional commits with optional scope: `type(scope): body`.
-          # The scope (e.g. "installer", "import") is surfaced as a leading
-          # `(scope)` in the changelog so users see which module each entry
-          # touches. Prior version only matched unscoped prefixes and silently
-          # dropped every `feat(x):` / `fix(x):` / `refactor(x):` commit.
+          # Parse conventional commits with optional scope and breaking-change
+          # marker: `type(scope)!: body`. The scope (e.g. "installer",
+          # "import") surfaces as a leading `(scope)` in the changelog so
+          # users see which module each entry touches; `!` after the type
+          # or scope flags a breaking change and renders as a bold
+          # `**BREAKING**` prefix so the entry stands out in the list.
+          #
+          # Accepted types mirror the commit-lint regex in ci.yml
+          # (feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|
+          # style|revert|security). User-facing buckets: Security,
+          # Features, Reverts, Improvements, Fixes, Localization,
+          # Dependencies. Internal types (build, test, docs, ci, style)
+          # are accepted by the linter but intentionally excluded from
+          # release notes — they are plumbing, not user-visible change.
           while IFS= read -r line; do
             MSG="${line#* }"
-            if [[ "$MSG" =~ ^([a-z]+)(\(([a-z0-9][a-z0-9-]*)\))?:[[:space:]]+(.+)$ ]]; then
+            if [[ "$MSG" =~ ^([a-z]+)(\(([a-z0-9][a-z0-9-]*)\))?(!)?:[[:space:]]+(.+)$ ]]; then
               TYPE="${BASH_REMATCH[1]}"
               SCOPE="${BASH_REMATCH[3]}"
-              BODY="${BASH_REMATCH[4]}"
+              BREAKING="${BASH_REMATCH[4]}"
+              BODY="${BASH_REMATCH[5]}"
               PREFIX=""
               [ -n "$SCOPE" ] && PREFIX="($SCOPE) "
+              [ -n "$BREAKING" ] && PREFIX="**BREAKING** ${PREFIX}"
               case "$TYPE" in
                 feat)          FEATURES="$FEATURES- ${PREFIX}${BODY}\n" ;;
                 fix)           FIXES="$FIXES- ${PREFIX}${BODY}\n" ;;
                 refactor|perf) IMPROVEMENTS="$IMPROVEMENTS- ${PREFIX}${BODY}\n" ;;
+                security)      SECURITY="$SECURITY- ${PREFIX}${BODY}\n" ;;
+                i18n|l10n)     LOCALIZATION="$LOCALIZATION- ${PREFIX}${BODY}\n" ;;
+                revert)        REVERTS="$REVERTS- ${PREFIX}${BODY}\n" ;;
                 chore)
                   # Only surface dependency bumps under chore.
                   [ "$SCOPE" = "deps" ] && DEPS="$DEPS- ${BODY}\n"
                   ;;
               esac
+            elif [[ "$MSG" =~ ^Bump[[:space:]]+.+[[:space:]]+from[[:space:]]+.+[[:space:]]+to[[:space:]]+.+$ ]]; then
+              # Dependabot raw subject ("Bump dartssh2 from 2.15.0 to 2.16.0").
+              # Commit-lint skips these via a dedicated `^Bump ` branch, and
+              # dependabot-auto.yml lets them merge with the original subject
+              # intact — no `chore(deps):` rewrite anywhere in the pipeline.
+              # Without this fallback every automerged Dependabot PR produced
+              # a release with an empty Dependencies section. Strip the
+              # `Bump ` prefix so entries read "dartssh2 from 2.15.0 to 2.16.0".
+              DEPS="$DEPS- ${MSG#Bump }\n"
             fi
           done <<< "$(git log "$RANGE" --oneline --no-merges)"
 
           BODY=""
+          # Security-first pinned callout — surfaces upgrade urgency
+          # before the user scrolls into the change lists. Releases
+          # without any `security:` commit render no callout, so the
+          # normal flow stays visually unchanged.
+          if [ -n "$SECURITY" ]; then
+            BODY="> ⚠ **Security updates in this release — upgrading is recommended.**\n\n### Security\n$SECURITY\n"
+          fi
           [ -n "$FEATURES" ] && BODY="$BODY### Features\n$FEATURES\n"
-          [ -n "$FIXES" ] && BODY="$BODY### Fixes\n$FIXES\n"
+          [ -n "$REVERTS" ] && BODY="$BODY### Reverts\n$REVERTS\n"
           [ -n "$IMPROVEMENTS" ] && BODY="$BODY### Improvements\n$IMPROVEMENTS\n"
+          [ -n "$FIXES" ] && BODY="$BODY### Fixes\n$FIXES\n"
+          [ -n "$LOCALIZATION" ] && BODY="$BODY### Localization\n$LOCALIZATION\n"
           [ -n "$DEPS" ] && BODY="$BODY### Dependencies\n$DEPS\n"
           [ -z "$BODY" ] && BODY="Maintenance release.\n"
 

@@ -5,10 +5,11 @@ set -euo pipefail
 # updates pubspec.yaml, and commits. Run on dev before creating a PR to main.
 #
 # Bump rules:
-#   BREAKING CHANGE / feat!:  → major
-#   feat:                     → minor
-#   fix: / refactor: / perf: / build: / security: / Dependabot "Bump ..." → patch
-#   docs: / test: / ci: / chore: → no bump
+#   BREAKING CHANGE / feat!:                                              → major
+#   feat:                                                                 → minor
+#   fix: / refactor: / perf: / build: / security: / i18n: / l10n: /
+#     Dependabot "Bump ..."                                               → patch
+#   docs: / test: / ci: / chore: / style: / revert:                       → no bump
 #
 # Usage: scripts/bump-version.sh [--dry-run]
 
@@ -46,8 +47,13 @@ while IFS= read -r MSG; do
   # Skip version-bump commits
   echo "$MSG" | grep -qE '^chore: bump version ' && continue
 
-  # Skip revert commits
+  # Skip revert commits — both git's default `Revert "..."` form and
+  # our conventional `revert: ...` form. A commit that cancels another
+  # out should not drive the release forward on its own; if the reverted
+  # commit itself was already released, the revert ships as part of the
+  # next bumpable change (fix/feat/etc).
   echo "$MSG" | grep -qE '^Revert "' && continue
+  echo "$MSG" | grep -qE '^revert(\([a-z0-9_-]+\))?: ' && continue
 
   # BREAKING CHANGE → major
   if echo "$MSG" | grep -qiE 'BREAKING CHANGE|^[a-z]+(\([a-z0-9_-]+\))?!:'; then
@@ -55,8 +61,10 @@ while IFS= read -r MSG; do
     continue
   fi
 
-  # Skip non-bumping types
-  echo "$MSG" | grep -qE '^(docs|test|ci|chore)(\([a-z0-9_-]+\))?: ' && continue
+  # Skip non-bumping types. `style` is pure formatting and `revert` is
+  # handled above; both stay here in the regex so future readers see the
+  # full set of no-bump prefixes in one place.
+  echo "$MSG" | grep -qE '^(docs|test|ci|chore|style)(\([a-z0-9_-]+\))?: ' && continue
 
   # feat → minor
   if echo "$MSG" | grep -qE '^feat(\([a-z0-9_-]+\))?: '; then
@@ -64,10 +72,14 @@ while IFS= read -r MSG; do
     continue
   fi
 
-  # fix / refactor / perf / build / security → patch
+  # fix / refactor / perf / build / security / i18n / l10n → patch.
   # `security` is treated like `fix` — a vulnerability / hardening
-  # change is always at least a patch bump.
-  if echo "$MSG" | grep -qE '^(fix|refactor|perf|build|security)(\([a-z0-9_-]+\))?: '; then
+  # change is always at least a patch bump. `i18n` / `l10n` also
+  # trigger a patch so a translation-only release cycle still ships:
+  # without this, running the bump script on a window that contained
+  # only `l10n:` commits would report "nothing to bump", no tag would
+  # be cut, and updated strings would never reach users.
+  if echo "$MSG" | grep -qE '^(fix|refactor|perf|build|security|i18n|l10n)(\([a-z0-9_-]+\))?: '; then
     [ "$BUMP" = "none" ] && BUMP="patch"
     continue
   fi

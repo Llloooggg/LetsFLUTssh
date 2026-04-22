@@ -482,11 +482,15 @@ abstract final class AppTheme {
       splashFactory: NoSplash.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          // Hard-off all page transitions — see `_NoTransitionsBuilder`
+          // for rationale. Combined with `timeDilation = 0.01` in
+          // `main()` and `disableAnimations: true` on the root
+          // `MediaQuery`, the app ships without motion.
+          TargetPlatform.android: _NoTransitionsBuilder(),
+          TargetPlatform.iOS: _NoTransitionsBuilder(),
+          TargetPlatform.linux: _NoTransitionsBuilder(),
+          TargetPlatform.macOS: _NoTransitionsBuilder(),
+          TargetPlatform.windows: _NoTransitionsBuilder(),
         },
       ),
       dividerTheme: DividerThemeData(color: divider, space: 1),
@@ -876,4 +880,23 @@ abstract final class AppFonts {
     fontWeight: fontWeight,
     color: color,
   );
+}
+
+/// No-op PageTransitionsBuilder — route pushes/pops appear instantly
+/// with no slide, fade, or zoom. Motion in this app was proving
+/// glitchy across locales and widgets, so transitions are hard-off
+/// project-wide. See `main.dart` (`timeDilation = 0.01`) and the root
+/// `MediaQuery(disableAnimations: true)` for the other two layers of
+/// the same decision.
+class _NoTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => child;
 }
