@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:xterm/xterm.dart';
 
@@ -17,13 +18,15 @@ class CursorTextOverlay extends StatefulWidget {
     super.key,
     required this.terminal,
     required this.fontSize,
-    this.fontFamily = 'JetBrains Mono',
+    this.fontFamily = AppFonts.monoFamily,
+    this.fontFamilyFallback = AppFonts.monoFallback,
     this.padding = const EdgeInsets.all(4),
   });
 
   final Terminal terminal;
   final double fontSize;
   final String fontFamily;
+  final List<String> fontFamilyFallback;
   final EdgeInsets padding;
 
   @override
@@ -66,6 +69,7 @@ class _CursorTextOverlayState extends State<CursorTextOverlay> {
           terminal: widget.terminal,
           fontSize: widget.fontSize,
           fontFamily: widget.fontFamily,
+          fontFamilyFallback: widget.fontFamilyFallback,
           padding: widget.padding,
         ),
       ),
@@ -79,12 +83,14 @@ class _CursorCharPainter extends CustomPainter {
     required this.terminal,
     required this.fontSize,
     required this.fontFamily,
+    required this.fontFamilyFallback,
     required this.padding,
   }) : super(repaint: repaint);
 
   final Terminal terminal;
   final double fontSize;
   final String fontFamily;
+  final List<String> fontFamilyFallback;
   final EdgeInsets padding;
 
   Size? _cellSize;
@@ -95,7 +101,11 @@ class _CursorCharPainter extends CustomPainter {
   Size _measureCellSize() {
     if (_cellSize != null && _cachedFontSize == fontSize) return _cellSize!;
 
-    final style = ui.TextStyle(fontFamily: fontFamily, fontSize: fontSize);
+    final style = ui.TextStyle(
+      fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
+      fontSize: fontSize,
+    );
     final builder = ui.ParagraphBuilder(ui.ParagraphStyle())
       ..pushStyle(style)
       ..addText('mmmmmmmmmm');
@@ -139,6 +149,7 @@ class _CursorCharPainter extends CustomPainter {
     final textColor = AppTheme.bg2;
     final style = ui.TextStyle(
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: fontSize,
       color: textColor,
     );
@@ -156,5 +167,6 @@ class _CursorCharPainter extends CustomPainter {
   bool shouldRepaint(_CursorCharPainter old) =>
       terminal != old.terminal ||
       fontSize != old.fontSize ||
-      fontFamily != old.fontFamily;
+      fontFamily != old.fontFamily ||
+      !listEquals(fontFamilyFallback, old.fontFamilyFallback);
 }

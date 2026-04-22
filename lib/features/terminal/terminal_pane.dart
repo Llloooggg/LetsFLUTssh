@@ -313,7 +313,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                       theme: _terminalTheme,
                       textStyle: TerminalStyle(
                         fontSize: fontSize,
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: AppFonts.monoFamily,
+                        fontFamilyFallback: AppFonts.monoFallback,
                       ),
                     ),
                     Positioned.fill(

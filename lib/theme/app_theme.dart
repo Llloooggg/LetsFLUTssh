@@ -833,6 +833,29 @@ abstract final class AppFonts {
   static const _inter = 'Inter';
   static const _mono = 'JetBrains Mono';
 
+  /// Monospace family used by the terminal views and cursor overlay. Exposed
+  /// so xterm's `TerminalStyle` and the custom cursor painter can share a
+  /// single source of truth with [mono].
+  static const monoFamily = _mono;
+
+  /// Fallback chain for the monospace family. JetBrains Mono ships with no
+  /// emoji / symbol / CJK glyphs, so without a fallback list every
+  /// non-Latin codepoint renders as a tofu box. The entries are tried in
+  /// order and resolved against the OS font registry (bundling the fonts
+  /// ourselves would add ~10 MB to the APK for Noto Color Emoji alone, and
+  /// every target OS already ships a Unicode-coverage font under one of
+  /// these names). `sans-serif` is the universal last resort on Android
+  /// and Linux; the named emoji fonts map 1:1 to the canonical installs
+  /// on each platform.
+  static const monoFallback = <String>[
+    'Noto Color Emoji',
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
+    'Noto Sans Symbols 2',
+    'sans-serif',
+  ];
+
   static final bool _mobile = plat.isMobilePlatform;
 
   // ── Platform-aware size scale (desktop / mobile) ──
@@ -877,6 +900,7 @@ abstract final class AppFonts {
     Color? color,
   }) => TextStyle(
     fontFamily: _mono,
+    fontFamilyFallback: monoFallback,
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,

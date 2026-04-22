@@ -321,7 +321,8 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             theme: AppTheme.terminalTheme,
             textStyle: TerminalStyle(
               fontSize: _fontSize,
-              fontFamily: 'JetBrains Mono',
+              fontFamily: AppFonts.monoFamily,
+              fontFamilyFallback: AppFonts.monoFallback,
             ),
             // xterm's default is `TextInputType.emailAddress`, which
             // tells Gboard/iOS that the field holds an email — the

@@ -43,7 +43,29 @@ void main() {
         find.byType(CursorTextOverlay),
       );
       expect(widget.fontFamily, 'JetBrains Mono');
+      expect(widget.fontFamilyFallback, AppFonts.monoFallback);
+      expect(widget.fontFamilyFallback, contains('Noto Color Emoji'));
       expect(widget.padding, const EdgeInsets.all(4));
+    });
+
+    testWidgets('accepts custom fontFamilyFallback', (tester) async {
+      final terminal = Terminal();
+      const override = <String>['Noto Emoji', 'monospace'];
+
+      await tester.pumpWidget(
+        _app(
+          CursorTextOverlay(
+            terminal: terminal,
+            fontSize: 14,
+            fontFamilyFallback: override,
+          ),
+        ),
+      );
+
+      final widget = tester.widget<CursorTextOverlay>(
+        find.byType(CursorTextOverlay),
+      );
+      expect(widget.fontFamilyFallback, override);
     });
 
     testWidgets('accepts custom fontFamily and padding', (tester) async {
@@ -258,6 +280,37 @@ void main() {
 
       await tester.pumpWidget(
         _app(CursorTextOverlay(terminal: terminal2, fontSize: 14)),
+      );
+
+      await tester.pump();
+    });
+
+    testWidgets('repaints when fontFamilyFallback list changes', (
+      tester,
+    ) async {
+      final terminal = Terminal();
+
+      await tester.pumpWidget(
+        _app(
+          CursorTextOverlay(
+            terminal: terminal,
+            fontSize: 14,
+            fontFamilyFallback: const ['Noto Color Emoji'],
+          ),
+        ),
+      );
+
+      terminal.write('A');
+      await tester.pump();
+
+      await tester.pumpWidget(
+        _app(
+          CursorTextOverlay(
+            terminal: terminal,
+            fontSize: 14,
+            fontFamilyFallback: const ['Apple Color Emoji'],
+          ),
+        ),
       );
 
       await tester.pump();
