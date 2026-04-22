@@ -198,17 +198,32 @@ class FprintdClient {
       return false;
     } finally {
       await sub?.cancel();
-      if (device != null && started) {
-        try {
-          await device.callMethod(_deviceInterface, 'VerifyStop', const []);
-        } catch (_) {}
-      }
-      if (device != null && claimed) {
-        try {
-          await device.callMethod(_deviceInterface, 'Release', const []);
-        } catch (_) {}
-      }
+      await _releaseDevice(device: device, started: started, claimed: claimed);
       await client.close();
+    }
+  }
+
+  /// Best-effort cleanup of a verify session's Device. Each call is
+  /// swallowed because the surrounding `verify()` has already decided
+  /// the outcome — an exception here only means the reader was lost
+  /// mid-verify, and there is nothing useful to do with that.
+  /// Extracted so `verify()` stays under the S3776 cognitive-
+  /// complexity threshold.
+  Future<void> _releaseDevice({
+    required DBusRemoteObject? device,
+    required bool started,
+    required bool claimed,
+  }) async {
+    if (device == null) return;
+    if (started) {
+      try {
+        await device.callMethod(_deviceInterface, 'VerifyStop', const []);
+      } catch (_) {}
+    }
+    if (claimed) {
+      try {
+        await device.callMethod(_deviceInterface, 'Release', const []);
+      } catch (_) {}
     }
   }
 
