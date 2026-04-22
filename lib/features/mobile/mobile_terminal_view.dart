@@ -450,32 +450,48 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       onPointerCancel: _onPointerUp,
       child: Stack(
         children: [
-          TerminalView(
-            _terminal,
-            controller: _terminalController,
-            autofocus: true,
-            backgroundOpacity: 1.0,
-            padding: const EdgeInsets.all(4),
-            theme: AppTheme.terminalTheme,
-            textStyle: TerminalStyle(
-              fontSize: _fontSize,
-              fontFamily: AppFonts.monoFamily,
-              fontFamilyFallback: AppFonts.monoFallback,
+          // Isolate xterm's internal gesture recognizers (drag-select,
+          // scroll) while copy mode is active. xterm still sees
+          // `setSuspendPointerInput(true)` which gates mouse-reporting
+          // to the remote shell, but its LOCAL LongPressGestureRecognizer
+          // + PanGestureRecognizer keep firing without this shield:
+          // a single-finger drag in copy mode used to run both
+          // `renderTerminal.selectCharacters` (xterm) *and*
+          // `onCursorPan` (our overlay) on every frame, and the two
+          // competing setSelection calls produced the duplicate-rows +
+          // gaps artefacts users saw in scrollback. `AbsorbPointer`
+          // blocks pointers from reaching TerminalView; the outer
+          // Listener still observes them via its ancestor hit-test so
+          // cursor-pan deltas keep flowing.
+          AbsorbPointer(
+            absorbing: _copyMode,
+            child: TerminalView(
+              _terminal,
+              controller: _terminalController,
+              autofocus: true,
+              backgroundOpacity: 1.0,
+              padding: const EdgeInsets.all(4),
+              theme: AppTheme.terminalTheme,
+              textStyle: TerminalStyle(
+                fontSize: _fontSize,
+                fontFamily: AppFonts.monoFamily,
+                fontFamilyFallback: AppFonts.monoFallback,
+              ),
+              // xterm's default is `TextInputType.emailAddress`, which
+              // tells Gboard/iOS that the field holds an email — the
+              // IME then surfaces email-specific helpers (the
+              // clipboard/@-symbol pill, auto-suggest toolbars that
+              // wouldn't dismiss with a tap on the terminal) that
+              // users correctly interpreted as "random popups I
+              // can't close". `TextInputType.text` removes the
+              // email hint while still advertising a text field so
+              // IMEs keep full cursor-gesture support; xterm's own
+              // `CustomTextEdit` already disables autocorrect,
+              // suggestions, and IME personalisation inside its
+              // `TextInputConfiguration`, so the field stays
+              // prediction-free regardless.
+              keyboardType: TextInputType.text,
             ),
-            // xterm's default is `TextInputType.emailAddress`, which
-            // tells Gboard/iOS that the field holds an email — the
-            // IME then surfaces email-specific helpers (the
-            // clipboard/@-symbol pill, auto-suggest toolbars that
-            // wouldn't dismiss with a tap on the terminal) that
-            // users correctly interpreted as "random popups I
-            // can't close". `TextInputType.text` removes the
-            // email hint while still advertising a text field so
-            // IMEs keep full cursor-gesture support; xterm's own
-            // `CustomTextEdit` already disables autocorrect,
-            // suggestions, and IME personalisation inside its
-            // `TextInputConfiguration`, so the field stays
-            // prediction-free regardless.
-            keyboardType: TextInputType.text,
           ),
           Positioned.fill(
             child: CursorTextOverlay(terminal: _terminal, fontSize: _fontSize),

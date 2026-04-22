@@ -1037,6 +1037,52 @@ void main() {
       },
     );
 
+    testWidgets('AbsorbPointer gates the terminal while copy mode is active', (
+      tester,
+    ) async {
+      // Regression gate. xterm's internal PanGestureRecognizer was
+      // racing `TerminalCopyOverlay.onCursorPan` on every frame —
+      // both wrote to `TerminalController.setSelection`, which painted
+      // duplicate scrollback rows and left selection gaps. The fix
+      // wraps `TerminalView` in an `AbsorbPointer` whose `absorbing`
+      // flag tracks `_copyMode`. Pin that invariant here: when the
+      // mode is off, the AbsorbPointer is transparent; when the
+      // overlay is active, it absorbs.
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      AbsorbPointer guard() {
+        final finder = find.ancestor(
+          of: find.byType(TerminalView),
+          matching: find.byType(AbsorbPointer),
+        );
+        return tester.widget<AbsorbPointer>(finder.first);
+      }
+
+      expect(guard().absorbing, isFalse);
+
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pumpAndSettle();
+      expect(guard().absorbing, isTrue);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(guard().absorbing, isFalse);
+    });
+
     testWidgets('selection set INSIDE copy mode survives the guard', (
       tester,
     ) async {
