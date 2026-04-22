@@ -253,6 +253,40 @@ void main() {
       },
     );
 
+    testWidgets('icon renders alongside label', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          AppButton.primary(
+            label: 'Download',
+            icon: Icons.download,
+            onTap: () {},
+          ),
+        ),
+      );
+      expect(find.text('Download'), findsOneWidget);
+      expect(find.byIcon(Icons.download), findsOneWidget);
+    });
+
+    testWidgets('loading hides the icon even when icon: is supplied', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          AppButton.primary(
+            label: 'Download',
+            icon: Icons.download,
+            onTap: () {},
+            loading: true,
+          ),
+        ),
+      );
+      // During an in-flight action the spinner owns the leading
+      // slot; otherwise the control flickers between icon-only and
+      // spinner-only framings when the async flow is short-lived.
+      expect(find.byIcon(Icons.download), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
     testWidgets('fullWidth expands to the host constraint', (tester) async {
       await tester.pumpWidget(
         wrap(

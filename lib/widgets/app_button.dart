@@ -23,6 +23,11 @@ import 'hover_region.dart';
 /// * `.destructive()` — red background, on-accent text
 ///
 /// Modifiers available on every factory + the default constructor:
+/// * `icon: IconData` — prepends a leading icon sized to the label's
+///   font-size and tinted to the foreground colour. Replaces every
+///   `FilledButton.icon` / `OutlinedButton.icon` / `TextButton.icon`
+///   callsite across the app. The icon is hidden under `loading:
+///   true` so the progress indicator owns the leading slot.
 /// * `loading: true` — swaps the label for a CircularProgressIndicator
 ///   sized to the label's font size and disables tap handling. Used
 ///   while an async action the button triggered is still in flight;
@@ -46,6 +51,7 @@ class AppButton extends StatelessWidget {
   final bool loading;
   final bool dense;
   final bool fullWidth;
+  final IconData? icon;
 
   const AppButton({
     super.key,
@@ -57,6 +63,7 @@ class AppButton extends StatelessWidget {
     this.loading = false,
     this.dense = false,
     this.fullWidth = false,
+    this.icon,
   });
 
   /// Cancel / dismiss button — no background, dim text.
@@ -66,6 +73,7 @@ class AppButton extends StatelessWidget {
     bool loading,
     bool dense,
     bool fullWidth,
+    IconData? icon,
   }) = _CancelAction;
 
   /// Primary action — accent background.
@@ -77,6 +85,7 @@ class AppButton extends StatelessWidget {
     bool loading,
     bool dense,
     bool fullWidth,
+    IconData? icon,
   }) = _PrimaryAction;
 
   /// Secondary action — subtle background.
@@ -88,6 +97,7 @@ class AppButton extends StatelessWidget {
     bool loading,
     bool dense,
     bool fullWidth,
+    IconData? icon,
   }) = _SecondaryAction;
 
   /// Destructive action — red background.
@@ -99,6 +109,7 @@ class AppButton extends StatelessWidget {
     bool loading,
     bool dense,
     bool fullWidth,
+    IconData? icon,
   }) = _DestructiveAction;
 
   @override
@@ -133,27 +144,47 @@ class AppButton extends StatelessWidget {
     // font size and grows the button vertically when needed.
     // `ellipsis` caps the worst outlier at two lines rather
     // than letting the button unbounded-grow the footer.
-    final Widget child = loading
-        ? SizedBox(
-            width: fontSize,
-            height: fontSize,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
-            ),
-          )
-        : Text(
-            label,
-            textAlign: TextAlign.center,
-            softWrap: true,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.inter(
-              fontSize: fontSize,
-              fontWeight: hasBg ? FontWeight.w500 : null,
-              color: effectiveFg,
-            ),
-          );
+    final Widget label0 = Text(
+      label,
+      textAlign: TextAlign.center,
+      softWrap: true,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: AppFonts.inter(
+        fontSize: fontSize,
+        fontWeight: hasBg ? FontWeight.w500 : null,
+        color: effectiveFg,
+      ),
+    );
+
+    final Widget child;
+    if (loading) {
+      // Loading state owns the leading slot — no icon beside the
+      // indicator. The whole control width is pinned to the spinner's
+      // square so the button doesn't jitter between "icon + label"
+      // and "spinner only".
+      child = SizedBox(
+        width: fontSize,
+        height: fontSize,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
+        ),
+      );
+    } else if (icon != null) {
+      child = Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: fontSize + 2, color: effectiveFg),
+          SizedBox(width: dense ? 4 : 6),
+          Flexible(child: label0),
+        ],
+      );
+    } else {
+      child = label0;
+    }
 
     Widget button = HoverRegion(
       cursor: tapActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
@@ -210,6 +241,7 @@ class _CancelAction extends AppButton {
     super.loading = false,
     super.dense = false,
     super.fullWidth = false,
+    super.icon,
   }) : super(label: '', enabled: true);
 
   @override
@@ -220,6 +252,7 @@ class _CancelAction extends AppButton {
       loading: loading,
       dense: dense,
       fullWidth: fullWidth,
+      icon: icon,
     );
   }
 }
@@ -231,6 +264,7 @@ class _CancelActionResolved extends AppButton {
     super.loading = false,
     super.dense = false,
     super.fullWidth = false,
+    super.icon,
   }) : super(enabled: true);
 }
 
@@ -243,6 +277,7 @@ class _PrimaryAction extends AppButton {
     super.loading = false,
     super.dense = false,
     super.fullWidth = false,
+    super.icon,
   }) : super(background: AppTheme.accent, foreground: AppTheme.onAccent);
 }
 
@@ -255,6 +290,7 @@ class _SecondaryAction extends AppButton {
     super.loading = false,
     super.dense = false,
     super.fullWidth = false,
+    super.icon,
   }) : super(background: AppTheme.bg4, foreground: AppTheme.fg);
 }
 
@@ -267,5 +303,6 @@ class _DestructiveAction extends AppButton {
     super.loading = false,
     super.dense = false,
     super.fullWidth = false,
+    super.icon,
   }) : super(background: AppTheme.disconnected, foreground: AppTheme.onAccent);
 }
