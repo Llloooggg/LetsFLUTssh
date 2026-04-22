@@ -407,10 +407,15 @@ class _RawBlock {
 bool _isWildcardPattern(String host) =>
     host.contains('*') || host.contains('?') || host.startsWith('!');
 
-/// Minimal OpenSSH-style glob: `*` matches any run (including empty), `?`
-/// matches exactly one char, everything else is literal. Case-sensitive.
-bool _globMatches(String pattern, String text) {
-  // Anchor at both ends.
+/// Compiled globs keyed by raw pattern. OpenSSH config rarely declares
+/// more than a handful of distinct `Host` patterns, so the cache stays
+/// tiny for the life of the process. Without it, [_globMatches] recompiled
+/// a [RegExp] per `(pattern, host)` pair on every config parse — quadratic
+/// in the number of host blocks for the scan that walks every `Host` line
+/// while resolving one target.
+final _globRegexCache = <String, RegExp>{};
+
+RegExp _compileGlob(String pattern) {
   final regex = StringBuffer('^');
   for (final c in pattern.split('')) {
     if (c == '*') {
@@ -422,7 +427,17 @@ bool _globMatches(String pattern, String text) {
     }
   }
   regex.write(r'$');
-  return RegExp(regex.toString()).hasMatch(text);
+  return RegExp(regex.toString());
+}
+
+/// Minimal OpenSSH-style glob: `*` matches any run (including empty), `?`
+/// matches exactly one char, everything else is literal. Case-sensitive.
+bool _globMatches(String pattern, String text) {
+  final compiled = _globRegexCache.putIfAbsent(
+    pattern,
+    () => _compileGlob(pattern),
+  );
+  return compiled.hasMatch(text);
 }
 
 String _stripComment(String line) {
@@ -436,10 +451,15 @@ String _stripComment(String line) {
   return line;
 }
 
+/// Matches the first whitespace character; pre-compiled so the
+/// per-line [_splitKeywordValue] scan does not recompile the regex on
+/// every config line.
+final _whitespaceRegex = RegExp(r'\s');
+
 (String?, String?) _splitKeywordValue(String line) {
   // OpenSSH allows `keyword value` or `keyword = value` (optional equals).
   final eqIdx = line.indexOf('=');
-  final spaceMatch = RegExp(r'\s').firstMatch(line);
+  final spaceMatch = _whitespaceRegex.firstMatch(line);
   final spaceIdx = spaceMatch?.start ?? -1;
 
   int sepIdx;
