@@ -15,6 +15,8 @@ import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_collection_toolbar.dart';
+import '../../widgets/app_data_row.dart';
+import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
@@ -34,6 +36,7 @@ class KeyManagerPanel extends ConsumerStatefulWidget {
 class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   List<SshKeyEntry> _keys = [];
   bool _loading = true;
+  String _filter = '';
 
   @override
   void initState() {
@@ -84,6 +87,14 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     // as "this key is invalid" instead of "no picker available".
     return AppCollectionToolbar(
       hasItems: _keys.isNotEmpty,
+      // Search + count mirror the snippet / tag manager toolbars so
+      // every collection dialog reads the same way. Without the search
+      // field the key list layout drifted visually from snippets even
+      // though both use AppCollectionToolbar.
+      search: AppDataSearchBar(
+        onChanged: (v) => setState(() => _filter = v),
+        hintText: s.search,
+      ),
       countLabel: s.keyCount(_keys.length),
       actions: [
         _ToolbarButton(
@@ -105,6 +116,18 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     );
   }
 
+  List<SshKeyEntry> _filtered() {
+    final q = _filter.trim().toLowerCase();
+    if (q.isEmpty) return _keys;
+    return _keys
+        .where(
+          (k) =>
+              k.label.toLowerCase().contains(q) ||
+              k.keyType.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
   Widget _buildBody(S s) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
@@ -112,63 +135,41 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     if (_keys.isEmpty) {
       return AppEmptyState(message: s.noKeys);
     }
+    final visible = _filtered();
+    if (visible.isEmpty) {
+      return AppEmptyState(message: s.noResults);
+    }
     return ListView.separated(
-      itemCount: _keys.length,
+      itemCount: visible.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildKeyEntry(s, _keys[index]),
+      itemBuilder: (context, index) => _buildKeyEntry(s, visible[index]),
     );
   }
 
   Widget _buildKeyEntry(S s, SshKeyEntry entry) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            Icons.vpn_key,
-            size: 16,
-            color: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.label,
-                  style: AppFonts.inter(
-                    fontSize: AppFonts.sm,
-                    color: AppTheme.fg,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
-                  '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
-                  style: AppFonts.mono(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AppIconButton(
-            icon: Icons.content_copy,
-            tooltip: s.publicKey,
-            dense: true,
-            onTap: () => _copyPublicKey(entry),
-          ),
-          AppIconButton(
-            icon: Icons.delete_outline,
-            tooltip: s.deleteKey,
-            dense: true,
-            color: AppTheme.red,
-            onTap: () => _deleteKey(entry),
-          ),
-        ],
-      ),
+    return AppDataRow(
+      icon: Icons.vpn_key,
+      iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
+      title: entry.label,
+      secondary:
+          '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
+          '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
+      secondaryMono: true,
+      trailing: [
+        AppIconButton(
+          icon: Icons.content_copy,
+          tooltip: s.publicKey,
+          dense: true,
+          onTap: () => _copyPublicKey(entry),
+        ),
+        AppIconButton(
+          icon: Icons.delete_outline,
+          tooltip: s.deleteKey,
+          dense: true,
+          color: AppTheme.red,
+          onTap: () => _deleteKey(entry),
+        ),
+      ],
     );
   }
 

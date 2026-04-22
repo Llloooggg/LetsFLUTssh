@@ -75,7 +75,7 @@ class AppDataRow extends StatelessWidget {
         child: Row(
           children: [
             _buildLeading(),
-            if (_leadingWidget() != null) const SizedBox(width: iconGap),
+            if (leading != null || icon != null) const SizedBox(width: iconGap),
             Expanded(child: _buildTextColumn()),
             for (final w in trailing) ...[
               const SizedBox(width: trailingGap),
@@ -98,12 +98,6 @@ class AppDataRow extends StatelessWidget {
       );
     }
     return body;
-  }
-
-  Widget? _leadingWidget() {
-    if (leading != null) return leading;
-    if (icon != null) return null; // rendered by _buildLeading
-    return null;
   }
 
   Widget _buildLeading() {
