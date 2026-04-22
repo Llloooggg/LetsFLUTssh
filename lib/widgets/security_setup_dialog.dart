@@ -359,144 +359,146 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           const SizedBox(height: 14),
         ],
 
-        _TierRow(
-          badge: 'T0',
-          label: l10n.tierPlaintextLabel,
-          subtitle: l10n.tierPlaintextSubtitle,
-          accent: AppTheme.red,
-          selected: _selected == WizardTier.plaintext,
-          current: widget.currentTier == SecurityTier.plaintext,
-          onSelect: () => setState(() => _selected = WizardTier.plaintext),
-        ),
-        if (!reduced)
-          _TierRow(
-            badge: 'T1',
-            label: l10n.tierKeychainLabel,
-            subtitle: l10n.tierKeychainSubtitle(_keychainName),
-            accent: AppTheme.accent,
-            selected: _selected == WizardTier.keychain,
-            current:
-                widget.currentTier == SecurityTier.keychain ||
-                widget.currentTier == SecurityTier.keychainWithPassword,
-            recommended: _recommendedTier(caps) == WizardTier.keychain,
-            // Prefer the classified probe reason over the generic
-            // "tierKeychainUnavailable" copy so the user sees WHY
-            // the row is greyed (no secret-service on Linux, ad-hoc
-            // signing entitlement error on macOS, etc.). Fall back
-            // to the generic string when the probe classifier
-            // returns `available` yet some earlier gate still said
-            // unavailable — defensive, should not happen in
-            // practice.
-            disabledReason: caps.keychainAvailable
-                ? null
-                : () {
-                    final reason = keyringProbeDetailText(
-                      l10n,
-                      caps.keychainProbe,
-                    );
-                    return reason.isEmpty
-                        ? l10n.tierKeychainUnavailable
-                        : reason;
-                  }(),
-            onSelect: caps.keychainAvailable
-                ? () => setState(() => _selected = WizardTier.keychain)
-                : null,
-          ),
-        if (!reduced)
-          _TierRow(
-            badge: 'T2',
-            label: l10n.tierHardwareLabel,
-            subtitle: l10n.tierHardwareSubtitleHonest,
-            accent: AppTheme.accent,
-            selected: _selected == WizardTier.hardware,
-            current: widget.currentTier == SecurityTier.hardware,
-            recommended: _recommendedTier(caps) == WizardTier.hardware,
-            // Same "prefer classified reason over generic copy"
-            // pattern as the T1 row. The raw code comes from the
-            // native `HardwareTierVault.probeDetail` channel or
-            // from the Linux TPM CLI wrapper; `decodeHardwareProbeCode`
-            // maps it to the `HardwareProbeDetail` enum and the
-            // existing `hardwareProbeDetailText` helper supplies the
-            // localised string. Unknown / missing codes fall through
-            // to the generic "unavailable" copy.
-            disabledReason: caps.hardwareVaultAvailable
-                ? null
-                : () {
-                    final detail = decodeHardwareProbeCode(
-                      caps.hardwareProbeCode,
-                    );
-                    final reason = hardwareProbeDetailText(l10n, detail);
-                    return reason.isEmpty
-                        ? l10n.tierHardwareUnavailable
-                        : reason;
-                  }(),
-            onSelect: caps.hardwareVaultAvailable
-                ? () => setState(() => _selected = WizardTier.hardware)
-                : null,
-          ),
+        _buildPlaintextRow(l10n),
+        if (!reduced) _buildKeychainRow(l10n, caps),
+        if (!reduced) _buildHardwareRow(l10n, caps),
 
         const SizedBox(height: 10),
         const _SectionDivider(),
         const SizedBox(height: 10),
 
-        _TierRow(
-          badge: 'P',
-          label: l10n.tierParanoidLabel,
-          subtitle: l10n.tierParanoidSubtitleHonest,
-          accent: AppTheme.purple,
-          selected: _selected == WizardTier.paranoid,
-          current: widget.currentTier == SecurityTier.paranoid,
-          onSelect: () => setState(() {
-            _selected = WizardTier.paranoid;
-            _password = true; // Paranoid is always password-gated.
-            _biometric = false; // Forbidden by design.
-          }),
-        ),
+        _buildParanoidRow(l10n),
 
         const SizedBox(height: 18),
         _buildModifierPanel(l10n, caps),
 
         const SizedBox(height: 18),
-        Wrap(
-          // spaceBetween keeps Cancel on the left and Apply on the right
-          // on the edit path (two buttons present). On the first-launch
-          // path Cancel is hidden (see note below), so the Wrap holds a
-          // single child — end-align in that branch so the primary
-          // action lands on the right instead of drifting to the left
-          // edge (spaceBetween with one child collapses to start).
-          alignment: widget.dismissible
-              ? WrapAlignment.spaceBetween
-              : WrapAlignment.end,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            // Cancel is only meaningful on the edit path (Settings →
-            // change tier). On first-launch the dialog is
-            // non-dismissible (`PopScope(canPop: false)`), so a Cancel
-            // button there is a dead control — hide it to avoid
-            // confusing the user.
-            if (widget.dismissible)
-              TextButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                child: Text(l10n.cancel),
-              ),
-            FilledButton(
-              onPressed: _canSubmit() ? _submit : null,
-              // "Apply" on the edit path (user is already set up and
-              // just changing tier) vs "Enable" on the first-launch
-              // path (keychain probe came back false → user picks
-              // between T0 and Paranoid before startup can proceed).
-              // "Continue with Recommended" was a lie when T0 or
-              // another non-recommended tier was selected — replaced
-              // unconditionally.
-              child: Text(
-                widget.currentTier == null
-                    ? l10n.securitySetupEnable
-                    : l10n.securitySetupApply,
-              ),
-            ),
-          ],
+        _buildFooterActions(l10n),
+      ],
+    );
+  }
+
+  Widget _buildPlaintextRow(S l10n) => _TierRow(
+    badge: 'T0',
+    label: l10n.tierPlaintextLabel,
+    subtitle: l10n.tierPlaintextSubtitle,
+    accent: AppTheme.red,
+    selected: _selected == WizardTier.plaintext,
+    current: widget.currentTier == SecurityTier.plaintext,
+    onSelect: () => setState(() => _selected = WizardTier.plaintext),
+  );
+
+  Widget _buildKeychainRow(S l10n, SecurityCapabilities caps) => _TierRow(
+    badge: 'T1',
+    label: l10n.tierKeychainLabel,
+    subtitle: l10n.tierKeychainSubtitle(_keychainName),
+    accent: AppTheme.accent,
+    selected: _selected == WizardTier.keychain,
+    current:
+        widget.currentTier == SecurityTier.keychain ||
+        widget.currentTier == SecurityTier.keychainWithPassword,
+    recommended: _recommendedTier(caps) == WizardTier.keychain,
+    // Prefer the classified probe reason over the generic
+    // "tierKeychainUnavailable" copy so the user sees WHY
+    // the row is greyed (no secret-service on Linux, ad-hoc
+    // signing entitlement error on macOS, etc.). Fall back
+    // to the generic string when the probe classifier returns
+    // `available` yet some earlier gate still said unavailable
+    // — defensive, should not happen in practice.
+    disabledReason: caps.keychainAvailable
+        ? null
+        : _keychainDisabledReason(l10n, caps),
+    onSelect: caps.keychainAvailable
+        ? () => setState(() => _selected = WizardTier.keychain)
+        : null,
+  );
+
+  Widget _buildHardwareRow(S l10n, SecurityCapabilities caps) => _TierRow(
+    badge: 'T2',
+    label: l10n.tierHardwareLabel,
+    subtitle: l10n.tierHardwareSubtitleHonest,
+    accent: AppTheme.accent,
+    selected: _selected == WizardTier.hardware,
+    current: widget.currentTier == SecurityTier.hardware,
+    recommended: _recommendedTier(caps) == WizardTier.hardware,
+    // Same "prefer classified reason over generic copy" pattern
+    // as the T1 row. The raw code comes from the native
+    // `HardwareTierVault.probeDetail` channel or from the Linux
+    // TPM CLI wrapper; `decodeHardwareProbeCode` maps it to the
+    // `HardwareProbeDetail` enum and the existing
+    // `hardwareProbeDetailText` helper supplies the localised
+    // string. Unknown / missing codes fall through to the
+    // generic "unavailable" copy.
+    disabledReason: caps.hardwareVaultAvailable
+        ? null
+        : _hardwareDisabledReason(l10n, caps),
+    onSelect: caps.hardwareVaultAvailable
+        ? () => setState(() => _selected = WizardTier.hardware)
+        : null,
+  );
+
+  Widget _buildParanoidRow(S l10n) => _TierRow(
+    badge: 'P',
+    label: l10n.tierParanoidLabel,
+    subtitle: l10n.tierParanoidSubtitleHonest,
+    accent: AppTheme.purple,
+    selected: _selected == WizardTier.paranoid,
+    current: widget.currentTier == SecurityTier.paranoid,
+    onSelect: () => setState(() {
+      _selected = WizardTier.paranoid;
+      _password = true; // Paranoid is always password-gated.
+      _biometric = false; // Forbidden by design.
+    }),
+  );
+
+  String _keychainDisabledReason(S l10n, SecurityCapabilities caps) {
+    final reason = keyringProbeDetailText(l10n, caps.keychainProbe);
+    return reason.isEmpty ? l10n.tierKeychainUnavailable : reason;
+  }
+
+  String _hardwareDisabledReason(S l10n, SecurityCapabilities caps) {
+    final detail = decodeHardwareProbeCode(caps.hardwareProbeCode);
+    final reason = hardwareProbeDetailText(l10n, detail);
+    return reason.isEmpty ? l10n.tierHardwareUnavailable : reason;
+  }
+
+  Widget _buildFooterActions(S l10n) {
+    return Wrap(
+      // spaceBetween keeps Cancel on the left and Apply on the right
+      // on the edit path (two buttons present). On the first-launch
+      // path Cancel is hidden (see note below), so the Wrap holds a
+      // single child — end-align in that branch so the primary
+      // action lands on the right instead of drifting to the left
+      // edge (spaceBetween with one child collapses to start).
+      alignment: widget.dismissible
+          ? WrapAlignment.spaceBetween
+          : WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        // Cancel is only meaningful on the edit path (Settings →
+        // change tier). On first-launch the dialog is non-dismissible
+        // (`PopScope(canPop: false)`), so a Cancel button there is a
+        // dead control — hide it to avoid confusing the user.
+        if (widget.dismissible)
+          TextButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            child: Text(l10n.cancel),
+          ),
+        FilledButton(
+          onPressed: _canSubmit() ? _submit : null,
+          // "Apply" on the edit path (user is already set up and just
+          // changing tier) vs "Enable" on the first-launch path
+          // (keychain probe came back false → user picks between T0
+          // and Paranoid before startup can proceed). "Continue with
+          // Recommended" was a lie when T0 or another non-recommended
+          // tier was selected — replaced unconditionally.
+          child: Text(
+            widget.currentTier == null
+                ? l10n.securitySetupEnable
+                : l10n.securitySetupApply,
+          ),
         ),
       ],
     );
