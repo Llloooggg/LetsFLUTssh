@@ -148,13 +148,11 @@ class _EmptyState extends StatelessWidget {
           // selectable — without it drag-select caught "+ Add Session"
           // as if it were body text, and Ctrl+C copied the label.
           SelectionContainer.disabled(
-            child: TextButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(
-                S.of(context).addSession,
-                style: TextStyle(fontSize: AppFonts.md),
-              ),
+            child: AppButton(
+              label: S.of(context).addSession,
+              icon: Icons.add,
+              onTap: onAdd,
+              dense: true,
             ),
           ),
         ],
