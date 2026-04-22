@@ -59,4 +59,49 @@ void main() {
       },
     );
   });
+
+  group('CertPinning.enforce', () {
+    test(
+      'installs a badCertificateCallback that delegates to CertPinning.accept',
+      () {
+        // The callback is the only integration point between HttpClient
+        // and the pin check; if enforce silently omits it or installs
+        // the wrong function, all TLS failures would be accepted (or
+        // silently rejected) without going through the pin table.
+        final client = _CapturingHttpClient();
+        CertPinning.enforce(client);
+
+        expect(client.installed, isNotNull);
+        final callback = client.installed!;
+        final dummy = _FakeCert([9, 9, 9]);
+        // Unknown host → must reject (no pin entry at all).
+        expect(callback(dummy, 'evil.example.com', 443), isFalse);
+        // Pinned host with empty list → still rejects (falls through
+        // to system CA, which already said no).
+        expect(callback(dummy, 'api.github.com', 443), isFalse);
+        expect(callback(dummy, 'objects.githubusercontent.com', 443), isFalse);
+      },
+    );
+  });
+}
+
+/// Captures the `badCertificateCallback` setter value so the test can
+/// re-invoke it with synthetic inputs — `HttpClient` does not expose the
+/// field as a getter.
+class _CapturingHttpClient implements HttpClient {
+  bool Function(X509Certificate, String, int)? installed;
+
+  @override
+  set badCertificateCallback(
+    bool Function(X509Certificate cert, String host, int port)? value,
+  ) {
+    installed = value;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    throw UnimplementedError(
+      '${invocation.memberName} is not used by CertPinning.enforce',
+    );
+  }
 }

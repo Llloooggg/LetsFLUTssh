@@ -350,4 +350,97 @@ void main() {
       expect(out, isNot(contains('jdoe')));
     });
   });
+
+  group('AppLogger.logCritical', () {
+    test(
+      'writes to disk even when routine logging is disabled (crash bypass)',
+      () async {
+        // The whole point of logCritical is that a fresh install crashing
+        // before the user has ever flipped the toggle still leaves a
+        // breadcrumb on disk. A refactor that accidentally gates this
+        // method behind `_enabled` (like the routine `log()` path) would
+        // silently stop producing crash traces.
+        await AppLogger.instance.init();
+        expect(AppLogger.instance.enabled, isFalse);
+
+        await AppLogger.instance.logCritical(
+          'fatal: db open rejected',
+          name: 'Crash',
+          error: 'SqliteException(NOTADB)',
+          stackTrace: StackTrace.fromString('#0 openDb\n#1 main'),
+        );
+
+        final content = await AppLogger.instance.readLog();
+        expect(content, contains('[Crash] fatal: db open rejected'));
+        expect(content, contains('Error: SqliteException(NOTADB)'));
+        expect(content, contains('Stack trace:'));
+        expect(content, contains('#0 openDb'));
+      },
+    );
+
+    test('sanitises critical-path message / error / stack trace', () async {
+      await AppLogger.instance.init();
+      await AppLogger.instance.logCritical(
+        'crashed talking to admin@example.com via 10.0.0.7:22',
+        name: 'Crit',
+        error: 'SecretContext: password=${"A" * 250}',
+        stackTrace: StackTrace.fromString('#0 /home/jdoe/.ssh/id_rsa'),
+      );
+
+      final content = await AppLogger.instance.readLog();
+      expect(content, contains('<ip>'));
+      expect(content, isNot(contains('10.0.0.7')));
+      expect(content, contains('<user>@example.com'));
+      expect(content, isNot(contains('admin@')));
+      expect(content, contains('[REDACTED BASE64]'));
+      expect(content, contains('/<user>/'));
+    });
+
+    test('is a no-op when init() was never called (null logPath)', () async {
+      // Fresh logger with no init — logPath remains null. logCritical
+      // must still return without throwing; the dev.log forward path is
+      // the only observable effect, which the test cannot easily assert.
+      await AppLogger.instance.dispose();
+      // Pretend init never ran by not calling it. A direct logCritical
+      // call against the null path must be safe.
+      await AppLogger.instance.logCritical('no path set', name: 'NoInit');
+      // The whole suite uses a single singleton — at tear-down the
+      // teardown hook resets it; nothing else to assert here, the
+      // contract is "does not throw".
+    });
+
+    test(
+      'appends each call on top of the file without truncating prior writes',
+      () async {
+        await AppLogger.instance.init();
+        await AppLogger.instance.logCritical('first crit', name: 'A');
+        await AppLogger.instance.logCritical('second crit', name: 'B');
+        final content = await AppLogger.instance.readLog();
+        expect(content, contains('[A] first crit'));
+        expect(
+          content,
+          contains('[B] second crit'),
+          reason: 'second write must append, not overwrite',
+        );
+      },
+    );
+
+    test(
+      'recreates the logs/ parent directory if the user cleared it mid-run',
+      () async {
+        await AppLogger.instance.init();
+        final logPath = AppLogger.instance.logPath!;
+        // Simulate the user triggering Settings → Clear Logs in a way
+        // that nuked the whole `logs/` directory under us.
+        final parent = File(logPath).parent;
+        if (parent.existsSync()) parent.deleteSync(recursive: true);
+        expect(parent.existsSync(), isFalse);
+
+        await AppLogger.instance.logCritical('post-wipe crit', name: 'W');
+
+        expect(parent.existsSync(), isTrue);
+        expect(File(logPath).existsSync(), isTrue);
+      },
+    );
+  });
 }

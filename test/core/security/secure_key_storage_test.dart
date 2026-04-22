@@ -253,6 +253,65 @@ void main() {
         fakeStorage.shouldThrow = true;
         expect(await keyStorage.readBiometricKey(), isNull);
       });
+
+      test('deleteBiometricKey swallows backing-store errors', () async {
+        // The delete path is best-effort by design — a throw here would
+        // turn a flaky keychain into a fatal tier-switch failure for
+        // the user. Locking the contract as "never throws" keeps that
+        // invariant visible in tests.
+        fakeStorage.shouldThrow = true;
+        await keyStorage.deleteBiometricKey();
+      });
+    });
+
+    group('probe classification (non-Linux / injected-storage fast path)', () {
+      test(
+        'returns `available` when write/read/delete round-trip succeeds',
+        () async {
+          expect(await keyStorage.probe(), KeyringProbeResult.available);
+        },
+      );
+
+      test('returns `probeFailed` when the backing store throws', () async {
+        fakeStorage.shouldThrow = true;
+        expect(await keyStorage.probe(), KeyringProbeResult.probeFailed);
+      });
+
+      test(
+        'drops the probe sentinel after a successful classification',
+        () async {
+          await keyStorage.probe();
+          final all = await fakeStorage.readAll();
+          expect(
+            all.containsKey('letsflutssh_keychain_probe'),
+            isFalse,
+            reason: 'probe must not leak its sentinel into the keychain',
+          );
+        },
+      );
+    });
+
+    group('enableRuntimeSubprocessProbes', () {
+      test('is idempotent and does not throw', () {
+        // The flag is a static latch that main.dart flips once before
+        // the first provider evaluates; calling it twice is a no-op
+        // from the test's perspective and must stay side-effect free.
+        SecureKeyStorage.enableRuntimeSubprocessProbes();
+        SecureKeyStorage.enableRuntimeSubprocessProbes();
+      });
+    });
+
+    group('KeyringProbeResult', () {
+      test('carries every documented classification label', () {
+        // Settings UI maps reason codes to ARB strings; a silent new
+        // enum value without a matching locale key surfaces as a blank
+        // tooltip. Pin the current three-variant vocabulary here.
+        expect(KeyringProbeResult.values, <KeyringProbeResult>[
+          KeyringProbeResult.available,
+          KeyringProbeResult.linuxNoSecretService,
+          KeyringProbeResult.probeFailed,
+        ]);
+      });
     });
   });
 }

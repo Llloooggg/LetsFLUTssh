@@ -71,5 +71,22 @@ void main() {
       final b = Snippet(title: 'B', command: 'b');
       expect(a.id, isNot(b.id));
     });
+
+    test('copyWith without title keeps the original title', () {
+      // Pins the `title: title ?? this.title` branch — a refactor that
+      // swapped the fallback direction would silently wipe titles on
+      // command-only edits.
+      final original = Snippet(id: 'x', title: 'Kept', command: 'old');
+      final updated = original.copyWith(command: 'new');
+      expect(updated.title, 'Kept');
+      expect(updated.command, 'new');
+    });
+
+    test('toString surfaces id + title for log + dev-tools triage', () {
+      final s = Snippet(id: 'abc', title: 'Reboot', command: 'sudo reboot');
+      final repr = s.toString();
+      expect(repr, contains('abc'));
+      expect(repr, contains('Reboot'));
+    });
   });
 }

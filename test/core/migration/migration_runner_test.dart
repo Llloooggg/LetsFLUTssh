@@ -293,4 +293,159 @@ void main() {
       );
     });
   });
+
+  group('MigrationRunner.plan (dry run)', () {
+    test('returns an empty list when every artefact is on target', () async {
+      final reg = MigrationRegistry();
+      reg.registerArtefact(
+        _StubArtefact(id: 'a', targetVersion: 2, onDiskVersion: 2),
+      );
+      expect(await MigrationRunner(reg).plan(), isEmpty);
+    });
+
+    test(
+      'records each pending step with succeeded=false (nothing applied yet)',
+      () async {
+        // plan() is the "what would run" helper — it must mirror the
+        // chain runOnStartup would walk, but never actually apply any
+        // migration. A regression that let plan() call `apply()` under
+        // the hood would corrupt state every time Settings → "Check
+        // migrations" opens.
+        final reg = MigrationRegistry();
+        reg.registerArtefact(
+          _StubArtefact(id: 'a', targetVersion: 3, onDiskVersion: 1),
+        );
+        final first = _RecordingMigration(
+          artefactId: 'a',
+          fromVersion: 1,
+          toVersion: 2,
+        );
+        final second = _RecordingMigration(
+          artefactId: 'a',
+          fromVersion: 2,
+          toVersion: 3,
+        );
+        reg.registerMigration(first);
+        reg.registerMigration(second);
+
+        final steps = await MigrationRunner(reg).plan();
+
+        expect(steps, hasLength(2));
+        expect(steps.every((s) => !s.succeeded), isTrue);
+        expect(steps[0].fromVersion, 1);
+        expect(steps[0].toVersion, 2);
+        expect(steps[1].fromVersion, 2);
+        expect(steps[1].toVersion, 3);
+        // apply() must NOT have been called — recording migrations log
+        // on apply, so an empty log is our negative assertion.
+        expect(first.log, isEmpty);
+        expect(second.log, isEmpty);
+      },
+    );
+
+    test(
+      'emits a failure step + stops the chain when a migration is missing',
+      () async {
+        final reg = MigrationRegistry();
+        reg.registerArtefact(
+          _StubArtefact(id: 'a', targetVersion: 3, onDiskVersion: 1),
+        );
+        // 1 → 2 is registered, 2 → 3 is NOT.
+        reg.registerMigration(
+          _RecordingMigration(artefactId: 'a', fromVersion: 1, toVersion: 2),
+        );
+        final steps = await MigrationRunner(reg).plan();
+        expect(steps, hasLength(2));
+        // First step is the registered one (fromVersion 1, not yet run).
+        expect(steps.first.succeeded, isFalse);
+        expect(steps.first.error, isNull);
+        expect(steps.first.fromVersion, 1);
+        expect(steps.first.toVersion, 2);
+        // Second is the "no migration registered" marker: toVersion=
+        // current+1 regardless of the actual target.
+        expect(steps.last.fromVersion, 2);
+        expect(steps.last.toVersion, 3);
+        expect(steps.last.error, isA<StateError>());
+      },
+    );
+
+    test(
+      'skips absent artefacts (onDisk < 0) without recording a step',
+      () async {
+        final reg = MigrationRegistry();
+        reg.registerArtefact(
+          _StubArtefact(id: 'a', targetVersion: 5, onDiskVersion: -1),
+        );
+        expect(await MigrationRunner(reg).plan(), isEmpty);
+      },
+    );
+  });
+
+  group('MigrationRunner error paths', () {
+    test(
+      'readVersion throwing produces a fatal report without steps',
+      () async {
+        final reg = MigrationRegistry();
+        reg.registerArtefact(_ThrowingArtefact(id: 'bad', targetVersion: 2));
+        final report = await MigrationRunner(reg).runOnStartup();
+        expect(report.steps, isEmpty);
+        expect(report.fatalError, isA<StateError>());
+        expect(report.hasFailures, isTrue);
+      },
+    );
+  });
+
+  group('Exception + report toString contracts', () {
+    test('UnsupportedFutureVersionException.toString includes the context', () {
+      const ex = UnsupportedFutureVersionException(
+        artefactId: 'config',
+        onDiskVersion: 9,
+        knownTargetVersion: 3,
+      );
+      final msg = ex.toString();
+      expect(msg, contains('config'));
+      expect(msg, contains('9'));
+      expect(msg, contains('3'));
+    });
+
+    test('MigrationStep.toString carries the version direction + ok flag', () {
+      const okStep = MigrationStep(
+        artefactId: 'x',
+        fromVersion: 0,
+        toVersion: 1,
+        succeeded: true,
+      );
+      final okMsg = okStep.toString();
+      expect(okMsg, contains('x'));
+      expect(okMsg, contains('0 -> 1'));
+      expect(okMsg, contains('ok=true'));
+      expect(okMsg, isNot(contains('error=')));
+
+      final err = StateError('boom');
+      final failStep = MigrationStep(
+        artefactId: 'x',
+        fromVersion: 1,
+        toVersion: 2,
+        succeeded: false,
+        error: err,
+      );
+      final failMsg = failStep.toString();
+      expect(failMsg, contains('ok=false'));
+      expect(failMsg, contains('error='));
+    });
+  });
+}
+
+class _ThrowingArtefact extends Artefact {
+  _ThrowingArtefact({required this.id, required this.targetVersion});
+
+  @override
+  final String id;
+  @override
+  final int targetVersion;
+
+  @override
+  Future<int> readVersion() async {
+    throw StateError('artefact unreadable');
+  }
 }

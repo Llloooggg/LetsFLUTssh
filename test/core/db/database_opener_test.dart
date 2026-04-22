@@ -110,4 +110,42 @@ void main() {
       }
     });
   });
+
+  group('rekeyDatabase', () {
+    test(
+      'wraps underlying SQLite errors in RekeyFailedException (no key leak)',
+      () async {
+        final db = openTestDatabase();
+        await db.close(); // Force the rekey to fail on a dead connection.
+
+        try {
+          await rekeyDatabase(
+            db,
+            Uint8List.fromList(List<int>.generate(32, (i) => i)),
+          );
+          fail('rekeyDatabase must throw when the underlying DB is dead');
+        } on RekeyFailedException catch (e) {
+          // Sensitive material must not reach the exception surface.
+          expect(e.cipherChange, 'to-encrypted');
+          final msg = e.toString();
+          expect(msg, isNot(contains("x'")));
+          expect(msg, isNot(contains('rekey')));
+        }
+      },
+    );
+
+    test('plaintext-target cipherChange also wraps + scrubs the key', () async {
+      final db = openTestDatabase();
+      await db.close();
+      try {
+        await rekeyDatabase(db, null);
+        fail('closed connection must not accept a rekey');
+      } on RekeyFailedException catch (e) {
+        expect(e.cipherChange, 'to-plaintext');
+        final msg = e.toString();
+        expect(msg, isNot(contains("x'")));
+        expect(msg, isNot(contains('rekey')));
+      }
+    });
+  });
 }
