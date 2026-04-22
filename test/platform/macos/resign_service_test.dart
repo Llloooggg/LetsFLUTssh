@@ -108,6 +108,30 @@ class _FakeCodesigner extends Codesigner {
 }
 
 void main() {
+  group('ResignService.hasIdentity', () {
+    test('delegates to Keychain.hasCertificate', () async {
+      final svc = ResignService(
+        keychain: _FakeKeychain(certPresent: true),
+        codesigner: _FakeCodesigner(),
+      );
+      expect(await svc.hasIdentity(), isTrue);
+    });
+
+    test('returns false when the cert is absent', () async {
+      final svc = ResignService(
+        keychain: _FakeKeychain(certPresent: false),
+        codesigner: _FakeCodesigner(),
+      );
+      // The MacosInstaller + Settings + wizard all lean on the
+      // absent case as their "user hasn't opted in yet" signal —
+      // a regression here would either spam unwanted password
+      // prompts (if true leaks out) or skip re-sign for users who
+      // have enabled T1 (if false leaks out), so the two-way check
+      // is load-bearing.
+      expect(await svc.hasIdentity(), isFalse);
+    });
+  });
+
   group('ResignService.ensureIdentity', () {
     test('skips cert generation when one already exists', () async {
       final kc = _FakeKeychain(certPresent: true);

@@ -114,9 +114,17 @@ class MacosInstaller {
       //    hit `errSecMissingEntitlement` on the first T1 read.
       final preResignEnt = await codesigner.extractEntitlements(stagedPath);
 
-      // 5. re-sign if user previously enabled T1 (silent — cert ACL
-      //    grants codesign access without a password prompt).
-      await resignService.resignBundle(appBundle: stagedPath);
+      // 5. re-sign under the user's personal cert, but only if one
+      //    is actually installed. `hasIdentity` short-circuits the
+      //    no-cert case so a user who declined the first-launch
+      //    self-sign offer still gets silent updates — the bundle
+      //    just keeps the CI ad-hoc signature it came with. Calling
+      //    `resignBundle` unconditionally would fail `codesign`
+      //    subprocess with "no identity found" and rolling back the
+      //    install on every update for users who never opted in.
+      if (await resignService.hasIdentity()) {
+        await resignService.resignBundle(appBundle: stagedPath);
+      }
 
       // 6. verify the staged bundle — if it fails, discard staging
       //    and leave target untouched.
