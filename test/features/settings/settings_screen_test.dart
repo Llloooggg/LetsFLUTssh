@@ -12,6 +12,7 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
+import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
@@ -2552,7 +2553,7 @@ void main() {
       expect(find.text('Version 3.0.0 available'), findsOneWidget);
     });
 
-    testWidgets('Skip button is a tappable TextButton', (tester) async {
+    testWidgets('Skip button is a tappable AppButton', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
           initialUpdateState: const UpdateState(
@@ -2572,16 +2573,21 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      final skipButton = tester.widget<TextButton>(
+      // The skip/unskip row used to use raw `TextButton`s; after the
+      // button-widget unification they're `AppButton`s with no
+      // background. `find.byType(AppButton)` matches the concrete
+      // type since the default constructor (no factory) returns
+      // `AppButton` itself.
+      final skipButton = tester.widget<AppButton>(
         find.ancestor(
           of: find.text('Skip This Version'),
-          matching: find.byType(TextButton),
+          matching: find.byType(AppButton),
         ),
       );
-      expect(skipButton.onPressed, isNotNull);
+      expect(skipButton.onTap, isNotNull);
     });
 
-    testWidgets('Unskip button is a tappable TextButton', (tester) async {
+    testWidgets('Unskip button is a tappable AppButton', (tester) async {
       await tester.pumpWidget(
         buildUpdateApp(
           initialConfig: AppConfig.defaults.copyWith(
@@ -2604,13 +2610,13 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      final unskipButton = tester.widget<TextButton>(
+      final unskipButton = tester.widget<AppButton>(
         find.ancestor(
           of: find.text('Unskip'),
-          matching: find.byType(TextButton),
+          matching: find.byType(AppButton),
         ),
       );
-      expect(unskipButton.onPressed, isNotNull);
+      expect(unskipButton.onTap, isNotNull);
     });
 
     testWidgets('checking state shows spinner and disables button', (
@@ -2627,7 +2633,11 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.textContaining('Checking'), findsOneWidget);
-      // Spinner should be visible
+      // Spinner should be visible. `AppButton(loading: true)`
+      // replaces the icon slot with a `CircularProgressIndicator`
+      // (same widget type the old `TextButton.icon` inline spinner
+      // used), so the regression guard still holds against the
+      // unified widget.
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 

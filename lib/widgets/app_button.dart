@@ -157,19 +157,32 @@ class AppButton extends StatelessWidget {
       ),
     );
 
+    // Loading state takes over the leading icon slot — the label
+    // itself stays visible so the user keeps reading "Checking…"
+    // while the spinner animates. Matches the Material
+    // `FilledButton.icon(icon: CircularProgressIndicator)` pattern we
+    // replaced across the app, and avoids the jitter that a
+    // "spinner → spinner+label" swap would create when the async
+    // flow resolves a few hundred ms later.
+    final Widget spinner = SizedBox(
+      width: fontSize,
+      height: fontSize,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
+      ),
+    );
     final Widget child;
     if (loading) {
-      // Loading state owns the leading slot — no icon beside the
-      // indicator. The whole control width is pinned to the spinner's
-      // square so the button doesn't jitter between "icon + label"
-      // and "spinner only".
-      child = SizedBox(
-        width: fontSize,
-        height: fontSize,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
-        ),
+      child = Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          spinner,
+          SizedBox(width: dense ? 4 : 6),
+          Flexible(child: label0),
+        ],
       );
     } else if (icon != null) {
       child = Row(

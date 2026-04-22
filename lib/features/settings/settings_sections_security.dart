@@ -469,16 +469,12 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // button the user would have to quit + relaunch after
         // fixing the host state.
         Center(
-          child: TextButton.icon(
-            icon: _recheckingTiers
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh, size: 16),
-            label: Text(l10n.securityRecheck),
-            onPressed: _recheckingTiers ? null : _rerunTierProbes,
+          child: AppButton(
+            label: l10n.securityRecheck,
+            icon: Icons.refresh,
+            loading: _recheckingTiers,
+            dense: true,
+            onTap: _recheckingTiers ? null : _rerunTierProbes,
           ),
         ),
       ],

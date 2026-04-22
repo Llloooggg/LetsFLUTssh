@@ -200,7 +200,7 @@ void main() {
       expect(tapped, isFalse);
     });
 
-    testWidgets('loading swaps label for progress indicator', (tester) async {
+    testWidgets('loading adds a spinner alongside the label', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
         wrap(
@@ -212,9 +212,12 @@ void main() {
         ),
       );
 
-      // Label is hidden while the async flow runs — the caller is
-      // expected to flip loading back off once the future completes.
-      expect(find.text('Sign in'), findsNothing);
+      // Label stays visible during the async flow so the user keeps
+      // reading "Sign in…" while the spinner animates. Only the
+      // leading icon slot is owned by the indicator — matches the
+      // Material `FilledButton.icon(icon: CircularProgressIndicator)`
+      // pattern the refactor replaced across the app.
+      expect(find.text('Sign in'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       // Tap is swallowed during loading — a re-entrant trigger would
