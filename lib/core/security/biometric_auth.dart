@@ -1,3 +1,4 @@
+import 'dart:async' show TimeoutException;
 import 'dart:io' show Platform;
 
 import 'package:local_auth/local_auth.dart';
@@ -153,20 +154,40 @@ class BiometricAuth {
     }
   }
 
+  /// How long to wait for the system biometric prompt before giving up
+  /// and falling the caller back to the password field. 45 s is well
+  /// past a normal fingerprint/face unlock (<5 s) but short enough
+  /// that a hung prompt doesn't look like a frozen app. After Android
+  /// Doze / App-Standby releases the process, `local_auth`'s
+  /// `authenticate` sometimes never completes — the platform channel
+  /// silently drops the reply while the native prompt is still
+  /// visible. Without this cap the Dart future hangs forever and the
+  /// lock screen appears frozen on resume.
+  static const Duration _authTimeout = Duration(seconds: 45);
+
   /// Prompt the user for biometric confirmation. Returns true on success,
-  /// false on cancel / fail / unavailable. [reason] is shown in the system
-  /// prompt where the platform surfaces it (Android dialog, iOS Face ID
-  /// overlay). Ignored on Linux — `fprintd` renders its own prompt via
-  /// whatever reader the kernel exposes; we only await the terminal
-  /// `VerifyStatus` signal.
+  /// false on cancel / fail / unavailable / timeout. [reason] is shown
+  /// in the system prompt where the platform surfaces it (Android
+  /// dialog, iOS Face ID overlay). Ignored on Linux — `fprintd`
+  /// renders its own prompt via whatever reader the kernel exposes;
+  /// we only await the terminal `VerifyStatus` signal.
   Future<bool> authenticate(String reason) async {
     if (Platform.isLinux) return _fprintd.verify();
     try {
-      return await _auth.authenticate(
-        localizedReason: reason,
-        biometricOnly: true,
-        persistAcrossBackgrounding: true,
+      return await _auth
+          .authenticate(
+            localizedReason: reason,
+            biometricOnly: true,
+            persistAcrossBackgrounding: true,
+          )
+          .timeout(_authTimeout);
+    } on TimeoutException {
+      AppLogger.instance.log(
+        'Biometric authenticate timed out after '
+        '${_authTimeout.inSeconds}s; falling back to password prompt',
+        name: 'BiometricAuth',
       );
+      return false;
     } catch (e) {
       AppLogger.instance.log(
         'Biometric authenticate failed: $e',
