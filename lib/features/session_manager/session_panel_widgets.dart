@@ -148,7 +148,7 @@ class _EmptyState extends StatelessWidget {
           // selectable — without it drag-select caught "+ Add Session"
           // as if it were body text, and Ctrl+C copied the label.
           SelectionContainer.disabled(
-            child: AppButton(
+            child: AppButton.secondary(
               label: S.of(context).addSession,
               icon: Icons.add,
               onTap: onAdd,

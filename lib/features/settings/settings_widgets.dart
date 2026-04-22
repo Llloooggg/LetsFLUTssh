@@ -206,6 +206,16 @@ class _SettingsRow extends StatelessWidget {
               );
             }
             return Row(
+              // Centre every trailing control vertically against the
+              // label + subtitle block on the left. Row's default
+              // `CrossAxisAlignment.center` is already the right
+              // behaviour, but making it explicit avoids future
+              // regressions when the control is taller than 1 line
+              // (e.g. `AppButton` with icon + label) — users spotted
+              // the "Check for updates" button sitting off-centre
+              // against its two-line caption and asked for uniform
+              // alignment across the form.
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(icon, size: 16, color: AppTheme.fgDim),

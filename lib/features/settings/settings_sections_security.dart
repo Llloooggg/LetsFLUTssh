@@ -494,7 +494,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // button the user would have to quit + relaunch after
         // fixing the host state.
         Center(
-          child: AppButton(
+          child: AppButton.secondary(
             label: l10n.securityRecheck,
             icon: Icons.refresh,
             loading: _recheckingTiers,

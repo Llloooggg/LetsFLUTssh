@@ -211,7 +211,7 @@ class _UpdateSection extends ConsumerWidget {
                   },
                 ),
               if (!isSkipped)
-                AppButton(
+                AppButton.secondary(
                   label: S.of(context).skipThisVersion,
                   onTap: () => ref
                       .read(configProvider.notifier)
@@ -224,7 +224,7 @@ class _UpdateSection extends ConsumerWidget {
                       ),
                 )
               else
-                AppButton(
+                AppButton.secondary(
                   label: S.of(context).unskip,
                   onTap: () => ref
                       .read(configProvider.notifier)
@@ -294,7 +294,7 @@ class _UpdateSection extends ConsumerWidget {
           padding: const EdgeInsets.only(left: 8),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
-            child: AppButton(
+            child: AppButton.secondary(
               label: S.of(context).updateReinstallAction,
               icon: Icons.open_in_new,
               onTap: () => ref.read(updateProvider.notifier).openReleasePage(),
@@ -366,7 +366,7 @@ class _ChangelogButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (changelog == null || changelog!.isEmpty) return const SizedBox.shrink();
 
-    return AppButton(
+    return AppButton.secondary(
       label: S.of(context).releaseNotes,
       icon: Icons.article_outlined,
       onTap: () => AppDialog.show(

@@ -80,7 +80,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       ),
       countLabel: s.snippetCount(_snippets.length),
       actions: [
-        AppButton(
+        AppButton.secondary(
           label: s.addSnippet,
           icon: Icons.add,
           onTap: _addSnippet,

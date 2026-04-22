@@ -101,6 +101,13 @@ class AppCollectionToolbar extends StatelessWidget {
   /// that push total button width past the available space.
   Widget _buildWide() {
     return Row(
+      // The search field is taller than the bare count label because
+      // it renders an input chrome; without an explicit center
+      // alignment the label top-aligned to the row and read as "count
+      // floats above the search bar". Same for action buttons with
+      // icon + label — center vs start shifts them a few pixels and
+      // the mismatch is visible at a glance on a three-item toolbar.
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (hasItems && search != null) ...[
           Expanded(child: search!),

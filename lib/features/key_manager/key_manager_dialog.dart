@@ -574,6 +574,11 @@ class _ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppButton(label: label, icon: icon, onTap: onTap, dense: true);
+    return AppButton.secondary(
+      label: label,
+      icon: icon,
+      onTap: onTap,
+      dense: true,
+    );
   }
 }

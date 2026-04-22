@@ -273,7 +273,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
                 ),
               const SizedBox(height: 8),
               Center(
-                child: AppButton(
+                child: AppButton.secondary(
                   label: S.of(context).resetToDefaults,
                   icon: Icons.restore,
                   onTap: () => ref

@@ -74,7 +74,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
       countLabel: s.tagCount(_tags.length),
       actions: [
-        AppButton(
+        AppButton.secondary(
           label: s.addTag,
           icon: Icons.add,
           onTap: _addTag,

@@ -2575,15 +2575,15 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      // The skip/unskip row used to use raw `TextButton`s; after the
-      // button-widget unification they're `AppButton`s with no
-      // background. `find.byType(AppButton)` matches the concrete
-      // type since the default constructor (no factory) returns
-      // `AppButton` itself.
+      // The skip row uses `AppButton.secondary` for the bg4 fill so
+      // the button reads as a real action next to Release Notes +
+      // Download. Factory buttons return a private subclass so the
+      // lookup must go through `AppButton is` rather than exact
+      // `byType(AppButton)`.
       final skipButton = tester.widget<AppButton>(
         find.ancestor(
           of: find.text('Skip This Version'),
-          matching: find.byType(AppButton),
+          matching: find.byWidgetPredicate((w) => w is AppButton),
         ),
       );
       expect(skipButton.onTap, isNotNull);
@@ -2615,7 +2615,7 @@ void main() {
       final unskipButton = tester.widget<AppButton>(
         find.ancestor(
           of: find.text('Unskip'),
-          matching: find.byType(AppButton),
+          matching: find.byWidgetPredicate((w) => w is AppButton),
         ),
       );
       expect(unskipButton.onTap, isNotNull);
