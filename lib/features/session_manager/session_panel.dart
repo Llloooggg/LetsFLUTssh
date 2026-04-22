@@ -310,6 +310,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final tree = ref.watch(filteredSessionTreeProvider);
     final searchQuery = ref.watch(sessionSearchProvider);
     final mobile = isMobilePlatform;
+    final loading = ref.watch(sessionsLoadingProvider);
 
     final scheme = Theme.of(context).colorScheme;
     // Opt the whole sidebar out of the ambient `SelectionArea`. The
@@ -359,7 +360,21 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                   children: [
                     ..._buildHeader(context, ref, searchQuery, mobile),
                     Expanded(
-                      child: tree.isEmpty
+                      // While the first DB load is in flight the tree
+                      // is trivially empty — render a blank slot
+                      // instead of the "No sessions" empty state so
+                      // cold-start doesn't flash "your sessions are
+                      // gone" for ~1 s before the rows paint. A
+                      // spinner would be more informative but
+                      // `CircularProgressIndicator`'s ticker blocks
+                      // `pumpAndSettle` in widget tests, so a static
+                      // placeholder is the right trade — the load is
+                      // fast enough that the blank slot is
+                      // indistinguishable from "still drawing the
+                      // first frame".
+                      child: loading
+                          ? const SizedBox.shrink()
+                          : tree.isEmpty
                           ? _EmptyState(onAdd: () => _addSession(context, ref))
                           : _buildTreeView(context, ref, tree, mobile),
                     ),

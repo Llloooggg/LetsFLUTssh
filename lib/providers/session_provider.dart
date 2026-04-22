@@ -16,6 +16,29 @@ final sessionProvider = NotifierProvider<SessionNotifier, List<Session>>(
   SessionNotifier.new,
 );
 
+/// True while the very first [SessionNotifier.load] is in flight and
+/// has not completed yet. The sidebar treats this as "render a blank
+/// placeholder instead of the empty-state" so cold-start doesn't
+/// flash "No sessions" for ~1 s before the rows paint.
+///
+/// Default is `false` (not loading) so unit / widget tests that
+/// pre-populate sessions via [PrePopulatedSessionNotifier] render the
+/// tree immediately without having to override this provider too.
+/// The real [App._bootstrap] flips it to `true` just before calling
+/// [SessionNotifier.load]; [SessionNotifier.load] flips it back to
+/// `false` in its `finally` block.
+final sessionsLoadingProvider = NotifierProvider<SessionsLoadingNotifier, bool>(
+  SessionsLoadingNotifier.new,
+);
+
+class SessionsLoadingNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void markLoading() => state = true;
+  void markIdle() => state = false;
+}
+
 class SessionNotifier extends Notifier<List<Session>> {
   final SessionHistory _history = SessionHistory();
 
@@ -64,6 +87,11 @@ class SessionNotifier extends Notifier<List<Session>> {
         name: 'SessionProvider',
         error: e,
       );
+    } finally {
+      // Clear the loading flag even on failure so the sidebar doesn't
+      // stay blank forever if the DB never opens — the empty state is
+      // still more honest than a permanent placeholder.
+      ref.read(sessionsLoadingProvider.notifier).markIdle();
     }
   }
 

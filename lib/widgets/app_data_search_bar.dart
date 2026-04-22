@@ -54,6 +54,14 @@ class _AppDataSearchBarState extends State<AppDataSearchBar> {
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
         style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
+        // `TextAlignVertical.center` together with the symmetric
+        // padding aligns the typed text and the prefix icon on the
+        // same 14-px centerline of the 28-px pill. Without the
+        // explicit vertical alignment Material's dense TextField
+        // rendered the baseline a couple of pixels above centre —
+        // the input then read as "slightly floating" next to a
+        // bare `Text` count label in the toolbar row.
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           isDense: true,
           hintText: widget.hintText,
@@ -65,10 +73,7 @@ class _AppDataSearchBarState extends State<AppDataSearchBar> {
           ),
           filled: true,
           fillColor: AppTheme.bg3,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           enabledBorder: OutlineInputBorder(
             borderRadius: AppTheme.radiusSm,
             borderSide: BorderSide(color: AppTheme.borderLight),

@@ -437,6 +437,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // `_handleDatabaseCorruption` shows the non-dismissible reset /
     // quit choice and never auto-deletes anything.
     await _handleDatabaseCorruption();
+    // Flip the "sessions loading" flag so the sidebar renders a blank
+    // placeholder instead of the "No sessions" empty state while the
+    // first DB query is in flight. `load()` flips it back to idle in
+    // its `finally` block.
+    ref.read(sessionsLoadingProvider.notifier).markLoading();
     await ref.read(sessionProvider.notifier).load();
     _maybeShowCredentialsResetToast();
     if (plat.isMobilePlatform) {
