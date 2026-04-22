@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart' as pffi;
 
 import '../../utils/logger.dart';
+import 'libc_loader.dart';
 
 /// Process-level hardening that runs once at app startup.
 ///
@@ -56,9 +57,7 @@ class ProcessHardening {
 
   /// Linux/Android: `prctl(PR_SET_DUMPABLE, 0)` — 38 is PR_SET_DUMPABLE.
   static void _prctlNoDumpable() {
-    final libc = DynamicLibrary.open('libc.so.6');
-    // Fallback: Android uses libc.so, not libc.so.6. Try that if the first
-    // open failed implicitly via exception.
+    final libc = openLibc();
     final prctl = libc
         .lookup<NativeFunction<_PrctlC>>('prctl')
         .asFunction<_PrctlDart>();
@@ -87,8 +86,8 @@ class ProcessHardening {
   /// otherwise write when `ulimit -c` is non-zero. Zeroing the soft
   /// *and* hard limits from inside the process is a self-imposed cap
   /// that survives any shell-level `ulimit -c unlimited` the user had
-  /// set. Failures are logged and ignored — a missing `libc.so.6` on
-  /// an oddball distro should not break app startup.
+  /// set. Failures are logged and ignored — a missing libc on an
+  /// oddball distro should not break app startup.
   static void _setRLimitCoreZero() {
     Pointer<UnsignedLong>? rlim;
     try {
@@ -96,9 +95,7 @@ class ProcessHardening {
       // macOS. `struct rlimit { rlim_t rlim_cur; rlim_t rlim_max; }` is
       // two `unsigned long` words on every 64-bit POSIX target shipped.
       const rlimitCore = 4;
-      final libc = Platform.isMacOS
-          ? DynamicLibrary.process()
-          : DynamicLibrary.open('libc.so.6');
+      final libc = Platform.isMacOS ? DynamicLibrary.process() : openLibc();
       final setrlimit = libc
           .lookup<NativeFunction<_SetRLimitC>>('setrlimit')
           .asFunction<_SetRLimitDart>();

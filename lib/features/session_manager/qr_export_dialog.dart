@@ -312,14 +312,14 @@ class _QrExportDialogState extends State<QrExportDialog> {
                 ),
                 AppDialogFooter(
                   actions: [
-                    AppDialogAction.cancel(
+                    AppButton.cancel(
                       onTap: () => Navigator.of(context).pop(),
                     ),
-                    AppDialogAction.secondary(
+                    AppButton.secondary(
                       label: S.of(context).exportAll,
                       onTap: _exportAll,
                     ),
-                    AppDialogAction.primary(
+                    AppButton.primary(
                       label: S.of(context).showQr,
                       enabled: _hasSelection && _fitsInQr,
                       onTap: _showQr,

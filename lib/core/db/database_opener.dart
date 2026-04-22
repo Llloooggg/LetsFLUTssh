@@ -163,6 +163,15 @@ LazyDatabase _openConnection({Uint8List? encryptionKey}) {
           final hex = encryptionKey
               .map((b) => b.toRadixString(16).padLeft(2, '0'))
               .join();
+          // `PRAGMA key` without `PRAGMA cipher` = MC's built-in default
+          // scheme, which is ChaCha20-Poly1305 (`CODEC_TYPE_DEFAULT` →
+          // `CODEC_TYPE_CHACHA20` in MC's `cipher_common.h`). See
+          // docs/ARCHITECTURE.md § "MC cipher choice" for the rationale:
+          // AEAD with native integrity tag per page, faster than AES
+          // on Arm-without-crypto-extensions, constant-time-by-design.
+          // Any change to this line must consider that existing DBs on
+          // user disks are encrypted under ChaCha20 — switching would
+          // require a full rekey flow before the next open succeeds.
           db.execute("PRAGMA key = \"x'$hex'\"");
 
           // Verify encryption is active. If the multi-cipher extension was

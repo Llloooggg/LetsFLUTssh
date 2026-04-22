@@ -90,8 +90,8 @@ class MigrationRunner {
   /// apply each step in dependency order. Returns a report; caller
   /// decides whether to surface failures via dialog.
   Future<MigrationReport> runOnStartup() async {
-    final List<MigrationStep> steps = [];
-    final List<UnsupportedFutureVersionException> future = [];
+    final steps = <MigrationStep>[];
+    final future = <UnsupportedFutureVersionException>[];
 
     final List<Artefact> ordered;
     try {
@@ -104,87 +104,123 @@ class MigrationRunner {
       return MigrationReport(fatalError: e);
     }
 
+    Object? fatalError;
     for (final artefact in ordered) {
-      final int onDisk;
-      try {
-        onDisk = await artefact.readVersion();
-      } catch (e) {
-        AppLogger.instance.log(
-          'MigrationRunner: readVersion(${artefact.id}) failed: $e',
-          name: 'MigrationRunner',
-        );
-        return MigrationReport(steps: steps, fatalError: e);
+      final outcome = await _migrateArtefact(artefact, steps);
+      if (outcome.fatal != null) {
+        fatalError = outcome.fatal;
+        break;
       }
-
-      // Absent artefact (clean install for this slot) — nothing to do.
-      if (onDisk < 0) continue;
-
-      final target = artefact.targetVersion;
-      if (onDisk == target) continue;
-
-      if (onDisk > target) {
-        future.add(
-          UnsupportedFutureVersionException(
-            artefactId: artefact.id,
-            onDiskVersion: onDisk,
-            knownTargetVersion: target,
-          ),
-        );
-        continue;
-      }
-
-      // onDisk < target — walk the chain step by step.
-      var current = onDisk;
-      while (current < target) {
-        final step = _findMigration(artefact.id, current);
-        if (step == null) {
-          final err = StateError(
-            'No migration registered for ${artefact.id} '
-            'from version $current',
-          );
-          steps.add(
-            MigrationStep(
-              artefactId: artefact.id,
-              fromVersion: current,
-              toVersion: current + 1,
-              succeeded: false,
-              error: err,
-            ),
-          );
-          return MigrationReport(steps: steps, fatalError: err);
-        }
-
-        try {
-          await step.apply();
-          steps.add(
-            MigrationStep(
-              artefactId: artefact.id,
-              fromVersion: step.fromVersion,
-              toVersion: step.toVersion,
-              succeeded: true,
-            ),
-          );
-          current = step.toVersion;
-        } catch (e) {
-          AppLogger.instance.log(
-            'MigrationRunner: $step apply failed: $e',
-            name: 'MigrationRunner',
-          );
-          steps.add(
-            MigrationStep(
-              artefactId: artefact.id,
-              fromVersion: step.fromVersion,
-              toVersion: step.toVersion,
-              succeeded: false,
-              error: e,
-            ),
-          );
-          return MigrationReport(steps: steps, fatalError: e);
-        }
+      if (outcome.futureVersion != null) {
+        future.add(outcome.futureVersion!);
       }
     }
 
-    return MigrationReport(steps: steps, futureVersions: future);
+    return MigrationReport(
+      steps: steps,
+      futureVersions: future,
+      fatalError: fatalError,
+    );
+  }
+
+  /// Migrate a single artefact to its target version. Appends every
+  /// attempted step into [steps] (including the failing one on the
+  /// fatal path, so the caller's report mirrors the transcript the
+  /// user would see in the debug screen). The returned outcome lets
+  /// [runOnStartup] keep the overall bookkeeping (future-version
+  /// collection, fatal short-circuit) outside the per-artefact
+  /// walker.
+  Future<_ArtefactOutcome> _migrateArtefact(
+    Artefact artefact,
+    List<MigrationStep> steps,
+  ) async {
+    final int onDisk;
+    try {
+      onDisk = await artefact.readVersion();
+    } catch (e) {
+      AppLogger.instance.log(
+        'MigrationRunner: readVersion(${artefact.id}) failed: $e',
+        name: 'MigrationRunner',
+      );
+      return _ArtefactOutcome.fatal_(e);
+    }
+
+    // Absent artefact (clean install for this slot) — nothing to do.
+    if (onDisk < 0) return const _ArtefactOutcome.ok();
+
+    final target = artefact.targetVersion;
+    if (onDisk == target) return const _ArtefactOutcome.ok();
+    if (onDisk > target) {
+      return _ArtefactOutcome.future_(
+        UnsupportedFutureVersionException(
+          artefactId: artefact.id,
+          onDiskVersion: onDisk,
+          knownTargetVersion: target,
+        ),
+      );
+    }
+
+    return _walkMigrationChain(artefact, onDisk, target, steps);
+  }
+
+  /// Apply the registered migration chain `[onDisk → target)` for
+  /// [artefact]. Records each attempted step into [steps] and stops
+  /// at the first failure (missing migration or thrown step).
+  Future<_ArtefactOutcome> _walkMigrationChain(
+    Artefact artefact,
+    int onDisk,
+    int target,
+    List<MigrationStep> steps,
+  ) async {
+    var current = onDisk;
+    while (current < target) {
+      final step = _findMigration(artefact.id, current);
+      if (step == null) {
+        final err = StateError(
+          'No migration registered for ${artefact.id} '
+          'from version $current',
+        );
+        steps.add(
+          MigrationStep(
+            artefactId: artefact.id,
+            fromVersion: current,
+            toVersion: current + 1,
+            succeeded: false,
+            error: err,
+          ),
+        );
+        return _ArtefactOutcome.fatal_(err);
+      }
+
+      try {
+        await step.apply();
+        steps.add(
+          MigrationStep(
+            artefactId: artefact.id,
+            fromVersion: step.fromVersion,
+            toVersion: step.toVersion,
+            succeeded: true,
+          ),
+        );
+        current = step.toVersion;
+      } catch (e) {
+        AppLogger.instance.log(
+          'MigrationRunner: $step apply failed: $e',
+          name: 'MigrationRunner',
+        );
+        steps.add(
+          MigrationStep(
+            artefactId: artefact.id,
+            fromVersion: step.fromVersion,
+            toVersion: step.toVersion,
+            succeeded: false,
+            error: e,
+          ),
+        );
+        return _ArtefactOutcome.fatal_(e);
+      }
+    }
+    return const _ArtefactOutcome.ok();
   }
 
   /// Return the migration chain that [runOnStartup] would execute
@@ -246,15 +282,26 @@ class MigrationRunner {
     Map<String, List<String>> deps,
   ) {
     final byId = {for (final a in artefacts) a.id: a};
-    final indegree = <String, int>{for (final a in artefacts) a.id: 0};
-    final adj = <String, List<String>>{
-      for (final a in artefacts) a.id: <String>[],
-    };
+    final graph = _buildDependencyGraph(byId, deps);
+    final ordered = _kahnWalk(byId, graph);
+    if (ordered.length != artefacts.length) {
+      throw StateError('Cycle in migration dependencies');
+    }
+    return ordered;
+  }
 
-    // Registry may declare dependencies for artefacts that are not yet
-    // registered (future-proofing for vault / hash artefacts). Skip
-    // both sides when either endpoint is unknown so dangling deps do
-    // not poison the indegree map with ids `byId` cannot resolve.
+  /// Build the `(indegree, adjacency)` pair used by [_kahnWalk].
+  /// Registry may declare dependencies for artefacts that are not
+  /// yet registered (future-proofing for vault / hash artefacts).
+  /// Both sides are skipped when either endpoint is unknown so
+  /// dangling deps do not poison the indegree map with ids `byId`
+  /// cannot resolve.
+  static _DependencyGraph _buildDependencyGraph(
+    Map<String, Artefact> byId,
+    Map<String, List<String>> deps,
+  ) {
+    final indegree = <String, int>{for (final id in byId.keys) id: 0};
+    final adj = <String, List<String>>{for (final id in byId.keys) id: []};
     deps.forEach((id, after) {
       if (!byId.containsKey(id)) return;
       for (final pre in after) {
@@ -263,7 +310,19 @@ class MigrationRunner {
         indegree[id] = indegree[id]! + 1;
       }
     });
+    return _DependencyGraph(indegree: indegree, adjacency: adj);
+  }
 
+  /// Walk [graph] with Kahn's algorithm. Caller decides whether the
+  /// returned list's length matching [byId.length] counts as
+  /// success — this helper only emits what it can reach from
+  /// indegree-zero roots.
+  static List<Artefact> _kahnWalk(
+    Map<String, Artefact> byId,
+    _DependencyGraph graph,
+  ) {
+    final indegree = graph.indegree;
+    final adj = graph.adjacency;
     final queue = <String>[
       for (final id in indegree.keys)
         if (indegree[id] == 0) id,
@@ -277,9 +336,30 @@ class MigrationRunner {
         if (indegree[next] == 0) queue.add(next);
       }
     }
-    if (ordered.length != artefacts.length) {
-      throw StateError('Cycle in migration dependencies');
-    }
     return ordered;
   }
+}
+
+class _DependencyGraph {
+  final Map<String, int> indegree;
+  final Map<String, List<String>> adjacency;
+  const _DependencyGraph({required this.indegree, required this.adjacency});
+}
+
+/// Per-artefact migration outcome — exactly one of [fatal] or
+/// [futureVersion] is non-null, or both are null for "ok / nothing
+/// to do". Lets [MigrationRunner._migrateArtefact] return the
+/// full decision without mutating shared state, so the caller
+/// loop stays linear and readable.
+class _ArtefactOutcome {
+  final Object? fatal;
+  final UnsupportedFutureVersionException? futureVersion;
+
+  const _ArtefactOutcome.ok() : fatal = null, futureVersion = null;
+
+  const _ArtefactOutcome.fatal_(Object this.fatal) : futureVersion = null;
+
+  const _ArtefactOutcome.future_(
+    UnsupportedFutureVersionException this.futureVersion,
+  ) : fatal = null;
 }

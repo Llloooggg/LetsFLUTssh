@@ -57,10 +57,19 @@ class STr extends S {
   String get copy => 'Kopyala';
 
   @override
+  String get cut => 'Kes';
+
+  @override
   String get paste => 'Yapıştır';
 
   @override
   String get select => 'Seç';
+
+  @override
+  String get copyModeTapToStart => 'Seçim başlangıcını işaretlemek için dokun';
+
+  @override
+  String get copyModeExtending => 'Seçimi genişletmek için sürükle';
 
   @override
   String get required => 'Gerekli';
@@ -2302,6 +2311,61 @@ class STr extends S {
 
   @override
   String get securityRecheckUnchanged => 'Katman desteği değişmedi';
+
+  @override
+  String get securityMacosEnableSecureTiers =>
+      'Bu Mac\'te güvenli katmanların kilidini aç';
+
+  @override
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Uygulamayı kişisel bir sertifika ile yeniden imzala, böylece Anahtar Zinciri (T1) ve Secure Enclave (T2) güncellemelerden sonra da çalışır';
+
+  @override
+  String get securityMacosEnableSecureTiersPrompt =>
+      'macOS bir kez parolanızı isteyecek';
+
+  @override
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Güvenli katmanlar açıldı — T1 ve T2 kullanılabilir';
+
+  @override
+  String get securityMacosEnableSecureTiersFailed =>
+      'Güvenli katmanlar açılamadı';
+
+  @override
+  String get securityMacosOfferTitle =>
+      'Anahtar Zinciri + Secure Enclave etkinleştirilsin mi?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS, şifrelenmiş depolamayı uygulamanın imza kimliğine bağlar. Kararlı sertifika olmadan Anahtar Zinciri (T1) ve Secure Enclave (T2) erişimi reddeder. Bu Mac üzerinde kişisel kendinden imzalı bir sertifika oluşturup uygulamayı yeniden imzalayabiliriz — güncellemeler çalışmaya devam eder ve sırlarınız sürümler arasında korunur. macOS yeni sertifikaya güvenmek için bir kez oturum parolanızı isteyecek.';
+
+  @override
+  String get securityMacosOfferAccept => 'Etkinleştir';
+
+  @override
+  String get securityMacosOfferDecline => 'Atla — T0 veya Paranoid seç';
+
+  @override
+  String get securityMacosRemoveIdentity => 'İmza kimliğini kaldır';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Kişisel sertifikayı siler. T1 / T2 verileri buna bağlı — önce T0 veya Paranoid\'e geçin, sonra kaldırın.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'İmza kimliği kaldırılsın mı?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Oturum Anahtar Zincirindeki kişisel sertifikayı siler. T1 / T2 saklanan sırlar okunamaz hale gelir. Sihirbaz kaldırmadan önce T0 (düz metin) veya Paranoid (ana parola)\'ya geçiş için açılır.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'İmza kimliği kaldırıldı';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => 'İmza kimliği kaldırılamadı';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

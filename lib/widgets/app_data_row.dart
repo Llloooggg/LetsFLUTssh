@@ -75,7 +75,7 @@ class AppDataRow extends StatelessWidget {
         child: Row(
           children: [
             _buildLeading(),
-            if (_leadingWidget() != null) const SizedBox(width: iconGap),
+            if (leading != null || icon != null) const SizedBox(width: iconGap),
             Expanded(child: _buildTextColumn()),
             for (final w in trailing) ...[
               const SizedBox(width: trailingGap),
@@ -87,15 +87,17 @@ class AppDataRow extends StatelessWidget {
     );
     if (tooltip != null) body = Tooltip(message: tooltip!, child: body);
     if (onTap != null || onDoubleTap != null) {
-      body = InkWell(onTap: onTap, onDoubleTap: onDoubleTap, child: body);
+      // Clickable row — opt out of any ambient `SelectionArea`. Same
+      // rule the `_ActionTile` / `HoverRegion` stack applies: when the
+      // whole row dispatches on tap, neither the I-beam cursor nor
+      // drag-select belong here.
+      body = InkWell(
+        onTap: onTap,
+        onDoubleTap: onDoubleTap,
+        child: SelectionContainer.disabled(child: body),
+      );
     }
     return body;
-  }
-
-  Widget? _leadingWidget() {
-    if (leading != null) return leading;
-    if (icon != null) return null; // rendered by _buildLeading
-    return null;
   }
 
   Widget _buildLeading() {

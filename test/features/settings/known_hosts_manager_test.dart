@@ -312,11 +312,11 @@ void main() {
         expect(find.text('Remove Host'), findsOneWidget);
 
         // Tap Delete (destructive action inside the confirm dialog).
-        // AppDialogAction.destructive returns a private subclass, so match
-        // via `is AppDialogAction` + label.
+        // AppButton.destructive returns a private subclass, so match
+        // via `is AppButton` + label.
         await tester.tap(
           find.byWidgetPredicate(
-            (w) => w is AppDialogAction && w.label == 'Delete',
+            (w) => w is AppButton && w.label == 'Delete',
           ),
         );
         // removeHost awaits its own I/O-free Future — let the microtasks run,
@@ -358,7 +358,7 @@ void main() {
         await tester.tap(
           find
               .byWidgetPredicate(
-                (w) => w is AppDialogAction && w.label == 'Cancel',
+                (w) => w is AppButton && w.label == 'Cancel',
               )
               .last,
         );
@@ -394,7 +394,7 @@ void main() {
       await tester.tap(
         find
             .byWidgetPredicate(
-              (w) => w is AppDialogAction && w.label == 'Cancel',
+              (w) => w is AppButton && w.label == 'Cancel',
             )
             .last,
       );
@@ -405,12 +405,12 @@ void main() {
       await tester.tap(clearBtn);
       await tester.pumpAndSettle();
       // The destructive button reuses "Clear All Known Hosts" as its
-      // label. Match via `is AppDialogAction` + label field because the
+      // label. Match via `is AppButton` + label field because the
       // concrete widget is _DestructiveAction (private subclass) and
       // byType wouldn't match it.
       await tester.tap(
         find.byWidgetPredicate(
-          (w) => w is AppDialogAction && w.label == 'Clear All Known Hosts',
+          (w) => w is AppButton && w.label == 'Clear All Known Hosts',
         ),
       );
       await tester.runAsync(() => Future<void>.value());

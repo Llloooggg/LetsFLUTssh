@@ -211,20 +211,6 @@ class KeyStore {
     return null;
   }
 
-  /// Thin back-compat alias. New call sites use [findIdByKeyMaterial]
-  /// so dedup starts on the public half; legacy call sites keep working
-  /// while the rename propagates.
-  @Deprecated('Use findIdByKeyMaterial; public-key fingerprint is preferred')
-  Future<String?> findIdByPrivateKey(String privateKey) async {
-    final target = privateKeyFingerprint(privateKey);
-    if (target.isEmpty) return null;
-    final all = await loadAll();
-    for (final entry in all.values) {
-      if (privateKeyFingerprint(entry.privateKey) == target) return entry.id;
-    }
-    return null;
-  }
-
   /// Import a key from another source (QR/.lfs), deduplicating by content.
   ///
   /// - If a stored key has the same public-key fingerprint (or private-

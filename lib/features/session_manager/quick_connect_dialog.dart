@@ -6,7 +6,9 @@ import '../../core/import/key_file_helper.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../utils/platform.dart';
 
@@ -302,17 +304,11 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _pickKeyFile,
-            icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
-            label: Text(
-              fileName ?? S.of(context).selectKeyFile,
-              overflow: TextOverflow.ellipsis,
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              alignment: Alignment.centerLeft,
-            ),
+          child: DropdownSelectButton(
+            icon: hasKey ? Icons.vpn_key : Icons.folder_open,
+            label: fileName ?? S.of(context).selectKeyFile,
+            onTap: _pickKeyFile,
+            showChevron: false,
           ),
         ),
         if (hasKey)
@@ -329,18 +325,15 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
   Widget _buildPemToggle() {
     return Align(
       alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        onPressed: () => setState(() => _showKeyText = !_showKeyText),
-        icon: Icon(
-          _showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-          size: 16,
-        ),
-        label: Text(
-          _showKeyText
-              ? S.of(context).hidePemText
-              : S.of(context).pastePemKeyText,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
+      child: AppButton(
+        label: _showKeyText
+            ? S.of(context).hidePemText
+            : S.of(context).pastePemKeyText,
+        icon: _showKeyText
+            ? Icons.keyboard_arrow_up
+            : Icons.keyboard_arrow_down,
+        onTap: () => setState(() => _showKeyText = !_showKeyText),
+        dense: true,
       ),
     );
   }

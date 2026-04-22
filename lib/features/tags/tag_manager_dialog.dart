@@ -10,6 +10,7 @@ import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -73,10 +74,11 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
       countLabel: s.tagCount(_tags.length),
       actions: [
-        TextButton.icon(
-          onPressed: _addTag,
-          icon: const Icon(Icons.add, size: 16),
-          label: Text(s.addTag, style: TextStyle(fontSize: AppFonts.sm)),
+        AppButton.secondary(
+          label: s.addTag,
+          icon: Icons.add,
+          onTap: _addTag,
+          dense: true,
         ),
       ],
     );
@@ -111,12 +113,12 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
       title: tag.name,
       trailing: [
-        IconButton(
-          icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+        AppIconButton(
+          icon: Icons.delete_outline,
           tooltip: s.deleteTag,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _deleteTag(tag),
+          dense: true,
+          color: AppTheme.red,
+          onTap: () => _deleteTag(tag),
         ),
       ],
     );
@@ -146,8 +148,8 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
         title: s.deleteTag,
         content: Text(s.deleteTagConfirm(tag.name)),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.delete,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -185,7 +187,7 @@ class TagManagerDialog extends StatelessWidget {
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 350, child: TagManagerPanel()),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 }
@@ -248,8 +250,8 @@ class _AddTagDialogState extends State<_AddTagDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.save, onTap: _save),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.save, onTap: _save),
       ],
     );
   }

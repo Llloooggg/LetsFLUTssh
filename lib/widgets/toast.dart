@@ -37,9 +37,18 @@ class Toast {
     final overlay = Overlay.of(context);
     late final OverlayEntry entry;
 
+    // Zero-duration controller: `forward()` / `reverse()` complete on
+    // the next frame, so `FadeTransition` and `SlideTransition` below
+    // still run through their value-listener plumbing (including
+    // `reverse().whenComplete` that cleans up the OverlayEntry) but
+    // produce no visible motion. Matches the project-wide animation
+    // hard-off (see `main.dart`) — Toast owns its own
+    // `AnimationController`, so a non-zero duration would show a
+    // fade/slide even when the root `MediaQuery(disableAnimations:
+    // true)` + the page-transition killer silence everything else.
     final controller = AnimationController(
       vsync: overlay,
-      duration: const Duration(milliseconds: 200),
+      duration: Duration.zero,
     );
 
     late final _ToastOverlayEntry toastEntry;

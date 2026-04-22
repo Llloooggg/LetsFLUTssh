@@ -18,6 +18,18 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   // round-trips take hundreds of ms; without a spinner the button
   // feels dead).
   bool _recheckingTiers = false;
+  // True while the macOS "Enable Keychain storage" one-shot is in
+  // flight — cert generation + keychain import + `add-trusted-cert`
+  // (the one step that prompts for the user's login password) +
+  // inside-out re-sign of the live bundle + entitlement probe.
+  bool _enablingKeychain = false;
+  // True while the macOS "Remove signing identity" confirmation +
+  // tier-switch wizard + uninstallIdentity is in flight.
+  bool _removingKeychain = false;
+  // `null` until the initial probe completes. On non-macOS hosts
+  // stays null forever — the gating build conditions already filter
+  // on `plat.isMacosPlatform`.
+  bool? _macosHasIdentity;
 
   @override
   void initState() {
@@ -33,11 +45,24 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
     final stored = await bioVault.isStored();
+    // macOS cert presence drives the Enable-vs-Remove decision at the
+    // bottom of the section. Any non-macOS host skips the probe —
+    // `Keychain.hasCertificate` would spawn `security find-certificate`
+    // which exists on macOS only.
+    bool? hasIdentity;
+    if (plat.isMacosPlatform) {
+      try {
+        hasIdentity = await ref.read(resignServiceProvider).hasIdentity();
+      } catch (_) {
+        hasIdentity = false;
+      }
+    }
     if (!mounted) return;
     setState(() {
       _biometricUnavailable = availability;
       _biometricEnabled = stored;
       _biometricProbed = true;
+      _macosHasIdentity = hasIdentity;
     });
   }
 
@@ -469,21 +494,75 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // button the user would have to quit + relaunch after
         // fixing the host state.
         Center(
-          child: TextButton.icon(
-            icon: _recheckingTiers
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh, size: 16),
-            label: Text(l10n.securityRecheck),
-            onPressed: _recheckingTiers ? null : _rerunTierProbes,
+          child: AppButton.secondary(
+            label: l10n.securityRecheck,
+            icon: Icons.refresh,
+            loading: _recheckingTiers,
+            dense: true,
+            onTap: _recheckingTiers ? null : _rerunTierProbes,
           ),
         ),
+        // macOS-only identity management: Enable Secure Tiers when
+        // no cert is present (user skipped the first-launch offer or
+        // removed the identity later), Remove Signing Identity when
+        // a cert is present. Removal opens the tier-switch wizard
+        // first so the user migrates off T1 / T2 before the cert
+        // that backs their access to those secrets is deleted.
+        if (plat.isMacosPlatform && _macosHasIdentity == false)
+          _buildMacosEnableBlock(l10n),
+        if (plat.isMacosPlatform && _macosHasIdentity == true)
+          _buildMacosRemoveBlock(l10n),
       ],
     );
   }
+
+  Widget _buildMacosEnableBlock(S l10n) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Column(
+      children: [
+        Text(
+          l10n.securityMacosEnableSecureTiersSubtitle,
+          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.securityMacosEnableSecureTiersPrompt,
+          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        AppButton.primary(
+          label: l10n.securityMacosEnableSecureTiers,
+          icon: Icons.vpn_key,
+          loading: _enablingKeychain,
+          dense: true,
+          onTap: _enablingKeychain ? null : _enableMacosKeychain,
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildMacosRemoveBlock(S l10n) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Column(
+      children: [
+        Text(
+          l10n.securityMacosRemoveIdentitySubtitle,
+          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        AppButton.destructive(
+          label: l10n.securityMacosRemoveIdentity,
+          icon: Icons.vpn_key_off,
+          loading: _removingKeychain,
+          dense: true,
+          onTap: _removingKeychain ? null : _removeMacosIdentity,
+        ),
+      ],
+    ),
+  );
 
   /// Invalidate the cached capability + probe snapshots and wait for
   /// the fresh values so the section rebuilds against ready data.
@@ -512,7 +591,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // the new snapshot back to config.
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(securityProbeCache: null));
+        .update((c) => c.copyWithSecurity(securityProbeCache: null));
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
@@ -535,6 +614,154 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       );
     } finally {
       if (mounted) setState(() => _recheckingTiers = false);
+    }
+  }
+
+  /// Run the macOS self-sign pipeline against the live bundle:
+  /// [ResignService.ensureIdentity] creates (or reuses) the personal
+  /// cert and grants trust; [ResignService.resignBundle] re-signs the
+  /// running `.app` inside-out with `--options runtime` +
+  /// extracted entitlements so `keychain-access-groups` survives.
+  /// After success the capability + probe snapshots are invalidated
+  /// so the T1 tier card flips from disabled to available.
+  Future<void> _enableMacosKeychain() async {
+    setState(() => _enablingKeychain = true);
+    try {
+      final svc = ref.read(resignServiceProvider);
+      await svc.ensureIdentity();
+      final bundle = Directory(Platform.resolvedExecutable)
+          .parent // Contents/MacOS
+          .parent // Contents
+          .parent; // <bundle>.app
+      final outcome = await svc.resignBundle(appBundle: bundle);
+      if (!mounted) return;
+      final ok =
+          outcome == ResignOutcome.succeeded ||
+          outcome == ResignOutcome.reusedExisting;
+      if (!ok) {
+        Toast.show(
+          context,
+          message: S.of(context).securityMacosEnableSecureTiersFailed,
+          level: ToastLevel.error,
+        );
+        return;
+      }
+      // Drop the persisted capability cache + invalidate providers so
+      // the UI re-probes against the freshly re-signed bundle.
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWithSecurity(securityProbeCache: null));
+      ref.invalidate(securityCapabilitiesProvider);
+      ref.invalidate(hardwareProbeDetailProvider);
+      ref.invalidate(keyringProbeDetailProvider);
+      await ref.read(securityCapabilitiesProvider.future);
+      if (!mounted) return;
+      setState(() => _macosHasIdentity = true);
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosEnableSecureTiersSuccess,
+        level: ToastLevel.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosEnableSecureTiersFailed,
+        level: ToastLevel.error,
+      );
+    } finally {
+      if (mounted) setState(() => _enablingKeychain = false);
+    }
+  }
+
+  /// Confirmation dialog + tier-switch wizard + cert uninstall. T1 /
+  /// T2 secrets are tied to the cert's designated requirement — the
+  /// user has to migrate to T0 or Paranoid *before* the cert is
+  /// removed, otherwise every stored secret would become unreadable
+  /// on the next keychain read. We show the wizard, apply the tier
+  /// switch through the existing `onSelectTier` path (which rekeys
+  /// the DB under a fresh key under the new tier), and only then
+  /// uninstall the signing identity.
+  Future<void> _removeMacosIdentity() async {
+    setState(() => _removingKeychain = true);
+    try {
+      final confirmed = await AppDialog.show<bool>(
+        context,
+        builder: (d) => AppDialog(
+          title: S.of(d).securityMacosRemoveIdentityConfirmTitle,
+          content: Text(
+            S.of(d).securityMacosRemoveIdentityConfirmBody,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          ),
+          actions: [
+            AppButton.cancel(onTap: () => Navigator.pop(d, false)),
+            AppButton.destructive(
+              label: S.of(d).securityMacosRemoveIdentity,
+              onTap: () => Navigator.pop(d, true),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      // Show tier-switch wizard with keychain + hardware forced off
+      // so the user can only pick T0 / Paranoid. Same reduced shape
+      // as the first-launch decline path.
+      final keyStorage = ref.read(secureKeyStorageProvider);
+      final hw = ref.read(hardwareTierVaultProvider);
+      final baseCaps = await probeCapabilities(
+        keyStorage: keyStorage,
+        hardwareVault: hw,
+      );
+      if (!mounted) return;
+      final forcedCaps = baseCaps.copyWith(
+        keychainAvailable: false,
+        hardwareVaultAvailable: false,
+      );
+      final result = await SecuritySetupDialog.show(
+        context,
+        keyStorage: keyStorage,
+        hardwareVault: hw,
+        currentTier: ref.read(configProvider).security?.tier,
+        capabilitiesOverride: forcedCaps,
+        dismissible: true,
+      );
+      if (!mounted) return;
+      if (result.tier != SecurityTier.plaintext &&
+          result.tier != SecurityTier.paranoid) {
+        // User dismissed or wizard returned an unexpected tier —
+        // treat as cancel, leave cert in place.
+        return;
+      }
+      // Re-use `_applyTierChange` directly (not `onSelectTier`) so
+      // we stay inside the remove-identity progress flow without
+      // stacking another progress dialog / toast that `onSelectTier`
+      // installs for the "Change Security Tier" entry point.
+      await _applyTierChange(result);
+      if (!mounted) return;
+      // Tier switch succeeded → safe to drop the cert.
+      await ref.read(resignServiceProvider).uninstallIdentity();
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWithSecurity(securityProbeCache: null));
+      ref.invalidate(securityCapabilitiesProvider);
+      ref.invalidate(hardwareProbeDetailProvider);
+      ref.invalidate(keyringProbeDetailProvider);
+      if (!mounted) return;
+      setState(() => _macosHasIdentity = false);
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosRemoveIdentitySuccess,
+        level: ToastLevel.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosRemoveIdentityFailed,
+        level: ToastLevel.error,
+      );
+    } finally {
+      if (mounted) setState(() => _removingKeychain = false);
     }
   }
 
@@ -629,74 +856,114 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _applyTierChange(SecuritySetupResult result) async {
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final gate = ref.read(keychainPasswordGateProvider);
-    final hwVault = ref.read(hardwareTierVaultProvider);
-    final manager = ref.read(masterPasswordProvider);
-    final bioVault = ref.read(biometricKeyVaultProvider);
-
-    final mods = result.modifiers;
     switch (result.tier) {
       case SecurityTier.plaintext:
-        await _applyAlwaysRekey(null, SecurityTier.plaintext, mods);
-        await keyStorage.deleteKey();
-        await gate.clear();
-        await hwVault.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyPlaintextTier(result);
       case SecurityTier.keychain:
-        final key = AesGcm.generateKey();
-        final stored = await keyStorage.writeKey(key);
-        if (!stored) throw StateError('keychain write failed');
-        await _applyAlwaysRekey(key, SecurityTier.keychain, mods);
-        await gate.clear();
-        await hwVault.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyKeychainTier(result);
       case SecurityTier.keychainWithPassword:
-        final short = result.shortPassword;
-        if (short == null || short.isEmpty) {
-          throw StateError('short password missing');
-        }
-        await gate.setPassword(short);
-        final key = AesGcm.generateKey();
-        final stored = await keyStorage.writeKey(key);
-        if (!stored) {
-          await gate.clear();
-          throw StateError('keychain write failed');
-        }
-        await _applyAlwaysRekey(key, SecurityTier.keychainWithPassword, mods);
-        await hwVault.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyKeychainWithPasswordTier(result);
       case SecurityTier.hardware:
-        // Hardware tier now accepts a passwordless seal: when the
-        // wizard returns `pin == null` (user left the password
-        // modifier off for T2) the vault derives an empty auth
-        // value and seals under SE/TPM isolation alone. The
-        // modifiers snapshot `mods.password` stays the source of
-        // truth for later unlock flows, so persisting it alongside
-        // the tier keeps the read side in sync.
-        final key = AesGcm.generateKey();
-        final sealed = await hwVault.store(dbKey: key, pin: result.pin);
-        if (!sealed) throw StateError('hardware seal failed');
-        await _applyAlwaysRekey(key, SecurityTier.hardware, mods);
-        await keyStorage.deleteKey();
-        await gate.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyHardwareTier(result);
       case SecurityTier.paranoid:
-        final pw = result.masterPassword;
-        if (pw == null || pw.isEmpty) {
-          throw StateError('master password missing');
-        }
-        final key = await manager.enable(pw);
-        await _applyAlwaysRekey(key, SecurityTier.paranoid, mods);
-        await keyStorage.deleteKey();
-        await gate.clear();
-        await hwVault.clear();
-        await bioVault.clear();
+        await _applyParanoidTier(result);
     }
+  }
+
+  Future<void> _applyPlaintextTier(SecuritySetupResult result) async {
+    await _applyAlwaysRekey(null, SecurityTier.plaintext, result.modifiers);
+    await _clearAllTierSecrets();
+  }
+
+  Future<void> _applyKeychainTier(SecuritySetupResult result) async {
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (!stored) throw StateError('keychain write failed');
+    await _applyAlwaysRekey(key, SecurityTier.keychain, result.modifiers);
+    await _clearNonKeychainTierSecrets();
+  }
+
+  Future<void> _applyKeychainWithPasswordTier(
+    SecuritySetupResult result,
+  ) async {
+    final short = result.shortPassword;
+    if (short == null || short.isEmpty) {
+      throw StateError('short password missing');
+    }
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final gate = ref.read(keychainPasswordGateProvider);
+    await gate.setPassword(short);
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (!stored) {
+      await gate.clear();
+      throw StateError('keychain write failed');
+    }
+    await _applyAlwaysRekey(
+      key,
+      SecurityTier.keychainWithPassword,
+      result.modifiers,
+    );
+    await ref.read(hardwareTierVaultProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  Future<void> _applyHardwareTier(SecuritySetupResult result) async {
+    // Hardware tier now accepts a passwordless seal: when the
+    // wizard returns `pin == null` (user left the password
+    // modifier off for T2) the vault derives an empty auth value
+    // and seals under SE/TPM isolation alone. The modifiers
+    // snapshot `mods.password` stays the source of truth for
+    // later unlock flows, so persisting it alongside the tier
+    // keeps the read side in sync.
+    final hwVault = ref.read(hardwareTierVaultProvider);
+    final key = AesGcm.generateKey();
+    final sealed = await hwVault.store(dbKey: key, pin: result.pin);
+    if (!sealed) throw StateError('hardware seal failed');
+    await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);
+    await ref.read(secureKeyStorageProvider).deleteKey();
+    await ref.read(keychainPasswordGateProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  Future<void> _applyParanoidTier(SecuritySetupResult result) async {
+    final pw = result.masterPassword;
+    if (pw == null || pw.isEmpty) {
+      throw StateError('master password missing');
+    }
+    final manager = ref.read(masterPasswordProvider);
+    final key = await manager.enable(pw);
+    await _applyAlwaysRekey(key, SecurityTier.paranoid, result.modifiers);
+    await ref.read(secureKeyStorageProvider).deleteKey();
+    await ref.read(keychainPasswordGateProvider).clear();
+    await ref.read(hardwareTierVaultProvider).clear();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  /// Wipe every tier vault — used on T0 (plaintext) switch.
+  Future<void> _clearAllTierSecrets() async {
+    await ref.read(secureKeyStorageProvider).deleteKey();
+    await ref.read(keychainPasswordGateProvider).clear();
+    await ref.read(hardwareTierVaultProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  /// Wipe every tier vault *except* the keychain entry — used on T1
+  /// switch where [_applyKeychainTier] has just written a fresh DB
+  /// key into the keychain and must not immediately delete it.
+  Future<void> _clearNonKeychainTierSecrets() async {
+    await ref.read(keychainPasswordGateProvider).clear();
+    await ref.read(hardwareTierVaultProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
   }
 
   /// Rekey the live database under [key] (or convert to plaintext
@@ -773,7 +1040,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         if (existing == next) return;
         await ref
             .read(configProvider.notifier)
-            .update((cfg) => cfg.copyWith(security: next));
+            .update((cfg) => cfg.copyWithSecurity(security: next));
       },
       clearPrevious: () async {
         // Previous-tier cleanup (biometric vault clear, keychain
@@ -830,6 +1097,10 @@ class _AutoLockTile extends ConsumerWidget {
                 onSelected: (v) =>
                     ref.read(autoLockMinutesProvider.notifier).set(v),
                 tooltip: '',
+                // Match project-wide animation hard-off — PopupMenu
+                // owns its own controller and ignores the root
+                // `MediaQuery(disableAnimations: true)`.
+                popUpAnimationStyle: AnimationStyle.noAnimation,
                 offset: const Offset(0, AppTheme.controlHeightSm),
                 constraints: const BoxConstraints(
                   minWidth: 140,

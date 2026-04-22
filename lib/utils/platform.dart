@@ -23,6 +23,13 @@ bool? debugMobilePlatformOverride;
 @visibleForTesting
 bool? debugDesktopPlatformOverride;
 
+/// Override for testing — when non-null, [isMacosPlatform] returns this value.
+/// Used by macOS-only UI paths (first-launch self-sign pre-prompt, Settings
+/// Enable/Remove identity block) that would otherwise skip the branch on a
+/// Linux / CI host and leave the code uncovered.
+@visibleForTesting
+bool? debugIsMacosOverride;
+
 /// True on Android or iOS.
 bool get isMobilePlatform =>
     debugMobilePlatformOverride ?? (Platform.isAndroid || Platform.isIOS);
@@ -31,3 +38,7 @@ bool get isMobilePlatform =>
 bool get isDesktopPlatform =>
     debugDesktopPlatformOverride ??
     (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+
+/// True on macOS. Wraps `Platform.isMacOS` through a test-overridable
+/// getter so widget tests can exercise macOS-gated branches on any host.
+bool get isMacosPlatform => debugIsMacosOverride ?? Platform.isMacOS;

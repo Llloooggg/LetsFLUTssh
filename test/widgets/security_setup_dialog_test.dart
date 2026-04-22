@@ -9,6 +9,7 @@ import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
 class _FakeStorage implements FlutterSecureStorage {
@@ -198,6 +199,63 @@ void main() {
       await openDialog(tester, caps: allCaps);
       final context = tester.element(find.byType(SecuritySetupDialog));
       expect(find.text(S.of(context).recommendedBadge), findsOneWidget);
+    });
+
+    testWidgets(
+      'reduced wizard banner shown when neither T1 nor T2 is reachable',
+      (tester) async {
+        const noOsVault = SecurityCapabilities(biometricAvailable: false);
+        await openDialog(tester, caps: noOsVault);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        expect(find.text(S.of(context).wizardReducedBanner), findsOneWidget);
+        // T1 / T2 rows are hidden on the reduced branch — only T0 and
+        // Paranoid remain.
+        expect(find.text('T1'), findsNothing);
+        expect(find.text('T2'), findsNothing);
+        expect(find.text('T0'), findsOneWidget);
+        expect(find.text('P'), findsOneWidget);
+      },
+    );
+
+    testWidgets('tapping the T0 row forces the plaintext ack panel', (
+      tester,
+    ) async {
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      // T0 → the plaintext acknowledgement checkbox renders only when
+      // the row is selected.
+      await tester.tap(find.text('T0'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Checkbox), findsOneWidget);
+      // Apply / Enable stays disabled until the ack box is ticked.
+      final submit =
+          find.text(S.of(context).securitySetupEnable).evaluate().isNotEmpty
+          ? find.text(S.of(context).securitySetupEnable)
+          : find.text(S.of(context).securitySetupApply);
+      // Submit button migrated to `AppButton.primary` — find the
+      // AppButton ancestor and inspect `onTap`.
+      final btn = tester.widget<AppButton>(
+        find.ancestor(
+          of: submit,
+          matching: find.byWidgetPredicate((w) => w is AppButton),
+        ),
+      );
+      expect(btn.onTap, isNull);
+    });
+
+    testWidgets('tapping the Paranoid row shows the master-password form', (
+      tester,
+    ) async {
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      await tester.tap(find.text('P'));
+      await tester.pumpAndSettle();
+      // Paranoid always shows the secret form with a strength meter
+      // and the honesty note explaining master-password semantics.
+      expect(
+        find.text(S.of(context).paranoidMasterPasswordNote),
+        findsOneWidget,
+      );
     });
   });
 }

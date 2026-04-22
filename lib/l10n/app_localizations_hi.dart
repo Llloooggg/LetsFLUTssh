@@ -57,10 +57,19 @@ class SHi extends S {
   String get copy => 'कॉपी करें';
 
   @override
+  String get cut => 'कट करें';
+
+  @override
   String get paste => 'पेस्ट करें';
 
   @override
   String get select => 'चुनें';
+
+  @override
+  String get copyModeTapToStart => 'चयन आरंभ चिह्नित करने के लिए स्पर्श करें';
+
+  @override
+  String get copyModeExtending => 'चयन बढ़ाने के लिए खींचें';
 
   @override
   String get required => 'आवश्यक';
@@ -2297,6 +2306,61 @@ class SHi extends S {
 
   @override
   String get securityRecheckUnchanged => 'टियर समर्थन अपरिवर्तित';
+
+  @override
+  String get securityMacosEnableSecureTiers =>
+      'इस Mac पर सुरक्षित टियर अनलॉक करें';
+
+  @override
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'एप्लिकेशन को व्यक्तिगत प्रमाणपत्र से पुनः साइन करें ताकि कीचेन (T1) और Secure Enclave (T2) अपडेट के बाद भी काम करें';
+
+  @override
+  String get securityMacosEnableSecureTiersPrompt =>
+      'macOS एक बार आपका पासवर्ड पूछेगा';
+
+  @override
+  String get securityMacosEnableSecureTiersSuccess =>
+      'सुरक्षित टियर अनलॉक — T1 और T2 अब उपलब्ध हैं';
+
+  @override
+  String get securityMacosEnableSecureTiersFailed =>
+      'सुरक्षित टियर अनलॉक करने में विफल';
+
+  @override
+  String get securityMacosOfferTitle => 'कीचेन + Secure Enclave सक्षम करें?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS एन्क्रिप्टेड स्टोरेज को ऐप की सिग्निंग आईडेंटिटी से जोड़ता है। स्थिर प्रमाणपत्र के बिना, कीचेन (T1) और Secure Enclave (T2) एक्सेस अस्वीकार करते हैं। हम इस Mac पर एक व्यक्तिगत स्व-हस्ताक्षरित प्रमाणपत्र बना सकते हैं और ऐप को फिर से साइन कर सकते हैं — अपडेट काम करते रहेंगे, और आपके रहस्य रिलीज़ के बीच बचे रहेंगे। macOS नए प्रमाणपत्र पर भरोसा करने के लिए एक बार आपका लॉगिन पासवर्ड पूछेगा।';
+
+  @override
+  String get securityMacosOfferAccept => 'सक्षम करें';
+
+  @override
+  String get securityMacosOfferDecline => 'छोड़ें — T0 या Paranoid चुनें';
+
+  @override
+  String get securityMacosRemoveIdentity => 'साइनिंग आईडेंटिटी हटाएं';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'व्यक्तिगत प्रमाणपत्र हटाता है। T1 / T2 डेटा इससे जुड़ा है — पहले T0 या Paranoid पर स्विच करें, फिर हटाएं।';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'साइनिंग आईडेंटिटी हटाएं?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'लॉगिन कीचेन से व्यक्तिगत प्रमाणपत्र हटाता है। T1 / T2 संग्रहीत रहस्य अपठनीय हो जाएंगे। हटाने से पहले T0 (सादा) या Paranoid (मास्टर पासवर्ड) में माइग्रेट करने के लिए विज़ार्ड खुलेगा।';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'साइनिंग आईडेंटिटी हटाई गई';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'साइनिंग आईडेंटिटी हटाने में विफल';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

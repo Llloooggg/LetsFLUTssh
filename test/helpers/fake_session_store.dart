@@ -46,12 +46,12 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
-  Future<Session> duplicateSession(String id) async {
+  Future<Session> duplicateSession(String id, {String? targetFolder}) async {
     final original = _fakeSessions.firstWhere((s) => s.id == id);
     final copy = Session(
       id: '${original.id}-copy',
       label: '${original.label} (copy)',
-      folder: original.folder,
+      folder: targetFolder ?? original.folder,
       server: ServerAddress(
         host: original.host,
         port: original.port,

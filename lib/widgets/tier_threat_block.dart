@@ -135,10 +135,14 @@ class TierThreatBlock extends StatelessWidget {
       body = Opacity(opacity: 0.5, child: body);
     }
     if (onTap != null) {
+      // Clickable threat block — opt its contents out of the ambient
+      // `SelectionArea`. Same rationale as the other tiles: when the
+      // whole block dispatches on tap, the cursor stays a pointer and
+      // drag-select would race the tap gesture.
       body = InkWell(
         borderRadius: AppTheme.radiusSm,
         onTap: onTap,
-        child: body,
+        child: SelectionContainer.disabled(child: body),
       );
     }
     return Padding(

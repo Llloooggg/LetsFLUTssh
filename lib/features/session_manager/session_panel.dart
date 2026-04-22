@@ -175,7 +175,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             },
           ),
         ),
-        actions: [AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop())],
+        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
       ),
     );
 
@@ -218,12 +218,47 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   void copyFocusedSession() => _ctrl.copyFocused();
 
-  /// Paste (duplicate) the copied session.
+  /// Mark the focused session for cut — next paste moves instead of
+  /// duplicates.
   @visibleForTesting
-  void pasteCopiedSession() {
+  void cutFocusedSession() => _ctrl.cutFocused();
+
+  /// Paste the copied session. Default is duplicate next to the
+  /// currently focused session or folder (not the source); cut paste
+  /// moves the original into the same target. The rule matches
+  /// standard file-manager paste: paste lands where the user is
+  /// pointing, not where the source still lives.
+  ///
+  /// [explicitTarget] overrides the focus-derived target — used by the
+  /// folder-row context menu, which pastes into the right-clicked
+  /// folder regardless of what is currently focused.
+  @visibleForTesting
+  void pasteCopiedSession({String? explicitTarget}) {
     final id = _ctrl.copiedSessionId;
     if (id == null) return;
-    ref.read(sessionProvider.notifier).duplicate(id);
+    final target = explicitTarget ?? _resolvePasteTargetFolder();
+    if (_ctrl.cutPending) {
+      ref.read(sessionProvider.notifier).moveSession(id, target);
+      _ctrl.clearClipboard();
+      return;
+    }
+    ref.read(sessionProvider.notifier).duplicate(id, targetFolder: target);
+  }
+
+  /// Resolve where a paste should land. Focused folder wins, then
+  /// the folder of the focused session, then root.
+  String _resolvePasteTargetFolder() {
+    final folder = _ctrl.focusedFolderPath;
+    if (folder != null) return folder;
+    final sid = _ctrl.focusedSessionId;
+    if (sid != null) {
+      final sess = ref
+          .read(sessionProvider)
+          .where((s) => s.id == sid)
+          .firstOrNull;
+      if (sess != null) return sess.folder;
+    }
+    return '';
   }
 
   /// Delete the focused session (shows confirmation dialog).
@@ -248,41 +283,26 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     _editSession(context, ref, session);
   }
 
-  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final reg = AppShortcutRegistry.instance;
-
-    if (reg.matches(AppShortcut.sessionUndo, event)) {
-      ref.read(sessionProvider.notifier).undo();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionRedo, event)) {
-      ref.read(sessionProvider.notifier).redo();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionCopy, event)) {
-      copyFocusedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionPaste, event)) {
-      pasteCopiedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionDelete, event)) {
-      if (_ctrl.hasSelection) {
-        _deleteSelected(context);
-        return KeyEventResult.handled;
-      }
-      if (_ctrl.focusedSessionId == null) return KeyEventResult.ignored;
-      deleteFocusedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionEdit, event)) {
-      if (_ctrl.focusedSessionId == null) return KeyEventResult.ignored;
-      editFocusedSession();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
+  Map<ShortcutActivator, VoidCallback> _buildShortcutBindings() {
+    return AppShortcutRegistry.instance.buildCallbackMap({
+      AppShortcut.sessionUndo: () => ref.read(sessionProvider.notifier).undo(),
+      AppShortcut.sessionRedo: () => ref.read(sessionProvider.notifier).redo(),
+      AppShortcut.sessionCopy: copyFocusedSession,
+      AppShortcut.sessionCut: cutFocusedSession,
+      AppShortcut.sessionPaste: pasteCopiedSession,
+      AppShortcut.sessionDelete: () {
+        if (_ctrl.hasSelection) {
+          _deleteSelected(context);
+          return;
+        }
+        if (_ctrl.focusedSessionId == null) return;
+        deleteFocusedSession();
+      },
+      AppShortcut.sessionEdit: () {
+        if (_ctrl.focusedSessionId == null) return;
+        editFocusedSession();
+      },
+    });
   }
 
   @override
@@ -290,43 +310,84 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final tree = ref.watch(filteredSessionTreeProvider);
     final searchQuery = ref.watch(sessionSearchProvider);
     final mobile = isMobilePlatform;
+    final loading = ref.watch(sessionsLoadingProvider);
 
     final scheme = Theme.of(context).colorScheme;
-    return Listener(
-      // Claim focus on any pointer-down inside the sidebar so a marquee
-      // drag (which never calls onSessionSelected) still flips the panel
-      // into its "focused" colour scheme. Without this, rows switched
-      // between the dimmed onSurface highlight and the accent-coloured
-      // one depending on whether the user had previously tapped a row —
-      // the "selection sometimes grey, sometimes blue" flicker.
-      onPointerDown: (_) {
-        if (!isMobilePlatform) _focusNode.requestFocus();
-        widget.onActivated?.call();
-      },
-      child: Focus(
-        focusNode: _focusNode,
-        autofocus: false,
-        onKeyEvent: _onKeyEvent,
-        child: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (context, _) => Container(
-            color: scheme.surfaceContainerLow,
-            child: Column(
-              children: [
-                ..._buildHeader(context, ref, searchQuery, mobile),
-                Expanded(
-                  child: tree.isEmpty
-                      ? _EmptyState(onAdd: () => _addSession(context, ref))
-                      : _buildTreeView(context, ref, tree, mobile),
+    // Opt the whole sidebar out of the ambient `SelectionArea`. The
+    // app-level SelectionArea otherwise claims `Ctrl+C` as "copy the
+    // selected Text to the clipboard" and swallows the event before
+    // our Focus's `_onKeyEvent` sees it — so `AppShortcut.sessionCopy`
+    // / `sessionPaste` never fires. The sidebar is a tool surface
+    // (rows, folders, buttons), not informational body text; nothing
+    // inside should be drag-selectable. Disabling selection at the
+    // panel root keeps drag gestures (tab reorder, session tree DnD)
+    // intact because the wrap sits *above* the Listener +
+    // ThresholdDraggable tree, so pointer events still reach
+    // Draggable unchanged — only the Selectable registration is
+    // suppressed.
+    return SelectionContainer.disabled(
+      child: Listener(
+        // Claim focus on any pointer-down inside the sidebar so a marquee
+        // drag (which never calls onSessionSelected) still flips the panel
+        // into its "focused" colour scheme. Without this, rows switched
+        // between the dimmed onSurface highlight and the accent-coloured
+        // one depending on whether the user had previously tapped a row —
+        // the "selection sometimes grey, sometimes blue" flicker.
+        onPointerDown: (_) {
+          if (!isMobilePlatform) _focusNode.requestFocus();
+          widget.onActivated?.call();
+        },
+        // `CallbackShortcuts` fires for any `FocusNode` descendant that
+        // is currently focused — not just the `Focus` widget it wraps —
+        // which fixes the "works every other time" bug the hand-rolled
+        // `Focus(onKeyEvent: _onKeyEvent)` shipped. With the prior
+        // `onKeyEvent` approach, clicking on a session row gave focus
+        // to an inner `Draggable` / `AppIconButton` node, which stole
+        // focus away from the panel root — so `Ctrl+C`, `Ctrl+V`,
+        // `Ctrl+Z` etc only fired on the lucky frames where the panel
+        // root itself held focus. `CallbackShortcuts` + the outer
+        // `Focus(autofocus: true)` keeps the whole subtree live.
+        child: CallbackShortcuts(
+          bindings: _buildShortcutBindings(),
+          child: Focus(
+            focusNode: _focusNode,
+            autofocus: false,
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) => Container(
+                color: scheme.surfaceContainerLow,
+                child: Column(
+                  children: [
+                    ..._buildHeader(context, ref, searchQuery, mobile),
+                    Expanded(
+                      // While the first DB load is in flight the tree
+                      // is trivially empty — render a blank slot
+                      // instead of the "No sessions" empty state so
+                      // cold-start doesn't flash "your sessions are
+                      // gone" for ~1 s before the rows paint. A
+                      // spinner would be more informative but
+                      // `CircularProgressIndicator`'s ticker blocks
+                      // `pumpAndSettle` in widget tests, so a static
+                      // placeholder is the right trade — the load is
+                      // fast enough that the blank slot is
+                      // indistinguishable from "still drawing the
+                      // first frame".
+                      child: loading
+                          ? const SizedBox.shrink()
+                          : tree.isEmpty
+                          ? _EmptyState(onAdd: () => _addSession(context, ref))
+                          : _buildTreeView(context, ref, tree, mobile),
+                    ),
+                    if (!mobile)
+                      _SessionDetailsPanel(
+                        session: _focusedSession(ref),
+                        folderPath: _ctrl.focusedFolderPath,
+                        folderItemCount: _ctrl.focusedFolderItemCount,
+                      ),
+                    if (!mobile) const _SidebarFooter(),
+                  ],
                 ),
-                if (!mobile)
-                  _SessionDetailsPanel(
-                    session: _focusedSession(ref),
-                    folderPath: _ctrl.focusedFolderPath,
-                    folderItemCount: _ctrl.focusedFolderItemCount,
-                  ),
-                if (!mobile) const _SidebarFooter(),
-              ],
+              ),
             ),
           ),
         ),
@@ -411,11 +472,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       },
       onFolderSelected: _ctrl.setFocusedFolder,
       onEmptySpaceTap: () {
-        // Drop the panel focus so highlighted rows dim to grey — the
-        // details panel still shows the previously-focused session or
-        // folder, so the user can tell which row it belongs to without
-        // the row stealing the accent colour from active work elsewhere.
-        if (!mobile) _focusNode.unfocus();
+        // Clear the focused session / folder so the row highlight
+        // dims to grey — details panel stays visible for last-
+        // focused context. We used to call `_focusNode.unfocus()`
+        // here but that dropped the panel out of the CallbackShortcuts
+        // scope: a subsequent `Ctrl+V` / `Ctrl+Z` silently did
+        // nothing because no descendant `FocusNode` of
+        // `SessionPanel` was holding focus. Keep focus, clear the
+        // pointer-ids that drive the highlight — same visual, no
+        // shortcut regression.
+        _ctrl.clearFocus();
       },
       onSessionContextMenu: (session, position) {
         _showContextMenu(context, ref, session, position);
@@ -479,35 +545,47 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).terminal,
-          icon: Icons.terminal,
-          color: AppTheme.blue,
+        StandardMenuAction.terminal.item(
+          context,
           onTap: () => widget.onConnect(session),
         ),
         if (widget.onSftpConnect != null)
-          ContextMenuItem(
-            label: S.of(context).files,
-            icon: Icons.folder,
-            color: AppTheme.yellow,
+          StandardMenuAction.files.item(
+            context,
             onTap: () => widget.onSftpConnect?.call(session),
           ),
         const ContextMenuItem.divider(),
-        ContextMenuItem(
-          label: S.of(context).editConnection,
-          icon: Icons.settings,
+        StandardMenuAction.copy.item(
+          context,
+          shortcut: AppShortcut.sessionCopy,
+          onTap: () => _ctrl.copySessionId(session.id),
+        ),
+        StandardMenuAction.cut.item(
+          context,
+          shortcut: AppShortcut.sessionCut,
+          onTap: () => _ctrl.cutSessionId(session.id),
+        ),
+        // Paste is always visible — matches Finder / Explorer / Nautilus,
+        // where the entry stays present and silently no-ops when the
+        // clipboard is empty. Hiding it would make the menu layout jitter
+        // between copy-then-paste actions.
+        StandardMenuAction.paste.item(
+          context,
+          shortcut: AppShortcut.sessionPaste,
+          onTap: () => pasteCopiedSession(explicitTarget: session.folder),
+        ),
+        const ContextMenuItem.divider(),
+        StandardMenuAction.editConnection.item(
+          context,
           onTap: () => _editSession(context, ref, session),
         ),
-        ContextMenuItem(
-          label: S.of(context).duplicate,
-          icon: Icons.copy,
+        StandardMenuAction.duplicate.item(
+          context,
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
         const ContextMenuItem.divider(),
-        ContextMenuItem(
-          label: S.of(context).delete,
-          icon: Icons.delete,
-          color: AppTheme.red,
+        StandardMenuAction.delete.item(
+          context,
           onTap: () => _confirmDelete(context, ref, session),
         ),
       ],
@@ -651,7 +729,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             ),
           ),
         ),
-        actions: [AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop())],
+        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
       ),
     );
 
@@ -713,26 +791,30 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).newConnection,
-          icon: Icons.add,
+        StandardMenuAction.newConnection.item(
+          context,
           onTap: () => _addSessionInFolder(context, ref, folderPath),
         ),
-        ContextMenuItem(
-          label: S.of(context).newFolder,
-          icon: Icons.create_new_folder,
+        StandardMenuAction.newFolder.item(
+          context,
           onTap: () => _createFolder(context, ref, folderPath),
+        ),
+        // Paste lands directly inside the right-clicked folder — the
+        // explicit target overrides the focus-derived default, so the
+        // user does not have to pre-focus the folder.
+        StandardMenuAction.paste.item(
+          context,
+          shortcut: AppShortcut.sessionPaste,
+          onTap: () => pasteCopiedSession(explicitTarget: folderPath),
         ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: S.of(context).renameFolder,
-            icon: Icons.drive_file_rename_outline,
+          StandardMenuAction.renameFolder.item(
+            context,
             onTap: () => _renameFolder(context, ref, folderPath),
           ),
-          ContextMenuItem(
-            label: S.of(context).editTags,
-            icon: Icons.label_outline,
+          StandardMenuAction.editTags.item(
+            context,
             onTap: () {
               final folderId = ref
                   .read(sessionStoreProvider)
@@ -742,10 +824,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               }
             },
           ),
-          ContextMenuItem(
-            label: S.of(context).deleteFolder,
-            icon: Icons.delete,
-            color: AppTheme.red,
+          StandardMenuAction.deleteFolder.item(
+            context,
             onTap: () => _confirmDeleteFolder(context, ref, folderPath),
           ),
         ],
@@ -1048,8 +1128,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.primary(
           label: confirmLabel,
           enabled: errorText == null,
           onTap: () => Navigator.of(context).pop(nameCtrl.text),

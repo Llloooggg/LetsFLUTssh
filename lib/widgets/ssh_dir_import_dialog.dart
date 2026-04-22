@@ -342,8 +342,8 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(
           label: s.importData,
           enabled: _hasAnySelection,
           onTap: () => Navigator.pop(context, _buildResult(context)),
@@ -536,10 +536,11 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       padding: const EdgeInsets.only(top: 6, left: 4),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: onPressed,
-          icon: const Icon(Icons.folder_open, size: 16),
-          label: Text(s.browseFiles),
+        child: AppButton(
+          label: s.browseFiles,
+          icon: Icons.folder_open,
+          onTap: onPressed,
+          dense: true,
         ),
       ),
     );

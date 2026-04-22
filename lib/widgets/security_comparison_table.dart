@@ -87,7 +87,7 @@ class SecurityComparisonTable extends StatelessWidget {
           ? _TransposedMatrix(l10n: l10n)
           : _WideMatrix(l10n: l10n),
       actions: [
-        AppDialogAction.primary(
+        AppButton.primary(
           label: l10n.close,
           onTap: () => Navigator.of(context).pop(),
         ),

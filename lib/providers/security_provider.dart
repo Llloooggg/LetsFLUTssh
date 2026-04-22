@@ -13,11 +13,38 @@ import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
+import '../platform/macos/code_signing/resign_service.dart';
 import 'config_provider.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
   (_) => SecureKeyStorage(),
+);
+
+/// macOS self-sign orchestrator. Non-macOS hosts still receive a
+/// constructed instance — its methods throw / no-op at call time
+/// because the subprocess wrappers target `/usr/bin/openssl`,
+/// `/usr/bin/security`, and `/usr/bin/codesign` which only exist on
+/// macOS. UI code is responsible for gating the provider behind
+/// `Platform.isMacOS` before invoking [ResignService.ensureIdentity]
+/// / [ResignService.resignBundle]. Kept here rather than in a
+/// dedicated file so the wizard + settings surfaces that need the
+/// self-sign flow pick it up through the same `security_provider`
+/// module every other tier dependency comes from.
+///
+/// UI hookup TODO (tracked in `docs/ARCHITECTURE.md §3.6 macOS
+/// self-sign lifecycle`): the first-launch wizard + the Settings →
+/// Security tier card need a macOS-only "Enable Keychain" action
+/// that calls `ensureIdentity()` + `resignBundle(appBundle)` against
+/// the live bundle (`Platform.resolvedExecutable` → walk up twice
+/// to the `.app` root, same pattern as `updateServiceProvider`'s
+/// MacosInstaller adapter). On success the wizard invalidates
+/// `securityCapabilitiesProvider` so T1 re-renders as available.
+/// The button needs fresh localisation entries in every `app_*.arb`
+/// (label + password-prompt prep copy + failure copy) which lands
+/// in a follow-up commit.
+final resignServiceProvider = Provider<ResignService>(
+  (_) => const ResignService(),
 );
 
 /// Biometric authentication probe + prompt. Used by the optional
@@ -72,7 +99,7 @@ final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
   // safe direction.
   await ref
       .read(configProvider.notifier)
-      .update((c) => c.copyWith(securityProbeCache: fresh));
+      .update((c) => c.copyWithSecurity(securityProbeCache: fresh));
   return fresh;
 });
 

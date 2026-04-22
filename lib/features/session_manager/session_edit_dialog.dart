@@ -15,6 +15,7 @@ import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../l10n/app_localizations.dart';
@@ -527,14 +528,10 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       '${S.of(context).selectFromKeyStore}: $_selectedKeyLabel';
 
   Widget _buildKeyPickerButton(S s, List<SshKeyEntry> keyList) {
-    return OutlinedButton.icon(
-      onPressed: keyList.isEmpty ? null : () => _showKeyPicker(keyList),
-      icon: const Icon(Icons.vpn_key, size: 18),
-      label: Text(s.selectFromKeyStore, overflow: TextOverflow.ellipsis),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 48),
-        alignment: Alignment.centerLeft,
-      ),
+    return DropdownSelectButton(
+      icon: Icons.vpn_key,
+      label: s.selectFromKeyStore,
+      onTap: keyList.isEmpty ? null : () => _showKeyPicker(keyList),
     );
   }
 
@@ -639,17 +636,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     final hasKey = _keyPathCtrl.text.trim().isNotEmpty;
     final fileName = hasKey ? p.basename(_keyPathCtrl.text.trim()) : null;
 
-    final button = OutlinedButton.icon(
-      onPressed: _pickKeyFile,
-      icon: Icon(hasKey ? Icons.vpn_key : Icons.folder_open, size: 18),
-      label: Text(
-        fileName ?? S.of(context).selectKeyFile,
-        overflow: TextOverflow.ellipsis,
-      ),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 48),
-        alignment: Alignment.centerLeft,
-      ),
+    final button = DropdownSelectButton(
+      icon: hasKey ? Icons.vpn_key : Icons.folder_open,
+      label: fileName ?? S.of(context).selectKeyFile,
+      onTap: _pickKeyFile,
+      showChevron: false,
     );
 
     final row = Row(
@@ -711,18 +702,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Widget _buildPemToggle() {
     return Align(
       alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        onPressed: () => setState(() => _showKeyText = !_showKeyText),
-        icon: Icon(
-          _showKeyText ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-          size: 16,
-        ),
-        label: Text(
-          _showKeyText
-              ? S.of(context).hidePemText
-              : S.of(context).pastePemKeyText,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
+      child: AppButton(
+        label: _showKeyText
+            ? S.of(context).hidePemText
+            : S.of(context).pastePemKeyText,
+        icon: _showKeyText
+            ? Icons.keyboard_arrow_up
+            : Icons.keyboard_arrow_down,
+        onTap: () => setState(() => _showKeyText = !_showKeyText),
+        dense: true,
       ),
     );
   }
@@ -828,9 +816,9 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Widget _buildFooter() {
     return AppDialogFooter(
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.secondary(label: S.of(context).save, onTap: _save),
+        AppButton.primary(
           label: S.of(context).saveAndConnect,
           onTap: () => _save(connect: true),
         ),
@@ -901,18 +889,15 @@ class _ManageTagsButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = S.of(context);
-    return OutlinedButton.icon(
-      icon: const Icon(Icons.label_outline, size: 16),
-      label: Text(s.manageTags, style: TextStyle(fontSize: AppFonts.sm)),
-      onPressed: () async {
+    return AppButton.secondary(
+      label: s.manageTags,
+      icon: Icons.label_outline,
+      dense: true,
+      onTap: () async {
         await TagAssignDialog.showForSession(context, sessionId: sessionId);
         // The dialog applies changes directly; invalidate to refresh.
         ref.invalidate(sessionTagsProvider(sessionId));
       },
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, AppTheme.controlHeightSm),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-      ),
     );
   }
 }

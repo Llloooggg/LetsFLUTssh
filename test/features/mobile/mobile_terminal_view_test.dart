@@ -11,6 +11,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_terminal_view.dart';
 import 'package:letsflutssh/features/mobile/ssh_key_sequences.dart';
 import 'package:letsflutssh/features/mobile/ssh_keyboard_bar.dart';
+import 'package:letsflutssh/features/mobile/terminal_copy_overlay.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import '../../core/ssh/shell_helper_test.mocks.dart';
@@ -348,7 +349,9 @@ void main() {
       await stderrCtrl.close();
     });
 
-    testWidgets('GestureDetector present for pinch zoom', (tester) async {
+    testWidgets('Listener wraps the terminal for pointer tracking', (
+      tester,
+    ) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -365,7 +368,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(GestureDetector), findsWidgets);
+      // Manual pointer tracking replaced the stock ScaleGestureRecognizer
+      // so single-finger gestures reach xterm's long-press recognizer.
+      expect(find.byType(Listener), findsWidgets);
     });
 
     testWidgets('widget disposes without errors', (tester) async {
@@ -520,30 +525,6 @@ void main() {
         expect(find.byType(IgnorePointer), findsWidgets);
       },
     );
-
-    testWidgets('onScaleEnd is configured on GestureDetector', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = connectedConn(mockSsh, mockSession);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(body: MobileTerminalView(connection: conn)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final gds = tester.widgetList<GestureDetector>(
-        find.byType(GestureDetector),
-      );
-      final scaleGd = gds.where((g) => g.onScaleEnd != null).toList();
-      expect(scaleGd, isNotEmpty);
-    });
   });
 
   group('MobileTerminalView — font size from settings', () {
@@ -661,35 +642,6 @@ void main() {
 
       // No selection toolbar should be visible
       expect(find.text('Copy'), findsNothing);
-    });
-
-    testWidgets('GestureDetector does not have onLongPressStart', (
-      tester,
-    ) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = connectedConn(mockSsh, mockSession);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(body: MobileTerminalView(connection: conn)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // The outer GestureDetector should NOT have onLongPressStart
-      // (xterm handles long press internally for word selection)
-      final gds = tester.widgetList<GestureDetector>(
-        find.byType(GestureDetector),
-      );
-      final outerGd = gds.where((g) => g.onScaleStart != null).toList();
-      expect(outerGd, isNotEmpty);
-      expect(outerGd.first.onLongPressStart, isNull);
     });
 
     testWidgets('paste button is present in keyboard bar', (tester) async {
@@ -829,8 +781,8 @@ void main() {
     });
   });
 
-  group('MobileTerminalView — select mode', () {
-    testWidgets('select button renders on keyboard bar', (tester) async {
+  group('MobileTerminalView — copy mode', () {
+    testWidgets('copy button renders on keyboard bar', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final conn = connectedConn(mockSsh, mockSession);
@@ -847,10 +799,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.select_all), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsOneWidget);
     });
 
-    testWidgets('tapping select button suspends pointer input', (tester) async {
+    testWidgets('tapping copy button suspends pointer input', (tester) async {
       final mockSsh = MockSSHConnection();
       final mockSession = MockSSHSession();
       final stdoutCtrl = StreamController<Uint8List>.broadcast();
@@ -893,14 +845,24 @@ void main() {
 
       expect(controller.suspendedPointerInputs, isFalse);
 
+      // Once copy mode is active, the overlay surfaces its own `Icons.copy`
+      // button (the clipboard action inside the copy toolbar), so a bare
+      // `find.byIcon(Icons.copy)` matches two widgets. Scope the finder to
+      // the keyboard bar — that one is the mode toggle, present in both
+      // states, and the test only cares about flipping it.
+      final toggleCopyButton = find.descendant(
+        of: find.byType(SshKeyboardBar),
+        matching: find.byIcon(Icons.copy),
+      );
+
       // Tap select button
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(toggleCopyButton);
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isTrue);
 
       // Tap again to deactivate
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(toggleCopyButton);
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isFalse);
@@ -909,47 +871,7 @@ void main() {
       await stderrCtrl.close();
     });
 
-    testWidgets('scale gestures disabled during select mode', (tester) async {
-      final mockSsh = MockSSHConnection();
-      final mockSession = MockSSHSession();
-      final conn = connectedConn(mockSsh, mockSession);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(body: MobileTerminalView(connection: conn)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Before select mode: scale gestures are configured
-      var gds = tester.widgetList<GestureDetector>(
-        find.byType(GestureDetector),
-      );
-      expect(gds.where((g) => g.onScaleStart != null), isNotEmpty);
-
-      // Enable select mode
-      await tester.tap(find.byIcon(Icons.select_all));
-      await tester.pump();
-
-      // After select mode: scale gestures are disabled
-      gds = tester.widgetList<GestureDetector>(find.byType(GestureDetector));
-      expect(gds.where((g) => g.onScaleStart != null), isEmpty);
-
-      // Disable select mode
-      await tester.tap(find.byIcon(Icons.select_all));
-      await tester.pump();
-
-      // Scale gestures re-enabled
-      gds = tester.widgetList<GestureDetector>(find.byType(GestureDetector));
-      expect(gds.where((g) => g.onScaleStart != null), isNotEmpty);
-    });
-
-    testWidgets('selection toolbar is positioned as overlay in Stack', (
+    testWidgets('copy overlay mounts when copy mode is enabled', (
       tester,
     ) async {
       final mockSsh = MockSSHConnection();
@@ -968,29 +890,46 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Enable select mode
-      await tester.tap(find.byIcon(Icons.select_all));
-      await tester.pump();
+      // Before copy mode: overlay is not mounted.
+      expect(find.byType(TerminalCopyOverlay), findsNothing);
 
-      // Simulate selection via controller using BufferLine anchors
-      final terminalView = tester.widget<TerminalView>(
-        find.byType(TerminalView),
-      );
-      final controller = terminalView.controller!;
-      final terminal = terminalView.terminal;
-      final line = terminal.buffer.lines[0];
-      final base = line.createAnchor(0);
-      final extent = line.createAnchor(3);
-      controller.setSelection(base, extent);
-      await tester.pump();
+      // Enter copy mode.
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pumpAndSettle();
 
-      // Toolbar should appear as overlay (inside Positioned, not Column)
+      // Overlay mounts with its toolbar. Two "Copy" strings are expected:
+      // one from the keyboard-bar tooltip stays out of the tree (tooltips
+      // are not rendered until hovered), so the text we see is the
+      // overlay's own Copy button.
+      expect(find.byType(TerminalCopyOverlay), findsOneWidget);
       expect(find.text('Copy'), findsOneWidget);
-      final positioned = tester.widgetList<Positioned>(
-        find.ancestor(of: find.text('Copy'), matching: find.byType(Positioned)),
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
+    testWidgets('tapping overlay Cancel exits copy mode', (tester) async {
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
       );
-      expect(positioned, isNotEmpty);
-      expect(positioned.first.bottom, 0);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalCopyOverlay), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalCopyOverlay), findsNothing);
     });
   });
 }

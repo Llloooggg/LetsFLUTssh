@@ -483,9 +483,10 @@ abstract final class AppTheme {
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           // Hard-off all page transitions — see `_NoTransitionsBuilder`
-          // for rationale. Combined with `timeDilation = 0.01` in
-          // `main()` and `disableAnimations: true` on the root
-          // `MediaQuery`, the app ships without motion.
+          // for rationale. Combined with `disableAnimations: true` on
+          // the root `MediaQuery` and the widget-level opt-outs on
+          // `Toast` + every `PopupMenuButton`, the app ships without
+          // motion while keeping gesture physics intact.
           TargetPlatform.android: _NoTransitionsBuilder(),
           TargetPlatform.iOS: _NoTransitionsBuilder(),
           TargetPlatform.linux: _NoTransitionsBuilder(),
@@ -832,6 +833,29 @@ abstract final class AppFonts {
   static const _inter = 'Inter';
   static const _mono = 'JetBrains Mono';
 
+  /// Monospace family used by the terminal views and cursor overlay. Exposed
+  /// so xterm's `TerminalStyle` and the custom cursor painter can share a
+  /// single source of truth with [mono].
+  static const monoFamily = _mono;
+
+  /// Fallback chain for the monospace family. JetBrains Mono ships with no
+  /// emoji / symbol / CJK glyphs, so without a fallback list every
+  /// non-Latin codepoint renders as a tofu box. The entries are tried in
+  /// order and resolved against the OS font registry (bundling the fonts
+  /// ourselves would add ~10 MB to the APK for Noto Color Emoji alone, and
+  /// every target OS already ships a Unicode-coverage font under one of
+  /// these names). `sans-serif` is the universal last resort on Android
+  /// and Linux; the named emoji fonts map 1:1 to the canonical installs
+  /// on each platform.
+  static const monoFallback = <String>[
+    'Noto Color Emoji',
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
+    'Noto Sans Symbols 2',
+    'sans-serif',
+  ];
+
   static final bool _mobile = plat.isMobilePlatform;
 
   // ── Platform-aware size scale (desktop / mobile) ──
@@ -876,6 +900,7 @@ abstract final class AppFonts {
     Color? color,
   }) => TextStyle(
     fontFamily: _mono,
+    fontFamilyFallback: monoFallback,
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
@@ -885,9 +910,14 @@ abstract final class AppFonts {
 /// No-op PageTransitionsBuilder — route pushes/pops appear instantly
 /// with no slide, fade, or zoom. Motion in this app was proving
 /// glitchy across locales and widgets, so transitions are hard-off
-/// project-wide. See `main.dart` (`timeDilation = 0.01`) and the root
-/// `MediaQuery(disableAnimations: true)` for the other two layers of
-/// the same decision.
+/// project-wide. Companion layers: `disableAnimations: true` on the
+/// root `MediaQuery` (implicit animations) + widget-level opt-outs
+/// on `Toast` (zero-duration controller) and every `PopupMenuButton`
+/// (`popUpAnimationStyle: AnimationStyle.noAnimation`). An earlier
+/// `timeDilation = 0.01` blanket also caught those leaks but
+/// compressed the scroll-physics simulations to near-zero, making
+/// mobile fling / snap feel janky — physics needs real time,
+/// animations don't.
 class _NoTransitionsBuilder extends PageTransitionsBuilder {
   const _NoTransitionsBuilder();
 

@@ -66,11 +66,11 @@ class TierResetDialog extends StatelessWidget {
           ],
         ),
         actions: [
-          AppDialogAction.secondary(
+          AppButton.secondary(
             label: l10n.tierResetExit,
             onTap: () => Navigator.of(context).pop(TierResetChoice.exitApp),
           ),
-          AppDialogAction.destructive(
+          AppButton.destructive(
             label: l10n.tierResetResetContinue,
             onTap: () =>
                 Navigator.of(context).pop(TierResetChoice.resetAndSetupFresh),

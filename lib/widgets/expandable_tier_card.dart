@@ -5,6 +5,7 @@ import '../core/security/threat_vocabulary.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'app_button.dart';
 import 'secure_password_field.dart';
 import 'security_threat_list.dart' show threatTitle;
 
@@ -358,99 +359,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
             trailing: _headerTrailing(l10n, accent),
             onTap: () => setState(() => _expanded = !_expanded),
           ),
-          if (_expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _ThreatListFixed(model: _previewModel, l10n: l10n),
-                  if (!widget.tierAvailable &&
-                      widget.unavailableReason != null) ...[
-                    const SizedBox(height: 8),
-                    _UnavailableReason(text: widget.unavailableReason!),
-                  ],
-                  if (_passwordToggleAvailable ||
-                      widget.biometricSpec != null ||
-                      widget.autoLockRow != null) ...[
-                    const SizedBox(height: 12),
-                    const Divider(height: 1),
-                    const SizedBox(height: 8),
-                  ],
-                  if (_passwordToggleAvailable)
-                    _ModifierRow(
-                      label: l10n.modifierPasswordLabel,
-                      subtitle: l10n.modifierPasswordSubtitle,
-                      icon: Icons.password,
-                      value: _passwordEnabled,
-                      enabled: widget.tierAvailable,
-                      onChanged: (v) {
-                        setState(() {
-                          _passwordEnabled = v;
-                          _passwordCtrl.wipeAndClear();
-                          _passwordConfirmCtrl.wipeAndClear();
-                        });
-                      },
-                    ),
-                  if (widget.biometricSpec != null)
-                    _ModifierRow(
-                      label: l10n.biometricUnlockTitle,
-                      subtitle: l10n.biometricUnlockSubtitle,
-                      icon: Icons.fingerprint,
-                      value: widget.biometricSpec!.value,
-                      enabled: widget.biometricSpec!.enabled,
-                      onChanged: widget.biometricSpec!.onChanged,
-                      disabledReason: widget.biometricSpec!.disabledReason,
-                    ),
-                  if (widget.autoLockRow != null) widget.autoLockRow!,
-                  if (_requiresPasswordInput) ...[
-                    const SizedBox(height: 8),
-                    _PasswordPair(
-                      primary: _passwordCtrl,
-                      confirm: _passwordConfirmCtrl,
-                      primaryHint: l10n.passwordLabel,
-                      confirmHint: l10n.confirmPassword,
-                      onChanged: () => setState(() {}),
-                    ),
-                  ],
-                  if (_requiresMasterPasswordInput) ...[
-                    const SizedBox(height: 8),
-                    _PasswordPair(
-                      primary: _masterPasswordCtrl,
-                      confirm: _masterPasswordConfirmCtrl,
-                      primaryHint: l10n.masterPasswordLabel,
-                      confirmHint: l10n.confirmPassword,
-                      onChanged: () => setState(() {}),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(
-                      onPressed: _selectEnabled ? _onSelect : null,
-                      child: _busy
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(_selectLabel(l10n)),
-                    ),
-                  ),
-                  // Active-tier orthogonal settings (biometric unlock,
-                  // auto-lock). Rendered under a divider so the user
-                  // reads them as "settings of the current tier" and
-                  // not as pending changes gated by Apply. Only the
-                  // current tier card passes a non-null widget here.
-                  if (widget.activeTierExtras != null) ...[
-                    const SizedBox(height: 12),
-                    Divider(height: 1, color: AppTheme.border),
-                    const SizedBox(height: 4),
-                    widget.activeTierExtras!,
-                  ],
-                ],
-              ),
-            ),
+          if (_expanded) _buildExpandedBody(l10n),
         ],
       ),
     );
@@ -462,6 +371,106 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     if (dim) body = Opacity(opacity: 0.5, child: body);
     return body;
   }
+
+  /// Expanded-card body. Extracted from [build] so the method stays
+  /// under the S3776 cognitive-complexity threshold — the card's
+  /// expanded state renders threat preview, unavailable-reason hint,
+  /// modifier rows, optional secret input pair(s), Apply button and
+  /// active-tier extras, each guarded by an `if`. Flattening them
+  /// inside `build` pushed the method past the limit.
+  Widget _buildExpandedBody(S l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ThreatListFixed(model: _previewModel, l10n: l10n),
+          if (!widget.tierAvailable && widget.unavailableReason != null) ...[
+            const SizedBox(height: 8),
+            _UnavailableReason(text: widget.unavailableReason!),
+          ],
+          if (_hasModifierSection) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+          ],
+          if (_passwordToggleAvailable) _buildPasswordToggleRow(l10n),
+          if (widget.biometricSpec != null) _buildBiometricRow(l10n),
+          if (widget.autoLockRow != null) widget.autoLockRow!,
+          if (_requiresPasswordInput) ...[
+            const SizedBox(height: 8),
+            _PasswordPair(
+              primary: _passwordCtrl,
+              confirm: _passwordConfirmCtrl,
+              primaryHint: l10n.passwordLabel,
+              confirmHint: l10n.confirmPassword,
+              onChanged: () => setState(() {}),
+            ),
+          ],
+          if (_requiresMasterPasswordInput) ...[
+            const SizedBox(height: 8),
+            _PasswordPair(
+              primary: _masterPasswordCtrl,
+              confirm: _masterPasswordConfirmCtrl,
+              primaryHint: l10n.masterPasswordLabel,
+              confirmHint: l10n.confirmPassword,
+              onChanged: () => setState(() {}),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: AppButton.primary(
+              label: _selectLabel(l10n),
+              loading: _busy,
+              onTap: _selectEnabled ? _onSelect : null,
+            ),
+          ),
+          // Active-tier orthogonal settings (biometric unlock,
+          // auto-lock). Rendered under a divider so the user
+          // reads them as "settings of the current tier" and
+          // not as pending changes gated by Apply. Only the
+          // current tier card passes a non-null widget here.
+          if (widget.activeTierExtras != null) ...[
+            const SizedBox(height: 12),
+            Divider(height: 1, color: AppTheme.border),
+            const SizedBox(height: 4),
+            widget.activeTierExtras!,
+          ],
+        ],
+      ),
+    );
+  }
+
+  bool get _hasModifierSection =>
+      _passwordToggleAvailable ||
+      widget.biometricSpec != null ||
+      widget.autoLockRow != null;
+
+  Widget _buildPasswordToggleRow(S l10n) => _ModifierRow(
+    label: l10n.modifierPasswordLabel,
+    subtitle: l10n.modifierPasswordSubtitle,
+    icon: Icons.password,
+    value: _passwordEnabled,
+    enabled: widget.tierAvailable,
+    onChanged: (v) {
+      setState(() {
+        _passwordEnabled = v;
+        _passwordCtrl.wipeAndClear();
+        _passwordConfirmCtrl.wipeAndClear();
+      });
+    },
+  );
+
+  Widget _buildBiometricRow(S l10n) => _ModifierRow(
+    label: l10n.biometricUnlockTitle,
+    subtitle: l10n.biometricUnlockSubtitle,
+    icon: Icons.fingerprint,
+    value: widget.biometricSpec!.value,
+    enabled: widget.biometricSpec!.enabled,
+    onChanged: widget.biometricSpec!.onChanged,
+    disabledReason: widget.biometricSpec!.disabledReason,
+  );
 
   Widget? _headerTrailing(S l10n, Color accent) {
     if (_matchesCurrentConfig) {
@@ -561,68 +570,76 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The whole header is clickable (tap → expand/collapse), so its
+    // contents opt out of the ambient settings `SelectionArea`. Without
+    // this wrap the title / subtitle were selectable yet the cursor
+    // stayed a pointer (the InkWell's click cursor wins over the
+    // ambient Selectable text cursor), which users read as "half-
+    // broken". Rule: clickable tile ≠ selectable.
     return InkWell(
       onTap: onTap,
       borderRadius: AppTheme.radiusSm,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 30,
-              height: 20,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: accent, width: 1),
-              ),
-              child: Text(
-                badge,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: AppFonts.xs,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
+      child: SelectionContainer.disabled(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 30,
+                height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: accent, width: 1),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: AppFonts.xs,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: AppTheme.fg,
-                      fontSize: AppFonts.sm,
-                      fontWeight: FontWeight.w600,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: AppTheme.fg,
+                        fontSize: AppFonts.sm,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: AppTheme.fgDim,
-                      fontSize: AppFonts.xs,
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: AppTheme.fgDim,
+                        fontSize: AppFonts.xs,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-            const SizedBox(width: 4),
-            Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
-              size: 18,
-              color: AppTheme.fgDim,
-            ),
-          ],
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+              const SizedBox(width: 4),
+              Icon(
+                expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+                color: AppTheme.fgDim,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -276,6 +276,14 @@ class TpmClient {
         loadedCtx,
       ]);
       if (!load) return null;
+      // `stdoutEncoding: null` forces `Process.run` to deliver stdout as
+      // raw `List<int>` instead of decoding through `systemEncoding`
+      // (UTF-8 on Linux). `tpm2 unseal` writes the sealed secret — a
+      // random binary blob — to stdout; a UTF-8 decode pass would
+      // substitute U+FFFD for every invalid sequence, permanently
+      // losing bytes. An earlier `stdout.codeUnits` fallback on the
+      // String branch only masked the symptom: the String was already
+      // corrupt by the time we saw it.
       final result = await Process.run(_binary, [
         'unseal',
         '-Q',
@@ -283,7 +291,7 @@ class TpmClient {
         loadedCtx,
         '-p',
         authArg,
-      ]).timeout(_timeout);
+      ], stdoutEncoding: null).timeout(_timeout);
       if (result.exitCode != 0) {
         AppLogger.instance.log(
           'tpm2 unseal exit=${result.exitCode} stderr=${result.stderr}',
@@ -293,7 +301,6 @@ class TpmClient {
       }
       final stdout = result.stdout;
       if (stdout is List<int>) return Uint8List.fromList(stdout);
-      if (stdout is String) return Uint8List.fromList(stdout.codeUnits);
       return null;
     } catch (e) {
       AppLogger.instance.log('tpm2 unseal failed: $e', name: 'TpmClient');

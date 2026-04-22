@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'app_button.dart';
 
 /// Reusable centered error state with icon, message, and optional action buttons.
 class ErrorState extends StatelessWidget {
@@ -43,18 +44,18 @@ class ErrorState extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (onRetry != null)
-                  ElevatedButton.icon(
-                    onPressed: onRetry,
-                    icon: Icon(retryIcon),
-                    label: Text(retryLabel ?? S.of(context).retry),
+                  AppButton.primary(
+                    label: retryLabel ?? S.of(context).retry,
+                    icon: retryIcon,
+                    onTap: onRetry,
                   ),
                 if (onRetry != null && onSecondary != null)
                   const SizedBox(width: 12),
                 if (onSecondary != null)
-                  OutlinedButton.icon(
-                    onPressed: onSecondary,
-                    icon: Icon(secondaryIcon ?? Icons.close),
-                    label: Text(secondaryLabel ?? S.of(context).close),
+                  AppButton.secondary(
+                    label: secondaryLabel ?? S.of(context).close,
+                    icon: secondaryIcon ?? Icons.close,
+                    onTap: onSecondary,
                   ),
               ],
             ),

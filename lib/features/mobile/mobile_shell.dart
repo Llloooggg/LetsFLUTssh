@@ -321,8 +321,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
-          AppDialogAction.primary(
+          AppButton.cancel(onTap: () => Navigator.of(ctx).pop(false)),
+          AppButton.primary(
             label: S.of(context).exit,
             onTap: () => Navigator.of(ctx).pop(true),
           ),
@@ -467,28 +467,23 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
     final index = panel.tabs.indexWhere((t) => t.id == tab.id);
     if (index < 0) return;
     final notifier = ref.read(workspaceProvider.notifier);
-    final s = S.of(context);
     showAppContextMenu(
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: s.close,
-          icon: Icons.close,
+        StandardMenuAction.close.item(
+          context,
           onTap: () => notifier.closeTab(panelId, tab.id),
         ),
         if (panel.tabs.length > 1)
-          ContextMenuItem(
-            label: s.closeOthers,
-            icon: Icons.tab_unselected,
+          StandardMenuAction.closeOthers.item(
+            context,
             onTap: () => notifier.closeOthers(panelId, tab.id),
           ),
         if (panel.tabs.length > 1) ...[
           const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: s.closeAll,
-            icon: Icons.close_fullscreen,
-            color: AppTheme.red,
+          StandardMenuAction.closeAll.item(
+            context,
             onTap: () => notifier.closeAll(panelId),
           ),
         ],

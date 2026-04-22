@@ -16,6 +16,34 @@ final sessionProvider = NotifierProvider<SessionNotifier, List<Session>>(
   SessionNotifier.new,
 );
 
+/// True while the very first [SessionNotifier.load] is in flight and
+/// has not completed yet. The sidebar treats this as "render a blank
+/// placeholder instead of the empty-state" so cold-start doesn't
+/// flash "No sessions" for ~1 s before the rows paint.
+///
+/// Default is `true` (loading) so the very first frame shows the
+/// blank placeholder even before [_bootstrap] reaches `load()` on its
+/// post-frame callback. [SessionNotifier.load] flips the flag back to
+/// `false` in its `finally` block (success or failure — the empty
+/// state is more honest than a permanent placeholder).
+///
+/// Tests that pre-populate sessions via [PrePopulatedSessionNotifier]
+/// must include
+/// `sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new)`
+/// in their `ProviderScope` overrides — otherwise the sidebar stays on
+/// the placeholder because no `load()` ever runs.
+final sessionsLoadingProvider = NotifierProvider<SessionsLoadingNotifier, bool>(
+  SessionsLoadingNotifier.new,
+);
+
+class SessionsLoadingNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void markLoading() => state = true;
+  void markIdle() => state = false;
+}
+
 class SessionNotifier extends Notifier<List<Session>> {
   final SessionHistory _history = SessionHistory();
 
@@ -64,6 +92,11 @@ class SessionNotifier extends Notifier<List<Session>> {
         name: 'SessionProvider',
         error: e,
       );
+    } finally {
+      // Clear the loading flag even on failure so the sidebar doesn't
+      // stay blank forever if the DB never opens — the empty state is
+      // still more honest than a permanent placeholder.
+      ref.read(sessionsLoadingProvider.notifier).markIdle();
     }
   }
 
@@ -73,8 +106,10 @@ class SessionNotifier extends Notifier<List<Session>> {
       _run('update session', () => _store.update(session));
   Future<void> delete(String id) =>
       _runUndoable('delete session', () => _store.delete(id));
-  Future<Session> duplicate(String id) =>
-      _run('duplicate session', () => _store.duplicateSession(id));
+  Future<Session> duplicate(String id, {String? targetFolder}) => _run(
+    'duplicate session',
+    () => _store.duplicateSession(id, targetFolder: targetFolder),
+  );
   Future<void> addEmptyFolder(String folderPath) =>
       _run('add folder', () => _store.addEmptyFolder(folderPath));
   Future<void> renameFolder(String oldPath, String newPath) => _runUndoable(

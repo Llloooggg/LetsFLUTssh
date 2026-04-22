@@ -31,6 +31,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -115,7 +116,7 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9-]+\))?!?: \S.+'
+          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9_+/-]+\))?!?: \S.+'
 
           # Read commit subjects straight from git so we get the full header —
           # `gh pr view --json commits.messageHeadline` truncates to ~72 chars

@@ -87,7 +87,7 @@ Order of preference when a feature needs OS capability: **bundle it** (e.g. SQLi
 
 **Reuse principle:** the codebase favours **shared modules over local one-offs** at every layer, not just UI. Repeated logic lives in named, parameterised primitives that can be extended; a second caller is the trigger to extract a shared helper, a third caller makes it mandatory. Concrete patterns this principle has produced:
 
-- **UI primitives** in `lib/widgets/` — `AppIconButton`, `AppDialog` (+ `AppDialogHeader`/`Footer`/`Action`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`. No widget that has more than one caller is duplicated.
+- **UI primitives** in `lib/widgets/` — `AppIconButton`, `AppButton` (`.cancel`/`.primary`/`.secondary`/`.destructive`), `AppDialog` (+ `AppDialogHeader`/`Footer`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`. No widget that has more than one caller is duplicated.
 - **Theme primitives** in `lib/theme/` — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes/radii/heights are treated as bugs.
 - **Cross-feature mixins and helpers** in `lib/core/**` — `SftpBrowserMixin` (shared SFTP init/upload/download for desktop + mobile browsers), `key_file_helper.dart` (PEM detection shared by importer / `~/.ssh` scanner / file picker), `breadcrumb_path.dart`, `column_widths.dart`, `progress_writer.dart`, `shell_helper.dart`. New cross-cutting logic gets a `*_helper.dart` or mixin instead of being inlined per call site.
 - **DAO + Store layering** — every persisted entity has the same `Store → DAO` shape ([§11](#11-persistence--storage)); a new entity follows the existing template, not its own ad-hoc pattern.
@@ -728,6 +728,48 @@ First launch is detected by the combination "no `config.security`
 single-signal detector was too fragile against partial installs and
 mid-switch crashes.
 
+**Probe parallelism at bootstrap.** `main._bootstrap` fires
+`_warmProbeCaches()` at the *start* of the startup graph, before the
+migration runner and `_initSecurity`. `securityCapabilitiesProvider`,
+`hardwareProbeDetailProvider`, and `keyringProbeDetailProvider` kick
+off in parallel with the DB unlock / session load path. Previously
+`_firstLaunchSetup` called `probeCapabilities()` directly, which
+serialised the keychain / LAContext / BiometricManager / TPM probe
+in front of wizard render — first-launch users saw a frozen empty
+screen until every native round-trip completed. The wizard now
+awaits the same future through `securityCapabilitiesProvider`, so it
+joins whichever state the already-running probe is in. Warm starts
+hit the `config.securityProbeCache` branch on the first microtask
+and fall through with no work at all.
+
+#### macOS self-sign lifecycle
+
+T1 (keychain) tier on macOS needs a stable signing identity because macOS Keychain Services bind every stored item to the app's Code Directory hash + entitlement blob. CI releases are ad-hoc signed (`codesign --sign -`) because the project has no Apple Developer ID — the ad-hoc signature produces a different Code Directory hash every release, which means the keychain treats each install as a fresh app and the first write fails with `errSecMissingEntitlement` (-34018). The in-app self-sign flow bootstraps a user-owned signing identity so the bundle's designated requirement stays constant across upgrades and the keychain ACL keeps matching.
+
+**Module layout.** The flow lives under [`lib/platform/macos/code_signing/`](../lib/platform/macos/code_signing/) + [`lib/platform/macos/installer/`](../lib/platform/macos/installer/):
+
+- [`CertFactory`](../lib/platform/macos/code_signing/cert_factory.dart) — spawns `/usr/bin/openssl` to produce an RSA-2048 + X.509 v3 codeSigning cert + PKCS#12 bundle. The `-legacy` flag on `pkcs12 -export` is load-bearing: OpenSSL 3's default AES-256 / PBKDF2 MAC produces a p12 that macOS `security import` cannot parse ("MAC verification failed during PKCS12 import"), and only the legacy 3DES / SHA1 MAC is readable by SecKeychainItemImport.
+- [`Keychain`](../lib/platform/macos/code_signing/keychain.dart) — wrapper over `/usr/bin/security`. Paired `-T /usr/bin/codesign` + `-T /usr/bin/security` ACL on import grants silent subsequent access (no password prompt on every re-sign). `add-trusted-cert` is the one step that surfaces a native macOS password prompt — user-domain trust-DB writes are always auth-gated.
+- [`Codesigner`](../lib/platform/macos/code_signing/codesigner.dart) — wrapper over `/usr/bin/codesign`. `resignInsideOut` signs leaf-first (dylibs → frameworks → xpc/appex → outer bundle) because `codesign --deep` visits nested frameworks in arbitrary order and bails with `errSecInternalComponent` on Flutter bundles the moment it re-signs a container that still references its old signature. Outer-bundle pass carries `--options runtime` + `--entitlements` so `keychain-access-groups` survives the re-sign — dropping that entitlement is exactly the -34018 trap the whole flow exists to fix.
+- [`ResignService`](../lib/platform/macos/code_signing/resign_service.dart) — orchestrator the first-launch wizard calls. `ensureIdentity()` is idempotent: it checks `Keychain.hasCertificate(CN)` before generating, so re-running never invalidates existing T1 items by rotating the cert. A user-initiated "Reset secure identity" in Settings is the only path that removes + regenerates; the update flow never touches it.
+- [`MacosInstaller`](../lib/platform/macos/installer/macos_installer.dart) — silent DMG install: `hdiutil attach -nobrowse -noautoopen` → `rsync -a --delete` into `<target>.new` → `hdiutil detach` → `ResignService.resignBundle(<target>.new)` (silent under existing cert) → `codesign --verify --strict` gate → **entitlement probe** (re-extract entitlements from the staged bundle; if pre-resign had content but post-resign is empty, the re-sign silently stripped `keychain-access-groups` and we roll back). Final atomic swap: `<target>` → `<target>.backup`, then `<target>.new` → `<target>`. `.backup` is retained as a crash-recovery trail and swept by `MacosInstaller.cleanupBackup` a few seconds after the new bundle has run cleanly.
+
+**Critical invariant: cert stability.** The cert is created exactly once per install and reused across every release. Every `PRAGMA key` bound to keychain access requires the designated requirement derived from this cert to match between write and read — if the cert is regenerated, every stored T1 secret is silently locked out. `ResignService.ensureIdentity()` short-circuits on `hasCertificate()` hit; the worst thing this module can do is regenerate a cert it didn't need to, so the short-circuit is the load-bearing guarantee.
+
+**Threat model scope.** The cert is user-only (login keychain), trusted for `codeSign` only (not TLS / email / anchor), and carries no private-key backup outside the keychain. macOS reinstall / user-account wipe destroys the cert → every T1 item becomes permanently unreadable; this is the same property that makes T1 cheap (no master password prompt on every launch). Users who want recovery from OS reinstall enable the password modifier on top of T1 or switch to Paranoid (master-password-derived key, survives keychain wipe). Full threat rows in [`SECURITY.md`](SECURITY.md) — see also [§3.10 Update channel integrity](#310-update-coreupdate) for how the same bundle-swap path interacts with the Ed25519 release-signature verifier.
+
+**User-facing flow.** The wiring above is driven from two surfaces and one callback, never from more than one place simultaneously:
+
+- **First-launch pre-prompt** ([`main._offerMacosSelfSign`](../lib/main.dart)). Runs inside `_firstLaunchSetup` immediately after the capability probe resolves and *before* the tier wizard is constructed. Fires only when `Platform.isMacOS && !caps.keychainAvailable && caps.hardwareProbeCode == 'macosSigningIdentityMissing'` — a narrow gate that matches exactly the ad-hoc-signing-identity case, not any of the other "hardware unavailable" reasons (pre-T2 Intel Mac, passcode unset, etc). Shows an `AppDialog` with Accept / Decline. Accept runs the identity + re-sign pipeline and re-probes; the refreshed capabilities flow back into the auto-setup-T1 branch unchanged. Decline widens caps into the reduced shape (`keychainAvailable: false && hardwareVaultAvailable: false`), and the wizard renders T0 + Paranoid only — the same branch a Linux host without gnome-keyring lands on. No inline "Enable Keychain" button inside the wizard itself — the pre-prompt is the single opt-in moment, and duplicating it on the T1 row would let the user re-sign twice for no gain.
+
+- **Settings → Security tail row** ([`settings_sections_security._SecuritySectionState`](../lib/features/settings/settings_sections_security.dart)). Probes `ResignService.hasIdentity()` once on mount and chooses between two shapes:
+  - **No cert on the Mac** → primary "Unlock secure tiers on this Mac" button. Same pipeline as the first-launch accept path; lets the user change their mind after declining at first launch or after the cert was wiped (OS reinstall, manual `security delete-identity` by an adventurous user).
+  - **Cert present** → destructive "Remove signing identity" button. Opens a confirmation dialog (T1 / T2 stored secrets are tied to the cert's designated requirement), then the tier-switch wizard with `capabilitiesOverride` forced to the reduced shape so the user can only pick T0 or Paranoid. `_applyTierChange` rekeys the DB under the new tier; only after the tier switch has committed does `ResignService.uninstallIdentity()` delete the cert + trust entry. Order matters: removing the cert before the rekey would silently lock the user out of every T1 / T2 secret mid-flow.
+
+- **Silent update-install callback** ([`updateServiceProvider` macOS adapter](../lib/providers/update_provider.dart)). Runs inside the download → install pipeline; `MacosInstaller.install` calls `ResignService.resignBundle` silently under the already-present cert (no password prompt, `-T /usr/bin/codesign` ACL is sufficient). When no cert is present (user declined the pre-prompt and never enabled from Settings), `resignBundle` finds no identity and returns without re-signing — the installed bundle keeps its CI ad-hoc signature, consistent with the user's original decline.
+
+All three surfaces converge on `ResignService.ensureIdentity()` + `resignBundle()` — the orchestrator guarantees the idempotency invariant across every path, so even a user that cycles Accept → Remove → Accept a dozen times never rotates the cert (the regenerate path is never reachable from these flows; a hypothetical "Reset and re-generate" action would need its own confirmation + explicit tier migration).
+
 **Key-derivation pipeline** (only the master-password branch derives; keychain stores the DB key directly, plaintext has no key):
 
 ```mermaid
@@ -754,7 +796,7 @@ The algorithm id + params block is defined in [`KdfParams`](../lib/core/security
 
 #### In-memory DB key (page-locked)
 
-The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, unusual libc) are logged and swallowed — the buffer still works, just isn't pinned. The same pattern is used for the Argon2id-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
+The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, static-linked libc, missing `mlock` symbol) are logged once and swallowed — the buffer still works, just isn't pinned. The resolution result (real bindings or an unavailable-sentinel) is cached at the class level, so every subsequent allocation skips the dlopen cost and the noisy "Memory lock unavailable" log fires at most once per process. The libc handle itself is resolved through the shared [`openLibc()`](../lib/core/security/libc_loader.dart) helper, which tries `libc.so.6` (glibc, versioned) and falls back to `libc.so` (Android bionic, musl, ChromeOS/WSL edge cases) — without the fallback, Android builds would log the lock as unavailable on every allocation and the bionic `mlock` would never be called despite being a valid symbol. The same pattern is used for the Argon2id-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
 
 #### Unlock-path single KDF
 
@@ -881,25 +923,28 @@ A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the ma
 
 **Current status:** feature is **deferred**, not cancelled. Master-password + biometric unlock already covers the user-visible use cases; a YubiKey factor would be a nice-to-have, not a closing-the-gap-at-any-cost. Revisit when a multiplatform Dart library surfaces that works across all 5 desktops + Android + iOS without mandatory native-dep installs (a realistic candidate: a future `flutter_webauthn` that wraps each platform's native authenticator surface). Until then the table-stakes master-password path is the sole secret boundary and that is fine for the project's threat model (lost device, hostile same-UID process — **not** kernel-level attackers or advanced persistent threats).
 
-#### SQLCipher cipher choice — AES-CBC+HMAC vs AES-GCM vs ChaCha20-Poly1305 (decision doc, not a rewrite)
+#### MC cipher choice — ChaCha20-Poly1305 (active) + retrospective rationale
 
-SQLite3MultipleCiphers supports several cipher schemes for at-rest DB encryption. A review pass evaluated whether the project should migrate from the default `sqlcipher` scheme (AES-256-CBC + HMAC-SHA512, encrypt-then-MAC per page) to an AEAD construction (`aes256gcm` or `chacha20`).
+The app's at-rest DB encryption runs on SQLite3MultipleCiphers' **ChaCha20-Poly1305** scheme. `database_opener.dart` sets `PRAGMA key` without an accompanying `PRAGMA cipher`, so MC falls back to its built-in `CODEC_TYPE_DEFAULT` = `CODEC_TYPE_CHACHA20` (defined in `src/cipher_common.h:21` of the MC submodule). Every existing user DB on disk is therefore encrypted under ChaCha20-Poly1305 with per-page 16-byte authentication tags.
 
-**Inputs to the decision:**
+**How we got here (honest version).** An earlier revision of this section named `sqlcipher` (AES-256-CBC + HMAC-SHA512) as the active scheme. That was wrong — the code never set `PRAGMA cipher = 'sqlcipher'`, only `PRAGMA key`, so MC's default won. The mistake landed on the right answer for the wrong reason: the reasoning below was written under the belief that switching *to* ChaCha20 was still a decision in front of us, concluded that ChaCha20 is the right target for this project's device mix, and recommended "stay on sqlcipher, migrate to ChaCha20 only if a signal appears." In reality ChaCha20 was already the live choice. Keeping the decision recorded here both as a retrospective rationale and a landmine-check for any future attempt to add an explicit `PRAGMA cipher`.
 
-- *Security posture.* The current `sqlcipher` scheme is encrypt-then-MAC under a 64-byte HMAC tag per 4 KiB page, with per-page random IVs derived from the page number + a database-wide random salt. This is structurally equivalent to an AEAD: confidentiality from AES-256-CBC, integrity + authenticity from HMAC-SHA512. No known cryptanalytic weakness justifies a migration on security grounds alone.
-- *Performance.* AES-256-CBC throughput on AES-NI silicon is ~2–3 GiB/s. AES-256-GCM can be ~30 % faster on the same silicon because GCM parallelises cleanly and avoids the HMAC pass. On non-AES-NI devices (Arm mobile without the crypto extensions — increasingly rare but still present) ChaCha20-Poly1305 outperforms both AES variants by 2–4×. The project is not CPU-bound on DB I/O at current workload — logs, sessions, snippets, known-hosts entries are all sub-100-KiB tables with low page-churn, so the wall-clock win from a cipher switch is in the millisecond range on typical user flows.
-- *Format compatibility.* Migration requires a full rekey under the new cipher (`PRAGMA cipher_migrate`-style flow): every page is re-encrypted on disk, the legacy cipher header is rewritten, and any existing `.lfs` archive exports produced under the old scheme decrypt *only* with the old code path (need a version-guarded reader).
-- *Binary size / build surface.* All three schemes are already compiled into the SQLite3MC binary the project bundles — no new C dependencies, no `pubspec.yaml` changes.
-- *Blast radius of a bad migration.* A crash mid-rekey corrupts every page that has been re-encrypted so far. Mitigation would require a tmp-file + atomic-rename flow (similar to `_applyAlwaysRekey` in settings). Non-trivial.
+**Inputs to the original decision (now "why we leave it alone"):**
 
-**Recommendation — stay on `sqlcipher` (AES-CBC+HMAC) for now.** The performance delta is small on current workloads, the security posture is equivalent, and the migration cost is real: a user-visible re-encryption step with a non-negligible crash window. Revisit if a concrete signal appears — a benchmark showing the DB I/O path is user-visible, or a CVE against the current scheme. If a switch does happen, **ChaCha20-Poly1305 beats AES-GCM** for the project's target device mix: it's faster on Arm-without-crypto-extensions (where Android mid-tiers still live) and the constant-time implementation is less footgun-prone than nonce-managed GCM.
+- *Security posture.* ChaCha20-Poly1305 is a native AEAD — confidentiality + integrity + authenticity in one construction, with a 16-byte authentication tag per 4 KiB page and a 12-byte nonce derived from the page number plus a database-wide random salt. Functionally equivalent to the `sqlcipher` scheme's AES-256-CBC + HMAC-SHA512 encrypt-then-MAC (the other candidate) on every at-rest-secrecy line in the threat model — no cryptanalytic signal has surfaced on either side.
+- *Performance.* ChaCha20 is 2-4× faster than AES-256-CBC on Arm without AES hardware extensions (still present on Android mid-tier devices). On AES-NI desktops the two are within a few percent of each other and neither is close to being the bottleneck for an SSH-client workload: logs, sessions, snippets, known_hosts are all sub-100-KiB tables with low page-churn, so the wall-clock difference in typical use is sub-millisecond.
+- *Footgun budget.* ChaCha20-Poly1305's constant-time implementation is the whole-expression default; AES-256-GCM needs careful nonce management (counter-reuse = catastrophic plaintext leak) and was vulnerable to cache-timing attacks on pre-AES-NI silicon. Favouring ChaCha20 shrinks the set of mistakes that can land on-disk.
+- *Binary size / build surface.* `pubspec.yaml` disables every non-ChaCha20 cipher scheme at compile time (`HAVE_CIPHER_AES_128_CBC=0`, `HAVE_CIPHER_AES_256_CBC=0`, `HAVE_CIPHER_SQLCIPHER=0`, `HAVE_CIPHER_RC4=0`, `HAVE_CIPHER_ASCON128=0`, `HAVE_CIPHER_AEGIS=0`). Knocking AES out of the build also drops `rijndael.c` (included only when any of the three AES-based schemes is enabled). Net saving ~100-200 KiB off `libsqlite3.so` versus the all-cipher build.
+- *Format compatibility.* Every DB on disk is already ChaCha20. Migrating to another scheme is not a free change: every page must be re-encrypted (`PRAGMA cipher_migrate`-style flow), and any existing `.lfs` export produced under the previous scheme decrypts *only* with the previous code path. The crash window during rekey would need a tmp-file + atomic-rename flow (mirroring `_applyAlwaysRekey` in settings).
+- *Blast radius of a mid-rekey crash.* Every page that was already re-encrypted is under the new cipher; every page that was not is under the old one. Without the atomic-rename flow a power-loss or OOM mid-migration leaves the DB unrecoverable.
 
-**Authorised follow-up** if and when the switch lands:
-1. Gate the new cipher behind a schema/version marker in the DB header, so `database_opener.dart` can pick the right `PRAGMA cipher` at open time;
+**Recommendation — stay on ChaCha20-Poly1305.** The performance mix favours it on the project's mobile target, the security posture is at least equal to every alternative, and migrating off would cost a user-visible re-encryption with a non-trivial crash window. Revisit only on a concrete signal — a cryptanalytic finding against ChaCha20-Poly1305 (none as of 2026) or a workload change that makes the DB I/O path user-visible.
+
+**If a future decision does switch ciphers:**
+1. Gate the new cipher behind a schema/version marker in the DB header, so `database_opener.dart` can pick the right `PRAGMA cipher` at open time and old DBs keep opening under ChaCha20 until they have been migrated;
 2. Reuse the `rekeyDatabase()` atomic-tmp flow already used for master-password rotation;
 3. Version-bump the `.lfs` archive format to mirror the new cipher header;
-4. Migration UI should be opt-in — never run on app startup by surprise.
+4. Migration UI must be opt-in — never run on app startup by surprise.
 
 #### Password strength meter
 
@@ -911,7 +956,7 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 
 **Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
-**Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which unconditionally zeroes the `SecurityStateNotifier` SecretBuffer and closes the drift / SQLCipher handle via `SessionStore.closeDatabase`. Previously the wipe was gated on `activeSessions.isEmpty` — a UX concession so an auto-lock during an open SSH session did not kill the user's reconnect path. The consequence was that the DB key sat in app RAM as long as a single session was active, so RAM forensics of a locked app could still recover it; T1+password and T2+password landed on the same ✗ row for `liveRamForensicsLocked` and `osKernelOrKeychainBreach` in the threat matrix. The gate is now gone; live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache), and T2+password now covers both RAM-forensics and kernel-breach rows.
+**Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which unconditionally zeroes the `SecurityStateNotifier` SecretBuffer and closes the drift / MC handle via `SessionStore.closeDatabase`. Previously the wipe was gated on `activeSessions.isEmpty` — a UX concession so an auto-lock during an open SSH session did not kill the user's reconnect path. The consequence was that the DB key sat in app RAM as long as a single session was active, so RAM forensics of a locked app could still recover it; T1+password and T2+password landed on the same ✗ row for `liveRamForensicsLocked` and `osKernelOrKeychainBreach` in the threat matrix. The gate is now gone; live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache), and T2+password now covers both RAM-forensics and kernel-breach rows.
 
 **Unlock re-opens the DB.** Because `_triggerLock` closes the drift handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual` in `_LetsFLUTsshAppState.initState` observes the locked → unlocked transition and calls `_reopenDatabaseAfterUnlock`, which walks the usual `_injectDatabase` path so every store picks up the new AppDatabase reference. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
 
@@ -1733,13 +1778,27 @@ class AppShortcutRegistry {
 
   // For onKeyEvent handlers (e.g. inside xterm where CallbackShortcuts can't intercept):
   bool matches(AppShortcut shortcut, KeyEvent event);
+
+  // Render the current binding for [shortcut] as a display string
+  // ("Ctrl+Shift+V", "F2", "Delete") — used by the context-menu
+  // factory so shortcut hints always reflect the live bind.
+  String shortcutLabel(AppShortcut shortcut);
 }
+
+// Pure formatter — turns any SingleActivator into a display string.
+// Modifier order: Ctrl, Alt, Shift, Meta (the GTK / Win / mac
+// convention). Named keys (Esc, Tab, arrows, …) map to friendly
+// glyphs; printable + function keys fall through to `keyLabel`.
+String formatShortcut(SingleActivator a);
 ```
 
 **Usage patterns:**
 - `CallbackShortcuts` widgets → `AppShortcutRegistry.instance.buildCallbackMap({...})`
 - `onKeyEvent` handlers (xterm, file browser, session panel) → `reg.matches(AppShortcut.x, event)`
 - Dialogs → `buildCallbackMap({AppShortcut.dismissDialog: ...})`
+- Context-menu hints → `StandardMenuAction.x.item(ctx, shortcut: AppShortcut.y, …)`
+  (factory calls `shortcutLabel` internally; see [ContextMenu →
+  StandardMenuAction](#standardmenuaction--shared-action-catalogue))
 
 **Note:** `matches()` only checks ctrl/shift modifiers (not alt/meta) to tolerate phantom modifier flags on some platforms (e.g. WSLg).
 
@@ -2099,6 +2158,24 @@ class SessionConnect {
 }
 ```
 
+#### Session panel input model
+
+The sidebar owns its own keyboard/focus/pointer contract. Four invariants hold across every change in this area:
+
+- **Shortcut dispatch is `CallbackShortcuts`-based**, not a `Focus.onKeyEvent` handler. `SessionPanel.build` wraps the root in `CallbackShortcuts(bindings: _buildShortcutBindings())` so `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+Z` / `Ctrl+Y` / `Delete` / `F2` fire as long as *any* `FocusNode` descendant of the panel holds focus. An earlier `Focus(onKeyEvent:)` version fired only when the panel root itself was focused — clicking a session row handed focus to an inner `Draggable` / `AppIconButton`, and the shortcut fell back on nothing ("works every other time"). The panel-level `Focus(autofocus: false)` stays for the "panel owns focus → rows render in accent colour" visual state; the shortcut path is independent.
+- **Empty-sidebar tap drops the focused pointer, never the `FocusNode`.** `onEmptySpaceTap` calls `_ctrl.clearFocus()` (nulls `focusedSessionId` + `focusedFolderPath` so the row highlight dims to grey) but leaves `_focusNode` focused. Yanking the Flutter focus would drop the panel out of the `CallbackShortcuts` scope — subsequent `Ctrl+V` / `Ctrl+Z` after an empty-space click would silently do nothing.
+- **Folder click is two-phase.** First tap on an unfocused folder focuses it (sets the paste target, no toggle); a second tap on the already-focused folder toggles expand. The branch lives in `session_tree_view._onFolderTap`, keyed off `widget.focusedFolderPath == fullPath`. Mirrors macOS Finder's column view and closes the "click folder to paste into it, it collapses instead" regression. Mobile keeps the single-tap toggle — long-press there is the focus-without-toggle alternative.
+- **Paste target is resolved at paste time** via `_resolvePasteTargetFolder`: focused folder first, then the folder of the focused session, then root. `pasteCopiedSession` forwards the target to `sessionProvider.duplicate(id, targetFolder:)` so the duplicate lands directly in the destination — no intermediate state the user can observe between "copy made" and "copy moved into place". `duplicateSession` in the store accepts the same `targetFolder` parameter; `FakeSessionStore` mirrors the signature. An `explicitTarget:` override on `pasteCopiedSession` lets the session and folder right-click menus force the target to the clicked row / folder regardless of current focus — matches "paste into this folder" without making the user pre-focus it.
+- **Drop-zone covers the expanded folder's child rows, not just its header.** Every session row (`_buildSessionTile`) wraps its content in a `DragTarget<SessionDragData>` keyed off `session.folder`, so dropping a drag anywhere inside an expanded folder lands in that folder. Without the per-row wrap the drop fell through to the tree-root `DragTarget` (folder `""`) and the dragged session silently appeared at the root — users read this as "drag-into-folder only works on the folder row". DragTarget nesting resolves innermost-wins, so dropping directly on a sub-folder header still targets that sub-folder (its own `DragTarget` claims the hit first).
+
+#### Session clipboard — pointer model
+
+`SessionPanelController._copiedSessionId` is a 32-char session id, never a session object. Credentials live in the store's `SecretBuffer`s regardless of whether the id is on the clipboard — there is no session data duplicated in RAM.
+
+- `copyFocused()` and `cutFocused()` both set `_copiedSessionId = _focusedSessionId` and flip `_cutPending` accordingly. Cut is one-shot: the next paste consumes the flag and clears the clipboard, so a subsequent Ctrl+V defaults back to duplicate semantics.
+- `clearClipboard()` runs on every successful cut paste, on panel `dispose`, and (via the wipe / reset flow) whenever the sidebar is torn down. There is **no wall-clock TTL** — an earlier 30-second auto-wipe caused a "works every other time" UX where the user's paste after a pause silently no-op'd. Since the clipboard is just a pointer, the stale-id window is bounded by panel lifetime, not by a timer.
+- Paste of a stale id (session deleted before paste) is a silent no-op — `sessionProvider.duplicate` throws `ArgumentError('Session not found')` and the transactional `_run` wrapper swallows it under the "duplicate session" label in the activity log.
+
 ---
 
 ### 5.4 Tab & Workspace System
@@ -2197,12 +2274,17 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | File | Class | Purpose |
 |------|-------|---------|
 | `mobile_shell.dart` | `MobileShell` | Bottom navigation: Sessions / Terminal / SFTP |
-| `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar |
+| `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar + copy-mode overlay |
+| `terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style virtual cursor + live selection + Copy/Cancel toolbar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Select. Main row is horizontally scrollable (`ListView`); Paste + Select + Fn buttons are fixed at right edge |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Copy. Main row is horizontally scrollable (`ListView`); Paste + Copy + Fn buttons are fixed at right edge |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
 
-**Text selection (mobile):** The Select button (📋 icon, fixed at right edge of keyboard bar) toggles text-select mode. When active, `TerminalController.setSuspendPointerInput(true)` prevents mouse events from reaching the TUI app, so the user can drag-select text for copying. Long-press word selection (built into xterm's `TerminalGestureHandler`) works independently of select mode. When text is selected (via either method), a floating **selection toolbar** with Copy/Paste buttons appears between the terminal and the keyboard bar. Copying auto-exits select mode (`exitSelectMode()`). A dedicated **Paste button** in the keyboard bar provides always-available paste access. Note: the outer `GestureDetector` does NOT handle `onLongPressStart` — xterm handles long-press internally for word selection, and the `TerminalController` (a `ChangeNotifier`) listener detects selection changes to show/hide the toolbar.
+**Gesture routing.** `MobileTerminalView` wraps the terminal area in a bare [`Listener`](https://api.flutter.dev/flutter/widgets/Listener-class.html) and tracks every active pointer in a `Map<int, Offset>`. One-finger events are *not* consumed by the Listener — they continue to xterm's internal gesture recognizers (tap, long-press → word select, drag-select on main buffer). Two-finger events are handled in the Listener: the initial distance between the two pointers is snapshotted at the second pointer-down, and subsequent moves apply a proportional `fontSize` update for pinch-zoom. The font size is persisted on pointer-up through `configProvider.notifier.update`. The stock `ScaleGestureRecognizer` is deliberately **not** used — its default treats a single-pointer drag as a 1× scale and wins the gesture arena, which silently kills xterm's own `LongPressGestureRecognizer` sharing the same subtree. Long-press-to-word-select breaking was traced to exactly that arena collision before the manual Listener replaced it.
+
+**Copy mode (trackpad-style).** The **Copy** button (📋 icon, right edge of the keyboard bar) toggles [`TerminalCopyOverlay`](../lib/features/mobile/terminal_copy_overlay.dart). On enter the overlay calls `TerminalController.setSuspendPointerInput(true)` (suppresses xterm's own tap / long-press / drag-select while the overlay is live) and renders a bordered cell-sized cursor marker and a `Tap to mark selection start` hint banner. One-finger drags in `MobileTerminalView` are routed through `TerminalCopyOverlayState.onCursorPan(delta)`, which accumulates sub-cell pixel deltas against the measured cell size (same `m × 10 / 10` trick the cursor-text overlay uses) and advances the virtual cursor one cell at a time; the cursor clamps to the viewport (no programmatic scrollback navigation in v1 — xterm 4.0.0 has no public scroll-offset API). The *first* pointer-down in a session calls `onAnchorDown()`, which stamps the current cursor cell as the buffer-absolute selection anchor (including scrollback offset at that moment) via `buffer.createAnchor(x, y)` + `TerminalController.setSelection`. Subsequent cursor movements extend the selection from the anchor to the new cursor position — the same highlight path xterm uses for drag-select. The overlay's toolbar exposes **Copy** (routes to `TerminalClipboard.copy`, auto-exits copy mode via `SshKeyboardBarState.exitCopyMode()`) and **Cancel** (exits without copying). Paste is **not** inside the overlay — it stays on the keyboard bar as its own button so the user doesn't have to enter copy mode to paste a password into the shell (the two directions are orthogonal: paste sends clipboard to shell, copy captures terminal output).
+
+**Why trackpad-style instead of drag-select.** An earlier mobile build used the Select button to toggle drag-select on the terminal itself: the finger touched the terminal, the selection tracked the finger. Problems: (a) the thumb covered the target cells, so precision required lifting to check alignment, (b) selection started on the first touch with no way to "just cancel" mid-drag, (c) the scale recognizer collision killed long-press-to-word even outside select mode. The trackpad pattern (lifted from Termux) decouples finger position from cursor position — the cursor stays where you left it, the finger drags to advance it relatively — and the explicit Copy/Cancel toolbar gives an escape hatch. Two-finger pinch zoom still works in copy mode; two-finger pan-scroll is deferred until xterm exposes a main-buffer scroll hook.
 
 **Architectural difference:** Mobile is NOT a responsive version of desktop. It's a separate `features/mobile/` module with different interaction patterns (bottom nav instead of sidebar+tabs, long-press instead of right-click, swipe navigation).
 
@@ -2291,6 +2373,35 @@ HoverRegion({
 ```
 **Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Skips `MouseRegion` on mobile platforms (Android/iOS) — no pointer, saves an unnecessary widget. Exception: `context_menu.dart` (keyboard nav state).
 
+**Selection auto-opt-out.** When any gesture callback is bound (`onTap`, `onCtrlTap`, `onDoubleTap`, `onSecondaryTapUp`, `onLongPressStart`), `HoverRegion` wraps its child in `SelectionContainer.disabled` before installing the `GestureDetector`. That excludes the child's Text from whatever ambient `SelectionArea` is in scope — keeps the I-beam cursor off buttons, stops `Ctrl+C` from hijacking the focused row, and removes the gesture-arena race between `SelectionArea`'s `TapAndDragGestureRecognizer` and the callback's `TapGestureRecognizer` that otherwise surfaces as "drag-select works every other time" on neighbouring Text. Interactive widgets that should not be selectable go inside a `HoverRegion`; informational Text stays outside. Desktop has no global `SelectionArea` (see [Selection scoping](#selection-scoping)), so the wrap is mostly a no-op at the shell level and matters inside dialog / threat-list / help-prose scopes.
+
+Important: the wrap sits *around* the `GestureDetector`'s child, not around the `Listener` / `ThresholdDraggable` subtree that descendants may install. Drag gestures inside a `HoverRegion` still arbitrate in their own arena — `SelectionContainer.disabled` touches the Selectable registry, not pointer routing.
+
+### Selection scoping
+
+Text selection is opt-in on desktop. The shell does not wrap the workspace in a `SelectionArea` — an earlier attempt at "selection everywhere, opted out on buttons" collapsed the moment a `ThresholdDraggable` landed inside a `HoverRegion`, because `SelectionArea`'s `TapAndDragGestureRecognizer` claims pan ahead of `MultiDragGestureRecognizer` in the gesture arena and the opt-out wrap sits above the drag subtree instead of protecting it.
+
+Apply `AppSelectionArea` only to surfaces carrying prose the user may want to copy:
+
+- [`AppDialog`](#appdialog) wraps its body automatically — every dialog's copy (update notes, threat-row captions, help text, release notes) stays selectable.
+- [`SecurityThreatList`](#securitythreatlist) wraps its column so individual threat rows can be compared across tier cards.
+- Add new local wraps when you introduce a read-only prose surface (e.g. a future help dialog). **Do not** wrap any container that also hosts a `ThresholdDraggable`, an `AppButton`, or an interactive row — the gesture arena race will break drag or make click-throughs feel sluggish.
+
+Mobile keeps a single `AppSelectionArea(child: MobileShell())` because the touch-drag recognisers arbitrate differently and mobile lacks the hover-I-beam path.
+
+Inside a scoped `AppSelectionArea`, a parent may still need to block selection on a specific subtree that is not a `HoverRegion` (e.g. a dialog's sidebar nav list). Wrap that subtree in `SelectionContainer.disabled` explicitly — `settings_screen.dart` does this around its nav list so the sidebar labels stop showing the I-beam without yanking selection off the dialog body.
+
+#### Role matrix — when a row is clickable vs prose
+
+| Role | Examples | Cursor | Selection |
+|---|---|---|---|
+| **Action** | `AppButton`, `AppIconButton`, `_Toggle` knob, `_SegmentControl`, `PopupMenuButton` chip | pointer | **disabled** |
+| **Tile** (row dispatches on tap) | `ExpandableTierCard` header, `_ActionTile` (Data section), `AppDataRow` clickable row, `TierThreatBlock` clickable variant | pointer | **disabled** — wrap the InkWell's child in `SelectionContainer.disabled` |
+| **Form row** (label + interactive control) | `_SettingsRow` used by `_IntTile`, `_Toggle`, `_ThemeTile`, `_LanguageTile` | default | **disabled** — the label + subtitle block is a field name, not content to copy; the row's control handles its own cursor |
+| **Prose** (no gesture, user may want to copy) | `SecurityThreatList` rows, dialog bodies, release notes, help text | I-beam | **enabled** |
+
+The rule exists because a clickable ancestor's `MouseRegion(cursor: click)` wins over the Selectable text's inner `MouseRegion(cursor: text)` — leaving text selectable on a clickable tile produces "selectable but cursor still a pointer", which users read as broken. The consistent answer is to disable selection on every clickable subtree, not to try to prefer the inner cursor. `HoverRegion` already handles this for its own callers; `InkWell` does not and each call site wraps its child manually (`expandable_tier_card.dart`, `app_data_row.dart`, `tier_threat_block.dart`).
+
 ### ModeButton
 
 ```dart
@@ -2321,7 +2432,7 @@ Unified dialog shell matching the app's dark visual language. Background `AppThe
 For complex dialogs (e.g. with tabs between header and content), compose from the building blocks directly:
 - `AppDialogHeader({title, onClose})` — header bar
 - `AppDialogFooter({actions})` — footer bar (uses `Wrap` layout — actions flow to the next line on narrow mobile screens)
-- `AppDialogAction` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`)
+- [`AppButton`](#appbutton) — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`); lives in `lib/widgets/app_button.dart` and is re-exported from `app_dialog.dart` so dialog callsites don't need a second import. Used outside dialogs too (settings rows, toasts, wizard steps).
 - `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
@@ -2444,6 +2555,52 @@ Keyboard nav (arrows, enter, esc), hover highlighting, repositioning.
 Re-entrant: right-clicking a new location auto-dismisses the previous menu and opens a new one.
 Styled with `AppTheme` colors directly (no Material surface tint).
 Each item is wrapped in `Semantics(button: true, label: item.label)` for accessibility.
+
+#### StandardMenuAction — shared action catalogue
+
+```dart
+enum StandardMenuAction {
+  copy, paste, delete, rename, duplicate, refresh, open, transfer,
+  snippets, terminal, files, editConnection, newConnection, newFolder,
+  renameFolder, editTags, deleteFolder, close, closeOthers,
+  closeTabsToTheLeft, closeTabsToTheRight, closeAll, maximize, restore,
+  ;
+
+  ContextMenuItem item(
+    BuildContext context, {
+    required VoidCallback onTap,
+    AppShortcut? shortcut,
+    String? labelOverride,
+  });
+}
+```
+
+Every action that appears in more than one right-click menu lives here
+as a single enum value, along with its translated label (via `S.of`),
+Material icon, and optional accent colour (e.g. `delete` and `closeAll`
+carry `AppTheme.red`). Each call site only supplies the side-effect
+(`onTap`) and, when applicable, an `AppShortcut` — the shortcut hint is
+formatted from the **live** [`AppShortcutRegistry`](#311-keyboard-shortcuts-coreshortcut_registrydart)
+binding (see `formatShortcut` below), never hardcoded.
+
+Why enum, not ad-hoc strings per site: menus had drifted — for example
+the terminal right-click advertised a stale `Ctrl+V` next to `Paste`
+while the real binding was `Ctrl+Shift+V`. Threading the shortcut
+through `AppShortcutRegistry.shortcutLabel(AppShortcut)` makes the hint
+always reflect the real bind, and adding a new action is now one enum
+value instead of a hand-copied `label` / `icon` / `color` triple in
+every caller.
+
+Callers still use `showAppContextMenu` with a `List<ContextMenuItem>` —
+the enum just builds items. Site-unique actions (e.g. `closeTabsToTheLeft`
+appears only in the workspace tab-strip) also live in the enum because
+reuse is likely and the catalogue is cheap; truly one-off actions can
+still be constructed as a hand-rolled `ContextMenuItem` without going
+through the enum.
+
+Cross-link: shortcut labels are produced by
+[`formatShortcut` in §3.11](#311-keyboard-shortcuts-coreshortcut_registrydart)
+— the same helper `AppShortcutRegistry.shortcutLabel` uses.
 
 ### HostKeyDialog
 
@@ -3181,6 +3338,8 @@ abstract final class AppFonts {
 
 Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/fonts/`.
 
+**Monospace fallback chain** (`AppFonts.monoFallback`). JetBrains Mono's cmap covers Latin, extended-Latin, and box-drawing, but *not* emoji, CJK, or most symbol blocks. `TerminalStyle` on every terminal surface (desktop `TerminalPane`, mobile `MobileTerminalView`, and the custom `CursorTextOverlay` painter) is instantiated with `fontFamily: AppFonts.monoFamily` **plus** `fontFamilyFallback: AppFonts.monoFallback` — `Noto Color Emoji` / `Apple Color Emoji` / `Segoe UI Emoji` / `Segoe UI Symbol` / `Noto Sans Symbols 2` / `sans-serif`. Every target OS ships one of those under the exact name in its system font registry, so Flutter/Skia resolves the missing glyph chain without us bundling a ~10 MB color-emoji font. Without the fallback, the terminal rendered emoji and CJK as tofu on Android; the `CursorTextOverlay` custom painter was the worst-affected site because it built a bare `ui.TextStyle(fontFamily: ...)` with no fallback parameter at all.
+
 **CJK & non-Latin in language picker:** Native language names (中文, 日本語, 한국어, العربية, فارسی, हिन्दी) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic, Persian, Hindi) as fallback for systems without those fonts. No bundled CJK/Arabic/Devanagari fonts — keeps the binary small.
 
 **Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
@@ -3484,7 +3643,7 @@ All files live in the platform's app-support directory (see **Location** below).
 
 | Path | Encryption | Format | Purpose | Created when |
 |------|-----------|--------|---------|--------------|
-| `letsflutssh.db` | SQLite3MultipleCiphers (PRAGMA key) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
+| `letsflutssh.db` | SQLite3MultipleCiphers — ChaCha20-Poly1305 (`PRAGMA key`) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
 | `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
 | `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs, `config_schema_version`. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout lives in the encrypted DB, not here | First config save |
 | `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled | Master password setup |
@@ -3497,7 +3656,7 @@ All files live in the platform's app-support directory (see **Location** below).
 
 `database_opener.dart` opens the database with optional encryption:
 - `openDatabase(encryptionKey: null)` → plain SQLite
-- `openDatabase(encryptionKey: key)` → SQLite3MultipleCiphers with `PRAGMA key = "x'hex'"`
+- `openDatabase(encryptionKey: key)` → SQLite3MultipleCiphers with `PRAGMA key = "x'hex'"` (no explicit `PRAGMA cipher`, so MC's default scheme — ChaCha20-Poly1305 — takes effect; see § [MC cipher choice](#mc-cipher-choice--chacha20-poly1305-active--retrospective-rationale))
 - `openTestDatabase()` → in-memory SQLite for tests
 - Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
 - **POSIX permissions:** `restrictDatabaseFilePermissions()` runs on every open and forces `chmod 600` on `letsflutssh.db` and any existing `-journal` / `-wal` / `-shm` sidecar (Linux/macOS via `chmod`, Windows via `icacls`). Idempotent; logs and continues if the call fails so a permission-system quirk never blocks startup. The file is pre-created before SQLite touches it so the very first encrypted page lands on a 0600 inode.
@@ -3544,6 +3703,29 @@ main.dart → _injectDatabase()
 ```
 
 Stores keep domain model APIs unchanged; DAOs handle SQL. Mappers (`mappers.dart`) translate between domain objects and drift companions.
+
+### Encryption engine build path
+
+The encryption half of the storage stack — SQLite3MultipleCiphers (MC) — is compiled from a pinned `third_party/SQLite3MultipleCiphers` git submodule at build time, not downloaded as a prebuilt binary. `pubspec.yaml` points the `sqlite3` package's build hook at the submodule's `src/sqlite3mc.c` umbrella amalgamation via `source: source`, and `native_toolchain_c` compiles it for the target arch alongside the rest of the native_assets graph.
+
+**Why in-tree compile, not the upstream hook's prebuilt path.** `package:sqlite3` ships a `source: sqlite3mc` mode that downloads the matching `libsqlite3mc.<arch>.<os>.so` from a GitHub release per hook invocation. Two bugs in the 3.3.1 download path made it unviable:
+
+1. The cache-dir name is `download-${hashCode.toRadixString(16)}`, where `hashCode` comes from `Object.hash(os, arch.name, type, releaseTag)`. Dart's `Object.hash` uses a **per-isolate random seed**, so every fresh hook process picks a new dirname, misses the prior cache, and refetches. Every `make test` / `make build-*` / `make run` pays a 2.2 MB download.
+2. `PrecompiledFromGithubAssets._fetchFromSource` streams the response with no overall timeout. When the GitHub Releases CDN stalls mid-stream (observed intermittently from WSL-backed Linux hosts), the hook hangs until the parent process is killed, leaving an empty `<dir>/libsqlite3mc.so.tmp` behind. The user-visible failure is "`make test` hangs for minutes, Ctrl+C reports build.dart exit code -2". Upstream issue tracker has no fix in 3.3.1.
+
+Compiling from source side-steps both. The `CompileSqlite` code path uses `native_toolchain_c`'s content-hashed cache, which hits correctly across invocations, and there is no network read so nothing to stall on. The submodule is pinned to a release tag (currently `v2.3.3`, SQLite `3.53.0`), so the build is reproducible byte-for-byte across machines.
+
+**Default SQLite compile defines.** `package:sqlite3`'s `CompilerDefines.defaults()` is applied automatically — the same set that ships when the upstream hook compiles its own `sqlite3.c`, including `SQLITE_ENABLE_FTS5`, `SQLITE_ENABLE_RTREE`, `SQLITE_DQS=0`, `SQLITE_OMIT_DEPRECATED`, and the session / preupdate-hook defines drift pulls in.
+
+**Cipher trim — only ChaCha20-Poly1305.** MC's per-cipher `HAVE_CIPHER_*` flags default to `1` inside `sqlite3mc_config.h`, which would compile AES-128-CBC, AES-256-CBC, SQLCipher-scheme, RC4, Ascon128, AEGIS, and ChaCha20 all into the final binary. Every scheme except ChaCha20 is dead weight — `lib/` never sets `PRAGMA cipher` to any of them, and the only encrypted DBs the app produces are ChaCha20-Poly1305 (MC's default when `PRAGMA key` is set alone, see § [MC cipher choice](#mc-cipher-choice--chacha20-poly1305-active--retrospective-rationale)). `pubspec.yaml`'s `defines:` list therefore passes `HAVE_CIPHER_*=0` for each unused scheme.
+
+Knocking out all three AES-based schemes (`AES_128_CBC`, `AES_256_CBC`, `SQLCIPHER`) additionally drops `src/rijndael.c` from the compile — its inclusion in `sqlite3mc.c` is gated on `HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER`, so zeroing all three is what actually removes it. Net: `~100-200 KiB` off `libsqlite3.so` vs the stock all-cipher build.
+
+**AEGIS disable is also a build-time requirement.** Enabling AEGIS makes `sqlite3mc.c` pull in `src/aegis/libaegis.c` and `src/argon2/libargon2.c`, both of which cross-reference headers across deeper subdirectories (`src/aegis/include/aegis128l.h`, `src/argon2/include/*`). The sqlite3 package's `source: source` mode only passes a single `-I` flag for the parent of `path:`, so those nested headers fail to resolve and clang aborts with `aegis128l.h: file not found`. Even if AEGIS were on the cipher-choice list, the in-tree compile would not work without a second `-I` — which the `user_defines` schema does not currently expose. A design limit we accept rather than fork around.
+
+**Maintenance model.** Dependabot watches the submodule under `package-ecosystem: gitsubmodule` (see `.github/dependabot.yml`, monthly cadence) and opens a PR bumping the tracked SHA whenever the upstream `main` branch moves. CI runs the full `make check` on the PR — a breaking cipher or SQLite change fails there, not in `main`. Typical flow: Dependabot PR → green CI → merge, seconds of human attention. Occasional touchups (pubspec `defines:` entry when MC adds a required flag, rare changelog-flagged API migration) are the tail cost.
+
+**Submodule lifecycle.** `Makefile` adds the submodule source file as a prerequisite of every flutter-invoking target (`test`, `analyze`, `build-*`, `run`, `deps`); a missing `third_party/SQLite3MultipleCiphers/src/sqlite3mc.c` triggers `git submodule update --init --depth 1` before flutter runs the hooks. CI workflows that build Flutter (`ci.yml`, `build-release.yml`, `ci-sonarcloud.yml`) pass `submodules: recursive` on `actions/checkout` so the submodule is cloned in parallel with the main checkout. Fresh developer clones that forget `--recurse-submodules` self-heal on the next `make` invocation — no manual step required.
 
 ---
 
@@ -4034,7 +4216,7 @@ flowchart TD
 | **Self-contained binary, zero manual setup** for end-user | App must run from a single extracted bundle. External OS deps allowed only if (1) graceful degradation with in-UI message and (2) install documented in README per platform. Preference order: bundle > built-in fallback > documented optional install. See [§1 Self-contained-binary principle](#1-high-level-overview) |
 | **Shared modules over local one-offs** at every layer | Single source of truth for visual, behavioural, and persistence patterns; second caller triggers extraction, third makes it mandatory. Produced `AppDialog`/`AppIconButton`/`AppDataRow`/`StyledFormField` (UI), `AppTheme.radius*`/`AppFonts.*`/`*ColWidth` (theme), `SftpBrowserMixin`/`key_file_helper.dart`/`breadcrumb_path.dart` (logic), `Store → DAO` template (persistence). See [§1 Reuse principle](#1-high-level-overview) |
 | drift (SQLite) instead of JSON files | Referential integrity, folder tree with FK, M2M tags/snippets, single encrypted DB file via SQLite3MultipleCiphers |
-| SQLite3MultipleCiphers (build hooks) | DB-level encryption replaces per-store AES-GCM. Bundled via `hooks: user_defines: sqlite3: source: sqlite3mc` — no external native libs needed |
+| SQLite3MultipleCiphers (build hooks) | DB-level encryption replaces per-store AES-GCM. Compiled in-tree from the `third_party/SQLite3MultipleCiphers` submodule via `hooks: user_defines: sqlite3: source: source` — no external native libs needed and no build-time network fetch. Submodule SHA is auto-bumped by Dependabot (`package-ecosystem: gitsubmodule`). See [§11 Encryption engine build path](#encryption-engine-build-path) for the why and the maintenance model |
 | Config stays file-based | Theme/locale needed before DB opens (chicken-and-egg with encryption key) |
 | `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
 | Three-level security (plaintext/keychain/master password) | Honest security: DB-level encryption via PRAGMA key. OS keychain optional with graceful fallback |
@@ -4105,9 +4287,8 @@ flowchart TD
 | `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
-| `drift` | Typed SQLite ORM (database, DAOs, codegen) |
-| `drift_flutter` | Flutter integration for drift (NativeDatabase) |
-| `pointycastle` | AES-256-GCM encryption (transitive via dartssh2) |
+| `drift` | Typed SQLite ORM (database, DAOs, codegen). Pulled directly without the `drift_flutter` helper — that one transitively depends on the EOL `sqlite3_flutter_libs` + `sqlcipher_flutter_libs` plugins, whose prebuilts would duplicate the libsqlite3 we already compile in-tree from the MC submodule |
+| `pointycastle` | AES-256-GCM (`.lfs` archive encryption) + Argon2id (KEK derivation) |
 | `pinenacl` | Ed25519 verify for release-signature check |
 | `crypto` | SHA-256 over DER for SPKI pinning |
 | `path_provider` | App data directories |
@@ -4121,7 +4302,6 @@ flowchart TD
 | `url_launcher` | Open URLs |
 | `uuid` | UUID generation |
 | `path` | Cross-platform path utils |
-| `json_annotation` | JSON serialization |
 
 ### Dev
 
@@ -4129,9 +4309,8 @@ flowchart TD
 |---------|---------|
 | `flutter_lints` | Lint rules |
 | `mockito` | Test mocking |
-| `build_runner` | Code generation |
+| `build_runner` | Code generation (drift) |
 | `drift_dev` | Drift code generator |
-| `json_serializable` | JSON code gen |
 | `build_verify` | Verifies build_runner output is up-to-date |
 | `plugin_platform_interface` | Platform interface for plugin packages |
 | `flutter_launcher_icons` | App icon gen |

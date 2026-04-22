@@ -26,9 +26,6 @@ dependencies:
   # File system paths
   path_provider: ^2.1.5
 
-  # Serialization
-  json_annotation: ^4.11.0
-
   # Utilities
   uuid: ^4.5.1
   path: ^1.9.1
@@ -61,9 +58,15 @@ dependencies:
   intl: ^0.20.2
   flutter_secure_storage: ^10.0.0
 
-  # Database (drift = typed SQLite ORM with codegen)
+  # Database (drift = typed SQLite ORM with codegen). The drift
+  # runtime is pulled directly — the usual `drift_flutter` convenience
+  # wrapper is intentionally not used: it transitively depends on
+  # `sqlite3_flutter_libs` and `sqlcipher_flutter_libs` (both EOL
+  # upstream), whose Flutter-plugin prebuilts would be bundled into
+  # every APK/IPA alongside the libsqlite3 we already compile in-tree
+  # from the SQLite3MultipleCiphers submodule. We skip the helper and
+  # go straight to `drift` + `package:sqlite3` native_assets hook.
   drift: ^2.32.0
-  drift_flutter: ^0.3.0
 
   # FFI helpers (calloc / free) for mlocked secret buffers
   ffi: ^2.1.3
@@ -79,7 +82,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.32.0
   build_runner: ^2.4.15
-  json_serializable: ^6.13.1
   mockito: ^5.6.4
   build_verify: ^3.1.0
   plugin_platform_interface: ^2.1.8
@@ -104,11 +106,56 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/icons/icon.png"
 
-# Build hooks — bundle SQLite3MultipleCiphers for database encryption
+# Build hooks — compile SQLite3MultipleCiphers from the vendored submodule at
+# third_party/SQLite3MultipleCiphers. The `source: source` mode points
+# native_toolchain_c at sqlite3mc.c (MC's umbrella amalgamation that wraps
+# SQLite + the configured cipher schemes) and applies package:sqlite3's
+# default compile defines. Building locally avoids the download path in
+# the upstream hook — which has a non-deterministic `Object.hash`-based
+# cache dirname and no stream timeout, so every invocation re-fetches
+# 2.2 MB from GitHub Releases and hangs forever when the asset server
+# stalls mid-stream. The submodule SHA is pinned and auto-bumped by
+# Dependabot via `package-ecosystem: gitsubmodule`.
 hooks:
   user_defines:
     sqlite3:
-      source: sqlite3mc
+      source: source
+      path: third_party/SQLite3MultipleCiphers/src/sqlite3mc.c
+      # Keep only the cipher scheme the app actually uses
+      # (ChaCha20-Poly1305 — MC's built-in default when `PRAGMA key`
+      # is set without `PRAGMA cipher`, which is what
+      # `database_opener.dart:166` does). Every other MC cipher is
+      # dead weight on-disk and in the binary — none is referenced
+      # anywhere in lib/ — so we disable them at compile time. See
+      # docs/ARCHITECTURE.md § "MC cipher choice — ChaCha20-Poly1305"
+      # for the retrospective rationale (the earlier docs listed
+      # `sqlcipher` scheme by mistake; the live encryption was always
+      # ChaCha20-Poly1305).
+      #
+      # AEGIS additionally has a build-time constraint: its sources
+      # live in nested subdirectories (`src/aegis/include/aegis128l.h`,
+      # `src/aegis/aegis128l/implementations.h`, etc.) that cross-
+      # reference headers needing multiple `-I` flags. The sqlite3
+      # package's `source: source` mode only passes a single `-I` for
+      # the parent of `path:`, so leaving AEGIS enabled aborts the
+      # compile with `aegis128l.h: file not found`. Disabling it is
+      # what makes the in-tree compile work at all.
+      #
+      # Disabling all AES-based schemes (AES-128-CBC, AES-256-CBC,
+      # SQLCipher — the latter runs on top of the same AES core)
+      # additionally drops `rijndael.c` from the compile, since its
+      # inclusion is gated on
+      # `HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC
+      #  || HAVE_CIPHER_SQLCIPHER`. Net saving on the resulting
+      # shared library is ~100-200 KiB off `libsqlite3.so` vs the
+      # all-cipher build.
+      defines:
+        - HAVE_CIPHER_AES_128_CBC=0
+        - HAVE_CIPHER_AES_256_CBC=0
+        - HAVE_CIPHER_SQLCIPHER=0
+        - HAVE_CIPHER_RC4=0
+        - HAVE_CIPHER_ASCON128=0
+        - HAVE_CIPHER_AEGIS=0
 
 flutter:
   generate: true

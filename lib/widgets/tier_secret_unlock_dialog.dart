@@ -8,8 +8,29 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
+
+/// Localised text for a [TierSecretUnlockDialog].
+///
+/// Grouped into a separate value so [TierSecretUnlockDialog.show]
+/// keeps a reasonable parameter count — each caller (L2 / L3 unlock
+/// paths in `main.dart`) passes a single `labels` bundle instead of
+/// four `String` arguments threaded through every invocation.
+class TierSecretUnlockLabels {
+  final String title;
+  final String hint;
+  final String inputLabel;
+  final String wrongSecretLabel;
+
+  const TierSecretUnlockLabels({
+    required this.title,
+    required this.hint,
+    required this.inputLabel,
+    required this.wrongSecretLabel,
+  });
+}
 
 /// Shared unlock-dialog shell for the tier-secret paths (L2 short
 /// password, L3 PIN). Owns the retry loop: the host supplies a
@@ -24,10 +45,7 @@ import 'secure_screen_scope.dart';
 class TierSecretUnlockDialog extends StatefulWidget {
   const TierSecretUnlockDialog({
     super.key,
-    required this.title,
-    required this.hint,
-    required this.inputLabel,
-    required this.wrongSecretLabel,
+    required this.labels,
     required this.verify,
     this.numeric = false,
     this.maxLength,
@@ -35,10 +53,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
     this.rateLimiter,
   });
 
-  final String title;
-  final String hint;
-  final String inputLabel;
-  final String wrongSecretLabel;
+  final TierSecretUnlockLabels labels;
   final bool numeric;
   final int? maxLength;
 
@@ -60,10 +75,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
 
   static Future<List<int>?> show(
     BuildContext context, {
-    required String title,
-    required String hint,
-    required String inputLabel,
-    required String wrongSecretLabel,
+    required TierSecretUnlockLabels labels,
     required Future<List<int>?> Function(String) verify,
     bool numeric = false,
     int? maxLength,
@@ -74,10 +86,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       builder: (_) => TierSecretUnlockDialog(
-        title: title,
-        hint: hint,
-        inputLabel: inputLabel,
-        wrongSecretLabel: wrongSecretLabel,
+        labels: labels,
         verify: verify,
         numeric: numeric,
         maxLength: maxLength,
@@ -203,11 +212,11 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
             style: TextStyle(color: AppTheme.fg),
           ),
           actions: [
-            AppDialogAction.secondary(
+            AppButton.secondary(
               label: l10n.cancel,
               onTap: () => Navigator.pop(ctx, false),
             ),
-            AppDialogAction.destructive(
+            AppButton.destructive(
               label: l10n.resetAllDataConfirmAction,
               onTap: () => Navigator.pop(ctx, true),
             ),
@@ -239,7 +248,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
                   const SizedBox(height: 16),
                   Text(
-                    widget.title,
+                    widget.labels.title,
                     style: TextStyle(
                       fontSize: AppFonts.xl,
                       fontWeight: FontWeight.w600,
@@ -247,7 +256,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.hint,
+                    widget.labels.hint,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: AppFonts.md,
@@ -257,7 +266,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   const SizedBox(height: 20),
                   if (_wrong) ...[
                     Text(
-                      widget.wrongSecretLabel,
+                      widget.labels.wrongSecretLabel,
                       style: TextStyle(
                         color: theme.colorScheme.error,
                         fontSize: AppFonts.sm,
@@ -292,14 +301,15 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     maxLength: widget.maxLength,
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: widget.inputLabel,
+                      labelText: widget.labels.inputLabel,
                       border: const OutlineInputBorder(),
                       counterText: '',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure ? Icons.visibility_off : Icons.visibility,
-                        ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+                      suffixIcon: AppIconButton(
+                        icon: _obscure
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        dense: true,
+                        onTap: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
                   ),
@@ -311,25 +321,14 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ] else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _cooldown.isLocked ? null : _submit,
-                        child: Text(l10n.unlock),
-                      ),
+                    AppButton.primary(
+                      label: l10n.unlock,
+                      fullWidth: true,
+                      onTap: _cooldown.isLocked ? null : _submit,
                     ),
                     if (widget.onReset != null) ...[
                       const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: _reset,
-                        child: Text(
-                          l10n.forgotPassword,
-                          style: TextStyle(
-                            fontSize: AppFonts.sm,
-                            color: AppTheme.fgDim,
-                          ),
-                        ),
-                      ),
+                      AppButton(label: l10n.forgotPassword, onTap: _reset),
                     ],
                   ],
                 ],

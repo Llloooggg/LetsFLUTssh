@@ -112,8 +112,8 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: l10n.import_, onTap: _submit),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: l10n.import_, onTap: _submit),
       ],
     );
   }

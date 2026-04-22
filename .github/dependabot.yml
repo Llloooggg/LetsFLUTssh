@@ -1,10 +1,25 @@
 version: 2
+# Monthly cadence across every ecosystem. The weekly default was too
+# noisy for a solo-maintainer repo — PRs landed faster than the merge
+# flow could review them and the backlog buried the real breakage.
+# Monthly batches still catches security bumps inside an acceptable
+# window (GitHub's native security-advisory PRs bypass this schedule
+# and ship immediately regardless) while keeping the normal
+# bump-PR load at ~1-3 PRs/month total.
 updates:
   - package-ecosystem: "pub"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+  # Tracks HEAD of every registered git submodule. We use it for
+  # third_party/SQLite3MultipleCiphers — the upstream amalgamation of
+  # SQLite + the ChaCha20-Poly1305 page cipher, compiled in-tree via
+  # the sqlite3 build hook.
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: "monthly"

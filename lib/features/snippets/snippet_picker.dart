@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -98,7 +99,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
           ],
         ),
       ),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 
@@ -160,23 +161,18 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
       onTap: () => Navigator.pop(context, snippet.command),
       trailing: [
         if (widget.sessionId != null)
-          IconButton(
-            icon: Icon(
-              pinned ? Icons.push_pin : Icons.push_pin_outlined,
-              size: 14,
-              color: pinned ? AppTheme.accent : AppTheme.fgFaint,
-            ),
+          AppIconButton(
+            icon: pinned ? Icons.push_pin : Icons.push_pin_outlined,
             tooltip: pinned ? s.unpinFromSession : s.pinToSession,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _togglePin(snippet, pinned),
+            dense: true,
+            color: pinned ? AppTheme.accent : AppTheme.fgFaint,
+            onTap: () => _togglePin(snippet, pinned),
           ),
-        IconButton(
-          icon: const Icon(Icons.content_copy, size: 14),
+        AppIconButton(
+          icon: Icons.content_copy,
           tooltip: s.copy,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () {
+          dense: true,
+          onTap: () {
             Clipboard.setData(ClipboardData(text: snippet.command));
             Toast.show(
               context,

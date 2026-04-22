@@ -184,26 +184,36 @@ class ConnectionManager {
   ///      that aren't in the session store.
   SSHConfig _withCredentialOverlay(Connection conn, SSHConfig config) {
     var auth = config.auth;
-    final sessionId = conn.sessionId;
-    final cache = _credentialCache;
-    if (sessionId != null && cache != null) {
-      final cached = cache.read(sessionId);
-      if (cached != null) {
-        if (auth.password.isEmpty && cached.passwordString != null) {
-          auth = auth.copyWith(password: cached.passwordString);
-        }
-        if (auth.keyData.isEmpty && cached.keyDataString != null) {
-          auth = auth.copyWith(keyData: cached.keyDataString);
-        }
-        if (auth.passphrase.isEmpty && cached.keyPassphraseString != null) {
-          auth = auth.copyWith(passphrase: cached.keyPassphraseString);
-        }
-      }
-    }
+    auth = _overlaySessionCache(auth, conn.sessionId);
     if (auth.passphrase.isEmpty && conn.cachedPassphrase != null) {
       auth = auth.copyWith(passphrase: conn.cachedPassphrase);
     }
     return identical(auth, config.auth) ? config : config.copyWith(auth: auth);
+  }
+
+  /// Merge any password / key / passphrase entries the
+  /// [SessionCredentialCache] holds for [sessionId] into [auth],
+  /// overwriting empty fields only. Pulled out of
+  /// [_withCredentialOverlay] so each nested "cache present AND
+  /// entry present AND this field empty AND cached value non-null"
+  /// guard pair stops inflating the outer method's cognitive
+  /// complexity.
+  SshAuth _overlaySessionCache(SshAuth auth, String? sessionId) {
+    final cache = _credentialCache;
+    if (sessionId == null || cache == null) return auth;
+    final cached = cache.read(sessionId);
+    if (cached == null) return auth;
+    var merged = auth;
+    if (merged.password.isEmpty && cached.passwordString != null) {
+      merged = merged.copyWith(password: cached.passwordString);
+    }
+    if (merged.keyData.isEmpty && cached.keyDataString != null) {
+      merged = merged.copyWith(keyData: cached.keyDataString);
+    }
+    if (merged.passphrase.isEmpty && cached.keyPassphraseString != null) {
+      merged = merged.copyWith(passphrase: cached.keyPassphraseString);
+    }
+    return merged;
   }
 
   /// Store the post-auth credential envelope so a later reconnect

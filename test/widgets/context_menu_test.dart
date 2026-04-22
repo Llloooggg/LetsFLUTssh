@@ -2,7 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import '''package:letsflutssh/l10n/app_localizations.dart''';
+import 'package:letsflutssh/core/shortcut_registry.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/context_menu.dart';
 
@@ -16,9 +17,17 @@ void main() {
     );
   }
 
-  List<ContextMenuItem> testItems({VoidCallback? onCopy, VoidCallback? onPaste}) {
+  List<ContextMenuItem> testItems({
+    VoidCallback? onCopy,
+    VoidCallback? onPaste,
+  }) {
     return [
-      ContextMenuItem(label: 'Copy', icon: Icons.copy, shortcut: 'Ctrl+C', onTap: onCopy),
+      ContextMenuItem(
+        label: 'Copy',
+        icon: Icons.copy,
+        shortcut: 'Ctrl+C',
+        onTap: onCopy,
+      ),
       const ContextMenuItem.divider(),
       ContextMenuItem(label: 'Paste', icon: Icons.paste, onTap: onPaste),
     ];
@@ -35,7 +44,11 @@ void main() {
       wrap(
         Builder(
           builder: (ctx) => ElevatedButton(
-            onPressed: () => showAppContextMenu(context: ctx, position: const Offset(100, 100), items: menuItems),
+            onPressed: () => showAppContextMenu(
+              context: ctx,
+              position: const Offset(100, 100),
+              items: menuItems,
+            ),
             child: const Text('Open'),
           ),
         ),
@@ -170,7 +183,9 @@ void main() {
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where((c) => c.color == AppTheme.selection);
+      final highlighted = containers.where(
+        (c) => c.color == AppTheme.selection,
+      );
       expect(highlighted, isNotEmpty);
     });
 
@@ -268,8 +283,16 @@ void main() {
       expect(find.text('Copy'), findsNothing);
     });
 
-    testWidgets('keyboard navigation with all dividers does nothing', (tester) async {
-      await openMenu(tester, items: [const ContextMenuItem.divider(), const ContextMenuItem.divider()]);
+    testWidgets('keyboard navigation with all dividers does nothing', (
+      tester,
+    ) async {
+      await openMenu(
+        tester,
+        items: [
+          const ContextMenuItem.divider(),
+          const ContextMenuItem.divider(),
+        ],
+      );
 
       await sendKey(tester, LogicalKeyboardKey.arrowDown);
       await tester.pump();
@@ -289,7 +312,9 @@ void main() {
       await tester.pump();
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where((c) => c.color == AppTheme.selection);
+      final highlighted = containers.where(
+        (c) => c.color == AppTheme.selection,
+      );
       expect(highlighted, isNotEmpty);
     });
 
@@ -307,7 +332,9 @@ void main() {
       await tester.pump();
 
       final containers = tester.widgetList<Container>(find.byType(Container));
-      final highlighted = containers.where((c) => c.color == AppTheme.selection);
+      final highlighted = containers.where(
+        (c) => c.color == AppTheme.selection,
+      );
       expect(highlighted, isEmpty);
     });
 
@@ -348,6 +375,120 @@ void main() {
 
       // Menu should still work
       expect(find.text('Copy'), findsOneWidget);
+    });
+  });
+
+  group('StandardMenuAction factory', () {
+    testWidgets('renders translated label from AppLocalizations', (
+      tester,
+    ) async {
+      late ContextMenuItem item;
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              item = StandardMenuAction.copy.item(ctx, onTap: () {});
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(item.label, 'Copy');
+      expect(item.icon, Icons.copy);
+      expect(item.shortcut, isNull);
+    });
+
+    testWidgets('pulls live shortcut label from AppShortcutRegistry', (
+      tester,
+    ) async {
+      // terminalPaste binds Ctrl+Shift+V — the bug that motivated the
+      // factory was menus advertising a stale "Ctrl+V" alongside the
+      // real Ctrl+Shift+V bind. The factory must read the live binding.
+      late ContextMenuItem item;
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              item = StandardMenuAction.paste.item(
+                ctx,
+                shortcut: AppShortcut.terminalPaste,
+                onTap: () {},
+              );
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(item.shortcut, 'Ctrl+Shift+V');
+    });
+
+    testWidgets('same action shows different shortcut at different sites', (
+      tester,
+    ) async {
+      // Terminal vs session sidebar: copy binds to different activators
+      // (Ctrl+Shift+C vs Ctrl+C) — one StandardMenuAction value must be
+      // reusable with either, and the label must reflect the site's pick.
+      late ContextMenuItem terminal;
+      late ContextMenuItem session;
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              terminal = StandardMenuAction.copy.item(
+                ctx,
+                shortcut: AppShortcut.terminalCopy,
+                onTap: () {},
+              );
+              session = StandardMenuAction.copy.item(
+                ctx,
+                shortcut: AppShortcut.sessionCopy,
+                onTap: () {},
+              );
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(terminal.shortcut, 'Ctrl+Shift+C');
+      expect(session.shortcut, 'Ctrl+C');
+    });
+
+    testWidgets('delete carries red accent by default', (tester) async {
+      late ContextMenuItem item;
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              item = StandardMenuAction.delete.item(ctx, onTap: () {});
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(item.color, AppTheme.red);
+    });
+
+    testWidgets('labelOverride replaces the default translation', (
+      tester,
+    ) async {
+      late ContextMenuItem item;
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (ctx) {
+              item = StandardMenuAction.delete.item(
+                ctx,
+                labelOverride: 'Delete 3 items',
+                onTap: () {},
+              );
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(item.label, 'Delete 3 items');
+      // Default colour still applies — override only replaces the label.
+      expect(item.color, AppTheme.red);
     });
   });
 }

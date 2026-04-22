@@ -57,10 +57,19 @@ class SAr extends S {
   String get copy => 'نسخ';
 
   @override
+  String get cut => 'قص';
+
+  @override
   String get paste => 'لصق';
 
   @override
   String get select => 'تحديد';
+
+  @override
+  String get copyModeTapToStart => 'المس لتحديد بداية التحديد';
+
+  @override
+  String get copyModeExtending => 'اسحب لتمديد التحديد';
 
   @override
   String get required => 'مطلوب';
@@ -2288,6 +2297,59 @@ class SAr extends S {
 
   @override
   String get securityRecheckUnchanged => 'دعم المستويات دون تغيير';
+
+  @override
+  String get securityMacosEnableSecureTiers =>
+      'فتح المستويات الآمنة على هذا الـ Mac';
+
+  @override
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'إعادة توقيع التطبيق بشهادة شخصية حتى تعمل سلسلة المفاتيح (T1) و Secure Enclave (T2) بعد التحديثات';
+
+  @override
+  String get securityMacosEnableSecureTiersPrompt =>
+      'سيطلب macOS كلمة مرورك مرة واحدة';
+
+  @override
+  String get securityMacosEnableSecureTiersSuccess =>
+      'تم فتح المستويات الآمنة — T1 و T2 متاحان الآن';
+
+  @override
+  String get securityMacosEnableSecureTiersFailed => 'فشل فتح المستويات الآمنة';
+
+  @override
+  String get securityMacosOfferTitle =>
+      'تفعيل سلسلة المفاتيح + Secure Enclave؟';
+
+  @override
+  String get securityMacosOfferBody =>
+      'يربط macOS التخزين المشفر بهوية توقيع التطبيق. بدون شهادة مستقرة، ترفض سلسلة المفاتيح (T1) و Secure Enclave (T2) الوصول. يمكننا إنشاء شهادة شخصية موقعة ذاتيًا على هذا الـ Mac وإعادة توقيع التطبيق بها — ستستمر التحديثات في العمل، وستبقى أسرارك عبر الإصدارات. سيطلب macOS كلمة مرور تسجيل الدخول مرة واحدة للوثوق بالشهادة الجديدة.';
+
+  @override
+  String get securityMacosOfferAccept => 'تفعيل';
+
+  @override
+  String get securityMacosOfferDecline => 'تخطي — اختر T0 أو Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => 'إزالة هوية التوقيع';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'يحذف الشهادة الشخصية. بيانات T1 / T2 مرتبطة بها — تحول إلى T0 أو Paranoid أولاً ثم احذف.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle => 'إزالة هوية التوقيع؟';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'يحذف الشهادة الشخصية من سلسلة مفاتيح تسجيل الدخول. ستصبح أسرار T1 / T2 المخزنة غير قابلة للقراءة. سيفتح المعالج للترحيل إلى T0 (نص عادي) أو Paranoid (كلمة مرور رئيسية) قبل الإزالة.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'تمت إزالة هوية التوقيع';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => 'فشلت إزالة هوية التوقيع';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

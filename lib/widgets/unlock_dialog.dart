@@ -16,6 +16,7 @@ import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
@@ -301,7 +302,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     try {
       await ref
           .read(configProvider.notifier)
-          .update((c) => c.copyWith(security: null));
+          .update((c) => c.copyWithSecurity(security: null));
     } catch (e) {
       AppLogger.instance.log(
         'Forgot-password config clear failed: $e',
@@ -338,11 +339,11 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
             style: TextStyle(color: AppTheme.fg),
           ),
           actions: [
-            AppDialogAction.secondary(
+            AppButton.secondary(
               label: l10n.cancel,
               onTap: () => Navigator.pop(ctx, false),
             ),
-            AppDialogAction.destructive(
+            AppButton.destructive(
               label: l10n.resetAllDataConfirmAction,
               onTap: () => Navigator.pop(ctx, true),
             ),
@@ -429,11 +430,12 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                     decoration: InputDecoration(
                       labelText: l10n.password,
                       border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure ? Icons.visibility_off : Icons.visibility,
-                        ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+                      suffixIcon: AppIconButton(
+                        icon: _obscure
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        dense: true,
+                        onTap: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
                   ),
@@ -453,31 +455,23 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       ),
                     ),
                   ] else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _cooldown.isLocked ? null : _unlock,
-                        child: Text(l10n.unlock),
-                      ),
+                    AppButton.primary(
+                      label: l10n.unlock,
+                      fullWidth: true,
+                      onTap: _cooldown.isLocked ? null : _unlock,
                     ),
                     if (_biometricOffered == true) ...[
                       const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _retryBiometric,
-                        icon: const Icon(Icons.fingerprint, size: 18),
-                        label: Text(l10n.biometricUnlockTitle),
+                      AppButton(
+                        label: l10n.biometricUnlockTitle,
+                        icon: Icons.fingerprint,
+                        onTap: _retryBiometric,
                       ),
                     ],
                     const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: _forgotPassword,
-                      child: Text(
-                        l10n.forgotPassword,
-                        style: TextStyle(
-                          fontSize: AppFonts.sm,
-                          color: AppTheme.fgDim,
-                        ),
-                      ),
+                    AppButton(
+                      label: l10n.forgotPassword,
+                      onTap: _forgotPassword,
                     ),
                   ],
                 ],

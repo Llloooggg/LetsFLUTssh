@@ -1,10 +1,9 @@
 import 'dart:async' show runZonedGuarded, unawaited;
-import 'dart:io' show exit;
+import 'dart:io' show Directory, Platform, exit;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -54,8 +53,8 @@ import 'widgets/lfs_import_dialog.dart';
 import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
-import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
+import 'widgets/update_progress_indicator.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/tools/tools_dialog.dart';
 import 'features/session_manager/session_panel.dart';
@@ -101,16 +100,27 @@ SingleInstance? singleInstanceLock;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Kill every animation globally. `timeDilation` multiplies every
-  // `Ticker`/`AnimationController` duration in the framework, so
-  // 0.01 collapses 300ms transitions to ~3ms — visually instant.
-  // This catches widgets that ignore `MediaQuery.disableAnimations`
-  // (notably `PopupMenuButton` and `showMenu`, which own their own
-  // AnimationController). Three-layer hard-off, together with the
-  // `_NoTransitionsBuilder` in `AppTheme.pageTransitionsTheme` and
-  // `disableAnimations: true` on the root `MediaQuery`, takes motion
-  // out of the UI project-wide. `timeDilation` must be > 0.
-  timeDilation = 0.01;
+  // Animation hard-off is layered:
+  //   * `_NoTransitionsBuilder` in `AppTheme.pageTransitionsTheme`
+  //     kills route push/pop transitions on every platform.
+  //   * `disableAnimations: true` on the root `MediaQuery` silences
+  //     implicit animations (`AnimatedContainer`, `AnimatedSwitcher`,
+  //     `AnimatedOpacity`, etc.) that honour the accessibility flag.
+  //   * Widget-level opt-outs for the handful of Material surfaces
+  //     that own their own `AnimationController` and ignore the
+  //     flag: `Toast` keeps a zero-length controller (no fade /
+  //     slide), and every `PopupMenuButton` passes
+  //     `popUpAnimationStyle: AnimationStyle.noAnimation`.
+  //
+  // An earlier `timeDilation = 0.01` blanket scaled every `Ticker`
+  // in the framework and caught the offenders above in one line —
+  // but it also compressed the scroll-physics simulations
+  // (`BouncingScrollPhysics`, `ClampingScrollPhysics`, `PageView`
+  // snap, overscroll glow decay) to near-zero, which made mobile
+  // swipes feel janky: the finger would release and the list
+  // would teleport to its rest position instead of settling
+  // smoothly. Physics simulations need real time; animations
+  // don't. Split them accordingly instead of nuking both.
 
   // Unlock the Linux-only subprocess probe (gdbus Peer.Ping against
   // org.freedesktop.secrets) used by SecureKeyStorage.probe. Widget
@@ -291,7 +301,7 @@ void _showGlobalErrorDialog(BuildContext context, Object error) {
           ),
           actions: [
             if (!loggingEnabled)
-              AppDialogAction.secondary(
+              AppButton.secondary(
                 label: 'Enable Logging',
                 onTap: () {
                   AppLogger.instance.setEnabled(true);
@@ -308,7 +318,7 @@ void _showGlobalErrorDialog(BuildContext context, Object error) {
                   );
                 },
               ),
-            AppDialogAction.primary(
+            AppButton.primary(
               label: 'OK',
               onTap: () => Navigator.of(ctx).pop(),
             ),
@@ -348,12 +358,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       onRestart: _reloadSessions,
       onResume: _reloadSessions,
     );
-    // Settings → Reset All Data pokes `securityReinitProvider` after
-    // `WipeAllService.wipeAll()` so the app re-enters the same
-    // first-launch provisioning path that runs on a cold-start
-    // fresh install. Without the listener the reset flow would
-    // leave the app in `security: null` with no DB open — every
-    // subsequent UI action would crash on a missing handle.
+    _wireReinitListener();
+    _wireLockStateListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  /// Settings → Reset All Data pokes `securityReinitProvider` after
+  /// `WipeAllService.wipeAll()` so the app re-enters the same first-
+  /// launch provisioning path that runs on a cold-start fresh
+  /// install. Without the listener the reset flow would leave the
+  /// app in `security: null` with no DB open — every subsequent UI
+  /// action would crash on a missing handle.
+  void _wireReinitListener() {
     ref.listenManual<int>(securityReinitProvider, (prev, next) {
       if (next <= _lastReinitTick) return;
       _lastReinitTick = next;
@@ -361,14 +377,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         await _reinitSecurityFromReset();
       });
     });
-    // Re-open the drift / SQLCipher handle after a lock → unlock
-    // transition. `AutoLockDetector._triggerLock` now always closes
-    // the DB (so the C-layer page cipher cache is zeroed alongside
-    // the Dart-side `SecretBuffer`), so every unlock needs a fresh
-    // `_injectDatabase` under the key the lock-screen unlock flow
-    // just pushed back into `securityStateProvider`. Previous-state
-    // gate filters the initial false → false emission plus any
-    // redundant lock→lock transitions.
+  }
+
+  /// Re-open the drift / MC handle after a lock → unlock
+  /// transition. `AutoLockDetector._triggerLock` now always closes
+  /// the DB (so the C-layer page cipher cache is zeroed alongside
+  /// the Dart-side `SecretBuffer`), so every unlock needs a fresh
+  /// `_injectDatabase` under the key the lock-screen unlock flow
+  /// just pushed back into `securityStateProvider`. Previous-state
+  /// gate filters the initial false → false emission plus any
+  /// redundant lock→lock transitions.
+  void _wireLockStateListener() {
     ref.listenManual<bool>(lockStateProvider, (prev, next) {
       if (prev == true && next == false) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -376,62 +395,106 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         });
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(appVersionProvider.notifier).load();
-      // Migration runner gates everything else — a failed or mismatched
-      // artefact would make both the unlock flow and the corrupt-DB
-      // probe read stale state. When it surfaces a reset, the migration
-      // handler runs the full wipe + wizard on its own, so skip the
-      // follow-up _initSecurity / corruption probe.
-      final migrationOk = await _runMigrations();
-      if (!migrationOk) return;
-      await _initSecurity();
-      // Integrity probe: if the DB file on disk cannot be read under
-      // the cipher we just opened it with, the chosen tier does not
-      // match the actual file — fall into the reset dialog instead of
-      // surfacing drift's "file is not a database" from a later async
-      // gap. The user is the only one who can consent to a wipe;
-      // `_handleDatabaseCorruption` shows the non-dismissible reset /
-      // quit choice and never auto-deletes anything.
-      await _handleDatabaseCorruption();
-      await ref.read(sessionProvider.notifier).load();
-      if (_credentialsWereReset) {
-        _credentialsWereReset = false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final ctx = navigatorKey.currentContext;
-          if (ctx != null && ctx.mounted) {
-            Toast.show(
-              ctx,
-              message: S.of(ctx).credentialsReset,
-              level: ToastLevel.warning,
-            );
-          }
-        });
-      }
-      if (plat.isMobilePlatform) {
-        AppLogger.instance.log('Initializing foreground service', name: 'App');
-        ref.read(foregroundServiceProvider).init();
-      }
-      // Eager-prefetch the capability + probe snapshots off the main
-      // bootstrap path. `securityCapabilitiesProvider` is a
-      // FutureProvider — the first `ref.watch` on it inside Settings
-      // (or the wizard) would otherwise trigger the deep probes on
-      // the Dart async gap where the user first interacts. With
-      // Android + macOS deep probes now running real SE / Keystore
-      // round-trips, the lazy path made tier cards flash
-      // "unavailable → available" as the probe raced the first frame.
-      // Warming the cache here means Settings opens against ready
-      // data — no flicker. A user-facing "Re-check" button in
-      // Settings → Security invalidates + re-awaits the same cache
-      // when the user wants a fresh result.
-      unawaited(ref.read(securityCapabilitiesProvider.future));
-      unawaited(ref.read(hardwareProbeDetailProvider.future));
-      unawaited(ref.read(keyringProbeDetailProvider.future));
-      if (ref.read(configProvider).checkUpdatesOnStart) {
-        AppLogger.instance.log('Checking for updates on start', name: 'App');
-        ref.read(updateProvider.notifier).check();
+  }
+
+  /// App bootstrap sequence — run once on the first frame after
+  /// `initState`. Split from `initState` so the method body stays
+  /// under the S3776 cognitive-complexity threshold and so each
+  /// step (migrations, security init, corruption probe, session
+  /// load, foreground service, probe warm-up, update check) can
+  /// be read top-to-bottom as the startup contract.
+  Future<void> _bootstrap() async {
+    await ref.read(appVersionProvider.notifier).load();
+    // Kick the tier-availability probe off in parallel with migrations
+    // + unlock. `securityCapabilitiesProvider` caches its result to
+    // `config.json`, so warm starts read the cached snapshot on the
+    // first microtask (no work) and fall through. On first launch the
+    // probe is a real round-trip against Keychain / LAContext /
+    // BiometricManager / TPM2 that used to run *inside*
+    // `_firstLaunchSetup` and serialised the whole startup path —
+    // user saw a frozen empty screen until keychain + LAContext
+    // answered. Starting the probe here overlaps it with the
+    // migration runner and `_initSecurity` so by the time
+    // `_firstLaunchSetup` awaits the same future the work is either
+    // done or well in flight. First-launch wizard still needs
+    // `caps.keychainAvailable` to decide whether to auto-setup T1,
+    // but the wait is now the remainder of whichever path finished
+    // first, not the full probe.
+    _warmProbeCaches();
+    // Migration runner gates everything else — a failed or mismatched
+    // artefact would make both the unlock flow and the corrupt-DB
+    // probe read stale state. When it surfaces a reset, the migration
+    // handler runs the full wipe + wizard on its own, so skip the
+    // follow-up _initSecurity / corruption probe.
+    final migrationOk = await _runMigrations();
+    if (!migrationOk) return;
+    await _initSecurity();
+    // Integrity probe + first session load both read the unlocked DB,
+    // so fire them in parallel — the corruption probe runs its own
+    // SELECT and errors out before the session query would see stale
+    // data. Previously sequential `_handleDatabaseCorruption` → `load`
+    // added ~200 ms to cold start on every run (both hit drift's
+    // first-query warm-up cost once each). Kicking them off together
+    // overlaps that warm-up and saves roughly that window on plaintext
+    // tiers where DB unlock itself is trivial. If corruption fires,
+    // the reset dialog takes over regardless of load outcome.
+    final corruptFuture = _handleDatabaseCorruption();
+    // `sessionsLoadingProvider` defaults to `true` so the sidebar
+    // already shows the blank placeholder; `load()` flips it back to
+    // idle in its `finally` block.
+    final loadFuture = ref.read(sessionProvider.notifier).load();
+    await Future.wait([corruptFuture, loadFuture]);
+    _maybeShowCredentialsResetToast();
+    if (plat.isMobilePlatform) {
+      AppLogger.instance.log('Initializing foreground service', name: 'App');
+      ref.read(foregroundServiceProvider).init();
+    }
+    if (ref.read(configProvider).checkUpdatesOnStart) {
+      AppLogger.instance.log('Checking for updates on start', name: 'App');
+      ref.read(updateProvider.notifier).check();
+    }
+  }
+
+  void _maybeShowCredentialsResetToast() {
+    if (!_credentialsWereReset) return;
+    _credentialsWereReset = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Toast.show(
+          ctx,
+          message: S.of(ctx).credentialsReset,
+          level: ToastLevel.warning,
+        );
       }
     });
+  }
+
+  /// Eager-prefetch the capability + probe snapshots off the main
+  /// bootstrap path. `securityCapabilitiesProvider` is a
+  /// FutureProvider — the first `ref.watch` on it inside Settings
+  /// (or the wizard) would otherwise trigger the deep probes on
+  /// the Dart async gap where the user first interacts. With
+  /// Android + macOS deep probes now running real SE / Keystore
+  /// round-trips, the lazy path made tier cards flash "unavailable
+  /// → available" as the probe raced the first frame. Warming the
+  /// cache here means Settings opens against ready data — no
+  /// flicker. A user-facing "Re-check" button in Settings →
+  /// Security invalidates + re-awaits the same cache when the user
+  /// wants a fresh result.
+  ///
+  /// Invoked twice in the bootstrap graph: once at the *start* of
+  /// [_bootstrap] so the probe runs in parallel with migrations + DB
+  /// unlock (the critical first-launch path where `_firstLaunchSetup`
+  /// blocks on `probeCapabilities`), and implicitly a second time via
+  /// the Settings "Re-check" flow which invalidates the providers.
+  /// The double-fire is safe because the provider de-duplicates
+  /// in-flight futures — the second `ref.read(...future)` returns the
+  /// same `Future` as the first until it resolves.
+  void _warmProbeCaches() {
+    unawaited(ref.read(securityCapabilitiesProvider.future));
+    unawaited(ref.read(hardwareProbeDetailProvider.future));
+    unawaited(ref.read(keyringProbeDetailProvider.future));
   }
 
   @override
@@ -566,45 +629,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _initSecurity() async {
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final dbExists = await databaseFileExists();
 
-    // Crash-recovery: if the previous run died mid-switch, a
-    // `.tier-transition-pending` marker is still on disk. The
-    // switcher writes the marker *before* PRAGMA rekey, so the DB
-    // on disk is either under the source key (rekey never ran) or
-    // under the target key (rekey ran but wrapper / config write
-    // did not). Completing the pending switch safely requires
-    // prompting the user for the target credential, which the L2 /
-    // L3 unlock paths do not yet ship. For now the marker is
-    // cleared here and the standard unlock flow runs — if it fails
-    // the user can use the forgot-password reset to recover. The
-    // clear is deliberate so the marker never persists across
-    // multiple launches into a dirtier state.
-    final pendingTransition = await SecurityTierSwitcher().readPendingMarker();
-    if (pendingTransition != null) {
-      AppLogger.instance.log(
-        'Pending tier-transition marker from previous session '
-        '(payload=$pendingTransition) — clearing and falling back to '
-        'standard unlock path',
-        name: 'App',
-      );
-      await SecurityTierSwitcher().clearMarker();
-    }
-
-    // Breaking-change gate: new build carries the SecurityTier enum
-    // + a `security_tier` field in config.json. Any install that
-    // arrives here with legacy state (credentials.kdf / keychain
-    // marker / biometric vault / the DB itself) but no tier field
-    // belongs to the old model. No automatic migration — show the
-    // reset dialog, wipe everything on confirm, fall through to the
-    // first-launch wizard. Quit on refusal so the user can reinstall
-    // an older build to export first.
-    final currentSecurity = ref.read(configProvider).security;
-    final wiper = WipeAllService();
+    await _clearPendingTierTransition();
 
     // Crash-safety: if the previous run started a wipe that did not
-    // finish, re-run the full sweep idempotently before anything else
-    // touches the app-support dir.
+    // finish, re-run the full sweep idempotently before anything
+    // else touches the app-support dir.
+    final wiper = WipeAllService();
     if (await wiper.hasPendingWipe()) {
       AppLogger.instance.log(
         'Resuming unfinished wipe from previous launch',
@@ -614,96 +645,144 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       _credentialsWereReset = true;
     }
 
-    // Two legacy-state detection gates, both route through the same
-    // tier-reset dialog + WipeAllService path:
-    //
-    //   (1) no persisted `security` in config but on-disk artefacts
-    //       exist — an upgrade from a pre-tier build that inferred
-    //       security from file presence alone.
-    //   (2) config exists but its `config_schema_version` is older
-    //       than the current build's target — an upgrade from the v1
-    //       tier model (pre-bank-style-modifier refactor) where the
-    //       native hw-vault ACL shape changes incompatibly. Detecting
-    //       via schema version instead of inspecting individual
-    //       fields keeps the gate simple and tamper-resistant.
+    if (await _handleLegacyStateIfPresent(manager, keyStorage, wiper)) {
+      return;
+    }
+
+    final dbExists = await databaseFileExists();
+    if (dbExists) {
+      await _unlockExistingDatabase(manager, keyStorage);
+      return;
+    }
+
+    // No DB file — first launch. Show security setup wizard.
+    await _firstLaunchSetup(manager, keyStorage);
+  }
+
+  /// Crash-recovery: if the previous run died mid-switch, a
+  /// `.tier-transition-pending` marker is still on disk. The switcher
+  /// writes the marker *before* PRAGMA rekey, so the DB on disk is
+  /// either under the source key (rekey never ran) or under the
+  /// target key (rekey ran but wrapper / config write did not).
+  /// Completing the pending switch safely requires prompting the
+  /// user for the target credential, which the L2 / L3 unlock
+  /// paths do not yet ship. For now the marker is cleared here
+  /// and the standard unlock flow runs — if it fails the user can
+  /// use the forgot-password reset to recover. Deliberate so the
+  /// marker never persists across multiple launches into a dirtier
+  /// state.
+  Future<void> _clearPendingTierTransition() async {
+    final pendingTransition = await SecurityTierSwitcher().readPendingMarker();
+    if (pendingTransition == null) return;
+    AppLogger.instance.log(
+      'Pending tier-transition marker from previous session '
+      '(payload=$pendingTransition) — clearing and falling back to '
+      'standard unlock path',
+      name: 'App',
+    );
+    await SecurityTierSwitcher().clearMarker();
+  }
+
+  /// Breaking-change gate for upgrades from pre-tier / v1-tier
+  /// installs. Returns true when the legacy path took over and
+  /// [_initSecurity] must stop; false when no legacy state was
+  /// detected and the caller should continue into the normal
+  /// DB-exists / first-launch branches.
+  ///
+  /// Two detection shapes, both route through the same
+  /// tier-reset dialog + WipeAllService path:
+  ///
+  ///   (1) no persisted `security` in config but on-disk artefacts
+  ///       exist — an upgrade from a pre-tier build that inferred
+  ///       security from file presence alone.
+  ///   (2) config exists but its `config_schema_version` is older
+  ///       than the current build's target — an upgrade from the v1
+  ///       tier model (pre-bank-style-modifier refactor) where the
+  ///       native hw-vault ACL shape changes incompatibly. Detecting
+  ///       via schema version instead of inspecting individual
+  ///       fields keeps the gate simple and tamper-resistant.
+  Future<bool> _handleLegacyStateIfPresent(
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+    WipeAllService wiper,
+  ) async {
+    final currentSecurity = ref.read(configProvider).security;
     final configArtefact = ConfigArtefact();
     final configVersion = await configArtefact.readVersion();
     final legacyConfig =
         configVersion >= 0 && configVersion < SchemaVersions.config;
     final orphanArtefacts =
         currentSecurity == null && await wiper.hasAnyState();
-    if (legacyConfig || orphanArtefacts) {
-      if (!mounted) return;
-      final choice = await _showTierResetDialog();
-      if (choice == TierResetChoice.exitApp) {
-        AppLogger.instance.log(
-          'Legacy state detected (configVersion=$configVersion, '
-          'orphan=$orphanArtefacts) — user chose to exit',
-          name: 'App',
-        );
-        await SystemNavigator.pop();
-        exit(0);
-      }
-      await wiper.wipeAll();
+    if (!legacyConfig && !orphanArtefacts) return false;
+    if (!mounted) return true;
+    final choice = await _showTierResetDialog();
+    if (choice == TierResetChoice.exitApp) {
       AppLogger.instance.log(
         'Legacy state detected (configVersion=$configVersion, '
-        'orphan=$orphanArtefacts) — wiped, running fresh wizard',
+        'orphan=$orphanArtefacts) — user chose to exit',
         name: 'App',
       );
-      _credentialsWereReset = true;
-      // Fall through to first-launch setup with a clean slate.
-      await _firstLaunchSetup(manager, keyStorage);
-      return;
+      await SystemNavigator.pop();
+      exit(0);
     }
-
-    if (dbExists) {
-      // Existing install — prefer the explicit tier persisted in
-      // config.json when present; otherwise fall back to the legacy
-      // infer-from-state path for paranoid/keychain/plaintext.
-      if (currentSecurity != null) {
-        switch (currentSecurity.tier) {
-          case SecurityTier.hardware:
-            await _unlockHardware();
-            return;
-          case SecurityTier.keychainWithPassword:
-            await _unlockKeychainWithPassword(keyStorage);
-            return;
-          case SecurityTier.keychain:
-            await _unlockKeychain(keyStorage);
-            return;
-          case SecurityTier.paranoid:
-            await _unlockParanoid(manager);
-            return;
-          case SecurityTier.plaintext:
-            await _injectDatabase();
-            AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
-            return;
-        }
-      }
-
-      // Legacy-inference path — no explicit tier field yet.
-
-      if (await manager.isEnabled()) {
-        await _unlockParanoid(manager);
-        return;
-      }
-
-      // Keychain key exists — use it.
-      final keychainKey = await keyStorage.readKey();
-      if (keychainKey != null) {
-        await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
-        AppLogger.instance.log('Keychain key loaded', name: 'App');
-        return;
-      }
-
-      // DB exists but no encryption credentials — plaintext mode.
-      await _injectDatabase();
-      AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
-      return;
-    }
-
-    // No DB file — first launch. Show security setup wizard.
+    await wiper.wipeAll();
+    AppLogger.instance.log(
+      'Legacy state detected (configVersion=$configVersion, '
+      'orphan=$orphanArtefacts) — wiped, running fresh wizard',
+      name: 'App',
+    );
+    _credentialsWereReset = true;
     await _firstLaunchSetup(manager, keyStorage);
+    return true;
+  }
+
+  /// Existing install unlock path. Prefer the explicit tier persisted
+  /// in config.json when present; otherwise fall back to the legacy
+  /// infer-from-state path for paranoid / keychain / plaintext.
+  Future<void> _unlockExistingDatabase(
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+  ) async {
+    final currentSecurity = ref.read(configProvider).security;
+    if (currentSecurity != null) {
+      await _unlockByTier(currentSecurity.tier, manager, keyStorage);
+      return;
+    }
+
+    // Legacy-inference path — no explicit tier field yet.
+    if (await manager.isEnabled()) {
+      await _unlockParanoid(manager);
+      return;
+    }
+    final keychainKey = await keyStorage.readKey();
+    if (keychainKey != null) {
+      await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+      AppLogger.instance.log('Keychain key loaded', name: 'App');
+      return;
+    }
+    // DB exists but no encryption credentials — plaintext mode.
+    await _injectDatabase();
+    AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
+  }
+
+  Future<void> _unlockByTier(
+    SecurityTier tier,
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+  ) async {
+    switch (tier) {
+      case SecurityTier.hardware:
+        await _unlockHardware();
+      case SecurityTier.keychainWithPassword:
+        await _unlockKeychainWithPassword(keyStorage);
+      case SecurityTier.keychain:
+        await _unlockKeychain(keyStorage);
+      case SecurityTier.paranoid:
+        await _unlockParanoid(manager);
+      case SecurityTier.plaintext:
+        await _injectDatabase();
+        AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
+    }
   }
 
   /// Paranoid (master password) unlock — biometric shortcut first,
@@ -810,10 +889,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final l10n = S.of(ctx);
     return TierSecretUnlockDialog.show(
       ctx,
-      title: l10n.l2UnlockTitle,
-      hint: l10n.l2UnlockHint,
-      inputLabel: l10n.password,
-      wrongSecretLabel: l10n.l2WrongPassword,
+      labels: TierSecretUnlockLabels(
+        title: l10n.l2UnlockTitle,
+        hint: l10n.l2UnlockHint,
+        inputLabel: l10n.password,
+        wrongSecretLabel: l10n.l2WrongPassword,
+      ),
       rateLimiter: limiter,
       verify: (password) async {
         if (!await gate.verify(password)) return null;
@@ -906,10 +987,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final limiter = HardwareRateLimiter();
     return TierSecretUnlockDialog.show(
       ctx,
-      title: l10n.l3UnlockTitle,
-      hint: l10n.l3UnlockHint,
-      inputLabel: l10n.pinLabel,
-      wrongSecretLabel: l10n.l3WrongPin,
+      labels: TierSecretUnlockLabels(
+        title: l10n.l3UnlockTitle,
+        hint: l10n.l3UnlockHint,
+        inputLabel: l10n.pinLabel,
+        wrongSecretLabel: l10n.l3WrongPin,
+      ),
       // T2 used to enforce a 4-6 digit numeric PIN. We now surface
       // the field as a free-form password per user-facing
       // terminology: any characters, any length, so a user who wants
@@ -961,11 +1044,45 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;
 
-    var caps = await probeCapabilities(
-      keyStorage: keyStorage,
-      hardwareVault: ref.read(hardwareTierVaultProvider),
-    );
+    // Await the already-kicked-off probe future via the provider
+    // instead of calling `probeCapabilities` directly. `_bootstrap`
+    // fires `_warmProbeCaches()` at the top, so by the time control
+    // reaches here the probe is either done (warm start, cache hit)
+    // or well in flight (first launch, real round-trip overlapped
+    // with migrations + initial init). Reading the future joins
+    // whichever state it is in — one KDF + keychain + LAContext pass
+    // per session instead of two.
+    var caps = await ref.read(securityCapabilitiesProvider.future);
     if (!mounted) return;
+
+    // macOS-only: when the probe reports keychain + hardware-vault
+    // blocked specifically because of `macosSigningIdentityMissing`
+    // (ad-hoc CI signature trips `errSecMissingEntitlement` on first
+    // keychain write), offer to self-sign *before* the wizard renders.
+    // Two paths:
+    //   - Accept → run `ResignService.ensureIdentity` +
+    //     `resignBundle`, re-probe, and fall through to the normal
+    //     auto-setup / wizard dispatch with the refreshed caps so
+    //     Keychain (T1) and Secure Enclave (T2) become selectable
+    //     the same way they do on Linux / Windows hosts where the
+    //     probe passes natively.
+    //   - Decline → force caps to the reduced shape
+    //     (`keychainAvailable: false`, `hardwareVaultAvailable:
+    //     false`) so the wizard shows only T0 + Paranoid. User is
+    //     treated exactly like a host where the platform itself
+    //     can't back secure storage.
+    // The offer only fires when both of these are true: platform is
+    // macOS AND the hardware-probe code explicitly calls out the
+    // signing-identity failure. Any other probe reason (pre-T2
+    // Intel Mac, passcode not set, etc.) lands on the reduced
+    // wizard directly — self-signing wouldn't help those hosts.
+    if (plat.isMacosPlatform &&
+        !caps.keychainAvailable &&
+        caps.hardwareProbeCode == 'macosSigningIdentityMissing') {
+      final updatedCaps = await _offerMacosSelfSign(caps);
+      if (!mounted) return;
+      caps = updatedCaps;
+    }
 
     // Auto-setup path: keychain is reachable → silently land on T1
     // and queue the post-setup banner so the user learns what we
@@ -1006,24 +1123,98 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       keyStorage: keyStorage,
     );
     if (!mounted) return;
+    await _applyFirstLaunchWizardResult(
+      result: result,
+      manager: manager,
+      keyStorage: keyStorage,
+    );
+  }
 
+  /// macOS-only: confirmation dialog offered before the first-launch
+  /// wizard renders when ad-hoc signing has locked Keychain + Secure
+  /// Enclave. Returns the capabilities to use for the rest of
+  /// [_firstLaunchSetup]. On accept, runs the self-sign pipeline and
+  /// re-probes so the next branch can auto-setup T1 the normal way.
+  /// On decline, forces the reduced caps shape so the wizard shows
+  /// T0 + Paranoid only — matches how hosts with no keychain backing
+  /// are already treated.
+  Future<SecurityCapabilities> _offerMacosSelfSign(
+    SecurityCapabilities caps,
+  ) async {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return caps;
+    final l10n = S.of(ctx);
+    final accepted = await AppDialog.show<bool>(
+      ctx,
+      barrierDismissible: false,
+      builder: (d) => AppDialog(
+        title: l10n.securityMacosOfferTitle,
+        dismissible: false,
+        content: Text(
+          l10n.securityMacosOfferBody,
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+        ),
+        actions: [
+          AppButton.secondary(
+            label: l10n.securityMacosOfferDecline,
+            onTap: () => Navigator.pop(d, false),
+          ),
+          AppButton.primary(
+            label: l10n.securityMacosOfferAccept,
+            icon: Icons.vpn_key,
+            onTap: () => Navigator.pop(d, true),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) {
+      // Decline path — force reduced caps so the wizard hides T1/T2.
+      return caps.copyWith(
+        keychainAvailable: false,
+        hardwareVaultAvailable: false,
+      );
+    }
+    try {
+      final svc = ref.read(resignServiceProvider);
+      await svc.ensureIdentity();
+      final bundle = Directory(
+        Platform.resolvedExecutable,
+      ).parent.parent.parent;
+      await svc.resignBundle(appBundle: bundle);
+      // Drop the persisted cache + re-probe against the re-signed
+      // bundle so caps.keychainAvailable flips to true on success.
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWithSecurity(securityProbeCache: null));
+      ref.invalidate(securityCapabilitiesProvider);
+      return await ref.read(securityCapabilitiesProvider.future);
+    } catch (e) {
+      AppLogger.instance.log(
+        'macOS self-sign offer: failed to re-sign — falling back to reduced wizard',
+        name: 'App',
+        error: e,
+      );
+      return caps.copyWith(
+        keychainAvailable: false,
+        hardwareVaultAvailable: false,
+      );
+    }
+  }
+
+  /// Apply the user's wizard choice on first launch. Split out of
+  /// [_firstLaunchSetup] so the probe + auto-setup flow stays under
+  /// the S3776 threshold; each tier branch already delegates to a
+  /// named helper (`_firstLaunchHardware`,
+  /// `_firstLaunchKeychainWithPassword`) so the switch itself is
+  /// pure dispatch.
+  Future<void> _applyFirstLaunchWizardResult({
+    required SecuritySetupResult result,
+    required MasterPasswordManager manager,
+    required SecureKeyStorage keyStorage,
+  }) async {
     switch (result.tier) {
       case SecurityTier.paranoid:
-        final password = result.masterPassword;
-        if (password == null) {
-          await _injectDatabase();
-          return;
-        }
-        final key = await manager.enable(password);
-        await _injectDatabase(
-          key: key,
-          level: SecurityTier.paranoid,
-          modifiers: result.modifiers,
-        );
-        AppLogger.instance.log(
-          'First launch: master password (Paranoid) enabled',
-          name: 'App',
-        );
+        await _firstLaunchParanoid(result, manager);
       case SecurityTier.hardware:
         await _firstLaunchHardware(result.pin, result.modifiers);
       case SecurityTier.keychainWithPassword:
@@ -1033,35 +1224,63 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           modifiers: result.modifiers,
         );
       case SecurityTier.keychain:
-        if (!result.keychainAvailable) {
-          await _injectDatabase();
-          return;
-        }
-        final key = AesGcm.generateKey();
-        final stored = await keyStorage.writeKey(key);
-        if (stored) {
-          await _injectDatabase(
-            key: key,
-            level: SecurityTier.keychain,
-            modifiers: result.modifiers,
-          );
-          AppLogger.instance.log(
-            'First launch: keychain encryption enabled',
-            name: 'App',
-          );
-        } else {
-          await _injectDatabase();
-          AppLogger.instance.log(
-            'First launch: keychain write failed, falling back to plaintext',
-            name: 'App',
-          );
-        }
+        await _firstLaunchKeychain(result, keyStorage);
       case SecurityTier.plaintext:
         await _injectDatabase();
         AppLogger.instance.log(
           'First launch: plaintext mode (L0)',
           name: 'App',
         );
+    }
+  }
+
+  Future<void> _firstLaunchParanoid(
+    SecuritySetupResult result,
+    MasterPasswordManager manager,
+  ) async {
+    final password = result.masterPassword;
+    if (password == null) {
+      await _injectDatabase();
+      return;
+    }
+    final key = await manager.enable(password);
+    await _injectDatabase(
+      key: key,
+      level: SecurityTier.paranoid,
+      modifiers: result.modifiers,
+    );
+    AppLogger.instance.log(
+      'First launch: master password (Paranoid) enabled',
+      name: 'App',
+    );
+  }
+
+  Future<void> _firstLaunchKeychain(
+    SecuritySetupResult result,
+    SecureKeyStorage keyStorage,
+  ) async {
+    if (!result.keychainAvailable) {
+      await _injectDatabase();
+      return;
+    }
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (stored) {
+      await _injectDatabase(
+        key: key,
+        level: SecurityTier.keychain,
+        modifiers: result.modifiers,
+      );
+      AppLogger.instance.log(
+        'First launch: keychain encryption enabled',
+        name: 'App',
+      );
+    } else {
+      await _injectDatabase();
+      AppLogger.instance.log(
+        'First launch: keychain write failed, falling back to plaintext',
+        name: 'App',
+      );
     }
   }
 
@@ -1330,7 +1549,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.invalidate(keyringProbeDetailProvider);
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(security: null, securityProbeCache: null));
+        .update(
+          (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
+        );
     // Clear the reset-toast flag before re-entering the security
     // pipeline: the nested `_initSecurity` paths set it in half a
     // dozen places (`legacy-orphan wipe`, `_unlockParanoid`,
@@ -1356,10 +1577,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     await _handleDatabaseCorruption();
   }
 
-  /// Re-open the drift / SQLCipher handle after a lock → unlock
+  /// Re-open the drift / MC handle after a lock → unlock
   /// transition. The auto-lock path unconditionally closes the DB
-  /// handle so SQLCipher's C-layer page-cipher cache is zeroed
-  /// alongside the Dart-side [SecretBuffer]. On unlock the lock
+  /// handle so MC's C-layer page-cipher cache (ChaCha20-Poly1305
+  /// state) is zeroed alongside the Dart-side [SecretBuffer]. On unlock the lock
   /// screen re-derives the DB key (paranoid master password path)
   /// or reads it from the biometric vault, pushes it back into
   /// [securityStateProvider], and flips [lockStateProvider] off —
@@ -1469,7 +1690,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ).wipeAll();
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(security: null, securityProbeCache: null));
+        .update(
+          (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
+        );
     _credentialsWereReset = true;
     _corruptionRetries = 0;
     if (!mounted) return;
@@ -1515,7 +1738,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final next = SecurityConfig(tier: tier, modifiers: resolved);
     await ref
         .read(configProvider.notifier)
-        .update((cfg) => cfg.copyWith(security: next));
+        .update((cfg) => cfg.copyWithSecurity(security: next));
   }
 
   /// Resolve the biometric prompt reason string synchronously. Kept
@@ -1590,13 +1813,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final locale = ref.watch(localeProvider);
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
 
-    // Sync AppTheme brightness before building the widget tree
-    final isDark =
-        themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-                Brightness.dark);
-    AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
+    _syncThemeBrightness(themeMode);
 
     return MaterialApp(
       navigatorKey: navigatorKey,
@@ -1609,49 +1826,68 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeAnimationDuration: Duration.zero,
-      builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-        final locked = ref.watch(lockStateProvider);
-        return Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            // Hard-off every animation/transition in the app — route
-            // page transitions, Material implicit animations,
-            // AnimatedSwitcher, etc. Flutter honours this flag across
-            // the framework; we use the same knob the OS "Reduce
-            // motion" accessibility toggle would set, applied
-            // unconditionally. Keep alongside textScaler so a single
-            // MediaQuery wrap controls both signals.
-            data: mediaQuery.copyWith(
-              textScaler: TextScaler.linear(uiScale),
-              disableAnimations: true,
-            ),
-            // AutoLockDetector wraps the real UI so every pointer/key
-            // event resets the idle timer. LockScreen overlays on top
-            // with zero hit-test for the app beneath while locked.
-            //
-            // `SelectionArea` cannot live at this layer — its
-            // `SelectableRegion` walks up the widget tree for an
-            // `Overlay` ancestor, and `Overlay` is provided by the
-            // `Navigator` *inside* MaterialApp's home, i.e. below
-            // this builder. A global wrap here fails with
-            // "No Overlay widget found". Per-route / per-dialog
-            // `SelectionArea` is the only working shape: MainScreen
-            // wraps the desktop + mobile shells, `AppDialog` wraps
-            // every dialog path, and pushed mobile routes wrap
-            // themselves (see `SettingsScreen._MobileSettingsScreen`).
-            child: AutoLockDetector(
-              child: Stack(
-                children: [
-                  child!,
-                  if (locked) const Positioned.fill(child: LockScreen()),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (context, child) => _buildAppShell(context, child, uiScale),
       home: const MainScreen(),
+    );
+  }
+
+  /// Push the resolved brightness into [AppTheme] before the widget
+  /// tree consumes it. `ThemeMode.system` reads the platform
+  /// brightness so the first frame already matches OS preference.
+  void _syncThemeBrightness(ThemeMode themeMode) {
+    final isDark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
+    AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
+  }
+
+  /// [MaterialApp.builder] body: wraps the active route child with
+  /// the app-wide MediaQuery overrides, the idle-timer detector, and
+  /// the lock overlay. Extracted from [build] so the method stays
+  /// readable — the builder closure is the largest piece of the
+  /// widget tree and does not need `build`'s local scope.
+  Widget _buildAppShell(BuildContext context, Widget? child, double uiScale) {
+    final mediaQuery = MediaQuery.of(context);
+    final locked = ref.watch(lockStateProvider);
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(
+        // Hard-off every animation/transition in the app — route page
+        // transitions, Material implicit animations, AnimatedSwitcher,
+        // etc. Flutter honours this flag across the framework; we use
+        // the same knob the OS "Reduce motion" accessibility toggle
+        // would set, applied unconditionally. Keep alongside
+        // textScaler so a single MediaQuery wrap controls both
+        // signals.
+        data: mediaQuery.copyWith(
+          textScaler: TextScaler.linear(uiScale),
+          disableAnimations: true,
+        ),
+        // AutoLockDetector wraps the real UI so every pointer/key
+        // event resets the idle timer. LockScreen overlays on top
+        // with zero hit-test for the app beneath while locked.
+        //
+        // `SelectionArea` cannot live at this layer — its
+        // `SelectableRegion` walks up the widget tree for an
+        // `Overlay` ancestor, and `Overlay` is provided by the
+        // `Navigator` *inside* MaterialApp's home, i.e. below this
+        // builder. A global wrap here fails with "No Overlay widget
+        // found". Per-route / per-dialog `SelectionArea` is the only
+        // working shape: MainScreen wraps the desktop + mobile
+        // shells, `AppDialog` wraps every dialog path, and pushed
+        // mobile routes wrap themselves (see
+        // `SettingsScreen._MobileSettingsScreen`).
+        child: AutoLockDetector(
+          child: Stack(
+            children: [
+              ?child,
+              if (locked) const Positioned.fill(child: LockScreen()),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1766,68 +2002,139 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final hasAsset = info.assetUrl != null && plat.isDesktopPlatform;
     AppDialog.show(
       context,
-      builder: (ctx) => AppDialog(
-        title: S.of(ctx).updateAvailable,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              S
-                  .of(ctx)
-                  .updateVersionAvailable(
-                    info.latestVersion,
-                    info.currentVersion,
-                  ),
-              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            ),
-            if (info.changelog != null && info.changelog!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                S.of(ctx).releaseNotes,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: AppFonts.md,
-                  color: AppTheme.fg,
+      // `AppDialog` is a StatelessWidget, so its `content` + `actions`
+      // are captured at construction. Wrapping them in a `Consumer`
+      // lets the dialog react to `updateProvider` state changes while
+      // the download runs — previously the "Download and Install"
+      // button popped the dialog immediately and the user was left
+      // with zero visibility into the in-flight transfer. Now the
+      // dialog stays open, swaps its body for a
+      // `UpdateProgressIndicator`, and collapses its footer to just
+      // Cancel while the state machine walks through
+      // `downloading → downloaded → (autoInstall) installing`.
+      builder: (ctx) => Consumer(
+        builder: (ctx, ref, _) {
+          final state = ref.watch(updateProvider);
+          final inFlight =
+              state.status == UpdateStatus.downloading ||
+              state.status == UpdateStatus.downloaded;
+          final hasError = state.status == UpdateStatus.error;
+          return AppDialog(
+            title: S.of(ctx).updateAvailable,
+            dismissible: !inFlight,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  S
+                      .of(ctx)
+                      .updateVersionAvailable(
+                        info.latestVersion,
+                        info.currentVersion,
+                      ),
+                  style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
                 ),
-              ),
-              const SizedBox(height: 4),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Text(
-                    info.changelog!,
+                if (inFlight) ...[
+                  const SizedBox(height: 12),
+                  UpdateProgressIndicator(state: state),
+                ] else if (hasError) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    state.error != null
+                        ? localizeError(S.of(ctx), state.error!)
+                        : S.of(ctx).updateCheckFailed,
                     style: TextStyle(
-                      fontSize: AppFonts.md,
-                      color: AppTheme.fgDim,
+                      fontSize: AppFonts.sm,
+                      color: AppTheme.red,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx)),
-          AppDialogAction.secondary(
-            label: S.of(ctx).skipThisVersion,
-            onTap: () {
-              Navigator.pop(ctx);
-              ref
-                  .read(configProvider.notifier)
-                  .update(
-                    (c) => c.copyWith(
-                      behavior: c.behavior.copyWith(
-                        skippedVersion: info.latestVersion,
+                ] else if (info.changelog != null &&
+                    info.changelog!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    S.of(ctx).releaseNotes,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.md,
+                      color: AppTheme.fg,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        info.changelog!,
+                        style: TextStyle(
+                          fontSize: AppFonts.md,
+                          color: AppTheme.fgDim,
+                        ),
                       ),
                     ),
-                  );
-            },
-          ),
-          _buildPrimaryUpdateAction(ctx, context, info, hasAsset),
-        ],
+                  ),
+                ],
+              ],
+            ),
+            actions: _buildUpdateDialogActions(
+              ctx,
+              context,
+              info,
+              hasAsset,
+              state,
+            ),
+          );
+        },
       ),
     );
+  }
+
+  List<Widget> _buildUpdateDialogActions(
+    BuildContext ctx,
+    BuildContext outerContext,
+    UpdateInfo info,
+    bool hasAsset,
+    UpdateState state,
+  ) {
+    // No actionable buttons while bytes are in flight — the installer
+    // launcher owns the next step after `downloaded`, and Cancel
+    // would orphan the partial download without the updater picking
+    // up the signal. Show progress, hide everything else.
+    if (state.status == UpdateStatus.downloading) {
+      return const [];
+    }
+    if (state.status == UpdateStatus.error) {
+      return [
+        AppButton.cancel(onTap: () => Navigator.pop(ctx)),
+        AppButton.primary(
+          label: S.of(ctx).retry,
+          onTap: () {
+            ref.read(updateProvider.notifier).download(autoInstall: hasAsset);
+          },
+        ),
+      ];
+    }
+    // Default: idle / update-available / up-to-date / downloaded
+    // (auto-install path closes itself once the installer spawns).
+    return [
+      AppButton.cancel(onTap: () => Navigator.pop(ctx)),
+      AppButton.secondary(
+        label: S.of(ctx).skipThisVersion,
+        onTap: () {
+          Navigator.pop(ctx);
+          ref
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWith(
+                  behavior: c.behavior.copyWith(
+                    skippedVersion: info.latestVersion,
+                  ),
+                ),
+              );
+        },
+      ),
+      _buildPrimaryUpdateAction(ctx, outerContext, info, hasAsset),
+    ];
   }
 
   Widget _buildPrimaryUpdateAction(
@@ -1837,15 +2144,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     bool hasAsset,
   ) {
     if (hasAsset) {
-      return AppDialogAction.primary(
+      return AppButton.primary(
         label: S.of(ctx).downloadAndInstall,
         onTap: () {
-          Navigator.pop(ctx);
+          // Do not pop — the dialog stays open and swaps its body
+          // for the in-flight progress indicator. Earlier the
+          // dialog popped synchronously and the download happened
+          // silently in the background with no user feedback.
           ref.read(updateProvider.notifier).download(autoInstall: true);
         },
       );
     }
-    return AppDialogAction.primary(
+    return AppButton.primary(
       label: S.of(ctx).openInBrowser,
       onTap: () async {
         Navigator.pop(ctx);
@@ -1943,25 +2253,30 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     final ws = ref.watch(workspaceProvider);
 
-    // SelectionArea wraps the desktop layout so every plain Text
-    // widget supports drag-select + Ctrl+C like a VSCode panel.
-    // Interactive widgets (buttons, switches, session tiles, SFTP
-    // rows) keep their own tap / drag gestures because SelectionArea
-    // yields to widgets that handle their own pointer events. The
-    // terminal (CustomPaint with its own selection logic) renders
-    // below the SelectionArea layer and is untouched — xterm keeps
-    // its native drag-select.
-    return AppSelectionArea(
-      child: CallbackShortcuts(
-        bindings: _buildKeyBindings(context, ws),
-        child: Focus(
-          autofocus: true,
-          child: DropTarget(
-            onDragDone: (details) => _handleLfsDrop(context, details),
-            child: LayoutBuilder(
-              builder: (context, constraints) =>
-                  _buildDesktopLayout(context, constraints, ws),
-            ),
+    // No top-level `SelectionArea` on desktop. Text selection is
+    // opt-in: specific informational surfaces (threat list rows in
+    // security tier cards, release-notes bodies, help prose) wrap
+    // their own `AppSelectionArea` locally. The previous iteration
+    // shipped one giant `SelectionArea` over the whole shell with
+    // `HoverRegion` auto-wrapping clickables in
+    // `SelectionContainer.disabled` to suppress the I-beam cursor
+    // and Ctrl+C hijack on buttons — but that collapsed the moment
+    // a `ThresholdDraggable` sat inside a `HoverRegion`, because the
+    // SelectionArea's `TapAndDragGestureRecognizer` claims pan
+    // ahead of Draggable in the arena and the opt-out wrap sits
+    // above the drag subtree instead of protecting it. Scoping
+    // selection to just the prose that needs it sidesteps every
+    // gesture-arena race, keeps drag native, and removes the I-beam
+    // from clickables for free (nothing claims selection there).
+    return CallbackShortcuts(
+      bindings: _buildKeyBindings(context, ws),
+      child: Focus(
+        autofocus: true,
+        child: DropTarget(
+          onDragDone: (details) => _handleLfsDrop(context, details),
+          child: LayoutBuilder(
+            builder: (context, constraints) =>
+                _buildDesktopLayout(context, constraints, ws),
           ),
         ),
       ),
@@ -1983,52 +2298,40 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // scope into MainScreen's CallbackShortcuts. Auto-lock closes
     // the encrypted store, so reaching Settings or "new session"
     // while locked would explode inside drift on the first DB read.
-    // Short-circuit every shortcut via a common gate.
-    bool blocked() => ref.read(lockStateProvider);
+    // Short-circuit every shortcut via a common gate — each binding
+    // wraps its body so the `if (locked) return` lives once, not
+    // once per entry.
+    VoidCallback guarded(VoidCallback body) => () {
+      if (ref.read(lockStateProvider)) return;
+      body();
+    };
 
     return reg.buildCallbackMap({
-      AppShortcut.newSession: () {
-        if (blocked()) return;
-        _newSession(context, ref);
-      },
-      AppShortcut.closeTab: () {
-        if (blocked()) return;
+      AppShortcut.newSession: guarded(() => _newSession(context, ref)),
+      AppShortcut.closeTab: guarded(() {
         if (activeTab != null) {
           notifier.closeTab(ws.focusedPanelId, activeTab.id);
         }
-      },
-      AppShortcut.nextTab: () {
-        if (blocked()) return;
-        _switchTab(ws, 1);
-      },
-      AppShortcut.prevTab: () {
-        if (blocked()) return;
-        _switchTab(ws, -1);
-      },
-      AppShortcut.toggleSidebar: () {
-        if (blocked()) return;
-        setState(() => _sidebarOpen = !_sidebarOpen);
-      },
-      AppShortcut.splitRight: () {
-        if (blocked()) return;
+      }),
+      AppShortcut.nextTab: guarded(() => _switchTab(ws, 1)),
+      AppShortcut.prevTab: guarded(() => _switchTab(ws, -1)),
+      AppShortcut.toggleSidebar: guarded(
+        () => setState(() => _sidebarOpen = !_sidebarOpen),
+      ),
+      AppShortcut.splitRight: guarded(() {
         if (activeTab != null) {
           notifier.duplicateTab(ws.focusedPanelId);
         }
-      },
-      AppShortcut.splitDown: () {
-        if (blocked()) return;
+      }),
+      AppShortcut.splitDown: guarded(() {
         if (activeTab != null) {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
-      },
-      AppShortcut.maximizePanel: () {
-        if (blocked()) return;
-        notifier.toggleMaximizePanel(ws.focusedPanelId);
-      },
-      AppShortcut.openSettings: () {
-        if (blocked()) return;
-        SettingsDialog.show(context);
-      },
+      }),
+      AppShortcut.maximizePanel: guarded(
+        () => notifier.toggleMaximizePanel(ws.focusedPanelId),
+      ),
+      AppShortcut.openSettings: guarded(() => SettingsDialog.show(context)),
     });
   }
 
@@ -2400,8 +2703,12 @@ class _Toolbar extends StatelessWidget {
                 ? S.of(context).hideSidebar
                 : S.of(context).showSidebar,
           ),
-        _TextButton(label: S.of(context).tools, onTap: onTools),
-        _TextButton(label: S.of(context).settings, onTap: onSettings),
+        AppButton(label: S.of(context).tools, onTap: onTools, dense: true),
+        AppButton(
+          label: S.of(context).settings,
+          onTap: onSettings,
+          dense: true,
+        ),
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
@@ -2422,34 +2729,6 @@ class _Toolbar extends StatelessWidget {
 }
 
 /// VS Code-style text button for the toolbar.
-class _TextButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _TextButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    // `HoverRegion` auto-disables selection on its child when a
-    // gesture is bound (see `widgets/hover_region.dart`), so the
-    // toolbar Tools / Settings labels stay outside the ambient
-    // `SelectionArea` without an explicit wrap.
-    return HoverRegion(
-      onTap: onTap,
-      builder: (hovered) => Container(
-        height: AppTheme.controlHeightXs,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        color: hovered ? AppTheme.hover : Colors.transparent,
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-      ),
-    );
-  }
-}
-
 /// Minimal app shown when another instance is already running.
 class _AlreadyRunningApp extends StatelessWidget {
   const _AlreadyRunningApp();
@@ -2471,6 +2750,11 @@ class _AlreadyRunningApp extends StatelessWidget {
                 style: TextStyle(fontSize: AppFonts.lg),
               ),
               const SizedBox(height: 24),
+              // `_AlreadyRunningApp` is the bare `MaterialApp` we
+              // raise when another instance is already up — it runs
+              // *before* the main app's `AppTheme` + widget registry
+              // resolve, so `AppButton` isn't reachable here. Keep
+              // the bare `FilledButton` for this exit-dialog only.
               FilledButton(onPressed: () => exit(0), child: const Text('OK')),
             ],
           ),

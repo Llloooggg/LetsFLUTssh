@@ -149,19 +149,31 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
-        ),
-        if (subtitle != null)
+    // Opt the label + subtitle out of the ambient settings-body
+    // `SelectionArea`. Every other settings row (`_ActionTile` via
+    // `HoverRegion`) disables selection on its label already — without
+    // this wrap the Transfer section rows would select their captions
+    // while the Data section rows would not, and users reported the
+    // mismatch as broken. Rule: in a settings form, prose labels act as
+    // field names, not content to copy.
+    final labelBlock = SelectionContainer.disabled(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            subtitle!,
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+            label,
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
-      ],
+          if (subtitle != null)
+            Text(
+              subtitle!,
+              style: AppFonts.inter(
+                fontSize: AppFonts.xs,
+                color: AppTheme.fgDim,
+              ),
+            ),
+        ],
+      ),
     );
 
     return ConstrainedBox(
@@ -194,6 +206,16 @@ class _SettingsRow extends StatelessWidget {
               );
             }
             return Row(
+              // Centre every trailing control vertically against the
+              // label + subtitle block on the left. Row's default
+              // `CrossAxisAlignment.center` is already the right
+              // behaviour, but making it explicit avoids future
+              // regressions when the control is taller than 1 line
+              // (e.g. `AppButton` with icon + label) — users spotted
+              // the "Check for updates" button sitting off-centre
+              // against its two-line caption and asked for uniform
+              // alignment across the form.
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(icon, size: 16, color: AppTheme.fgDim),
@@ -520,6 +542,10 @@ class _LanguageTile extends StatelessWidget {
       child: PopupMenuButton<String>(
         onSelected: (v) => onChanged(v == _systemDefault ? null : v),
         tooltip: '',
+        // `PopupMenuButton` owns its own `AnimationController` and
+        // ignores the root `MediaQuery(disableAnimations: true)` —
+        // opt out explicitly so it matches the project-wide hard-off.
+        popUpAnimationStyle: AnimationStyle.noAnimation,
         offset: const Offset(0, AppTheme.controlHeightSm),
         constraints: const BoxConstraints(
           minWidth: 200,

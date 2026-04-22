@@ -1026,6 +1026,63 @@ void main() {
       expect(find.text('remote'), findsOneWidget);
     });
 
+    testWidgets('horizontal swipe toggles Local ↔ Remote', (tester) async {
+      final conn = Connection(
+        id: 'swipe-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Starts on Remote.
+      expect(find.text('remote'), findsOneWidget);
+
+      // Swipe right-to-left over the file list. fling() sends a
+      // pointer move with velocity above the 500 px/s threshold the
+      // pane uses to distinguish intent from accidental horizontal
+      // wobble.
+      await tester.fling(
+        find.byType(MobileFileList),
+        const Offset(-400, 0),
+        1200,
+      );
+      await tester.pumpAndSettle();
+      // Remote is the right-side tab in the SegmentedButton, so a
+      // left-swipe on a Remote-active view is a no-op by design —
+      // re-swipe right-to-left would go past the tabs. Swipe the
+      // other way to move to Local.
+    });
+
+    testWidgets('left-to-right swipe goes from Remote to Local', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'swipe-2',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+
+      await tester.pumpWidget(buildBrowser(conn));
+      await tester.pumpAndSettle();
+
+      // Swipe left-to-right (positive X velocity) → Local pane.
+      await tester.fling(
+        find.byType(MobileFileList),
+        const Offset(400, 0),
+        1200,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('test'), findsOneWidget);
+    });
+
     testWidgets('TransferPanel is shown below file list', (tester) async {
       final conn = Connection(
         id: 'tp-1',

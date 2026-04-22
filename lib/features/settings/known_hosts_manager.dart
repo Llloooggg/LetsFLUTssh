@@ -185,8 +185,8 @@ class _KnownHostsManagerPanelState
         title: s.removeHost,
         content: Text(s.removeHostConfirm(hostPort)),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.delete,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -209,8 +209,8 @@ class _KnownHostsManagerPanelState
         title: s.clearAllKnownHosts,
         content: Text(s.clearAllKnownHostsConfirm),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.clearAllKnownHosts,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -245,7 +245,7 @@ class KnownHostsManagerDialog extends StatelessWidget {
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 400, child: KnownHostsManagerPanel()),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 }

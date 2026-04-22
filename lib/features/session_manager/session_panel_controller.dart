@@ -139,13 +139,65 @@ class SessionPanelController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear both focused pointers. Used by the "tap empty space in the
+  /// sidebar" path to dim the row highlight without giving up the
+  /// Flutter `FocusNode` (so `CallbackShortcuts` keeps firing on
+  /// `Ctrl+V` / `Ctrl+Z`).
+  void clearFocus() {
+    if (_focusedSessionId == null && _focusedFolderPath == null) return;
+    _focusedSessionId = null;
+    _focusedFolderPath = null;
+    _focusedFolderItemCount = 0;
+    notifyListeners();
+  }
+
   // ---- Clipboard ----------------------------------------------------
 
   void copyFocused() {
     if (_focusedSessionId == null) return;
-    _copiedSessionId = _focusedSessionId;
-    // Clipboard is invisible — no listener update needed, but keep
-    // semantics consistent by signalling anyway.
+    copySessionId(_focusedSessionId!);
+  }
+
+  /// Mark the focused session for cut — a subsequent paste moves the
+  /// session to the target folder instead of duplicating it. The flag
+  /// is one-shot; paste consumes it and clears the clipboard.
+  void cutFocused() {
+    if (_focusedSessionId == null) return;
+    cutSessionId(_focusedSessionId!);
+  }
+
+  /// Copy [id] directly into the clipboard — used by the right-click
+  /// context menu, which targets the row under the cursor rather than
+  /// the currently focused row.
+  void copySessionId(String id) {
+    _copiedSessionId = id;
+    _cutPending = false;
+    notifyListeners();
+  }
+
+  /// Mark [id] for cut — same rationale as [copySessionId].
+  void cutSessionId(String id) {
+    _copiedSessionId = id;
+    _cutPending = true;
+    notifyListeners();
+  }
+
+  /// True when the current clipboard entry should be treated as a
+  /// cut + paste (move) rather than a copy + paste (duplicate).
+  bool get cutPending => _cutPending;
+  bool _cutPending = false;
+
+  /// Called by [pasteCopiedSession] after the move / duplicate
+  /// completes, and by the lock / wipe paths via
+  /// `SessionPanel.dispose` on the reset flow. The clipboard is a
+  /// 30-char session id pointer — not session data — so there is no
+  /// RAM leak beyond the reference itself, and clearing is driven
+  /// by explicit events (paste succeeded, panel torn down) rather
+  /// than a wall-clock timer.
+  void clearClipboard() {
+    if (_copiedSessionId == null && !_cutPending) return;
+    _copiedSessionId = null;
+    _cutPending = false;
     notifyListeners();
   }
 }

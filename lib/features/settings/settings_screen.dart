@@ -36,6 +36,8 @@ import '../../core/tags/tag.dart';
 import '../../core/tags/tag_store.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/master_password_provider.dart';
+import '../../core/security/security_bootstrap.dart';
+import '../../platform/macos/code_signing/resign_service.dart';
 import '../../providers/security_provider.dart';
 import '../../providers/security_reinit_provider.dart';
 import '../../providers/session_credential_cache_provider.dart';
@@ -62,6 +64,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
 import '../../widgets/expandable_tier_card.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/update_progress_indicator.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
 import '../../widgets/link_import_preview_dialog.dart';
@@ -270,12 +273,12 @@ class _MobileSettingsScreen extends ConsumerWidget {
                 ),
               const SizedBox(height: 8),
               Center(
-                child: TextButton.icon(
-                  onPressed: () => ref
+                child: AppButton.secondary(
+                  label: S.of(context).resetToDefaults,
+                  icon: Icons.restore,
+                  onTap: () => ref
                       .read(configProvider.notifier)
                       .update((_) => AppConfig.defaults),
-                  icon: const Icon(Icons.restore, size: 18),
-                  label: Text(S.of(context).resetToDefaults),
                 ),
               ),
               const SizedBox(height: 16),
@@ -401,38 +404,44 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 Expanded(
                   child: Row(
                     children: [
-                      // Sidebar
+                      // Sidebar — opts out of the ambient `AppDialog`
+                      // selection scope so nav labels + Reset button
+                      // are treated as clickable chrome, not copyable
+                      // body text (no I-beam cursor, no `Ctrl+C`
+                      // hijack of the selected label).
                       SizedBox(
                         width: 200,
-                        child: Container(
-                          color: scheme.surfaceContainerLow,
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
+                        child: SelectionContainer.disabled(
+                          child: Container(
+                            color: scheme.surfaceContainerLow,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    itemCount: sections.length,
+                                    itemBuilder: (context, index) {
+                                      final section = sections[index];
+                                      return _NavItem(
+                                        icon: section.icon,
+                                        label: section.title,
+                                        selected: index == _selectedIndex,
+                                        onTap: () => setState(
+                                          () => _selectedIndex = index,
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  itemCount: sections.length,
-                                  itemBuilder: (context, index) {
-                                    final section = sections[index];
-                                    return _NavItem(
-                                      icon: section.icon,
-                                      label: section.title,
-                                      selected: index == _selectedIndex,
-                                      onTap: () => setState(
-                                        () => _selectedIndex = index,
-                                      ),
-                                    );
-                                  },
                                 ),
-                              ),
-                              _ResetButton(
-                                onTap: () => ref
-                                    .read(configProvider.notifier)
-                                    .update((_) => AppConfig.defaults),
-                              ),
-                            ],
+                                _ResetButton(
+                                  onTap: () => ref
+                                      .read(configProvider.notifier)
+                                      .update((_) => AppConfig.defaults),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

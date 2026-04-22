@@ -124,8 +124,8 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
         ),
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.primary(
           label: s.save,
           onTap: () => Navigator.of(context).pop(_current),
         ),

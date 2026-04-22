@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 
 /// Result from passphrase dialog.
@@ -120,15 +121,10 @@ class _PassphraseDialogWidgetState extends State<_PassphraseDialogWidget> {
                   borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.accent),
                 ),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscure ? Icons.visibility_off : Icons.visibility,
-                    size: 16,
-                    color: AppTheme.fgDim,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 0),
-                  onPressed: () => setState(() => _obscure = !_obscure),
+                suffixIcon: AppIconButton(
+                  icon: _obscure ? Icons.visibility_off : Icons.visibility,
+                  dense: true,
+                  onTap: () => setState(() => _obscure = !_obscure),
                 ),
               ),
             ),
@@ -164,8 +160,8 @@ class _PassphraseDialogWidgetState extends State<_PassphraseDialogWidget> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.unlock, onTap: _submit),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.unlock, onTap: _submit),
       ],
     );
   }

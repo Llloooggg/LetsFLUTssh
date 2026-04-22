@@ -11,6 +11,7 @@ import 'package:letsflutssh/features/session_manager/session_edit_dialog.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
+import 'package:letsflutssh/widgets/dropdown_select_button.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
@@ -1235,25 +1236,30 @@ void main() {
       expect(find.byIcon(Icons.folder_open), findsOneWidget);
     });
 
-    testWidgets('key file button is OutlinedButton, not TextFormField', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'key file button renders as DropdownSelectButton, not a text field',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      await switchToAuth(tester);
+        await switchToAuth(tester);
 
-      // Should NOT have a TextFormField for key path
-      expect(find.widgetWithText(TextFormField, 'Key File'), findsNothing);
-      expect(find.widgetWithText(TextFormField, 'Key File Path'), findsNothing);
+        // Should NOT have a TextFormField for key path
+        expect(find.widgetWithText(TextFormField, 'Key File'), findsNothing);
+        expect(
+          find.widgetWithText(TextFormField, 'Key File Path'),
+          findsNothing,
+        );
 
-      // Should have an OutlinedButton
-      expect(
-        find.widgetWithText(OutlinedButton, 'Select Key File'),
-        findsOneWidget,
-      );
-    });
+        // Picker now uses the themed DropdownSelectButton (previously a
+        // raw `OutlinedButton.icon`).
+        expect(
+          find.widgetWithText(DropdownSelectButton, 'Select Key File'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('SessionEditDialog — PEM key data in save & connect result', () {
@@ -1723,7 +1729,7 @@ void main() {
       // The mobile key file shows a Select Key File button
       expect(find.text('Select Key File'), findsOneWidget);
       expect(
-        find.widgetWithText(OutlinedButton, 'Select Key File'),
+        find.widgetWithText(DropdownSelectButton, 'Select Key File'),
         findsOneWidget,
       );
     });
@@ -2052,7 +2058,7 @@ void main() {
 
         // Picker button has collapsed away.
         expect(
-          find.widgetWithText(OutlinedButton, 'Select from Key Store'),
+          find.widgetWithText(DropdownSelectButton, 'Select from Key Store'),
           findsNothing,
         );
         // Label appears on the chip.
@@ -2086,7 +2092,7 @@ void main() {
 
         expect(find.text('Prod key'), findsNothing);
         expect(
-          find.widgetWithText(OutlinedButton, 'Select from Key Store'),
+          find.widgetWithText(DropdownSelectButton, 'Select from Key Store'),
           findsOneWidget,
         );
       },

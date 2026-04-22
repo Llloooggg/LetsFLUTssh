@@ -611,7 +611,7 @@ void main() {
         await tester.tap(find.text('h0'));
         await tester.pump();
 
-        // The primary action renders through AppDialogAction.primary which
+        // The primary action renders through AppButton.primary which
         // in turn exposes the enabled state via its onTap nullability. We
         // can't easily reach through AppDialog internals, but the visible
         // contract is: tapping "Import" is a no-op when nothing is

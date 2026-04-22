@@ -6,6 +6,27 @@
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) **≥ 3.41.0** (ships Dart ≥ 3.11.3)
 - Platform-specific toolchain (see below)
+- Git submodule: `third_party/SQLite3MultipleCiphers` (the encrypted-DB engine — compiled in-tree by the `sqlite3` build hook, no prebuilt download)
+
+**Submodule — pick one path on clone/update:**
+
+1. **Preferred — clone with `--recurse-submodules`:**
+
+   ```bash
+   git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
+   ```
+
+   After pulling a new upstream commit that bumps the submodule SHA:
+
+   ```bash
+   git submodule update --recursive
+   ```
+
+2. **Cloned without the flag:** every `make` target (`make deps`, `make test`, `make build-*`, `make run`) auto-runs `git submodule update --init --depth 1` before invoking Flutter, so the submodule self-heals on next build. On Windows where `flutter pub get` / `flutter build windows` is invoked directly (no GNU make), run the init manually once:
+
+   ```bash
+   git submodule update --init --depth 1 third_party/SQLite3MultipleCiphers
+   ```
 
 ### Linux (Debian/Ubuntu)
 
@@ -17,7 +38,7 @@ sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1
 sudo apt-get install lld-19
 
 # Clone, install deps, build
-git clone https://github.com/Llloooggg/LetsFLUTssh.git
+git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 make deps
 make build-linux
@@ -46,7 +67,7 @@ Requires Visual Studio 2022 with **"Desktop development with C++"** workload.
 winget install Microsoft.VisualStudio.2022.Community
 # (select "Desktop development with C++" during setup)
 
-git clone https://github.com/Llloooggg/LetsFLUTssh.git
+git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 flutter pub get
 flutter build windows --release
@@ -61,7 +82,7 @@ Requires Xcode command line tools.
 ```bash
 xcode-select --install
 
-git clone https://github.com/Llloooggg/LetsFLUTssh.git
+git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 make deps
 make build-macos
@@ -123,7 +144,7 @@ make run            # Run in debug mode
 make test           # Run all tests (with coverage)
 make analyze        # Run Dart analyzer (--fatal-infos)
 make check          # Analyzer + tests
-make gen            # Code generation (freezed, json_serializable)
+make gen            # Code generation (drift codegen)
 make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
@@ -177,7 +198,7 @@ Format: `type: short description`
 
 Ordering in release notes: Security (pinned callout) → Features → Reverts → Improvements → Fixes → Localization → Dependencies. Empty sections are omitted.
 
-**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`) — lowercase, alphanumeric + dashes. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
+**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`, `fix(session_manager):`, `refactor(keys+tags):`, `fix(scripts/macos-resign):`) — lowercase, alphanumeric plus `_ + - /`. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
 
 **Examples:**
 

@@ -84,16 +84,16 @@ class _FileConflictDialogState extends State<FileConflictDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => _pop(ConflictAction.cancel)),
-        AppDialogAction.secondary(
+        AppButton.cancel(onTap: () => _pop(ConflictAction.cancel)),
+        AppButton.secondary(
           label: loc.fileConflictSkip,
           onTap: () => _pop(ConflictAction.skip),
         ),
-        AppDialogAction.secondary(
+        AppButton.secondary(
           label: loc.fileConflictKeepBoth,
           onTap: () => _pop(ConflictAction.keepBoth),
         ),
-        AppDialogAction.primary(
+        AppButton.primary(
           label: loc.fileConflictReplace,
           onTap: () => _pop(ConflictAction.replace),
         ),

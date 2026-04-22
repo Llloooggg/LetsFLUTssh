@@ -14,6 +14,7 @@ import 'package:letsflutssh/features/terminal/tiling_view.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import '../../core/ssh/shell_helper_test.mocks.dart';
+import '../../helpers/test_notifiers.dart';
 
 /// SessionNotifier pre-populated with sessions for testing.
 class _TestSessionNotifier extends SessionNotifier {
@@ -1058,6 +1059,9 @@ void main() {
             sessionProvider.overrideWith(
               () => _TestSessionNotifier([updatedSession]),
             ),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
@@ -1117,6 +1121,9 @@ void main() {
           overrides: [
             // Empty session store — session was deleted
             sessionProvider.overrideWith(() => _TestSessionNotifier([])),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,

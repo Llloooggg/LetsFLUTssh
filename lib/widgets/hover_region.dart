@@ -75,12 +75,18 @@ class _HoverRegionState extends State<HoverRegion> {
     Widget child = widget.builder(_hovered);
 
     // If this region has any tap / long-press binding, it is a
-    // button in UX terms — exclude its content from the ambient
-    // `SelectionArea` so Text inside does not catch a drag-select
-    // and does not flip the cursor to the I-beam on hover. Policy
-    // convention: anything clickable should not also be selectable.
-    // Plain informational Text (subtitles, probe hints, labels)
-    // lives outside `HoverRegion` and keeps the ambient selection.
+    // button in UX terms — exclude its content from any ambient
+    // `SelectionArea` so its Text doesn't catch a drag-select, doesn't
+    // flip the cursor to the I-beam on hover, and doesn't race the
+    // SelectionArea's `TapAndDragGestureRecognizer` for pan events
+    // (the race surfaces as "drag-select works every other time" on
+    // adjacent Text widgets because the gesture arena arbitration
+    // depends on arrival order). Desktop no longer has a global
+    // `SelectionArea` — the wrap here is mostly a no-op at the shell
+    // level and matters inside local selection scopes (dialogs,
+    // threat list). Plain informational Text (subtitles, probe
+    // hints, labels) lives outside `HoverRegion` and keeps the
+    // ambient selection.
     if (hasGesture) {
       child = SelectionContainer.disabled(child: child);
     }

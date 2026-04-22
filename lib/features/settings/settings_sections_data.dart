@@ -116,7 +116,7 @@ class _ResetAllDataTileState extends ConsumerState<_ResetAllDataTile> {
       );
       await ref
           .read(configProvider.notifier)
-          .update((c) => c.copyWith(security: null));
+          .update((c) => c.copyWithSecurity(security: null));
       // Kick the app back into the first-launch provisioning path:
       // closes the (now stale) DB handle, re-runs `_firstLaunchSetup`,
       // and surfaces the one-shot toast the same way a genuine first
@@ -810,7 +810,7 @@ class _ExportImportTile extends ConsumerWidget {
               // — importing on machine B should not try to unlock a
               // hardware vault that belongs to machine A's TPM. Keep
               // the local value, merge everything else.
-              (current) => importedConfig.copyWith(security: current.security),
+              (current) => importedConfig.copyWithSecurity(security: current.security),
             ),
         saveManagerKey: (entry) => keyStore.importForMerge(entry),
         saveTag: (tag) async {

@@ -112,7 +112,7 @@ class AppInfoDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        AppDialogAction.primary(
+        AppButton.primary(
           label: l10n.ok,
           onTap: () => Navigator.of(context).pop(),
         ),

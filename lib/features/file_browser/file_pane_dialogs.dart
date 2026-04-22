@@ -57,8 +57,8 @@ class FilePaneDialogs {
             ],
           ),
           actions: [
-            AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop()),
-            AppDialogAction.primary(
+            AppButton.cancel(onTap: () => Navigator.of(ctx).pop()),
+            AppButton.primary(
               label: confirmText,
               onTap: () => Navigator.of(ctx).pop(nameCtrl.text),
             ),
@@ -162,8 +162,8 @@ class FilePaneDialogs {
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.of(ctx).pop(false)),
+          AppButton.destructive(
             label: S.of(context).delete,
             onTap: () => Navigator.of(ctx).pop(true),
           ),

@@ -68,6 +68,7 @@ void main() {
         sessionProvider.overrideWith(
           () => PrePopulatedSessionNotifier(sessionList),
         ),
+        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
       ],
@@ -269,6 +270,14 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Duplicate'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
+      // Copy / Cut / Paste were added so the right-click menu matches the
+      // keyboard shortcuts (Ctrl+C/X/V) already wired on the panel —
+      // without them a user who discovered copy via the keyboard had to
+      // keep using the keyboard, which broke the "everything keyboard
+      // has, the menu has" expectation.
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('Cut'), findsOneWidget);
+      expect(find.text('Paste'), findsOneWidget);
     });
 
     testWidgets('context menu without sftp callback hides SFTP item', (
@@ -418,6 +427,12 @@ void main() {
       expect(find.text('New Folder'), findsOneWidget);
       expect(find.text('Rename Folder'), findsOneWidget);
       expect(find.text('Delete Folder'), findsOneWidget);
+      // Paste pastes directly into the right-clicked folder — it is
+      // always present so the layout does not jitter between the
+      // copy-then-paste sequence and so "paste into this folder"
+      // stays a discoverable menu action even without the keyboard
+      // shortcut scope.
+      expect(find.text('Paste'), findsOneWidget);
     });
 
     testWidgets('folder expand/collapse toggles on tap', (tester) async {
@@ -3310,9 +3325,9 @@ void main() {
     );
 
     testWidgets(
-      'plain tap on empty space drops panel focus so rows dim to grey — '
-      'keeps the details panel visible but stops the sidebar from '
-      'shouting for attention when the user is working elsewhere',
+      'plain tap on empty space clears focused pointers but keeps the '
+      'panel inside the CallbackShortcuts focus scope (so Ctrl+V / '
+      'Ctrl+Z on the sidebar still fire after the tap)',
       (tester) async {
         await tester.pumpWidget(buildApp());
         await tester.pumpAndSettle();
@@ -3321,21 +3336,22 @@ void main() {
           find.byType(SessionPanel),
         );
 
-        // Give the panel focus first (simulate the user having just
-        // clicked a row).
-        panelState.focusNode.requestFocus();
-        await tester.pump();
-        expect(panelState.focusNode.hasFocus, isTrue);
+        // Focus a session first so the empty-tap has something to
+        // clear.
+        await tester.tap(find.text('staging'));
+        await tester.pumpAndSettle();
+        expect(panelState.focusedSessionId, isNotNull);
 
         // A plain tap on empty space inside the tree view should
-        // release focus. The details panel at the bottom stays
-        // populated because _focusedSessionId is intentionally not
-        // cleared — the row just dims.
+        // clear the focused session / folder (row highlight dims to
+        // grey) — but leave the `_focusNode` focused so subsequent
+        // Ctrl+V / Ctrl+Z still reach the panel's CallbackShortcuts.
         final treeRect = tester.getRect(find.byType(SessionTreeView));
         await tester.tapAt(Offset(treeRect.left + 20, treeRect.bottom - 20));
         await tester.pumpAndSettle();
 
-        expect(panelState.focusNode.hasFocus, isFalse);
+        expect(panelState.focusedSessionId, isNull);
+        expect(panelState.focusNode.hasFocus, isTrue);
       },
     );
   });

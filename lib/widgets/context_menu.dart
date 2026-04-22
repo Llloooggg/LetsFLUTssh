@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/shortcut_registry.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_divider.dart';
 
@@ -31,6 +33,181 @@ class ContextMenuItem {
       shortcut = null,
       divider = true,
       onTap = null;
+}
+
+/// Catalogue of every action that appears in the app's right-click menus.
+///
+/// One enum value per distinct action — label, icon, and optional accent
+/// colour live alongside it so a menu site only supplies the side-effect
+/// (onTap) and, when applicable, the [AppShortcut] whose label should be
+/// shown. The same [paste] entry therefore reads `Ctrl+V` in the session
+/// panel and `Ctrl+Shift+V` in the terminal, because each site binds a
+/// different [AppShortcut] — the shortcut string is formatted from the
+/// live [AppShortcutRegistry] binding, never hardcoded.
+///
+/// This is the whole "context menu vocabulary" — adding a new action
+/// means adding a value here, which guarantees the same icon / accent /
+/// translated label everywhere the action is reused.
+enum StandardMenuAction {
+  copy,
+  cut,
+  paste,
+  delete,
+  rename,
+  duplicate,
+  refresh,
+  open,
+  transfer,
+  snippets,
+  terminal,
+  files,
+  editConnection,
+  newConnection,
+  newFolder,
+  renameFolder,
+  editTags,
+  deleteFolder,
+  close,
+  closeOthers,
+  closeTabsToTheLeft,
+  closeTabsToTheRight,
+  closeAll,
+  maximize,
+  restore;
+
+  /// Build a [ContextMenuItem] for this action.
+  ///
+  /// - [shortcut] — when supplied, its live binding is rendered as the
+  ///   trailing hint (e.g. `Ctrl+Shift+V` for [AppShortcut.terminalPaste]).
+  /// - [labelOverride] — overrides the default translation when the
+  ///   caller needs a dynamic label (e.g. `Delete 3 items`).
+  ContextMenuItem item(
+    BuildContext context, {
+    required VoidCallback onTap,
+    AppShortcut? shortcut,
+    String? labelOverride,
+  }) {
+    final spec = _specFor(this);
+    return ContextMenuItem(
+      label: labelOverride ?? spec.label(S.of(context)),
+      icon: spec.icon,
+      color: spec.color,
+      shortcut: shortcut == null
+          ? null
+          : AppShortcutRegistry.instance.shortcutLabel(shortcut),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Static definition of label / icon / colour for a [StandardMenuAction].
+class _MenuActionSpec {
+  final String Function(S l10n) label;
+  final IconData icon;
+  final Color? color;
+  const _MenuActionSpec({required this.label, required this.icon, this.color});
+}
+
+_MenuActionSpec _specFor(StandardMenuAction a) {
+  switch (a) {
+    case StandardMenuAction.copy:
+      return _MenuActionSpec(label: (l) => l.copy, icon: Icons.copy);
+    case StandardMenuAction.cut:
+      return _MenuActionSpec(label: (l) => l.cut, icon: Icons.content_cut);
+    case StandardMenuAction.paste:
+      return _MenuActionSpec(label: (l) => l.paste, icon: Icons.paste);
+    case StandardMenuAction.delete:
+      return _MenuActionSpec(
+        label: (l) => l.delete,
+        icon: Icons.delete,
+        color: AppTheme.red,
+      );
+    case StandardMenuAction.rename:
+      return _MenuActionSpec(label: (l) => l.rename, icon: Icons.edit);
+    case StandardMenuAction.duplicate:
+      return _MenuActionSpec(label: (l) => l.duplicate, icon: Icons.copy);
+    case StandardMenuAction.refresh:
+      return _MenuActionSpec(label: (l) => l.refresh, icon: Icons.refresh);
+    case StandardMenuAction.open:
+      return _MenuActionSpec(label: (l) => l.open, icon: Icons.folder_open);
+    case StandardMenuAction.transfer:
+      return _MenuActionSpec(label: (l) => l.transfer, icon: Icons.swap_horiz);
+    case StandardMenuAction.snippets:
+      return _MenuActionSpec(label: (l) => l.snippets, icon: Icons.code);
+    case StandardMenuAction.terminal:
+      return _MenuActionSpec(
+        label: (l) => l.terminal,
+        icon: Icons.terminal,
+        color: AppTheme.blue,
+      );
+    case StandardMenuAction.files:
+      return _MenuActionSpec(
+        label: (l) => l.files,
+        icon: Icons.folder,
+        color: AppTheme.yellow,
+      );
+    case StandardMenuAction.editConnection:
+      return _MenuActionSpec(
+        label: (l) => l.editConnection,
+        icon: Icons.settings,
+      );
+    case StandardMenuAction.newConnection:
+      return _MenuActionSpec(label: (l) => l.newConnection, icon: Icons.add);
+    case StandardMenuAction.newFolder:
+      return _MenuActionSpec(
+        label: (l) => l.newFolder,
+        icon: Icons.create_new_folder,
+      );
+    case StandardMenuAction.renameFolder:
+      return _MenuActionSpec(
+        label: (l) => l.renameFolder,
+        icon: Icons.drive_file_rename_outline,
+      );
+    case StandardMenuAction.editTags:
+      return _MenuActionSpec(
+        label: (l) => l.editTags,
+        icon: Icons.label_outline,
+      );
+    case StandardMenuAction.deleteFolder:
+      return _MenuActionSpec(
+        label: (l) => l.deleteFolder,
+        icon: Icons.delete,
+        color: AppTheme.red,
+      );
+    case StandardMenuAction.close:
+      return _MenuActionSpec(label: (l) => l.close, icon: Icons.close);
+    case StandardMenuAction.closeOthers:
+      return _MenuActionSpec(
+        label: (l) => l.closeOthers,
+        icon: Icons.tab_unselected,
+      );
+    case StandardMenuAction.closeTabsToTheLeft:
+      return _MenuActionSpec(
+        label: (l) => l.closeTabsToTheLeft,
+        icon: Icons.first_page,
+      );
+    case StandardMenuAction.closeTabsToTheRight:
+      return _MenuActionSpec(
+        label: (l) => l.closeTabsToTheRight,
+        icon: Icons.last_page,
+      );
+    case StandardMenuAction.closeAll:
+      return _MenuActionSpec(
+        label: (l) => l.closeAll,
+        icon: Icons.close_fullscreen,
+        color: AppTheme.red,
+      );
+    case StandardMenuAction.maximize:
+      return _MenuActionSpec(
+        label: (l) => l.maximize,
+        icon: Icons.open_in_full,
+      );
+    case StandardMenuAction.restore:
+      return _MenuActionSpec(
+        label: (l) => l.restore,
+        icon: Icons.close_fullscreen,
+      );
+  }
 }
 
 // Active menu state — allows re-entrant right-click to dismiss + reopen.

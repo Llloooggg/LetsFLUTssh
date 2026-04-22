@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
+import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
@@ -102,7 +103,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'letmein');
-      await tester.tap(find.byType(FilledButton));
+      await tester.tap(find.byWidgetPredicate((w) => w is AppButton));
       await tester.pumpAndSettle();
 
       expect(
@@ -160,7 +161,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'nope');
-    await tester.tap(find.byType(FilledButton));
+    await tester.tap(find.byWidgetPredicate((w) => w is AppButton));
     await tester.pumpAndSettle();
 
     expect(mp.verifyAndDeriveCalls, 1);
@@ -200,7 +201,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // No text entered — tap the button.
-      await tester.tap(find.byType(FilledButton));
+      await tester.tap(find.byWidgetPredicate((w) => w is AppButton));
       await tester.pumpAndSettle();
 
       expect(

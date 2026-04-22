@@ -42,23 +42,20 @@ class _UpdateSection extends ConsumerWidget {
       icon: Icons.refresh,
       label: S.of(context).checkForUpdates,
       subtitle: S.of(context).currentVersion(version),
-      child: OutlinedButton.icon(
-        onPressed: isChecking ? null : () => _runCheck(context, ref),
-        icon: isChecking
-            ? const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.refresh, size: 14),
-        label: Text(
-          isChecking ? S.of(context).checking : S.of(context).checkNow,
-          style: TextStyle(fontSize: AppFonts.sm),
-        ),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, AppTheme.controlHeightSm),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-        ),
+      // The row's trailing action used to be a raw `OutlinedButton.icon`
+      // with ad-hoc `minimumSize` + `padding` overrides; it clashed
+      // visually with the `_Toggle` rows above (different radius, no
+      // `bg4` fill, larger font weight). `AppButton.secondary` keeps the
+      // row in the same visual language, `dense: true` pins the compact
+      // desktop height on every platform, and `loading: isChecking`
+      // swaps the leading icon for a matched-size spinner in place of
+      // the previous inline `CircularProgressIndicator`.
+      child: AppButton.secondary(
+        label: isChecking ? S.of(context).checking : S.of(context).checkNow,
+        icon: Icons.refresh,
+        loading: isChecking,
+        dense: true,
+        onTap: isChecking ? null : () => _runCheck(context, ref),
       ),
     );
   }
@@ -119,30 +116,12 @@ class _UpdateSection extends ConsumerWidget {
         return _buildUpdateAvailable(context, ref, updateState);
 
       case UpdateStatus.downloading:
-        // Linear progress gives the user a much clearer sense of how far
-        // the download has gone than a 20-px spinner — pair it with a
-        // percent-annotated caption for screen readers.
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                S
-                    .of(context)
-                    .downloadingPercent((updateState.progress * 100).toInt()),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: AppTheme.radiusSm,
-                child: LinearProgressIndicator(
-                  value: updateState.progress > 0 ? updateState.progress : null,
-                  minHeight: 6,
-                ),
-              ),
-            ],
-          ),
-        );
+        // Linear progress gives the user a much clearer sense of how
+        // far the download has gone than a 20-px spinner — pair it
+        // with a percent-annotated caption for screen readers. The
+        // widget is shared with the first-launch update dialog so
+        // both surfaces move together when the caption copy changes.
+        return UpdateProgressIndicator(state: updateState);
 
       case UpdateStatus.downloaded:
         return _buildDownloaded(context, ref, updateState);
@@ -205,14 +184,16 @@ class _UpdateSection extends ConsumerWidget {
             children: [
               _ChangelogButton(changelog: info.changelog),
               if (hasAsset && plat.isDesktopPlatform)
-                FilledButton.icon(
-                  onPressed: () => ref.read(updateProvider.notifier).download(),
-                  icon: const Icon(Icons.download, size: 18),
-                  label: Text(S.of(context).downloadAndInstall),
+                AppButton.primary(
+                  label: S.of(context).downloadAndInstall,
+                  icon: Icons.download,
+                  onTap: () => ref.read(updateProvider.notifier).download(),
                 )
               else
-                OutlinedButton.icon(
-                  onPressed: () async {
+                AppButton.secondary(
+                  label: S.of(context).openInBrowser,
+                  icon: Icons.open_in_new,
+                  onTap: () async {
                     final url = Uri.parse(info.releaseUrl);
                     if (!await launchUrl(
                       url,
@@ -228,12 +209,11 @@ class _UpdateSection extends ConsumerWidget {
                       }
                     }
                   },
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text(S.of(context).openInBrowser),
                 ),
               if (!isSkipped)
-                TextButton(
-                  onPressed: () => ref
+                AppButton.secondary(
+                  label: S.of(context).skipThisVersion,
+                  onTap: () => ref
                       .read(configProvider.notifier)
                       .update(
                         (c) => c.copyWith(
@@ -242,18 +222,17 @@ class _UpdateSection extends ConsumerWidget {
                           ),
                         ),
                       ),
-                  child: Text(S.of(context).skipThisVersion),
                 )
               else
-                TextButton(
-                  onPressed: () => ref
+                AppButton.secondary(
+                  label: S.of(context).unskip,
+                  onTap: () => ref
                       .read(configProvider.notifier)
                       .update(
                         (c) => c.copyWith(
                           behavior: c.behavior.copyWith(skippedVersion: null),
                         ),
                       ),
-                  child: Text(S.of(context).unskip),
                 ),
             ],
           ),
@@ -315,11 +294,10 @@ class _UpdateSection extends ConsumerWidget {
           padding: const EdgeInsets.only(left: 8),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              onPressed: () =>
-                  ref.read(updateProvider.notifier).openReleasePage(),
-              icon: const Icon(Icons.open_in_new, size: 18),
-              label: Text(S.of(context).updateReinstallAction),
+            child: AppButton.secondary(
+              label: S.of(context).updateReinstallAction,
+              icon: Icons.open_in_new,
+              onTap: () => ref.read(updateProvider.notifier).openReleasePage(),
             ),
           ),
         ),
@@ -341,8 +319,10 @@ class _InstallOrOpenReleaseButton extends ConsumerWidget {
     final canInstall = notifier.canLaunchInstaller;
 
     if (!canInstall) {
-      return FilledButton.icon(
-        onPressed: () async {
+      return AppButton.primary(
+        label: S.of(context).openReleasePage,
+        icon: Icons.open_in_new,
+        onTap: () async {
           final ok = await notifier.openReleasePage();
           if (!ok && context.mounted) {
             Toast.show(
@@ -352,13 +332,13 @@ class _InstallOrOpenReleaseButton extends ConsumerWidget {
             );
           }
         },
-        icon: const Icon(Icons.open_in_new, size: 18),
-        label: Text(S.of(context).openReleasePage),
       );
     }
 
-    return FilledButton.icon(
-      onPressed: () async {
+    return AppButton.primary(
+      label: S.of(context).installNow,
+      icon: Icons.install_desktop,
+      onTap: () async {
         final ok = await notifier.install();
         if (ok || !context.mounted) return;
         // Installer launch failed at runtime — fall back to opening the
@@ -373,8 +353,6 @@ class _InstallOrOpenReleaseButton extends ConsumerWidget {
           level: ToastLevel.error,
         );
       },
-      icon: const Icon(Icons.install_desktop, size: 18),
-      label: Text(S.of(context).installNow),
     );
   }
 }
@@ -388,8 +366,10 @@ class _ChangelogButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (changelog == null || changelog!.isEmpty) return const SizedBox.shrink();
 
-    return TextButton.icon(
-      onPressed: () => AppDialog.show(
+    return AppButton.secondary(
+      label: S.of(context).releaseNotes,
+      icon: Icons.article_outlined,
+      onTap: () => AppDialog.show(
         context,
         builder: (ctx) => AppDialog(
           title: S.of(ctx).releaseNotes,
@@ -399,11 +379,9 @@ class _ChangelogButton extends StatelessWidget {
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
             ),
           ),
-          actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(ctx))],
+          actions: [AppButton.cancel(onTap: () => Navigator.pop(ctx))],
         ),
       ),
-      icon: const Icon(Icons.article_outlined, size: 18),
-      label: Text(S.of(context).releaseNotes),
     );
   }
 }

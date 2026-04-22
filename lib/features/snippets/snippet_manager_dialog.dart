@@ -11,6 +11,7 @@ import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -79,10 +80,11 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       ),
       countLabel: s.snippetCount(_snippets.length),
       actions: [
-        TextButton.icon(
-          onPressed: _addSnippet,
-          icon: const Icon(Icons.add, size: 16),
-          label: Text(s.addSnippet, style: TextStyle(fontSize: AppFonts.sm)),
+        AppButton.secondary(
+          label: s.addSnippet,
+          icon: Icons.add,
+          onTap: _addSnippet,
+          dense: true,
         ),
       ],
     );
@@ -114,26 +116,24 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       secondaryMono: true,
       tertiary: snippet.description.isEmpty ? null : snippet.description,
       trailing: [
-        IconButton(
-          icon: const Icon(Icons.content_copy, size: 14),
+        AppIconButton(
+          icon: Icons.content_copy,
           tooltip: s.copy,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _copyCommand(snippet),
+          dense: true,
+          onTap: () => _copyCommand(snippet),
         ),
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, size: 14),
+        AppIconButton(
+          icon: Icons.edit_outlined,
           tooltip: s.editSnippet,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _editSnippet(snippet),
+          dense: true,
+          onTap: () => _editSnippet(snippet),
         ),
-        IconButton(
-          icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+        AppIconButton(
+          icon: Icons.delete_outline,
           tooltip: s.deleteSnippet,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _deleteSnippet(snippet),
+          dense: true,
+          color: AppTheme.red,
+          onTap: () => _deleteSnippet(snippet),
         ),
       ],
     );
@@ -188,8 +188,8 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
         title: s.deleteSnippet,
         content: Text(s.deleteSnippetConfirm(snippet.title)),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.delete,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -229,7 +229,7 @@ class SnippetManagerDialog extends StatelessWidget {
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 400, child: SnippetManagerPanel()),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 }
@@ -313,8 +313,8 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.save, onTap: _save),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.save, onTap: _save),
       ],
     );
   }

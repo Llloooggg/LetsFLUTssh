@@ -5,7 +5,7 @@ import 'package:letsflutssh/core/security/security_tier.dart';
 void main() {
   group('AppConfig.toJsonForExport', () {
     test('strips per-machine security metadata', () {
-      final cfg = AppConfig.defaults.copyWith(
+      final cfg = AppConfig.defaults.copyWithSecurity(
         security: const SecurityConfig(
           tier: SecurityTier.hardware,
           modifiers: SecurityTierModifiers(
@@ -26,15 +26,14 @@ void main() {
     });
 
     test('preserves every portable field', () {
-      final cfg = AppConfig.defaults.copyWith(
-        transferWorkers: 7,
-        maxHistory: 1234,
-        locale: 'ru',
-        security: const SecurityConfig(
-          tier: SecurityTier.paranoid,
-          modifiers: SecurityTierModifiers(password: true),
-        ),
-      );
+      final cfg = AppConfig.defaults
+          .copyWith(transferWorkers: 7, maxHistory: 1234, locale: 'ru')
+          .copyWithSecurity(
+            security: const SecurityConfig(
+              tier: SecurityTier.paranoid,
+              modifiers: SecurityTierModifiers(password: true),
+            ),
+          );
       final portable = cfg.toJsonForExport();
       expect(portable['transfer_workers'], 7);
       expect(portable['max_history'], 1234);
@@ -42,7 +41,7 @@ void main() {
     });
 
     test('round-trip via toJsonForExport + fromJson leaves security null', () {
-      final cfg = AppConfig.defaults.copyWith(
+      final cfg = AppConfig.defaults.copyWithSecurity(
         security: const SecurityConfig(
           tier: SecurityTier.hardware,
           modifiers: SecurityTierModifiers(password: true),

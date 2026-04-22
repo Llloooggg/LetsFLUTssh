@@ -313,7 +313,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                       theme: _terminalTheme,
                       textStyle: TerminalStyle(
                         fontSize: fontSize,
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: AppFonts.monoFamily,
+                        fontFamilyFallback: AppFonts.monoFallback,
                       ),
                     ),
                     Positioned.fill(
@@ -340,21 +341,18 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       position: position,
       items: [
         if (hasSelection)
-          ContextMenuItem(
-            label: S.of(context).copy,
-            icon: Icons.copy,
-            shortcut: 'Ctrl+C',
+          StandardMenuAction.copy.item(
+            context,
+            shortcut: AppShortcut.terminalCopy,
             onTap: _copySelection,
           ),
-        ContextMenuItem(
-          label: S.of(context).paste,
-          icon: Icons.paste,
-          shortcut: 'Ctrl+V',
+        StandardMenuAction.paste.item(
+          context,
+          shortcut: AppShortcut.terminalPaste,
           onTap: _pasteClipboard,
         ),
-        ContextMenuItem(
-          label: S.of(context).snippets,
-          icon: Icons.code,
+        StandardMenuAction.snippets.item(
+          context,
           onTap: () => _showSnippetPicker(context),
         ),
       ],

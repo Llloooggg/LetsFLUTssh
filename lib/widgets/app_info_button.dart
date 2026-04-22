@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'app_icon_button.dart';
 import 'app_info_dialog.dart';
 
 /// Small `(i)` icon that opens an [AppInfoDialog] with caller-supplied
@@ -32,13 +33,12 @@ class AppInfoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    return AppIconButton(
+      icon: Icons.info_outline,
       tooltip: tooltip ?? title,
-      icon: Icon(Icons.info_outline, size: 18, color: AppTheme.fgDim),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-      onPressed: () => AppInfoDialog.show(
+      dense: true,
+      color: AppTheme.fgDim,
+      onTap: () => AppInfoDialog.show(
         context,
         title: title,
         protectsAgainst: protectsAgainst,

@@ -62,6 +62,7 @@ void main() {
       overrides: [
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
         connectionManagerProvider.overrideWithValue(
           ConnectionManager(knownHosts: KnownHostsManager()),
@@ -356,6 +357,7 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),

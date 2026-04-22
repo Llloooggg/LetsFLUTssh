@@ -57,10 +57,19 @@ class SFa extends S {
   String get copy => 'کپی';
 
   @override
+  String get cut => 'برش';
+
+  @override
   String get paste => 'جای‌گذاری';
 
   @override
   String get select => 'انتخاب';
+
+  @override
+  String get copyModeTapToStart => 'برای تعیین ابتدای انتخاب لمس کنید';
+
+  @override
+  String get copyModeExtending => 'برای گسترش انتخاب بکشید';
 
   @override
   String get required => 'الزامی';
@@ -2289,6 +2298,60 @@ class SFa extends S {
 
   @override
   String get securityRecheckUnchanged => 'پشتیبانی لایه‌ها بدون تغییر';
+
+  @override
+  String get securityMacosEnableSecureTiers =>
+      'باز کردن لایه‌های امن در این Mac';
+
+  @override
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'برنامه را با یک گواهی شخصی دوباره امضا کنید تا Keychain (T1) و Secure Enclave (T2) پس از به‌روزرسانی کار کنند';
+
+  @override
+  String get securityMacosEnableSecureTiersPrompt =>
+      'مک یک بار رمز عبور شما را می‌خواهد';
+
+  @override
+  String get securityMacosEnableSecureTiersSuccess =>
+      'لایه‌های امن باز شد — T1 و T2 اکنون در دسترس هستند';
+
+  @override
+  String get securityMacosEnableSecureTiersFailed =>
+      'باز کردن لایه‌های امن ناموفق بود';
+
+  @override
+  String get securityMacosOfferTitle => 'فعال‌سازی Keychain + Secure Enclave؟';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS ذخیره‌سازی رمزگذاری‌شده را به هویت امضای برنامه گره می‌زند. بدون گواهی پایدار، Keychain (T1) و Secure Enclave (T2) دسترسی را رد می‌کنند. می‌توانیم یک گواهی شخصی خودامضا روی این مک ایجاد کنیم و برنامه را با آن دوباره امضا کنیم — به‌روزرسانی‌ها ادامه می‌یابند و اسرار شما در نسخه‌ها باقی می‌مانند. مک یک بار رمز ورود شما را می‌خواهد تا به گواهی جدید اعتماد کند.';
+
+  @override
+  String get securityMacosOfferAccept => 'فعال‌سازی';
+
+  @override
+  String get securityMacosOfferDecline =>
+      'رد کردن — T0 یا Paranoid انتخاب کنید';
+
+  @override
+  String get securityMacosRemoveIdentity => 'حذف هویت امضا';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'گواهی شخصی را حذف می‌کند. داده‌های T1 / T2 به آن وابسته‌اند — ابتدا به T0 یا Paranoid تغییر دهید سپس حذف کنید.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle => 'حذف هویت امضا؟';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'گواهی شخصی را از Keychain ورود حذف می‌کند. اسرار ذخیره‌شده T1 / T2 ناخوانا می‌شوند. جادوگر برای مهاجرت به T0 (متن ساده) یا Paranoid (گذرواژه اصلی) قبل از حذف باز می‌شود.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'هویت امضا حذف شد';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => 'حذف هویت امضا ناموفق بود';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import '../../utils/logger.dart';
+import 'libc_loader.dart';
 
 /// Heap-allocated, page-locked buffer for cryptographic secrets.
 ///
@@ -96,8 +97,10 @@ class SecretBuffer implements Finalizable {
   // ── Platform bindings ────────────────────────────────────────────────
   //
   // Resolved lazily and cached. A failure to resolve the symbol (static
-  // build, unusual libc) is treated as "lock not supported" — the app keeps
-  // working, secrets just aren't pinned.
+  // build, Android bionic quirk, exotic musl image) is cached as an
+  // unavailable-bindings sentinel so the dlopen + exception cost is paid
+  // at most once per process — subsequent allocations hit the cache and
+  // skip the native call. The buffer still works, it just isn't pinned.
 
   static _NativeBindings? _cachedBindings;
 
@@ -110,60 +113,59 @@ class SecretBuffer implements Finalizable {
   }
 
   static bool _lock(Pointer<Uint8> ptr, int len) {
+    final b = _bindings();
+    if (!b.available) return false;
+    final rc = b.lock(ptr.cast(), len);
+    if (rc == 0) return true;
+    AppLogger.instance.log(
+      'Memory lock returned non-zero ($rc) — secret buffer not pinned',
+      name: 'SecretBuffer',
+    );
+    return false;
+  }
+
+  static void _unlock(Pointer<Uint8> ptr, int len) {
+    final b = _bindings();
+    if (!b.available) return;
+    b.unlock(ptr.cast(), len);
+  }
+
+  static _NativeBindings _resolveBindings() {
     try {
-      final b = _bindings();
-      final rc = b.lock(ptr.cast(), len);
-      if (rc == 0) return true;
-      AppLogger.instance.log(
-        'Memory lock returned non-zero ($rc) — secret buffer not pinned',
-        name: 'SecretBuffer',
-      );
-      return false;
+      if (Platform.isWindows) {
+        final kernel = DynamicLibrary.open('kernel32.dll');
+        final lock = kernel
+            .lookup<NativeFunction<_WinLockC>>('VirtualLock')
+            .asFunction<_WinLockDart>();
+        final unlock = kernel
+            .lookup<NativeFunction<_WinLockC>>('VirtualUnlock')
+            .asFunction<_WinLockDart>();
+        // VirtualLock returns non-zero on success; adapt to POSIX 0-is-success.
+        return _NativeBindings(
+          lock: (addr, len) => lock(addr, len) != 0 ? 0 : 1,
+          unlock: (addr, len) {
+            unlock(addr, len);
+            return 0;
+          },
+        );
+      }
+      final libc = Platform.isMacOS || Platform.isIOS
+          ? DynamicLibrary.process()
+          : openLibc();
+      final lock = libc
+          .lookup<NativeFunction<_PosixLockC>>('mlock')
+          .asFunction<_PosixLockDart>();
+      final unlock = libc
+          .lookup<NativeFunction<_PosixLockC>>('munlock')
+          .asFunction<_PosixLockDart>();
+      return _NativeBindings(lock: lock, unlock: unlock);
     } catch (e) {
       AppLogger.instance.log(
         'Memory lock unavailable: $e',
         name: 'SecretBuffer',
       );
-      return false;
+      return _NativeBindings.unavailable();
     }
-  }
-
-  static void _unlock(Pointer<Uint8> ptr, int len) {
-    try {
-      _bindings().unlock(ptr.cast(), len);
-    } catch (_) {
-      // Already logged on the lock path; nothing useful to do here.
-    }
-  }
-
-  static _NativeBindings _resolveBindings() {
-    if (Platform.isWindows) {
-      final kernel = DynamicLibrary.open('kernel32.dll');
-      final lock = kernel
-          .lookup<NativeFunction<_WinLockC>>('VirtualLock')
-          .asFunction<_WinLockDart>();
-      final unlock = kernel
-          .lookup<NativeFunction<_WinLockC>>('VirtualUnlock')
-          .asFunction<_WinLockDart>();
-      // VirtualLock returns non-zero on success; adapt to POSIX 0-is-success.
-      return _NativeBindings(
-        lock: (addr, len) => lock(addr, len) != 0 ? 0 : 1,
-        unlock: (addr, len) {
-          unlock(addr, len);
-          return 0;
-        },
-      );
-    }
-    final libc = Platform.isMacOS || Platform.isIOS
-        ? DynamicLibrary.process()
-        : DynamicLibrary.open('libc.so.6');
-    final lock = libc
-        .lookup<NativeFunction<_PosixLockC>>('mlock')
-        .asFunction<_PosixLockDart>();
-    final unlock = libc
-        .lookup<NativeFunction<_PosixLockC>>('munlock')
-        .asFunction<_PosixLockDart>();
-    return _NativeBindings(lock: lock, unlock: unlock);
   }
 }
 
@@ -175,5 +177,14 @@ typedef _WinLockDart = int Function(Pointer<Void>, int);
 class _NativeBindings {
   final int Function(Pointer<Void>, int) lock;
   final int Function(Pointer<Void>, int) unlock;
-  const _NativeBindings({required this.lock, required this.unlock});
+  final bool available;
+  const _NativeBindings({required this.lock, required this.unlock})
+    : available = true;
+  const _NativeBindings._unavailable()
+    : lock = _unavailableStub,
+      unlock = _unavailableStub,
+      available = false;
+  factory _NativeBindings.unavailable() => const _NativeBindings._unavailable();
+
+  static int _unavailableStub(Pointer<Void> _, int _) => -1;
 }
