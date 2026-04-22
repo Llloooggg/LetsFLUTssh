@@ -54,6 +54,7 @@ import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/toast.dart';
+import 'widgets/update_progress_indicator.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/tools/tools_dialog.dart';
 import 'features/session_manager/session_panel.dart';
@@ -1895,68 +1896,139 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final hasAsset = info.assetUrl != null && plat.isDesktopPlatform;
     AppDialog.show(
       context,
-      builder: (ctx) => AppDialog(
-        title: S.of(ctx).updateAvailable,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              S
-                  .of(ctx)
-                  .updateVersionAvailable(
-                    info.latestVersion,
-                    info.currentVersion,
-                  ),
-              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-            ),
-            if (info.changelog != null && info.changelog!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                S.of(ctx).releaseNotes,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: AppFonts.md,
-                  color: AppTheme.fg,
+      // `AppDialog` is a StatelessWidget, so its `content` + `actions`
+      // are captured at construction. Wrapping them in a `Consumer`
+      // lets the dialog react to `updateProvider` state changes while
+      // the download runs — previously the "Download and Install"
+      // button popped the dialog immediately and the user was left
+      // with zero visibility into the in-flight transfer. Now the
+      // dialog stays open, swaps its body for a
+      // `UpdateProgressIndicator`, and collapses its footer to just
+      // Cancel while the state machine walks through
+      // `downloading → downloaded → (autoInstall) installing`.
+      builder: (ctx) => Consumer(
+        builder: (ctx, ref, _) {
+          final state = ref.watch(updateProvider);
+          final inFlight =
+              state.status == UpdateStatus.downloading ||
+              state.status == UpdateStatus.downloaded;
+          final hasError = state.status == UpdateStatus.error;
+          return AppDialog(
+            title: S.of(ctx).updateAvailable,
+            dismissible: !inFlight,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  S
+                      .of(ctx)
+                      .updateVersionAvailable(
+                        info.latestVersion,
+                        info.currentVersion,
+                      ),
+                  style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
                 ),
-              ),
-              const SizedBox(height: 4),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Text(
-                    info.changelog!,
+                if (inFlight) ...[
+                  const SizedBox(height: 12),
+                  UpdateProgressIndicator(state: state),
+                ] else if (hasError) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    state.error != null
+                        ? localizeError(S.of(ctx), state.error!)
+                        : S.of(ctx).updateCheckFailed,
                     style: TextStyle(
-                      fontSize: AppFonts.md,
-                      color: AppTheme.fgDim,
+                      fontSize: AppFonts.sm,
+                      color: AppTheme.red,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          AppButton.cancel(onTap: () => Navigator.pop(ctx)),
-          AppButton.secondary(
-            label: S.of(ctx).skipThisVersion,
-            onTap: () {
-              Navigator.pop(ctx);
-              ref
-                  .read(configProvider.notifier)
-                  .update(
-                    (c) => c.copyWith(
-                      behavior: c.behavior.copyWith(
-                        skippedVersion: info.latestVersion,
+                ] else if (info.changelog != null &&
+                    info.changelog!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    S.of(ctx).releaseNotes,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.md,
+                      color: AppTheme.fg,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        info.changelog!,
+                        style: TextStyle(
+                          fontSize: AppFonts.md,
+                          color: AppTheme.fgDim,
+                        ),
                       ),
                     ),
-                  );
-            },
-          ),
-          _buildPrimaryUpdateAction(ctx, context, info, hasAsset),
-        ],
+                  ),
+                ],
+              ],
+            ),
+            actions: _buildUpdateDialogActions(
+              ctx,
+              context,
+              info,
+              hasAsset,
+              state,
+            ),
+          );
+        },
       ),
     );
+  }
+
+  List<Widget> _buildUpdateDialogActions(
+    BuildContext ctx,
+    BuildContext outerContext,
+    UpdateInfo info,
+    bool hasAsset,
+    UpdateState state,
+  ) {
+    // No actionable buttons while bytes are in flight — the installer
+    // launcher owns the next step after `downloaded`, and Cancel
+    // would orphan the partial download without the updater picking
+    // up the signal. Show progress, hide everything else.
+    if (state.status == UpdateStatus.downloading) {
+      return const [];
+    }
+    if (state.status == UpdateStatus.error) {
+      return [
+        AppButton.cancel(onTap: () => Navigator.pop(ctx)),
+        AppButton.primary(
+          label: S.of(ctx).retry,
+          onTap: () {
+            ref.read(updateProvider.notifier).download(autoInstall: hasAsset);
+          },
+        ),
+      ];
+    }
+    // Default: idle / update-available / up-to-date / downloaded
+    // (auto-install path closes itself once the installer spawns).
+    return [
+      AppButton.cancel(onTap: () => Navigator.pop(ctx)),
+      AppButton.secondary(
+        label: S.of(ctx).skipThisVersion,
+        onTap: () {
+          Navigator.pop(ctx);
+          ref
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWith(
+                  behavior: c.behavior.copyWith(
+                    skippedVersion: info.latestVersion,
+                  ),
+                ),
+              );
+        },
+      ),
+      _buildPrimaryUpdateAction(ctx, outerContext, info, hasAsset),
+    ];
   }
 
   Widget _buildPrimaryUpdateAction(
@@ -1969,7 +2041,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       return AppButton.primary(
         label: S.of(ctx).downloadAndInstall,
         onTap: () {
-          Navigator.pop(ctx);
+          // Do not pop — the dialog stays open and swaps its body
+          // for the in-flight progress indicator. Earlier the
+          // dialog popped synchronously and the download happened
+          // silently in the background with no user feedback.
           ref.read(updateProvider.notifier).download(autoInstall: true);
         },
       );
