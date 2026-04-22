@@ -116,7 +116,7 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           ERRORS=""
-          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9-]+\))?!?: \S.+'
+          PATTERN='^(feat|fix|refactor|perf|build|test|docs|chore|ci|i18n|l10n|style|revert|security)(\([a-z0-9_+/-]+\))?!?: \S.+'
 
           # Read commit subjects straight from git so we get the full header —
           # `gh pr view --json commits.messageHeadline` truncates to ~72 chars

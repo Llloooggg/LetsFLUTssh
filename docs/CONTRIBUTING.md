@@ -198,7 +198,7 @@ Format: `type: short description`
 
 Ordering in release notes: Security (pinned callout) → Features → Reverts → Improvements → Fixes → Localization → Dependencies. Empty sections are omitted.
 
-**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`) — lowercase, alphanumeric + dashes. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
+**Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`, `fix(session_manager):`, `refactor(keys+tags):`, `fix(scripts/macos-resign):`) — lowercase, alphanumeric plus `_ + - /`. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
 
 **Examples:**
 
