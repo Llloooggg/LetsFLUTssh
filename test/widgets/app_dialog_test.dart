@@ -135,10 +135,7 @@ void main() {
                       label: 'Skip This Version',
                       onTap: () {},
                     ),
-                    AppButton.primary(
-                      label: 'Open in Browser',
-                      onTap: () {},
-                    ),
+                    AppButton.primary(label: 'Open in Browser', onTap: () {}),
                   ],
                 ),
               ),
@@ -201,6 +198,82 @@ void main() {
       await tester.tap(find.text('Disabled'));
       await tester.pump();
       expect(tapped, isFalse);
+    });
+
+    testWidgets('loading swaps label for progress indicator', (tester) async {
+      var tapped = false;
+      await tester.pumpWidget(
+        wrap(
+          AppButton.primary(
+            label: 'Sign in',
+            onTap: () => tapped = true,
+            loading: true,
+          ),
+        ),
+      );
+
+      // Label is hidden while the async flow runs — the caller is
+      // expected to flip loading back off once the future completes.
+      expect(find.text('Sign in'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Tap is swallowed during loading — a re-entrant trigger would
+      // otherwise spawn two parallel requests for the same action.
+      // The factory constructors (`.primary()`, `.secondary()`, etc.)
+      // return private subclasses of `AppButton`, so `find.byType` —
+      // which matches exact runtime type — misses them. Use a
+      // predicate that accepts any AppButton subclass instead.
+      await tester.tap(find.byWidgetPredicate((w) => w is AppButton));
+      await tester.pump();
+      expect(tapped, isFalse);
+    });
+
+    testWidgets(
+      'dense mode uses the compact desktop height on every platform',
+      (tester) async {
+        await tester.pumpWidget(
+          wrap(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppButton.secondary(label: 'Dense', onTap: () {}, dense: true),
+                AppButton.secondary(label: 'Regular', onTap: () {}),
+              ],
+            ),
+          ),
+        );
+
+        final denseSize = tester.getSize(find.text('Dense'));
+        final regularSize = tester.getSize(find.text('Regular'));
+        // Dense never grows taller than the regular variant; on mobile
+        // the regular button uses the larger touch target (`barHeightLg`)
+        // while dense stays on `controlHeightXs`, so this predicate holds
+        // across desktop + mobile runs of the test harness.
+        expect(denseSize.height, lessThanOrEqualTo(regularSize.height));
+      },
+    );
+
+    testWidgets('fullWidth expands to the host constraint', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          SizedBox(
+            width: 300,
+            child: AppButton.primary(
+              label: 'Unlock',
+              onTap: () {},
+              fullWidth: true,
+            ),
+          ),
+        ),
+      );
+
+      // See note above on `find.byWidgetPredicate` — `AppButton.primary`
+      // returns a private subclass, so `find.byType(AppButton)` finds
+      // nothing even though the widget is mounted.
+      final buttonSize = tester.getSize(
+        find.byWidgetPredicate((w) => w is AppButton),
+      );
+      expect(buttonSize.width, 300.0);
     });
   });
 

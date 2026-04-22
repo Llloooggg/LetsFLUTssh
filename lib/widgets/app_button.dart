@@ -22,6 +22,18 @@ import 'hover_region.dart';
 /// * `.secondary()` — subtle `bg4` background, neutral text
 /// * `.destructive()` — red background, on-accent text
 ///
+/// Modifiers available on every factory + the default constructor:
+/// * `loading: true` — swaps the label for a CircularProgressIndicator
+///   sized to the label's font size and disables tap handling. Used
+///   while an async action the button triggered is still in flight;
+///   the caller must flip it back once the future completes.
+/// * `dense: true` — drops the vertical padding and uses the compact
+///   desktop height on every platform. For inline/toolbar use where
+///   the mobile 48-px tap target would create awkward row gaps.
+/// * `fullWidth: true` — wraps the button in a full-width `SizedBox`
+///   so it expands to the host constraint width. Used by unlock /
+///   passphrase dialogs where the primary action fills the form.
+///
 /// Direct construction (no factory) is reserved for overrides that
 /// don't fit any standard variant, e.g. custom foreground/background
 /// pair. Prefer a factory where possible.
@@ -31,6 +43,9 @@ class AppButton extends StatelessWidget {
   final Color? background;
   final Color? foreground;
   final bool enabled;
+  final bool loading;
+  final bool dense;
+  final bool fullWidth;
 
   const AppButton({
     super.key,
@@ -39,11 +54,19 @@ class AppButton extends StatelessWidget {
     this.background,
     this.foreground,
     this.enabled = true,
+    this.loading = false,
+    this.dense = false,
+    this.fullWidth = false,
   });
 
   /// Cancel / dismiss button — no background, dim text.
-  const factory AppButton.cancel({Key? key, VoidCallback? onTap}) =
-      _CancelAction;
+  const factory AppButton.cancel({
+    Key? key,
+    VoidCallback? onTap,
+    bool loading,
+    bool dense,
+    bool fullWidth,
+  }) = _CancelAction;
 
   /// Primary action — accent background.
   factory AppButton.primary({
@@ -51,6 +74,9 @@ class AppButton extends StatelessWidget {
     required String label,
     VoidCallback? onTap,
     bool enabled,
+    bool loading,
+    bool dense,
+    bool fullWidth,
   }) = _PrimaryAction;
 
   /// Secondary action — subtle background.
@@ -59,6 +85,9 @@ class AppButton extends StatelessWidget {
     required String label,
     VoidCallback? onTap,
     bool enabled,
+    bool loading,
+    bool dense,
+    bool fullWidth,
   }) = _SecondaryAction;
 
   /// Destructive action — red background.
@@ -67,6 +96,9 @@ class AppButton extends StatelessWidget {
     required String label,
     VoidCallback? onTap,
     bool enabled,
+    bool loading,
+    bool dense,
+    bool fullWidth,
   }) = _DestructiveAction;
 
   @override
@@ -77,58 +109,90 @@ class AppButton extends StatelessWidget {
     final defaultFg = hasBg ? AppTheme.onAccent : AppTheme.fgDim;
     final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
 
-    final height = mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs;
-    final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg);
-    final fontSize = mobile ? AppFonts.md : AppFonts.sm;
-    final radius = mobile ? AppTheme.radiusMd : BorderRadius.zero;
+    // Dense mode shrinks the touch target on every platform to the
+    // desktop-compact height — mobile's default 48-px target is the
+    // right choice for primary surfaces but reads as "too big" in
+    // toolbars / inline dense lists.
+    final height = dense
+        ? AppTheme.controlHeightXs
+        : (mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs);
+    final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg, dense: dense);
+    final vPad = dense ? 4.0 : 6.0;
+    final fontSize = (mobile && !dense) ? AppFonts.md : AppFonts.sm;
+    final radius = (mobile && !dense) ? AppTheme.radiusMd : BorderRadius.zero;
 
-    return HoverRegion(
-      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onTap: enabled ? onTap : null,
+    final bool tapActive = enabled && !loading;
+
+    // `softWrap: true` + `maxLines: 2` so extreme translations
+    // (e.g. Russian "Сгенерировать ключ" on a 320-px mobile
+    // button) break to a second line instead of scale-shrinking
+    // to barely-readable 10-pt. The prior `FittedBox(scaleDown)`
+    // + `maxLines: 1` layout shrank every long label down until
+    // the Cyrillic / German captions were unreadable on narrow
+    // modals; swapping to a wrap-first button keeps the native
+    // font size and grows the button vertically when needed.
+    // `ellipsis` caps the worst outlier at two lines rather
+    // than letting the button unbounded-grow the footer.
+    final Widget child = loading
+        ? SizedBox(
+            width: fontSize,
+            height: fontSize,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
+            ),
+          )
+        : Text(
+            label,
+            textAlign: TextAlign.center,
+            softWrap: true,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppFonts.inter(
+              fontSize: fontSize,
+              fontWeight: hasBg ? FontWeight.w500 : null,
+              color: effectiveFg,
+            ),
+          );
+
+    Widget button = HoverRegion(
+      cursor: tapActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onTap: tapActive ? onTap : null,
       builder: (hovered) => Container(
         constraints: BoxConstraints(minHeight: height),
-        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: _buttonColor(hasBg, hovered, effectiveBg),
+          color: _buttonColor(hasBg, hovered, effectiveBg, tapActive),
           borderRadius: radius,
         ),
-        // `softWrap: true` + `maxLines: 2` so extreme translations
-        // (e.g. Russian "Сгенерировать ключ" on a 320-px mobile
-        // button) break to a second line instead of scale-shrinking
-        // to barely-readable 10-pt. The prior `FittedBox(scaleDown)`
-        // + `maxLines: 1` layout shrank every long label down until
-        // the Cyrillic / German captions were unreadable on narrow
-        // modals; swapping to a wrap-first button keeps the native
-        // font size and grows the button vertically when needed.
-        // `ellipsis` caps the worst outlier at two lines rather
-        // than letting the button unbounded-grow the footer.
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          softWrap: true,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: AppFonts.inter(
-            fontSize: fontSize,
-            fontWeight: hasBg ? FontWeight.w500 : null,
-            color: effectiveFg,
-          ),
-        ),
+        child: child,
       ),
     );
+
+    if (fullWidth) {
+      button = SizedBox(width: double.infinity, child: button);
+    }
+    return button;
   }
 
   static double _horizontalPadding({
     required bool mobile,
     required bool hasBg,
+    required bool dense,
   }) {
+    if (dense) return hasBg ? 12.0 : 8.0;
     if (mobile) return hasBg ? 20.0 : 16.0;
     return hasBg ? 16.0 : 12.0;
   }
 
-  Color? _buttonColor(bool hasBg, bool hovered, Color? effectiveBg) {
-    final isHoverActive = hovered && enabled;
+  Color? _buttonColor(
+    bool hasBg,
+    bool hovered,
+    Color? effectiveBg,
+    bool tapActive,
+  ) {
+    final isHoverActive = hovered && tapActive;
     if (hasBg) {
       return isHoverActive ? _lighten(effectiveBg!) : effectiveBg;
     }
@@ -140,18 +204,34 @@ class AppButton extends StatelessWidget {
 }
 
 class _CancelAction extends AppButton {
-  const _CancelAction({super.key, super.onTap})
-    : super(label: '', enabled: true);
+  const _CancelAction({
+    super.key,
+    super.onTap,
+    super.loading = false,
+    super.dense = false,
+    super.fullWidth = false,
+  }) : super(label: '', enabled: true);
 
   @override
   Widget build(BuildContext context) {
-    return _CancelActionResolved(label: S.of(context).cancel, onTap: onTap);
+    return _CancelActionResolved(
+      label: S.of(context).cancel,
+      onTap: onTap,
+      loading: loading,
+      dense: dense,
+      fullWidth: fullWidth,
+    );
   }
 }
 
 class _CancelActionResolved extends AppButton {
-  const _CancelActionResolved({required super.label, super.onTap})
-    : super(enabled: true);
+  const _CancelActionResolved({
+    required super.label,
+    super.onTap,
+    super.loading = false,
+    super.dense = false,
+    super.fullWidth = false,
+  }) : super(enabled: true);
 }
 
 class _PrimaryAction extends AppButton {
@@ -160,6 +240,9 @@ class _PrimaryAction extends AppButton {
     required super.label,
     super.onTap,
     super.enabled = true,
+    super.loading = false,
+    super.dense = false,
+    super.fullWidth = false,
   }) : super(background: AppTheme.accent, foreground: AppTheme.onAccent);
 }
 
@@ -169,6 +252,9 @@ class _SecondaryAction extends AppButton {
     required super.label,
     super.onTap,
     super.enabled = true,
+    super.loading = false,
+    super.dense = false,
+    super.fullWidth = false,
   }) : super(background: AppTheme.bg4, foreground: AppTheme.fg);
 }
 
@@ -178,5 +264,8 @@ class _DestructiveAction extends AppButton {
     required super.label,
     super.onTap,
     super.enabled = true,
+    super.loading = false,
+    super.dense = false,
+    super.fullWidth = false,
   }) : super(background: AppTheme.disconnected, foreground: AppTheme.onAccent);
 }
