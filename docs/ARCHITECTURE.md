@@ -2390,6 +2390,17 @@ Mobile keeps a single `AppSelectionArea(child: MobileShell())` because the touch
 
 Inside a scoped `AppSelectionArea`, a parent may still need to block selection on a specific subtree that is not a `HoverRegion` (e.g. a dialog's sidebar nav list). Wrap that subtree in `SelectionContainer.disabled` explicitly — `settings_screen.dart` does this around its nav list so the sidebar labels stop showing the I-beam without yanking selection off the dialog body.
 
+#### Role matrix — when a row is clickable vs prose
+
+| Role | Examples | Cursor | Selection |
+|---|---|---|---|
+| **Action** | `AppButton`, `AppIconButton`, `_Toggle` knob, `_SegmentControl`, `PopupMenuButton` chip | pointer | **disabled** |
+| **Tile** (row dispatches on tap) | `ExpandableTierCard` header, `_ActionTile` (Data section), `AppDataRow` clickable row, `TierThreatBlock` clickable variant | pointer | **disabled** — wrap the InkWell's child in `SelectionContainer.disabled` |
+| **Form row** (label + interactive control) | `_SettingsRow` used by `_IntTile`, `_Toggle`, `_ThemeTile`, `_LanguageTile` | default | **disabled** — the label + subtitle block is a field name, not content to copy; the row's control handles its own cursor |
+| **Prose** (no gesture, user may want to copy) | `SecurityThreatList` rows, dialog bodies, release notes, help text | I-beam | **enabled** |
+
+The rule exists because a clickable ancestor's `MouseRegion(cursor: click)` wins over the Selectable text's inner `MouseRegion(cursor: text)` — leaving text selectable on a clickable tile produces "selectable but cursor still a pointer", which users read as broken. The consistent answer is to disable selection on every clickable subtree, not to try to prefer the inner cursor. `HoverRegion` already handles this for its own callers; `InkWell` does not and each call site wraps its child manually (`expandable_tier_card.dart`, `app_data_row.dart`, `tier_threat_block.dart`).
+
 ### ModeButton
 
 ```dart

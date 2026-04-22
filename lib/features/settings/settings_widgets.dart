@@ -149,19 +149,31 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
-        ),
-        if (subtitle != null)
+    // Opt the label + subtitle out of the ambient settings-body
+    // `SelectionArea`. Every other settings row (`_ActionTile` via
+    // `HoverRegion`) disables selection on its label already — without
+    // this wrap the Transfer section rows would select their captions
+    // while the Data section rows would not, and users reported the
+    // mismatch as broken. Rule: in a settings form, prose labels act as
+    // field names, not content to copy.
+    final labelBlock = SelectionContainer.disabled(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            subtitle!,
-            style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+            label,
+            style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fg),
           ),
-      ],
+          if (subtitle != null)
+            Text(
+              subtitle!,
+              style: AppFonts.inter(
+                fontSize: AppFonts.xs,
+                color: AppTheme.fgDim,
+              ),
+            ),
+        ],
+      ),
     );
 
     return ConstrainedBox(

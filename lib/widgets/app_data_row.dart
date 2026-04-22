@@ -87,7 +87,15 @@ class AppDataRow extends StatelessWidget {
     );
     if (tooltip != null) body = Tooltip(message: tooltip!, child: body);
     if (onTap != null || onDoubleTap != null) {
-      body = InkWell(onTap: onTap, onDoubleTap: onDoubleTap, child: body);
+      // Clickable row — opt out of any ambient `SelectionArea`. Same
+      // rule the `_ActionTile` / `HoverRegion` stack applies: when the
+      // whole row dispatches on tap, neither the I-beam cursor nor
+      // drag-select belong here.
+      body = InkWell(
+        onTap: onTap,
+        onDoubleTap: onDoubleTap,
+        child: SelectionContainer.disabled(child: body),
+      );
     }
     return body;
   }

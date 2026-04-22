@@ -570,68 +570,76 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The whole header is clickable (tap → expand/collapse), so its
+    // contents opt out of the ambient settings `SelectionArea`. Without
+    // this wrap the title / subtitle were selectable yet the cursor
+    // stayed a pointer (the InkWell's click cursor wins over the
+    // ambient Selectable text cursor), which users read as "half-
+    // broken". Rule: clickable tile ≠ selectable.
     return InkWell(
       onTap: onTap,
       borderRadius: AppTheme.radiusSm,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 30,
-              height: 20,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: accent, width: 1),
-              ),
-              child: Text(
-                badge,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: AppFonts.xs,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
+      child: SelectionContainer.disabled(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 30,
+                height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: accent, width: 1),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: AppFonts.xs,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: AppTheme.fg,
-                      fontSize: AppFonts.sm,
-                      fontWeight: FontWeight.w600,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: AppTheme.fg,
+                        fontSize: AppFonts.sm,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: AppTheme.fgDim,
-                      fontSize: AppFonts.xs,
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: AppTheme.fgDim,
+                        fontSize: AppFonts.xs,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-            const SizedBox(width: 4),
-            Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
-              size: 18,
-              color: AppTheme.fgDim,
-            ),
-          ],
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+              const SizedBox(width: 4),
+              Icon(
+                expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+                color: AppTheme.fgDim,
+              ),
+            ],
+          ),
         ),
       ),
     );
