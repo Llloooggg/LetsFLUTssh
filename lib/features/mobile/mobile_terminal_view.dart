@@ -443,6 +443,43 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   static const double _copyToolbarHeight = AppTheme.itemHeightLg;
 
   Widget _buildTerminalArea() {
+    // xterm's `TerminalView` paints whole cells only — its viewport
+    // rounds the available height down to `floor(h / cellHeight)` rows
+    // and leaves the remainder as a theme-coloured strip at the bottom
+    // that the user reads as "dead terminal space" (the literal
+    // complaint: *"он выглядит как терминал, но туда ничего не
+    // выписывается"*). `LayoutBuilder` below snaps the widget's own
+    // height to an integer-row multiple so the last rendered row sits
+    // flush against the next widget in the Column; the few remaining
+    // pixels between the snapped height and the parent's height become
+    // a `ColoredBox` strip that visually belongs to the bottom control
+    // strip instead of the terminal.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Cell height mirrors xterm's painter: fontSize × the shared
+        // `kTerminalLineHeight` multiplier. Padding is the same
+        // `EdgeInsets.all(4)` we pass to TerminalView below.
+        const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+        final cellHeight = _fontSize * kTerminalLineHeight;
+        final usable = constraints.maxHeight - verticalPadding;
+        final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
+        final snappedHeight = rows > 0
+            ? rows * cellHeight + verticalPadding
+            : constraints.maxHeight;
+        return Column(
+          children: [
+            SizedBox(height: snappedHeight, child: _buildTerminalListener()),
+            if (snappedHeight < constraints.maxHeight)
+              Expanded(
+                child: ColoredBox(color: AppTheme.terminalTheme.background),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTerminalListener() {
     return Listener(
       onPointerDown: _onPointerDown,
       onPointerMove: _onPointerMove,

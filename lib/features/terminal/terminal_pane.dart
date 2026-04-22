@@ -289,46 +289,80 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
                 );
               },
             ),
+            // Snap the terminal widget's height to an integer number of
+            // cells so xterm's viewport doesn't leave a dead strip at
+            // the bottom — the same trick MobileTerminalView applies.
+            // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
+            // painter uses internally; mirroring it here gives us a
+            // pre-layout estimate that matches the real measurement
+            // closely enough that xterm settles on `rows * cellHeight`
+            // rendered text with zero trailing gap. The remainder pixels
+            // become a `ColoredBox` painted in the terminal background
+            // so the boundary between the last row and the pane's next
+            // widget (split divider / status) reads as a clean edge.
             Expanded(
-              // Listener intercepts right-click and Ctrl+scroll before
-              // xterm's gesture detector, so context menu and zoom work
-              // even when the terminal is in mouse mode (e.g. htop, vim).
-              child: Listener(
-                onPointerDown: (event) {
-                  if (event.buttons == kSecondaryButton) {
-                    _showContextMenu(context, event.position);
-                  }
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+                  final cellHeight = fontSize * kTerminalLineHeight;
+                  final usable = constraints.maxHeight - verticalPadding;
+                  final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
+                  final snappedHeight = rows > 0
+                      ? rows * cellHeight + verticalPadding
+                      : constraints.maxHeight;
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: snappedHeight,
+                        child: _buildTerminalStack(fontSize),
+                      ),
+                      if (snappedHeight < constraints.maxHeight)
+                        Expanded(
+                          child: ColoredBox(color: _terminalTheme.background),
+                        ),
+                    ],
+                  );
                 },
-                onPointerSignal: _onPointerSignal,
-                child: Stack(
-                  children: [
-                    TerminalView(
-                      _terminal,
-                      controller: _terminalController,
-                      autofocus: widget.isFocused,
-                      hardwareKeyboardOnly: plat.isDesktopPlatform,
-                      onKeyEvent: _handleTerminalKey,
-                      backgroundOpacity: 1.0,
-                      padding: const EdgeInsets.all(4),
-                      theme: _terminalTheme,
-                      textStyle: TerminalStyle(
-                        fontSize: fontSize,
-                        fontFamily: AppFonts.monoFamily,
-                        fontFamilyFallback: AppFonts.monoFallback,
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: CursorTextOverlay(
-                        terminal: _terminal,
-                        fontSize: fontSize,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Inner Listener + Stack(TerminalView, CursorTextOverlay). Extracted
+  /// so the LayoutBuilder above can pin the terminal widget to an
+  /// integer-row height via a `SizedBox` parent.
+  Widget _buildTerminalStack(double fontSize) {
+    return Listener(
+      onPointerDown: (event) {
+        if (event.buttons == kSecondaryButton) {
+          _showContextMenu(context, event.position);
+        }
+      },
+      onPointerSignal: _onPointerSignal,
+      child: Stack(
+        children: [
+          TerminalView(
+            _terminal,
+            controller: _terminalController,
+            autofocus: widget.isFocused,
+            hardwareKeyboardOnly: plat.isDesktopPlatform,
+            onKeyEvent: _handleTerminalKey,
+            backgroundOpacity: 1.0,
+            padding: const EdgeInsets.all(4),
+            theme: _terminalTheme,
+            textStyle: TerminalStyle(
+              fontSize: fontSize,
+              fontFamily: AppFonts.monoFamily,
+              fontFamilyFallback: AppFonts.monoFallback,
+            ),
+          ),
+          Positioned.fill(
+            child: CursorTextOverlay(terminal: _terminal, fontSize: fontSize),
+          ),
+        ],
       ),
     );
   }
