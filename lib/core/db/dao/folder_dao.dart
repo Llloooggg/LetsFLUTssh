@@ -54,13 +54,27 @@ class FolderDao {
   }
 
   /// Recursively collect a folder and all its descendants.
+  ///
+  /// Resolved in a single SQL round-trip via a recursive CTE — a previous
+  /// Dart-side traversal issued one `SELECT` per tree level (O(depth)
+  /// queries), which dominated deletes and bulk-move flows on deep trees.
+  /// The CTE fans out in the engine, backed by the `idx_folders_parent_id`
+  /// index registered by [AppDatabase].
   Future<List<String>> getDescendantIds(String folderId) async {
-    final ids = <String>[folderId];
-    final children = await getChildren(folderId);
-    for (final child in children) {
-      ids.addAll(await getDescendantIds(child.id));
-    }
-    return ids;
+    final rows = await _db
+        .customSelect(
+          'WITH RECURSIVE descendants(id) AS ( '
+          '  SELECT id FROM folders WHERE id = ?1 '
+          '  UNION ALL '
+          '  SELECT f.id FROM folders f '
+          '  INNER JOIN descendants d ON f.parent_id = d.id '
+          ') '
+          'SELECT id FROM descendants',
+          variables: [Variable.withString(folderId)],
+          readsFrom: {_db.folders},
+        )
+        .get();
+    return rows.map((r) => r.read<String>('id')).toList();
   }
 
   /// Delete a folder and all its descendants.

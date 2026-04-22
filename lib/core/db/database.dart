@@ -42,11 +42,18 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      await _createPerformanceIndexes(this);
     },
     beforeOpen: (details) async {
       // Foreign keys are also set in database_opener; repeat here so drift's
       // own opener (used in tests that skip database_opener) honours them.
       await customStatement('PRAGMA foreign_keys = ON');
+      // Performance indexes live outside `schemaVersion` — they are pure
+      // query-plan speedups, idempotent via `IF NOT EXISTS`, and adding a
+      // new one must never trip the "any other version = corrupt" guard
+      // that routes existing v1 DBs through `WipeAllService`. Running them
+      // on every open costs microseconds on cached sqlite_master.
+      await _createPerformanceIndexes(this);
     },
   );
 
@@ -59,4 +66,33 @@ class AppDatabase extends _$AppDatabase {
   late final tagDao = TagDao(this);
   late final snippetDao = SnippetDao(this);
   late final sftpBookmarkDao = SftpBookmarkDao(this);
+}
+
+/// Create performance-only indexes. Not part of the schema (no
+/// [AppDatabase.schemaVersion] bump) — adding a row here is a pure
+/// query-plan optimization. Statements are `CREATE INDEX IF NOT EXISTS`
+/// so they are safe to re-run on every open and harmless on fresh DBs
+/// just initialized by `createAll`.
+///
+/// Each entry backs a known hot query path:
+/// - `sessions(folder_id)` — `SessionDao.getByFolder` runs on every
+///   sidebar render and folder click; without it every read is a full
+///   table scan against all sessions.
+/// - `folders(parent_id)` — `FolderDao.getChildren` is called inside the
+///   recursive `getDescendantIds` CTE; the index lets each recursion step
+///   resolve children in O(log n) instead of O(n).
+/// - `sftp_bookmarks(session_id)` — `SftpBookmarkDao.getForSession` runs
+///   on every SFTP pane open for a session.
+Future<void> _createPerformanceIndexes(AppDatabase db) async {
+  const statements = <String>[
+    'CREATE INDEX IF NOT EXISTS idx_sessions_folder_id '
+        'ON sessions (folder_id)',
+    'CREATE INDEX IF NOT EXISTS idx_folders_parent_id '
+        'ON folders (parent_id)',
+    'CREATE INDEX IF NOT EXISTS idx_sftp_bookmarks_session_id '
+        'ON sftp_bookmarks (session_id)',
+  ];
+  for (final sql in statements) {
+    await db.customStatement(sql);
+  }
 }

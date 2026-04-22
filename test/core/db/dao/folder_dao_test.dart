@@ -125,11 +125,55 @@ void main() {
 
     test('getDescendantIds returns full subtree', () async {
       await db.folderDao.insert(makeFolder(id: 'f1', name: 'root'));
-      await db.folderDao.insert(makeFolder(id: 'f2', name: 'a', parentId: 'f1'));
-      await db.folderDao.insert(makeFolder(id: 'f3', name: 'b', parentId: 'f2'));
+      await db.folderDao.insert(
+        makeFolder(id: 'f2', name: 'a', parentId: 'f1'),
+      );
+      await db.folderDao.insert(
+        makeFolder(id: 'f3', name: 'b', parentId: 'f2'),
+      );
 
       final ids = await db.folderDao.getDescendantIds('f1');
       expect(ids, containsAll(['f1', 'f2', 'f3']));
+    });
+
+    test('getDescendantIds walks deep linear chain', () async {
+      // Guards the recursive-CTE rewrite: the previous implementation
+      // issued one query per level, so a 20-deep chain was 20 round-trips.
+      for (var i = 0; i < 20; i++) {
+        await db.folderDao.insert(
+          makeFolder(
+            id: 'd$i',
+            name: 'n$i',
+            parentId: i == 0 ? null : 'd${i - 1}',
+          ),
+        );
+      }
+
+      final ids = await db.folderDao.getDescendantIds('d0');
+      expect(ids, hasLength(20));
+      expect(ids, contains('d19'));
+    });
+
+    test('getDescendantIds returns only the node for a leaf', () async {
+      await db.folderDao.insert(makeFolder(id: 'f1', name: 'solo'));
+      expect(await db.folderDao.getDescendantIds('f1'), ['f1']);
+    });
+
+    test('getDescendantIds returns empty for missing folder', () async {
+      expect(await db.folderDao.getDescendantIds('nope'), isEmpty);
+    });
+
+    test('getDescendantIds covers a wide fan-out', () async {
+      await db.folderDao.insert(makeFolder(id: 'root', name: 'r'));
+      for (var i = 0; i < 10; i++) {
+        await db.folderDao.insert(
+          makeFolder(id: 'c$i', name: 'c$i', parentId: 'root'),
+        );
+      }
+      final ids = await db.folderDao.getDescendantIds('root');
+      expect(ids, hasLength(11));
+      expect(ids, contains('root'));
+      expect(ids, contains('c9'));
     });
   });
 }

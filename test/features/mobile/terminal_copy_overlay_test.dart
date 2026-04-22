@@ -16,6 +16,19 @@ Widget _app(Widget child) {
   );
 }
 
+TerminalCopyOverlay _buildOverlay({
+  required Terminal terminal,
+  required TerminalController controller,
+  Key? key,
+}) => TerminalCopyOverlay(
+  key: key,
+  terminal: terminal,
+  controller: controller,
+  fontSize: 14,
+  fontFamily: AppFonts.monoFamily,
+  fontFamilyFallback: AppFonts.monoFallback,
+);
+
 void main() {
   group('TerminalCopyOverlay — lifecycle', () {
     testWidgets('suspends pointer input on mount and restores on dispose', (
@@ -25,17 +38,7 @@ void main() {
       final controller = TerminalController();
 
       await tester.pumpWidget(
-        _app(
-          TerminalCopyOverlay(
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
-          ),
-        ),
+        _app(_buildOverlay(terminal: terminal, controller: controller)),
       );
 
       expect(controller.suspendedPointerInputs, isTrue);
@@ -54,70 +57,10 @@ void main() {
       expect(controller.selection, isNotNull);
 
       await tester.pumpWidget(
-        _app(
-          TerminalCopyOverlay(
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
-          ),
-        ),
+        _app(_buildOverlay(terminal: terminal, controller: controller)),
       );
 
       expect(controller.selection, isNull);
-    });
-  });
-
-  group('TerminalCopyOverlay — toolbar actions', () {
-    testWidgets('tapping Copy button fires onCopy', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-      var fired = 0;
-
-      await tester.pumpWidget(
-        _app(
-          TerminalCopyOverlay(
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () => fired++,
-            onCancel: () {},
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Copy'));
-      await tester.pump();
-      expect(fired, 1);
-    });
-
-    testWidgets('tapping Cancel button fires onCancel', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-      var fired = 0;
-
-      await tester.pumpWidget(
-        _app(
-          TerminalCopyOverlay(
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () => fired++,
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      expect(fired, 1);
     });
   });
 
@@ -132,28 +75,20 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
-            key: key,
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
-          ),
+          _buildOverlay(terminal: terminal, controller: controller, key: key),
         ),
       );
 
-      // Before first anchor-down, selection is empty.
+      // Before first anchor-down, selection is empty and `anchorSet` is
+      // false — parent uses it to swap the hint copy in the Column layout.
       expect(controller.selection, isNull);
+      expect(key.currentState!.anchorSet, isFalse);
 
       key.currentState!.onAnchorDown();
       await tester.pump();
 
-      // Anchor + extent are both at the cursor, so the range is zero-
-      // width but the controller reports a non-null selection.
       expect(controller.selection, isNotNull);
+      expect(key.currentState!.anchorSet, isTrue);
     });
 
     testWidgets('onAnchorDown is idempotent after the first call', (
@@ -165,16 +100,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
-            key: key,
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
-          ),
+          _buildOverlay(terminal: terminal, controller: controller, key: key),
         ),
       );
 
@@ -198,16 +124,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
-            key: key,
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
-          ),
+          _buildOverlay(terminal: terminal, controller: controller, key: key),
         ),
       );
 
@@ -220,6 +137,37 @@ void main() {
 
       final sel = controller.selection!;
       expect(sel.end.x, greaterThan(sel.begin.x));
+    });
+  });
+
+  group('CopyModeHint + CopyModeToolbar — Column placement helpers', () {
+    testWidgets(
+      'hint copy swaps between tap-to-start and extending once anchor is set',
+      (tester) async {
+        await tester.pumpWidget(_app(const CopyModeHint(anchorSet: false)));
+        final ctx = tester.element(find.byType(CopyModeHint));
+        expect(find.text(S.of(ctx).copyModeTapToStart), findsOneWidget);
+
+        await tester.pumpWidget(_app(const CopyModeHint(anchorSet: true)));
+        expect(find.text(S.of(ctx).copyModeExtending), findsOneWidget);
+      },
+    );
+
+    testWidgets('toolbar Copy + Cancel fire the right callbacks', (
+      tester,
+    ) async {
+      var copy = 0;
+      var cancel = 0;
+      await tester.pumpWidget(
+        _app(CopyModeToolbar(onCopy: () => copy++, onCancel: () => cancel++)),
+      );
+      await tester.tap(find.text('Copy'));
+      await tester.pump();
+      expect(copy, 1);
+      expect(cancel, 0);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      expect(cancel, 1);
     });
   });
 }

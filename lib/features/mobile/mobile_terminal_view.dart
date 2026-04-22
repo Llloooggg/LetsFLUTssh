@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -325,39 +324,37 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _fontSize = configFontSize;
     }
 
-    // Always render TerminalView — progress log and errors are written
-    // directly into the terminal buffer via ANSI codes.
-    //
-    // Stack layout: terminal is bottom-bounded by the keyboard bar +
-    // (when visible) the system keyboard, so the cursor line never
-    // slips under either one.
+    // Column layout: top hint (copy mode only) → terminal → copy-mode
+    // toolbar → SSH keyboard bar. Every strip except the terminal area
+    // takes its natural height, so the terminal actually *shrinks* by
+    // the height of the hint + toolbar instead of having them float on
+    // top of its last rendered row. The `viewInsets` bottom padding
+    // pushes the whole column up so the keyboard bar sits flush against
+    // the soft keyboard — no more phantom gap between the last terminal
+    // row and the bar.
     final mq = MediaQuery.of(context);
-    final rawInset = mq.viewInsets.bottom;
-    final bottomGap = AppTheme.itemHeightXl + mq.viewPadding.bottom;
-    final keyboardInset = math.max(0.0, rawInset - bottomGap);
-    final terminalBottom = AppTheme.itemHeightXl + keyboardInset;
-    return Stack(
-      children: [
-        Positioned(
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: terminalBottom,
-          child: _buildTerminalArea(),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: keyboardInset,
-          child: SshKeyboardBar(
+    final anchorSet =
+        _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: Column(
+        children: [
+          if (_copyMode) CopyModeHint(anchorSet: anchorSet),
+          Expanded(child: _buildTerminalArea()),
+          if (_copyMode)
+            CopyModeToolbar(
+              onCopy: _copyFromOverlay,
+              onCancel: _cancelCopyMode,
+            ),
+          SshKeyboardBar(
             key: _keyboardKey,
             onInput: _onKeyboardInput,
             onPaste: _paste,
             onSnippets: _showSnippets,
             onCopyModeChanged: _onCopyModeChanged,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -408,8 +405,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 fontSize: _fontSize,
                 fontFamily: AppFonts.monoFamily,
                 fontFamilyFallback: AppFonts.monoFallback,
-                onCopy: _copyFromOverlay,
-                onCancel: _cancelCopyMode,
               ),
             ),
         ],

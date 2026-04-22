@@ -35,8 +35,6 @@ class TerminalCopyOverlay extends StatefulWidget {
     required this.fontSize,
     required this.fontFamily,
     required this.fontFamilyFallback,
-    required this.onCopy,
-    required this.onCancel,
     this.padding = const EdgeInsets.all(4),
   });
 
@@ -45,8 +43,6 @@ class TerminalCopyOverlay extends StatefulWidget {
   final double fontSize;
   final String fontFamily;
   final List<String> fontFamilyFallback;
-  final VoidCallback onCopy;
-  final VoidCallback onCancel;
   final EdgeInsets padding;
 
   @override
@@ -182,45 +178,36 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     );
   }
 
+  /// True after the first [onAnchorDown] — surfaced so the parent can
+  /// swap between "Tap to mark start" and "Tap to extend" hint copy in
+  /// the top hint bar that now lives above the terminal in the mobile
+  /// Column layout.
+  bool get anchorSet => _anchorX != null;
+
   @override
   Widget build(BuildContext context) {
     final cell = _measureCellSize();
     final x = _cursorX * cell.width + widget.padding.left;
     final y = _cursorY * cell.height + widget.padding.top;
-    // The cursor marker and hint banner must not intercept pointer
-    // events — the enclosing `MobileTerminalView` listens on the whole
-    // terminal area for cursor-pan deltas, and a non-translucent widget
-    // above the terminal would swallow those events. The toolbar, in
-    // contrast, *needs* taps to route to Copy / Cancel, so it lives
-    // outside the `IgnorePointer`.
-    return Stack(
-      children: [
-        IgnorePointer(
-          child: Stack(
-            children: [
-              Positioned(
-                left: x,
-                top: y,
-                width: cell.width,
-                height: cell.height,
-                child: const _CursorMarker(),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                child: _CopyHint(anchorSet: _anchorX != null),
-              ),
-            ],
+    // Cursor marker only. The hint banner and Copy/Cancel toolbar moved
+    // out to `MobileTerminalView`'s Column so they shrink the terminal
+    // instead of floating over its last row (covering the active line
+    // is unusable on a 400 px-tall phone viewport). Pointer events on
+    // the cursor must not be intercepted: the enclosing Listener reads
+    // cursor-pan deltas via `onCursorPan`, and an opaque widget on top
+    // would swallow them.
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            left: x,
+            top: y,
+            width: cell.width,
+            height: cell.height,
+            child: const _CursorMarker(),
           ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _CopyToolbar(onCopy: widget.onCopy, onCancel: widget.onCancel),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -239,8 +226,13 @@ class _CursorMarker extends StatelessWidget {
   }
 }
 
-class _CopyHint extends StatelessWidget {
-  const _CopyHint({required this.anchorSet});
+/// Copy-mode hint banner rendered *above* the terminal in the mobile
+/// Column layout so it pushes the terminal down instead of overlaying
+/// its last row. Swaps between "tap to mark start" and "tap to extend"
+/// copy once the user drops an anchor.
+class CopyModeHint extends StatelessWidget {
+  const CopyModeHint({super.key, required this.anchorSet});
+
   final bool anchorSet;
 
   @override
@@ -250,7 +242,7 @@ class _CopyHint extends StatelessWidget {
     return Container(
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      color: AppTheme.bg3.withValues(alpha: 0.85),
+      color: AppTheme.bg3,
       child: Text(
         text,
         style: TextStyle(
@@ -263,31 +255,37 @@ class _CopyHint extends StatelessWidget {
   }
 }
 
-class _CopyToolbar extends StatelessWidget {
-  const _CopyToolbar({required this.onCopy, required this.onCancel});
+/// Copy-mode action bar (Copy + Cancel). Lives *below* the terminal in
+/// the mobile Column layout so it shrinks the terminal viewport rather
+/// than covering it and butts flush against the SSH keyboard bar / soft
+/// keyboard underneath.
+class CopyModeToolbar extends StatelessWidget {
+  const CopyModeToolbar({
+    super.key,
+    required this.onCopy,
+    required this.onCancel,
+  });
+
   final VoidCallback onCopy;
   final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return IgnorePointer(
-      ignoring: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.bg3.withValues(alpha: 0.92),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _ToolbarButton(icon: Icons.copy, label: l10n.copy, onTap: onCopy),
-            const SizedBox(width: 16),
-            _ToolbarButton(
-              icon: Icons.close,
-              label: l10n.cancel,
-              onTap: onCancel,
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: AppTheme.bg3,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _ToolbarButton(icon: Icons.copy, label: l10n.copy, onTap: onCopy),
+          const SizedBox(width: 16),
+          _ToolbarButton(
+            icon: Icons.close,
+            label: l10n.cancel,
+            onTap: onCancel,
+          ),
+        ],
       ),
     );
   }
