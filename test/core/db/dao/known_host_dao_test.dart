@@ -54,7 +54,12 @@ void main() {
 
     test('exportToString produces OpenSSH format', () async {
       await db.knownHostDao.insert(
-        makeEntry(host: 'a.io', port: 22, keyType: 'ssh-rsa', keyBase64: 'KEY1'),
+        makeEntry(
+          host: 'a.io',
+          port: 22,
+          keyType: 'ssh-rsa',
+          keyBase64: 'KEY1',
+        ),
       );
       await db.knownHostDao.insert(
         makeEntry(
@@ -97,6 +102,62 @@ b.io:22 ssh-ed25519 KEY2
 ''';
       final added = await db.knownHostDao.importFromString(content);
       expect(added, 2);
+    });
+
+    test('deleteById returns 1 on hit and 0 on miss', () async {
+      // The dao method is used by the Settings known-hosts manager
+      // to action individual row deletes; it must report whether the
+      // row actually went away so the UI can refresh instead of
+      // assuming success.
+      await db.knownHostDao.insert(makeEntry(host: 'hit.io'));
+      final row = await db.knownHostDao.lookup('hit.io', 22);
+      final hit = await db.knownHostDao.deleteById(row!.id);
+      expect(hit, 1);
+      expect(await db.knownHostDao.lookup('hit.io', 22), isNull);
+
+      final miss = await db.knownHostDao.deleteById(99999);
+      expect(miss, 0);
+    });
+
+    test('deleteMultiple removes every id in the set', () async {
+      await db.knownHostDao.insert(makeEntry(host: 'a.io'));
+      await db.knownHostDao.insert(makeEntry(host: 'b.io'));
+      await db.knownHostDao.insert(makeEntry(host: 'c.io'));
+
+      final all = await db.knownHostDao.getAll();
+      final ids = {all[0].id, all[2].id};
+      final removed = await db.knownHostDao.deleteMultiple(ids);
+
+      expect(removed, 2);
+      final remaining = await db.knownHostDao.getAll();
+      expect(remaining, hasLength(1));
+      expect(remaining.single.host, 'b.io');
+    });
+
+    test(
+      'importFromString skips rows with fewer than 3 whitespace-separated tokens',
+      () async {
+        // A malformed entry (missing key data) must not count against
+        // the `added` total or insert a half-row. Pairs with the
+        // blank-line test above.
+        const content = '''
+valid.io:22 ssh-rsa KEY1
+busted
+''';
+        final added = await db.knownHostDao.importFromString(content);
+        expect(added, 1);
+        expect(await db.knownHostDao.lookup('valid.io', 22), isNotNull);
+      },
+    );
+
+    test('importFromString with a non-numeric port defaults to 22', () async {
+      // The helper is defensive — a typo'd port shouldn't orphan
+      // the entry, just fall back to the default so the row lands
+      // under the conventional ssh host/port pair.
+      const content = 'oops.io:abc ssh-rsa KEY1\n';
+      final added = await db.knownHostDao.importFromString(content);
+      expect(added, 1);
+      expect(await db.knownHostDao.lookup('oops.io', 22), isNotNull);
     });
   });
 }

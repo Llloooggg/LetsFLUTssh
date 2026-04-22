@@ -164,5 +164,163 @@ void main() {
       expect(capturedTier, SecurityTier.keychain);
       expect(capturedMods?.password, isFalse);
     });
+
+    testWidgets(
+      'paranoid card captures the typed master password when both fields match',
+      (tester) async {
+        // Paranoid is always the "master password" path. Select must
+        // pass the typed secret through [masterPassword]; the other
+        // slots stay null. A refactor that routed the typed value into
+        // the wrong field would silently store an unrecoverable DB
+        // key. This test guards that exact flow.
+        String? captured;
+        SecurityTier? capturedTier;
+        Future<void> capture({
+          required SecurityTier tier,
+          required SecurityTierModifiers modifiers,
+          String? shortPassword,
+          String? pin,
+          String? masterPassword,
+        }) async {
+          capturedTier = tier;
+          captured = masterPassword;
+        }
+
+        await tester.pumpWidget(
+          _wrap(
+            ExpandableTierCard(
+              tier: SecurityTier.paranoid,
+              currentTier: SecurityTier.plaintext,
+              currentModifiers: const SecurityTierModifiers(),
+              tierAvailable: true,
+              initiallyExpanded: true,
+              onSelect: capture,
+            ),
+          ),
+        );
+
+        final textFields = find.byType(TextField);
+        expect(textFields, findsNWidgets(2));
+        await tester.enterText(textFields.at(0), 'correct horse battery');
+        await tester.enterText(textFields.at(1), 'correct horse battery');
+        await tester.pump();
+
+        final l10n = S.of(tester.element(find.byType(ExpandableTierCard)));
+        await tester.tap(find.text(l10n.securitySetupApply));
+        await tester.pump();
+        await tester.pump();
+        expect(capturedTier, SecurityTier.paranoid);
+        expect(captured, 'correct horse battery');
+      },
+    );
+
+    testWidgets(
+      'paranoid card with mismatched confirmation keeps Apply disabled',
+      (tester) async {
+        // `_inputsReady` gate — the Select callback must NOT fire
+        // until primary + confirm agree. Prevents the "typed the
+        // password twice differently" foot-gun.
+        var calls = 0;
+        Future<void> capture({
+          required SecurityTier tier,
+          required SecurityTierModifiers modifiers,
+          String? shortPassword,
+          String? pin,
+          String? masterPassword,
+        }) async {
+          calls++;
+        }
+
+        await tester.pumpWidget(
+          _wrap(
+            ExpandableTierCard(
+              tier: SecurityTier.paranoid,
+              currentTier: SecurityTier.plaintext,
+              currentModifiers: const SecurityTierModifiers(),
+              tierAvailable: true,
+              initiallyExpanded: true,
+              onSelect: capture,
+            ),
+          ),
+        );
+
+        final textFields = find.byType(TextField);
+        await tester.enterText(textFields.at(0), 'left-hand');
+        await tester.enterText(textFields.at(1), 'right-hand');
+        await tester.pump();
+
+        final l10n = S.of(tester.element(find.byType(ExpandableTierCard)));
+        await tester.tap(find.text(l10n.securitySetupApply));
+        await tester.pump();
+        expect(calls, 0);
+      },
+    );
+
+    testWidgets(
+      'T1 card with password toggle off selects the plain keychain tier',
+      (tester) async {
+        SecurityTier? capturedTier;
+        String? capturedShort;
+        Future<void> capture({
+          required SecurityTier tier,
+          required SecurityTierModifiers modifiers,
+          String? shortPassword,
+          String? pin,
+          String? masterPassword,
+        }) async {
+          capturedTier = tier;
+          capturedShort = shortPassword;
+        }
+
+        await tester.pumpWidget(
+          _wrap(
+            ExpandableTierCard(
+              tier: SecurityTier.keychain,
+              currentTier: SecurityTier.plaintext,
+              currentModifiers: const SecurityTierModifiers(),
+              tierAvailable: true,
+              initiallyExpanded: true,
+              onSelect: capture,
+            ),
+          ),
+        );
+        final l10n = S.of(tester.element(find.byType(ExpandableTierCard)));
+        await tester.tap(find.text(l10n.securitySetupApply));
+        await tester.pump();
+        await tester.pump();
+        expect(capturedTier, SecurityTier.keychain);
+        expect(
+          capturedShort,
+          isNull,
+          reason: 'password modifier off → shortPassword stays null',
+        );
+      },
+    );
+
+    testWidgets(
+      'currentTier that matches the card locks Apply to "Current" badge',
+      (tester) async {
+        // Already-applied config must disable Select so the user does
+        // not accidentally re-run a no-op tier switch. The Apply
+        // button is still present (shared visual) but its onTap is
+        // null — the Current badge is the active affordance.
+        await tester.pumpWidget(
+          _wrap(
+            const ExpandableTierCard(
+              tier: SecurityTier.plaintext,
+              currentTier: SecurityTier.plaintext,
+              currentModifiers: SecurityTierModifiers(),
+              tierAvailable: true,
+              initiallyExpanded: true,
+              onSelect: _noop,
+            ),
+          ),
+        );
+        final button = tester.widget<AppButton>(
+          find.byWidgetPredicate((w) => w is AppButton),
+        );
+        expect(button.onTap, isNull);
+      },
+    );
   });
 }

@@ -75,6 +75,22 @@ class _CancelledBiometricAuth extends BiometricAuth {
   Future<bool> authenticate(String reason) async => false;
 }
 
+class _CountingCancelledAuth extends BiometricAuth {
+  int authenticateCalls = 0;
+
+  @override
+  Future<bool> isAvailable() async => true;
+
+  @override
+  Future<BiometricAvailability> availability() async => null;
+
+  @override
+  Future<bool> authenticate(String reason) async {
+    authenticateCalls++;
+    return false;
+  }
+}
+
 void main() {
   late Directory tempDir;
   late MasterPasswordManager manager;
@@ -356,6 +372,129 @@ void main() {
       expect(find.byIcon(Icons.fingerprint), findsOneWidget);
       // Cancellation surfaces as a visible error, not silent.
       expect(find.text('Biometric unlock cancelled.'), findsOneWidget);
+    });
+
+    testWidgets(
+      'autoTriggerBiometric: false skips the prompt but still probes availability',
+      (tester) async {
+        // The dialog must NOT re-fire the platform prompt when the
+        // caller signals it already tried biometric once (main.dart
+        // path). `_probeBiometricOffered` still runs so the retry
+        // button stays visible — otherwise users whose first probe
+        // was cancelled would lose the retry affordance.
+        final cachedKey = Uint8List.fromList(List.filled(32, 9));
+        final auth = _OkBiometricAuth();
+        final stub = _StubMasterPasswordManager(
+          basePath: tempDir.path,
+          acceptPassword: false,
+        );
+
+        await tester.pumpWidget(
+          buildApp(
+            onPressed: (ctx) {
+              UnlockDialog.show(
+                ctx,
+                manager: stub,
+                autoTriggerBiometric: false,
+              );
+            },
+            overrides: [
+              biometricKeyVaultProvider.overrideWithValue(
+                _StashedBiometricVault(cachedKey),
+              ),
+              biometricAuthProvider.overrideWithValue(auth),
+            ],
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(
+          auth.authenticateCalls,
+          0,
+          reason: 'autoTrigger=false must not call authenticate()',
+        );
+        expect(find.text('Master Password'), findsOneWidget);
+        expect(
+          find.byIcon(Icons.fingerprint),
+          findsOneWidget,
+          reason: 'retry button stays visible after the no-trigger probe',
+        );
+      },
+    );
+
+    testWidgets(
+      'biometric retry button re-runs the prompt after cancellation',
+      (tester) async {
+        final cachedKey = Uint8List.fromList(List.filled(32, 9));
+        final auth = _CountingCancelledAuth();
+        final stub = _StubMasterPasswordManager(
+          basePath: tempDir.path,
+          acceptPassword: false,
+        );
+
+        await tester.pumpWidget(
+          buildApp(
+            onPressed: (ctx) {
+              UnlockDialog.show(ctx, manager: stub);
+            },
+            overrides: [
+              biometricKeyVaultProvider.overrideWithValue(
+                _StashedBiometricVault(cachedKey),
+              ),
+              biometricAuthProvider.overrideWithValue(auth),
+            ],
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(
+          auth.authenticateCalls,
+          1,
+          reason: 'first auto-fire counts as one call',
+        );
+
+        await tester.tap(find.byIcon(Icons.fingerprint));
+        await tester.pumpAndSettle();
+
+        expect(
+          auth.authenticateCalls,
+          2,
+          reason: 'retry tap must re-arm + re-fire the prompt',
+        );
+      },
+    );
+
+    testWidgets('biometric availability probe failure hides the retry button', (
+      tester,
+    ) async {
+      // When platform reports "no biometrics" (`isAvailable` = false),
+      // the dialog must not offer retry — clicking retry would loop
+      // back through the same failing probe forever.
+      final cachedKey = Uint8List.fromList(List.filled(32, 9));
+      final stub = _StubMasterPasswordManager(
+        basePath: tempDir.path,
+        acceptPassword: false,
+      );
+
+      await tester.pumpWidget(
+        buildApp(
+          onPressed: (ctx) {
+            UnlockDialog.show(ctx, manager: stub, autoTriggerBiometric: false);
+          },
+          overrides: [
+            biometricKeyVaultProvider.overrideWithValue(
+              _StashedBiometricVault(cachedKey),
+            ),
+            biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+          ],
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.fingerprint), findsNothing);
     });
   });
 

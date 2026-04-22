@@ -65,6 +65,57 @@ class _NoBiometricAuth extends BiometricAuth {
   Future<bool> authenticate(String reason) async => false;
 }
 
+class _StashedBiometricVault extends BiometricKeyVault {
+  _StashedBiometricVault(this.key);
+  final Uint8List key;
+
+  @override
+  Future<bool> isStored() async => true;
+
+  @override
+  Future<Uint8List?> read() async => key;
+}
+
+class _OkBiometricAuth extends BiometricAuth {
+  int authenticateCalls = 0;
+
+  @override
+  Future<bool> isAvailable() async => true;
+
+  @override
+  Future<BiometricAvailability> availability() async => null;
+
+  @override
+  Future<bool> authenticate(String reason) async {
+    authenticateCalls++;
+    return true;
+  }
+}
+
+class _CancelledBiometricAuth extends BiometricAuth {
+  int authenticateCalls = 0;
+
+  @override
+  Future<bool> isAvailable() async => true;
+
+  @override
+  Future<BiometricAvailability> availability() async => null;
+
+  @override
+  Future<bool> authenticate(String reason) async {
+    authenticateCalls++;
+    return false;
+  }
+}
+
+class _NullReadBiometricVault extends BiometricKeyVault {
+  @override
+  Future<bool> isStored() async => true;
+
+  @override
+  Future<Uint8List?> read() async => null;
+}
+
 void main() {
   // Use an all-zero key — content doesn't matter for the contract, only
   // that the right bytes reach securityStateProvider.
@@ -212,4 +263,165 @@ void main() {
       expect(container.read(lockStateProvider), true);
     },
   );
+
+  testWidgets('biometric auto-unlock releases the lock with the cached key', (
+    tester,
+  ) async {
+    // Lock screen auto-fires biometric prompt on first frame (see
+    // _tryBiometric in initState). When vault + platform both
+    // succeed, the screen must flip to unlocked without the user
+    // typing anything.
+    final mp = _FakeMasterPassword(expectedPassword: 'x', keyBytes: zeroKey);
+    final cachedKey = Uint8List.fromList(List.filled(32, 3));
+    final auth = _OkBiometricAuth();
+    final container = ProviderContainer(
+      overrides: [
+        masterPasswordProvider.overrideWithValue(mp),
+        biometricKeyVaultProvider.overrideWithValue(
+          _StashedBiometricVault(cachedKey),
+        ),
+        biometricAuthProvider.overrideWithValue(auth),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(lockStateProvider.notifier).lock();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(body: LockScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(auth.authenticateCalls, 1);
+    expect(container.read(lockStateProvider), false);
+    expect(
+      container.read(securityStateProvider).encryptionKey,
+      equals(cachedKey),
+    );
+  });
+
+  testWidgets('cancelled biometric keeps the lock + surfaces the error label', (
+    tester,
+  ) async {
+    final mp = _FakeMasterPassword(expectedPassword: 'x', keyBytes: zeroKey);
+    final cachedKey = Uint8List.fromList(List.filled(32, 4));
+    final auth = _CancelledBiometricAuth();
+    final container = ProviderContainer(
+      overrides: [
+        masterPasswordProvider.overrideWithValue(mp),
+        biometricKeyVaultProvider.overrideWithValue(
+          _StashedBiometricVault(cachedKey),
+        ),
+        biometricAuthProvider.overrideWithValue(auth),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(lockStateProvider.notifier).lock();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(body: LockScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(auth.authenticateCalls, 1);
+    expect(container.read(lockStateProvider), true);
+
+    final l10n = await S.delegate.load(const Locale('en'));
+    expect(find.text(l10n.biometricUnlockCancelled), findsOneWidget);
+    // Retry button stays visible on cancel — the user-facing story
+    // is "try again" not "type the password".
+    expect(find.byIcon(Icons.fingerprint), findsOneWidget);
+  });
+
+  testWidgets(
+    'biometric prompt succeeds but vault read returns null → failure label',
+    (tester) async {
+      // `BiometricKeyVault.read` can return null even after a successful
+      // prompt — for example Apple's `biometryCurrentSet` invalidation
+      // after re-enrolment. The lock screen has to surface that as a
+      // visible failure (distinct from a user cancellation) instead of
+      // silently staying locked.
+      final mp = _FakeMasterPassword(expectedPassword: 'x', keyBytes: zeroKey);
+      final auth = _OkBiometricAuth();
+      final container = ProviderContainer(
+        overrides: [
+          masterPasswordProvider.overrideWithValue(mp),
+          biometricKeyVaultProvider.overrideWithValue(
+            _NullReadBiometricVault(),
+          ),
+          biometricAuthProvider.overrideWithValue(auth),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(lockStateProvider.notifier).lock();
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: Scaffold(body: LockScreen()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(auth.authenticateCalls, 1);
+      expect(container.read(lockStateProvider), true);
+
+      final l10n = await S.delegate.load(const Locale('en'));
+      expect(find.text(l10n.biometricUnlockFailed), findsOneWidget);
+    },
+  );
+
+  testWidgets('biometric retry button re-runs the prompt after cancellation', (
+    tester,
+  ) async {
+    final mp = _FakeMasterPassword(expectedPassword: 'x', keyBytes: zeroKey);
+    final cachedKey = Uint8List.fromList(List.filled(32, 4));
+    final auth = _CancelledBiometricAuth();
+    final container = ProviderContainer(
+      overrides: [
+        masterPasswordProvider.overrideWithValue(mp),
+        biometricKeyVaultProvider.overrideWithValue(
+          _StashedBiometricVault(cachedKey),
+        ),
+        biometricAuthProvider.overrideWithValue(auth),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(lockStateProvider.notifier).lock();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(body: LockScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // One call from auto-trigger, second from the manual retry.
+    expect(auth.authenticateCalls, 1);
+    await tester.tap(find.byIcon(Icons.fingerprint));
+    await tester.pumpAndSettle();
+    expect(auth.authenticateCalls, 2);
+  });
 }

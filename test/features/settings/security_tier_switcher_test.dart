@@ -109,6 +109,67 @@ void main() {
       expect(rekeyCalls, 1);
     });
 
+    test('rekey failure leaves the marker behind for crash recovery', () async {
+      // Mirror of the "applyWrapper failure" test above, but with
+      // the failure injected in step 3 (the rekey itself). The
+      // marker policy is identical: it must survive so startup can
+      // see the pending transition and recover.
+      final failSwitcher = SecurityTierSwitcher(
+        markerFileFactory: () async =>
+            File('${tempDir.path}/.tier-transition-pending-rekey-fail'),
+        keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
+        rekey: (_, _) async => throw StateError('PRAGMA rekey failed'),
+      );
+      var wrapCalls = 0;
+      await expectLater(
+        failSwitcher.switchTier(
+          db: db,
+          targetMarkerPayload: '{"tier":"rekey-victim"}',
+          applyWrapper: (_) async => wrapCalls++,
+          persistConfig: (_) async {},
+          clearPrevious: () async {},
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(wrapCalls, 0, reason: 'wrapper must not run after rekey fails');
+      expect(
+        await failSwitcher.readPendingMarker(),
+        '{"tier":"rekey-victim"}',
+        reason: 'marker survives a rekey failure for later recovery',
+      );
+    });
+
+    test(
+      'readPendingMarker returns null when the marker factory throws',
+      () async {
+        // The catch-and-log branch exists so a filesystem error on
+        // startup (permission denied, volume unmounted) does not
+        // crash before we even reach the UI. Simulating that requires
+        // a factory that raises — the expected contract is "null, no
+        // throw".
+        final raisingSwitcher = SecurityTierSwitcher(
+          markerFileFactory: () async => throw StateError('disk mount gone'),
+          keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
+          rekey: (_, _) async {},
+        );
+        expect(await raisingSwitcher.readPendingMarker(), isNull);
+      },
+    );
+
+    test(
+      'clearMarker swallows factory errors instead of blowing up callers',
+      () async {
+        final raisingSwitcher = SecurityTierSwitcher(
+          markerFileFactory: () async => throw StateError('disk mount gone'),
+          keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
+          rekey: (_, _) async {},
+        );
+        // Must not throw — the dangling-marker log write is
+        // best-effort; the boot path has to keep moving.
+        await raisingSwitcher.clearMarker();
+      },
+    );
+
     test(
       '25 (src,dst) pairs each orchestrate marker + rekey + callbacks',
       () async {
