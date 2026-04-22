@@ -219,6 +219,12 @@ abstract class S {
   /// **'Copy'**
   String get copy;
 
+  /// No description provided for @cut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get cut;
+
   /// No description provided for @paste.
   ///
   /// In en, this message translates to:

@@ -57,6 +57,9 @@ class SZh extends S {
   String get copy => '复制';
 
   @override
+  String get cut => '剪切';
+
+  @override
   String get paste => '粘贴';
 
   @override

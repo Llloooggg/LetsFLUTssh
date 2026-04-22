@@ -16,6 +16,7 @@
   "create": "Buat",
   "back": "Kembali",
   "copy": "Salin",
+  "cut": "Potong",
   "paste": "Tempel",
   "select": "Pilih",
   "copyModeTapToStart": "Sentuh untuk menandai awal pilihan",

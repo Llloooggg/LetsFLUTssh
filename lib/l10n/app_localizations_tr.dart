@@ -57,6 +57,9 @@ class STr extends S {
   String get copy => 'Kopyala';
 
   @override
+  String get cut => 'Kes';
+
+  @override
   String get paste => 'Yapıştır';
 
   @override

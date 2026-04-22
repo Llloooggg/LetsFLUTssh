@@ -57,6 +57,9 @@ class SPt extends S {
   String get copy => 'Copiar';
 
   @override
+  String get cut => 'Recortar';
+
+  @override
   String get paste => 'Colar';
 
   @override

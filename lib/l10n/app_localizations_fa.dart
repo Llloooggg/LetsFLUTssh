@@ -57,6 +57,9 @@ class SFa extends S {
   String get copy => 'کپی';
 
   @override
+  String get cut => 'برش';
+
+  @override
   String get paste => 'جای‌گذاری';
 
   @override

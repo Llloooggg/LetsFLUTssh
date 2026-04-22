@@ -57,6 +57,9 @@ class SKo extends S {
   String get copy => '복사';
 
   @override
+  String get cut => '잘라내기';
+
+  @override
   String get paste => '붙여넣기';
 
   @override

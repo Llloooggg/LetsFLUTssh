@@ -16,6 +16,7 @@
   "create": "Criar",
   "back": "Voltar",
   "copy": "Copiar",
+  "cut": "Recortar",
   "paste": "Colar",
   "select": "Selecionar",
   "copyModeTapToStart": "Toque para marcar o início da seleção",

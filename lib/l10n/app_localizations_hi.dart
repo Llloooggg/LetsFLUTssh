@@ -57,6 +57,9 @@ class SHi extends S {
   String get copy => 'कॉपी करें';
 
   @override
+  String get cut => 'कट करें';
+
+  @override
   String get paste => 'पेस्ट करें';
 
   @override

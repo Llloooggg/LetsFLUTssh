@@ -16,6 +16,7 @@
   "create": "Create",
   "back": "Back",
   "copy": "Copy",
+  "cut": "Cut",
   "paste": "Paste",
   "select": "Select",
   "copyModeTapToStart": "Touch to mark selection start",

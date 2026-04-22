@@ -16,6 +16,7 @@
   "create": "إنشاء",
   "back": "رجوع",
   "copy": "نسخ",
+  "cut": "قص",
   "paste": "لصق",
   "select": "تحديد",
   "copyModeTapToStart": "المس لتحديد بداية التحديد",

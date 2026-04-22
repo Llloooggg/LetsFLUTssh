@@ -57,6 +57,9 @@ class SVi extends S {
   String get copy => 'Sao chép';
 
   @override
+  String get cut => 'Cắt';
+
+  @override
   String get paste => 'Dán';
 
   @override

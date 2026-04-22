@@ -57,6 +57,9 @@ class SId extends S {
   String get copy => 'Salin';
 
   @override
+  String get cut => 'Potong';
+
+  @override
   String get paste => 'Tempel';
 
   @override

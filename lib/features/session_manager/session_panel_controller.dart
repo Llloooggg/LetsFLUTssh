@@ -155,11 +155,7 @@ class SessionPanelController extends ChangeNotifier {
 
   void copyFocused() {
     if (_focusedSessionId == null) return;
-    _copiedSessionId = _focusedSessionId;
-    _cutPending = false;
-    // Clipboard is invisible — no listener update needed, but keep
-    // semantics consistent by signalling anyway.
-    notifyListeners();
+    copySessionId(_focusedSessionId!);
   }
 
   /// Mark the focused session for cut — a subsequent paste moves the
@@ -167,7 +163,21 @@ class SessionPanelController extends ChangeNotifier {
   /// is one-shot; paste consumes it and clears the clipboard.
   void cutFocused() {
     if (_focusedSessionId == null) return;
-    _copiedSessionId = _focusedSessionId;
+    cutSessionId(_focusedSessionId!);
+  }
+
+  /// Copy [id] directly into the clipboard — used by the right-click
+  /// context menu, which targets the row under the cursor rather than
+  /// the currently focused row.
+  void copySessionId(String id) {
+    _copiedSessionId = id;
+    _cutPending = false;
+    notifyListeners();
+  }
+
+  /// Mark [id] for cut — same rationale as [copySessionId].
+  void cutSessionId(String id) {
+    _copiedSessionId = id;
     _cutPending = true;
     notifyListeners();
   }

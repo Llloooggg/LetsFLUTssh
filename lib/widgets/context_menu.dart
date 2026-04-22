@@ -50,6 +50,7 @@ class ContextMenuItem {
 /// translated label everywhere the action is reused.
 enum StandardMenuAction {
   copy,
+  cut,
   paste,
   delete,
   rename,
@@ -111,6 +112,8 @@ _MenuActionSpec _specFor(StandardMenuAction a) {
   switch (a) {
     case StandardMenuAction.copy:
       return _MenuActionSpec(label: (l) => l.copy, icon: Icons.copy);
+    case StandardMenuAction.cut:
+      return _MenuActionSpec(label: (l) => l.cut, icon: Icons.content_cut);
     case StandardMenuAction.paste:
       return _MenuActionSpec(label: (l) => l.paste, icon: Icons.paste);
     case StandardMenuAction.delete:

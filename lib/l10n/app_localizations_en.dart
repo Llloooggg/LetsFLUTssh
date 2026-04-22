@@ -57,6 +57,9 @@ class SEn extends S {
   String get copy => 'Copy';
 
   @override
+  String get cut => 'Cut';
+
+  @override
   String get paste => 'Paste';
 
   @override

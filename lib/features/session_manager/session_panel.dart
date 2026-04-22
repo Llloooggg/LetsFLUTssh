@@ -228,11 +228,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// moves the original into the same target. The rule matches
   /// standard file-manager paste: paste lands where the user is
   /// pointing, not where the source still lives.
+  ///
+  /// [explicitTarget] overrides the focus-derived target — used by the
+  /// folder-row context menu, which pastes into the right-clicked
+  /// folder regardless of what is currently focused.
   @visibleForTesting
-  void pasteCopiedSession() {
+  void pasteCopiedSession({String? explicitTarget}) {
     final id = _ctrl.copiedSessionId;
     if (id == null) return;
-    final target = _resolvePasteTargetFolder();
+    final target = explicitTarget ?? _resolvePasteTargetFolder();
     if (_ctrl.cutPending) {
       ref.read(sessionProvider.notifier).moveSession(id, target);
       _ctrl.clearClipboard();
@@ -536,6 +540,26 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             onTap: () => widget.onSftpConnect?.call(session),
           ),
         const ContextMenuItem.divider(),
+        StandardMenuAction.copy.item(
+          context,
+          shortcut: AppShortcut.sessionCopy,
+          onTap: () => _ctrl.copySessionId(session.id),
+        ),
+        StandardMenuAction.cut.item(
+          context,
+          shortcut: AppShortcut.sessionCut,
+          onTap: () => _ctrl.cutSessionId(session.id),
+        ),
+        // Paste is always visible — matches Finder / Explorer / Nautilus,
+        // where the entry stays present and silently no-ops when the
+        // clipboard is empty. Hiding it would make the menu layout jitter
+        // between copy-then-paste actions.
+        StandardMenuAction.paste.item(
+          context,
+          shortcut: AppShortcut.sessionPaste,
+          onTap: () => pasteCopiedSession(explicitTarget: session.folder),
+        ),
+        const ContextMenuItem.divider(),
         StandardMenuAction.editConnection.item(
           context,
           onTap: () => _editSession(context, ref, session),
@@ -759,6 +783,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         StandardMenuAction.newFolder.item(
           context,
           onTap: () => _createFolder(context, ref, folderPath),
+        ),
+        // Paste lands directly inside the right-clicked folder — the
+        // explicit target overrides the focus-derived default, so the
+        // user does not have to pre-focus the folder.
+        StandardMenuAction.paste.item(
+          context,
+          shortcut: AppShortcut.sessionPaste,
+          onTap: () => pasteCopiedSession(explicitTarget: folderPath),
         ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),

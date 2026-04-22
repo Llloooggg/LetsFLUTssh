@@ -214,6 +214,34 @@ void main() {
       c.setFocusedSession('s2');
       expect(c.copiedSessionId, 's1');
     });
+
+    test('copySessionId targets a specific row, ignoring focus', () {
+      // Right-click Copy sets the clipboard to the row under the cursor
+      // even when another row is focused — a stale focused id must not
+      // override the action the user just took on a different row.
+      final c = SessionPanelController();
+      c.setFocusedSession('focused');
+      c.copySessionId('clicked');
+      expect(c.copiedSessionId, 'clicked');
+      expect(c.cutPending, isFalse);
+    });
+
+    test('cutSessionId sets the cut flag on the specified row', () {
+      final c = SessionPanelController();
+      c.cutSessionId('s1');
+      expect(c.copiedSessionId, 's1');
+      expect(c.cutPending, isTrue);
+    });
+
+    test('copySessionId after cutSessionId clears the cut flag', () {
+      // Switching from cut → copy on a different row must not carry the
+      // cut marker over — the next paste should duplicate, not move.
+      final c = SessionPanelController();
+      c.cutSessionId('s1');
+      c.copySessionId('s2');
+      expect(c.copiedSessionId, 's2');
+      expect(c.cutPending, isFalse);
+    });
   });
 
   group('SessionPanelController — hasSelection', () {

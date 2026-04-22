@@ -16,6 +16,7 @@
   "create": "创建",
   "back": "返回",
   "copy": "复制",
+  "cut": "剪切",
   "paste": "粘贴",
   "select": "选择",
   "copyModeTapToStart": "轻触以标记选择起点",

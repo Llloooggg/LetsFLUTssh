@@ -16,6 +16,7 @@
   "create": "Oluştur",
   "back": "Geri",
   "copy": "Kopyala",
+  "cut": "Kes",
   "paste": "Yapıştır",
   "select": "Seç",
   "copyModeTapToStart": "Seçim başlangıcını işaretlemek için dokun",

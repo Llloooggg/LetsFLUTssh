@@ -57,6 +57,9 @@ class SAr extends S {
   String get copy => 'نسخ';
 
   @override
+  String get cut => 'قص';
+
+  @override
   String get paste => 'لصق';
 
   @override

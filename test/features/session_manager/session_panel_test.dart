@@ -269,6 +269,14 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
       expect(find.text('Duplicate'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
+      // Copy / Cut / Paste were added so the right-click menu matches the
+      // keyboard shortcuts (Ctrl+C/X/V) already wired on the panel —
+      // without them a user who discovered copy via the keyboard had to
+      // keep using the keyboard, which broke the "everything keyboard
+      // has, the menu has" expectation.
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('Cut'), findsOneWidget);
+      expect(find.text('Paste'), findsOneWidget);
     });
 
     testWidgets('context menu without sftp callback hides SFTP item', (
@@ -418,6 +426,12 @@ void main() {
       expect(find.text('New Folder'), findsOneWidget);
       expect(find.text('Rename Folder'), findsOneWidget);
       expect(find.text('Delete Folder'), findsOneWidget);
+      // Paste pastes directly into the right-clicked folder — it is
+      // always present so the layout does not jitter between the
+      // copy-then-paste sequence and so "paste into this folder"
+      // stays a discoverable menu action even without the keyboard
+      // shortcut scope.
+      expect(find.text('Paste'), findsOneWidget);
     });
 
     testWidgets('folder expand/collapse toggles on tap', (tester) async {

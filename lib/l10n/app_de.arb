@@ -16,6 +16,7 @@
   "create": "Erstellen",
   "back": "Zurück",
   "copy": "Kopieren",
+  "cut": "Ausschneiden",
   "paste": "Einfügen",
   "select": "Auswählen",
   "copyModeTapToStart": "Tippen, um Auswahlbeginn zu markieren",

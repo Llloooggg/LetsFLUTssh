@@ -57,6 +57,9 @@ class SDe extends S {
   String get copy => 'Kopieren';
 
   @override
+  String get cut => 'Ausschneiden';
+
+  @override
   String get paste => 'Einfügen';
 
   @override

@@ -57,6 +57,9 @@ class SEs extends S {
   String get copy => 'Copiar';
 
   @override
+  String get cut => 'Cortar';
+
+  @override
   String get paste => 'Pegar';
 
   @override

@@ -57,6 +57,9 @@ class SJa extends S {
   String get copy => 'コピー';
 
   @override
+  String get cut => '切り取り';
+
+  @override
   String get paste => '貼り付け';
 
   @override

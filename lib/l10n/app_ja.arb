@@ -16,6 +16,7 @@
   "create": "作成",
   "back": "戻る",
   "copy": "コピー",
+  "cut": "切り取り",
   "paste": "貼り付け",
   "select": "選択",
   "copyModeTapToStart": "タップして選択開始位置を指定",

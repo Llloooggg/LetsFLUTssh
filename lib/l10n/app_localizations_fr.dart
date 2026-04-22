@@ -57,6 +57,9 @@ class SFr extends S {
   String get copy => 'Copier';
 
   @override
+  String get cut => 'Couper';
+
+  @override
   String get paste => 'Coller';
 
   @override

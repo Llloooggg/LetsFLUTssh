@@ -57,6 +57,9 @@ class SRu extends S {
   String get copy => 'Копировать';
 
   @override
+  String get cut => 'Вырезать';
+
+  @override
   String get paste => 'Вставить';
 
   @override
