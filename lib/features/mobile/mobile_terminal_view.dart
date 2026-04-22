@@ -346,39 +346,101 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _fontSize = configFontSize;
     }
 
-    // Column layout: top hint (copy mode only) → terminal → copy-mode
-    // toolbar → SSH keyboard bar. Every strip except the terminal area
-    // takes its natural height, so the terminal actually *shrinks* by
-    // the height of the hint + toolbar instead of having them float on
-    // top of its last rendered row. The `viewInsets` bottom padding
-    // pushes the whole column up so the keyboard bar sits flush against
-    // the soft keyboard — no more phantom gap between the last terminal
-    // row and the bar.
+    // Layout rationale. Scaffold disables `resizeToAvoidBottomInset` on
+    // the terminal page (see MobileShell) so the viewport never shrinks
+    // when the soft keyboard opens — shrinking would make xterm reflow
+    // its buffer and duplicate the first scrollback lines (see commit
+    // 20c60c9). That's the **hard** invariant: the terminal's rendered
+    // size cannot track the keyboard.
+    //
+    // Copy-mode hint + toolbar are a different story. They are small
+    // strips (~24 px + ~40 px) and shrinking the terminal by that much
+    // is user-visible *and requested* — the toolbar must dock against
+    // the virtual keyboard so the user's thumb does not chase a
+    // floating button while selecting. A minor reflow when the mode
+    // toggles is the tradeoff.
+    //
+    // Result: Stack with the terminal Column reserving only the
+    // keyboard-bar slot at the bottom (fixed `itemHeightXl`, not
+    // keyboard-inset-aware). The bottom control strip — either the SSH
+    // keyboard bar (normal mode) or the copy-mode toolbar (copy mode)
+    // — lives in a separate Positioned that floats above the soft
+    // keyboard via `viewInsets.bottom`. Swapping the bottom widget
+    // between the two modes keeps the visible height of the terminal
+    // stable across keyboard open/close and matches what the user asked
+    // for ("toolbar docked against keyboard").
     final mq = MediaQuery.of(context);
+    final keyboardInset = mq.viewInsets.bottom;
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
-    return Padding(
-      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
-      child: Column(
-        children: [
-          if (_copyMode) CopyModeHint(anchorSet: anchorSet),
-          Expanded(child: _buildTerminalArea()),
-          if (_copyMode)
-            CopyModeToolbar(
-              onCopy: _copyFromOverlay,
-              onCancel: _cancelCopyMode,
-            ),
-          SshKeyboardBar(
-            key: _keyboardKey,
-            onInput: _onKeyboardInput,
-            onPaste: _paste,
-            onSnippets: _showSnippets,
-            onCopyModeChanged: _onCopyModeChanged,
+    // Reserve enough vertical space below the terminal Column for the
+    // bottom control strip (toolbar stacked on top of the SSH keyboard
+    // bar in copy mode, or just the keyboard bar in normal mode). The
+    // reservation is a fixed constant — it never tracks `viewInsets`
+    // — so the terminal widget's height is invariant across keyboard
+    // open/close. Hint + toolbar toggling still reflows by their own
+    // small height; the terminal never reflows by the ~300 px the soft
+    // keyboard would otherwise consume.
+    final bottomStripHeight =
+        AppTheme.itemHeightXl + (_copyMode ? _copyToolbarHeight : 0);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Terminal + hint: bottom pinned to a fixed `bottomStripHeight`
+        // — does NOT include `keyboardInset`. Terminal rendered height
+        // stays constant while the keyboard opens / closes.
+        Positioned(
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: bottomStripHeight,
+          child: Column(
+            children: [
+              if (_copyMode) CopyModeHint(anchorSet: anchorSet),
+              Expanded(child: _buildTerminalArea()),
+            ],
           ),
-        ],
-      ),
+        ),
+        // Bottom control strip — floats above the soft keyboard via
+        // `viewInsets.bottom`. Copy toolbar stacks on top of the SSH
+        // keyboard bar when copy mode is active; otherwise just the
+        // keyboard bar. Docking against the virtual keyboard means the
+        // user's thumb does not chase a floating button while
+        // selecting.
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: keyboardInset,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_copyMode)
+                SizedBox(
+                  height: _copyToolbarHeight,
+                  child: CopyModeToolbar(
+                    onCopy: _copyFromOverlay,
+                    onCancel: _cancelCopyMode,
+                  ),
+                ),
+              SshKeyboardBar(
+                key: _keyboardKey,
+                onInput: _onKeyboardInput,
+                onPaste: _paste,
+                onSnippets: _showSnippets,
+                onCopyModeChanged: _onCopyModeChanged,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
+
+  /// Fixed height for the copy-mode toolbar slot. Matches the Material
+  /// 48-dp tap-target grid and the `itemHeightLg` theme constant used by
+  /// other inline action rows, so the bottom strip lines up with the SSH
+  /// keyboard bar's button row.
+  static const double _copyToolbarHeight = AppTheme.itemHeightLg;
 
   Widget _buildTerminalArea() {
     return Listener(
