@@ -134,6 +134,13 @@ void main() {
         final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
         await tester.tap(find.text(l10n.forgotPassword));
         await tester.pumpAndSettle();
+        // Tapping "forgot password" no longer fires `onReset` directly —
+        // it opens a confirm dialog whose destructive action (labelled
+        // from `resetAllDataConfirmAction`, matching the Settings → Data →
+        // Reset All Data flow) is the trigger. Confirm the dialog so the
+        // callback actually runs.
+        await tester.tap(find.text(l10n.resetAllDataConfirmAction));
+        await tester.pumpAndSettle();
         expect(resetCalls, 1);
       },
     );

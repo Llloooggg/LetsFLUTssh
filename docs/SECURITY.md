@@ -234,8 +234,9 @@ architecture.
   `NSDistributedNotificationCenter`, Linux systemd-logind D-Bus — so
   the in-app lock fires even when the user hasn't been idle long
   enough to trip the timer. **Every lock unconditionally wipes the
-  DB key and closes the drift / SQLCipher handle**, zeroing both the
-  Dart-side `SecretBuffer` and the C-layer page-cipher cache.
+  DB key and closes the drift / SQLite3MultipleCiphers handle**,
+  zeroing both the Dart-side `SecretBuffer` and the C-layer
+  page-cipher cache (the live cipher is ChaCha20-Poly1305).
   Previously the wipe was gated on "no active SSH sessions" so the
   user's reconnect UX survived; that gate left the DB key warm
   whenever any session was connected, which flattened T1+password

@@ -31,7 +31,7 @@ import '../utils/logger.dart';
 ///     `SessionCredentialCache` (per-session page-locked auth envelope
 ///     that survives the lock), so the encrypted store can close
 ///     without losing the "reconnect after unlock" UX.
-///   * The drift / SQLCipher handle is closed so the C-layer page
+///   * The drift / MC handle is closed so the C-layer page
 ///     cipher cache is also zeroed. `main._injectDatabase` opens a
 ///     fresh handle after unlock under the re-derived key.
 ///
@@ -199,7 +199,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     // terminals are registered (empty-set iteration).
     TerminalScrubber.instance.scrubAll();
     // Unconditionally zero the in-memory DB key and close the
-    // drift / SQLCipher handle. Live SSH sessions stay reconnectable
+    // drift / MC handle. Live SSH sessions stay reconnectable
     // because `SessionCredentialCache` (populated on connect, kept
     // alive across the lock) holds each session's auth envelope in
     // page-locked memory outside the DB. The next idle tick / unlock

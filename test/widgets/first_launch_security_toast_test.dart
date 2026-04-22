@@ -57,6 +57,10 @@ void main() {
       expect(find.text(l10n.firstLaunchSecurityBody), findsOneWidget);
       // Upgrade branch not rendered → Open Settings button not present.
       expect(find.text(l10n.firstLaunchSecurityOpenSettings), findsNothing);
+      // Flush the internal 8 s auto-dismiss timer before the widget tree
+      // is disposed — leaving it pending trips the test framework's
+      // `!timersPending` assertion.
+      await tester.pump(const Duration(seconds: 9));
     });
 
     testWidgets(
@@ -78,6 +82,9 @@ void main() {
           findsOneWidget,
         );
         expect(find.text(l10n.firstLaunchSecurityOpenSettings), findsOneWidget);
+        // Flush the internal 8 s auto-dismiss timer (see note in the
+        // previous test).
+        await tester.pump(const Duration(seconds: 9));
       },
     );
 

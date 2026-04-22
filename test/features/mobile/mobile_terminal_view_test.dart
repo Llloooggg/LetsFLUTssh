@@ -845,14 +845,24 @@ void main() {
 
       expect(controller.suspendedPointerInputs, isFalse);
 
+      // Once copy mode is active, the overlay surfaces its own `Icons.copy`
+      // button (the clipboard action inside the copy toolbar), so a bare
+      // `find.byIcon(Icons.copy)` matches two widgets. Scope the finder to
+      // the keyboard bar — that one is the mode toggle, present in both
+      // states, and the test only cares about flipping it.
+      final toggleCopyButton = find.descendant(
+        of: find.byType(SshKeyboardBar),
+        matching: find.byIcon(Icons.copy),
+      );
+
       // Tap select button
-      await tester.tap(find.byIcon(Icons.copy));
+      await tester.tap(toggleCopyButton);
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isTrue);
 
       // Tap again to deactivate
-      await tester.tap(find.byIcon(Icons.copy));
+      await tester.tap(toggleCopyButton);
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isFalse);

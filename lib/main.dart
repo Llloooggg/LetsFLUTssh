@@ -379,7 +379,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     });
   }
 
-  /// Re-open the drift / SQLCipher handle after a lock → unlock
+  /// Re-open the drift / MC handle after a lock → unlock
   /// transition. `AutoLockDetector._triggerLock` now always closes
   /// the DB (so the C-layer page cipher cache is zeroed alongside
   /// the Dart-side `SecretBuffer`), so every unlock needs a fresh
@@ -405,6 +405,22 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// be read top-to-bottom as the startup contract.
   Future<void> _bootstrap() async {
     await ref.read(appVersionProvider.notifier).load();
+    // Kick the tier-availability probe off in parallel with migrations
+    // + unlock. `securityCapabilitiesProvider` caches its result to
+    // `config.json`, so warm starts read the cached snapshot on the
+    // first microtask (no work) and fall through. On first launch the
+    // probe is a real round-trip against Keychain / LAContext /
+    // BiometricManager / TPM2 that used to run *inside*
+    // `_firstLaunchSetup` and serialised the whole startup path —
+    // user saw a frozen empty screen until keychain + LAContext
+    // answered. Starting the probe here overlaps it with the
+    // migration runner and `_initSecurity` so by the time
+    // `_firstLaunchSetup` awaits the same future the work is either
+    // done or well in flight. First-launch wizard still needs
+    // `caps.keychainAvailable` to decide whether to auto-setup T1,
+    // but the wait is now the remainder of whichever path finished
+    // first, not the full probe.
+    _warmProbeCaches();
     // Migration runner gates everything else — a failed or mismatched
     // artefact would make both the unlock flow and the corrupt-DB
     // probe read stale state. When it surfaces a reset, the migration
@@ -427,7 +443,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       AppLogger.instance.log('Initializing foreground service', name: 'App');
       ref.read(foregroundServiceProvider).init();
     }
-    _warmProbeCaches();
     if (ref.read(configProvider).checkUpdatesOnStart) {
       AppLogger.instance.log('Checking for updates on start', name: 'App');
       ref.read(updateProvider.notifier).check();
@@ -461,6 +476,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// flicker. A user-facing "Re-check" button in Settings →
   /// Security invalidates + re-awaits the same cache when the user
   /// wants a fresh result.
+  ///
+  /// Invoked twice in the bootstrap graph: once at the *start* of
+  /// [_bootstrap] so the probe runs in parallel with migrations + DB
+  /// unlock (the critical first-launch path where `_firstLaunchSetup`
+  /// blocks on `probeCapabilities`), and implicitly a second time via
+  /// the Settings "Re-check" flow which invalidates the providers.
+  /// The double-fire is safe because the provider de-duplicates
+  /// in-flight futures — the second `ref.read(...future)` returns the
+  /// same `Future` as the first until it resolves.
   void _warmProbeCaches() {
     unawaited(ref.read(securityCapabilitiesProvider.future));
     unawaited(ref.read(hardwareProbeDetailProvider.future));
@@ -1014,10 +1038,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return;
 
-    var caps = await probeCapabilities(
-      keyStorage: keyStorage,
-      hardwareVault: ref.read(hardwareTierVaultProvider),
-    );
+    // Await the already-kicked-off probe future via the provider
+    // instead of calling `probeCapabilities` directly. `_bootstrap`
+    // fires `_warmProbeCaches()` at the top, so by the time control
+    // reaches here the probe is either done (warm start, cache hit)
+    // or well in flight (first launch, real round-trip overlapped
+    // with migrations + initial init). Reading the future joins
+    // whichever state it is in — one KDF + keychain + LAContext pass
+    // per session instead of two.
+    var caps = await ref.read(securityCapabilitiesProvider.future);
     if (!mounted) return;
 
     // Auto-setup path: keychain is reachable → silently land on T1
@@ -1442,10 +1471,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     await _handleDatabaseCorruption();
   }
 
-  /// Re-open the drift / SQLCipher handle after a lock → unlock
+  /// Re-open the drift / MC handle after a lock → unlock
   /// transition. The auto-lock path unconditionally closes the DB
-  /// handle so SQLCipher's C-layer page-cipher cache is zeroed
-  /// alongside the Dart-side [SecretBuffer]. On unlock the lock
+  /// handle so MC's C-layer page-cipher cache (ChaCha20-Poly1305
+  /// state) is zeroed alongside the Dart-side [SecretBuffer]. On unlock the lock
   /// screen re-derives the DB key (paranoid master password path)
   /// or reads it from the biometric vault, pushes it back into
   /// [securityStateProvider], and flips [lockStateProvider] off —

@@ -104,11 +104,56 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/icons/icon.png"
 
-# Build hooks — bundle SQLite3MultipleCiphers for database encryption
+# Build hooks — compile SQLite3MultipleCiphers from the vendored submodule at
+# third_party/SQLite3MultipleCiphers. The `source: source` mode points
+# native_toolchain_c at sqlite3mc.c (MC's umbrella amalgamation that wraps
+# SQLite + the configured cipher schemes) and applies package:sqlite3's
+# default compile defines. Building locally avoids the download path in
+# the upstream hook — which has a non-deterministic `Object.hash`-based
+# cache dirname and no stream timeout, so every invocation re-fetches
+# 2.2 MB from GitHub Releases and hangs forever when the asset server
+# stalls mid-stream. The submodule SHA is pinned and auto-bumped by
+# Dependabot via `package-ecosystem: gitsubmodule`.
 hooks:
   user_defines:
     sqlite3:
-      source: sqlite3mc
+      source: source
+      path: third_party/SQLite3MultipleCiphers/src/sqlite3mc.c
+      # Keep only the cipher scheme the app actually uses
+      # (ChaCha20-Poly1305 — MC's built-in default when `PRAGMA key`
+      # is set without `PRAGMA cipher`, which is what
+      # `database_opener.dart:166` does). Every other MC cipher is
+      # dead weight on-disk and in the binary — none is referenced
+      # anywhere in lib/ — so we disable them at compile time. See
+      # docs/ARCHITECTURE.md § "MC cipher choice — ChaCha20-Poly1305"
+      # for the retrospective rationale (the earlier docs listed
+      # `sqlcipher` scheme by mistake; the live encryption was always
+      # ChaCha20-Poly1305).
+      #
+      # AEGIS additionally has a build-time constraint: its sources
+      # live in nested subdirectories (`src/aegis/include/aegis128l.h`,
+      # `src/aegis/aegis128l/implementations.h`, etc.) that cross-
+      # reference headers needing multiple `-I` flags. The sqlite3
+      # package's `source: source` mode only passes a single `-I` for
+      # the parent of `path:`, so leaving AEGIS enabled aborts the
+      # compile with `aegis128l.h: file not found`. Disabling it is
+      # what makes the in-tree compile work at all.
+      #
+      # Disabling all AES-based schemes (AES-128-CBC, AES-256-CBC,
+      # SQLCipher — the latter runs on top of the same AES core)
+      # additionally drops `rijndael.c` from the compile, since its
+      # inclusion is gated on
+      # `HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC
+      #  || HAVE_CIPHER_SQLCIPHER`. Net saving on the resulting
+      # shared library is ~100-200 KiB off `libsqlite3.so` vs the
+      # all-cipher build.
+      defines:
+        - HAVE_CIPHER_AES_128_CBC=0
+        - HAVE_CIPHER_AES_256_CBC=0
+        - HAVE_CIPHER_SQLCIPHER=0
+        - HAVE_CIPHER_RC4=0
+        - HAVE_CIPHER_ASCON128=0
+        - HAVE_CIPHER_AEGIS=0
 
 flutter:
   generate: true

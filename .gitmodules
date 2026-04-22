@@ -1,0 +1,3 @@
+[submodule "third_party/SQLite3MultipleCiphers"]
+	path = third_party/SQLite3MultipleCiphers
+	url = https://github.com/utelle/SQLite3MultipleCiphers

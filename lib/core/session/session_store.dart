@@ -42,7 +42,7 @@ class SessionStore {
 
   /// Close the held database handle and drop the reference. The
   /// auto-lock path calls this right after zeroing the in-memory DB
-  /// key so SQLCipher's internal page cache (which retains the key
+  /// key so MC's internal page cache (which retains the key
   /// in its C-layer state for as long as the handle is open) also
   /// gets zeroed. On unlock `main._injectDatabase` opens a fresh
   /// handle and re-injects via [setDatabase].
