@@ -126,24 +126,15 @@ The build is **ad-hoc signed**, not Developer-ID signed (no Apple account). On f
 xattr -dr com.apple.quarantine /Applications/LetsFLUTssh.app
 ```
 
-**Keychain tier (T1) needs a personal re-sign.** The ad-hoc Code Directory hash changes every release, and macOS Keychain Services bind stored items to that hash — first write fails with `errSecMissingEntitlement` and the app surfaces the wizard with T1 greyed out. A one-shot helper script is shipped with the macOS release assets; download `macos-resign.sh` from the same release, then:
+**Keychain tier (T1) is enabled from inside the app.** The ad-hoc Code Directory hash changes every release, and macOS Keychain Services bind stored items to that hash — without a stable signing identity the first T1 write fails with `errSecMissingEntitlement` and the wizard shows T1 greyed out. The app handles the re-sign itself: the first-launch wizard offers an **Enable Keychain** action that creates a personal self-signed cert in your login keychain, trusts it for `codeSign` only, and re-signs the installed bundle under that cert. macOS surfaces a native password prompt once (the trust-DB write is auth-gated by the OS); subsequent updates re-sign silently using the same cert.
 
-```bash
-chmod +x macos-resign.sh
-./macos-resign.sh sign           # default action — `./macos-resign.sh` also works
-./macos-resign.sh uninstall      # later, to remove the personal cert
-./macos-resign.sh help           # full options
-```
+The cert stays in your login keychain and is reused across releases, so T1-stored secrets survive updates. A "Reset secure identity" action in Settings removes the cert + trust entry when you want to rotate; if you never enable T1, no cert is created and nothing is modified outside the app's own data dir.
 
-`sign` creates a personal self-signed code-signing cert the first time it runs (stored in your login keychain, trusted for codesign only), re-signs the installed app with it, and drops quarantine. Re-run after each release — the cert is reused so Keychain Services keeps treating the app as the same identity across upgrades. Nothing is granted system-wide; no admin password is needed beyond `sudo` for the codesign step if the app lives in `/Applications`.
-
-`uninstall` removes the personal cert from your login keychain and the trust database. The app stays installed but any keychain items written under the cert become unreadable — the first launch after uninstall will surface the tier wizard again so you can switch to Paranoid or T0.
-
-If you do not need T1 (keychain) unlock, the **Paranoid** tier (master password, Argon2id-derived DB key) works without the script and gives stronger encryption at the cost of a password prompt on every launch.
+If you do not want T1 unlock, the **Paranoid** tier (master password, Argon2id-derived DB key) works with no cert and gives stronger encryption at the cost of a password prompt on every launch.
 
 ### Android
 
-Available format: **APK** (split per ABI: `arm64-v8a`, `armeabi-v7a`, `x86_64`). Pick `arm64-v8a` for any modern device.
+Available format: **APK**, shipped as three per-ABI variants named `letsflutssh-<version>-android-arm64.apk` (64-bit ARM — pick this for any modern device), `-android-arm.apk` (32-bit ARM), and `-android-x64.apk` (emulator / x86_64 tablets).
 
 In Android Settings, enable **Install unknown apps** for the file manager or browser you'll use to open the APK. Tap the `.apk` file and confirm. No Google Play Services required, no MLKit, no GPS dependency.
 

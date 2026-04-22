@@ -391,19 +391,6 @@ jobs:
         run: |
           hdiutil create -volname "LetsFLUTssh" -srcfolder build/macos/Build/Products/Release/letsflutssh.app -ov -format UDZO letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
-      - name: Copy macOS self-sign helper
-        # Ship `macos-resign.sh` alongside the DMG / tar.gz so users
-        # who want T1 (keychain) tier access can run it once locally
-        # and persistently re-sign the bundle under a personal code-
-        # signing cert. Without this re-sign, keychain rejects writes
-        # with `errSecMissingEntitlement` (-34018) because ad-hoc
-        # signatures change the Code Directory hash every release
-        # and the keychain treats each install as a new app.
-        # Shipping the script inside the release asset bundle (rather
-        # than only linking README) keeps the workflow offline — no
-        # clone, no curl, no extra trust assumption on GitHub raw.
-        run: cp scripts/macos-resign.sh macos-resign.sh
-
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: macos-universal
@@ -411,7 +398,6 @@ jobs:
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
-            macos-resign.sh
 
   build-android:
     needs: preflight
@@ -563,7 +549,6 @@ jobs:
             artifacts/windows-x64/*.exe
             artifacts/macos-universal/*.tar.gz
             artifacts/macos-universal/*.dmg
-            artifacts/macos-universal/macos-resign.sh
             artifacts/android-apk/*.apk
 
       - name: Export provenance for release
@@ -733,7 +718,6 @@ jobs:
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
-            artifacts/macos-universal/macos-resign.sh
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
