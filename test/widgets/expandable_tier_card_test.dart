@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/expandable_tier_card.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -99,8 +100,13 @@ void main() {
       final l10n = S.of(tester.element(find.byType(ExpandableTierCard)));
       expect(find.text('No TPM detected'), findsOneWidget);
 
-      final button = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(button.onPressed, isNull, reason: 'Apply must be disabled');
+      // Apply button migrated to `AppButton.primary` — predicate
+      // match covers the private subclass, `onTap` replaces
+      // `onPressed`.
+      final button = tester.widget<AppButton>(
+        find.byWidgetPredicate((w) => w is AppButton),
+      );
+      expect(button.onTap, isNull, reason: 'Apply must be disabled');
       expect(find.text(l10n.securitySetupApply), findsOneWidget);
     });
 

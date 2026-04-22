@@ -9,6 +9,7 @@ import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
 class _FakeStorage implements FlutterSecureStorage {
@@ -231,10 +232,15 @@ void main() {
           find.text(S.of(context).securitySetupEnable).evaluate().isNotEmpty
           ? find.text(S.of(context).securitySetupEnable)
           : find.text(S.of(context).securitySetupApply);
-      final btn = tester.widget<FilledButton>(
-        find.ancestor(of: submit, matching: find.byType(FilledButton)),
+      // Submit button migrated to `AppButton.primary` — find the
+      // AppButton ancestor and inspect `onTap`.
+      final btn = tester.widget<AppButton>(
+        find.ancestor(
+          of: submit,
+          matching: find.byWidgetPredicate((w) => w is AppButton),
+        ),
       );
-      expect(btn.onPressed, isNull);
+      expect(btn.onTap, isNull);
     });
 
     testWidgets('tapping the Paranoid row shows the master-password form', (

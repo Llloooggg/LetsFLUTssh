@@ -14,6 +14,7 @@ import '../providers/security_provider.dart'
         decodeHardwareProbeCode;
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'app_button.dart';
 import 'password_strength_meter.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
@@ -347,10 +348,11 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ),
         const SizedBox(height: 12),
         Center(
-          child: TextButton.icon(
-            icon: const Icon(Icons.table_chart_outlined, size: 16),
-            label: Text(l10n.compareAllTiers),
-            onPressed: () => SecurityComparisonTable.show(context),
+          child: AppButton(
+            label: l10n.compareAllTiers,
+            icon: Icons.table_chart_outlined,
+            onTap: () => SecurityComparisonTable.show(context),
+            dense: true,
           ),
         ),
         const SizedBox(height: 18),
@@ -482,23 +484,18 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         // (`PopScope(canPop: false)`), so a Cancel button there is a
         // dead control — hide it to avoid confusing the user.
         if (widget.dismissible)
-          TextButton(
-            onPressed: () => Navigator.of(context).maybePop(),
-            child: Text(l10n.cancel),
-          ),
-        FilledButton(
-          onPressed: _canSubmit() ? _submit : null,
-          // "Apply" on the edit path (user is already set up and just
-          // changing tier) vs "Enable" on the first-launch path
-          // (keychain probe came back false → user picks between T0
-          // and Paranoid before startup can proceed). "Continue with
-          // Recommended" was a lie when T0 or another non-recommended
-          // tier was selected — replaced unconditionally.
-          child: Text(
-            widget.currentTier == null
-                ? l10n.securitySetupEnable
-                : l10n.securitySetupApply,
-          ),
+          AppButton.cancel(onTap: () => Navigator.of(context).maybePop()),
+        // "Apply" on the edit path (user is already set up and just
+        // changing tier) vs "Enable" on the first-launch path
+        // (keychain probe came back false → user picks between T0
+        // and Paranoid before startup can proceed). "Continue with
+        // Recommended" was a lie when T0 or another non-recommended
+        // tier was selected — replaced unconditionally.
+        AppButton.primary(
+          label: widget.currentTier == null
+              ? l10n.securitySetupEnable
+              : l10n.securitySetupApply,
+          onTap: _canSubmit() ? _submit : null,
         ),
       ],
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -79,8 +80,13 @@ void main() {
         verify: (_) async => null,
         rateLimiter: limiter,
       );
-      final unlockBtn = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(unlockBtn.onPressed, isNull);
+      // `AppButton.primary(...)` returns a private `_PrimaryAction`
+      // subclass of `AppButton`, so `find.byType(AppButton)` misses
+      // it. Match by widget predicate and inspect `onTap`.
+      final unlockBtn = tester.widget<AppButton>(
+        find.byWidgetPredicate((w) => w is AppButton),
+      );
+      expect(unlockBtn.onTap, isNull);
     });
 
     testWidgets('records success on limiter when verify succeeds', (

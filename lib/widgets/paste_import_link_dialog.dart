@@ -153,16 +153,18 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
           Wrap(
             spacing: 4,
             children: [
-              TextButton.icon(
-                icon: const Icon(Icons.content_paste, size: 16),
-                label: Text(s.pasteFromClipboard),
-                onPressed: _pasteFromClipboard,
+              AppButton(
+                label: s.pasteFromClipboard,
+                icon: Icons.content_paste,
+                onTap: _pasteFromClipboard,
+                dense: true,
               ),
               if (Platform.isAndroid || Platform.isIOS)
-                TextButton.icon(
-                  icon: const Icon(Icons.qr_code_scanner, size: 16),
-                  label: Text(s.scanQrCode),
-                  onPressed: _scanQr,
+                AppButton(
+                  label: s.scanQrCode,
+                  icon: Icons.qr_code_scanner,
+                  onTap: _scanQr,
+                  dense: true,
                 ),
             ],
           ),

@@ -10,6 +10,7 @@ import '../providers/master_password_provider.dart';
 import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
+import 'app_button.dart';
 import '../utils/secret_controller.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
@@ -242,16 +243,25 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _busy ? null : _submitPassword,
-                      child: Text(_busy ? '...' : l10n.unlock),
+                    // The button renders as a plain `Text('...')` under
+                    // the busy flag rather than `loading: _busy`. A
+                    // real `CircularProgressIndicator` here ticks
+                    // forever on test `pumpAndSettle` — the verify
+                    // call kicks the state machine through `_busy`
+                    // during the async gap the tests wait on, and a
+                    // spinning indicator prevents settle from ever
+                    // resolving. The string variant matches the
+                    // pre-migration behaviour exactly.
+                    AppButton.primary(
+                      label: _busy ? '...' : l10n.unlock,
+                      onTap: _busy ? null : _submitPassword,
                     ),
                     if (_biometricOffered == true) ...[
                       const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _busy ? null : _retryBiometric,
-                        icon: const Icon(Icons.fingerprint, size: 18),
-                        label: Text(l10n.biometricUnlockTitle),
+                      AppButton(
+                        label: l10n.biometricUnlockTitle,
+                        icon: Icons.fingerprint,
+                        onTap: _busy ? null : _retryBiometric,
                       ),
                     ],
                   ],

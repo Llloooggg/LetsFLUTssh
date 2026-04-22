@@ -5,6 +5,7 @@ import '../core/security/threat_vocabulary.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
+import 'app_button.dart';
 import 'secure_password_field.dart';
 import 'security_threat_list.dart' show threatTitle;
 
@@ -419,15 +420,10 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: _selectEnabled ? _onSelect : null,
-              child: _busy
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_selectLabel(l10n)),
+            child: AppButton.primary(
+              label: _selectLabel(l10n),
+              loading: _busy,
+              onTap: _selectEnabled ? _onSelect : null,
             ),
           ),
           // Active-tier orthogonal settings (biometric unlock,

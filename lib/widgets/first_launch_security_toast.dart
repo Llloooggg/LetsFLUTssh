@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/first_launch_banner_provider.dart';
 import '../theme/app_theme.dart';
+import 'app_button.dart';
 
 /// Post-setup notification for the first-launch auto-select path.
 ///
@@ -184,20 +185,10 @@ class _ToastCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: onOpenSettings,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        minimumSize: const Size(0, 28),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        l10n.firstLaunchSecurityOpenSettings,
-                        style: TextStyle(fontSize: AppFonts.xs),
-                      ),
+                    child: AppButton(
+                      label: l10n.firstLaunchSecurityOpenSettings,
+                      dense: true,
+                      onTap: onOpenSettings,
                     ),
                   ),
                 ],

@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
@@ -303,11 +304,12 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                       labelText: widget.labels.inputLabel,
                       border: const OutlineInputBorder(),
                       counterText: '',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure ? Icons.visibility_off : Icons.visibility,
-                        ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+                      suffixIcon: AppIconButton(
+                        icon: _obscure
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        dense: true,
+                        onTap: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
                   ),
@@ -319,25 +321,14 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ] else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _cooldown.isLocked ? null : _submit,
-                        child: Text(l10n.unlock),
-                      ),
+                    AppButton.primary(
+                      label: l10n.unlock,
+                      fullWidth: true,
+                      onTap: _cooldown.isLocked ? null : _submit,
                     ),
                     if (widget.onReset != null) ...[
                       const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: _reset,
-                        child: Text(
-                          l10n.forgotPassword,
-                          style: TextStyle(
-                            fontSize: AppFonts.sm,
-                            color: AppTheme.fgDim,
-                          ),
-                        ),
-                      ),
+                      AppButton(label: l10n.forgotPassword, onTap: _reset),
                     ],
                   ],
                 ],
