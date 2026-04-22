@@ -161,16 +161,21 @@ Format: `type: short description`
 | `fix:`      | Bug fixes                       | Yes — under **Fixes**     |
 | `refactor:` | Code improvements (no new behavior) | Yes — under **Improvements** |
 | `perf:`     | Performance improvements        | Yes — under **Improvements** |
-| `security:` | Hardening / vulnerability fix   | Yes — under **Security**  |
+| `security:` | Hardening / vulnerability fix   | Yes — pinned **Security** callout at top of notes |
+| `i18n:`     | Translation / l10n string changes | Yes — under **Localization** |
+| `l10n:`     | Locale data / non-string l10n   | Yes — under **Localization** |
+| `revert:`   | Revert a previous commit        | Yes — under **Reverts**   |
+| `chore(deps):` | Dependency updates (auto-generated) | Yes — under **Dependencies** |
 | `build:`    | Build system, dependencies      | No                        |
 | `test:`     | Test changes only               | No                        |
 | `docs:`     | Documentation only              | No                        |
 | `chore:`    | Config, tooling                 | No                        |
-| `chore(deps):` | Dependency updates (auto-generated) | Yes — under **Dependencies** |
 | `ci:`       | CI/CD workflow changes          | No                        |
-| `i18n:`     | Translation / l10n string changes | No                      |
 | `style:`    | Formatting, whitespace          | No                        |
-| `revert:`   | Revert a previous commit        | No                        |
+
+**Append `!` after the type or scope to mark a breaking change** (e.g. `feat(api)!: drop legacy session format`) — the entry renders with a leading **BREAKING** badge and also triggers a major version bump.
+
+Ordering in release notes: Security (pinned callout) → Features → Reverts → Improvements → Fixes → Localization → Dependencies. Empty sections are omitted.
 
 **Prefer a scope in parentheses** when the change is localized to one module (e.g. `feat(snippets):`, `fix(import):`, `test(known-hosts):`) — lowercase, alphanumeric + dashes. Drop the scope only when the change is genuinely cross-cutting and no single module name fits (e.g. plain `docs:`, `chore:`, `ci:`).
 
