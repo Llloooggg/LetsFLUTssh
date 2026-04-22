@@ -95,10 +95,28 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
         if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
           _buildPermissionBanner(context),
         Expanded(
-          child: MobileFileList(
-            controller: _activeCtrl,
-            onTransfer: _showRemote ? download : upload,
-            onTransferMultiple: _showRemote ? downloadMany : uploadMany,
+          // Horizontal swipe toggles Local ↔ Remote — mobile users
+          // expect the same gesture they get from every tab-style UI
+          // (left = go right tab, right = go left tab). Fires on
+          // `onHorizontalDragEnd` rather than `Dismissible` so the
+          // list still scrolls horizontally inside rows (e.g.
+          // filename overflow) without dragging the whole pane. The
+          // 500 px/s velocity threshold filters out slow drags that
+          // would compete with row-level swipe actions.
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragEnd: (details) {
+              final v = details.primaryVelocity ?? 0;
+              if (v.abs() < 500) return;
+              // v > 0 → swiped left-to-right → show Local (left tab);
+              // v < 0 → swiped right-to-left → show Remote (right tab).
+              setState(() => _showRemote = v < 0);
+            },
+            child: MobileFileList(
+              controller: _activeCtrl,
+              onTransfer: _showRemote ? download : upload,
+              onTransferMultiple: _showRemote ? downloadMany : uploadMany,
+            ),
           ),
         ),
         const TransferPanel(),
