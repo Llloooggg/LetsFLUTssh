@@ -1747,7 +1747,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         child: AutoLockDetector(
           child: Stack(
             children: [
-              if (child != null) child,
+              ?child,
               if (locked) const Positioned.fill(child: LockScreen()),
             ],
           ),
