@@ -10,6 +10,7 @@ import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -73,10 +74,11 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
       countLabel: s.tagCount(_tags.length),
       actions: [
-        TextButton.icon(
-          onPressed: _addTag,
-          icon: const Icon(Icons.add, size: 16),
-          label: Text(s.addTag, style: TextStyle(fontSize: AppFonts.sm)),
+        AppButton(
+          label: s.addTag,
+          icon: Icons.add,
+          onTap: _addTag,
+          dense: true,
         ),
       ],
     );
@@ -111,12 +113,12 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
       title: tag.name,
       trailing: [
-        IconButton(
-          icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+        AppIconButton(
+          icon: Icons.delete_outline,
           tooltip: s.deleteTag,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _deleteTag(tag),
+          dense: true,
+          color: AppTheme.red,
+          onTap: () => _deleteTag(tag),
         ),
       ],
     );

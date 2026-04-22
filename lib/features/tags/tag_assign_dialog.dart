@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_divider.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/data_checkboxes.dart';
@@ -133,14 +134,8 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
         // Manage lives in the footer so it's reachable from both the
         // populated and empty states without duplicating the button.
         if (!_loading)
-          AppButton.secondary(
-            label: s.manageTags,
-            onTap: _openTagManager,
-          ),
-        AppButton.primary(
-          label: s.close,
-          onTap: () => Navigator.pop(context),
-        ),
+          AppButton.secondary(label: s.manageTags, onTap: _openTagManager),
+        AppButton.primary(label: s.close, onTap: () => Navigator.pop(context)),
       ],
     );
   }
@@ -198,9 +193,10 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         suffixIcon: _filter.isEmpty
             ? null
-            : IconButton(
-                icon: const Icon(Icons.clear, size: 16),
-                onPressed: () {
+            : AppIconButton(
+                icon: Icons.clear,
+                dense: true,
+                onTap: () {
                   _searchCtrl.clear();
                   setState(() => _filter = '');
                 },

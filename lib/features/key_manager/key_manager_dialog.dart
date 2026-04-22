@@ -16,6 +16,7 @@ import '../../utils/format.dart';
 import '../../utils/logger.dart';
 import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -153,19 +154,18 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.content_copy, size: 14),
+          AppIconButton(
+            icon: Icons.content_copy,
             tooltip: s.publicKey,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _copyPublicKey(entry),
+            dense: true,
+            onTap: () => _copyPublicKey(entry),
           ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+          AppIconButton(
+            icon: Icons.delete_outline,
             tooltip: s.deleteKey,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _deleteKey(entry),
+            dense: true,
+            color: AppTheme.red,
+            onTap: () => _deleteKey(entry),
           ),
         ],
       ),
@@ -573,10 +573,6 @@ class _ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: TextStyle(fontSize: AppFonts.sm)),
-    );
+    return AppButton(label: label, icon: icon, onTap: onTap, dense: true);
   }
 }
