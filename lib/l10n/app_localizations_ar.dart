@@ -2296,6 +2296,25 @@ class SAr extends S {
   String get securityRecheckUnchanged => 'دعم المستويات دون تغيير';
 
   @override
+  String get securityMacosEnableKeychain => 'تفعيل تخزين سلسلة مفاتيح macOS';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'اربط الأسرار المشفرة بشهادة شخصية حتى يبقى T1 بعد التحديثات';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'سيطلب macOS كلمة مرورك مرة واحدة';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'تم تفعيل تخزين سلسلة المفاتيح — T1 متاح الآن';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'فشل تفعيل تخزين سلسلة المفاتيح';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus يعمل ولكن لا يوجد secret-service daemon قيد التشغيل. ثبّت gnome-keyring (`sudo apt install gnome-keyring`) أو KWalletManager وتأكد من بدء تشغيله عند تسجيل الدخول.';
 

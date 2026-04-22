@@ -2333,6 +2333,26 @@ class SFr extends S {
       'Prise en charge des niveaux inchangée';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'Activer le stockage dans le trousseau macOS';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Lier les secrets chiffrés à un certificat personnel pour que T1 survive aux mises à jour';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS demandera votre mot de passe une seule fois';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Stockage dans le trousseau activé — T1 est maintenant disponible';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Échec de l\'activation du stockage dans le trousseau';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus fonctionne mais aucun secret-service daemon n\'est actif. Installez gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager et assurez-vous qu\'il démarre à la connexion.';
 

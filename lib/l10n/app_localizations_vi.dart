@@ -2293,6 +2293,25 @@ class SVi extends S {
   String get securityRecheckUnchanged => 'Hỗ trợ lớp không thay đổi';
 
   @override
+  String get securityMacosEnableKeychain => 'Bật lưu trữ Keychain của macOS';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Liên kết bí mật mã hóa với chứng chỉ cá nhân để T1 vẫn hoạt động sau cập nhật';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS sẽ hỏi mật khẩu của bạn một lần';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Đã bật lưu trữ Keychain — T1 hiện khả dụng';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Không thể bật lưu trữ Keychain';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus đang chạy nhưng không có secret-service daemon nào đang hoạt động. Cài đặt gnome-keyring (`sudo apt install gnome-keyring`) hoặc KWalletManager và đảm bảo nó khởi động khi đăng nhập.';
 

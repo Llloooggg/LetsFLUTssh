@@ -2328,6 +2328,26 @@ class SDe extends S {
   String get securityRecheckUnchanged => 'Stufen-Unterstützung unverändert';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'macOS-Schlüsselbund-Speicher aktivieren';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Verschlüsselte Geheimnisse an ein persönliches Zertifikat binden, damit T1 Updates übersteht';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS fragt einmalig nach Ihrem Passwort';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Schlüsselbund-Speicher aktiviert — T1 ist jetzt verfügbar';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Schlüsselbund-Speicher konnte nicht aktiviert werden';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus läuft, aber kein Secret-Service-Daemon ist aktiv. Installiere gnome-keyring (`sudo apt install gnome-keyring`) oder KWalletManager und stelle sicher, dass es beim Anmelden startet.';
 

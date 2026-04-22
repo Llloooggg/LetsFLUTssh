@@ -2294,6 +2294,25 @@ class SEn extends S {
   String get securityRecheckUnchanged => 'Tier support unchanged';
 
   @override
+  String get securityMacosEnableKeychain => 'Enable macOS Keychain storage';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Bind encrypted secrets to a personal certificate so T1 survives updates';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS will ask for your password once';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Keychain storage enabled — T1 tier is now available';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Failed to enable keychain storage';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus is up but no secret-service daemon is running. Install gnome-keyring (`sudo apt install gnome-keyring`) or KWalletManager and ensure it starts at login.';
 

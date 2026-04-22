@@ -2310,6 +2310,26 @@ class STr extends S {
   String get securityRecheckUnchanged => 'Katman desteği değişmedi';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'macOS Anahtar Zinciri depolamayı etkinleştir';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Şifreli sırları kişisel bir sertifikaya bağlayarak T1 güncellemelerden sonra da çalışsın';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS bir kez parolanızı isteyecek';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Anahtar Zinciri depolama etkin — T1 kullanılabilir';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Anahtar Zinciri depolama etkinleştirilemedi';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus çalışıyor ancak secret-service daemon çalışmıyor. gnome-keyring (`sudo apt install gnome-keyring`) veya KWalletManager kurun ve oturum açıldığında başladığından emin olun.';
 

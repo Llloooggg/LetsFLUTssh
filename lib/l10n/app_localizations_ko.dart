@@ -2232,6 +2232,23 @@ class SKo extends S {
   String get securityRecheckUnchanged => '계층 지원에 변경이 없습니다';
 
   @override
+  String get securityMacosEnableKeychain => 'macOS 키체인 저장소 활성화';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      '암호화된 비밀을 개인 인증서에 연결하여 업데이트 후에도 T1이 유지되도록 합니다';
+
+  @override
+  String get securityMacosEnableKeychainPrompt => 'macOS가 비밀번호를 한 번 요청합니다';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      '키체인 저장소가 활성화되었습니다 — T1 사용 가능';
+
+  @override
+  String get securityMacosEnableKeychainFailed => '키체인 저장소를 활성화할 수 없습니다';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus는 작동 중이지만 secret-service 데몬이 실행 중이 아닙니다. gnome-keyring(`sudo apt install gnome-keyring`) 또는 KWalletManager를 설치하고 로그인 시 시작되도록 하세요.';
 

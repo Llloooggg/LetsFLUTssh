@@ -2314,6 +2314,26 @@ class SRu extends S {
   String get securityRecheckUnchanged => 'Поддержка уровней без изменений';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'Включить хранение в macOS Keychain';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Привязать зашифрованные секреты к личному сертификату — T1 переживёт обновления';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS один раз попросит ваш пароль';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Хранение в Keychain включено — T1 теперь доступен';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Не удалось включить хранение в Keychain';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus работает, но secret-service daemon не запущен. Установите gnome-keyring (`sudo apt install gnome-keyring`) или KWalletManager и включите автозапуск при входе.';
 

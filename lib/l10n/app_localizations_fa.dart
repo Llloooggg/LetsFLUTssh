@@ -2297,6 +2297,26 @@ class SFa extends S {
   String get securityRecheckUnchanged => 'پشتیبانی لایه‌ها بدون تغییر';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'فعال‌سازی ذخیره‌سازی در Keychain مک';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'اتصال اسرار رمزگذاری‌شده به یک گواهی شخصی تا T1 پس از به‌روزرسانی باقی بماند';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'مک یک بار رمز عبور شما را می‌خواهد';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'ذخیره‌سازی Keychain فعال شد — T1 اکنون در دسترس است';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'فعال‌سازی ذخیره‌سازی Keychain ناموفق بود';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus فعال است اما هیچ secret-service daemon در حال اجرا نیست. gnome-keyring (`sudo apt install gnome-keyring`) یا KWalletManager را نصب کنید و مطمئن شوید که هنگام ورود به سیستم اجرا می‌شود.';
 

@@ -4071,6 +4071,36 @@ abstract class S {
   /// **'Tier support unchanged'**
   String get securityRecheckUnchanged;
 
+  /// No description provided for @securityMacosEnableKeychain.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable macOS Keychain storage'**
+  String get securityMacosEnableKeychain;
+
+  /// No description provided for @securityMacosEnableKeychainSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bind encrypted secrets to a personal certificate so T1 survives updates'**
+  String get securityMacosEnableKeychainSubtitle;
+
+  /// No description provided for @securityMacosEnableKeychainPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'macOS will ask for your password once'**
+  String get securityMacosEnableKeychainPrompt;
+
+  /// No description provided for @securityMacosEnableKeychainSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Keychain storage enabled — T1 tier is now available'**
+  String get securityMacosEnableKeychainSuccess;
+
+  /// No description provided for @securityMacosEnableKeychainFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to enable keychain storage'**
+  String get securityMacosEnableKeychainFailed;
+
   /// No description provided for @keyringProbeLinuxNoSecretService.
   ///
   /// In en, this message translates to:

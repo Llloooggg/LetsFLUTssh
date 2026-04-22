@@ -2210,6 +2210,22 @@ class SZh extends S {
   String get securityRecheckUnchanged => '层级支持未变';
 
   @override
+  String get securityMacosEnableKeychain => '启用 macOS 钥匙串存储';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      '将加密密钥绑定到个人证书,使 T1 在更新后仍然有效';
+
+  @override
+  String get securityMacosEnableKeychainPrompt => 'macOS 将提示输入密码一次';
+
+  @override
+  String get securityMacosEnableKeychainSuccess => '钥匙串存储已启用 — T1 现已可用';
+
+  @override
+  String get securityMacosEnableKeychainFailed => '无法启用钥匙串存储';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus 正在运行但没有 secret-service daemon 在运行。请安装 gnome-keyring（`sudo apt install gnome-keyring`）或 KWalletManager 并确保它在登录时启动。';
 

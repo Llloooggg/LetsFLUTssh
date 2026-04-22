@@ -2234,6 +2234,23 @@ class SJa extends S {
   String get securityRecheckUnchanged => '階層サポートに変更はありません';
 
   @override
+  String get securityMacosEnableKeychain => 'macOS キーチェーン保存を有効にする';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      '暗号化された秘密を個人証明書に紐付け、更新後も T1 を維持します';
+
+  @override
+  String get securityMacosEnableKeychainPrompt => 'macOS は一度だけパスワードを要求します';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'キーチェーン保存が有効になりました — T1 が利用可能です';
+
+  @override
+  String get securityMacosEnableKeychainFailed => 'キーチェーン保存を有効にできませんでした';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus は動作していますが、secret-service デーモンが実行されていません。gnome-keyring（`sudo apt install gnome-keyring`）または KWalletManager をインストールし、ログイン時に起動するようにしてください。';
 

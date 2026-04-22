@@ -2317,6 +2317,26 @@ class SPt extends S {
   String get securityRecheckUnchanged => 'Suporte aos níveis inalterado';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'Ativar armazenamento no Keychain do macOS';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Vincular segredos cifrados a um certificado pessoal para que o T1 sobreviva às atualizações';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'O macOS pedirá sua senha uma vez';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Armazenamento no Keychain ativado — T1 disponível';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Falha ao ativar o armazenamento no Keychain';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus está ativo mas nenhum secret-service daemon está rodando. Instale gnome-keyring (`sudo apt install gnome-keyring`) ou KWalletManager e certifique-se de que inicia no login.';
 

@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/material.dart';
 
@@ -7,6 +7,7 @@ import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
+import '../platform/macos/code_signing/resign_service.dart';
 import '../providers/security_provider.dart'
     show
         hardwareProbeDetailText,
@@ -139,6 +140,12 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   final _secretFocus = FocusNode();
 
   bool _plaintextAcknowledged = false;
+
+  // True while the macOS "Enable Keychain" one-shot is in flight —
+  // cert create + keychain import + trust-DB write (the one step
+  // that triggers the native macOS password prompt) + inside-out
+  // re-sign of the live bundle.
+  bool _enablingKeychain = false;
 
   @override
   void initState() {
@@ -363,6 +370,16 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
 
         _buildPlaintextRow(l10n),
         if (!reduced) _buildKeychainRow(l10n, caps),
+        // macOS-only: when T1 is greyed out because the CI ad-hoc
+        // signature trips `errSecMissingEntitlement` on first
+        // keychain write, surface a one-shot "Enable Keychain"
+        // action below the disabled T1 row. Tapping it runs the
+        // self-sign pipeline (cert create → import → trust → re-sign
+        // live bundle → entitlement probe) and re-probes capabilities
+        // in place, so T1 flips to available without re-opening the
+        // dialog.
+        if (!reduced && Platform.isMacOS && !caps.keychainAvailable)
+          _buildMacosEnableKeychainAction(l10n),
         if (!reduced) _buildHardwareRow(l10n, caps),
 
         const SizedBox(height: 10),
@@ -414,6 +431,75 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         ? () => setState(() => _selected = WizardTier.keychain)
         : null,
   );
+
+  Widget _buildMacosEnableKeychainAction(S l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(56, 0, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.securityMacosEnableKeychainPrompt,
+            style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+          ),
+          const SizedBox(height: 4),
+          AppButton.primary(
+            label: l10n.securityMacosEnableKeychain,
+            icon: Icons.vpn_key,
+            loading: _enablingKeychain,
+            dense: true,
+            onTap: _enablingKeychain ? null : _enableMacosKeychain,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _enableMacosKeychain() async {
+    setState(() => _enablingKeychain = true);
+    try {
+      const svc = ResignService();
+      await svc.ensureIdentity();
+      final bundle = Directory(
+        Platform.resolvedExecutable,
+      ).parent.parent.parent;
+      final outcome = await svc.resignBundle(appBundle: bundle);
+      if (!mounted) return;
+      final ok =
+          outcome == ResignOutcome.succeeded ||
+          outcome == ResignOutcome.reusedExisting;
+      if (!ok) {
+        Toast.show(
+          context,
+          message: S.of(context).securityMacosEnableKeychainFailed,
+          level: ToastLevel.error,
+        );
+        return;
+      }
+      // Re-probe capabilities in place so the T1 row rebuilds as
+      // available without the user having to reopen the wizard.
+      final fresh = await probeCapabilities(
+        keyStorage: widget.keyStorage,
+        hardwareVault: widget.hardwareVault,
+      );
+      if (!mounted) return;
+      setState(() => _caps = fresh);
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosEnableKeychainSuccess,
+        level: ToastLevel.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosEnableKeychainFailed,
+        level: ToastLevel.error,
+      );
+    } finally {
+      if (mounted) setState(() => _enablingKeychain = false);
+    }
+  }
 
   Widget _buildHardwareRow(S l10n, SecurityCapabilities caps) => _TierRow(
     badge: 'T2',

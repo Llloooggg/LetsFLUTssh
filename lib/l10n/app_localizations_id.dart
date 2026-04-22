@@ -2308,6 +2308,26 @@ class SId extends S {
   String get securityRecheckUnchanged => 'Dukungan tingkat tidak berubah';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'Aktifkan penyimpanan Keychain macOS';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Ikat rahasia terenkripsi ke sertifikat pribadi agar T1 bertahan setelah pembaruan';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS akan meminta kata sandi Anda sekali';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Penyimpanan Keychain diaktifkan — T1 sekarang tersedia';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'Gagal mengaktifkan penyimpanan Keychain';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus aktif tetapi tidak ada secret-service daemon yang berjalan. Pasang gnome-keyring (`sudo apt install gnome-keyring`) atau KWalletManager dan pastikan berjalan saat login.';
 

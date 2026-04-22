@@ -2325,6 +2325,26 @@ class SEs extends S {
   String get securityRecheckUnchanged => 'Soporte de niveles sin cambios';
 
   @override
+  String get securityMacosEnableKeychain =>
+      'Activar almacenamiento en el llavero de macOS';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'Vincular secretos cifrados a un certificado personal para que T1 sobreviva a las actualizaciones';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS pedirá tu contraseña una vez';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'Almacenamiento en el llavero activado — T1 está disponible';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'No se pudo activar el almacenamiento en el llavero';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus está activo pero ningún secret-service daemon está ejecutándose. Instala gnome-keyring (`sudo apt install gnome-keyring`) o KWalletManager y asegúrate de que se inicie al iniciar sesión.';
 

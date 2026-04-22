@@ -18,6 +18,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   // round-trips take hundreds of ms; without a spinner the button
   // feels dead).
   bool _recheckingTiers = false;
+  // True while the macOS "Enable Keychain storage" one-shot is in
+  // flight — cert generation + keychain import + `add-trusted-cert`
+  // (the one step that prompts for the user's login password) +
+  // inside-out re-sign of the live bundle + entitlement probe.
+  bool _enablingKeychain = false;
 
   @override
   void initState() {
@@ -477,6 +482,51 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             onTap: _recheckingTiers ? null : _rerunTierProbes,
           ),
         ),
+        // macOS-only: "Enable Keychain storage" action visible when
+        // the keychain probe is reporting unavailable. Creates a
+        // personal self-signed code-signing cert via [ResignService],
+        // re-signs the running bundle, and triggers a tier re-check
+        // so T1 flips from greyed out to available. The button is
+        // deliberately rendered *after* "Re-check tier support" so
+        // the user sees the passive probe option first, and the
+        // active one-shot fix after.
+        if (Platform.isMacOS &&
+            !caps.maybeWhen(
+              data: (c) => c.keychainAvailable,
+              orElse: () => true,
+            ))
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              children: [
+                Text(
+                  l10n.securityMacosEnableKeychainSubtitle,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgDim,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.securityMacosEnableKeychainPrompt,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgFaint,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                AppButton.primary(
+                  label: l10n.securityMacosEnableKeychain,
+                  icon: Icons.vpn_key,
+                  loading: _enablingKeychain,
+                  dense: true,
+                  onTap: _enablingKeychain ? null : _enableMacosKeychain,
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -531,6 +581,62 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       );
     } finally {
       if (mounted) setState(() => _recheckingTiers = false);
+    }
+  }
+
+  /// Run the macOS self-sign pipeline against the live bundle:
+  /// [ResignService.ensureIdentity] creates (or reuses) the personal
+  /// cert and grants trust; [ResignService.resignBundle] re-signs the
+  /// running `.app` inside-out with `--options runtime` +
+  /// extracted entitlements so `keychain-access-groups` survives.
+  /// After success the capability + probe snapshots are invalidated
+  /// so the T1 tier card flips from disabled to available.
+  Future<void> _enableMacosKeychain() async {
+    setState(() => _enablingKeychain = true);
+    try {
+      final svc = ref.read(resignServiceProvider);
+      await svc.ensureIdentity();
+      final bundle = Directory(Platform.resolvedExecutable)
+          .parent // Contents/MacOS
+          .parent // Contents
+          .parent; // <bundle>.app
+      final outcome = await svc.resignBundle(appBundle: bundle);
+      if (!mounted) return;
+      final ok =
+          outcome == ResignOutcome.succeeded ||
+          outcome == ResignOutcome.reusedExisting;
+      if (!ok) {
+        Toast.show(
+          context,
+          message: S.of(context).securityMacosEnableKeychainFailed,
+          level: ToastLevel.error,
+        );
+        return;
+      }
+      // Drop the persisted capability cache + invalidate providers so
+      // the UI re-probes against the freshly re-signed bundle.
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWithSecurity(securityProbeCache: null));
+      ref.invalidate(securityCapabilitiesProvider);
+      ref.invalidate(hardwareProbeDetailProvider);
+      ref.invalidate(keyringProbeDetailProvider);
+      await ref.read(securityCapabilitiesProvider.future);
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosEnableKeychainSuccess,
+        level: ToastLevel.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosEnableKeychainFailed,
+        level: ToastLevel.error,
+      );
+    } finally {
+      if (mounted) setState(() => _enablingKeychain = false);
     }
   }
 

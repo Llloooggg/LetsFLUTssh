@@ -2305,6 +2305,25 @@ class SHi extends S {
   String get securityRecheckUnchanged => 'टियर समर्थन अपरिवर्तित';
 
   @override
+  String get securityMacosEnableKeychain => 'macOS कीचेन स्टोरेज सक्षम करें';
+
+  @override
+  String get securityMacosEnableKeychainSubtitle =>
+      'एन्क्रिप्टेड रहस्यों को व्यक्तिगत प्रमाणपत्र से जोड़ें ताकि T1 अपडेट के बाद भी बना रहे';
+
+  @override
+  String get securityMacosEnableKeychainPrompt =>
+      'macOS एक बार आपका पासवर्ड पूछेगा';
+
+  @override
+  String get securityMacosEnableKeychainSuccess =>
+      'कीचेन स्टोरेज सक्षम — T1 टियर अब उपलब्ध है';
+
+  @override
+  String get securityMacosEnableKeychainFailed =>
+      'कीचेन स्टोरेज सक्षम करने में विफल';
+
+  @override
   String get keyringProbeLinuxNoSecretService =>
       'D-Bus चल रहा है लेकिन कोई secret-service daemon नहीं चल रहा। gnome-keyring (`sudo apt install gnome-keyring`) या KWalletManager स्थापित करें और लॉगिन पर शुरू होना सुनिश्चित करें।';
 
