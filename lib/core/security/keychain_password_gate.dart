@@ -91,6 +91,15 @@ class KeychainPasswordGate {
   /// Configure the gate with [password]. Generates a fresh salt on
   /// disk and a fresh pepper in the OS keychain; the resulting HMAC
   /// is also written to disk.
+  ///
+  /// Also drops any persisted rate-limit state tied to the *previous*
+  /// HMAC. Without this step a fresh password write would flip the
+  /// `PersistedRateLimiter`'s HMAC key while the leftover
+  /// `rate_limit_state.bin` still carried a signature keyed to the
+  /// old hash — the next status load would hit the HMAC-mismatch
+  /// tamper branch and throw the user into the worst-case 60-second
+  /// cooldown on first launch. Wiping the state here aligns the
+  /// counter with the new password.
   Future<void> setPassword(String password) async {
     final salt = _rand(_saltLength);
     final pepper = _rand(_pepperLength);
@@ -106,6 +115,27 @@ class KeychainPasswordGate {
     });
     await file.writeAsBytes(utf8.encode(blob), flush: true);
     await hardenFilePerms(file.path);
+
+    await _clearRateLimitState();
+  }
+
+  /// Delete the persisted rate-limit state file so the next
+  /// [rateLimiter] starts with a zero failure counter. Best-effort —
+  /// a log + swallow is preferable to blocking the password write
+  /// on a filesystem hiccup.
+  Future<void> _clearRateLimitState() async {
+    try {
+      final hashFile = await _hashFile();
+      final stateFile = File(
+        p.join(hashFile.parent.path, 'rate_limit_state.bin'),
+      );
+      if (await stateFile.exists()) await stateFile.delete();
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeychainPasswordGate: failed to clear rate-limit state: $e',
+        name: 'KeychainPasswordGate',
+      );
+    }
   }
 
   /// True when [password] matches the stored hash. False on any

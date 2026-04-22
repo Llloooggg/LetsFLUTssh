@@ -774,9 +774,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   /// Cache the DB key in the biometric-gated vault. Requires a fresh
-  /// master-password prompt so an accidental toggle tap can't silently
-  /// enable biometric access; the live key in SecurityState is the same
-  /// bytes we'd store, but forcing re-entry matches user expectation.
+  /// password prompt so an accidental toggle tap can't silently enable
+  /// biometric access; the live key in SecurityState is the same bytes
+  /// we'd store, but forcing re-entry matches user expectation.
+  ///
+  /// The password-verification path branches on the active tier:
+  ///   * Paranoid → master-password Argon2id verify+derive via
+  ///     [MasterPasswordManager].
+  ///   * Keychain + password (T1 + pw) → gate-password HMAC verify via
+  ///     [KeychainPasswordGate], then read the random DB key from the
+  ///     OS keychain via [SecureKeyStorage.readKey]. Running
+  ///     `MasterPasswordManager.verifyAndDerive` on T1 threw
+  ///     `MasterPasswordException('Master password is not enabled')`
+  ///     — there is no KDF record on disk in T1, and the gate
+  ///     password isn't a key-derivation secret in the first place.
   Future<void> _enableBiometricUnlock(BuildContext context) async {
     final l10n = S.of(context);
     final currentCtrl = TextEditingController();
@@ -786,10 +797,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     );
     if (password == null || !context.mounted) return;
 
-    final manager = ref.read(masterPasswordProvider);
-    // Single Argon2id pass: verify + derive at once so the enable flow
-    // doesn't double the memory-hard KDF wait on mobile.
-    final key = await manager.verifyAndDerive(password);
+    final tier = ref.read(securityStateProvider).level;
+    final Uint8List? key;
+    if (tier == SecurityTier.paranoid) {
+      final manager = ref.read(masterPasswordProvider);
+      // Single Argon2id pass: verify + derive at once so the enable
+      // flow doesn't double the memory-hard KDF wait on mobile.
+      key = await manager.verifyAndDerive(password);
+    } else if (tier == SecurityTier.keychainWithPassword) {
+      final gate = ref.read(keychainPasswordGateProvider);
+      final ok = await gate.verify(password);
+      key = ok ? await ref.read(secureKeyStorageProvider).readKey() : null;
+    } else {
+      key = null;
+    }
     if (key == null) {
       if (context.mounted) {
         Toast.show(

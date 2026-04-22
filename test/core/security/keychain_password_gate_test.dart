@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
+import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -148,19 +149,36 @@ void main() {
       expect(limiter.status().failureCount, greaterThanOrEqualTo(1));
     });
 
-    test('rateLimiter rotates when setPassword rotates HMAC', () async {
-      final gate = newGate();
-      await gate.setPassword('hunter2');
-      final limiter1 = await gate.rateLimiter();
-      limiter1!.recordFailure();
+    test(
+      'setPassword wipes rate_limit_state so a new HMAC does not look tampered',
+      () async {
+        // Regression gate: a user who set a password, failed a couple
+        // of unlock attempts, then re-set the password used to land on
+        // a 60-second cooldown on the next app launch. Cause: the
+        // persisted rate-limit file was still signed with the *old*
+        // HMAC, so the fresh limiter's HMAC-verify tripped the
+        // tamper branch. Fix: setPassword deletes the state file;
+        // this test pins that cleanup.
+        final gate = newGate();
+        await gate.setPassword('hunter2');
+        final limiter1 = await gate.rateLimiter();
+        limiter1!.recordFailure();
+        limiter1.recordFailure();
+        // Wait for the fire-and-forget save to land on disk.
+        await (limiter1 as PersistedRateLimiter).awaitPendingSave();
+        expect(limiter1.status().failureCount, greaterThanOrEqualTo(1));
 
-      // Rotate password → HMAC changes → new limiter's HMAC key no
-      // longer matches the disk state → the next load reports tamper
-      // and clamps the cooldown to max. Exercising this confirms the
-      // limiter is bound to the current gate state, not a previous one.
-      await gate.setPassword('hunter2');
-      final limiter2 = await gate.rateLimiter();
-      expect(limiter2, isNotNull);
-    });
+        await gate.setPassword('newpass');
+        final limiter2 = await gate.rateLimiter();
+        expect(limiter2, isNotNull);
+        final status = await (limiter2! as PersistedRateLimiter).statusAsync();
+        expect(
+          status.failureCount,
+          0,
+          reason: 'setPassword must wipe rate-limit state',
+        );
+        expect(status.cooldownRemaining, Duration.zero);
+      },
+    );
   });
 }
