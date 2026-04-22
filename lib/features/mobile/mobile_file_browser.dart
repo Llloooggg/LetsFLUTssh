@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../l10n/app_localizations.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/sftp/sftp_models.dart';
@@ -403,9 +404,10 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
             ),
           ),
           const SizedBox(width: 8),
-          TextButton(
-            onPressed: _requestAndRefreshPermission,
-            child: Text(S.of(context).grantPermission),
+          AppButton.secondary(
+            label: S.of(context).grantPermission,
+            dense: true,
+            onTap: _requestAndRefreshPermission,
           ),
         ],
       ),
@@ -651,9 +653,10 @@ class _MobileFileListState extends State<MobileFileList> {
           const SizedBox(height: 8),
           Text(localizeError(S.of(context), ctrl.error!)),
           const SizedBox(height: 8),
-          FilledButton.tonal(
-            onPressed: ctrl.refresh,
-            child: Text(S.of(context).retry),
+          AppButton.secondary(
+            label: S.of(context).retry,
+            icon: Icons.refresh,
+            onTap: ctrl.refresh,
           ),
         ],
       ),

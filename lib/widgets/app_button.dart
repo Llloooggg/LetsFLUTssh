@@ -130,7 +130,15 @@ class AppButton extends StatelessWidget {
     final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg, dense: dense);
     final vPad = dense ? 4.0 : 6.0;
     final fontSize = (mobile && !dense) ? AppFonts.md : AppFonts.sm;
-    final radius = (mobile && !dense) ? AppTheme.radiusMd : BorderRadius.zero;
+    // Every button carries at least a 4-px radius so dense toolbar
+    // buttons (Settings → Check for updates, key-manager toolbar, etc.)
+    // don't render as bare square chips against the rounded inputs /
+    // cards around them. Mobile primary buttons (non-dense) keep the
+    // larger 6-px radius that matches the 44-px tap target. The
+    // previous `BorderRadius.zero` on dense was the "uglhy" read users
+    // called out — it made every dense action button read as an
+    // unstyled placeholder.
+    final radius = (mobile && !dense) ? AppTheme.radiusMd : AppTheme.radiusSm;
 
     final bool tapActive = enabled && !loading;
 
