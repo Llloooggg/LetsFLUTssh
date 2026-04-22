@@ -11,6 +11,7 @@ import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -79,10 +80,11 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       ),
       countLabel: s.snippetCount(_snippets.length),
       actions: [
-        TextButton.icon(
-          onPressed: _addSnippet,
-          icon: const Icon(Icons.add, size: 16),
-          label: Text(s.addSnippet, style: TextStyle(fontSize: AppFonts.sm)),
+        AppButton(
+          label: s.addSnippet,
+          icon: Icons.add,
+          onTap: _addSnippet,
+          dense: true,
         ),
       ],
     );
@@ -114,26 +116,24 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       secondaryMono: true,
       tertiary: snippet.description.isEmpty ? null : snippet.description,
       trailing: [
-        IconButton(
-          icon: const Icon(Icons.content_copy, size: 14),
+        AppIconButton(
+          icon: Icons.content_copy,
           tooltip: s.copy,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _copyCommand(snippet),
+          dense: true,
+          onTap: () => _copyCommand(snippet),
         ),
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, size: 14),
+        AppIconButton(
+          icon: Icons.edit_outlined,
           tooltip: s.editSnippet,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _editSnippet(snippet),
+          dense: true,
+          onTap: () => _editSnippet(snippet),
         ),
-        IconButton(
-          icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+        AppIconButton(
+          icon: Icons.delete_outline,
           tooltip: s.deleteSnippet,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _deleteSnippet(snippet),
+          dense: true,
+          color: AppTheme.red,
+          onTap: () => _deleteSnippet(snippet),
         ),
       ],
     );

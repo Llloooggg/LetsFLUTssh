@@ -7,6 +7,7 @@ import 'package:letsflutssh/features/snippets/snippet_picker.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/snippet_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
+import 'package:letsflutssh/widgets/app_icon_button.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
 /// In-memory fake for [SnippetStore] — no database.
@@ -219,10 +220,13 @@ void main() {
       // Pinned section is visible.
       expect(find.text('PINNED'), findsOneWidget);
 
-      // Tap the filled push_pin IconButton to unpin.
-      // There are two push_pin icons per pinned snippet (list icon + button),
-      // so find the IconButton specifically.
-      await tester.tap(find.widgetWithIcon(IconButton, Icons.push_pin).first);
+      // Tap the filled push_pin icon (trailing `AppIconButton`) to
+      // unpin. There are two push_pin icons per pinned snippet (list
+      // icon + button), so scope the tap to the AppIconButton wrapper
+      // to avoid hitting the leading list marker.
+      await tester.tap(
+        find.widgetWithIcon(AppIconButton, Icons.push_pin).first,
+      );
       await tester.pumpAndSettle();
 
       // After unpinning, the pinned section should be gone.
