@@ -116,30 +116,12 @@ class _UpdateSection extends ConsumerWidget {
         return _buildUpdateAvailable(context, ref, updateState);
 
       case UpdateStatus.downloading:
-        // Linear progress gives the user a much clearer sense of how far
-        // the download has gone than a 20-px spinner — pair it with a
-        // percent-annotated caption for screen readers.
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                S
-                    .of(context)
-                    .downloadingPercent((updateState.progress * 100).toInt()),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: AppTheme.radiusSm,
-                child: LinearProgressIndicator(
-                  value: updateState.progress > 0 ? updateState.progress : null,
-                  minHeight: 6,
-                ),
-              ),
-            ],
-          ),
-        );
+        // Linear progress gives the user a much clearer sense of how
+        // far the download has gone than a 20-px spinner — pair it
+        // with a percent-annotated caption for screen readers. The
+        // widget is shared with the first-launch update dialog so
+        // both surfaces move together when the caption copy changes.
+        return UpdateProgressIndicator(state: updateState);
 
       case UpdateStatus.downloaded:
         return _buildDownloaded(context, ref, updateState);

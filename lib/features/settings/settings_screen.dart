@@ -62,6 +62,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
 import '../../widgets/expandable_tier_card.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/update_progress_indicator.dart';
 import '../../widgets/unified_export_dialog.dart';
 import '../../widgets/lfs_import_preview_dialog.dart';
 import '../../widgets/link_import_preview_dialog.dart';
