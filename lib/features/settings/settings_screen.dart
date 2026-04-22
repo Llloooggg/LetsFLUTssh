@@ -402,38 +402,44 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 Expanded(
                   child: Row(
                     children: [
-                      // Sidebar
+                      // Sidebar — opts out of the ambient `AppDialog`
+                      // selection scope so nav labels + Reset button
+                      // are treated as clickable chrome, not copyable
+                      // body text (no I-beam cursor, no `Ctrl+C`
+                      // hijack of the selected label).
                       SizedBox(
                         width: 200,
-                        child: Container(
-                          color: scheme.surfaceContainerLow,
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
+                        child: SelectionContainer.disabled(
+                          child: Container(
+                            color: scheme.surfaceContainerLow,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    itemCount: sections.length,
+                                    itemBuilder: (context, index) {
+                                      final section = sections[index];
+                                      return _NavItem(
+                                        icon: section.icon,
+                                        label: section.title,
+                                        selected: index == _selectedIndex,
+                                        onTap: () => setState(
+                                          () => _selectedIndex = index,
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  itemCount: sections.length,
-                                  itemBuilder: (context, index) {
-                                    final section = sections[index];
-                                    return _NavItem(
-                                      icon: section.icon,
-                                      label: section.title,
-                                      selected: index == _selectedIndex,
-                                      onTap: () => setState(
-                                        () => _selectedIndex = index,
-                                      ),
-                                    );
-                                  },
                                 ),
-                              ),
-                              _ResetButton(
-                                onTap: () => ref
-                                    .read(configProvider.notifier)
-                                    .update((_) => AppConfig.defaults),
-                              ),
-                            ],
+                                _ResetButton(
+                                  onTap: () => ref
+                                      .read(configProvider.notifier)
+                                      .update((_) => AppConfig.defaults),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

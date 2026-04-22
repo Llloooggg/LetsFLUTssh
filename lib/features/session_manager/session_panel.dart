@@ -261,45 +261,26 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     _editSession(context, ref, session);
   }
 
-  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final reg = AppShortcutRegistry.instance;
-
-    if (reg.matches(AppShortcut.sessionUndo, event)) {
-      ref.read(sessionProvider.notifier).undo();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionRedo, event)) {
-      ref.read(sessionProvider.notifier).redo();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionCopy, event)) {
-      copyFocusedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionCut, event)) {
-      cutFocusedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionPaste, event)) {
-      pasteCopiedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionDelete, event)) {
-      if (_ctrl.hasSelection) {
-        _deleteSelected(context);
-        return KeyEventResult.handled;
-      }
-      if (_ctrl.focusedSessionId == null) return KeyEventResult.ignored;
-      deleteFocusedSession();
-      return KeyEventResult.handled;
-    }
-    if (reg.matches(AppShortcut.sessionEdit, event)) {
-      if (_ctrl.focusedSessionId == null) return KeyEventResult.ignored;
-      editFocusedSession();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
+  Map<ShortcutActivator, VoidCallback> _buildShortcutBindings() {
+    return AppShortcutRegistry.instance.buildCallbackMap({
+      AppShortcut.sessionUndo: () => ref.read(sessionProvider.notifier).undo(),
+      AppShortcut.sessionRedo: () => ref.read(sessionProvider.notifier).redo(),
+      AppShortcut.sessionCopy: copyFocusedSession,
+      AppShortcut.sessionCut: cutFocusedSession,
+      AppShortcut.sessionPaste: pasteCopiedSession,
+      AppShortcut.sessionDelete: () {
+        if (_ctrl.hasSelection) {
+          _deleteSelected(context);
+          return;
+        }
+        if (_ctrl.focusedSessionId == null) return;
+        deleteFocusedSession();
+      },
+      AppShortcut.sessionEdit: () {
+        if (_ctrl.focusedSessionId == null) return;
+        editFocusedSession();
+      },
+    });
   }
 
   @override
@@ -333,30 +314,42 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           if (!isMobilePlatform) _focusNode.requestFocus();
           widget.onActivated?.call();
         },
-        child: Focus(
-          focusNode: _focusNode,
-          autofocus: false,
-          onKeyEvent: _onKeyEvent,
-          child: AnimatedBuilder(
-            animation: _ctrl,
-            builder: (context, _) => Container(
-              color: scheme.surfaceContainerLow,
-              child: Column(
-                children: [
-                  ..._buildHeader(context, ref, searchQuery, mobile),
-                  Expanded(
-                    child: tree.isEmpty
-                        ? _EmptyState(onAdd: () => _addSession(context, ref))
-                        : _buildTreeView(context, ref, tree, mobile),
-                  ),
-                  if (!mobile)
-                    _SessionDetailsPanel(
-                      session: _focusedSession(ref),
-                      folderPath: _ctrl.focusedFolderPath,
-                      folderItemCount: _ctrl.focusedFolderItemCount,
+        // `CallbackShortcuts` fires for any `FocusNode` descendant that
+        // is currently focused — not just the `Focus` widget it wraps —
+        // which fixes the "works every other time" bug the hand-rolled
+        // `Focus(onKeyEvent: _onKeyEvent)` shipped. With the prior
+        // `onKeyEvent` approach, clicking on a session row gave focus
+        // to an inner `Draggable` / `AppIconButton` node, which stole
+        // focus away from the panel root — so `Ctrl+C`, `Ctrl+V`,
+        // `Ctrl+Z` etc only fired on the lucky frames where the panel
+        // root itself held focus. `CallbackShortcuts` + the outer
+        // `Focus(autofocus: true)` keeps the whole subtree live.
+        child: CallbackShortcuts(
+          bindings: _buildShortcutBindings(),
+          child: Focus(
+            focusNode: _focusNode,
+            autofocus: false,
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) => Container(
+                color: scheme.surfaceContainerLow,
+                child: Column(
+                  children: [
+                    ..._buildHeader(context, ref, searchQuery, mobile),
+                    Expanded(
+                      child: tree.isEmpty
+                          ? _EmptyState(onAdd: () => _addSession(context, ref))
+                          : _buildTreeView(context, ref, tree, mobile),
                     ),
-                  if (!mobile) const _SidebarFooter(),
-                ],
+                    if (!mobile)
+                      _SessionDetailsPanel(
+                        session: _focusedSession(ref),
+                        folderPath: _ctrl.focusedFolderPath,
+                        folderItemCount: _ctrl.focusedFolderItemCount,
+                      ),
+                    if (!mobile) const _SidebarFooter(),
+                  ],
+                ),
               ),
             ),
           ),

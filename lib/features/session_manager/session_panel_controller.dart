@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 /// Headless state for [SessionPanel]. Holds multi-select, focus, marquee,
@@ -147,7 +145,6 @@ class SessionPanelController extends ChangeNotifier {
     if (_focusedSessionId == null) return;
     _copiedSessionId = _focusedSessionId;
     _cutPending = false;
-    _armClipboardTimer();
     // Clipboard is invisible — no listener update needed, but keep
     // semantics consistent by signalling anyway.
     notifyListeners();
@@ -160,7 +157,6 @@ class SessionPanelController extends ChangeNotifier {
     if (_focusedSessionId == null) return;
     _copiedSessionId = _focusedSessionId;
     _cutPending = true;
-    _armClipboardTimer();
     notifyListeners();
   }
 
@@ -169,38 +165,17 @@ class SessionPanelController extends ChangeNotifier {
   bool get cutPending => _cutPending;
   bool _cutPending = false;
 
-  Timer? _clipboardTimer;
-
-  /// Matches the 30-second window [`ClipboardSecret.copySecret`] uses
-  /// for the OS clipboard auto-wipe. Session clipboard only stores
-  /// an id (no credentials), but a stale id points at an object
-  /// whose credentials are in-memory `SecretBuffer`s — letting the
-  /// reference hang until next lock / app quit extends the window
-  /// that a later paste / undo could re-expose secrets. 30s is the
-  /// project-wide "user still has this action in working memory"
-  /// bound.
-  static const Duration _clipboardTtl = Duration(seconds: 30);
-
-  void _armClipboardTimer() {
-    _clipboardTimer?.cancel();
-    _clipboardTimer = Timer(_clipboardTtl, clearClipboard);
-  }
-
-  /// Called by [pasteCopiedSession] after the move completes so the
-  /// next paste defaults back to duplicate semantics. Also runs on
-  /// the 30-second TTL and on [dispose].
+  /// Called by [pasteCopiedSession] after the move / duplicate
+  /// completes, and by the lock / wipe paths via
+  /// `SessionPanel.dispose` on the reset flow. The clipboard is a
+  /// 30-char session id pointer — not session data — so there is no
+  /// RAM leak beyond the reference itself, and clearing is driven
+  /// by explicit events (paste succeeded, panel torn down) rather
+  /// than a wall-clock timer.
   void clearClipboard() {
-    _clipboardTimer?.cancel();
-    _clipboardTimer = null;
     if (_copiedSessionId == null && !_cutPending) return;
     _copiedSessionId = null;
     _cutPending = false;
     notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _clipboardTimer?.cancel();
-    super.dispose();
   }
 }
