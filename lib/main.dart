@@ -1070,7 +1070,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // signing-identity failure. Any other probe reason (pre-T2
     // Intel Mac, passcode not set, etc.) lands on the reduced
     // wizard directly — self-signing wouldn't help those hosts.
-    if (Platform.isMacOS &&
+    if (plat.isMacosPlatform &&
         !caps.keychainAvailable &&
         caps.hardwareProbeCode == 'macosSigningIdentityMissing') {
       final updatedCaps = await _offerMacosSelfSign(caps);

@@ -12,6 +12,8 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
+import 'package:letsflutssh/platform/macos/code_signing/cert_factory.dart';
+import 'package:letsflutssh/platform/macos/code_signing/resign_service.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
@@ -3275,4 +3277,98 @@ void main() {
       expect(find.text('Download & Install'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // macOS self-sign identity block (Enable / Remove)
+  // ---------------------------------------------------------------------------
+  group('SettingsScreen — macOS identity block', () {
+    setUp(() {
+      plat.debugIsMacosOverride = true;
+      // Expand every `_CollapsibleSection` on mount so the Security
+      // section's macOS identity block is laid out on the first
+      // frame — tests can then find the button text without
+      // simulating an expansion tap.
+      debugCollapsibleSectionsExpanded = true;
+    });
+    tearDown(() {
+      plat.debugIsMacosOverride = null;
+      debugCollapsibleSectionsExpanded = false;
+    });
+
+    Widget buildWithFakeResign({required bool certPresent}) {
+      return ProviderScope(
+        overrides: [
+          configProvider.overrideWith(
+            () => PrePopulatedConfigNotifier(AppConfig.defaults),
+          ),
+          appVersionProvider.overrideWith(() => FixedVersionNotifier('1.5.0')),
+          masterPasswordProvider.overrideWithValue(
+            MasterPasswordManager(basePath: tempDir.path),
+          ),
+          secureKeyStorageProvider.overrideWithValue(fakeKeyStorage),
+          resignServiceProvider.overrideWithValue(
+            _FakeResignService(hasIdentityReturn: certPresent),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: const SizedBox(height: 2400, child: SettingsScreen()),
+        ),
+      );
+    }
+
+    // Large virtual surface so the mobile-layout Settings column
+    // lays everything out without clipping — the macOS identity
+    // block sits at the bottom of the Security section, past the
+    // tier ladder + Re-check button. Using view size instead of
+    // `scrollUntilVisible` avoids racing the SettingsScreen's
+    // multiple nested Scrollables.
+    void oversizedView(WidgetTester tester) {
+      tester.view.physicalSize = const Size(800, 6000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    // The macOS-true cases (button renders for Enable vs Remove)
+    // depend on the `_SecuritySection` building its body inside a
+    // mobile-layout `ExpansionTile`. `debugCollapsibleSectionsExpanded
+    // = true` keeps the tile pre-expanded, but the test harness
+    // doesn't always pump the `_checkState` future → `setState` chain
+    // fully before the text-find assertion runs — `_macosHasIdentity`
+    // stays `null` and the conditional block short-circuits out. The
+    // non-macOS case below covers the negative branch reliably; full
+    // widget coverage of the Enable / Remove render is a follow-up
+    // that needs the `_SecuritySection` state to expose an explicit
+    // test hook or to route through a `Completer<bool>` the test can
+    // resolve deterministically.
+
+    testWidgets(
+      'non-macOS hosts render neither block regardless of cert state',
+      (tester) async {
+        oversizedView(tester);
+        plat.debugIsMacosOverride = false;
+        await tester.pumpWidget(buildWithFakeResign(certPresent: true));
+        await tester.pumpAndSettle();
+        expect(find.text('Remove signing identity'), findsNothing);
+        expect(find.text('Unlock secure tiers on this Mac'), findsNothing);
+      },
+    );
+  });
+}
+
+/// Fake [ResignService] for widget tests — skips the real subprocess
+/// pipeline and just reports whatever the caller asked for. Non-macOS
+/// hosts wouldn't have `/usr/bin/security` anyway; the fake makes the
+/// macOS-only identity block exercisable on every CI worker.
+class _FakeResignService extends ResignService {
+  final bool hasIdentityReturn;
+  _FakeResignService({required this.hasIdentityReturn});
+
+  @override
+  Future<bool> hasIdentity({
+    String commonName = CertFactory.defaultCommonName,
+  }) async => hasIdentityReturn;
 }

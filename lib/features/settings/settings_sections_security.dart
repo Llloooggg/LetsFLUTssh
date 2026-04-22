@@ -28,7 +28,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   bool _removingKeychain = false;
   // `null` until the initial probe completes. On non-macOS hosts
   // stays null forever — the gating build conditions already filter
-  // on `Platform.isMacOS`.
+  // on `plat.isMacosPlatform`.
   bool? _macosHasIdentity;
 
   @override
@@ -50,7 +50,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // `Keychain.hasCertificate` would spawn `security find-certificate`
     // which exists on macOS only.
     bool? hasIdentity;
-    if (Platform.isMacOS) {
+    if (plat.isMacosPlatform) {
       try {
         hasIdentity = await ref.read(resignServiceProvider).hasIdentity();
       } catch (_) {
@@ -508,9 +508,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         // a cert is present. Removal opens the tier-switch wizard
         // first so the user migrates off T1 / T2 before the cert
         // that backs their access to those secrets is deleted.
-        if (Platform.isMacOS && _macosHasIdentity == false)
+        if (plat.isMacosPlatform && _macosHasIdentity == false)
           _buildMacosEnableBlock(l10n),
-        if (Platform.isMacOS && _macosHasIdentity == true)
+        if (plat.isMacosPlatform && _macosHasIdentity == true)
           _buildMacosRemoveBlock(l10n),
       ],
     );
