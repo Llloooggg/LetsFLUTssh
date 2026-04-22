@@ -229,6 +229,60 @@ void main() {
       expect(fired, isFalse);
     });
 
+    group('formatShortcut', () {
+      test('Ctrl+Shift+V for terminalPaste', () {
+        expect(
+          formatShortcut(AppShortcut.terminalPaste.defaultBinding),
+          'Ctrl+Shift+V',
+        );
+      });
+
+      test('Ctrl+C for sessionCopy (no shift)', () {
+        expect(
+          formatShortcut(AppShortcut.sessionCopy.defaultBinding),
+          'Ctrl+C',
+        );
+      });
+
+      test('F2 for fileRename — printable function key', () {
+        expect(formatShortcut(AppShortcut.fileRename.defaultBinding), 'F2');
+      });
+
+      test('Delete renders as "Delete", not raw keyId or blank', () {
+        expect(formatShortcut(AppShortcut.fileDelete.defaultBinding), 'Delete');
+      });
+
+      test('Esc for terminalCloseSearch', () {
+        expect(
+          formatShortcut(AppShortcut.terminalCloseSearch.defaultBinding),
+          'Esc',
+        );
+      });
+
+      test('Ctrl+\\ for splitRight — backslash renders as glyph', () {
+        expect(
+          formatShortcut(AppShortcut.splitRight.defaultBinding),
+          r'Ctrl+\',
+        );
+      });
+
+      test('Ctrl+, for openSettings — comma renders as glyph', () {
+        expect(
+          formatShortcut(AppShortcut.openSettings.defaultBinding),
+          'Ctrl+,',
+        );
+      });
+
+      test('registry.shortcutLabel matches formatShortcut of live binding', () {
+        for (final s in AppShortcut.values) {
+          expect(
+            registry.shortcutLabel(s),
+            formatShortcut(registry.binding(s)),
+          );
+        }
+      });
+    });
+
     test('shortcut groups cover all expected contexts', () {
       final globalShortcuts = [
         AppShortcut.newSession,

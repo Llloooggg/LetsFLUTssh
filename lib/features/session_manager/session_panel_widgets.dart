@@ -261,9 +261,8 @@ class _DetailRow extends StatelessWidget {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).copy,
-          icon: Icons.copy,
+        StandardMenuAction.copy.item(
+          context,
           onTap: () => Clipboard.setData(ClipboardData(text: value)),
         ),
       ],

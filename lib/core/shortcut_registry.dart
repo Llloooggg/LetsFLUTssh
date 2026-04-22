@@ -115,4 +115,55 @@ class AppShortcutRegistry {
     if (b.shift != hw.isShiftPressed) return false;
     return true;
   }
+
+  /// Human-readable label for the current binding of [shortcut]
+  /// (e.g. `Ctrl+Shift+V`, `F2`, `Delete`).
+  ///
+  /// Used by the context-menu factory so the shortcut hint always
+  /// reflects the live binding — hardcoded strings like "Ctrl+V" in
+  /// menus drift the moment a binding changes (the terminal copy/paste
+  /// bug that triggered this helper: the menu advertised `Ctrl+V` while
+  /// the real bind was `Ctrl+Shift+V`).
+  String shortcutLabel(AppShortcut shortcut) =>
+      formatShortcut(_bindings[shortcut]!);
+}
+
+/// Format a [SingleActivator] as a display string like `Ctrl+Shift+V`.
+///
+/// Modifier order: Ctrl, Alt, Shift, Meta — the GTK / Windows / macOS
+/// convention. Key glyph mirrors what the user sees on the cap.
+String formatShortcut(SingleActivator a) {
+  final parts = <String>[];
+  if (a.control) parts.add('Ctrl');
+  if (a.alt) parts.add('Alt');
+  if (a.shift) parts.add('Shift');
+  if (a.meta) parts.add('Meta');
+  parts.add(_keyLabel(a.trigger));
+  return parts.join('+');
+}
+
+String _keyLabel(LogicalKeyboardKey key) {
+  // Named keys whose `keyLabel` is empty or reads worse than the usual
+  // "cap" glyph (navigation keys, Esc, Tab, …). Map is rebuilt per call
+  // because `LogicalKeyboardKey` has a custom `==`/`hashCode` and can't
+  // key a const map — the method runs only when rendering a context
+  // menu, so cost is negligible.
+  final named = <LogicalKeyboardKey, String>{
+    LogicalKeyboardKey.escape: 'Esc',
+    LogicalKeyboardKey.enter: 'Enter',
+    LogicalKeyboardKey.tab: 'Tab',
+    LogicalKeyboardKey.space: 'Space',
+    LogicalKeyboardKey.backspace: 'Backspace',
+    LogicalKeyboardKey.delete: 'Delete',
+    LogicalKeyboardKey.arrowUp: '↑',
+    LogicalKeyboardKey.arrowDown: '↓',
+    LogicalKeyboardKey.arrowLeft: '←',
+    LogicalKeyboardKey.arrowRight: '→',
+  };
+  final mapped = named[key];
+  if (mapped != null) return mapped;
+  // Function keys (F1..F12) + printable chars: `keyLabel` is set.
+  final kl = key.keyLabel;
+  if (kl.isNotEmpty) return kl.toUpperCase();
+  return key.debugName ?? key.toString();
 }

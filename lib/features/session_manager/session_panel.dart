@@ -526,35 +526,27 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).terminal,
-          icon: Icons.terminal,
-          color: AppTheme.blue,
+        StandardMenuAction.terminal.item(
+          context,
           onTap: () => widget.onConnect(session),
         ),
         if (widget.onSftpConnect != null)
-          ContextMenuItem(
-            label: S.of(context).files,
-            icon: Icons.folder,
-            color: AppTheme.yellow,
+          StandardMenuAction.files.item(
+            context,
             onTap: () => widget.onSftpConnect?.call(session),
           ),
         const ContextMenuItem.divider(),
-        ContextMenuItem(
-          label: S.of(context).editConnection,
-          icon: Icons.settings,
+        StandardMenuAction.editConnection.item(
+          context,
           onTap: () => _editSession(context, ref, session),
         ),
-        ContextMenuItem(
-          label: S.of(context).duplicate,
-          icon: Icons.copy,
+        StandardMenuAction.duplicate.item(
+          context,
           onTap: () => ref.read(sessionProvider.notifier).duplicate(session.id),
         ),
         const ContextMenuItem.divider(),
-        ContextMenuItem(
-          label: S.of(context).delete,
-          icon: Icons.delete,
-          color: AppTheme.red,
+        StandardMenuAction.delete.item(
+          context,
           onTap: () => _confirmDelete(context, ref, session),
         ),
       ],
@@ -760,26 +752,22 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).newConnection,
-          icon: Icons.add,
+        StandardMenuAction.newConnection.item(
+          context,
           onTap: () => _addSessionInFolder(context, ref, folderPath),
         ),
-        ContextMenuItem(
-          label: S.of(context).newFolder,
-          icon: Icons.create_new_folder,
+        StandardMenuAction.newFolder.item(
+          context,
           onTap: () => _createFolder(context, ref, folderPath),
         ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: S.of(context).renameFolder,
-            icon: Icons.drive_file_rename_outline,
+          StandardMenuAction.renameFolder.item(
+            context,
             onTap: () => _renameFolder(context, ref, folderPath),
           ),
-          ContextMenuItem(
-            label: S.of(context).editTags,
-            icon: Icons.label_outline,
+          StandardMenuAction.editTags.item(
+            context,
             onTap: () {
               final folderId = ref
                   .read(sessionStoreProvider)
@@ -789,10 +777,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
               }
             },
           ),
-          ContextMenuItem(
-            label: S.of(context).deleteFolder,
-            icon: Icons.delete,
-            color: AppTheme.red,
+          StandardMenuAction.deleteFolder.item(
+            context,
             onTap: () => _confirmDeleteFolder(context, ref, folderPath),
           ),
         ],

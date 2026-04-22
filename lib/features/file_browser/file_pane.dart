@@ -889,14 +889,13 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).newFolder,
-          icon: Icons.create_new_folder,
+        StandardMenuAction.newFolder.item(
+          context,
           onTap: () => _showNewFolderDialog(context),
         ),
-        ContextMenuItem(
-          label: S.of(context).refresh,
-          icon: Icons.refresh,
+        StandardMenuAction.refresh.item(
+          context,
+          shortcut: AppShortcut.fileRefresh,
           onTap: () => ctrl.refresh(),
         ),
       ],
@@ -920,16 +919,15 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       position: position,
       items: [
         if (!hasMultiple && entry.isDir)
-          ContextMenuItem(
-            label: S.of(context).open,
-            icon: Icons.folder_open,
+          StandardMenuAction.open.item(
+            context,
             onTap: () => ctrl.navigateTo(entry.path),
           ),
-        ContextMenuItem(
-          label: hasMultiple
+        StandardMenuAction.transfer.item(
+          context,
+          labelOverride: hasMultiple
               ? S.of(context).transferNItems(selectedEntries.length)
-              : S.of(context).transfer,
-          icon: Icons.swap_horiz,
+              : null,
           onTap: () {
             if (hasMultiple) {
               widget.onTransferMultiple?.call(selectedEntries);
@@ -939,23 +937,21 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
           },
         ),
         const ContextMenuItem.divider(),
-        ContextMenuItem(
-          label: S.of(context).newFolder,
-          icon: Icons.create_new_folder,
+        StandardMenuAction.newFolder.item(
+          context,
           onTap: () => _showNewFolderDialog(context),
         ),
         if (!hasMultiple)
-          ContextMenuItem(
-            label: S.of(context).rename,
-            icon: Icons.edit,
+          StandardMenuAction.rename.item(
+            context,
+            shortcut: AppShortcut.fileRename,
             onTap: () => _showRenameDialog(context, entry),
           ),
-        ContextMenuItem(
-          label: hasMultiple
+        StandardMenuAction.delete.item(
+          context,
+          labelOverride: hasMultiple
               ? S.of(context).deleteNItems(selectedEntries.length)
-              : S.of(context).delete,
-          icon: Icons.delete,
-          color: AppTheme.red,
+              : null,
           onTap: () => _confirmDelete(context, selectedEntries),
         ),
       ],

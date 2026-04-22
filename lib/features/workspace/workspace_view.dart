@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
 import '../../theme/app_theme.dart';
@@ -360,35 +361,30 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       context: context,
       position: position,
       items: [
-        ContextMenuItem(
-          label: S.of(context).close,
-          icon: Icons.close,
+        StandardMenuAction.close.item(
+          context,
+          shortcut: AppShortcut.closeTab,
           onTap: () => notifier.closeTab(panel.id, tabId),
         ),
         if (panel.tabs.length > 1)
-          ContextMenuItem(
-            label: S.of(context).closeOthers,
-            icon: Icons.tab_unselected,
+          StandardMenuAction.closeOthers.item(
+            context,
             onTap: () => notifier.closeOthers(panel.id, tabId),
           ),
         if (index > 0)
-          ContextMenuItem(
-            label: S.of(context).closeTabsToTheLeft,
-            icon: Icons.first_page,
+          StandardMenuAction.closeTabsToTheLeft.item(
+            context,
             onTap: () => notifier.closeToTheLeft(panel.id, index),
           ),
         if (index < panel.tabs.length - 1)
-          ContextMenuItem(
-            label: S.of(context).closeTabsToTheRight,
-            icon: Icons.last_page,
+          StandardMenuAction.closeTabsToTheRight.item(
+            context,
             onTap: () => notifier.closeToTheRight(panel.id, index),
           ),
         if (panel.tabs.length > 1) ...[
           const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: S.of(context).closeAll,
-            icon: Icons.close_fullscreen,
-            color: AppTheme.red,
+          StandardMenuAction.closeAll.item(
+            context,
             onTap: () => notifier.closeAll(panel.id),
           ),
         ],
@@ -396,15 +392,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
         if (ref.read(workspaceProvider).root is WorkspaceBranch ||
             ref.read(workspaceProvider).isMaximized) ...[
           const ContextMenuItem.divider(),
-          ContextMenuItem(
-            label: ref.read(workspaceProvider).maximizedPanelId == panel.id
-                ? S.of(context).restore
-                : S.of(context).maximize,
-            icon: ref.read(workspaceProvider).maximizedPanelId == panel.id
-                ? Icons.close_fullscreen
-                : Icons.open_in_full,
-            onTap: () => notifier.toggleMaximizePanel(panel.id),
-          ),
+          (ref.read(workspaceProvider).maximizedPanelId == panel.id
+                  ? StandardMenuAction.restore
+                  : StandardMenuAction.maximize)
+              .item(
+                context,
+                shortcut: AppShortcut.maximizePanel,
+                onTap: () => notifier.toggleMaximizePanel(panel.id),
+              ),
         ],
       ],
     );

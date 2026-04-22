@@ -1778,13 +1778,27 @@ class AppShortcutRegistry {
 
   // For onKeyEvent handlers (e.g. inside xterm where CallbackShortcuts can't intercept):
   bool matches(AppShortcut shortcut, KeyEvent event);
+
+  // Render the current binding for [shortcut] as a display string
+  // ("Ctrl+Shift+V", "F2", "Delete") — used by the context-menu
+  // factory so shortcut hints always reflect the live bind.
+  String shortcutLabel(AppShortcut shortcut);
 }
+
+// Pure formatter — turns any SingleActivator into a display string.
+// Modifier order: Ctrl, Alt, Shift, Meta (the GTK / Win / mac
+// convention). Named keys (Esc, Tab, arrows, …) map to friendly
+// glyphs; printable + function keys fall through to `keyLabel`.
+String formatShortcut(SingleActivator a);
 ```
 
 **Usage patterns:**
 - `CallbackShortcuts` widgets → `AppShortcutRegistry.instance.buildCallbackMap({...})`
 - `onKeyEvent` handlers (xterm, file browser, session panel) → `reg.matches(AppShortcut.x, event)`
 - Dialogs → `buildCallbackMap({AppShortcut.dismissDialog: ...})`
+- Context-menu hints → `StandardMenuAction.x.item(ctx, shortcut: AppShortcut.y, …)`
+  (factory calls `shortcutLabel` internally; see [ContextMenu →
+  StandardMenuAction](#standardmenuaction--shared-action-catalogue))
 
 **Note:** `matches()` only checks ctrl/shift modifiers (not alt/meta) to tolerate phantom modifier flags on some platforms (e.g. WSLg).
 
@@ -2529,6 +2543,52 @@ Keyboard nav (arrows, enter, esc), hover highlighting, repositioning.
 Re-entrant: right-clicking a new location auto-dismisses the previous menu and opens a new one.
 Styled with `AppTheme` colors directly (no Material surface tint).
 Each item is wrapped in `Semantics(button: true, label: item.label)` for accessibility.
+
+#### StandardMenuAction — shared action catalogue
+
+```dart
+enum StandardMenuAction {
+  copy, paste, delete, rename, duplicate, refresh, open, transfer,
+  snippets, terminal, files, editConnection, newConnection, newFolder,
+  renameFolder, editTags, deleteFolder, close, closeOthers,
+  closeTabsToTheLeft, closeTabsToTheRight, closeAll, maximize, restore,
+  ;
+
+  ContextMenuItem item(
+    BuildContext context, {
+    required VoidCallback onTap,
+    AppShortcut? shortcut,
+    String? labelOverride,
+  });
+}
+```
+
+Every action that appears in more than one right-click menu lives here
+as a single enum value, along with its translated label (via `S.of`),
+Material icon, and optional accent colour (e.g. `delete` and `closeAll`
+carry `AppTheme.red`). Each call site only supplies the side-effect
+(`onTap`) and, when applicable, an `AppShortcut` — the shortcut hint is
+formatted from the **live** [`AppShortcutRegistry`](#311-keyboard-shortcuts-coreshortcut_registrydart)
+binding (see `formatShortcut` below), never hardcoded.
+
+Why enum, not ad-hoc strings per site: menus had drifted — for example
+the terminal right-click advertised a stale `Ctrl+V` next to `Paste`
+while the real binding was `Ctrl+Shift+V`. Threading the shortcut
+through `AppShortcutRegistry.shortcutLabel(AppShortcut)` makes the hint
+always reflect the real bind, and adding a new action is now one enum
+value instead of a hand-copied `label` / `icon` / `color` triple in
+every caller.
+
+Callers still use `showAppContextMenu` with a `List<ContextMenuItem>` —
+the enum just builds items. Site-unique actions (e.g. `closeTabsToTheLeft`
+appears only in the workspace tab-strip) also live in the enum because
+reuse is likely and the catalogue is cheap; truly one-off actions can
+still be constructed as a hand-rolled `ContextMenuItem` without going
+through the enum.
+
+Cross-link: shortcut labels are produced by
+[`formatShortcut` in §3.11](#311-keyboard-shortcuts-coreshortcut_registrydart)
+— the same helper `AppShortcutRegistry.shortcutLabel` uses.
 
 ### HostKeyDialog
 
