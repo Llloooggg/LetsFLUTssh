@@ -2147,25 +2147,30 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     final ws = ref.watch(workspaceProvider);
 
-    // SelectionArea wraps the desktop layout so every plain Text
-    // widget supports drag-select + Ctrl+C like a VSCode panel.
-    // Interactive widgets (buttons, switches, session tiles, SFTP
-    // rows) keep their own tap / drag gestures because SelectionArea
-    // yields to widgets that handle their own pointer events. The
-    // terminal (CustomPaint with its own selection logic) renders
-    // below the SelectionArea layer and is untouched — xterm keeps
-    // its native drag-select.
-    return AppSelectionArea(
-      child: CallbackShortcuts(
-        bindings: _buildKeyBindings(context, ws),
-        child: Focus(
-          autofocus: true,
-          child: DropTarget(
-            onDragDone: (details) => _handleLfsDrop(context, details),
-            child: LayoutBuilder(
-              builder: (context, constraints) =>
-                  _buildDesktopLayout(context, constraints, ws),
-            ),
+    // No top-level `SelectionArea` on desktop. Text selection is
+    // opt-in: specific informational surfaces (threat list rows in
+    // security tier cards, release-notes bodies, help prose) wrap
+    // their own `AppSelectionArea` locally. The previous iteration
+    // shipped one giant `SelectionArea` over the whole shell with
+    // `HoverRegion` auto-wrapping clickables in
+    // `SelectionContainer.disabled` to suppress the I-beam cursor
+    // and Ctrl+C hijack on buttons — but that collapsed the moment
+    // a `ThresholdDraggable` sat inside a `HoverRegion`, because the
+    // SelectionArea's `TapAndDragGestureRecognizer` claims pan
+    // ahead of Draggable in the arena and the opt-out wrap sits
+    // above the drag subtree instead of protecting it. Scoping
+    // selection to just the prose that needs it sidesteps every
+    // gesture-arena race, keeps drag native, and removes the I-beam
+    // from clickables for free (nothing claims selection there).
+    return CallbackShortcuts(
+      bindings: _buildKeyBindings(context, ws),
+      child: Focus(
+        autofocus: true,
+        child: DropTarget(
+          onDragDone: (details) => _handleLfsDrop(context, details),
+          child: LayoutBuilder(
+            builder: (context, constraints) =>
+                _buildDesktopLayout(context, constraints, ws),
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/security/threat_vocabulary.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'app_selection_area.dart';
 
 /// Single-tier threat-status list used by the per-tier info popup.
 ///
@@ -25,13 +26,20 @@ class SecurityThreatList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = S.of(context);
     final statusMap = evaluate(model);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final threat in SecurityThreat.values)
-          _ThreatRow(threat: threat, status: statusMap[threat]!, l10n: l10n),
-      ],
+    // Threat rows are informational prose — users flip between tiers
+    // to compare wording and sometimes want to copy a specific row to
+    // cite elsewhere. Scope `SelectionArea` to just this list so the
+    // text is selectable without hijacking Ctrl+C / drag on the
+    // surrounding wizard + tier-card chrome.
+    return AppSelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final threat in SecurityThreat.values)
+            _ThreatRow(threat: threat, status: statusMap[threat]!, l10n: l10n),
+        ],
+      ),
     );
   }
 }
