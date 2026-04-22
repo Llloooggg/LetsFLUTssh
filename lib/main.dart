@@ -964,13 +964,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
       return;
     }
-    final key = await _showL3UnlockDialog(vault);
-    if (key != null) {
-      await _injectDatabase(
-        key: Uint8List.fromList(key),
-        level: SecurityTier.hardware,
-        modifiers: mods,
-      );
+    // `_showL3UnlockDialog` runs DB injection inside its `verify`
+    // callback so the dialog's spinner stays visible for the full
+    // TPM / Secure Enclave unseal + drift DB open round-trip — on
+    // Windows the NCrypt unseal alone takes ~1 s, and the user would
+    // otherwise see a frozen screen between dialog pop and the
+    // first unlocked-UI frame.
+    final unlocked = await _showL3UnlockDialog(vault, mods);
+    if (unlocked) {
       AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
       return;
     }
@@ -978,14 +979,22 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     AppLogger.instance.log('L3 reset — plaintext fallback', name: 'App');
   }
 
-  Future<List<int>?> _showL3UnlockDialog(HardwareTierVault vault) {
+  /// Show the T2 unlock dialog and, on a successful unseal, inject
+  /// the DB inside the same await so the dialog's busy-spinner
+  /// covers both the hardware unseal AND the drift DB opener cost.
+  /// Returns true when the DB is unlocked + ready, false otherwise
+  /// (user cancelled, wrong password, or chose reset).
+  Future<bool> _showL3UnlockDialog(
+    HardwareTierVault vault,
+    SecurityTierModifiers? mods,
+  ) async {
     final ctx = navigatorKey.currentContext;
-    if (ctx == null) return Future.value(null);
+    if (ctx == null) return false;
     final l10n = S.of(ctx);
     // Hardware lockout is the real brake; `HardwareRateLimiter` is a
     // software counter on top of it for defense-in-depth.
     final limiter = HardwareRateLimiter();
-    return TierSecretUnlockDialog.show(
+    final key = await TierSecretUnlockDialog.show(
       ctx,
       labels: TierSecretUnlockLabels(
         title: l10n.l3UnlockTitle,
@@ -1003,6 +1012,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       verify: (pin) async {
         final unsealed = await vault.read(pin);
         if (unsealed == null) return null;
+        // Chain the DB opener into the same await chain so the
+        // dialog keeps its CircularProgressIndicator visible until
+        // the rekey completes. Previously `vault.read` returned
+        // quickly on Windows, the dialog popped, and users saw a
+        // frozen screen while drift opened the encrypted DB under
+        // the new key.
+        await _injectDatabase(
+          key: Uint8List.fromList(unsealed),
+          level: SecurityTier.hardware,
+          modifiers: mods,
+        );
         return unsealed;
       },
       onReset: () async {
@@ -1021,6 +1041,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         requestSecurityReinit(ref);
       },
     );
+    return key != null;
   }
 
   /// First-launch flow: probe the platform, auto-pick the default

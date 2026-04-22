@@ -339,6 +339,25 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       keychainAvailable: keychainAvail,
     );
 
+    // Gate password-dropping transitions on a fresh current-password
+    // entry. Symmetric with `_enableBiometricUnlock` — enabling a
+    // biometric shortcut prompts for the password, so *removing* the
+    // password must also prompt, otherwise the two flows behave
+    // asymmetrically and an accidental tap could unset a security
+    // control without confirmation. Supported today: T1+pw → any
+    // weaker tier (verify via KeychainPasswordGate), Paranoid → any
+    // weaker tier (verify via MasterPasswordManager). T2 password
+    // drop-off is not gated here because the only way to verify the
+    // T2 password is to unseal against the hardware vault, which
+    // triggers a biometric prompt and couples the confirmation with
+    // the actual tier switch — the hardware isolation is strong
+    // enough that a bystander cannot flip T2+pw → T2 without the
+    // chip responding anyway.
+    final currentTier = ref.read(securityStateProvider).level;
+    if (!await _confirmCurrentPasswordIfDropping(currentTier, tier)) {
+      return;
+    }
+
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
     if (!mounted) return;
     AppProgressBarDialog.show(context, reporter);
@@ -874,6 +893,53 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         level: ToastLevel.success,
       );
     }
+  }
+
+  /// True when the transition from [current] → [next] drops a
+  /// user-typed password that the UI knows how to verify. The
+  /// gating applies to removals of the T1 gate password and the
+  /// master password; T2 is intentionally excluded (see
+  /// [onSelectTier] for the reasoning).
+  bool _isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) {
+    if (current == SecurityTier.keychainWithPassword &&
+        next != SecurityTier.keychainWithPassword) {
+      return true;
+    }
+    if (current == SecurityTier.paranoid && next != SecurityTier.paranoid) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Prompt for the current password before a password-dropping
+  /// transition. Returns true to proceed, false to abort (user
+  /// cancelled or typed the wrong password).
+  Future<bool> _confirmCurrentPasswordIfDropping(
+    SecurityTier current,
+    SecurityTier next,
+  ) async {
+    if (!_isVerifiablePasswordDrop(current, next)) return true;
+    final currentCtrl = TextEditingController();
+    final entered = await AppDialog.show<String>(
+      context,
+      builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+    );
+    if (entered == null) return false;
+    if (!mounted) return false;
+    final ok = current == SecurityTier.paranoid
+        ? await ref.read(masterPasswordProvider).verify(entered)
+        : await ref.read(keychainPasswordGateProvider).verify(entered);
+    if (!ok) {
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).currentPasswordIncorrect,
+          level: ToastLevel.error,
+        );
+      }
+      return false;
+    }
+    return true;
   }
 
   Future<void> _applyTierChange(SecuritySetupResult result) async {
