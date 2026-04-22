@@ -28,6 +28,13 @@ jobs:
 
       - name: Bump patch version
         run: |
+          # `scripts/bump-version.sh` runs `git commit`, which needs an
+          # identity on the runner. Set the dependabot bot's identity
+          # so the bump commit is attributed to the same author as the
+          # dependency update it rides on top of.
+          git config user.name 'dependabot[bot]'
+          git config user.email '49699333+dependabot[bot]@users.noreply.github.com'
+
           # Check if already bumped (re-run safety)
           HEAD_MSG=$(git log -1 --format='%s')
           if echo "$HEAD_MSG" | grep -qE '^chore: bump version '; then
