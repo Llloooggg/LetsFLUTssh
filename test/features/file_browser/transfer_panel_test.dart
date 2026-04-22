@@ -965,4 +965,131 @@ void main() {
       expect(find.text('No transfers yet'), findsOneWidget);
     });
   });
+
+  group('TransferPanel — active rows (upload + download + queued)', () {
+    Widget widgetWithActive({
+      required TransferManager manager,
+      required List<ActiveEntry> active,
+      ActiveTransferState status = const ActiveTransferState(running: 1),
+    }) {
+      return ProviderScope(
+        overrides: [
+          transferManagerProvider.overrideWithValue(manager),
+          transferHistoryProvider.overrideWith((ref) => Stream.value(const [])),
+          transferStatusProvider.overrideWith((ref) => Stream.value(status)),
+          activeTransfersProvider.overrideWith((ref) => Stream.value(active)),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: const Scaffold(
+            body: Column(
+              children: [
+                Expanded(child: SizedBox()),
+                TransferPanel(),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets(
+      'running upload row renders direction icon + percent + live path',
+      (tester) async {
+        // Exercises the `_ActiveRow` render path with an in-flight
+        // upload — percent text, upload arrow, running sync icon,
+        // ellipsed source/target path cells. The auto-expand-on-active
+        // path in the controller also flips the panel open.
+        await tester.pumpWidget(
+          widgetWithActive(
+            manager: manager,
+            active: const [
+              ActiveEntry(
+                id: 'u1',
+                name: 'large.bin',
+                direction: TransferDirection.upload,
+                sourcePath: '/home/u/large.bin',
+                targetPath: '/srv/incoming/large.bin',
+                status: TransferStatus.running,
+                percent: 42,
+                message: '1.2 MB/s',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('large.bin'), findsOneWidget);
+        expect(find.text('42%'), findsOneWidget);
+        // Message "1.2 MB/s" appears twice by design: once as the speed
+        // suffix next to the filename, once in the Message column.
+        expect(find.text('1.2 MB/s'), findsNWidgets(2));
+        expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+        expect(find.byIcon(Icons.sync), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'queued download row shows "Queued" status in the progress cell',
+      (tester) async {
+        await tester.pumpWidget(
+          widgetWithActive(
+            manager: manager,
+            active: const [
+              ActiveEntry(
+                id: 'q1',
+                name: 'pending.iso',
+                direction: TransferDirection.download,
+                sourcePath: '/srv/release/pending.iso',
+                targetPath: '/home/u/Downloads/pending.iso',
+                status: TransferStatus.queued,
+              ),
+            ],
+            status: const ActiveTransferState(running: 0, queued: 1),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final ctx = tester.element(find.byType(TransferPanel));
+        expect(find.text('pending.iso'), findsOneWidget);
+        expect(find.text(S.of(ctx).transferStatusQueued), findsOneWidget);
+        expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+        expect(find.byIcon(Icons.schedule), findsOneWidget);
+      },
+    );
+
+    testWidgets('active + queued rows render together in the scrolled list', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        widgetWithActive(
+          manager: manager,
+          active: const [
+            ActiveEntry(
+              id: 'r1',
+              name: 'running.dat',
+              direction: TransferDirection.upload,
+              sourcePath: '/a',
+              targetPath: '/b',
+              status: TransferStatus.running,
+              percent: 17,
+              message: '',
+            ),
+            ActiveEntry(
+              id: 'q2',
+              name: 'next.dat',
+              direction: TransferDirection.upload,
+              sourcePath: '/c',
+              targetPath: '/d',
+              status: TransferStatus.queued,
+            ),
+          ],
+          status: const ActiveTransferState(running: 1, queued: 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('running.dat'), findsOneWidget);
+      expect(find.text('next.dat'), findsOneWidget);
+    });
+  });
 }

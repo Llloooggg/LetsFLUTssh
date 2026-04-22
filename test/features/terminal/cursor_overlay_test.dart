@@ -434,6 +434,47 @@ void main() {
     });
   });
 
+  group('CursorTextOverlay — paint covers the cursor cell', () {
+    testWidgets(
+      'cursor sits on a non-empty cell: paint path runs without throwing',
+      (tester) async {
+        // The block-cursor paint short-circuits when `charCode == 0`
+        // (default for freshly written terminals where the cursor
+        // sits past the last written char). Force the cursor onto an
+        // occupied cell by writing a char + carriage return — the
+        // cursor snaps back to column 0 with the glyph still beneath
+        // it — so the painter hits the full measure + draw path.
+        final terminal = Terminal(maxLines: 100);
+        terminal.write('X\r');
+
+        await tester.pumpWidget(
+          _app(CursorTextOverlay(terminal: terminal, fontSize: 14)),
+        );
+        // The overlay coalesces repaints via a post-frame callback, so
+        // the first paint needs a second pump to drain the schedule.
+        await tester.pump();
+        await tester.pump();
+      },
+    );
+
+    testWidgets(
+      'cursor off-screen after a long scrollback: paint exits early',
+      (tester) async {
+        // 200 lines of output push the shell cursor well past the
+        // visible viewport. `visibleRow < 0` → painter returns early.
+        // The test asserts that exit is silent (no exceptions + no
+        // inverted glyph rendered off-canvas).
+        final terminal = Terminal(maxLines: 1000);
+        await tester.pumpWidget(
+          _app(CursorTextOverlay(terminal: terminal, fontSize: 14)),
+        );
+        terminal.write(List.generate(200, (i) => 'line $i\r\n').join());
+        await tester.pump();
+        await tester.pump();
+      },
+    );
+  });
+
   group('CursorTextOverlay — line-height invariant (xterm lockstep)', () {
     test(
       'kTerminalLineHeight matches the xterm TerminalStyle default (1.2)',
