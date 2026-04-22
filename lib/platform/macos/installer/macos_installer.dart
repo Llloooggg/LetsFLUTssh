@@ -105,18 +105,42 @@ class MacosInstaller {
         return InstallOutcome.notApplicable;
       }
 
-      // 4. re-sign if user previously enabled T1 (silent — cert ACL
+      // 4. snapshot the pre-resign entitlements so the post-resign
+      //    probe can catch "entitlements survived the re-sign pass".
+      //    A CI ad-hoc bundle with `keychain-access-groups` that
+      //    silently drops that key during re-sign is exactly the
+      //    -34018 trap we're trying to dodge — the staged bundle
+      //    would pass `codesign --verify` (signature is valid) but
+      //    hit `errSecMissingEntitlement` on the first T1 read.
+      final preResignEnt = await codesigner.extractEntitlements(stagedPath);
+
+      // 5. re-sign if user previously enabled T1 (silent — cert ACL
       //    grants codesign access without a password prompt).
       await resignService.resignBundle(appBundle: stagedPath);
 
-      // 5. verify the staged bundle — if it fails, discard staging
+      // 6. verify the staged bundle — if it fails, discard staging
       //    and leave target untouched.
       if (!await codesigner.verify(stagedPath)) {
         stagedPath.deleteSync(recursive: true);
         return InstallOutcome.rolledBack;
       }
 
-      // 6. atomic swap. Sequence matters: move old → backup first,
+      // 7. post-resign entitlement probe: if the pre-resign bundle
+      //    had entitlements but the re-signed one comes back empty
+      //    the re-sign silently stripped them. Signature is still
+      //    valid (codesign --verify passes) but T1 keychain is
+      //    dead — every stored item returns -34018. Roll back
+      //    before the atomic swap so the user stays on the working
+      //    prior version.
+      if (preResignEnt != null) {
+        final postResignEnt = await codesigner.extractEntitlements(stagedPath);
+        if (postResignEnt == null) {
+          stagedPath.deleteSync(recursive: true);
+          return InstallOutcome.rolledBack;
+        }
+      }
+
+      // 8. atomic swap. Sequence matters: move old → backup first,
       //    then new → target. If the second rename fails the user
       //    is left with `.backup` at the install root and no live
       //    `.app`, which the caller surfaces as "update broken,
