@@ -2032,52 +2032,40 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // scope into MainScreen's CallbackShortcuts. Auto-lock closes
     // the encrypted store, so reaching Settings or "new session"
     // while locked would explode inside drift on the first DB read.
-    // Short-circuit every shortcut via a common gate.
-    bool blocked() => ref.read(lockStateProvider);
+    // Short-circuit every shortcut via a common gate — each binding
+    // wraps its body so the `if (locked) return` lives once, not
+    // once per entry.
+    VoidCallback guarded(VoidCallback body) => () {
+      if (ref.read(lockStateProvider)) return;
+      body();
+    };
 
     return reg.buildCallbackMap({
-      AppShortcut.newSession: () {
-        if (blocked()) return;
-        _newSession(context, ref);
-      },
-      AppShortcut.closeTab: () {
-        if (blocked()) return;
+      AppShortcut.newSession: guarded(() => _newSession(context, ref)),
+      AppShortcut.closeTab: guarded(() {
         if (activeTab != null) {
           notifier.closeTab(ws.focusedPanelId, activeTab.id);
         }
-      },
-      AppShortcut.nextTab: () {
-        if (blocked()) return;
-        _switchTab(ws, 1);
-      },
-      AppShortcut.prevTab: () {
-        if (blocked()) return;
-        _switchTab(ws, -1);
-      },
-      AppShortcut.toggleSidebar: () {
-        if (blocked()) return;
-        setState(() => _sidebarOpen = !_sidebarOpen);
-      },
-      AppShortcut.splitRight: () {
-        if (blocked()) return;
+      }),
+      AppShortcut.nextTab: guarded(() => _switchTab(ws, 1)),
+      AppShortcut.prevTab: guarded(() => _switchTab(ws, -1)),
+      AppShortcut.toggleSidebar: guarded(
+        () => setState(() => _sidebarOpen = !_sidebarOpen),
+      ),
+      AppShortcut.splitRight: guarded(() {
         if (activeTab != null) {
           notifier.duplicateTab(ws.focusedPanelId);
         }
-      },
-      AppShortcut.splitDown: () {
-        if (blocked()) return;
+      }),
+      AppShortcut.splitDown: guarded(() {
         if (activeTab != null) {
           notifier.copyToNewPanel(ws.focusedPanelId, Axis.vertical);
         }
-      },
-      AppShortcut.maximizePanel: () {
-        if (blocked()) return;
-        notifier.toggleMaximizePanel(ws.focusedPanelId);
-      },
-      AppShortcut.openSettings: () {
-        if (blocked()) return;
-        SettingsDialog.show(context);
-      },
+      }),
+      AppShortcut.maximizePanel: guarded(
+        () => notifier.toggleMaximizePanel(ws.focusedPanelId),
+      ),
+      AppShortcut.openSettings: guarded(() => SettingsDialog.show(context)),
     });
   }
 
