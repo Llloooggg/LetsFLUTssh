@@ -11,6 +11,26 @@ import 'app_dialog.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
+/// Localised text for a [TierSecretUnlockDialog].
+///
+/// Grouped into a separate value so [TierSecretUnlockDialog.show]
+/// keeps a reasonable parameter count — each caller (L2 / L3 unlock
+/// paths in `main.dart`) passes a single `labels` bundle instead of
+/// four `String` arguments threaded through every invocation.
+class TierSecretUnlockLabels {
+  final String title;
+  final String hint;
+  final String inputLabel;
+  final String wrongSecretLabel;
+
+  const TierSecretUnlockLabels({
+    required this.title,
+    required this.hint,
+    required this.inputLabel,
+    required this.wrongSecretLabel,
+  });
+}
+
 /// Shared unlock-dialog shell for the tier-secret paths (L2 short
 /// password, L3 PIN). Owns the retry loop: the host supplies a
 /// [verify] callback that returns the resulting key (or null on
@@ -24,10 +44,7 @@ import 'secure_screen_scope.dart';
 class TierSecretUnlockDialog extends StatefulWidget {
   const TierSecretUnlockDialog({
     super.key,
-    required this.title,
-    required this.hint,
-    required this.inputLabel,
-    required this.wrongSecretLabel,
+    required this.labels,
     required this.verify,
     this.numeric = false,
     this.maxLength,
@@ -35,10 +52,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
     this.rateLimiter,
   });
 
-  final String title;
-  final String hint;
-  final String inputLabel;
-  final String wrongSecretLabel;
+  final TierSecretUnlockLabels labels;
   final bool numeric;
   final int? maxLength;
 
@@ -60,10 +74,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
 
   static Future<List<int>?> show(
     BuildContext context, {
-    required String title,
-    required String hint,
-    required String inputLabel,
-    required String wrongSecretLabel,
+    required TierSecretUnlockLabels labels,
     required Future<List<int>?> Function(String) verify,
     bool numeric = false,
     int? maxLength,
@@ -74,10 +85,7 @@ class TierSecretUnlockDialog extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       builder: (_) => TierSecretUnlockDialog(
-        title: title,
-        hint: hint,
-        inputLabel: inputLabel,
-        wrongSecretLabel: wrongSecretLabel,
+        labels: labels,
         verify: verify,
         numeric: numeric,
         maxLength: maxLength,
@@ -239,7 +247,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
                   const SizedBox(height: 16),
                   Text(
-                    widget.title,
+                    widget.labels.title,
                     style: TextStyle(
                       fontSize: AppFonts.xl,
                       fontWeight: FontWeight.w600,
@@ -247,7 +255,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.hint,
+                    widget.labels.hint,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: AppFonts.md,
@@ -257,7 +265,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                   const SizedBox(height: 20),
                   if (_wrong) ...[
                     Text(
-                      widget.wrongSecretLabel,
+                      widget.labels.wrongSecretLabel,
                       style: TextStyle(
                         color: theme.colorScheme.error,
                         fontSize: AppFonts.sm,
@@ -292,7 +300,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     maxLength: widget.maxLength,
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: widget.inputLabel,
+                      labelText: widget.labels.inputLabel,
                       border: const OutlineInputBorder(),
                       counterText: '',
                       suffixIcon: IconButton(

@@ -820,10 +820,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final l10n = S.of(ctx);
     return TierSecretUnlockDialog.show(
       ctx,
-      title: l10n.l2UnlockTitle,
-      hint: l10n.l2UnlockHint,
-      inputLabel: l10n.password,
-      wrongSecretLabel: l10n.l2WrongPassword,
+      labels: TierSecretUnlockLabels(
+        title: l10n.l2UnlockTitle,
+        hint: l10n.l2UnlockHint,
+        inputLabel: l10n.password,
+        wrongSecretLabel: l10n.l2WrongPassword,
+      ),
       rateLimiter: limiter,
       verify: (password) async {
         if (!await gate.verify(password)) return null;
@@ -916,10 +918,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final limiter = HardwareRateLimiter();
     return TierSecretUnlockDialog.show(
       ctx,
-      title: l10n.l3UnlockTitle,
-      hint: l10n.l3UnlockHint,
-      inputLabel: l10n.pinLabel,
-      wrongSecretLabel: l10n.l3WrongPin,
+      labels: TierSecretUnlockLabels(
+        title: l10n.l3UnlockTitle,
+        hint: l10n.l3UnlockHint,
+        inputLabel: l10n.pinLabel,
+        wrongSecretLabel: l10n.l3WrongPin,
+      ),
       // T2 used to enforce a 4-6 digit numeric PIN. We now surface
       // the field as a free-form password per user-facing
       // terminology: any characters, any length, so a user who wants

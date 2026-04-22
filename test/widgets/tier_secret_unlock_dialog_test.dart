@@ -26,10 +26,12 @@ Future<List<int>?> _openDialog(
             opened = true;
             result = await TierSecretUnlockDialog.show(
               ctx,
-              title: 'L2 unlock',
-              hint: 'hint',
-              inputLabel: 'Password',
-              wrongSecretLabel: 'wrong',
+              labels: const TierSecretUnlockLabels(
+                title: 'L2 unlock',
+                hint: 'hint',
+                inputLabel: 'Password',
+                wrongSecretLabel: 'wrong',
+              ),
               verify: verify,
               rateLimiter: rateLimiter,
             );
