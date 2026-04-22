@@ -1020,24 +1020,27 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       keyStorage: keyStorage,
     );
     if (!mounted) return;
+    await _applyFirstLaunchWizardResult(
+      result: result,
+      manager: manager,
+      keyStorage: keyStorage,
+    );
+  }
 
+  /// Apply the user's wizard choice on first launch. Split out of
+  /// [_firstLaunchSetup] so the probe + auto-setup flow stays under
+  /// the S3776 threshold; each tier branch already delegates to a
+  /// named helper (`_firstLaunchHardware`,
+  /// `_firstLaunchKeychainWithPassword`) so the switch itself is
+  /// pure dispatch.
+  Future<void> _applyFirstLaunchWizardResult({
+    required SecuritySetupResult result,
+    required MasterPasswordManager manager,
+    required SecureKeyStorage keyStorage,
+  }) async {
     switch (result.tier) {
       case SecurityTier.paranoid:
-        final password = result.masterPassword;
-        if (password == null) {
-          await _injectDatabase();
-          return;
-        }
-        final key = await manager.enable(password);
-        await _injectDatabase(
-          key: key,
-          level: SecurityTier.paranoid,
-          modifiers: result.modifiers,
-        );
-        AppLogger.instance.log(
-          'First launch: master password (Paranoid) enabled',
-          name: 'App',
-        );
+        await _firstLaunchParanoid(result, manager);
       case SecurityTier.hardware:
         await _firstLaunchHardware(result.pin, result.modifiers);
       case SecurityTier.keychainWithPassword:
@@ -1047,35 +1050,63 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
           modifiers: result.modifiers,
         );
       case SecurityTier.keychain:
-        if (!result.keychainAvailable) {
-          await _injectDatabase();
-          return;
-        }
-        final key = AesGcm.generateKey();
-        final stored = await keyStorage.writeKey(key);
-        if (stored) {
-          await _injectDatabase(
-            key: key,
-            level: SecurityTier.keychain,
-            modifiers: result.modifiers,
-          );
-          AppLogger.instance.log(
-            'First launch: keychain encryption enabled',
-            name: 'App',
-          );
-        } else {
-          await _injectDatabase();
-          AppLogger.instance.log(
-            'First launch: keychain write failed, falling back to plaintext',
-            name: 'App',
-          );
-        }
+        await _firstLaunchKeychain(result, keyStorage);
       case SecurityTier.plaintext:
         await _injectDatabase();
         AppLogger.instance.log(
           'First launch: plaintext mode (L0)',
           name: 'App',
         );
+    }
+  }
+
+  Future<void> _firstLaunchParanoid(
+    SecuritySetupResult result,
+    MasterPasswordManager manager,
+  ) async {
+    final password = result.masterPassword;
+    if (password == null) {
+      await _injectDatabase();
+      return;
+    }
+    final key = await manager.enable(password);
+    await _injectDatabase(
+      key: key,
+      level: SecurityTier.paranoid,
+      modifiers: result.modifiers,
+    );
+    AppLogger.instance.log(
+      'First launch: master password (Paranoid) enabled',
+      name: 'App',
+    );
+  }
+
+  Future<void> _firstLaunchKeychain(
+    SecuritySetupResult result,
+    SecureKeyStorage keyStorage,
+  ) async {
+    if (!result.keychainAvailable) {
+      await _injectDatabase();
+      return;
+    }
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (stored) {
+      await _injectDatabase(
+        key: key,
+        level: SecurityTier.keychain,
+        modifiers: result.modifiers,
+      );
+      AppLogger.instance.log(
+        'First launch: keychain encryption enabled',
+        name: 'App',
+      );
+    } else {
+      await _injectDatabase();
+      AppLogger.instance.log(
+        'First launch: keychain write failed, falling back to plaintext',
+        name: 'App',
+      );
     }
   }
 
@@ -1344,7 +1375,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.invalidate(keyringProbeDetailProvider);
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWithSecurity(security: null, securityProbeCache: null));
+        .update(
+          (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
+        );
     // Clear the reset-toast flag before re-entering the security
     // pipeline: the nested `_initSecurity` paths set it in half a
     // dozen places (`legacy-orphan wipe`, `_unlockParanoid`,
@@ -1483,7 +1516,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ).wipeAll();
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWithSecurity(security: null, securityProbeCache: null));
+        .update(
+          (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
+        );
     _credentialsWereReset = true;
     _corruptionRetries = 0;
     if (!mounted) return;
