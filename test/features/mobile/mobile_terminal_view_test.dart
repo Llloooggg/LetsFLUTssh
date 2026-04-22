@@ -979,6 +979,64 @@ void main() {
       },
     );
 
+    testWidgets(
+      'first pointer-down does NOT drop a selection anchor (aim phase)',
+      (tester) async {
+        // Regression gate for the two-phase copy-mode model: when the
+        // user first touches the terminal after toggling copy mode,
+        // the virtual cursor must move freely without committing an
+        // anchor. The anchor drops only on the matching pointer-up.
+        // A regression that re-stamps on pointer-down breaks the "aim
+        // the start cell, then extend" flow.
+        final mockSsh = MockSSHConnection();
+        final mockSession = MockSSHSession();
+        final conn = connectedConn(mockSsh, mockSession);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(body: MobileTerminalView(connection: conn)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.copy));
+        await tester.pumpAndSettle();
+
+        final overlay = tester.state<TerminalCopyOverlayState>(
+          find.byType(TerminalCopyOverlay),
+        );
+
+        // Start a pointer gesture inside the terminal area, move, but
+        // do NOT release yet.
+        final termCenter = tester.getCenter(find.byType(TerminalView));
+        final gesture = await tester.startGesture(termCenter);
+        await tester.pump();
+        await gesture.moveBy(const Offset(40, 0));
+        await tester.pump();
+
+        expect(
+          overlay.anchorSet,
+          isFalse,
+          reason: 'Aim phase: anchor must not be set before the first lift',
+        );
+
+        // Lifting the finger commits the anchor.
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(
+          overlay.anchorSet,
+          isTrue,
+          reason: 'First pointer-up in copy mode drops the anchor',
+        );
+      },
+    );
+
     testWidgets('selection set INSIDE copy mode survives the guard', (
       tester,
     ) async {

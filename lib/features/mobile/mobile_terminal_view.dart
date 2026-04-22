@@ -37,10 +37,14 @@ import 'terminal_copy_overlay.dart';
 /// **Copy mode**. Tapping the Copy button in the keyboard bar enters a
 /// trackpad-style [TerminalCopyOverlay]: xterm pointer input is
 /// suspended, a virtual cursor overlays the terminal, single-finger
-/// drags move the cursor in cell units, and the first pointer-down
-/// drops a selection anchor that subsequent movement extends. Two-finger
-/// pinch still zooms in copy mode (useful when precision hurts). The
-/// toolbar inside the overlay exposes Copy and Cancel.
+/// drags move the cursor in cell units. The selection anchor is
+/// dropped on the *first pointer-up* of the session, not on the first
+/// pointer-down — this gives the user an explicit "aim" phase: drag
+/// the virtual cursor to the start cell, lift → anchor drops, then
+/// drag again to extend. Subsequent pointer-ups don't re-anchor, so
+/// the user can lift + re-touch without losing progress. Two-finger
+/// pinch still zooms in copy mode. The Copy/Cancel toolbar lives in
+/// the parent Column (below the terminal), not floating over it.
 class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
@@ -228,12 +232,14 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
-    if (_pointers.length == 1 && _copyMode) {
-      _copyOverlayKey.currentState?.onAnchorDown();
-    }
     if (_pointers.length == 2) {
       _beginPinch();
     }
+    // Intentionally no `onAnchorDown` here — in copy mode the first
+    // touch moves the cursor freely so the user can *aim* at the start
+    // of the selection before committing. The anchor drops on the
+    // matching pointer-up below (aim-first, then extend). Two touches
+    // are the pinch-zoom signal; no anchor logic for them.
   }
 
   void _onPointerMove(PointerMoveEvent e) {
@@ -246,7 +252,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       }
       // Non-copy mode single-finger: do nothing — the pointer event has
       // already reached xterm (Listener does not consume events), which
-      // handles tap / long-press / drag-select on its own.
+      // handles tap / long-press / drag-select on its own. The
+      // controller-side guard in [_enforceCopyModeSelectionGuard] wipes
+      // any selection xterm tries to stamp.
       return;
     }
     if (_pointers.length >= 2 && _pinchInitialDistance != null) {
@@ -258,6 +266,20 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _pointers.remove(e.pointer);
     if (_pointers.length < 2 && _pinchInitialDistance != null) {
       _endPinch();
+    }
+    // Copy mode's two-phase model: the first *release* (after the user
+    // has aimed the virtual cursor at the start of the selection) drops
+    // the anchor. Subsequent releases don't re-anchor — [onAnchorDown]
+    // is idempotent — so the user can lift and re-touch to keep
+    // extending from the same start point.
+    if (_copyMode && _pointers.isEmpty) {
+      _copyOverlayKey.currentState?.onAnchorDown();
+      // Force a rebuild so the `CopyModeHint` copy in the parent Column
+      // flips from "tap to start" to "tap to extend" once `anchorSet`
+      // becomes true. `TerminalCopyOverlay` uses a GlobalKey state
+      // lookup, so `setState` on this parent widget re-reads the flag
+      // on the next build.
+      if (mounted) setState(() {});
     }
   }
 
