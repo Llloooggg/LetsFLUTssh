@@ -429,18 +429,21 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final migrationOk = await _runMigrations();
     if (!migrationOk) return;
     await _initSecurity();
-    // Integrity probe: if the DB file on disk cannot be read under
-    // the cipher we just opened it with, the chosen tier does not
-    // match the actual file — fall into the reset dialog instead of
-    // surfacing drift's "file is not a database" from a later async
-    // gap. The user is the only one who can consent to a wipe;
-    // `_handleDatabaseCorruption` shows the non-dismissible reset /
-    // quit choice and never auto-deletes anything.
-    await _handleDatabaseCorruption();
+    // Integrity probe + first session load both read the unlocked DB,
+    // so fire them in parallel — the corruption probe runs its own
+    // SELECT and errors out before the session query would see stale
+    // data. Previously sequential `_handleDatabaseCorruption` → `load`
+    // added ~200 ms to cold start on every run (both hit drift's
+    // first-query warm-up cost once each). Kicking them off together
+    // overlaps that warm-up and saves roughly that window on plaintext
+    // tiers where DB unlock itself is trivial. If corruption fires,
+    // the reset dialog takes over regardless of load outcome.
+    final corruptFuture = _handleDatabaseCorruption();
     // `sessionsLoadingProvider` defaults to `true` so the sidebar
     // already shows the blank placeholder; `load()` flips it back to
     // idle in its `finally` block.
-    await ref.read(sessionProvider.notifier).load();
+    final loadFuture = ref.read(sessionProvider.notifier).load();
+    await Future.wait([corruptFuture, loadFuture]);
     _maybeShowCredentialsResetToast();
     if (plat.isMobilePlatform) {
       AppLogger.instance.log('Initializing foreground service', name: 'App');
