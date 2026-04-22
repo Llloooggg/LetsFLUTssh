@@ -218,11 +218,24 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   void copyFocusedSession() => _ctrl.copyFocused();
 
-  /// Paste (duplicate) the copied session.
+  /// Mark the focused session for cut — next paste moves instead of
+  /// duplicates.
+  @visibleForTesting
+  void cutFocusedSession() => _ctrl.cutFocused();
+
+  /// Paste the copied session. Default is duplicate; if the clipboard
+  /// was populated via [cutFocusedSession], moves to the focused
+  /// folder (or the session's current folder) and clears the flag.
   @visibleForTesting
   void pasteCopiedSession() {
     final id = _ctrl.copiedSessionId;
     if (id == null) return;
+    if (_ctrl.cutPending) {
+      final targetFolder = _ctrl.focusedFolderPath ?? '';
+      ref.read(sessionProvider.notifier).moveSession(id, targetFolder);
+      _ctrl.clearClipboard();
+      return;
+    }
     ref.read(sessionProvider.notifier).duplicate(id);
   }
 
@@ -262,6 +275,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
     if (reg.matches(AppShortcut.sessionCopy, event)) {
       copyFocusedSession();
+      return KeyEventResult.handled;
+    }
+    if (reg.matches(AppShortcut.sessionCut, event)) {
+      cutFocusedSession();
       return KeyEventResult.handled;
     }
     if (reg.matches(AppShortcut.sessionPaste, event)) {

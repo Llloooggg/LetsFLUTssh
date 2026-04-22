@@ -49,6 +49,7 @@ enum AppShortcut {
   sessionUndo(SingleActivator(LogicalKeyboardKey.keyZ, control: true)),
   sessionRedo(SingleActivator(LogicalKeyboardKey.keyY, control: true)),
   sessionCopy(SingleActivator(LogicalKeyboardKey.keyC, control: true)),
+  sessionCut(SingleActivator(LogicalKeyboardKey.keyX, control: true)),
   sessionPaste(SingleActivator(LogicalKeyboardKey.keyV, control: true)),
   sessionDelete(SingleActivator(LogicalKeyboardKey.delete)),
   sessionEdit(SingleActivator(LogicalKeyboardKey.f2)),

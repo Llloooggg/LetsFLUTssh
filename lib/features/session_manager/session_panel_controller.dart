@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 /// Headless state for [SessionPanel]. Holds multi-select, focus, marquee,
@@ -144,8 +146,61 @@ class SessionPanelController extends ChangeNotifier {
   void copyFocused() {
     if (_focusedSessionId == null) return;
     _copiedSessionId = _focusedSessionId;
+    _cutPending = false;
+    _armClipboardTimer();
     // Clipboard is invisible — no listener update needed, but keep
     // semantics consistent by signalling anyway.
     notifyListeners();
+  }
+
+  /// Mark the focused session for cut — a subsequent paste moves the
+  /// session to the target folder instead of duplicating it. The flag
+  /// is one-shot; paste consumes it and clears the clipboard.
+  void cutFocused() {
+    if (_focusedSessionId == null) return;
+    _copiedSessionId = _focusedSessionId;
+    _cutPending = true;
+    _armClipboardTimer();
+    notifyListeners();
+  }
+
+  /// True when the current clipboard entry should be treated as a
+  /// cut + paste (move) rather than a copy + paste (duplicate).
+  bool get cutPending => _cutPending;
+  bool _cutPending = false;
+
+  Timer? _clipboardTimer;
+
+  /// Matches the 30-second window [`ClipboardSecret.copySecret`] uses
+  /// for the OS clipboard auto-wipe. Session clipboard only stores
+  /// an id (no credentials), but a stale id points at an object
+  /// whose credentials are in-memory `SecretBuffer`s — letting the
+  /// reference hang until next lock / app quit extends the window
+  /// that a later paste / undo could re-expose secrets. 30s is the
+  /// project-wide "user still has this action in working memory"
+  /// bound.
+  static const Duration _clipboardTtl = Duration(seconds: 30);
+
+  void _armClipboardTimer() {
+    _clipboardTimer?.cancel();
+    _clipboardTimer = Timer(_clipboardTtl, clearClipboard);
+  }
+
+  /// Called by [pasteCopiedSession] after the move completes so the
+  /// next paste defaults back to duplicate semantics. Also runs on
+  /// the 30-second TTL and on [dispose].
+  void clearClipboard() {
+    _clipboardTimer?.cancel();
+    _clipboardTimer = null;
+    if (_copiedSessionId == null && !_cutPending) return;
+    _copiedSessionId = null;
+    _cutPending = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _clipboardTimer?.cancel();
+    super.dispose();
   }
 }
