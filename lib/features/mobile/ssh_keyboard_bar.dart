@@ -230,7 +230,16 @@ class _KeyButton extends StatelessWidget {
             ? theme.colorScheme.primary.withValues(alpha: 0.3)
             : theme.colorScheme.surfaceContainerHigh,
         borderRadius: AppTheme.radiusLg,
+        // `canRequestFocus: false` so tapping an `Esc`/`Tab`/`Ctrl`
+        // key does not steal focus from the `TerminalView`, which
+        // would dismiss the system keyboard mid-type. The xterm
+        // input connection is tied to its internal `FocusNode`;
+        // every InkWell tap would otherwise trip
+        // `CustomTextEdit._onFocusChange → _closeInputConnection`
+        // and the Gboard surface would slide away on every
+        // modifier keypress.
         child: InkWell(
+          canRequestFocus: false,
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();
@@ -290,7 +299,10 @@ class _ModifierButton extends StatelessWidget {
       child: Material(
         color: bg,
         borderRadius: AppTheme.radiusLg,
+        // See `_KeyButton` — keep the system keyboard up when the
+        // user toggles a sticky modifier.
         child: InkWell(
+          canRequestFocus: false,
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();

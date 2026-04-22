@@ -323,6 +323,20 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               fontSize: _fontSize,
               fontFamily: 'JetBrains Mono',
             ),
+            // xterm's default is `TextInputType.emailAddress`, which
+            // tells Gboard/iOS that the field holds an email — the
+            // IME then surfaces email-specific helpers (the
+            // clipboard/@-symbol pill, auto-suggest toolbars that
+            // wouldn't dismiss with a tap on the terminal) that
+            // users correctly interpreted as "random popups I
+            // can't close". `TextInputType.text` removes the
+            // email hint while still advertising a text field so
+            // IMEs keep full cursor-gesture support; xterm's own
+            // `CustomTextEdit` already disables autocorrect,
+            // suggestions, and IME personalisation inside its
+            // `TextInputConfiguration`, so the field stays
+            // prediction-free regardless.
+            keyboardType: TextInputType.text,
           ),
         ),
         Positioned.fill(
@@ -373,7 +387,12 @@ class _ToolbarButton extends StatelessWidget {
     return Material(
       color: theme.colorScheme.surfaceContainerHigh,
       borderRadius: AppTheme.radiusLg,
+      // `canRequestFocus: false` so tapping Copy/Paste does not
+      // steal focus from `TerminalView`. Without it, every tap
+      // would dismiss the system keyboard (xterm closes its
+      // input connection as soon as its `FocusNode` loses focus).
       child: InkWell(
+        canRequestFocus: false,
         onTap: () {
           HapticFeedback.lightImpact();
           onTap();
