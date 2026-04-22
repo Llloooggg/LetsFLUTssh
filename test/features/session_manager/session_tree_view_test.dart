@@ -104,29 +104,41 @@ void main() {
       expect(find.text('No sessions'), findsOneWidget);
     });
 
-    testWidgets('tapping folder collapses it', (tester) async {
-      await tester.pumpWidget(buildApp());
+    testWidgets('tapping an already-focused folder collapses it', (
+      tester,
+    ) async {
+      // Pre-focus 'Production/Web' so the very next tap hits the
+      // "alreadyFocused → toggle" path in `_onFolderTap`. Without
+      // the pre-focus, the buildApp harness doesn't thread
+      // `onFolderSelected` back into `focusedFolderPath`, so the
+      // first tap would only focus and the second tap (unchanged
+      // harness) would also only focus — tests need the live
+      // controller wire-up to exercise the two-phase flow end-to-
+      // end, which lives in the `session_panel` tests.
+      await tester.pumpWidget(buildApp(focusedFolderPath: 'Production/Web'));
       // Initially expanded — should see children
       expect(find.text('nginx1'), findsOneWidget);
 
-      // Tap 'Web' folder to collapse
       await tester.tap(find.text('Web'));
       await tester.pumpAndSettle();
 
-      // Children should be hidden
+      // Children should be hidden after the tap on the already-
+      // focused folder.
       expect(find.text('nginx1'), findsNothing);
       expect(find.text('nginx2'), findsNothing);
     });
 
-    testWidgets('tapping collapsed folder expands it', (tester) async {
-      await tester.pumpWidget(buildApp());
+    testWidgets('tapping an already-focused collapsed folder expands it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp(focusedFolderPath: 'Production/Web'));
 
-      // Collapse
+      // Collapse first (folder is already focused by the harness).
       await tester.tap(find.text('Web'));
       await tester.pumpAndSettle();
       expect(find.text('nginx1'), findsNothing);
 
-      // Expand again
+      // Expand again.
       await tester.tap(find.text('Web'));
       await tester.pumpAndSettle();
       expect(find.text('nginx1'), findsOneWidget);
@@ -214,7 +226,9 @@ void main() {
     });
 
     testWidgets('collapsing parent hides all descendants', (tester) async {
-      await tester.pumpWidget(buildApp());
+      // Pre-focus so the single tap hits the toggle branch (see
+      // "tapping an already-focused folder" for rationale).
+      await tester.pumpWidget(buildApp(focusedFolderPath: 'Production'));
 
       // All children should be visible initially
       expect(find.text('nginx1'), findsOneWidget);
@@ -498,7 +512,9 @@ void main() {
     testWidgets('collapse then re-expand folder shows children again', (
       tester,
     ) async {
-      await tester.pumpWidget(buildApp());
+      // Pre-focus so taps hit the toggle branch (buildApp harness
+      // doesn't wire onFolderSelected back into focusedFolderPath).
+      await tester.pumpWidget(buildApp(focusedFolderPath: 'Production'));
       await tester.pumpAndSettle();
 
       // Initially all expanded
@@ -510,7 +526,7 @@ void main() {
 
       expect(find.text('nginx1'), findsNothing);
 
-      // Re-expand
+      // Re-expand — folder is still focused, tap toggles again.
       await tester.tap(find.text('Production'));
       await tester.pumpAndSettle();
 
@@ -1063,42 +1079,47 @@ void main() {
       expect(clearedFolders, isEmpty);
     });
 
-    testWidgets('tapping folder without selection expands/collapses', (
-      tester,
-    ) async {
-      String? toggledFolder;
+    testWidgets(
+      'tapping an already-focused folder without selection expands/collapses',
+      (tester) async {
+        String? toggledFolder;
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionTreeView(
-                  tree: tree,
-                  onToggleFolderSelected: (path) => toggledFolder = path,
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: SizedBox(
+                  width: 300,
+                  height: 600,
+                  child: SessionTreeView(
+                    tree: tree,
+                    // Pre-focus so the tap hits the toggle branch.
+                    focusedFolderPath: 'Production/Web',
+                    onToggleFolderSelected: (path) => toggledFolder = path,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // All folders expanded by default — sessions should be visible
-      expect(find.text('nginx1'), findsOneWidget);
+        // All folders expanded by default — sessions should be visible
+        expect(find.text('nginx1'), findsOneWidget);
 
-      // Tap on Web folder — should collapse, not toggle selection
-      await tester.tap(find.text('Web'));
-      await tester.pump();
+        // Tap on Web folder — already focused, so the tap toggles
+        // expand. `onToggleFolderSelected` is the *multi-select* hook
+        // (Ctrl+click), not the focus path, so it stays null.
+        await tester.tap(find.text('Web'));
+        await tester.pump();
 
-      expect(toggledFolder, isNull); // not a selection toggle
-      expect(find.text('nginx1'), findsNothing); // collapsed
-    });
+        expect(toggledFolder, isNull); // not a selection toggle
+        expect(find.text('nginx1'), findsNothing); // collapsed
+      },
+    );
   });
 
   group('Multi-drag', () {

@@ -217,14 +217,22 @@ class SessionStore {
     return null;
   }
 
-  Future<Session> duplicateSession(String id) async {
+  Future<Session> duplicateSession(String id, {String? targetFolder}) async {
     // The in-memory [get] result has no credentials; fetch the full row so
     // the duplicate inherits the password / keyData / passphrase. Fall back
     // to the cached entry when the DB isn't wired (e.g. early test setup).
     final full = await loadWithCredentials(id);
     final original = full ?? get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
-    final copy = original.duplicate();
+    // When [targetFolder] is supplied, land the duplicate directly in
+    // that folder so callers don't need a two-step "duplicate, then
+    // move" (with a visible intermediate state in between). Paste flows
+    // rely on this to place the copy next to the currently focused
+    // session / folder, not next to the source.
+    final base = original.duplicate();
+    final copy = targetFolder == null
+        ? base
+        : base.copyWith(folder: targetFolder);
     await add(copy);
     return copy;
   }

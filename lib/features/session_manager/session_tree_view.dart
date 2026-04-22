@@ -634,17 +634,30 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       widget.onMarqueeSelect?.call({}, {});
     }
 
+    // Two-phase click: first tap focuses the folder (row highlight +
+    // turns it into the `pasteCopiedSession` / "move here" target)
+    // without changing its expand state; second tap on the already-
+    // focused folder toggles expand. Finder's column view uses the
+    // same pattern. Without the split, "click folder to select as
+    // paste target" also collapsed whatever the user was pointing at
+    // — user reported this as "хочу ткнуть в папку для копии, но
+    // она сворачивается".
+    final alreadyFocused = widget.focusedFolderPath == fullPath;
+
     if (!_mobile) {
       widget.onFolderSelected?.call(fullPath, node.sessionCount);
     }
-    setState(() {
-      if (expanded) {
-        _expandedFolders.remove(fullPath);
-      } else {
-        _expandedFolders.add(fullPath);
-      }
-    });
-    widget.onToggleFolderCollapsed?.call(fullPath);
+
+    if (_mobile || alreadyFocused) {
+      setState(() {
+        if (expanded) {
+          _expandedFolders.remove(fullPath);
+        } else {
+          _expandedFolders.add(fullPath);
+        }
+      });
+      widget.onToggleFolderCollapsed?.call(fullPath);
+    }
   }
 
   List<Widget> _buildFolderRowChildren(

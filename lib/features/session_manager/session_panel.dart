@@ -223,20 +223,38 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   @visibleForTesting
   void cutFocusedSession() => _ctrl.cutFocused();
 
-  /// Paste the copied session. Default is duplicate; if the clipboard
-  /// was populated via [cutFocusedSession], moves to the focused
-  /// folder (or the session's current folder) and clears the flag.
+  /// Paste the copied session. Default is duplicate next to the
+  /// currently focused session or folder (not the source); cut paste
+  /// moves the original into the same target. The rule matches
+  /// standard file-manager paste: paste lands where the user is
+  /// pointing, not where the source still lives.
   @visibleForTesting
   void pasteCopiedSession() {
     final id = _ctrl.copiedSessionId;
     if (id == null) return;
+    final target = _resolvePasteTargetFolder();
     if (_ctrl.cutPending) {
-      final targetFolder = _ctrl.focusedFolderPath ?? '';
-      ref.read(sessionProvider.notifier).moveSession(id, targetFolder);
+      ref.read(sessionProvider.notifier).moveSession(id, target);
       _ctrl.clearClipboard();
       return;
     }
-    ref.read(sessionProvider.notifier).duplicate(id);
+    ref.read(sessionProvider.notifier).duplicate(id, targetFolder: target);
+  }
+
+  /// Resolve where a paste should land. Focused folder wins, then
+  /// the folder of the focused session, then root.
+  String _resolvePasteTargetFolder() {
+    final folder = _ctrl.focusedFolderPath;
+    if (folder != null) return folder;
+    final sid = _ctrl.focusedSessionId;
+    if (sid != null) {
+      final sess = ref
+          .read(sessionProvider)
+          .where((s) => s.id == sid)
+          .firstOrNull;
+      if (sess != null) return sess.folder;
+    }
+    return '';
   }
 
   /// Delete the focused session (shows confirmation dialog).

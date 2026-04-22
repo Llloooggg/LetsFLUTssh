@@ -73,8 +73,10 @@ class SessionNotifier extends Notifier<List<Session>> {
       _run('update session', () => _store.update(session));
   Future<void> delete(String id) =>
       _runUndoable('delete session', () => _store.delete(id));
-  Future<Session> duplicate(String id) =>
-      _run('duplicate session', () => _store.duplicateSession(id));
+  Future<Session> duplicate(String id, {String? targetFolder}) => _run(
+    'duplicate session',
+    () => _store.duplicateSession(id, targetFolder: targetFolder),
+  );
   Future<void> addEmptyFolder(String folderPath) =>
       _run('add folder', () => _store.addEmptyFolder(folderPath));
   Future<void> renameFolder(String oldPath, String newPath) => _runUndoable(
