@@ -100,9 +100,3 @@ Future<void> hardenFilePerms(String path) async {
     );
   }
 }
-
-/// Deprecated alias kept for one release window so existing call
-/// sites keep compiling while they are migrated over. Delete after
-/// the migration is complete.
-@Deprecated('Use hardenFilePerms — single cross-cutting entry point.')
-Future<void> restrictFilePermissions(String path) => hardenFilePerms(path);

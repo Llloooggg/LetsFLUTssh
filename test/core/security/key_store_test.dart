@@ -299,18 +299,6 @@ void main() {
       expect(a, isNot(b));
     });
 
-    test('findIdByPrivateKey returns existing id on match', () async {
-      final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'k1');
-      await store.save(entry);
-      final id = await store.findIdByPrivateKey(entry.privateKey);
-      expect(id, entry.id);
-    });
-
-    test('findIdByPrivateKey returns null when no match', () async {
-      final id = await store.findIdByPrivateKey('does-not-exist');
-      expect(id, isNull);
-    });
-
     test('importForMerge reuses id for identical private key', () async {
       final entry = KeyStore.generateKeyPair(SshKeyType.ed25519, 'original');
       await store.save(entry);
