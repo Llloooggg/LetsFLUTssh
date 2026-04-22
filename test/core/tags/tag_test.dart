@@ -71,6 +71,31 @@ void main() {
       final b = Tag(name: 'B');
       expect(a.id, isNot(b.id));
     });
+
+    test('copyWith without name keeps the original name', () {
+      // Pins `name: name ?? this.name` — regression gate for a
+      // refactor that reversed the fallback direction.
+      final original = Tag(id: 'id', name: 'Original', color: '#EF5350');
+      final updated = original.copyWith(color: '#42A5F5');
+      expect(updated.name, 'Original');
+      expect(updated.color, '#42A5F5');
+    });
+
+    test('toString surfaces id + name for log + dev-tools triage', () {
+      final tag = Tag(id: 'tag-1', name: 'Prod');
+      final repr = tag.toString();
+      expect(repr, contains('tag-1'));
+      expect(repr, contains('Prod'));
+    });
+
+    test('colorValue tolerates a hex string without the leading "#"', () {
+      // The parser strips a single leading `#` before calling
+      // `int.parse`. Legacy configs migrated from a hand-edited
+      // file may carry the bare hex — the fallback must still
+      // produce a valid color rather than `null`.
+      final tag = Tag(name: 'BareHex', color: 'EF5350');
+      expect(tag.colorValue, isA<Color>());
+    });
   });
 
   group('tagColors', () {

@@ -131,5 +131,162 @@ void main() {
       if (Platform.isLinux) return;
       expect(await newVault().isAvailable(), isFalse);
     });
+
+    test(
+      'passwordless store + read round-trips with null pin (empty auth)',
+      () async {
+        if (!Platform.isLinux) return;
+        final vault = newVault();
+        final key = Uint8List.fromList([9, 9, 9, 9]);
+        // store(pin:null) → auth value is empty; read(null) must
+        // retrieve the same bytes. A refactor that "defaults" null to
+        // "" is fine, but flipping null to "return false" silently
+        // would regress the bank-style passwordless-T2 contract.
+        expect(await vault.store(dbKey: key, pin: null), isTrue);
+        expect(await vault.read(null), key);
+      },
+    );
+
+    test('empty-string pin is equivalent to null on store + read', () async {
+      if (!Platform.isLinux) return;
+      final vault = newVault();
+      final key = Uint8List.fromList([5, 6, 7, 8]);
+      expect(await vault.store(dbKey: key, pin: ''), isTrue);
+      // stored with empty → readable with both null and empty.
+      expect(await vault.read(''), key);
+      expect(await vault.read(null), key);
+    });
+
+    test('read returns null when nothing is stored', () async {
+      if (!Platform.isLinux) return;
+      final vault = newVault();
+      expect(await vault.read('whatever'), isNull);
+    });
+
+    test('clear is a no-op when nothing is on disk', () async {
+      if (!Platform.isLinux) return;
+      final vault = newVault();
+      await vault.clear(); // must not throw
+      expect(await vault.isStored(), isFalse);
+    });
+
+    test('probeDetail returns unknown on Linux (TPM CLI path)', () async {
+      if (!Platform.isLinux) return;
+      // The method-channel branch is the only one that can return a
+      // classified code; on Linux `probeDetail` always maps to the
+      // opaque `unknown` sentinel because the real probing lives in
+      // `TpmClient.probe()` at the provider layer.
+      expect(await newVault().probeDetail(), 'unknown');
+    });
+  });
+
+  group('HardwareTierVault.resolveAuthValue', () {
+    final salt = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
+
+    test('password+biometric false → empty Uint8List (isolation-only)', () {
+      final auth = HardwareTierVault.resolveAuthValue(
+        password: false,
+        biometric: false,
+        salt: salt,
+      );
+      expect(auth, isNotNull);
+      expect(auth, isEmpty);
+    });
+
+    test('password=true without typedPassword → null', () {
+      expect(
+        HardwareTierVault.resolveAuthValue(
+          password: true,
+          biometric: false,
+          salt: salt,
+        ),
+        isNull,
+      );
+    });
+
+    test('password=true with empty typedPassword → null', () {
+      expect(
+        HardwareTierVault.resolveAuthValue(
+          password: true,
+          biometric: false,
+          salt: salt,
+          typedPassword: '',
+        ),
+        isNull,
+      );
+    });
+
+    test('password path returns 32-byte HMAC stable across calls', () {
+      final a = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: salt,
+        typedPassword: 'hunter2',
+      );
+      final b = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: salt,
+        typedPassword: 'hunter2',
+      );
+      expect(a, hasLength(32));
+      expect(a, b, reason: 'same inputs → same HMAC');
+    });
+
+    test('biometric=true without a fprintd hash → null', () {
+      expect(
+        HardwareTierVault.resolveAuthValue(
+          password: true,
+          biometric: true,
+          salt: salt,
+          typedPassword: 'whatever',
+        ),
+        isNull,
+      );
+    });
+
+    test('biometric=true wins over password when both provided', () {
+      // The wizard invariant says biometric=true implies password=true,
+      // and when the fprintd hash is present it is the authoritative
+      // auth source. A refactor that reversed that would silently fall
+      // back to typedPassword when fprintd was live.
+      final fprintd = Uint8List.fromList([0xAA, 0xBB, 0xCC, 0xDD]);
+      final bioAuth = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: true,
+        salt: salt,
+        typedPassword: 'ignored',
+        fprintdHash: fprintd,
+      );
+      final pwAuth = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: salt,
+        typedPassword: 'ignored',
+      );
+      expect(bioAuth, isNotNull);
+      expect(bioAuth, hasLength(32));
+      expect(
+        bioAuth,
+        isNot(equals(pwAuth)),
+        reason: 'bio auth derives from the fprintd hash, not the password',
+      );
+    });
+
+    test('different salts produce different auth values', () {
+      final a = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: Uint8List.fromList(List<int>.filled(32, 0)),
+        typedPassword: 'same',
+      );
+      final b = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: Uint8List.fromList(List<int>.filled(32, 1)),
+        typedPassword: 'same',
+      );
+      expect(a, isNot(equals(b)));
+    });
   });
 }

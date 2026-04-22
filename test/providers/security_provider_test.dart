@@ -163,4 +163,51 @@ void main() {
       }
     });
   });
+
+  group('decodeHardwareProbeCode', () {
+    test('every known native code maps to a non-generic enum variant', () {
+      // The switch map is the only thing that keeps the native plugin
+      // vocabulary in lockstep with the UI hint copy. Every entry here
+      // also has a matching ARB string (exercised by the
+      // hardwareProbeDetailText test above), so a misspelled case here
+      // would surface as a blank tooltip in production.
+      const expected = <String, HardwareProbeDetail>{
+        'available': HardwareProbeDetail.available,
+        'windowsSoftwareOnly': HardwareProbeDetail.windowsSoftwareOnly,
+        'windowsProvidersMissing': HardwareProbeDetail.windowsProvidersMissing,
+        'macosNoSecureEnclave': HardwareProbeDetail.macosNoSecureEnclave,
+        'macosPasscodeNotSet': HardwareProbeDetail.macosPasscodeNotSet,
+        'macosSigningIdentityMissing':
+            HardwareProbeDetail.macosSigningIdentityMissing,
+        'macosGeneric': HardwareProbeDetail.macosGeneric,
+        'iosPasscodeNotSet': HardwareProbeDetail.iosPasscodeNotSet,
+        'iosSimulator': HardwareProbeDetail.iosSimulator,
+        'iosGeneric': HardwareProbeDetail.iosGeneric,
+        'androidApiTooLow': HardwareProbeDetail.androidApiTooLow,
+        'androidBiometricNone': HardwareProbeDetail.androidBiometricNone,
+        'androidBiometricNotEnrolled':
+            HardwareProbeDetail.androidBiometricNotEnrolled,
+        'androidBiometricUnavailable':
+            HardwareProbeDetail.androidBiometricUnavailable,
+        'androidKeystoreRejected': HardwareProbeDetail.androidKeystoreRejected,
+        'androidGeneric': HardwareProbeDetail.androidGeneric,
+      };
+      for (final entry in expected.entries) {
+        expect(decodeHardwareProbeCode(entry.key), entry.value);
+      }
+    });
+
+    test('unknown codes fall through to generic rather than throwing', () {
+      // A native plugin that adds a new reason ahead of the Dart enum
+      // must not crash Settings — the contract is "treat the unknown
+      // value as generic" so the user sees a generic hint instead of a
+      // crash dialog.
+      expect(
+        decodeHardwareProbeCode('brandNewReason'),
+        HardwareProbeDetail.generic,
+      );
+      expect(decodeHardwareProbeCode(''), HardwareProbeDetail.generic);
+      expect(decodeHardwareProbeCode('unknown'), HardwareProbeDetail.generic);
+    });
+  });
 }

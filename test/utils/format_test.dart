@@ -881,5 +881,38 @@ void main() {
       final out = formatImportSummary(l10n, const ImportSummary());
       expect(out, l10n.importedSessions(0));
     });
+
+    test('appends skipped-sessions note when the counter is non-zero', () {
+      // The note suffix is separated by an em-dash so importers can
+      // tell the "headline result" from the "plus these rows did not
+      // make it" at a glance. A refactor that silently dropped the
+      // note — or the dash — would regress the support-triage signal.
+      final out = formatImportSummary(
+        l10n,
+        const ImportSummary(sessions: 10, skippedSessions: 2),
+      );
+      expect(out, contains(l10n.importedSessions(10)));
+      expect(out, contains(l10n.importSkippedSessions(2)));
+      expect(out, contains('—'));
+    });
+
+    test('skipped-links note also lands in the "notes" suffix', () {
+      final out = formatImportSummary(
+        l10n,
+        const ImportSummary(sessions: 1, skippedLinks: 3),
+      );
+      expect(out, isNot(contains(l10n.importSkippedSessions(3))));
+      expect(out, contains(l10n.importSkippedLinks(3)));
+    });
+
+    test('both skipped counters render separated by a semicolon', () {
+      final out = formatImportSummary(
+        l10n,
+        const ImportSummary(sessions: 5, skippedSessions: 1, skippedLinks: 2),
+      );
+      expect(out, contains(l10n.importSkippedSessions(1)));
+      expect(out, contains(l10n.importSkippedLinks(2)));
+      expect(out, contains('; '));
+    });
   });
 }

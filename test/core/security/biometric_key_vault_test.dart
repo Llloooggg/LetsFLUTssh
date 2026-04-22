@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
+import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
+import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -113,4 +116,190 @@ void main() {
       expect(BiometricKeyVault.macOsOptions.synchronizable, isFalse);
     });
   });
+
+  group('BiometricKeyVault Linux TPM branch', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('bio_vault_linux_test_');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+
+    BiometricKeyVault newVault({
+      required TpmClient tpm,
+      required FprintdClient fprintd,
+    }) => BiometricKeyVault(
+      tpmClient: tpm,
+      fprintdClient: fprintd,
+      linuxSealFileFactory: () async =>
+          File('${tempDir.path}/biometric_vault.tpm'),
+    );
+
+    test('linuxTpmReady is false when not on Linux', () async {
+      if (Platform.isLinux) return;
+      final vault = newVault(
+        tpm: _FakeTpm(available: true),
+        fprintd: _FakeFprintd(hash: Uint8List.fromList([1])),
+      );
+      expect(await vault.linuxTpmReady(), isFalse);
+    });
+
+    test('linuxTpmReady delegates to TPM probe on Linux', () async {
+      if (!Platform.isLinux) return;
+      expect(
+        await newVault(
+          tpm: _FakeTpm(available: true),
+          fprintd: _FakeFprintd(hash: null),
+        ).linuxTpmReady(),
+        isTrue,
+      );
+      expect(
+        await newVault(
+          tpm: _FakeTpm(available: false),
+          fprintd: _FakeFprintd(hash: null),
+        ).linuxTpmReady(),
+        isFalse,
+      );
+    });
+
+    test(
+      'store → read round-trips through the TPM seal file on Linux',
+      () async {
+        if (!Platform.isLinux) return;
+        final tpm = _FakeTpm(available: true);
+        final fprintd = _FakeFprintd(hash: Uint8List.fromList([9, 9, 9]));
+        final vault = newVault(tpm: tpm, fprintd: fprintd);
+        final key = Uint8List.fromList(List<int>.generate(32, (i) => i));
+
+        expect(await vault.store(key), isTrue);
+        expect(await vault.isStored(), isTrue);
+        // Seal file must exist on disk after a successful Linux seal.
+        expect(
+          File('${tempDir.path}/biometric_vault.tpm').existsSync(),
+          isTrue,
+        );
+        expect(await vault.read(), key);
+      },
+    );
+
+    test(
+      'store falls back to libsecret when TPM is unavailable on Linux',
+      () async {
+        if (!Platform.isLinux) return;
+        final tpm = _FakeTpm(available: false);
+        final fprintd = _FakeFprintd(hash: Uint8List.fromList([1]));
+        final vault = newVault(tpm: tpm, fprintd: fprintd);
+        final key = Uint8List.fromList([1, 2, 3, 4]);
+
+        expect(await vault.store(key), isTrue);
+        // No TPM seal file should exist — fallback went through libsecret.
+        expect(
+          File('${tempDir.path}/biometric_vault.tpm').existsSync(),
+          isFalse,
+        );
+        // Stored value is base64 of the key, in the libsecret mock.
+        expect(await vault.read(), key);
+      },
+    );
+
+    test(
+      'store falls back to libsecret when fprintd enrolment is missing',
+      () async {
+        if (!Platform.isLinux) return;
+        final tpm = _FakeTpm(available: true);
+        final fprintd = _FakeFprintd(hash: null);
+        final vault = newVault(tpm: tpm, fprintd: fprintd);
+        final key = Uint8List.fromList([5, 6, 7, 8]);
+
+        expect(await vault.store(key), isTrue);
+        expect(
+          File('${tempDir.path}/biometric_vault.tpm').existsSync(),
+          isFalse,
+        );
+        expect(await vault.read(), key);
+      },
+    );
+
+    test(
+      'clear removes both the TPM seal file and the libsecret entry',
+      () async {
+        if (!Platform.isLinux) return;
+        final tpm = _FakeTpm(available: true);
+        final fprintd = _FakeFprintd(hash: Uint8List.fromList([1]));
+        final vault = newVault(tpm: tpm, fprintd: fprintd);
+        await vault.store(Uint8List.fromList([1, 2]));
+        await vault.clear();
+        expect(
+          File('${tempDir.path}/biometric_vault.tpm').existsSync(),
+          isFalse,
+        );
+        expect(await vault.isStored(), isFalse);
+      },
+    );
+
+    test('read returns null when the seal file is missing', () async {
+      if (!Platform.isLinux) return;
+      final vault = newVault(
+        tpm: _FakeTpm(available: true),
+        fprintd: _FakeFprintd(hash: Uint8List.fromList([1])),
+      );
+      expect(await vault.read(), isNull);
+    });
+  });
+}
+
+class _FakeTpm implements TpmClient {
+  _FakeTpm({required this.available});
+  final bool available;
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Future<Uint8List?> seal(
+    Uint8List secret, {
+    required Uint8List authValue,
+  }) async => Uint8List.fromList([
+    0x55,
+    ...authValue.length.toString().codeUnits,
+    0x55,
+    ...authValue,
+    ...secret,
+  ]);
+
+  @override
+  Future<Uint8List?> unseal(
+    Uint8List blob, {
+    required Uint8List authValue,
+  }) async {
+    final prefix = authValue.length.toString().codeUnits;
+    final headerLen = 2 + prefix.length + authValue.length;
+    if (blob.length < headerLen) return null;
+    if (blob[0] != 0x55) return null;
+    for (var i = 0; i < prefix.length; i++) {
+      if (blob[1 + i] != prefix[i]) return null;
+    }
+    if (blob[1 + prefix.length] != 0x55) return null;
+    for (var i = 0; i < authValue.length; i++) {
+      if (blob[2 + prefix.length + i] != authValue[i]) return null;
+    }
+    return Uint8List.fromList(blob.sublist(headerLen));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeFprintd implements FprintdClient {
+  _FakeFprintd({required this.hash});
+  final Uint8List? hash;
+
+  @override
+  Future<Uint8List?> getEnrolmentHash() async => hash;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
