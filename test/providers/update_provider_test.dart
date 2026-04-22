@@ -451,4 +451,70 @@ void main() {
       expect(container.read(updateProvider).status, UpdateStatus.downloaded);
     });
   });
+
+  group('UpdateNotifier.openReleasePage', () {
+    test('returns false when there is no UpdateInfo yet', () async {
+      // State starts idle with `info == null`. Pressing the "Open
+      // release page" button in that state must short-circuit to
+      // false instead of trying to parse a null URL.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ok = await container
+          .read(updateProvider.notifier)
+          .openReleasePage();
+      expect(ok, isFalse);
+    });
+
+    test('returns false when the resolved release URL is empty', () async {
+      // Pre-populate the notifier with an UpdateInfo whose
+      // `releaseUrl` is empty — simulates the degenerate
+      // "hasUpdate but releaseUrl missing" case a malformed
+      // release payload could produce.
+      final container = ProviderContainer(
+        overrides: [
+          updateProvider.overrideWith(
+            () => _SeededUpdateNotifier(
+              const UpdateState(
+                status: UpdateStatus.updateAvailable,
+                info: UpdateInfo(
+                  currentVersion: '1.0.0',
+                  latestVersion: '1.1.0',
+                  releaseUrl: '',
+                  assetUrl: null,
+                  assetDigest: null,
+                  changelog: null,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final ok = await container
+          .read(updateProvider.notifier)
+          .openReleasePage();
+      expect(ok, isFalse);
+    });
+  });
+
+  group('UpdateNotifier.install', () {
+    test('returns false when state.downloadedPath is null (guard)', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ok = await container.read(updateProvider.notifier).install();
+      expect(ok, isFalse);
+    });
+  });
+}
+
+/// Riverpod notifier stand-in that seeds its initial state rather than
+/// running the `check → download` round-trip. Used by the openReleasePage
+/// tests above so we can hit the `state.info?.releaseUrl` branches
+/// without faking a full UpdateService.
+class _SeededUpdateNotifier extends UpdateNotifier {
+  _SeededUpdateNotifier(this._seed);
+  final UpdateState _seed;
+
+  @override
+  UpdateState build() => _seed;
 }

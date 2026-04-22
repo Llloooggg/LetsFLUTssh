@@ -115,4 +115,36 @@ void main() {
       await hardenFilePerms('${tempDir.path}/no_such_file');
     });
   });
+
+  group('writeFileAtomic — rollback on failure', () {
+    test(
+      'rethrows when the temp file cannot be written (bad parent path)',
+      () async {
+        if (!Platform.isLinux && !Platform.isMacOS) return;
+        // `/proc/1` exists but cannot contain new files for a regular
+        // user — writing there throws a FileSystemException inside
+        // `tmp.writeAsString`. The helper's catch must log + rethrow
+        // so the caller can surface the failure; the rollback
+        // `tmp.delete()` swallows its own error when the temp never
+        // existed. Without the rollback the test would fail with a
+        // stuck `.tmp*` file at the target path.
+        final bad =
+            '/proc/1/letsflutssh-bogus-${DateTime.now().microsecondsSinceEpoch}.txt';
+        await expectLater(
+          writeFileAtomic(bad, 'ignored'),
+          throwsA(isA<FileSystemException>()),
+        );
+      },
+    );
+
+    test('writeBytesAtomic also rethrows through the rollback path', () async {
+      if (!Platform.isLinux && !Platform.isMacOS) return;
+      final bad =
+          '/proc/1/letsflutssh-bogus-${DateTime.now().microsecondsSinceEpoch}.bin';
+      await expectLater(
+        writeBytesAtomic(bad, [1, 2, 3]),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+  });
 }

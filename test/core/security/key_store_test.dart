@@ -370,4 +370,75 @@ void main() {
       expect(ex.cause, same(cause));
     });
   });
+
+  group('SshKeyEntry value-type contract', () {
+    test('hashCode matches equality — id + label + privateKey compared', () {
+      // Widget rebuilds lean on `==`/`hashCode` for row identity in the
+      // key manager. Adding a new field to the comparison without
+      // updating hashCode — or vice versa — would produce
+      // "sometimes equal" rows that flicker in the UI.
+      final a = SshKeyEntry(
+        id: '1',
+        label: 'lab',
+        privateKey: 'pk',
+        publicKey: 'pub',
+        keyType: 'ssh-ed25519',
+        createdAt: DateTime(2025),
+      );
+      final b = SshKeyEntry(
+        id: '1',
+        label: 'lab',
+        privateKey: 'pk',
+        publicKey: 'DIFFERENT-public',
+        keyType: 'ssh-rsa',
+        createdAt: DateTime(2024),
+      );
+      expect(a, b, reason: 'only id/label/privateKey matter to equality');
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('copyWith keeps every other field untouched', () {
+      final entry = SshKeyEntry(
+        id: '1',
+        label: 'Old',
+        privateKey: 'pk-old',
+        publicKey: 'pub-old',
+        keyType: 'ssh-ed25519',
+        createdAt: DateTime(2025, 6, 1),
+        isGenerated: true,
+      );
+      final updated = entry.copyWith();
+      expect(updated.label, 'Old');
+      expect(updated.privateKey, 'pk-old');
+      expect(updated.publicKey, 'pub-old');
+      expect(updated.isGenerated, isTrue);
+      expect(updated.createdAt, entry.createdAt);
+    });
+  });
+
+  group('KeyStore.publicKeyFingerprint + privateKeyFingerprint', () {
+    test('normalises CRLF and trims surrounding whitespace', () {
+      // Public keys copy-pasted from Windows browsers land with CRLF
+      // line endings; trimming + \r\n → \n collapse makes the dedup
+      // hash stable across that platform boundary.
+      const winStyle = '\r\n  ssh-ed25519 AAAA test\r\n\r\n';
+      const unixStyle = 'ssh-ed25519 AAAA test';
+      expect(
+        KeyStore.publicKeyFingerprint(winStyle),
+        KeyStore.publicKeyFingerprint(unixStyle),
+      );
+    });
+
+    test('empty input hashes to an empty string, not a degenerate digest', () {
+      expect(KeyStore.publicKeyFingerprint(''), isEmpty);
+      expect(KeyStore.privateKeyFingerprint('   '), isEmpty);
+    });
+
+    test('distinct inputs produce distinct hex digests', () {
+      final a = KeyStore.publicKeyFingerprint('ssh-ed25519 AAAA one');
+      final b = KeyStore.publicKeyFingerprint('ssh-ed25519 AAAA two');
+      expect(a, isNot(equals(b)));
+      expect(a.length, 64, reason: 'sha256 hex is 64 chars');
+    });
+  });
 }

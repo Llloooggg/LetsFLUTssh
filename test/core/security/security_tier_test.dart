@@ -112,4 +112,120 @@ void main() {
       },
     );
   });
+
+  group('SecurityConfig + SecurityTierModifiers value-type contract', () {
+    test('SecurityTierModifiers.copyWith replaces only the named fields', () {
+      const base = SecurityTierModifiers(
+        password: true,
+        biometric: true,
+        biometricShortcut: true,
+        pinLength: 4,
+      );
+      final tweaked = base.copyWith(pinLength: 8);
+      expect(tweaked.pinLength, 8);
+      expect(tweaked.password, isTrue);
+      expect(tweaked.biometric, isTrue);
+      expect(tweaked.biometricShortcut, isTrue);
+      final swapped = base.copyWith(password: false, biometric: false);
+      expect(swapped.password, isFalse);
+      expect(swapped.biometric, isFalse);
+      expect(swapped.pinLength, 4);
+    });
+
+    test(
+      'SecurityTierModifiers == + hashCode agree on every compared field',
+      () {
+        const a = SecurityTierModifiers(
+          password: true,
+          biometric: false,
+          biometricShortcut: true,
+          pinLength: 6,
+        );
+        const b = SecurityTierModifiers(
+          password: true,
+          biometric: false,
+          biometricShortcut: true,
+          pinLength: 6,
+        );
+        expect(a, b);
+        expect(a.hashCode, b.hashCode);
+        expect(a == b.copyWith(pinLength: 8), isFalse);
+        expect(a == b.copyWith(password: false), isFalse);
+      },
+    );
+
+    test('SecurityConfig.copyWith + == cover tier and modifiers', () {
+      const base = SecurityConfig(
+        tier: SecurityTier.keychain,
+        modifiers: SecurityTierModifiers(),
+      );
+      final tierOnly = base.copyWith(tier: SecurityTier.hardware);
+      expect(tierOnly.tier, SecurityTier.hardware);
+      expect(tierOnly.modifiers, base.modifiers);
+      expect(tierOnly, isNot(equals(base)));
+
+      final modsOnly = base.copyWith(
+        modifiers: const SecurityTierModifiers(pinLength: 8),
+      );
+      expect(modsOnly.tier, base.tier);
+      expect(modsOnly.modifiers.pinLength, 8);
+      expect(modsOnly, isNot(equals(base)));
+    });
+
+    test('SecurityConfig == + hashCode + identical() short-circuit', () {
+      const a = SecurityConfig(
+        tier: SecurityTier.paranoid,
+        modifiers: SecurityTierModifiers(password: true, pinLength: 6),
+      );
+      const b = SecurityConfig(
+        tier: SecurityTier.paranoid,
+        modifiers: SecurityTierModifiers(password: true, pinLength: 6),
+      );
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      // ignore: unrelated_type_equality_checks
+      expect(a == a, isTrue);
+    });
+
+    test('usesHardwareVault matches the hardware tier exclusively', () {
+      for (final tier in SecurityTier.values) {
+        final cfg = SecurityConfig(
+          tier: tier,
+          modifiers: SecurityTierModifiers.defaults,
+        );
+        expect(
+          cfg.usesHardwareVault,
+          tier == SecurityTier.hardware,
+          reason: 'tier=$tier',
+        );
+      }
+    });
+
+    test('isPlaintext returns true only for plaintext tier', () {
+      for (final tier in SecurityTier.values) {
+        final cfg = SecurityConfig(
+          tier: tier,
+          modifiers: SecurityTierModifiers.defaults,
+        );
+        expect(
+          cfg.isPlaintext,
+          tier == SecurityTier.plaintext,
+          reason: 'tier=$tier',
+        );
+      }
+    });
+
+    test(
+      'SecurityConfig.toString carries tier + modifiers for triage logs',
+      () {
+        const cfg = SecurityConfig(
+          tier: SecurityTier.paranoid,
+          modifiers: SecurityTierModifiers(password: true),
+        );
+        final repr = cfg.toString();
+        expect(repr, contains('SecurityConfig'));
+        expect(repr, contains('paranoid'));
+      },
+    );
+  });
 }
