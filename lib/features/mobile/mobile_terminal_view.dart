@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -371,65 +372,90 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // for ("toolbar docked against keyboard").
     final mq = MediaQuery.of(context);
     final keyboardInset = mq.viewInsets.bottom;
+    // Bottom nav bar (MobileShell) sits at the very bottom of the
+    // viewport. MobileShell turns on `extendBody: true` for the
+    // terminal page so this MobileTerminalView renders under the nav
+    // bar — that's why the bar's `bottom` offset must clamp to
+    // `navBarHeight` when the keyboard is closed (so the bar sits
+    // above the nav, not behind it) and follow `keyboardInset` when
+    // the keyboard covers both nav and lower content.
+    const navBarHeight = AppTheme.itemHeightXl;
+    final barBottom = math.max(navBarHeight, keyboardInset);
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
     // Reserve enough vertical space below the terminal Column for the
     // bottom control strip (toolbar stacked on top of the SSH keyboard
-    // bar in copy mode, or just the keyboard bar in normal mode). The
-    // reservation is a fixed constant — it never tracks `viewInsets`
-    // — so the terminal widget's height is invariant across keyboard
-    // open/close. Hint + toolbar toggling still reflows by their own
-    // small height; the terminal never reflows by the ~300 px the soft
-    // keyboard would otherwise consume.
+    // bar in copy mode, or just the keyboard bar in normal mode) PLUS
+    // the fixed nav-bar slot underneath. The reservation is a fixed
+    // constant — it never tracks `viewInsets` — so the terminal
+    // widget's height is invariant across keyboard open/close. Hint +
+    // toolbar toggling still reflows by their own small height; the
+    // terminal never reflows by the ~300 px the soft keyboard would
+    // otherwise consume.
     final bottomStripHeight =
-        AppTheme.itemHeightXl + (_copyMode ? _copyToolbarHeight : 0);
+        navBarHeight +
+        AppTheme.itemHeightXl +
+        (_copyMode ? _copyToolbarHeight : 0);
     return Stack(
       fit: StackFit.expand,
       children: [
         // Terminal + hint: bottom pinned to a fixed `bottomStripHeight`
         // — does NOT include `keyboardInset`. Terminal rendered height
         // stays constant while the keyboard opens / closes.
+        //
+        // `SelectionContainer.disabled` opts the terminal area out of
+        // the app-wide `AppSelectionArea` that wraps `MobileShell`:
+        // without it, taps inside the xterm widget could bubble up to
+        // the SelectionArea's gesture recognizers and bring up the
+        // system text-selection toolbar ("select all / copy / paste"),
+        // which is a surprise on a terminal whose copy path is a
+        // dedicated Copy button. The overlay is still fully
+        // interactive — SelectionContainer.disabled only suppresses
+        // the selection machinery, not taps.
         Positioned(
           left: 0,
           top: 0,
           right: 0,
           bottom: bottomStripHeight,
-          child: Column(
-            children: [
-              if (_copyMode) CopyModeHint(anchorSet: anchorSet),
-              Expanded(child: _buildTerminalArea()),
-            ],
+          child: SelectionContainer.disabled(
+            child: Column(
+              children: [
+                if (_copyMode) CopyModeHint(anchorSet: anchorSet),
+                Expanded(child: _buildTerminalArea()),
+              ],
+            ),
           ),
         ),
         // Bottom control strip — floats above the soft keyboard via
-        // `viewInsets.bottom`. Copy toolbar stacks on top of the SSH
-        // keyboard bar when copy mode is active; otherwise just the
-        // keyboard bar. Docking against the virtual keyboard means the
-        // user's thumb does not chase a floating button while
-        // selecting.
+        // `viewInsets.bottom`, clamped to `navBarHeight` so it stays
+        // above the mobile shell's bottom nav bar when the keyboard is
+        // closed. Copy toolbar stacks on top of the SSH keyboard bar
+        // when copy mode is active; otherwise just the keyboard bar.
         Positioned(
           left: 0,
           right: 0,
-          bottom: keyboardInset,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_copyMode)
-                SizedBox(
-                  height: _copyToolbarHeight,
-                  child: CopyModeToolbar(
-                    onCopy: _copyFromOverlay,
-                    onCancel: _cancelCopyMode,
+          bottom: barBottom,
+          child: SelectionContainer.disabled(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_copyMode)
+                  SizedBox(
+                    height: _copyToolbarHeight,
+                    child: CopyModeToolbar(
+                      onCopy: _copyFromOverlay,
+                      onCancel: _cancelCopyMode,
+                    ),
                   ),
+                SshKeyboardBar(
+                  key: _keyboardKey,
+                  onInput: _onKeyboardInput,
+                  onPaste: _paste,
+                  onSnippets: _showSnippets,
+                  onCopyModeChanged: _onCopyModeChanged,
                 ),
-              SshKeyboardBar(
-                key: _keyboardKey,
-                onInput: _onKeyboardInput,
-                onPaste: _paste,
-                onSnippets: _showSnippets,
-                onCopyModeChanged: _onCopyModeChanged,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

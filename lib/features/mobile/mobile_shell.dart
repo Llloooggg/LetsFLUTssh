@@ -63,6 +63,17 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         // buffer and the SSH server receives a smaller terminal size, which
         // produces duplicate/garbled lines at the top of the scrollback.
         resizeToAvoidBottomInset: _navIndex != 1,
+        // Extend the body under the bottom nav bar on the terminal page. The
+        // SSH keyboard bar (and copy toolbar in copy mode) inside
+        // MobileTerminalView floats above the soft keyboard via
+        // `viewInsets.bottom`; without `extendBody` the body only reaches
+        // `viewport - navHeight`, which left a `navHeight`-tall gap between
+        // the SSH bar and the soft keyboard. The nav bar itself is covered
+        // by the soft keyboard when open (matches iOS / Android convention —
+        // the keyboard sits above any bottom nav bar), and visible above
+        // the SSH bar when the keyboard is closed. Other pages keep their
+        // normal body-above-nav layout.
+        extendBody: _navIndex == 1,
         body: SafeArea(
           child: Column(
             children: [
