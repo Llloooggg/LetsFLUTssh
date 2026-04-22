@@ -1678,13 +1678,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final locale = ref.watch(localeProvider);
     final uiScale = ref.watch(configProvider.select((c) => c.uiScale));
 
-    // Sync AppTheme brightness before building the widget tree
-    final isDark =
-        themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-                Brightness.dark);
-    AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
+    _syncThemeBrightness(themeMode);
 
     return MaterialApp(
       navigatorKey: navigatorKey,
@@ -1697,49 +1691,68 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeAnimationDuration: Duration.zero,
-      builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-        final locked = ref.watch(lockStateProvider);
-        return Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            // Hard-off every animation/transition in the app — route
-            // page transitions, Material implicit animations,
-            // AnimatedSwitcher, etc. Flutter honours this flag across
-            // the framework; we use the same knob the OS "Reduce
-            // motion" accessibility toggle would set, applied
-            // unconditionally. Keep alongside textScaler so a single
-            // MediaQuery wrap controls both signals.
-            data: mediaQuery.copyWith(
-              textScaler: TextScaler.linear(uiScale),
-              disableAnimations: true,
-            ),
-            // AutoLockDetector wraps the real UI so every pointer/key
-            // event resets the idle timer. LockScreen overlays on top
-            // with zero hit-test for the app beneath while locked.
-            //
-            // `SelectionArea` cannot live at this layer — its
-            // `SelectableRegion` walks up the widget tree for an
-            // `Overlay` ancestor, and `Overlay` is provided by the
-            // `Navigator` *inside* MaterialApp's home, i.e. below
-            // this builder. A global wrap here fails with
-            // "No Overlay widget found". Per-route / per-dialog
-            // `SelectionArea` is the only working shape: MainScreen
-            // wraps the desktop + mobile shells, `AppDialog` wraps
-            // every dialog path, and pushed mobile routes wrap
-            // themselves (see `SettingsScreen._MobileSettingsScreen`).
-            child: AutoLockDetector(
-              child: Stack(
-                children: [
-                  child!,
-                  if (locked) const Positioned.fill(child: LockScreen()),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (context, child) => _buildAppShell(context, child, uiScale),
       home: const MainScreen(),
+    );
+  }
+
+  /// Push the resolved brightness into [AppTheme] before the widget
+  /// tree consumes it. `ThemeMode.system` reads the platform
+  /// brightness so the first frame already matches OS preference.
+  void _syncThemeBrightness(ThemeMode themeMode) {
+    final isDark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
+    AppTheme.setBrightness(isDark ? Brightness.dark : Brightness.light);
+  }
+
+  /// [MaterialApp.builder] body: wraps the active route child with
+  /// the app-wide MediaQuery overrides, the idle-timer detector, and
+  /// the lock overlay. Extracted from [build] so the method stays
+  /// readable — the builder closure is the largest piece of the
+  /// widget tree and does not need `build`'s local scope.
+  Widget _buildAppShell(BuildContext context, Widget? child, double uiScale) {
+    final mediaQuery = MediaQuery.of(context);
+    final locked = ref.watch(lockStateProvider);
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(
+        // Hard-off every animation/transition in the app — route page
+        // transitions, Material implicit animations, AnimatedSwitcher,
+        // etc. Flutter honours this flag across the framework; we use
+        // the same knob the OS "Reduce motion" accessibility toggle
+        // would set, applied unconditionally. Keep alongside
+        // textScaler so a single MediaQuery wrap controls both
+        // signals.
+        data: mediaQuery.copyWith(
+          textScaler: TextScaler.linear(uiScale),
+          disableAnimations: true,
+        ),
+        // AutoLockDetector wraps the real UI so every pointer/key
+        // event resets the idle timer. LockScreen overlays on top
+        // with zero hit-test for the app beneath while locked.
+        //
+        // `SelectionArea` cannot live at this layer — its
+        // `SelectableRegion` walks up the widget tree for an
+        // `Overlay` ancestor, and `Overlay` is provided by the
+        // `Navigator` *inside* MaterialApp's home, i.e. below this
+        // builder. A global wrap here fails with "No Overlay widget
+        // found". Per-route / per-dialog `SelectionArea` is the only
+        // working shape: MainScreen wraps the desktop + mobile
+        // shells, `AppDialog` wraps every dialog path, and pushed
+        // mobile routes wrap themselves (see
+        // `SettingsScreen._MobileSettingsScreen`).
+        child: AutoLockDetector(
+          child: Stack(
+            children: [
+              if (child != null) child,
+              if (locked) const Positioned.fill(child: LockScreen()),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
