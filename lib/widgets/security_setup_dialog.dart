@@ -511,44 +511,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         );
       case WizardTier.keychain:
       case WizardTier.hardware:
-        final linuxNote =
-            caps.isLinuxHost && _selected == WizardTier.hardware && !_password;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ModifierToggle(
-              label: l10n.modifierPasswordLabel,
-              subtitle: l10n.modifierPasswordSubtitle,
-              icon: Icons.password,
-              value: _password,
-              enabled: _passwordToggleEnabled,
-              onChanged: (v) => setState(() {
-                _password = v;
-                if (!v) _biometric = false;
-                if (!v) {
-                  _secretCtrl.wipeAndClear();
-                  _confirmCtrl.wipeAndClear();
-                }
-              }),
-            ),
-            _ModifierToggle(
-              label: l10n.modifierBiometricLabel,
-              subtitle: l10n.modifierBiometricSubtitle,
-              icon: Icons.fingerprint,
-              value: _biometric,
-              enabled: _biometricToggleEnabled,
-              disabledReason: _biometric
-                  ? null
-                  : _biometricDisabledReason(l10n, caps),
-              onChanged: (v) => setState(() => _biometric = v),
-            ),
-            if (linuxNote) ...[
-              const SizedBox(height: 8),
-              _HonestyNote(text: l10n.linuxTpmWithoutPasswordNote),
-            ],
-            if (_needsSecretInput()) _buildSecretForm(l10n),
-          ],
-        );
+        return _buildMidTierPanel(l10n, caps);
       case WizardTier.paranoid:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -558,6 +521,61 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           ],
         );
     }
+  }
+
+  /// Modifier panel for the T1 / T2 branch (keychain + hardware) —
+  /// they share the password + biometric toggles and an optional
+  /// Linux-TPM honesty note. Extracted so [_buildModifierPanel]
+  /// stays under the S3776 threshold; the switch itself is simple
+  /// dispatch, each case's body belongs in its own method.
+  Widget _buildMidTierPanel(S l10n, SecurityCapabilities caps) {
+    final linuxNote =
+        caps.isLinuxHost && _selected == WizardTier.hardware && !_password;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ModifierToggle(
+          label: l10n.modifierPasswordLabel,
+          subtitle: l10n.modifierPasswordSubtitle,
+          icon: Icons.password,
+          value: _password,
+          enabled: _passwordToggleEnabled,
+          onChanged: _onPasswordToggle,
+        ),
+        _ModifierToggle(
+          label: l10n.modifierBiometricLabel,
+          subtitle: l10n.modifierBiometricSubtitle,
+          icon: Icons.fingerprint,
+          value: _biometric,
+          enabled: _biometricToggleEnabled,
+          disabledReason: _biometric
+              ? null
+              : _biometricDisabledReason(l10n, caps),
+          onChanged: (v) => setState(() => _biometric = v),
+        ),
+        if (linuxNote) ...[
+          const SizedBox(height: 8),
+          _HonestyNote(text: l10n.linuxTpmWithoutPasswordNote),
+        ],
+        if (_needsSecretInput()) _buildSecretForm(l10n),
+      ],
+    );
+  }
+
+  /// Pair of effects triggered when the user toggles the password
+  /// modifier: turning it off also turns biometric off (there is
+  /// nothing to shortcut) and wipes the entry buffers so a later
+  /// toggle-on starts with fresh fields. Pulled out of the inline
+  /// `onChanged` so the call site stays a one-line reference.
+  void _onPasswordToggle(bool v) {
+    setState(() {
+      _password = v;
+      if (!v) {
+        _biometric = false;
+        _secretCtrl.wipeAndClear();
+        _confirmCtrl.wipeAndClear();
+      }
+    });
   }
 
   Widget _buildSecretForm(S l10n, {bool strengthMeter = false}) {
