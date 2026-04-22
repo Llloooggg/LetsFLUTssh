@@ -126,6 +126,14 @@ class ResignService {
     await keychain.deleteIdentity(commonName);
     await keychain.deleteCertificate(commonName);
   }
+
+  /// Has the user previously accepted the self-sign prompt on this
+  /// machine? Lets the UI decide between offering "Enable secure
+  /// tiers" (no cert) and "Remove secure identity" (cert present
+  /// → tier switch required before removal).
+  Future<bool> hasIdentity({
+    String commonName = CertFactory.defaultCommonName,
+  }) => keychain.hasCertificate(commonName);
 }
 
 // Keychain's constructor reads `Platform.environment['HOME']`, so it

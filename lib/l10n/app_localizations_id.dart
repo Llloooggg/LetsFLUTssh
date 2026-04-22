@@ -2308,24 +2308,60 @@ class SId extends S {
   String get securityRecheckUnchanged => 'Dukungan tingkat tidak berubah';
 
   @override
-  String get securityMacosEnableKeychain =>
-      'Aktifkan penyimpanan Keychain macOS';
+  String get securityMacosEnableSecureTiers =>
+      'Buka kunci tingkat aman di Mac ini';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Ikat rahasia terenkripsi ke sertifikat pribadi agar T1 bertahan setelah pembaruan';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Tanda tangani ulang aplikasi dengan sertifikat pribadi agar Keychain (T1) dan Secure Enclave (T2) tetap bekerja setelah pembaruan';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS akan meminta kata sandi Anda sekali';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Penyimpanan Keychain diaktifkan — T1 sekarang tersedia';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Tingkat aman terbuka — T1 dan T2 sekarang tersedia';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Gagal mengaktifkan penyimpanan Keychain';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Gagal membuka tingkat aman';
+
+  @override
+  String get securityMacosOfferTitle => 'Aktifkan Keychain + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS mengikat penyimpanan terenkripsi ke identitas penandatanganan aplikasi. Tanpa sertifikat stabil, Keychain (T1) dan Secure Enclave (T2) menolak akses. Kami dapat membuat sertifikat pribadi bertanda-tangan-sendiri di Mac ini dan menandatangani ulang aplikasi — pembaruan akan terus bekerja, dan rahasia Anda bertahan antar versi. macOS akan meminta kata sandi login Anda sekali untuk memercayai sertifikat baru.';
+
+  @override
+  String get securityMacosOfferAccept => 'Aktifkan';
+
+  @override
+  String get securityMacosOfferDecline => 'Lewati — pilih T0 atau Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => 'Hapus identitas penandatanganan';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Menghapus sertifikat pribadi. Data T1 / T2 terikat padanya — beralih ke T0 atau Paranoid dulu, lalu hapus.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'Hapus identitas penandatanganan?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Menghapus sertifikat pribadi dari Keychain login. Rahasia T1 / T2 yang disimpan akan tidak terbaca. Wizard akan terbuka untuk migrasi ke T0 (teks biasa) atau Paranoid (kata sandi utama) sebelum penghapusan.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess =>
+      'Identitas penandatanganan dihapus';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'Gagal menghapus identitas penandatanganan';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

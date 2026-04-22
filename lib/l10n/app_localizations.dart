@@ -4071,35 +4071,95 @@ abstract class S {
   /// **'Tier support unchanged'**
   String get securityRecheckUnchanged;
 
-  /// No description provided for @securityMacosEnableKeychain.
+  /// No description provided for @securityMacosEnableSecureTiers.
   ///
   /// In en, this message translates to:
-  /// **'Enable macOS Keychain storage'**
-  String get securityMacosEnableKeychain;
+  /// **'Unlock secure tiers on this Mac'**
+  String get securityMacosEnableSecureTiers;
 
-  /// No description provided for @securityMacosEnableKeychainSubtitle.
+  /// No description provided for @securityMacosEnableSecureTiersSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Bind encrypted secrets to a personal certificate so T1 survives updates'**
-  String get securityMacosEnableKeychainSubtitle;
+  /// **'Re-sign the app with a personal certificate so Keychain (T1) and Secure Enclave (T2) work across updates'**
+  String get securityMacosEnableSecureTiersSubtitle;
 
-  /// No description provided for @securityMacosEnableKeychainPrompt.
+  /// No description provided for @securityMacosEnableSecureTiersPrompt.
   ///
   /// In en, this message translates to:
   /// **'macOS will ask for your password once'**
-  String get securityMacosEnableKeychainPrompt;
+  String get securityMacosEnableSecureTiersPrompt;
 
-  /// No description provided for @securityMacosEnableKeychainSuccess.
+  /// No description provided for @securityMacosEnableSecureTiersSuccess.
   ///
   /// In en, this message translates to:
-  /// **'Keychain storage enabled — T1 tier is now available'**
-  String get securityMacosEnableKeychainSuccess;
+  /// **'Secure tiers unlocked — T1 and T2 are now available'**
+  String get securityMacosEnableSecureTiersSuccess;
 
-  /// No description provided for @securityMacosEnableKeychainFailed.
+  /// No description provided for @securityMacosEnableSecureTiersFailed.
   ///
   /// In en, this message translates to:
-  /// **'Failed to enable keychain storage'**
-  String get securityMacosEnableKeychainFailed;
+  /// **'Failed to unlock secure tiers'**
+  String get securityMacosEnableSecureTiersFailed;
+
+  /// No description provided for @securityMacosOfferTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Keychain + Secure Enclave?'**
+  String get securityMacosOfferTitle;
+
+  /// No description provided for @securityMacosOfferBody.
+  ///
+  /// In en, this message translates to:
+  /// **'macOS binds encrypted storage to the app\'s signing identity. Without a stable cert, Keychain (T1) and Secure Enclave (T2) reject access. We can create a personal self-signed certificate on this Mac and re-sign the app with it — updates will keep working, and your secrets survive across releases. macOS will ask for your login password once to trust the new cert.'**
+  String get securityMacosOfferBody;
+
+  /// No description provided for @securityMacosOfferAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get securityMacosOfferAccept;
+
+  /// No description provided for @securityMacosOfferDecline.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip — pick T0 or Paranoid'**
+  String get securityMacosOfferDecline;
+
+  /// No description provided for @securityMacosRemoveIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove secure identity'**
+  String get securityMacosRemoveIdentity;
+
+  /// No description provided for @securityMacosRemoveIdentitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletes the personal signing cert. T1 / T2 data is tied to it — pick T0 or Paranoid first, then remove.'**
+  String get securityMacosRemoveIdentitySubtitle;
+
+  /// No description provided for @securityMacosRemoveIdentityConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove signing identity?'**
+  String get securityMacosRemoveIdentityConfirmTitle;
+
+  /// No description provided for @securityMacosRemoveIdentityConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the personal cert from your login keychain. T1 / T2 stored secrets become unreadable afterwards. The wizard will open so you can migrate to T0 (plaintext) or Paranoid (master password) before removal.'**
+  String get securityMacosRemoveIdentityConfirmBody;
+
+  /// No description provided for @securityMacosRemoveIdentitySuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing identity removed'**
+  String get securityMacosRemoveIdentitySuccess;
+
+  /// No description provided for @securityMacosRemoveIdentityFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove signing identity'**
+  String get securityMacosRemoveIdentityFailed;
 
   /// No description provided for @keyringProbeLinuxNoSecretService.
   ///

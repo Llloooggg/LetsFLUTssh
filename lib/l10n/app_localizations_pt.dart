@@ -2317,24 +2317,60 @@ class SPt extends S {
   String get securityRecheckUnchanged => 'Suporte aos níveis inalterado';
 
   @override
-  String get securityMacosEnableKeychain =>
-      'Ativar armazenamento no Keychain do macOS';
+  String get securityMacosEnableSecureTiers =>
+      'Desbloquear níveis seguros neste Mac';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Vincular segredos cifrados a um certificado pessoal para que o T1 sobreviva às atualizações';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Reassinar o app com um certificado pessoal para que o Keychain (T1) e o Secure Enclave (T2) sobrevivam às atualizações';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'O macOS pedirá sua senha uma vez';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Armazenamento no Keychain ativado — T1 disponível';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Níveis seguros desbloqueados — T1 e T2 disponíveis';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Falha ao ativar o armazenamento no Keychain';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Falha ao desbloquear os níveis seguros';
+
+  @override
+  String get securityMacosOfferTitle => 'Ativar Keychain + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'O macOS vincula o armazenamento cifrado à identidade de assinatura do app. Sem certificado estável, o Keychain (T1) e o Secure Enclave (T2) negam acesso. Podemos criar um certificado pessoal autoassinado e reassinar o app — as atualizações continuarão funcionando e seus segredos sobreviverão entre versões. O macOS pedirá sua senha de login uma vez para confiar no novo certificado.';
+
+  @override
+  String get securityMacosOfferAccept => 'Ativar';
+
+  @override
+  String get securityMacosOfferDecline => 'Pular — escolher T0 ou Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => 'Remover identidade de assinatura';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Exclui o certificado pessoal. Os dados T1 / T2 estão vinculados — mude para T0 ou Paranoid primeiro, depois remova.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'Remover identidade de assinatura?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Exclui o certificado pessoal do Keychain de login. Os segredos T1 / T2 armazenados ficarão ilegíveis. O assistente abrirá para migrar para T0 (texto simples) ou Paranoid (senha mestra) antes da remoção.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess =>
+      'Identidade de assinatura removida';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'Falha ao remover identidade de assinatura';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

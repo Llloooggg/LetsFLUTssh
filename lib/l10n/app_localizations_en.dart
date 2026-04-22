@@ -2294,23 +2294,59 @@ class SEn extends S {
   String get securityRecheckUnchanged => 'Tier support unchanged';
 
   @override
-  String get securityMacosEnableKeychain => 'Enable macOS Keychain storage';
+  String get securityMacosEnableSecureTiers =>
+      'Unlock secure tiers on this Mac';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Bind encrypted secrets to a personal certificate so T1 survives updates';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Re-sign the app with a personal certificate so Keychain (T1) and Secure Enclave (T2) work across updates';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS will ask for your password once';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Keychain storage enabled — T1 tier is now available';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Secure tiers unlocked — T1 and T2 are now available';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Failed to enable keychain storage';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Failed to unlock secure tiers';
+
+  @override
+  String get securityMacosOfferTitle => 'Enable Keychain + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS binds encrypted storage to the app\'s signing identity. Without a stable cert, Keychain (T1) and Secure Enclave (T2) reject access. We can create a personal self-signed certificate on this Mac and re-sign the app with it — updates will keep working, and your secrets survive across releases. macOS will ask for your login password once to trust the new cert.';
+
+  @override
+  String get securityMacosOfferAccept => 'Enable';
+
+  @override
+  String get securityMacosOfferDecline => 'Skip — pick T0 or Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => 'Remove secure identity';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Deletes the personal signing cert. T1 / T2 data is tied to it — pick T0 or Paranoid first, then remove.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'Remove signing identity?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'This deletes the personal cert from your login keychain. T1 / T2 stored secrets become unreadable afterwards. The wizard will open so you can migrate to T0 (plaintext) or Paranoid (master password) before removal.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'Signing identity removed';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'Failed to remove signing identity';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

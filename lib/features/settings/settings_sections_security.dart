@@ -23,6 +23,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   // (the one step that prompts for the user's login password) +
   // inside-out re-sign of the live bundle + entitlement probe.
   bool _enablingKeychain = false;
+  // True while the macOS "Remove signing identity" confirmation +
+  // tier-switch wizard + uninstallIdentity is in flight.
+  bool _removingKeychain = false;
+  // `null` until the initial probe completes. On non-macOS hosts
+  // stays null forever — the gating build conditions already filter
+  // on `Platform.isMacOS`.
+  bool? _macosHasIdentity;
 
   @override
   void initState() {
@@ -38,11 +45,24 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final bioVault = ref.read(biometricKeyVaultProvider);
     final availability = await bio.availability();
     final stored = await bioVault.isStored();
+    // macOS cert presence drives the Enable-vs-Remove decision at the
+    // bottom of the section. Any non-macOS host skips the probe —
+    // `Keychain.hasCertificate` would spawn `security find-certificate`
+    // which exists on macOS only.
+    bool? hasIdentity;
+    if (Platform.isMacOS) {
+      try {
+        hasIdentity = await ref.read(resignServiceProvider).hasIdentity();
+      } catch (_) {
+        hasIdentity = false;
+      }
+    }
     if (!mounted) return;
     setState(() {
       _biometricUnavailable = availability;
       _biometricEnabled = stored;
       _biometricProbed = true;
+      _macosHasIdentity = hasIdentity;
     });
   }
 
@@ -482,54 +502,67 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
             onTap: _recheckingTiers ? null : _rerunTierProbes,
           ),
         ),
-        // macOS-only: "Enable Keychain storage" action visible when
-        // the keychain probe is reporting unavailable. Creates a
-        // personal self-signed code-signing cert via [ResignService],
-        // re-signs the running bundle, and triggers a tier re-check
-        // so T1 flips from greyed out to available. The button is
-        // deliberately rendered *after* "Re-check tier support" so
-        // the user sees the passive probe option first, and the
-        // active one-shot fix after.
-        if (Platform.isMacOS &&
-            !caps.maybeWhen(
-              data: (c) => c.keychainAvailable,
-              orElse: () => true,
-            ))
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              children: [
-                Text(
-                  l10n.securityMacosEnableKeychainSubtitle,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgDim,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.securityMacosEnableKeychainPrompt,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fgFaint,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                AppButton.primary(
-                  label: l10n.securityMacosEnableKeychain,
-                  icon: Icons.vpn_key,
-                  loading: _enablingKeychain,
-                  dense: true,
-                  onTap: _enablingKeychain ? null : _enableMacosKeychain,
-                ),
-              ],
-            ),
-          ),
+        // macOS-only identity management: Enable Secure Tiers when
+        // no cert is present (user skipped the first-launch offer or
+        // removed the identity later), Remove Signing Identity when
+        // a cert is present. Removal opens the tier-switch wizard
+        // first so the user migrates off T1 / T2 before the cert
+        // that backs their access to those secrets is deleted.
+        if (Platform.isMacOS && _macosHasIdentity == false)
+          _buildMacosEnableBlock(l10n),
+        if (Platform.isMacOS && _macosHasIdentity == true)
+          _buildMacosRemoveBlock(l10n),
       ],
     );
   }
+
+  Widget _buildMacosEnableBlock(S l10n) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Column(
+      children: [
+        Text(
+          l10n.securityMacosEnableSecureTiersSubtitle,
+          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.securityMacosEnableSecureTiersPrompt,
+          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgFaint),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        AppButton.primary(
+          label: l10n.securityMacosEnableSecureTiers,
+          icon: Icons.vpn_key,
+          loading: _enablingKeychain,
+          dense: true,
+          onTap: _enablingKeychain ? null : _enableMacosKeychain,
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildMacosRemoveBlock(S l10n) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Column(
+      children: [
+        Text(
+          l10n.securityMacosRemoveIdentitySubtitle,
+          style: TextStyle(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        AppButton.destructive(
+          label: l10n.securityMacosRemoveIdentity,
+          icon: Icons.vpn_key_off,
+          loading: _removingKeychain,
+          dense: true,
+          onTap: _removingKeychain ? null : _removeMacosIdentity,
+        ),
+      ],
+    ),
+  );
 
   /// Invalidate the cached capability + probe snapshots and wait for
   /// the fresh values so the section rebuilds against ready data.
@@ -608,7 +641,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       if (!ok) {
         Toast.show(
           context,
-          message: S.of(context).securityMacosEnableKeychainFailed,
+          message: S.of(context).securityMacosEnableSecureTiersFailed,
           level: ToastLevel.error,
         );
         return;
@@ -623,20 +656,112 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       ref.invalidate(keyringProbeDetailProvider);
       await ref.read(securityCapabilitiesProvider.future);
       if (!mounted) return;
+      setState(() => _macosHasIdentity = true);
       Toast.show(
         context,
-        message: S.of(context).securityMacosEnableKeychainSuccess,
+        message: S.of(context).securityMacosEnableSecureTiersSuccess,
         level: ToastLevel.success,
       );
     } catch (e) {
       if (!mounted) return;
       Toast.show(
         context,
-        message: S.of(context).securityMacosEnableKeychainFailed,
+        message: S.of(context).securityMacosEnableSecureTiersFailed,
         level: ToastLevel.error,
       );
     } finally {
       if (mounted) setState(() => _enablingKeychain = false);
+    }
+  }
+
+  /// Confirmation dialog + tier-switch wizard + cert uninstall. T1 /
+  /// T2 secrets are tied to the cert's designated requirement — the
+  /// user has to migrate to T0 or Paranoid *before* the cert is
+  /// removed, otherwise every stored secret would become unreadable
+  /// on the next keychain read. We show the wizard, apply the tier
+  /// switch through the existing `onSelectTier` path (which rekeys
+  /// the DB under a fresh key under the new tier), and only then
+  /// uninstall the signing identity.
+  Future<void> _removeMacosIdentity() async {
+    setState(() => _removingKeychain = true);
+    try {
+      final confirmed = await AppDialog.show<bool>(
+        context,
+        builder: (d) => AppDialog(
+          title: S.of(d).securityMacosRemoveIdentityConfirmTitle,
+          content: Text(
+            S.of(d).securityMacosRemoveIdentityConfirmBody,
+            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+          ),
+          actions: [
+            AppButton.cancel(onTap: () => Navigator.pop(d, false)),
+            AppButton.destructive(
+              label: S.of(d).securityMacosRemoveIdentity,
+              onTap: () => Navigator.pop(d, true),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      // Show tier-switch wizard with keychain + hardware forced off
+      // so the user can only pick T0 / Paranoid. Same reduced shape
+      // as the first-launch decline path.
+      final keyStorage = ref.read(secureKeyStorageProvider);
+      final hw = ref.read(hardwareTierVaultProvider);
+      final baseCaps = await probeCapabilities(
+        keyStorage: keyStorage,
+        hardwareVault: hw,
+      );
+      if (!mounted) return;
+      final forcedCaps = baseCaps.copyWith(
+        keychainAvailable: false,
+        hardwareVaultAvailable: false,
+      );
+      final result = await SecuritySetupDialog.show(
+        context,
+        keyStorage: keyStorage,
+        hardwareVault: hw,
+        currentTier: ref.read(configProvider).security?.tier,
+        capabilitiesOverride: forcedCaps,
+        dismissible: true,
+      );
+      if (!mounted) return;
+      if (result.tier != SecurityTier.plaintext &&
+          result.tier != SecurityTier.paranoid) {
+        // User dismissed or wizard returned an unexpected tier —
+        // treat as cancel, leave cert in place.
+        return;
+      }
+      // Re-use `_applyTierChange` directly (not `onSelectTier`) so
+      // we stay inside the remove-identity progress flow without
+      // stacking another progress dialog / toast that `onSelectTier`
+      // installs for the "Change Security Tier" entry point.
+      await _applyTierChange(result);
+      if (!mounted) return;
+      // Tier switch succeeded → safe to drop the cert.
+      await ref.read(resignServiceProvider).uninstallIdentity();
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWithSecurity(securityProbeCache: null));
+      ref.invalidate(securityCapabilitiesProvider);
+      ref.invalidate(hardwareProbeDetailProvider);
+      ref.invalidate(keyringProbeDetailProvider);
+      if (!mounted) return;
+      setState(() => _macosHasIdentity = false);
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosRemoveIdentitySuccess,
+        level: ToastLevel.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: S.of(context).securityMacosRemoveIdentityFailed,
+        level: ToastLevel.error,
+      );
+    } finally {
+      if (mounted) setState(() => _removingKeychain = false);
     }
   }
 

@@ -1,5 +1,5 @@
 import 'dart:async' show runZonedGuarded, unawaited;
-import 'dart:io' show exit;
+import 'dart:io' show Directory, Platform, exit;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -1049,6 +1049,35 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     var caps = await ref.read(securityCapabilitiesProvider.future);
     if (!mounted) return;
 
+    // macOS-only: when the probe reports keychain + hardware-vault
+    // blocked specifically because of `macosSigningIdentityMissing`
+    // (ad-hoc CI signature trips `errSecMissingEntitlement` on first
+    // keychain write), offer to self-sign *before* the wizard renders.
+    // Two paths:
+    //   - Accept → run `ResignService.ensureIdentity` +
+    //     `resignBundle`, re-probe, and fall through to the normal
+    //     auto-setup / wizard dispatch with the refreshed caps so
+    //     Keychain (T1) and Secure Enclave (T2) become selectable
+    //     the same way they do on Linux / Windows hosts where the
+    //     probe passes natively.
+    //   - Decline → force caps to the reduced shape
+    //     (`keychainAvailable: false`, `hardwareVaultAvailable:
+    //     false`) so the wizard shows only T0 + Paranoid. User is
+    //     treated exactly like a host where the platform itself
+    //     can't back secure storage.
+    // The offer only fires when both of these are true: platform is
+    // macOS AND the hardware-probe code explicitly calls out the
+    // signing-identity failure. Any other probe reason (pre-T2
+    // Intel Mac, passcode not set, etc.) lands on the reduced
+    // wizard directly — self-signing wouldn't help those hosts.
+    if (Platform.isMacOS &&
+        !caps.keychainAvailable &&
+        caps.hardwareProbeCode == 'macosSigningIdentityMissing') {
+      final updatedCaps = await _offerMacosSelfSign(caps);
+      if (!mounted) return;
+      caps = updatedCaps;
+    }
+
     // Auto-setup path: keychain is reachable → silently land on T1
     // and queue the post-setup banner so the user learns what we
     // picked and how to upgrade.
@@ -1093,6 +1122,77 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       manager: manager,
       keyStorage: keyStorage,
     );
+  }
+
+  /// macOS-only: confirmation dialog offered before the first-launch
+  /// wizard renders when ad-hoc signing has locked Keychain + Secure
+  /// Enclave. Returns the capabilities to use for the rest of
+  /// [_firstLaunchSetup]. On accept, runs the self-sign pipeline and
+  /// re-probes so the next branch can auto-setup T1 the normal way.
+  /// On decline, forces the reduced caps shape so the wizard shows
+  /// T0 + Paranoid only — matches how hosts with no keychain backing
+  /// are already treated.
+  Future<SecurityCapabilities> _offerMacosSelfSign(
+    SecurityCapabilities caps,
+  ) async {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return caps;
+    final l10n = S.of(ctx);
+    final accepted = await AppDialog.show<bool>(
+      ctx,
+      barrierDismissible: false,
+      builder: (d) => AppDialog(
+        title: l10n.securityMacosOfferTitle,
+        dismissible: false,
+        content: Text(
+          l10n.securityMacosOfferBody,
+          style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+        ),
+        actions: [
+          AppButton.secondary(
+            label: l10n.securityMacosOfferDecline,
+            onTap: () => Navigator.pop(d, false),
+          ),
+          AppButton.primary(
+            label: l10n.securityMacosOfferAccept,
+            icon: Icons.vpn_key,
+            onTap: () => Navigator.pop(d, true),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) {
+      // Decline path — force reduced caps so the wizard hides T1/T2.
+      return caps.copyWith(
+        keychainAvailable: false,
+        hardwareVaultAvailable: false,
+      );
+    }
+    try {
+      final svc = ref.read(resignServiceProvider);
+      await svc.ensureIdentity();
+      final bundle = Directory(
+        Platform.resolvedExecutable,
+      ).parent.parent.parent;
+      await svc.resignBundle(appBundle: bundle);
+      // Drop the persisted cache + re-probe against the re-signed
+      // bundle so caps.keychainAvailable flips to true on success.
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWithSecurity(securityProbeCache: null));
+      ref.invalidate(securityCapabilitiesProvider);
+      return await ref.read(securityCapabilitiesProvider.future);
+    } catch (e) {
+      AppLogger.instance.log(
+        'macOS self-sign offer: failed to re-sign — falling back to reduced wizard',
+        name: 'App',
+        error: e,
+      );
+      return caps.copyWith(
+        keychainAvailable: false,
+        hardwareVaultAvailable: false,
+      );
+    }
   }
 
   /// Apply the user's wizard choice on first launch. Split out of

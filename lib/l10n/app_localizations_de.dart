@@ -2328,24 +2328,61 @@ class SDe extends S {
   String get securityRecheckUnchanged => 'Stufen-Unterstützung unverändert';
 
   @override
-  String get securityMacosEnableKeychain =>
-      'macOS-Schlüsselbund-Speicher aktivieren';
+  String get securityMacosEnableSecureTiers =>
+      'Sichere Stufen auf diesem Mac freischalten';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Verschlüsselte Geheimnisse an ein persönliches Zertifikat binden, damit T1 Updates übersteht';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'App mit einem persönlichen Zertifikat signieren, damit Schlüsselbund (T1) und Secure Enclave (T2) Updates überstehen';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS fragt einmalig nach Ihrem Passwort';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Schlüsselbund-Speicher aktiviert — T1 ist jetzt verfügbar';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Sichere Stufen freigeschaltet — T1 und T2 sind verfügbar';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Schlüsselbund-Speicher konnte nicht aktiviert werden';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Freischalten der sicheren Stufen fehlgeschlagen';
+
+  @override
+  String get securityMacosOfferTitle =>
+      'Schlüsselbund + Secure Enclave aktivieren?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS bindet verschlüsselten Speicher an die Signier-Identität der App. Ohne stabiles Zertifikat verweigern Schlüsselbund (T1) und Secure Enclave (T2) den Zugriff. Wir können ein persönliches, selbstsigniertes Zertifikat erstellen und die App damit neu signieren — Updates funktionieren weiter und Ihre Geheimnisse überdauern Versionen. macOS fragt einmal nach Ihrem Anmeldepasswort, um dem neuen Zertifikat zu vertrauen.';
+
+  @override
+  String get securityMacosOfferAccept => 'Aktivieren';
+
+  @override
+  String get securityMacosOfferDecline =>
+      'Überspringen — T0 oder Paranoid wählen';
+
+  @override
+  String get securityMacosRemoveIdentity => 'Signier-Identität entfernen';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Löscht das persönliche Zertifikat. T1 / T2-Daten sind daran gebunden — zuerst auf T0 oder Paranoid umstellen, dann entfernen.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'Signier-Identität entfernen?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Löscht das persönliche Zertifikat aus dem Anmelde-Schlüsselbund. T1 / T2 gespeicherte Geheimnisse werden unlesbar. Der Wizard öffnet sich, damit Sie vor dem Entfernen auf T0 (Klartext) oder Paranoid (Master-Passwort) migrieren.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'Signier-Identität entfernt';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'Signier-Identität konnte nicht entfernt werden';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

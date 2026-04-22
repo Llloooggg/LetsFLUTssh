@@ -2210,20 +2210,53 @@ class SZh extends S {
   String get securityRecheckUnchanged => '层级支持未变';
 
   @override
-  String get securityMacosEnableKeychain => '启用 macOS 钥匙串存储';
+  String get securityMacosEnableSecureTiers => '在此 Mac 上解锁安全层级';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      '将加密密钥绑定到个人证书,使 T1 在更新后仍然有效';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      '使用个人证书重新签名应用,使钥匙串 (T1) 和 Secure Enclave (T2) 在更新后仍可用';
 
   @override
-  String get securityMacosEnableKeychainPrompt => 'macOS 将提示输入密码一次';
+  String get securityMacosEnableSecureTiersPrompt => 'macOS 将提示输入密码一次';
 
   @override
-  String get securityMacosEnableKeychainSuccess => '钥匙串存储已启用 — T1 现已可用';
+  String get securityMacosEnableSecureTiersSuccess => '安全层级已解锁 — T1 和 T2 现已可用';
 
   @override
-  String get securityMacosEnableKeychainFailed => '无法启用钥匙串存储';
+  String get securityMacosEnableSecureTiersFailed => '无法解锁安全层级';
+
+  @override
+  String get securityMacosOfferTitle => '启用钥匙串 + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS 将加密存储绑定到应用的签名身份。没有稳定证书,钥匙串 (T1) 和 Secure Enclave (T2) 将拒绝访问。我们可以在此 Mac 上创建个人自签名证书并重新签名应用 — 更新将继续工作,您的秘密将跨版本保留。macOS 将提示您输入一次登录密码以信任新证书。';
+
+  @override
+  String get securityMacosOfferAccept => '启用';
+
+  @override
+  String get securityMacosOfferDecline => '跳过 — 选择 T0 或 Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => '移除签名身份';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      '删除个人证书。T1 / T2 数据与之绑定 — 请先切换到 T0 或 Paranoid,然后再移除。';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle => '移除签名身份?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      '从登录钥匙串删除个人证书。T1 / T2 存储的秘密将变得不可读。向导将打开以在移除前迁移到 T0 (明文) 或 Paranoid (主密码)。';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => '签名身份已移除';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => '无法移除签名身份';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

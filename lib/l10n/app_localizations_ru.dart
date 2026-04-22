@@ -2314,24 +2314,62 @@ class SRu extends S {
   String get securityRecheckUnchanged => 'Поддержка уровней без изменений';
 
   @override
-  String get securityMacosEnableKeychain =>
-      'Включить хранение в macOS Keychain';
+  String get securityMacosEnableSecureTiers =>
+      'Разблокировать безопасные уровни на этом Mac';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Привязать зашифрованные секреты к личному сертификату — T1 переживёт обновления';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Переподписать приложение личным сертификатом, чтобы Keychain (T1) и Secure Enclave (T2) работали после обновлений';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS один раз попросит ваш пароль';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Хранение в Keychain включено — T1 теперь доступен';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Безопасные уровни разблокированы — T1 и T2 доступны';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Не удалось включить хранение в Keychain';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Не удалось разблокировать безопасные уровни';
+
+  @override
+  String get securityMacosOfferTitle => 'Включить Keychain + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS привязывает шифрованное хранилище к identity подписи приложения. Без стабильного сертификата Keychain (T1) и Secure Enclave (T2) отказывают. Можем создать личный самоподписанный сертификат и переподписать приложение — обновления продолжат работать, а секреты переживут релизы. macOS один раз попросит ваш логин-пароль, чтобы доверять новому сертификату.';
+
+  @override
+  String get securityMacosOfferAccept => 'Включить';
+
+  @override
+  String get securityMacosOfferDecline =>
+      'Пропустить — выбрать T0 или Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity =>
+      'Удалить подписывающую идентичность';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Удалит личный сертификат. T1 / T2 данные к нему привязаны — сперва переключитесь на T0 или Paranoid, потом удаляйте.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'Удалить подписывающую идентичность?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Удаляет личный сертификат из login keychain. T1 / T2 сохранённые секреты станут нечитаемыми. Откроется визард для миграции на T0 (plaintext) или Paranoid (master password) перед удалением.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess =>
+      'Подписывающая идентичность удалена';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'Не удалось удалить подписывающую идентичность';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

@@ -2293,23 +2293,57 @@ class SVi extends S {
   String get securityRecheckUnchanged => 'Hỗ trợ lớp không thay đổi';
 
   @override
-  String get securityMacosEnableKeychain => 'Bật lưu trữ Keychain của macOS';
+  String get securityMacosEnableSecureTiers =>
+      'Mở khóa các lớp bảo mật trên Mac này';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Liên kết bí mật mã hóa với chứng chỉ cá nhân để T1 vẫn hoạt động sau cập nhật';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Ký lại ứng dụng bằng chứng chỉ cá nhân để Keychain (T1) và Secure Enclave (T2) vẫn hoạt động sau cập nhật';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS sẽ hỏi mật khẩu của bạn một lần';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Đã bật lưu trữ Keychain — T1 hiện khả dụng';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Các lớp bảo mật đã mở khóa — T1 và T2 hiện khả dụng';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Không thể bật lưu trữ Keychain';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Không thể mở khóa các lớp bảo mật';
+
+  @override
+  String get securityMacosOfferTitle => 'Kích hoạt Keychain + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS ràng buộc bộ nhớ mã hóa với danh tính ký của ứng dụng. Không có chứng chỉ ổn định, Keychain (T1) và Secure Enclave (T2) từ chối truy cập. Chúng tôi có thể tạo chứng chỉ cá nhân tự ký trên Mac này và ký lại ứng dụng — bản cập nhật tiếp tục hoạt động và bí mật của bạn tồn tại qua các bản phát hành. macOS sẽ hỏi mật khẩu đăng nhập một lần để tin cậy chứng chỉ mới.';
+
+  @override
+  String get securityMacosOfferAccept => 'Kích hoạt';
+
+  @override
+  String get securityMacosOfferDecline => 'Bỏ qua — chọn T0 hoặc Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => 'Xóa danh tính ký';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Xóa chứng chỉ cá nhân. Dữ liệu T1 / T2 gắn với nó — chuyển sang T0 hoặc Paranoid trước, sau đó xóa.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle => 'Xóa danh tính ký?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Xóa chứng chỉ cá nhân khỏi Keychain đăng nhập. Bí mật T1 / T2 đã lưu sẽ không đọc được. Trình hướng dẫn sẽ mở để di chuyển sang T0 (văn bản thuần) hoặc Paranoid (mật khẩu chính) trước khi xóa.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => 'Đã xóa danh tính ký';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => 'Không thể xóa danh tính ký';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

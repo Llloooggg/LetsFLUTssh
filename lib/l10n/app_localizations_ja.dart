@@ -2234,21 +2234,54 @@ class SJa extends S {
   String get securityRecheckUnchanged => '階層サポートに変更はありません';
 
   @override
-  String get securityMacosEnableKeychain => 'macOS キーチェーン保存を有効にする';
+  String get securityMacosEnableSecureTiers => 'この Mac でセキュア階層をロック解除';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      '暗号化された秘密を個人証明書に紐付け、更新後も T1 を維持します';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'アプリを個人証明書で再署名し、キーチェーン (T1) と Secure Enclave (T2) が更新後も動作するようにします';
 
   @override
-  String get securityMacosEnableKeychainPrompt => 'macOS は一度だけパスワードを要求します';
+  String get securityMacosEnableSecureTiersPrompt => 'macOS は一度だけパスワードを要求します';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'キーチェーン保存が有効になりました — T1 が利用可能です';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'セキュア階層がロック解除されました — T1 と T2 が利用可能です';
 
   @override
-  String get securityMacosEnableKeychainFailed => 'キーチェーン保存を有効にできませんでした';
+  String get securityMacosEnableSecureTiersFailed => 'セキュア階層のロック解除に失敗しました';
+
+  @override
+  String get securityMacosOfferTitle => 'キーチェーン + Secure Enclave を有効化?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS は暗号化ストレージをアプリの署名 ID に紐付けます。安定した証明書がないと、キーチェーン (T1) と Secure Enclave (T2) はアクセスを拒否します。この Mac 上に個人の自己署名証明書を作成し、アプリを再署名できます — アップデートは継続動作し、秘密情報はリリース間で保持されます。macOS は新しい証明書を信頼するために一度だけログインパスワードを要求します。';
+
+  @override
+  String get securityMacosOfferAccept => '有効化';
+
+  @override
+  String get securityMacosOfferDecline => 'スキップ — T0 または Paranoid を選択';
+
+  @override
+  String get securityMacosRemoveIdentity => '署名 ID を削除';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      '個人証明書を削除します。T1 / T2 データはこれに紐付いています — まず T0 または Paranoid に切り替えてから削除してください。';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle => '署名 ID を削除しますか?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'ログインキーチェーンから個人証明書を削除します。T1 / T2 に保存された秘密は読めなくなります。ウィザードが開き、削除前に T0 (平文) または Paranoid (マスターパスワード) に移行できます。';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => '署名 ID を削除しました';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => '署名 ID の削除に失敗しました';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

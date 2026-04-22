@@ -2232,21 +2232,54 @@ class SKo extends S {
   String get securityRecheckUnchanged => '계층 지원에 변경이 없습니다';
 
   @override
-  String get securityMacosEnableKeychain => 'macOS 키체인 저장소 활성화';
+  String get securityMacosEnableSecureTiers => '이 Mac에서 보안 계층 잠금 해제';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      '암호화된 비밀을 개인 인증서에 연결하여 업데이트 후에도 T1이 유지되도록 합니다';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      '개인 인증서로 앱을 다시 서명하여 키체인 (T1)과 Secure Enclave (T2)가 업데이트 후에도 작동하도록 합니다';
 
   @override
-  String get securityMacosEnableKeychainPrompt => 'macOS가 비밀번호를 한 번 요청합니다';
+  String get securityMacosEnableSecureTiersPrompt => 'macOS가 비밀번호를 한 번 요청합니다';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      '키체인 저장소가 활성화되었습니다 — T1 사용 가능';
+  String get securityMacosEnableSecureTiersSuccess =>
+      '보안 계층이 잠금 해제되었습니다 — T1과 T2 사용 가능';
 
   @override
-  String get securityMacosEnableKeychainFailed => '키체인 저장소를 활성화할 수 없습니다';
+  String get securityMacosEnableSecureTiersFailed => '보안 계층 잠금 해제에 실패했습니다';
+
+  @override
+  String get securityMacosOfferTitle => '키체인 + Secure Enclave 활성화?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS는 암호화된 저장소를 앱의 서명 ID에 연결합니다. 안정적인 인증서가 없으면 키체인 (T1)과 Secure Enclave (T2)는 접근을 거부합니다. 이 Mac에서 개인 자체 서명 인증서를 만들고 앱을 다시 서명할 수 있습니다 — 업데이트가 계속 작동하고 비밀이 릴리스 간에 유지됩니다. macOS는 새 인증서를 신뢰하기 위해 로그인 비밀번호를 한 번 요청합니다.';
+
+  @override
+  String get securityMacosOfferAccept => '활성화';
+
+  @override
+  String get securityMacosOfferDecline => '건너뛰기 — T0 또는 Paranoid 선택';
+
+  @override
+  String get securityMacosRemoveIdentity => '서명 ID 제거';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      '개인 인증서를 삭제합니다. T1 / T2 데이터가 연결되어 있습니다 — 먼저 T0 또는 Paranoid로 전환한 후 제거하십시오.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle => '서명 ID를 제거하시겠습니까?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      '로그인 키체인에서 개인 인증서를 삭제합니다. T1 / T2에 저장된 비밀이 읽을 수 없게 됩니다. 마법사가 열려 제거 전에 T0 (평문) 또는 Paranoid (마스터 비밀번호)로 마이그레이션할 수 있습니다.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess => '서명 ID가 제거됨';
+
+  @override
+  String get securityMacosRemoveIdentityFailed => '서명 ID 제거 실패';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

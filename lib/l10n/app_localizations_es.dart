@@ -2325,24 +2325,60 @@ class SEs extends S {
   String get securityRecheckUnchanged => 'Soporte de niveles sin cambios';
 
   @override
-  String get securityMacosEnableKeychain =>
-      'Activar almacenamiento en el llavero de macOS';
+  String get securityMacosEnableSecureTiers =>
+      'Desbloquear niveles seguros en este Mac';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Vincular secretos cifrados a un certificado personal para que T1 sobreviva a las actualizaciones';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Firmar la app con un certificado personal para que el Llavero (T1) y Secure Enclave (T2) sobrevivan a las actualizaciones';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS pedirá tu contraseña una vez';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Almacenamiento en el llavero activado — T1 está disponible';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Niveles seguros desbloqueados — T1 y T2 están disponibles';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'No se pudo activar el almacenamiento en el llavero';
+  String get securityMacosEnableSecureTiersFailed =>
+      'No se pudieron desbloquear los niveles seguros';
+
+  @override
+  String get securityMacosOfferTitle => '¿Activar Llavero + Secure Enclave?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS vincula el almacenamiento cifrado a la identidad de firma de la app. Sin un certificado estable, el Llavero (T1) y Secure Enclave (T2) rechazan el acceso. Podemos crear un certificado personal autofirmado en este Mac y re-firmar la app — las actualizaciones seguirán funcionando y tus secretos sobrevivirán entre versiones. macOS pedirá tu contraseña de inicio una sola vez para confiar en el nuevo certificado.';
+
+  @override
+  String get securityMacosOfferAccept => 'Activar';
+
+  @override
+  String get securityMacosOfferDecline => 'Omitir — elegir T0 o Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity => 'Eliminar identidad de firma';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Elimina el certificado personal. Los datos T1 / T2 están vinculados — primero cambia a T0 o Paranoid, luego elimina.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      '¿Eliminar identidad de firma?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Elimina el certificado personal del llavero. Los secretos T1 / T2 guardados quedarán ilegibles. El asistente se abrirá para migrar a T0 (texto plano) o Paranoid (contraseña maestra) antes de eliminar.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess =>
+      'Identidad de firma eliminada';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'No se pudo eliminar la identidad de firma';
 
   @override
   String get keyringProbeLinuxNoSecretService =>

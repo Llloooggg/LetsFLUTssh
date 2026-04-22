@@ -2333,24 +2333,62 @@ class SFr extends S {
       'Prise en charge des niveaux inchangée';
 
   @override
-  String get securityMacosEnableKeychain =>
-      'Activer le stockage dans le trousseau macOS';
+  String get securityMacosEnableSecureTiers =>
+      'Déverrouiller les niveaux sécurisés sur ce Mac';
 
   @override
-  String get securityMacosEnableKeychainSubtitle =>
-      'Lier les secrets chiffrés à un certificat personnel pour que T1 survive aux mises à jour';
+  String get securityMacosEnableSecureTiersSubtitle =>
+      'Resigner l\'application avec un certificat personnel pour que le trousseau (T1) et Secure Enclave (T2) survivent aux mises à jour';
 
   @override
-  String get securityMacosEnableKeychainPrompt =>
+  String get securityMacosEnableSecureTiersPrompt =>
       'macOS demandera votre mot de passe une seule fois';
 
   @override
-  String get securityMacosEnableKeychainSuccess =>
-      'Stockage dans le trousseau activé — T1 est maintenant disponible';
+  String get securityMacosEnableSecureTiersSuccess =>
+      'Niveaux sécurisés déverrouillés — T1 et T2 disponibles';
 
   @override
-  String get securityMacosEnableKeychainFailed =>
-      'Échec de l\'activation du stockage dans le trousseau';
+  String get securityMacosEnableSecureTiersFailed =>
+      'Échec du déverrouillage des niveaux sécurisés';
+
+  @override
+  String get securityMacosOfferTitle =>
+      'Activer le trousseau + Secure Enclave ?';
+
+  @override
+  String get securityMacosOfferBody =>
+      'macOS lie le stockage chiffré à l\'identité de signature de l\'application. Sans certificat stable, le trousseau (T1) et Secure Enclave (T2) refusent l\'accès. Nous pouvons créer un certificat personnel auto-signé sur ce Mac et resigner l\'application — les mises à jour continueront de fonctionner, et vos secrets survivront aux versions. macOS demandera votre mot de passe une seule fois pour faire confiance au nouveau certificat.';
+
+  @override
+  String get securityMacosOfferAccept => 'Activer';
+
+  @override
+  String get securityMacosOfferDecline => 'Passer — choisir T0 ou Paranoid';
+
+  @override
+  String get securityMacosRemoveIdentity =>
+      'Supprimer l\'identité de signature';
+
+  @override
+  String get securityMacosRemoveIdentitySubtitle =>
+      'Supprime le certificat personnel. Les données T1 / T2 y sont liées — passez d\'abord à T0 ou Paranoid, puis supprimez.';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmTitle =>
+      'Supprimer l\'identité de signature ?';
+
+  @override
+  String get securityMacosRemoveIdentityConfirmBody =>
+      'Supprime le certificat personnel du trousseau. Les secrets stockés T1 / T2 deviendront illisibles. L\'assistant s\'ouvrira pour migrer vers T0 (texte brut) ou Paranoid (mot de passe maître) avant la suppression.';
+
+  @override
+  String get securityMacosRemoveIdentitySuccess =>
+      'Identité de signature supprimée';
+
+  @override
+  String get securityMacosRemoveIdentityFailed =>
+      'Échec de la suppression de l\'identité de signature';
 
   @override
   String get keyringProbeLinuxNoSecretService =>
