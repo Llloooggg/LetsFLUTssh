@@ -292,41 +292,55 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     final mobile = isMobilePlatform;
 
     final scheme = Theme.of(context).colorScheme;
-    return Listener(
-      // Claim focus on any pointer-down inside the sidebar so a marquee
-      // drag (which never calls onSessionSelected) still flips the panel
-      // into its "focused" colour scheme. Without this, rows switched
-      // between the dimmed onSurface highlight and the accent-coloured
-      // one depending on whether the user had previously tapped a row —
-      // the "selection sometimes grey, sometimes blue" flicker.
-      onPointerDown: (_) {
-        if (!isMobilePlatform) _focusNode.requestFocus();
-        widget.onActivated?.call();
-      },
-      child: Focus(
-        focusNode: _focusNode,
-        autofocus: false,
-        onKeyEvent: _onKeyEvent,
-        child: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (context, _) => Container(
-            color: scheme.surfaceContainerLow,
-            child: Column(
-              children: [
-                ..._buildHeader(context, ref, searchQuery, mobile),
-                Expanded(
-                  child: tree.isEmpty
-                      ? _EmptyState(onAdd: () => _addSession(context, ref))
-                      : _buildTreeView(context, ref, tree, mobile),
-                ),
-                if (!mobile)
-                  _SessionDetailsPanel(
-                    session: _focusedSession(ref),
-                    folderPath: _ctrl.focusedFolderPath,
-                    folderItemCount: _ctrl.focusedFolderItemCount,
+    // Opt the whole sidebar out of the ambient `SelectionArea`. The
+    // app-level SelectionArea otherwise claims `Ctrl+C` as "copy the
+    // selected Text to the clipboard" and swallows the event before
+    // our Focus's `_onKeyEvent` sees it — so `AppShortcut.sessionCopy`
+    // / `sessionPaste` never fires. The sidebar is a tool surface
+    // (rows, folders, buttons), not informational body text; nothing
+    // inside should be drag-selectable. Disabling selection at the
+    // panel root keeps drag gestures (tab reorder, session tree DnD)
+    // intact because the wrap sits *above* the Listener +
+    // ThresholdDraggable tree, so pointer events still reach
+    // Draggable unchanged — only the Selectable registration is
+    // suppressed.
+    return SelectionContainer.disabled(
+      child: Listener(
+        // Claim focus on any pointer-down inside the sidebar so a marquee
+        // drag (which never calls onSessionSelected) still flips the panel
+        // into its "focused" colour scheme. Without this, rows switched
+        // between the dimmed onSurface highlight and the accent-coloured
+        // one depending on whether the user had previously tapped a row —
+        // the "selection sometimes grey, sometimes blue" flicker.
+        onPointerDown: (_) {
+          if (!isMobilePlatform) _focusNode.requestFocus();
+          widget.onActivated?.call();
+        },
+        child: Focus(
+          focusNode: _focusNode,
+          autofocus: false,
+          onKeyEvent: _onKeyEvent,
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, _) => Container(
+              color: scheme.surfaceContainerLow,
+              child: Column(
+                children: [
+                  ..._buildHeader(context, ref, searchQuery, mobile),
+                  Expanded(
+                    child: tree.isEmpty
+                        ? _EmptyState(onAdd: () => _addSession(context, ref))
+                        : _buildTreeView(context, ref, tree, mobile),
                   ),
-                if (!mobile) const _SidebarFooter(),
-              ],
+                  if (!mobile)
+                    _SessionDetailsPanel(
+                      session: _focusedSession(ref),
+                      folderPath: _ctrl.focusedFolderPath,
+                      folderItemCount: _ctrl.focusedFolderItemCount,
+                    ),
+                  if (!mobile) const _SidebarFooter(),
+                ],
+              ),
             ),
           ),
         ),
