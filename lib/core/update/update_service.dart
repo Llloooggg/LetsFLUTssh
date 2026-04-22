@@ -9,6 +9,17 @@ import '../../utils/logger.dart';
 import 'cert_pinning.dart';
 import 'release_signing.dart';
 
+/// Callback shape for the optional native macOS `.dmg` installer. Kept
+/// as a typedef at the core layer so `UpdateService` can invoke the
+/// installer without importing `lib/platform/macos/` — the UI wiring
+/// point (main.dart / update_provider) adapts the concrete
+/// `MacosInstaller` into this callback.
+///
+/// Returns `true` when the installer has fully swapped the bundle and
+/// relaunched; `false` to request a fallback to the legacy
+/// `open <dmg>` Finder reveal (e.g. bundle parent isn't writable).
+typedef MacosDmgInstaller = Future<bool> Function(String dmgPath);
+
 /// Thrown when a downloaded release artefact fails Ed25519 signature
 /// verification against the pinned public keys, or when the `.sig`
 /// companion fails to download / parse. Deliberately distinct from
@@ -135,6 +146,7 @@ class UpdateService {
   final FileDownloader _download;
   final ProcessRunner _runProcess;
   final ReleaseArtifactVerifier _verifyArtifact;
+  final MacosDmgInstaller? _macosDmgInstaller;
 
   /// Platform identifier used by [openFile] to pick the host-specific opener.
   /// Injected so tests can exercise every branch (linux / macos / windows /
@@ -147,11 +159,13 @@ class UpdateService {
     ProcessRunner? runProcess,
     ReleaseArtifactVerifier? verifyArtifact,
     String? platform,
+    MacosDmgInstaller? macosDmgInstaller,
   }) : _fetch = fetch ?? defaultFetch,
        _download = download ?? defaultDownload,
        _runProcess = runProcess ?? Process.run,
        _verifyArtifact = verifyArtifact ?? _defaultVerifyArtifact,
-       _platform = platform ?? _hostPlatform();
+       _platform = platform ?? _hostPlatform(),
+       _macosDmgInstaller = macosDmgInstaller;
 
   /// True if [uri] uses HTTPS and a host GitHub uses for release assets
   /// (same-origin policy for [browser_download_url] and redirect targets).
@@ -604,6 +618,29 @@ class UpdateService {
       );
       result = await _runProcess('xdg-open', [path]);
     } else if (_platform == 'macos') {
+      // When a `MacosDmgInstaller` is wired in and the artefact is a
+      // `.dmg`, try the native atomic-swap install first (hdiutil →
+      // rsync → re-sign → verify → atomic rename). On a `true` return
+      // the installer has already relaunched the new bundle; on
+      // `false` we fall back to the legacy `open <dmg>` Finder reveal
+      // so the user can still drag the .app manually if the silent
+      // path is unavailable (no write permission on the install
+      // parent, missing `rsync` binary, etc.). Layer-clean: the
+      // callback lives at the UI wiring point; core/update doesn't
+      // import from `lib/platform/`.
+      final installer = _macosDmgInstaller;
+      if (installer != null && path.toLowerCase().endsWith('.dmg')) {
+        AppLogger.instance.log(
+          'Attempting native macOS DMG install for: $path',
+          name: 'UpdateService',
+        );
+        final installed = await installer(path);
+        if (installed) return true;
+        AppLogger.instance.log(
+          'Native DMG install declined — falling back to Finder reveal',
+          name: 'UpdateService',
+        );
+      }
       AppLogger.instance.log(
         'Opening file with open: $path',
         name: 'UpdateService',

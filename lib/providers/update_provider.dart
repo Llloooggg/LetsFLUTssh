@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/update/update_service.dart';
+import '../platform/macos/installer/macos_installer.dart';
 import 'version_provider.dart';
 import '../utils/logger.dart';
 
@@ -59,7 +60,33 @@ class UpdateState {
 
 /// Provider for the [UpdateService] instance (injectable for tests).
 final updateServiceProvider = Provider<UpdateService>((ref) {
-  return UpdateService();
+  // On macOS the service is wired with the native `MacosInstaller` so
+  // a downloaded `.dmg` is mounted, rsynced over the live bundle,
+  // re-signed under the user's personal cert (if any), verified, and
+  // atomically swapped. The callback returns `true` on success; on
+  // `false` the service falls back to the legacy `open <dmg>` Finder
+  // reveal. All other platforms receive the null default and keep the
+  // legacy opener path.
+  MacosDmgInstaller? installer;
+  if (Platform.isMacOS) {
+    const macosInstaller = MacosInstaller();
+    installer = (dmgPath) async {
+      final resolved = Platform.resolvedExecutable;
+      // `Platform.resolvedExecutable` points at
+      // `<bundle>/Contents/MacOS/letsflutssh` — walk up twice to
+      // reach the `.app` root (the target for the atomic swap).
+      final bundle = Directory(resolved)
+          .parent // Contents/MacOS
+          .parent // Contents
+          .parent; // <bundle>.app
+      final outcome = await macosInstaller.install(
+        dmgPath: File(dmgPath),
+        targetBundle: bundle,
+      );
+      return outcome == InstallOutcome.succeeded;
+    };
+  }
+  return UpdateService(macosDmgInstaller: installer);
 });
 
 /// Provider that manages the update check / download lifecycle.
