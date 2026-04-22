@@ -1843,6 +1843,27 @@ ${'d' * 64}  ''');
       expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hashB);
     });
   });
+
+  group('InvalidReleaseSignatureException.toString', () {
+    test('surfaces both the exception type and the reason string', () {
+      // Settings renders the toString in a security-styled toast when
+      // no locale string applies yet — a refactor that dropped the
+      // type prefix would erase the "this is a signature problem"
+      // signal and leave only the bare reason.
+      const ex = InvalidReleaseSignatureException(
+        'Manifest signature did not verify against the pinned public key',
+      );
+      final msg = ex.toString();
+      expect(msg, startsWith('InvalidReleaseSignatureException:'));
+      expect(msg, contains('Manifest signature'));
+      expect(msg, contains('pinned public key'));
+    });
+
+    test('empty reason still produces a non-empty message', () {
+      const ex = InvalidReleaseSignatureException('');
+      expect(ex.toString(), startsWith('InvalidReleaseSignatureException:'));
+    });
+  });
 }
 
 // ===========================================================================
