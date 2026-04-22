@@ -184,5 +184,80 @@ void main() {
         expect(report.hasFailures, isFalse);
       },
     );
+
+    test('credential-cache evict throwing does not abort the wipe', () async {
+      // The cache flush is best-effort — the log path must run and
+      // every downstream step must still execute. Injecting a throwing
+      // evict verifies the try/catch guards the rest of the sweep.
+      final thrower = WipeAllService(
+        supportDirFactory: () async => tempDir,
+        hardwareVaultChannel: channel,
+        purgeKeychain: false,
+        credentialCacheEvict: () => throw StateError('evict broke'),
+      );
+      touch('letsflutssh.db');
+      final report = await thrower.wipeAll();
+      expect(report.hasFailures, isFalse);
+      expect(
+        File(p.join(tempDir.path, 'letsflutssh.db')).existsSync(),
+        isFalse,
+      );
+    });
+
+    test(
+      'purgeKeychain=true routes through FlutterSecureStorage.deleteAll',
+      () async {
+        // The keychain step goes through a MethodChannel that we mock
+        // here to avoid touching real OS keychain state. A clean
+        // deleteAll call surfaces as `keychainPurged: true`; a failing
+        // one surfaces as false without aborting the wipe.
+        final keychainCalls = <MethodCall>[];
+        const keychainChannel = MethodChannel(
+          'plugins.it_nomads.com/flutter_secure_storage',
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(keychainChannel, (call) async {
+              keychainCalls.add(call);
+              return null;
+            });
+        addTearDown(() {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(keychainChannel, null);
+        });
+        final svc = WipeAllService(
+          supportDirFactory: () async => tempDir,
+          hardwareVaultChannel: channel,
+          purgeKeychain: true,
+        );
+        final report = await svc.wipeAll();
+        expect(report.keychainPurged, isTrue);
+        expect(keychainCalls.map((c) => c.method), contains('deleteAll'));
+      },
+    );
+
+    test(
+      'purgeKeychain failure is surfaced as keychainPurged=false without throwing',
+      () async {
+        const keychainChannel = MethodChannel(
+          'plugins.it_nomads.com/flutter_secure_storage',
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(keychainChannel, (_) async {
+              throw PlatformException(code: 'KEYCHAIN_BUSY');
+            });
+        addTearDown(() {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(keychainChannel, null);
+        });
+        final svc = WipeAllService(
+          supportDirFactory: () async => tempDir,
+          hardwareVaultChannel: channel,
+          purgeKeychain: true,
+        );
+        final report = await svc.wipeAll();
+        expect(report.keychainPurged, isFalse);
+        expect(report.hasFailures, isFalse);
+      },
+    );
   });
 }
