@@ -80,15 +80,20 @@ sign_action() {
     || die "Missing \`codesign\` — install Xcode Command Line Tools via \`xcode-select --install\`."
   command -v openssl >/dev/null 2>&1 || die "Missing \`openssl\`."
 
+  # Single scratch directory, reused for cert material *and* the
+  # entitlements plist extracted from the existing signature.
+  # Arming the RETURN trap once keeps both cleanups intact (a second
+  # `trap … RETURN` would overwrite the first).
+  local tmp
+  tmp="$(mktemp -d)"
+  # shellcheck disable=SC2064  # deliberate single-expansion
+  trap "rm -rf '$tmp'" RETURN
+
   # ── create cert if absent ─────────────────────────────────────────
   if security find-certificate -c "$CERT_NAME" "$KEYCHAIN" >/dev/null 2>&1; then
     log "Using existing self-signed cert: $CERT_NAME"
   else
     log "Creating self-signed code-signing cert: $CERT_NAME"
-    local tmp
-    tmp="$(mktemp -d)"
-    # shellcheck disable=SC2064  # deliberate single-expansion
-    trap "rm -rf '$tmp'" RETURN
 
     # OpenSSL config for a cert with codeSigning EKU. macOS accepts
     # certs with this extended-key-usage as code-signing identities.
@@ -118,7 +123,14 @@ CFG
 
     # Bundle into a PKCS#12 so the `security import` call below gets
     # both cert + private key in one artefact.
-    openssl pkcs12 -export \
+    #
+    # `-legacy` is required — OpenSSL 3 defaults to AES-256-CBC +
+    # PBKDF2 for the p12 MAC/encryption, which macOS `security
+    # import` (SecKeychainItemImport) cannot parse and fails with
+    # "MAC verification failed during PKCS12 import". The legacy
+    # provider emits the RC2-40 / 3DES / SHA1 combo that Keychain
+    # Services actually reads.
+    openssl pkcs12 -export -legacy \
       -in "$tmp/cert.crt" \
       -inkey "$tmp/cert.key" \
       -out "$tmp/cert.p12" \
@@ -162,9 +174,66 @@ CFG
     log "\`$app_path\` is not writable by you — the codesign step will use sudo."
   fi
 
-  log "Re-signing $app_path with \"$CERT_NAME\" (deep + force)…"
-  $sudo_cmd codesign --force --deep --sign "$CERT_NAME" "$app_path" \
-    || die "codesign failed."
+  # ── re-sign inside-out ────────────────────────────────────────────
+  #
+  # `codesign --deep` is documented as "emergency measure only" and
+  # in practice corrupts Flutter bundles — nested `.framework`s are
+  # visited in arbitrary order, so when a framework is signed *after*
+  # something that already contains a reference to its old signature,
+  # codesign bails with `errSecInternalComponent`. The only reliable
+  # approach is leaf-first: dylibs, then frameworks, then helper
+  # bundles, then the outer `.app`.
+  #
+  # We also pass `--options runtime` + `--entitlements` so the
+  # re-signed bundle keeps the `keychain-access-groups` entry that
+  # the CI ad-hoc build embedded. Dropping those entitlements is
+  # exactly what produces the `errSecMissingEntitlement` (-34018)
+  # that this whole script exists to fix — so if we re-sign without
+  # them, we have signed the app with a stable identity but still
+  # locked it out of the keychain. Extract the live entitlements
+  # from the current signature so we don't have to ship a separate
+  # plist alongside the DMG.
+  local ent_plist="$tmp/entitlements.plist"
+
+  if ! codesign -d --entitlements :- "$app_path" > "$ent_plist" 2>/dev/null \
+        || [ ! -s "$ent_plist" ]; then
+    warn "Could not extract entitlements from existing signature — re-signing without them."
+    warn "T1 (keychain) tier will likely still hit errSecMissingEntitlement (-34018)."
+    ent_plist=""
+  fi
+
+  local sign_flags=(--force --options runtime --sign "$CERT_NAME")
+  local app_sign_flags=("${sign_flags[@]}")
+  if [ -n "$ent_plist" ]; then
+    app_sign_flags+=(--entitlements "$ent_plist")
+  fi
+
+  log "Re-signing $app_path leaf-first with \"$CERT_NAME\"…"
+
+  # 1. dylibs anywhere inside the bundle.
+  while IFS= read -r -d '' lib; do
+    $sudo_cmd codesign "${sign_flags[@]}" "$lib" \
+      || die "codesign failed on $lib"
+  done < <(find "$app_path/Contents" -type f -name '*.dylib' -print0)
+
+  # 2. every `.framework` — sign the bundle dir, codesign walks the
+  #    Versions/Current symlink itself.
+  while IFS= read -r -d '' fw; do
+    $sudo_cmd codesign "${sign_flags[@]}" "$fw" \
+      || die "codesign failed on $fw"
+  done < <(find "$app_path/Contents/Frameworks" -type d -name '*.framework' -print0 2>/dev/null)
+
+  # 3. XPC / helper / login-item bundles (Flutter does not ship any
+  #    by default, but the loop is cheap and covers future plugins).
+  while IFS= read -r -d '' xpc; do
+    $sudo_cmd codesign "${sign_flags[@]}" "$xpc" \
+      || die "codesign failed on $xpc"
+  done < <(find "$app_path/Contents" -type d \( -name '*.xpc' -o -name '*.appex' \) -print0 2>/dev/null)
+
+  # 4. the outer `.app` — with entitlements so keychain access group
+  #    survives the re-sign.
+  $sudo_cmd codesign "${app_sign_flags[@]}" "$app_path" \
+    || die "codesign failed on outer bundle."
 
   $sudo_cmd codesign --verify --deep --strict --verbose=2 "$app_path" >/dev/null \
     || die "codesign verify failed after re-sign."
