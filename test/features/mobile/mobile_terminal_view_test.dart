@@ -931,5 +931,90 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TerminalCopyOverlay), findsNothing);
     });
+
+    testWidgets(
+      'selection set outside copy mode is cleared by the mobile guard',
+      (tester) async {
+        // Pin the "no touch-selection outside copy mode" invariant. xterm's
+        // TerminalGestureHandler routes long-press + drag into
+        // `controller.setSelection`; on mobile that path must not leave a
+        // selection behind — the sanctioned selection surface is the
+        // copy-mode overlay, nothing else. We simulate the xterm path by
+        // poking the controller directly, which is what its internal gesture
+        // handler does on a long-press → word select.
+        final mockSsh = MockSSHConnection();
+        final mockSession = MockSSHSession();
+        final conn = connectedConn(mockSsh, mockSession);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(body: MobileTerminalView(connection: conn)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Reach the controller through the mounted TerminalView.
+        final tv = tester.widget<TerminalView>(find.byType(TerminalView));
+        final controller = tv.controller!;
+        final terminal = tv.terminal;
+        // Make sure the buffer has something to anchor against.
+        terminal.write('hello world\r\n');
+        await tester.pump();
+
+        final buf = terminal.buffer;
+        controller.setSelection(buf.createAnchor(0, 0), buf.createAnchor(5, 0));
+        // The guard runs inside `addListener` → the listener fires
+        // synchronously during `setSelection`, so by the time the call
+        // returns the controller should already be back to null.
+        expect(
+          controller.selection,
+          isNull,
+          reason: 'Mobile guard must clear any selection set outside copy mode',
+        );
+      },
+    );
+
+    testWidgets('selection set INSIDE copy mode survives the guard', (
+      tester,
+    ) async {
+      // Inverse of the above — once the overlay is mounted the guard
+      // must step aside, otherwise the user's extend-selection path
+      // through the overlay would stamp and immediately lose every
+      // anchor.
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enter copy mode via the keyboard bar's Copy button.
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalCopyOverlay), findsOneWidget);
+
+      final tv = tester.widget<TerminalView>(find.byType(TerminalView));
+      final controller = tv.controller!;
+      final terminal = tv.terminal;
+      terminal.write('hello world\r\n');
+      await tester.pump();
+      final buf = terminal.buffer;
+      controller.setSelection(buf.createAnchor(0, 0), buf.createAnchor(5, 0));
+      expect(controller.selection, isNotNull);
+    });
   });
 }

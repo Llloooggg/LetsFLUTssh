@@ -84,6 +84,19 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _terminal = Terminal(maxLines: config.scrollback);
     TerminalScrubber.instance.register(_terminal);
     _terminalController = TerminalController();
+    // Hard-block xterm's built-in touch selection (long-press → word,
+    // finger-drag → character select). xterm's [TerminalGestureHandler]
+    // internally calls `renderTerminal.selectWord/selectCharacters` on
+    // every touch long-press + drag; there is no public flag to turn
+    // that off, and winning the Flutter gesture arena at a parent level
+    // would also steal the scroll gesture. Instead we listen to the
+    // controller and drop any selection that appears while the copy-mode
+    // overlay is not active — that overlay is the only sanctioned
+    // selection surface on mobile. The listener no-ops when selection
+    // is already null, so `clearSelection()` does not recurse through
+    // `notifyListeners`. Users who want to select text must enter copy
+    // mode via the keyboard bar's 📋 button.
+    _terminalController.addListener(_enforceCopyModeSelectionGuard);
     // Delay connection until after the first frame so TerminalView can
     // set the correct terminal dimensions. Without this, the shell opens
     // with the default 80x24 and the server sends output for that size;
@@ -93,6 +106,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _connectAndOpenShell();
     });
+  }
+
+  /// See [initState] for the rationale — xterm's built-in touch
+  /// selection is blocked outside copy mode by clearing any selection
+  /// that lands on the controller when `_copyMode` is false.
+  void _enforceCopyModeSelectionGuard() {
+    if (_copyMode) return;
+    if (_terminalController.selection == null) return;
+    _terminalController.clearSelection();
   }
 
   Future<void> _connectAndOpenShell() async {
@@ -175,6 +197,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     TerminalScrubber.instance.unregister(_terminal);
     _progressSub?.cancel();
     _shellConn?.close();
+    _terminalController.removeListener(_enforceCopyModeSelectionGuard);
     _terminalController.dispose();
     super.dispose();
   }
