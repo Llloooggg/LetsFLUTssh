@@ -599,45 +599,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Future<void> _initSecurity() async {
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final dbExists = await databaseFileExists();
 
-    // Crash-recovery: if the previous run died mid-switch, a
-    // `.tier-transition-pending` marker is still on disk. The
-    // switcher writes the marker *before* PRAGMA rekey, so the DB
-    // on disk is either under the source key (rekey never ran) or
-    // under the target key (rekey ran but wrapper / config write
-    // did not). Completing the pending switch safely requires
-    // prompting the user for the target credential, which the L2 /
-    // L3 unlock paths do not yet ship. For now the marker is
-    // cleared here and the standard unlock flow runs — if it fails
-    // the user can use the forgot-password reset to recover. The
-    // clear is deliberate so the marker never persists across
-    // multiple launches into a dirtier state.
-    final pendingTransition = await SecurityTierSwitcher().readPendingMarker();
-    if (pendingTransition != null) {
-      AppLogger.instance.log(
-        'Pending tier-transition marker from previous session '
-        '(payload=$pendingTransition) — clearing and falling back to '
-        'standard unlock path',
-        name: 'App',
-      );
-      await SecurityTierSwitcher().clearMarker();
-    }
-
-    // Breaking-change gate: new build carries the SecurityTier enum
-    // + a `security_tier` field in config.json. Any install that
-    // arrives here with legacy state (credentials.kdf / keychain
-    // marker / biometric vault / the DB itself) but no tier field
-    // belongs to the old model. No automatic migration — show the
-    // reset dialog, wipe everything on confirm, fall through to the
-    // first-launch wizard. Quit on refusal so the user can reinstall
-    // an older build to export first.
-    final currentSecurity = ref.read(configProvider).security;
-    final wiper = WipeAllService();
+    await _clearPendingTierTransition();
 
     // Crash-safety: if the previous run started a wipe that did not
-    // finish, re-run the full sweep idempotently before anything else
-    // touches the app-support dir.
+    // finish, re-run the full sweep idempotently before anything
+    // else touches the app-support dir.
+    final wiper = WipeAllService();
     if (await wiper.hasPendingWipe()) {
       AppLogger.instance.log(
         'Resuming unfinished wipe from previous launch',
@@ -647,96 +615,144 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       _credentialsWereReset = true;
     }
 
-    // Two legacy-state detection gates, both route through the same
-    // tier-reset dialog + WipeAllService path:
-    //
-    //   (1) no persisted `security` in config but on-disk artefacts
-    //       exist — an upgrade from a pre-tier build that inferred
-    //       security from file presence alone.
-    //   (2) config exists but its `config_schema_version` is older
-    //       than the current build's target — an upgrade from the v1
-    //       tier model (pre-bank-style-modifier refactor) where the
-    //       native hw-vault ACL shape changes incompatibly. Detecting
-    //       via schema version instead of inspecting individual
-    //       fields keeps the gate simple and tamper-resistant.
+    if (await _handleLegacyStateIfPresent(manager, keyStorage, wiper)) {
+      return;
+    }
+
+    final dbExists = await databaseFileExists();
+    if (dbExists) {
+      await _unlockExistingDatabase(manager, keyStorage);
+      return;
+    }
+
+    // No DB file — first launch. Show security setup wizard.
+    await _firstLaunchSetup(manager, keyStorage);
+  }
+
+  /// Crash-recovery: if the previous run died mid-switch, a
+  /// `.tier-transition-pending` marker is still on disk. The switcher
+  /// writes the marker *before* PRAGMA rekey, so the DB on disk is
+  /// either under the source key (rekey never ran) or under the
+  /// target key (rekey ran but wrapper / config write did not).
+  /// Completing the pending switch safely requires prompting the
+  /// user for the target credential, which the L2 / L3 unlock
+  /// paths do not yet ship. For now the marker is cleared here
+  /// and the standard unlock flow runs — if it fails the user can
+  /// use the forgot-password reset to recover. Deliberate so the
+  /// marker never persists across multiple launches into a dirtier
+  /// state.
+  Future<void> _clearPendingTierTransition() async {
+    final pendingTransition = await SecurityTierSwitcher().readPendingMarker();
+    if (pendingTransition == null) return;
+    AppLogger.instance.log(
+      'Pending tier-transition marker from previous session '
+      '(payload=$pendingTransition) — clearing and falling back to '
+      'standard unlock path',
+      name: 'App',
+    );
+    await SecurityTierSwitcher().clearMarker();
+  }
+
+  /// Breaking-change gate for upgrades from pre-tier / v1-tier
+  /// installs. Returns true when the legacy path took over and
+  /// [_initSecurity] must stop; false when no legacy state was
+  /// detected and the caller should continue into the normal
+  /// DB-exists / first-launch branches.
+  ///
+  /// Two detection shapes, both route through the same
+  /// tier-reset dialog + WipeAllService path:
+  ///
+  ///   (1) no persisted `security` in config but on-disk artefacts
+  ///       exist — an upgrade from a pre-tier build that inferred
+  ///       security from file presence alone.
+  ///   (2) config exists but its `config_schema_version` is older
+  ///       than the current build's target — an upgrade from the v1
+  ///       tier model (pre-bank-style-modifier refactor) where the
+  ///       native hw-vault ACL shape changes incompatibly. Detecting
+  ///       via schema version instead of inspecting individual
+  ///       fields keeps the gate simple and tamper-resistant.
+  Future<bool> _handleLegacyStateIfPresent(
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+    WipeAllService wiper,
+  ) async {
+    final currentSecurity = ref.read(configProvider).security;
     final configArtefact = ConfigArtefact();
     final configVersion = await configArtefact.readVersion();
     final legacyConfig =
         configVersion >= 0 && configVersion < SchemaVersions.config;
     final orphanArtefacts =
         currentSecurity == null && await wiper.hasAnyState();
-    if (legacyConfig || orphanArtefacts) {
-      if (!mounted) return;
-      final choice = await _showTierResetDialog();
-      if (choice == TierResetChoice.exitApp) {
-        AppLogger.instance.log(
-          'Legacy state detected (configVersion=$configVersion, '
-          'orphan=$orphanArtefacts) — user chose to exit',
-          name: 'App',
-        );
-        await SystemNavigator.pop();
-        exit(0);
-      }
-      await wiper.wipeAll();
+    if (!legacyConfig && !orphanArtefacts) return false;
+    if (!mounted) return true;
+    final choice = await _showTierResetDialog();
+    if (choice == TierResetChoice.exitApp) {
       AppLogger.instance.log(
         'Legacy state detected (configVersion=$configVersion, '
-        'orphan=$orphanArtefacts) — wiped, running fresh wizard',
+        'orphan=$orphanArtefacts) — user chose to exit',
         name: 'App',
       );
-      _credentialsWereReset = true;
-      // Fall through to first-launch setup with a clean slate.
-      await _firstLaunchSetup(manager, keyStorage);
-      return;
+      await SystemNavigator.pop();
+      exit(0);
     }
-
-    if (dbExists) {
-      // Existing install — prefer the explicit tier persisted in
-      // config.json when present; otherwise fall back to the legacy
-      // infer-from-state path for paranoid/keychain/plaintext.
-      if (currentSecurity != null) {
-        switch (currentSecurity.tier) {
-          case SecurityTier.hardware:
-            await _unlockHardware();
-            return;
-          case SecurityTier.keychainWithPassword:
-            await _unlockKeychainWithPassword(keyStorage);
-            return;
-          case SecurityTier.keychain:
-            await _unlockKeychain(keyStorage);
-            return;
-          case SecurityTier.paranoid:
-            await _unlockParanoid(manager);
-            return;
-          case SecurityTier.plaintext:
-            await _injectDatabase();
-            AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
-            return;
-        }
-      }
-
-      // Legacy-inference path — no explicit tier field yet.
-
-      if (await manager.isEnabled()) {
-        await _unlockParanoid(manager);
-        return;
-      }
-
-      // Keychain key exists — use it.
-      final keychainKey = await keyStorage.readKey();
-      if (keychainKey != null) {
-        await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
-        AppLogger.instance.log('Keychain key loaded', name: 'App');
-        return;
-      }
-
-      // DB exists but no encryption credentials — plaintext mode.
-      await _injectDatabase();
-      AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
-      return;
-    }
-
-    // No DB file — first launch. Show security setup wizard.
+    await wiper.wipeAll();
+    AppLogger.instance.log(
+      'Legacy state detected (configVersion=$configVersion, '
+      'orphan=$orphanArtefacts) — wiped, running fresh wizard',
+      name: 'App',
+    );
+    _credentialsWereReset = true;
     await _firstLaunchSetup(manager, keyStorage);
+    return true;
+  }
+
+  /// Existing install unlock path. Prefer the explicit tier persisted
+  /// in config.json when present; otherwise fall back to the legacy
+  /// infer-from-state path for paranoid / keychain / plaintext.
+  Future<void> _unlockExistingDatabase(
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+  ) async {
+    final currentSecurity = ref.read(configProvider).security;
+    if (currentSecurity != null) {
+      await _unlockByTier(currentSecurity.tier, manager, keyStorage);
+      return;
+    }
+
+    // Legacy-inference path — no explicit tier field yet.
+    if (await manager.isEnabled()) {
+      await _unlockParanoid(manager);
+      return;
+    }
+    final keychainKey = await keyStorage.readKey();
+    if (keychainKey != null) {
+      await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+      AppLogger.instance.log('Keychain key loaded', name: 'App');
+      return;
+    }
+    // DB exists but no encryption credentials — plaintext mode.
+    await _injectDatabase();
+    AppLogger.instance.log('Plaintext mode (existing DB)', name: 'App');
+  }
+
+  Future<void> _unlockByTier(
+    SecurityTier tier,
+    MasterPasswordManager manager,
+    SecureKeyStorage keyStorage,
+  ) async {
+    switch (tier) {
+      case SecurityTier.hardware:
+        await _unlockHardware();
+      case SecurityTier.keychainWithPassword:
+        await _unlockKeychainWithPassword(keyStorage);
+      case SecurityTier.keychain:
+        await _unlockKeychain(keyStorage);
+      case SecurityTier.paranoid:
+        await _unlockParanoid(manager);
+      case SecurityTier.plaintext:
+        await _injectDatabase();
+        AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
+    }
   }
 
   /// Paranoid (master password) unlock — biometric shortcut first,
