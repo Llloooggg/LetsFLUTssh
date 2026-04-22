@@ -49,7 +49,25 @@ class CursorTextOverlay extends StatefulWidget {
 class _CursorTextOverlayState extends State<CursorTextOverlay> {
   final _repaint = ValueNotifier<int>(0);
 
-  void _onTerminalChanged() => _repaint.value++;
+  /// Coalesce bursts of terminal change events into one repaint per frame.
+  /// xterm's [Terminal] fires its listeners on every write callback, which
+  /// on a busy stream (large SSH paste, long-running build output) can be
+  /// hundreds of callbacks per frame. Without throttling each callback
+  /// forced a [CustomPainter] repaint — we measure the same cursor cell,
+  /// build a paragraph, draw it, dispose — at a frequency far above vsync.
+  /// [_repaintScheduled] gates the `addPostFrameCallback` so we bump the
+  /// [ValueNotifier] at most once per frame.
+  bool _repaintScheduled = false;
+
+  void _onTerminalChanged() {
+    if (_repaintScheduled) return;
+    _repaintScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _repaintScheduled = false;
+      if (!mounted) return;
+      _repaint.value++;
+    });
+  }
 
   @override
   void initState() {
