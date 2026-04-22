@@ -63,6 +63,12 @@ class SFa extends S {
   String get select => 'انتخاب';
 
   @override
+  String get copyModeTapToStart => 'برای تعیین ابتدای انتخاب لمس کنید';
+
+  @override
+  String get copyModeExtending => 'برای گسترش انتخاب بکشید';
+
+  @override
   String get required => 'الزامی';
 
   @override

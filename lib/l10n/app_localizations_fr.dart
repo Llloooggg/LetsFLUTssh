@@ -63,6 +63,12 @@ class SFr extends S {
   String get select => 'Sélectionner';
 
   @override
+  String get copyModeTapToStart => 'Touchez pour marquer le début';
+
+  @override
+  String get copyModeExtending => 'Glissez pour étendre la sélection';
+
+  @override
   String get required => 'Requis';
 
   @override

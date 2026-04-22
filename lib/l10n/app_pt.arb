@@ -18,6 +18,8 @@
   "copy": "Copiar",
   "paste": "Colar",
   "select": "Selecionar",
+  "copyModeTapToStart": "Toque para marcar o início da seleção",
+  "copyModeExtending": "Arraste para estender a seleção",
   "required": "Obrigatório",
   "settings": "Configurações",
   "appSettings": "Configurações do Aplicativo",

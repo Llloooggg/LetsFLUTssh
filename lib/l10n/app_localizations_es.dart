@@ -63,6 +63,12 @@ class SEs extends S {
   String get select => 'Seleccionar';
 
   @override
+  String get copyModeTapToStart => 'Toca para marcar el inicio';
+
+  @override
+  String get copyModeExtending => 'Arrastra para extender la selección';
+
+  @override
   String get required => 'Obligatorio';
 
   @override

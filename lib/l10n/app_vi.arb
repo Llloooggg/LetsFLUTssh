@@ -18,6 +18,8 @@
   "copy": "Sao chép",
   "paste": "Dán",
   "select": "Chọn",
+  "copyModeTapToStart": "Chạm để đánh dấu điểm bắt đầu",
+  "copyModeExtending": "Kéo để mở rộng vùng chọn",
   "required": "Bắt buộc",
   "settings": "Cài đặt",
   "appSettings": "Cài đặt ứng dụng",

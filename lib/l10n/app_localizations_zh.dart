@@ -63,6 +63,12 @@ class SZh extends S {
   String get select => '选择';
 
   @override
+  String get copyModeTapToStart => '轻触以标记选择起点';
+
+  @override
+  String get copyModeExtending => '拖动以扩展选择';
+
+  @override
   String get required => '必填';
 
   @override

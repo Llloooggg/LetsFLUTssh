@@ -63,6 +63,12 @@ class SPt extends S {
   String get select => 'Selecionar';
 
   @override
+  String get copyModeTapToStart => 'Toque para marcar o início da seleção';
+
+  @override
+  String get copyModeExtending => 'Arraste para estender a seleção';
+
+  @override
   String get required => 'Obrigatório';
 
   @override

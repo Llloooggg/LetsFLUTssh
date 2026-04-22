@@ -63,6 +63,12 @@ class SEn extends S {
   String get select => 'Select';
 
   @override
+  String get copyModeTapToStart => 'Touch to mark selection start';
+
+  @override
+  String get copyModeExtending => 'Drag to extend selection';
+
+  @override
   String get required => 'Required';
 
   @override

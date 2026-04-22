@@ -22,12 +22,26 @@ import '../../utils/terminal_clipboard.dart';
 import '../snippets/snippet_picker.dart';
 import '../terminal/cursor_overlay.dart';
 import 'ssh_keyboard_bar.dart';
+import 'terminal_copy_overlay.dart';
 
 /// Full-screen mobile terminal with SSH keyboard bar.
 ///
 /// No tiling/splitting — single pane, full screen.
-/// Long press selects a word (xterm built-in) → floating toolbar appears.
-/// Pinch to zoom (font size).
+///
+/// **Gestures**. One-finger drags go to xterm (tap, scroll, long-press →
+/// select-word). Two-finger drags are tracked manually via [Listener] and
+/// translated into a pinch-zoom (font size) without routing through
+/// Flutter's [ScaleGestureRecognizer] — the stock recognizer treats a
+/// single-finger drag as a 1× scale and wins the gesture arena, which
+/// silently kills xterm's long-press recognizer on the same subtree.
+///
+/// **Copy mode**. Tapping the Copy button in the keyboard bar enters a
+/// trackpad-style [TerminalCopyOverlay]: xterm pointer input is
+/// suspended, a virtual cursor overlays the terminal, single-finger
+/// drags move the cursor in cell units, and the first pointer-down
+/// drops a selection anchor that subsequent movement extends. Two-finger
+/// pinch still zooms in copy mode (useful when precision hurts). The
+/// toolbar inside the overlay exposes Copy and Cancel.
 class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
@@ -41,16 +55,27 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
   final _keyboardKey = GlobalKey<SshKeyboardBarState>();
+  final _copyOverlayKey = GlobalKey<TerminalCopyOverlayState>();
   ShellConnection? _shellConn;
 
   /// Whether the terminal pane is in an error state (for potential retry).
   bool hasError = false;
   StreamSubscription<ConnectionStep>? _progressSub;
   double _fontSize = 14.0;
-  double? _baseScaleFontSize;
-  bool _hasSelection = false;
-  bool _selectMode = false;
-  int _pointerCount = 0;
+  bool _copyMode = false;
+
+  /// Manual pointer tracking — the outer [Listener] mirrors every active
+  /// pointer here so we can distinguish single-finger drags (cursor pan in
+  /// copy mode, otherwise delegated to xterm) from two-finger drags
+  /// (pinch). See the class docstring for the rationale against
+  /// [ScaleGestureRecognizer].
+  final Map<int, Offset> _pointers = {};
+
+  /// Pinch state — initial distance between the first two pointers and
+  /// the font size at the moment the pinch started. Null when fewer than
+  /// two pointers are down.
+  double? _pinchInitialDistance;
+  double? _pinchInitialFontSize;
 
   @override
   void initState() {
@@ -59,7 +84,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _terminal = Terminal(maxLines: config.scrollback);
     TerminalScrubber.instance.register(_terminal);
     _terminalController = TerminalController();
-    _terminalController.addListener(_onSelectionChanged);
     // Delay connection until after the first frame so TerminalView can
     // set the correct terminal dimensions. Without this, the shell opens
     // with the default 80x24 and the server sends output for that size;
@@ -69,13 +93,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _connectAndOpenShell();
     });
-  }
-
-  void _onSelectionChanged() {
-    final hasSelection = _terminalController.selection != null;
-    if (hasSelection != _hasSelection) {
-      setState(() => _hasSelection = hasSelection);
-    }
   }
 
   Future<void> _connectAndOpenShell() async {
@@ -157,7 +174,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   void dispose() {
     TerminalScrubber.instance.unregister(_terminal);
     _progressSub?.cancel();
-    _terminalController.removeListener(_onSelectionChanged);
     _shellConn?.close();
     _terminalController.dispose();
     super.dispose();
@@ -165,11 +181,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _onKeyboardInput(String data) {
     _shellConn?.shell.write(Uint8List.fromList(utf8.encode(data)));
-  }
-
-  void _copySelection() {
-    TerminalClipboard.copy(_terminal, _terminalController);
-    _keyboardKey.currentState?.exitSelectMode();
   }
 
   void _paste() {
@@ -191,18 +202,102 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     shell.write(Uint8List.fromList(utf8.encode(payload)));
   }
 
-  void _onPointerUp() {
-    _pointerCount = (_pointerCount - 1).clamp(0, 99);
-    if (_pointerCount < 2 && _baseScaleFontSize != null) {
-      setState(() {});
+  // ── Pointer tracking ─────────────────────────────────────────────────
+
+  void _onPointerDown(PointerDownEvent e) {
+    _pointers[e.pointer] = e.localPosition;
+    if (_pointers.length == 1 && _copyMode) {
+      _copyOverlayKey.currentState?.onAnchorDown();
     }
+    if (_pointers.length == 2) {
+      _beginPinch();
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    final prev = _pointers[e.pointer];
+    if (prev == null) return;
+    _pointers[e.pointer] = e.localPosition;
+    if (_pointers.length == 1) {
+      if (_copyMode) {
+        _copyOverlayKey.currentState?.onCursorPan(e.delta);
+      }
+      // Non-copy mode single-finger: do nothing — the pointer event has
+      // already reached xterm (Listener does not consume events), which
+      // handles tap / long-press / drag-select on its own.
+      return;
+    }
+    if (_pointers.length >= 2 && _pinchInitialDistance != null) {
+      _updatePinch();
+    }
+  }
+
+  void _onPointerUp(PointerEvent e) {
+    _pointers.remove(e.pointer);
+    if (_pointers.length < 2 && _pinchInitialDistance != null) {
+      _endPinch();
+    }
+  }
+
+  // ── Pinch-zoom ───────────────────────────────────────────────────────
+
+  void _beginPinch() {
+    final positions = _pointers.values.toList(growable: false);
+    if (positions.length < 2) return;
+    _pinchInitialDistance = (positions[0] - positions[1]).distance;
+    _pinchInitialFontSize = _fontSize;
+  }
+
+  void _updatePinch() {
+    final positions = _pointers.values.toList(growable: false);
+    if (positions.length < 2) return;
+    final d = (positions[0] - positions[1]).distance;
+    final d0 = _pinchInitialDistance;
+    final f0 = _pinchInitialFontSize;
+    if (d0 == null || f0 == null || d0 == 0) return;
+    final scaled = (f0 * (d / d0)).clamp(8.0, 24.0);
+    if ((scaled - _fontSize).abs() < 0.1) return;
+    setState(() {
+      _fontSize = scaled;
+    });
+  }
+
+  void _endPinch() {
+    if (_pinchInitialFontSize == null) return;
+    _pinchInitialDistance = null;
+    _pinchInitialFontSize = null;
+    // Persist pinch-zoomed font size to config so the next launch / tab
+    // uses the same size. The config save is debounced + async, so this
+    // does not stall the UI even on slow storage.
+    ref
+        .read(configProvider.notifier)
+        .update(
+          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: _fontSize)),
+        );
+  }
+
+  // ── Copy mode ────────────────────────────────────────────────────────
+
+  void _onCopyModeChanged(bool active) {
+    setState(() => _copyMode = active);
+  }
+
+  void _copyFromOverlay() {
+    HapticFeedback.lightImpact();
+    TerminalClipboard.copy(_terminal, _terminalController);
+    _keyboardKey.currentState?.exitCopyMode();
+  }
+
+  void _cancelCopyMode() {
+    HapticFeedback.lightImpact();
+    _keyboardKey.currentState?.exitCopyMode();
   }
 
   @override
   Widget build(BuildContext context) {
     // React to font size changes from settings slider
     final configFontSize = ref.watch(configProvider.select((c) => c.fontSize));
-    if (_baseScaleFontSize == null) {
+    if (_pinchInitialFontSize == null) {
       // Update only when not pinch-zooming
       _fontSize = configFontSize;
     }
@@ -212,25 +307,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     //
     // Stack layout: terminal is bottom-bounded by the keyboard bar +
     // (when visible) the system keyboard, so the cursor line never
-    // slips under either one. xterm reflows on resize — the earlier
-    // "never resize" policy was a workaround for a duplicate-line
-    // quirk in old xterm versions; modern xterm handles the reflow
-    // correctly, and leaving the terminal full-size while the
-    // keyboard is up meant the user typed into a viewport whose
-    // bottom rows were hidden under the keyboard. The fix trades a
-    // reflow for content visibility.
-    //
-    // viewInsets.bottom is measured from the screen bottom, but this
-    // Stack sits inside the Scaffold body which ends above the
-    // bottomNavigationBar and the device safe-area. Subtract that
-    // gap so the keyboard bar sits flush against the system
-    // keyboard instead of floating above it.
+    // slips under either one.
     final mq = MediaQuery.of(context);
     final rawInset = mq.viewInsets.bottom;
     final bottomGap = AppTheme.itemHeightXl + mq.viewPadding.bottom;
     final keyboardInset = math.max(0.0, rawInset - bottomGap);
-    // Terminal bottom = keyboard bar height + system-keyboard inset.
-    // When no keyboard is visible, collapses to bar height alone.
     final terminalBottom = AppTheme.itemHeightXl + keyboardInset;
     return Stack(
       children: [
@@ -239,80 +320,33 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           top: 0,
           right: 0,
           bottom: terminalBottom,
-          child: _buildPinchZoomArea(),
+          child: _buildTerminalArea(),
         ),
         Positioned(
           left: 0,
           right: 0,
           bottom: keyboardInset,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_hasSelection) _buildSelectionToolbar(),
-              SshKeyboardBar(
-                key: _keyboardKey,
-                onInput: _onKeyboardInput,
-                onPaste: _paste,
-                onSnippets: _showSnippets,
-                onSelectModeChanged: (active) {
-                  setState(() => _selectMode = active);
-                  _terminalController.setSuspendPointerInput(active);
-                  if (!active) _terminalController.clearSelection();
-                },
-              ),
-            ],
+          child: SshKeyboardBar(
+            key: _keyboardKey,
+            onInput: _onKeyboardInput,
+            onPaste: _paste,
+            onSnippets: _showSnippets,
+            onCopyModeChanged: _onCopyModeChanged,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPinchZoomArea() {
+  Widget _buildTerminalArea() {
     return Listener(
-      onPointerDown: (_) => _pointerCount++,
-      onPointerUp: (_) => _onPointerUp(),
-      onPointerCancel: (_) => _onPointerUp(),
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        // Disable scale gestures during select mode so xterm's
-        // drag-select gesture recognizer wins the arena.
-        onScaleStart: _selectMode ? null : _onPinchStart,
-        onScaleUpdate: _selectMode ? null : _onPinchUpdate,
-        onScaleEnd: _selectMode ? null : _onPinchEnd,
-        child: _buildTerminalStack(),
-      ),
-    );
-  }
-
-  void _onPinchStart(ScaleStartDetails details) {
-    if (details.pointerCount >= 2) {
-      _baseScaleFontSize = _fontSize;
-    }
-  }
-
-  void _onPinchUpdate(ScaleUpdateDetails details) {
-    if (_baseScaleFontSize == null) return;
-    setState(() {
-      _fontSize = (_baseScaleFontSize! * details.scale).clamp(8.0, 24.0);
-    });
-  }
-
-  void _onPinchEnd(ScaleEndDetails _) {
-    if (_baseScaleFontSize == null) return;
-    _baseScaleFontSize = null;
-    ref
-        .read(configProvider.notifier)
-        .update(
-          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: _fontSize)),
-        );
-  }
-
-  Widget _buildTerminalStack() {
-    return Stack(
-      children: [
-        IgnorePointer(
-          ignoring: _pointerCount >= 2,
-          child: TerminalView(
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerUp,
+      child: Stack(
+        children: [
+          TerminalView(
             _terminal,
             controller: _terminalController,
             autofocus: true,
@@ -339,83 +373,23 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             // prediction-free regardless.
             keyboardType: TextInputType.text,
           ),
-        ),
-        Positioned.fill(
-          child: CursorTextOverlay(terminal: _terminal, fontSize: _fontSize),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSelectionToolbar() {
-    return Container(
-      color: AppTheme.bg3,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _ToolbarButton(
-            icon: Icons.copy,
-            label: S.of(context).copy,
-            onTap: _copySelection,
+          Positioned.fill(
+            child: CursorTextOverlay(terminal: _terminal, fontSize: _fontSize),
           ),
-          const SizedBox(width: 16),
-          _ToolbarButton(
-            icon: Icons.paste,
-            label: S.of(context).paste,
-            onTap: _paste,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToolbarButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ToolbarButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: AppTheme.radiusLg,
-      // `canRequestFocus: false` so tapping Copy/Paste does not
-      // steal focus from `TerminalView`. Without it, every tap
-      // would dismiss the system keyboard (xterm closes its
-      // input connection as soon as its `FocusNode` loses focus).
-      child: InkWell(
-        canRequestFocus: false,
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        borderRadius: AppTheme.radiusLg,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: theme.colorScheme.onSurface),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppFonts.md,
-                  color: theme.colorScheme.onSurface,
-                ),
+          if (_copyMode)
+            Positioned.fill(
+              child: TerminalCopyOverlay(
+                key: _copyOverlayKey,
+                terminal: _terminal,
+                controller: _terminalController,
+                fontSize: _fontSize,
+                fontFamily: AppFonts.monoFamily,
+                fontFamilyFallback: AppFonts.monoFallback,
+                onCopy: _copyFromOverlay,
+                onCancel: _cancelCopyMode,
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }

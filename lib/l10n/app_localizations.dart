@@ -231,6 +231,18 @@ abstract class S {
   /// **'Select'**
   String get select;
 
+  /// No description provided for @copyModeTapToStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch to mark selection start'**
+  String get copyModeTapToStart;
+
+  /// No description provided for @copyModeExtending.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to extend selection'**
+  String get copyModeExtending;
+
   /// No description provided for @required.
   ///
   /// In en, this message translates to:

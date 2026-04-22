@@ -18,6 +18,8 @@
   "copy": "Salin",
   "paste": "Tempel",
   "select": "Pilih",
+  "copyModeTapToStart": "Sentuh untuk menandai awal pilihan",
+  "copyModeExtending": "Seret untuk memperluas pilihan",
   "required": "Wajib",
   "settings": "Pengaturan",
   "appSettings": "Pengaturan Aplikasi",

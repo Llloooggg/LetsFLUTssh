@@ -63,6 +63,12 @@ class SRu extends S {
   String get select => 'Выбрать';
 
   @override
+  String get copyModeTapToStart => 'Коснитесь, чтобы отметить начало выделения';
+
+  @override
+  String get copyModeExtending => 'Ведите пальцем, чтобы расширить выделение';
+
+  @override
   String get required => 'Обязательное поле';
 
   @override

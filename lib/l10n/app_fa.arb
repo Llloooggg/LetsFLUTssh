@@ -18,6 +18,8 @@
   "copy": "کپی",
   "paste": "جای‌گذاری",
   "select": "انتخاب",
+  "copyModeTapToStart": "برای تعیین ابتدای انتخاب لمس کنید",
+  "copyModeExtending": "برای گسترش انتخاب بکشید",
   "required": "الزامی",
   "settings": "تنظیمات",
   "appSettings": "تنظیمات برنامه",

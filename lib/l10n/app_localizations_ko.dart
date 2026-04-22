@@ -63,6 +63,12 @@ class SKo extends S {
   String get select => '선택';
 
   @override
+  String get copyModeTapToStart => '선택 시작점을 터치하세요';
+
+  @override
+  String get copyModeExtending => '드래그하여 선택 영역 확장';
+
+  @override
   String get required => '필수';
 
   @override

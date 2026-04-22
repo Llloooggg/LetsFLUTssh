@@ -63,6 +63,12 @@ class SDe extends S {
   String get select => 'Auswählen';
 
   @override
+  String get copyModeTapToStart => 'Tippen, um Auswahlbeginn zu markieren';
+
+  @override
+  String get copyModeExtending => 'Ziehen, um Auswahl zu erweitern';
+
+  @override
   String get required => 'Erforderlich';
 
   @override

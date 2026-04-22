@@ -26,7 +26,7 @@ void main() {
     GlobalKey<SshKeyboardBarState>? keyboardKey,
     VoidCallback? onPaste,
     VoidCallback? onSnippets,
-    ValueChanged<bool>? onSelectModeChanged,
+    ValueChanged<bool>? onCopyModeChanged,
   }) {
     return MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
@@ -38,7 +38,7 @@ void main() {
           onInput: onInput,
           onPaste: onPaste,
           onSnippets: onSnippets,
-          onSelectModeChanged: onSelectModeChanged,
+          onCopyModeChanged: onCopyModeChanged,
         ),
       ),
     );
@@ -411,43 +411,42 @@ void main() {
     });
   });
 
-  group('Select mode', () {
-    testWidgets('renders select button icon', (tester) async {
+  group('Copy mode', () {
+    testWidgets('renders copy button icon', (tester) async {
       await tester.pumpWidget(buildApp(onInput: (_) {}));
-      expect(find.byIcon(Icons.select_all), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsOneWidget);
     });
 
-    testWidgets(
-      'tapping select button toggles select mode and fires callback',
-      (tester) async {
-        final modes = <bool>[];
-        await tester.pumpWidget(
-          buildApp(onInput: (_) {}, onSelectModeChanged: modes.add),
-        );
+    testWidgets('tapping copy button toggles copy mode and fires callback', (
+      tester,
+    ) async {
+      final modes = <bool>[];
+      await tester.pumpWidget(
+        buildApp(onInput: (_) {}, onCopyModeChanged: modes.add),
+      );
 
-        await tester.tap(find.byIcon(Icons.select_all));
-        await tester.pump();
-        expect(modes, [true]);
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pump();
+      expect(modes, [true]);
 
-        await tester.tap(find.byIcon(Icons.select_all));
-        await tester.pump();
-        expect(modes, [true, false]);
-      },
-    );
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pump();
+      expect(modes, [true, false]);
+    });
 
-    testWidgets('selectMode getter reflects state', (tester) async {
+    testWidgets('copyMode getter reflects state', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
 
-      expect(key.currentState!.selectMode, isFalse);
+      expect(key.currentState!.copyMode, isFalse);
 
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(find.byIcon(Icons.copy));
       await tester.pump();
-      expect(key.currentState!.selectMode, isTrue);
+      expect(key.currentState!.copyMode, isTrue);
 
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(find.byIcon(Icons.copy));
       await tester.pump();
-      expect(key.currentState!.selectMode, isFalse);
+      expect(key.currentState!.copyMode, isFalse);
     });
 
     testWidgets('snippets button hidden when onSnippets is null', (
@@ -472,43 +471,41 @@ void main() {
       expect(fired, isTrue);
     });
 
-    testWidgets('exitSelectMode resets state and fires callback', (
-      tester,
-    ) async {
+    testWidgets('exitCopyMode resets state and fires callback', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       final modes = <bool>[];
       await tester.pumpWidget(
         buildApp(
           onInput: (_) {},
           keyboardKey: key,
-          onSelectModeChanged: modes.add,
+          onCopyModeChanged: modes.add,
         ),
       );
 
       // Activate select mode
-      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.tap(find.byIcon(Icons.copy));
       await tester.pump();
-      expect(key.currentState!.selectMode, isTrue);
+      expect(key.currentState!.copyMode, isTrue);
 
       // Programmatic exit
-      key.currentState!.exitSelectMode();
+      key.currentState!.exitCopyMode();
       await tester.pump();
-      expect(key.currentState!.selectMode, isFalse);
+      expect(key.currentState!.copyMode, isFalse);
       expect(modes, [true, false]);
     });
 
-    testWidgets('exitSelectMode is no-op when already off', (tester) async {
+    testWidgets('exitCopyMode is no-op when already off', (tester) async {
       final key = GlobalKey<SshKeyboardBarState>();
       final modes = <bool>[];
       await tester.pumpWidget(
         buildApp(
           onInput: (_) {},
           keyboardKey: key,
-          onSelectModeChanged: modes.add,
+          onCopyModeChanged: modes.add,
         ),
       );
 
-      key.currentState!.exitSelectMode();
+      key.currentState!.exitCopyMode();
       await tester.pump();
       expect(modes, isEmpty);
     });

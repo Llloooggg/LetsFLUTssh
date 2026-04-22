@@ -18,6 +18,8 @@
   "copy": "نسخ",
   "paste": "لصق",
   "select": "تحديد",
+  "copyModeTapToStart": "المس لتحديد بداية التحديد",
+  "copyModeExtending": "اسحب لتمديد التحديد",
   "required": "مطلوب",
   "settings": "الإعدادات",
   "appSettings": "إعدادات التطبيق",

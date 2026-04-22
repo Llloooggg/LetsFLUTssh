@@ -63,6 +63,12 @@ class SAr extends S {
   String get select => 'تحديد';
 
   @override
+  String get copyModeTapToStart => 'المس لتحديد بداية التحديد';
+
+  @override
+  String get copyModeExtending => 'اسحب لتمديد التحديد';
+
+  @override
   String get required => 'مطلوب';
 
   @override

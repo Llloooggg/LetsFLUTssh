@@ -63,6 +63,12 @@ class SHi extends S {
   String get select => 'चुनें';
 
   @override
+  String get copyModeTapToStart => 'चयन आरंभ चिह्नित करने के लिए स्पर्श करें';
+
+  @override
+  String get copyModeExtending => 'चयन बढ़ाने के लिए खींचें';
+
+  @override
   String get required => 'आवश्यक';
 
   @override

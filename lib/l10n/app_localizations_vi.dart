@@ -63,6 +63,12 @@ class SVi extends S {
   String get select => 'Chọn';
 
   @override
+  String get copyModeTapToStart => 'Chạm để đánh dấu điểm bắt đầu';
+
+  @override
+  String get copyModeExtending => 'Kéo để mở rộng vùng chọn';
+
+  @override
   String get required => 'Bắt buộc';
 
   @override

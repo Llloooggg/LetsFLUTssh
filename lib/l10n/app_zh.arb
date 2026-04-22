@@ -18,6 +18,8 @@
   "copy": "复制",
   "paste": "粘贴",
   "select": "选择",
+  "copyModeTapToStart": "轻触以标记选择起点",
+  "copyModeExtending": "拖动以扩展选择",
   "required": "必填",
   "settings": "设置",
   "appSettings": "应用设置",

@@ -18,6 +18,8 @@
   "copy": "Kopyala",
   "paste": "Yapıştır",
   "select": "Seç",
+  "copyModeTapToStart": "Seçim başlangıcını işaretlemek için dokun",
+  "copyModeExtending": "Seçimi genişletmek için sürükle",
   "required": "Gerekli",
   "settings": "Ayarlar",
   "appSettings": "Uygulama Ayarları",

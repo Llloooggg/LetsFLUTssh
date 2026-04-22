@@ -63,6 +63,12 @@ class SJa extends S {
   String get select => '選択';
 
   @override
+  String get copyModeTapToStart => 'タップして選択開始位置を指定';
+
+  @override
+  String get copyModeExtending => 'ドラッグで選択範囲を拡大';
+
+  @override
   String get required => '必須';
 
   @override

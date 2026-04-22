@@ -63,6 +63,12 @@ class STr extends S {
   String get select => 'Seç';
 
   @override
+  String get copyModeTapToStart => 'Seçim başlangıcını işaretlemek için dokun';
+
+  @override
+  String get copyModeExtending => 'Seçimi genişletmek için sürükle';
+
+  @override
   String get required => 'Gerekli';
 
   @override

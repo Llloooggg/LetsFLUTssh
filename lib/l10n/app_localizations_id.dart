@@ -63,6 +63,12 @@ class SId extends S {
   String get select => 'Pilih';
 
   @override
+  String get copyModeTapToStart => 'Sentuh untuk menandai awal pilihan';
+
+  @override
+  String get copyModeExtending => 'Seret untuk memperluas pilihan';
+
+  @override
   String get required => 'Wajib';
 
   @override

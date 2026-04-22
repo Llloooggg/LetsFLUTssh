@@ -20,15 +20,20 @@ class SshKeyboardBar extends StatefulWidget {
   /// is hidden — desktop / read-only views can keep the bar minimal.
   final VoidCallback? onSnippets;
 
-  /// Called when text-select mode is toggled on/off.
-  final ValueChanged<bool>? onSelectModeChanged;
+  /// Called when the user taps the Copy button — the parent enters the
+  /// trackpad-style copy mode ([TerminalCopyOverlay]) on `true` and
+  /// exits on `false`. The bar tracks the active state so the button
+  /// renders highlighted while copy mode is on; the parent can flip it
+  /// back to inactive programmatically via [SshKeyboardBarState.exitCopyMode]
+  /// when the user taps Copy/Cancel inside the overlay.
+  final ValueChanged<bool>? onCopyModeChanged;
 
   const SshKeyboardBar({
     super.key,
     required this.onInput,
     this.onPaste,
     this.onSnippets,
-    this.onSelectModeChanged,
+    this.onCopyModeChanged,
   });
 
   @override
@@ -41,16 +46,18 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
   _ModifierState _ctrl = _ModifierState.off;
   _ModifierState _alt = _ModifierState.off;
   bool _showFnKeys = false;
-  bool _selectMode = false;
+  bool _copyMode = false;
 
-  /// Whether text-select mode is active.
-  bool get selectMode => _selectMode;
+  /// Whether trackpad-style copy mode is active.
+  bool get copyMode => _copyMode;
 
-  /// Exit text-select mode programmatically (e.g. after copy).
-  void exitSelectMode() {
-    if (!_selectMode) return;
-    setState(() => _selectMode = false);
-    widget.onSelectModeChanged?.call(false);
+  /// Exit copy mode programmatically (e.g. after the overlay's Copy or
+  /// Cancel tap closes the session). The parent calls this so the Copy
+  /// button on the bar stops showing the "active" highlight.
+  void exitCopyMode() {
+    if (!_copyMode) return;
+    setState(() => _copyMode = false);
+    widget.onCopyModeChanged?.call(false);
   }
 
   /// Apply active Ctrl/Alt modifiers to [data] and consume one-shot modifiers.
@@ -187,11 +194,11 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
                 },
               ),
               _KeyButton(
-                icon: Icons.select_all,
-                isActive: _selectMode,
+                icon: Icons.copy,
+                isActive: _copyMode,
                 onTap: () {
-                  setState(() => _selectMode = !_selectMode);
-                  widget.onSelectModeChanged?.call(_selectMode);
+                  setState(() => _copyMode = !_copyMode);
+                  widget.onCopyModeChanged?.call(_copyMode);
                 },
               ),
               _KeyButton(

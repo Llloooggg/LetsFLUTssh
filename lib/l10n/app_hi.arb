@@ -18,6 +18,8 @@
   "copy": "कॉपी करें",
   "paste": "पेस्ट करें",
   "select": "चुनें",
+  "copyModeTapToStart": "चयन आरंभ चिह्नित करने के लिए स्पर्श करें",
+  "copyModeExtending": "चयन बढ़ाने के लिए खींचें",
   "required": "आवश्यक",
   "settings": "सेटिंग्स",
   "appSettings": "ऐप सेटिंग्स",
