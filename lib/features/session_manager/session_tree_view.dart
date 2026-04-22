@@ -887,6 +887,13 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     final isChecked = widget.selectedIds.contains(session.id);
     final theme = Theme.of(context);
     final canInteract = !_mobile && !widget.selectMode;
+    // Parent folder of this row — used as the drop target when the user
+    // drags something onto the row's empty area (i.e. onto "the space of
+    // the expanded folder" rather than directly onto the folder row).
+    // Without this wrap the drop event bubbled to the root DragTarget
+    // and the dragged session landed at the tree root, which users read
+    // as "drag into folder only works when I hit the folder header".
+    final String parentFolder = session.folder;
 
     final Widget content = Semantics(
       label: session.displayName,
@@ -927,12 +934,39 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
     // Select mode or mobile: no drag&drop
     if (_mobile || widget.selectMode) return content;
 
+    // The row itself is a DragTarget for its parent folder. Hovering a
+    // drop over this session row highlights the enclosing folder (via
+    // `_dropTargetFolder`) and drops land inside `parentFolder`, so the
+    // "drag onto any child inside an expanded folder" affordance works
+    // instead of silently dropping at the tree root. The folder's own
+    // DragTarget still takes priority when hovered directly because
+    // DragTarget nesting resolves innermost-wins in the hit test.
+    final Widget wrapped = DragTarget<SessionDragData>(
+      onWillAcceptWithDetails: (details) =>
+          _canAcceptDrop(details.data, parentFolder),
+      onAcceptWithDetails: (details) {
+        setState(() => _dropTargetFolder = null);
+        _handleDrop(details.data, parentFolder);
+      },
+      onMove: (_) {
+        if (_dropTargetFolder != parentFolder) {
+          setState(() => _dropTargetFolder = parentFolder);
+        }
+      },
+      onLeave: (_) {
+        if (_dropTargetFolder == parentFolder) {
+          setState(() => _dropTargetFolder = null);
+        }
+      },
+      builder: (context, _, _) => content,
+    );
+
     // Desktop: wrap in Draggable when the row is highlighted — either
     // multi-selected (checked) or single-click focused. Plain rows stay
     // unwrapped so a pointer-down on them starts a marquee instead of a
     // drag, matching the UX rule "drag from highlighted, marquee from
     // empty".
-    if (!isChecked && !isSelected) return content;
+    if (!isChecked && !isSelected) return wrapped;
 
     final isBulk = _hasBulkSelection;
     final SessionDragData dragData = isBulk
@@ -949,7 +983,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
       onDraggableCanceled: onDragCanceled,
       feedback: _buildDragFeedback(theme, isBulk, Icons.terminal, node.name),
       childWhenDragging: Opacity(opacity: 0.4, child: content),
-      child: content,
+      child: wrapped,
     );
   }
 }

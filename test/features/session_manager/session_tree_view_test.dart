@@ -716,6 +716,68 @@ void main() {
       expect(targetFolder, 'Production/DB');
     });
 
+    testWidgets(
+      'drag session onto a sibling row inside an expanded folder lands in that folder',
+      (tester) async {
+        // User complaint: "дроп только на самой папке, не на пространстве
+        // раскрытой папки". Every child row is a DragTarget for its
+        // parent folder, so dropping onto nginx2 (which sits inside
+        // Production/Web) must move the dragged session into
+        // Production/Web — not fall through to the tree-root DragTarget.
+        String? movedSessionId;
+        String? targetFolder;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(
+                body: SizedBox(
+                  width: 300,
+                  height: 600,
+                  child: SessionTreeView(
+                    tree: tree,
+                    // staging ('4') at root is the drag source — it must
+                    // be selected so `ThresholdDraggable` wraps it.
+                    selectedIds: const {'4'},
+                    onSessionMoved: (sessionId, target) {
+                      movedSessionId = sessionId;
+                      targetFolder = target;
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final stagingFinder = find.text('staging');
+        final nginx2Finder = find.text('nginx2');
+        expect(stagingFinder, findsOneWidget);
+        expect(nginx2Finder, findsOneWidget);
+
+        final stagingCenter = tester.getCenter(stagingFinder);
+        final nginx2Center = tester.getCenter(nginx2Finder);
+
+        final gesture = await tester.startGesture(stagingCenter);
+        await gesture.moveTo(nginx2Center);
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(movedSessionId, '4');
+        expect(
+          targetFolder,
+          'Production/Web',
+          reason:
+              'drop on nginx2 must resolve to its parent folder '
+              '(Production/Web), not fall through to the tree-root target',
+        );
+      },
+    );
+
     testWidgets('drag session to root calls onSessionMoved with empty folder', (
       tester,
     ) async {
