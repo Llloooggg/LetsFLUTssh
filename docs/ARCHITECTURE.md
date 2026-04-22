@@ -728,6 +728,20 @@ First launch is detected by the combination "no `config.security`
 single-signal detector was too fragile against partial installs and
 mid-switch crashes.
 
+**Probe parallelism at bootstrap.** `main._bootstrap` fires
+`_warmProbeCaches()` at the *start* of the startup graph, before the
+migration runner and `_initSecurity`. `securityCapabilitiesProvider`,
+`hardwareProbeDetailProvider`, and `keyringProbeDetailProvider` kick
+off in parallel with the DB unlock / session load path. Previously
+`_firstLaunchSetup` called `probeCapabilities()` directly, which
+serialised the keychain / LAContext / BiometricManager / TPM probe
+in front of wizard render — first-launch users saw a frozen empty
+screen until every native round-trip completed. The wizard now
+awaits the same future through `securityCapabilitiesProvider`, so it
+joins whichever state the already-running probe is in. Warm starts
+hit the `config.securityProbeCache` branch on the first microtask
+and fall through with no work at all.
+
 **Key-derivation pipeline** (only the master-password branch derives; keychain stores the DB key directly, plaintext has no key):
 
 ```mermaid
