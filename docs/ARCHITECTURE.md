@@ -4152,9 +4152,8 @@ flowchart TD
 | `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
-| `drift` | Typed SQLite ORM (database, DAOs, codegen) |
-| `drift_flutter` | Flutter integration for drift (NativeDatabase) |
-| `pointycastle` | AES-256-GCM encryption (transitive via dartssh2) |
+| `drift` | Typed SQLite ORM (database, DAOs, codegen). Pulled directly without the `drift_flutter` helper — that one transitively depends on the EOL `sqlite3_flutter_libs` + `sqlcipher_flutter_libs` plugins, whose prebuilts would duplicate the libsqlite3 we already compile in-tree from the MC submodule |
+| `pointycastle` | AES-256-GCM (`.lfs` archive encryption) + Argon2id (KEK derivation) |
 | `pinenacl` | Ed25519 verify for release-signature check |
 | `crypto` | SHA-256 over DER for SPKI pinning |
 | `path_provider` | App data directories |
@@ -4168,7 +4167,6 @@ flowchart TD
 | `url_launcher` | Open URLs |
 | `uuid` | UUID generation |
 | `path` | Cross-platform path utils |
-| `json_annotation` | JSON serialization |
 
 ### Dev
 
@@ -4176,9 +4174,8 @@ flowchart TD
 |---------|---------|
 | `flutter_lints` | Lint rules |
 | `mockito` | Test mocking |
-| `build_runner` | Code generation |
+| `build_runner` | Code generation (drift) |
 | `drift_dev` | Drift code generator |
-| `json_serializable` | JSON code gen |
 | `build_verify` | Verifies build_runner output is up-to-date |
 | `plugin_platform_interface` | Platform interface for plugin packages |
 | `flutter_launcher_icons` | App icon gen |
