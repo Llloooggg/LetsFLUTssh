@@ -520,6 +520,10 @@ class _LanguageTile extends StatelessWidget {
       child: PopupMenuButton<String>(
         onSelected: (v) => onChanged(v == _systemDefault ? null : v),
         tooltip: '',
+        // `PopupMenuButton` owns its own `AnimationController` and
+        // ignores the root `MediaQuery(disableAnimations: true)` —
+        // opt out explicitly so it matches the project-wide hard-off.
+        popUpAnimationStyle: AnimationStyle.noAnimation,
         offset: const Offset(0, AppTheme.controlHeightSm),
         constraints: const BoxConstraints(
           minWidth: 200,

@@ -4,7 +4,6 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -101,16 +100,27 @@ SingleInstance? singleInstanceLock;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Kill every animation globally. `timeDilation` multiplies every
-  // `Ticker`/`AnimationController` duration in the framework, so
-  // 0.01 collapses 300ms transitions to ~3ms — visually instant.
-  // This catches widgets that ignore `MediaQuery.disableAnimations`
-  // (notably `PopupMenuButton` and `showMenu`, which own their own
-  // AnimationController). Three-layer hard-off, together with the
-  // `_NoTransitionsBuilder` in `AppTheme.pageTransitionsTheme` and
-  // `disableAnimations: true` on the root `MediaQuery`, takes motion
-  // out of the UI project-wide. `timeDilation` must be > 0.
-  timeDilation = 0.01;
+  // Animation hard-off is layered:
+  //   * `_NoTransitionsBuilder` in `AppTheme.pageTransitionsTheme`
+  //     kills route push/pop transitions on every platform.
+  //   * `disableAnimations: true` on the root `MediaQuery` silences
+  //     implicit animations (`AnimatedContainer`, `AnimatedSwitcher`,
+  //     `AnimatedOpacity`, etc.) that honour the accessibility flag.
+  //   * Widget-level opt-outs for the handful of Material surfaces
+  //     that own their own `AnimationController` and ignore the
+  //     flag: `Toast` keeps a zero-length controller (no fade /
+  //     slide), and every `PopupMenuButton` passes
+  //     `popUpAnimationStyle: AnimationStyle.noAnimation`.
+  //
+  // An earlier `timeDilation = 0.01` blanket scaled every `Ticker`
+  // in the framework and caught the offenders above in one line —
+  // but it also compressed the scroll-physics simulations
+  // (`BouncingScrollPhysics`, `ClampingScrollPhysics`, `PageView`
+  // snap, overscroll glow decay) to near-zero, which made mobile
+  // swipes feel janky: the finger would release and the list
+  // would teleport to its rest position instead of settling
+  // smoothly. Physics simulations need real time; animations
+  // don't. Split them accordingly instead of nuking both.
 
   // Unlock the Linux-only subprocess probe (gdbus Peer.Ping against
   // org.freedesktop.secrets) used by SecureKeyStorage.probe. Widget

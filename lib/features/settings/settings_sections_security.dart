@@ -830,6 +830,10 @@ class _AutoLockTile extends ConsumerWidget {
                 onSelected: (v) =>
                     ref.read(autoLockMinutesProvider.notifier).set(v),
                 tooltip: '',
+                // Match project-wide animation hard-off — PopupMenu
+                // owns its own controller and ignores the root
+                // `MediaQuery(disableAnimations: true)`.
+                popUpAnimationStyle: AnimationStyle.noAnimation,
                 offset: const Offset(0, AppTheme.controlHeightSm),
                 constraints: const BoxConstraints(
                   minWidth: 140,
