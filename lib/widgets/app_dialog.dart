@@ -287,23 +287,33 @@ class AppDialogAction extends StatelessWidget {
       cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onTap: enabled ? onTap : null,
       builder: (hovered) => Container(
-        height: height,
-        padding: EdgeInsets.symmetric(horizontal: hPad),
+        constraints: BoxConstraints(minHeight: height),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: _buttonColor(hasBg, hovered, effectiveBg),
           borderRadius: radius,
         ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: AppFonts.inter(
-              fontSize: fontSize,
-              fontWeight: hasBg ? FontWeight.w500 : null,
-              color: effectiveFg,
-            ),
+        // `softWrap: true` + `maxLines: 2` so extreme translations
+        // (e.g. Russian "Сгенерировать ключ" on a 320-px mobile
+        // button) break to a second line instead of scale-shrinking
+        // to barely-readable 10-pt. The prior `FittedBox(scaleDown)`
+        // + `maxLines: 1` layout shrank every long label down until
+        // the Cyrillic / German captions were unreadable on narrow
+        // modals; swapping to a wrap-first button keeps the native
+        // font size and grows the button vertically when needed.
+        // `ellipsis` caps the worst outlier at two lines rather
+        // than letting the button unbounded-grow the footer.
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          softWrap: true,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppFonts.inter(
+            fontSize: fontSize,
+            fontWeight: hasBg ? FontWeight.w500 : null,
+            color: effectiveFg,
           ),
         ),
       ),
