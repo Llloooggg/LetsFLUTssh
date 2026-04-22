@@ -660,9 +660,11 @@ class _TierRow extends StatelessWidget {
                 ? Icons.radio_button_checked
                 : Icons.radio_button_unchecked,
             size: 18,
-            color: disabled
-                ? AppTheme.fgFaint
-                : (selected ? accent : AppTheme.fgDim),
+            color: _radioIconColor(
+              disabled: disabled,
+              selected: selected,
+              accent: accent,
+            ),
           ),
           const SizedBox(width: 10),
           Container(
@@ -767,6 +769,15 @@ class _TierRow extends StatelessWidget {
         child: Opacity(opacity: disabled ? 0.55 : 1.0, child: content),
       ),
     );
+  }
+
+  static Color _radioIconColor({
+    required bool disabled,
+    required bool selected,
+    required Color accent,
+  }) {
+    if (disabled) return AppTheme.fgFaint;
+    return selected ? accent : AppTheme.fgDim;
   }
 }
 
