@@ -2132,6 +2132,23 @@ class SessionConnect {
 }
 ```
 
+#### Session panel input model
+
+The sidebar owns its own keyboard/focus/pointer contract. Four invariants hold across every change in this area:
+
+- **Shortcut dispatch is `CallbackShortcuts`-based**, not a `Focus.onKeyEvent` handler. `SessionPanel.build` wraps the root in `CallbackShortcuts(bindings: _buildShortcutBindings())` so `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+Z` / `Ctrl+Y` / `Delete` / `F2` fire as long as *any* `FocusNode` descendant of the panel holds focus. An earlier `Focus(onKeyEvent:)` version fired only when the panel root itself was focused — clicking a session row handed focus to an inner `Draggable` / `AppIconButton`, and the shortcut fell back on nothing ("works every other time"). The panel-level `Focus(autofocus: false)` stays for the "panel owns focus → rows render in accent colour" visual state; the shortcut path is independent.
+- **Empty-sidebar tap drops the focused pointer, never the `FocusNode`.** `onEmptySpaceTap` calls `_ctrl.clearFocus()` (nulls `focusedSessionId` + `focusedFolderPath` so the row highlight dims to grey) but leaves `_focusNode` focused. Yanking the Flutter focus would drop the panel out of the `CallbackShortcuts` scope — subsequent `Ctrl+V` / `Ctrl+Z` after an empty-space click would silently do nothing.
+- **Folder click is two-phase.** First tap on an unfocused folder focuses it (sets the paste target, no toggle); a second tap on the already-focused folder toggles expand. The branch lives in `session_tree_view._onFolderTap`, keyed off `widget.focusedFolderPath == fullPath`. Mirrors macOS Finder's column view and closes the "click folder to paste into it, it collapses instead" regression. Mobile keeps the single-tap toggle — long-press there is the focus-without-toggle alternative.
+- **Paste target is resolved at paste time** via `_resolvePasteTargetFolder`: focused folder first, then the folder of the focused session, then root. `pasteCopiedSession` forwards the target to `sessionProvider.duplicate(id, targetFolder:)` so the duplicate lands directly in the destination — no intermediate state the user can observe between "copy made" and "copy moved into place". `duplicateSession` in the store accepts the same `targetFolder` parameter; `FakeSessionStore` mirrors the signature.
+
+#### Session clipboard — pointer model
+
+`SessionPanelController._copiedSessionId` is a 32-char session id, never a session object. Credentials live in the store's `SecretBuffer`s regardless of whether the id is on the clipboard — there is no session data duplicated in RAM.
+
+- `copyFocused()` and `cutFocused()` both set `_copiedSessionId = _focusedSessionId` and flip `_cutPending` accordingly. Cut is one-shot: the next paste consumes the flag and clears the clipboard, so a subsequent Ctrl+V defaults back to duplicate semantics.
+- `clearClipboard()` runs on every successful cut paste, on panel `dispose`, and (via the wipe / reset flow) whenever the sidebar is torn down. There is **no wall-clock TTL** — an earlier 30-second auto-wipe caused a "works every other time" UX where the user's paste after a pause silently no-op'd. Since the clipboard is just a pointer, the stale-id window is bounded by panel lifetime, not by a timer.
+- Paste of a stale id (session deleted before paste) is a silent no-op — `sessionProvider.duplicate` throws `ArgumentError('Session not found')` and the transactional `_run` wrapper swallows it under the "duplicate session" label in the activity log.
+
 ---
 
 ### 5.4 Tab & Workspace System
@@ -2328,6 +2345,24 @@ HoverRegion({
 })
 ```
 **Replaces `MouseRegion` + `GestureDetector` + `setState(_hovered)`.** Skips `MouseRegion` on mobile platforms (Android/iOS) — no pointer, saves an unnecessary widget. Exception: `context_menu.dart` (keyboard nav state).
+
+**Selection auto-opt-out.** When any gesture callback is bound (`onTap`, `onCtrlTap`, `onDoubleTap`, `onSecondaryTapUp`, `onLongPressStart`), `HoverRegion` wraps its child in `SelectionContainer.disabled` before installing the `GestureDetector`. That excludes the child's Text from whatever ambient `SelectionArea` is in scope — keeps the I-beam cursor off buttons, stops `Ctrl+C` from hijacking the focused row, and removes the gesture-arena race between `SelectionArea`'s `TapAndDragGestureRecognizer` and the callback's `TapGestureRecognizer` that otherwise surfaces as "drag-select works every other time" on neighbouring Text. Interactive widgets that should not be selectable go inside a `HoverRegion`; informational Text stays outside. Desktop has no global `SelectionArea` (see [Selection scoping](#selection-scoping)), so the wrap is mostly a no-op at the shell level and matters inside dialog / threat-list / help-prose scopes.
+
+Important: the wrap sits *around* the `GestureDetector`'s child, not around the `Listener` / `ThresholdDraggable` subtree that descendants may install. Drag gestures inside a `HoverRegion` still arbitrate in their own arena — `SelectionContainer.disabled` touches the Selectable registry, not pointer routing.
+
+### Selection scoping
+
+Text selection is opt-in on desktop. The shell does not wrap the workspace in a `SelectionArea` — an earlier attempt at "selection everywhere, opted out on buttons" collapsed the moment a `ThresholdDraggable` landed inside a `HoverRegion`, because `SelectionArea`'s `TapAndDragGestureRecognizer` claims pan ahead of `MultiDragGestureRecognizer` in the gesture arena and the opt-out wrap sits above the drag subtree instead of protecting it.
+
+Apply `AppSelectionArea` only to surfaces carrying prose the user may want to copy:
+
+- [`AppDialog`](#appdialog) wraps its body automatically — every dialog's copy (update notes, threat-row captions, help text, release notes) stays selectable.
+- [`SecurityThreatList`](#securitythreatlist) wraps its column so individual threat rows can be compared across tier cards.
+- Add new local wraps when you introduce a read-only prose surface (e.g. a future help dialog). **Do not** wrap any container that also hosts a `ThresholdDraggable`, an `AppButton`, or an interactive row — the gesture arena race will break drag or make click-throughs feel sluggish.
+
+Mobile keeps a single `AppSelectionArea(child: MobileShell())` because the touch-drag recognisers arbitrate differently and mobile lacks the hover-I-beam path.
+
+Inside a scoped `AppSelectionArea`, a parent may still need to block selection on a specific subtree that is not a `HoverRegion` (e.g. a dialog's sidebar nav list). Wrap that subtree in `SelectionContainer.disabled` explicitly — `settings_screen.dart` does this around its nav list so the sidebar labels stop showing the I-beam without yanking selection off the dialog body.
 
 ### ModeButton
 
