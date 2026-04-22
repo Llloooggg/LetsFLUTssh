@@ -435,11 +435,16 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       },
       onFolderSelected: _ctrl.setFocusedFolder,
       onEmptySpaceTap: () {
-        // Drop the panel focus so highlighted rows dim to grey — the
-        // details panel still shows the previously-focused session or
-        // folder, so the user can tell which row it belongs to without
-        // the row stealing the accent colour from active work elsewhere.
-        if (!mobile) _focusNode.unfocus();
+        // Clear the focused session / folder so the row highlight
+        // dims to grey — details panel stays visible for last-
+        // focused context. We used to call `_focusNode.unfocus()`
+        // here but that dropped the panel out of the CallbackShortcuts
+        // scope: a subsequent `Ctrl+V` / `Ctrl+Z` silently did
+        // nothing because no descendant `FocusNode` of
+        // `SessionPanel` was holding focus. Keep focus, clear the
+        // pointer-ids that drive the highlight — same visual, no
+        // shortcut regression.
+        _ctrl.clearFocus();
       },
       onSessionContextMenu: (session, position) {
         _showContextMenu(context, ref, session, position);

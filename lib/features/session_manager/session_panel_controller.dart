@@ -139,6 +139,18 @@ class SessionPanelController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear both focused pointers. Used by the "tap empty space in the
+  /// sidebar" path to dim the row highlight without giving up the
+  /// Flutter `FocusNode` (so `CallbackShortcuts` keeps firing on
+  /// `Ctrl+V` / `Ctrl+Z`).
+  void clearFocus() {
+    if (_focusedSessionId == null && _focusedFolderPath == null) return;
+    _focusedSessionId = null;
+    _focusedFolderPath = null;
+    _focusedFolderItemCount = 0;
+    notifyListeners();
+  }
+
   // ---- Clipboard ----------------------------------------------------
 
   void copyFocused() {

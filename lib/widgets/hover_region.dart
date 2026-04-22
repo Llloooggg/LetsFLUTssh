@@ -74,17 +74,22 @@ class _HoverRegionState extends State<HoverRegion> {
 
     Widget child = widget.builder(_hovered);
 
-    // NOTE: earlier this block wrapped the child in
-    // `SelectionContainer.disabled` when `hasGesture == true` so the
-    // ambient `SelectionArea` would not drag-select button text.
-    // That wrap broke every nested `ThresholdDraggable` (session
-    // tabs, file-browser rows): the pan gesture never reached the
-    // draggable's recogniser, so tab reordering and drag-to-tile
-    // both went dead. The SelectionArea drag-select issue on
-    // button labels is the smaller of the two — revert the wrap
-    // here and re-apply the selection opt-out where needed by
-    // wrapping the specific inner Text(s), not the whole gesture
-    // subtree.
+    // If this region has any tap / long-press binding, it is a
+    // button in UX terms — exclude its content from any ambient
+    // `SelectionArea` so its Text doesn't catch a drag-select, doesn't
+    // flip the cursor to the I-beam on hover, and doesn't race the
+    // SelectionArea's `TapAndDragGestureRecognizer` for pan events
+    // (the race surfaces as "drag-select works every other time" on
+    // adjacent Text widgets because the gesture arena arbitration
+    // depends on arrival order). Desktop no longer has a global
+    // `SelectionArea` — the wrap here is mostly a no-op at the shell
+    // level and matters inside local selection scopes (dialogs,
+    // threat list). Plain informational Text (subtitles, probe
+    // hints, labels) lives outside `HoverRegion` and keeps the
+    // ambient selection.
+    if (hasGesture) {
+      child = SelectionContainer.disabled(child: child);
+    }
 
     if (hasGesture) {
       final effectiveTap = widget.onCtrlTap != null ? _handleTap : widget.onTap;

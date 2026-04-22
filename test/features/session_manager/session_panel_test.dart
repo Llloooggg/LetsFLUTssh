@@ -3310,9 +3310,9 @@ void main() {
     );
 
     testWidgets(
-      'plain tap on empty space drops panel focus so rows dim to grey — '
-      'keeps the details panel visible but stops the sidebar from '
-      'shouting for attention when the user is working elsewhere',
+      'plain tap on empty space clears focused pointers but keeps the '
+      'panel inside the CallbackShortcuts focus scope (so Ctrl+V / '
+      'Ctrl+Z on the sidebar still fire after the tap)',
       (tester) async {
         await tester.pumpWidget(buildApp());
         await tester.pumpAndSettle();
@@ -3321,21 +3321,22 @@ void main() {
           find.byType(SessionPanel),
         );
 
-        // Give the panel focus first (simulate the user having just
-        // clicked a row).
-        panelState.focusNode.requestFocus();
-        await tester.pump();
-        expect(panelState.focusNode.hasFocus, isTrue);
+        // Focus a session first so the empty-tap has something to
+        // clear.
+        await tester.tap(find.text('staging'));
+        await tester.pumpAndSettle();
+        expect(panelState.focusedSessionId, isNotNull);
 
         // A plain tap on empty space inside the tree view should
-        // release focus. The details panel at the bottom stays
-        // populated because _focusedSessionId is intentionally not
-        // cleared — the row just dims.
+        // clear the focused session / folder (row highlight dims to
+        // grey) — but leave the `_focusNode` focused so subsequent
+        // Ctrl+V / Ctrl+Z still reach the panel's CallbackShortcuts.
         final treeRect = tester.getRect(find.byType(SessionTreeView));
         await tester.tapAt(Offset(treeRect.left + 20, treeRect.bottom - 20));
         await tester.pumpAndSettle();
 
-        expect(panelState.focusNode.hasFocus, isFalse);
+        expect(panelState.focusedSessionId, isNull);
+        expect(panelState.focusNode.hasFocus, isTrue);
       },
     );
   });
