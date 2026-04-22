@@ -1933,43 +1933,59 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   /// one-shot dialog and clear the state on dismiss so a later
   /// rebuild does not re-open it.
   void _listenForFirstLaunchBanner() {
-    ref.listenManual<FirstLaunchBannerData?>(firstLaunchBannerProvider, (
-      prev,
-      next,
-    ) {
-      if (next == null || _firstLaunchBannerShown) return;
-      _firstLaunchBannerShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx == null || !ctx.mounted) return;
-        // Top-right toast — the auto-selected tier is a safe default
-        // the app already landed on, so a blocking modal would be
-        // out of scale for what the user has to do (nothing). The
-        // toast surfaces the same copy + the upgrade path when T2
-        // is within reach, and auto-dismisses on a timer. The
-        // reduced-wizard path (both keychain + hardware out of
-        // reach) still routes through the full SecuritySetupDialog
-        // modal — that is a real decision the user has to make.
-        FirstLaunchSecurityToast.show(
-          ctx,
-          data: next,
-          onOpenSettings: () {
-            final inner = navigatorKey.currentContext;
-            if (inner == null || !inner.mounted) return;
-            if (plat.isMobilePlatform) {
-              SettingsScreen.show(inner);
-            } else {
-              SettingsDialog.show(inner);
-            }
-          },
-          onDismiss: () {
-            if (mounted) {
-              ref.read(firstLaunchBannerProvider.notifier).set(null);
-            }
-          },
-        );
-      });
-    }, fireImmediately: true);
+    ref.listenManual<FirstLaunchBannerData?>(
+      firstLaunchBannerProvider,
+      _onFirstLaunchBannerChanged,
+      fireImmediately: true,
+    );
+  }
+
+  void _onFirstLaunchBannerChanged(
+    FirstLaunchBannerData? prev,
+    FirstLaunchBannerData? next,
+  ) {
+    if (next == null || _firstLaunchBannerShown) return;
+    _firstLaunchBannerShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      _showFirstLaunchBannerToast(ctx, next);
+    });
+  }
+
+  // Top-right toast — the auto-selected tier is a safe default the app
+  // already landed on, so a blocking modal would be out of scale for
+  // what the user has to do (nothing). The toast surfaces the same copy
+  // + the upgrade path when T2 is within reach, and auto-dismisses on a
+  // timer. The reduced-wizard path (both keychain + hardware out of
+  // reach) still routes through the full SecuritySetupDialog modal —
+  // that is a real decision the user has to make.
+  void _showFirstLaunchBannerToast(
+    BuildContext ctx,
+    FirstLaunchBannerData data,
+  ) {
+    FirstLaunchSecurityToast.show(
+      ctx,
+      data: data,
+      onOpenSettings: _openSettingsFromBanner,
+      onDismiss: _clearFirstLaunchBanner,
+    );
+  }
+
+  void _openSettingsFromBanner() {
+    final inner = navigatorKey.currentContext;
+    if (inner == null || !inner.mounted) return;
+    if (plat.isMobilePlatform) {
+      SettingsScreen.show(inner);
+    } else {
+      SettingsDialog.show(inner);
+    }
+  }
+
+  void _clearFirstLaunchBanner() {
+    if (mounted) {
+      ref.read(firstLaunchBannerProvider.notifier).set(null);
+    }
   }
 
   void _handleUpdateState(UpdateState next) {
