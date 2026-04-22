@@ -189,8 +189,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         title: s.deleteKey,
         content: Text(s.deleteKeyConfirm(entry.label)),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.delete,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -358,7 +358,7 @@ class KeyManagerDialog extends StatelessWidget {
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 400, child: KeyManagerPanel()),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 }
@@ -426,10 +426,10 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(
+        AppButton.cancel(
           onTap: _generating ? null : () => Navigator.pop(context),
         ),
-        AppDialogAction.primary(
+        AppButton.primary(
           label: _generating ? s.generating : s.generateKey,
           onTap: _generating ? null : _doGenerate,
         ),
@@ -545,8 +545,8 @@ class _AddKeyDialogState extends State<_AddKeyDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(
           label: isImport ? s.importKey : s.addKey,
           onTap: _doSubmit,
         ),

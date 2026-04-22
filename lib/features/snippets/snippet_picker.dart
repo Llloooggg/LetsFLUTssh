@@ -98,7 +98,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
           ],
         ),
       ),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 

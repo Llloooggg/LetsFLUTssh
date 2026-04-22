@@ -338,11 +338,11 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
             style: TextStyle(color: AppTheme.fg),
           ),
           actions: [
-            AppDialogAction.secondary(
+            AppButton.secondary(
               label: l10n.cancel,
               onTap: () => Navigator.pop(ctx, false),
             ),
-            AppDialogAction.destructive(
+            AppButton.destructive(
               label: l10n.resetAllDataConfirmAction,
               onTap: () => Navigator.pop(ctx, true),
             ),

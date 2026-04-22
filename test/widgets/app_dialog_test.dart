@@ -28,8 +28,8 @@ void main() {
                   title: 'Test Title',
                   content: const Text('Body text'),
                   actions: [
-                    const AppDialogAction.cancel(),
-                    AppDialogAction.primary(label: 'OK', onTap: () {}),
+                    const AppButton.cancel(),
+                    AppButton.primary(label: 'OK', onTap: () {}),
                   ],
                 ),
               ),
@@ -88,9 +88,9 @@ void main() {
                   title: 'Footer Test',
                   content: const Text('content'),
                   actions: [
-                    const AppDialogAction.cancel(),
-                    AppDialogAction.secondary(label: 'Skip', onTap: () {}),
-                    AppDialogAction.primary(label: 'Open', onTap: () {}),
+                    const AppButton.cancel(),
+                    AppButton.secondary(label: 'Skip', onTap: () {}),
+                    AppButton.primary(label: 'Open', onTap: () {}),
                   ],
                 ),
               ),
@@ -130,12 +130,12 @@ void main() {
                   title: 'Narrow',
                   content: const Text('content'),
                   actions: [
-                    const AppDialogAction.cancel(),
-                    AppDialogAction.secondary(
+                    const AppButton.cancel(),
+                    AppButton.secondary(
                       label: 'Skip This Version',
                       onTap: () {},
                     ),
-                    AppDialogAction.primary(
+                    AppButton.primary(
                       label: 'Open in Browser',
                       onTap: () {},
                     ),
@@ -161,10 +161,10 @@ void main() {
     });
   });
 
-  group('AppDialogAction', () {
+  group('AppButton', () {
     testWidgets('primary action has accent background', (tester) async {
       await tester.pumpWidget(
-        wrap(AppDialogAction.primary(label: 'Save', onTap: () {})),
+        wrap(AppButton.primary(label: 'Save', onTap: () {})),
       );
 
       expect(find.text('Save'), findsOneWidget);
@@ -172,7 +172,7 @@ void main() {
 
     testWidgets('secondary action renders label', (tester) async {
       await tester.pumpWidget(
-        wrap(AppDialogAction.secondary(label: 'Skip', onTap: () {})),
+        wrap(AppButton.secondary(label: 'Skip', onTap: () {})),
       );
 
       expect(find.text('Skip'), findsOneWidget);
@@ -180,7 +180,7 @@ void main() {
 
     testWidgets('destructive action renders label', (tester) async {
       await tester.pumpWidget(
-        wrap(AppDialogAction.destructive(label: 'Delete', onTap: () {})),
+        wrap(AppButton.destructive(label: 'Delete', onTap: () {})),
       );
 
       expect(find.text('Delete'), findsOneWidget);
@@ -190,7 +190,7 @@ void main() {
       var tapped = false;
       await tester.pumpWidget(
         wrap(
-          AppDialogAction.primary(
+          AppButton.primary(
             label: 'Disabled',
             onTap: () => tapped = true,
             enabled: false,

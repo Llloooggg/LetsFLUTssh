@@ -188,8 +188,8 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
         title: s.deleteSnippet,
         content: Text(s.deleteSnippetConfirm(snippet.title)),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.delete,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -229,7 +229,7 @@ class SnippetManagerDialog extends StatelessWidget {
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 400, child: SnippetManagerPanel()),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 }
@@ -313,8 +313,8 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.save, onTap: _save),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.save, onTap: _save),
       ],
     );
   }

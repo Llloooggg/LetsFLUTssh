@@ -132,8 +132,8 @@ class _ImportPreviewDialogState extends State<ImportPreviewDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(
           label: S.of(context).import_,
           enabled: _options.hasAnySelection,
           onTap: _submit,

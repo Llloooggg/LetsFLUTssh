@@ -342,8 +342,8 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(
           label: s.importData,
           enabled: _hasAnySelection,
           onTap: () => Navigator.pop(context, _buildResult(context)),

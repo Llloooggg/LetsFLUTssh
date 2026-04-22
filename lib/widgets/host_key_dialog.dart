@@ -164,14 +164,14 @@ class _HostKeyDialogWidget extends StatelessWidget {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context, false)),
+        AppButton.cancel(onTap: () => Navigator.pop(context, false)),
         if (isChanged)
-          AppDialogAction.destructive(
+          AppButton.destructive(
             label: S.of(context).acceptAnyway,
             onTap: () => Navigator.pop(context, true),
           )
         else
-          AppDialogAction.primary(
+          AppButton.primary(
             label: S.of(context).accept,
             onTap: () => Navigator.pop(context, true),
           ),

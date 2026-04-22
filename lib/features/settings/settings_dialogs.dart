@@ -155,8 +155,8 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: l10n.export_, onTap: _submit),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: l10n.export_, onTap: _submit),
       ],
     );
   }
@@ -178,8 +178,8 @@ Future<bool> _confirmUnencrypted(BuildContext context) async {
         ),
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+        AppButton.primary(
           label: l10n.continueWithoutPassword,
           onTap: () => Navigator.pop(ctx, true),
         ),
@@ -250,8 +250,8 @@ class _ImportPasswordDialogState extends State<_ImportPasswordDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(
           label: S.of(context).nextStep,
           enabled: widget.passwordCtrl.text.isNotEmpty,
           onTap: _submit,
@@ -308,8 +308,8 @@ class _EnableBiometricDialogState extends State<_EnableBiometricDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: l10n.ok, onTap: _submit),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: l10n.ok, onTap: _submit),
       ],
     );
   }

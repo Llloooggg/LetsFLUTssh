@@ -164,8 +164,8 @@ class _PassphraseDialogWidgetState extends State<_PassphraseDialogWidget> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.unlock, onTap: _submit),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.unlock, onTap: _submit),
       ],
     );
   }

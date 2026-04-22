@@ -64,15 +64,15 @@ class DbCorruptDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        AppDialogAction.secondary(
+        AppButton.secondary(
           label: l10n.dbCorruptExit,
           onTap: () => Navigator.of(context).pop(DbCorruptChoice.exitApp),
         ),
-        AppDialogAction.secondary(
+        AppButton.secondary(
           label: l10n.dbCorruptTryOther,
           onTap: () => Navigator.of(context).pop(DbCorruptChoice.tryOtherTier),
         ),
-        AppDialogAction.destructive(
+        AppButton.destructive(
           label: l10n.dbCorruptResetContinue,
           onTap: () =>
               Navigator.of(context).pop(DbCorruptChoice.resetAndSetupFresh),

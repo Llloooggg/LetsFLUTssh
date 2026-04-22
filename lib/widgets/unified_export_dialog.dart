@@ -200,10 +200,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     ),
                     AppDialogFooter(
                       actions: [
-                        AppDialogAction.cancel(
+                        AppButton.cancel(
                           onTap: () => Navigator.of(context).pop(),
                         ),
-                        AppDialogAction.primary(
+                        AppButton.primary(
                           label: widget.isQrMode
                               ? S.of(context).showQr
                               : S.of(context).export_,

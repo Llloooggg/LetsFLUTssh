@@ -133,11 +133,11 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
         // Manage lives in the footer so it's reachable from both the
         // populated and empty states without duplicating the button.
         if (!_loading)
-          AppDialogAction.secondary(
+          AppButton.secondary(
             label: s.manageTags,
             onTap: _openTagManager,
           ),
-        AppDialogAction.primary(
+        AppButton.primary(
           label: s.close,
           onTap: () => Navigator.pop(context),
         ),

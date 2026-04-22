@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../core/progress/progress_reporter.dart';
 import '../core/shortcut_registry.dart';
-import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/platform.dart';
+import 'app_button.dart';
 import 'app_icon_button.dart';
 import 'app_selection_area.dart';
-import 'hover_region.dart';
+
+// AppButton moved to `app_button.dart` (used outside dialogs too). Keep
+// it re-exported here so the many `import 'app_dialog.dart'` callsites
+// that pair the dialog shell with its footer buttons don't each need a
+// second import line.
+export 'app_button.dart' show AppButton;
 
 // ════════════════════════════════════════════════════════════════════
 //  AppDialog — unified dialog shell
@@ -22,8 +27,8 @@ import 'hover_region.dart';
 /// * Footer bar with action buttons
 ///
 /// For complex dialogs (e.g. with tabs between header and content),
-/// compose from [AppDialogHeader], [AppDialogFooter], and
-/// [AppDialogAction] directly instead.
+/// compose from [AppDialogHeader], [AppDialogFooter], and [AppButton]
+/// directly instead.
 class AppDialog extends StatelessWidget {
   final String title;
   final double maxWidth;
@@ -182,12 +187,12 @@ class AppDialogFooter extends StatelessWidget {
     // "Сгенерировать ключ", German "Passwort generieren", etc.) fall
     // to a second line inside the modal instead of overflowing the
     // right edge. `FittedBox(fit: BoxFit.scaleDown)` inside
-    // `AppDialogAction.build` used to shrink the font to fit; on
-    // narrow modals that produced barely-readable 10-pt labels, and
-    // on very long translations the scaled result still clipped.
-    // Wrapping keeps the button text at its native size and lets the
-    // footer grow vertically instead. `alignment: end` preserves the
-    // desktop convention of primary CTA on the right.
+    // `AppButton.build` used to shrink the font to fit; on narrow
+    // modals that produced barely-readable 10-pt labels, and on very
+    // long translations the scaled result still clipped. Wrapping
+    // keeps the button text at its native size and lets the footer
+    // grow vertically instead. `alignment: end` preserves the desktop
+    // convention of primary CTA on the right.
     return Wrap(
       alignment: WrapAlignment.end,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -214,172 +219,6 @@ class AppDialogFooter extends StatelessWidget {
       for (int i = 0; i < items.length; i++) ...[if (i > 0) spacer, items[i]],
     ];
   }
-}
-
-// ════════════════════════════════════════════════════════════════════
-//  AppDialogAction — button for dialog footers
-// ════════════════════════════════════════════════════════════════════
-
-/// A compact button matching the session-edit dialog style.
-///
-/// Variants:
-/// * **text** — no background, dim text (e.g. Cancel)
-/// * **filled** — colored background (e.g. Save, Connect)
-/// * **destructive** — red background (e.g. Delete)
-class AppDialogAction extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-  final Color? background;
-  final Color? foreground;
-  final bool enabled;
-
-  const AppDialogAction({
-    super.key,
-    required this.label,
-    this.onTap,
-    this.background,
-    this.foreground,
-    this.enabled = true,
-  });
-
-  /// Cancel / dismiss button — no background, dim text.
-  const factory AppDialogAction.cancel({Key? key, VoidCallback? onTap}) =
-      _CancelAction;
-
-  /// Primary action — accent background.
-  factory AppDialogAction.primary({
-    Key? key,
-    required String label,
-    VoidCallback? onTap,
-    bool enabled,
-  }) = _PrimaryAction;
-
-  /// Secondary action — subtle background.
-  factory AppDialogAction.secondary({
-    Key? key,
-    required String label,
-    VoidCallback? onTap,
-    bool enabled,
-  }) = _SecondaryAction;
-
-  /// Destructive action — red background.
-  factory AppDialogAction.destructive({
-    Key? key,
-    required String label,
-    VoidCallback? onTap,
-    bool enabled,
-  }) = _DestructiveAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final mobile = isMobilePlatform;
-    final hasBg = background != null;
-    final effectiveBg = enabled ? background : AppTheme.bg4;
-    final defaultFg = hasBg ? AppTheme.onAccent : AppTheme.fgDim;
-    final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
-
-    final height = mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs;
-    final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg);
-    final fontSize = mobile ? AppFonts.md : AppFonts.sm;
-    final radius = mobile ? AppTheme.radiusMd : BorderRadius.zero;
-
-    return HoverRegion(
-      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onTap: enabled ? onTap : null,
-      builder: (hovered) => Container(
-        constraints: BoxConstraints(minHeight: height),
-        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 6),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: _buttonColor(hasBg, hovered, effectiveBg),
-          borderRadius: radius,
-        ),
-        // `softWrap: true` + `maxLines: 2` so extreme translations
-        // (e.g. Russian "Сгенерировать ключ" on a 320-px mobile
-        // button) break to a second line instead of scale-shrinking
-        // to barely-readable 10-pt. The prior `FittedBox(scaleDown)`
-        // + `maxLines: 1` layout shrank every long label down until
-        // the Cyrillic / German captions were unreadable on narrow
-        // modals; swapping to a wrap-first button keeps the native
-        // font size and grows the button vertically when needed.
-        // `ellipsis` caps the worst outlier at two lines rather
-        // than letting the button unbounded-grow the footer.
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          softWrap: true,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: AppFonts.inter(
-            fontSize: fontSize,
-            fontWeight: hasBg ? FontWeight.w500 : null,
-            color: effectiveFg,
-          ),
-        ),
-      ),
-    );
-  }
-
-  static double _horizontalPadding({
-    required bool mobile,
-    required bool hasBg,
-  }) {
-    if (mobile) return hasBg ? 20.0 : 16.0;
-    return hasBg ? 16.0 : 12.0;
-  }
-
-  Color? _buttonColor(bool hasBg, bool hovered, Color? effectiveBg) {
-    final isHoverActive = hovered && enabled;
-    if (hasBg) {
-      return isHoverActive ? _lighten(effectiveBg!) : effectiveBg;
-    }
-    return isHoverActive ? AppTheme.hover : null;
-  }
-
-  static Color _lighten(Color c) =>
-      Color.lerp(c, const Color(0xFFFFFFFF), 0.08)!;
-}
-
-class _CancelAction extends AppDialogAction {
-  const _CancelAction({super.key, super.onTap})
-    : super(label: '', enabled: true);
-
-  @override
-  Widget build(BuildContext context) {
-    return _CancelActionResolved(label: S.of(context).cancel, onTap: onTap);
-  }
-}
-
-class _CancelActionResolved extends AppDialogAction {
-  const _CancelActionResolved({required super.label, super.onTap})
-    : super(enabled: true);
-}
-
-class _PrimaryAction extends AppDialogAction {
-  _PrimaryAction({
-    super.key,
-    required super.label,
-    super.onTap,
-    super.enabled = true,
-  }) : super(background: AppTheme.accent, foreground: AppTheme.onAccent);
-}
-
-class _SecondaryAction extends AppDialogAction {
-  _SecondaryAction({
-    super.key,
-    required super.label,
-    super.onTap,
-    super.enabled = true,
-  }) : super(background: AppTheme.bg4, foreground: AppTheme.fg);
-}
-
-class _DestructiveAction extends AppDialogAction {
-  _DestructiveAction({
-    super.key,
-    required super.label,
-    super.onTap,
-    super.enabled = true,
-  }) : super(background: AppTheme.disconnected, foreground: AppTheme.onAccent);
 }
 
 // ════════════════════════════════════════════════════════════════════

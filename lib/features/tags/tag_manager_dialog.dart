@@ -146,8 +146,8 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
         title: s.deleteTag,
         content: Text(s.deleteTagConfirm(tag.name)),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx, false)),
-          AppDialogAction.destructive(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
             label: s.delete,
             onTap: () => Navigator.pop(ctx, true),
           ),
@@ -185,7 +185,7 @@ class TagManagerDialog extends StatelessWidget {
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 350, child: TagManagerPanel()),
-      actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(context))],
+      actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }
 }
@@ -248,8 +248,8 @@ class _AddTagDialogState extends State<_AddTagDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.pop(context)),
-        AppDialogAction.primary(label: s.save, onTap: _save),
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.save, onTap: _save),
       ],
     );
   }

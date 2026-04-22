@@ -828,9 +828,9 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Widget _buildFooter() {
     return AppDialogFooter(
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        AppDialogAction.secondary(label: S.of(context).save, onTap: _save),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.secondary(label: S.of(context).save, onTap: _save),
+        AppButton.primary(
           label: S.of(context).saveAndConnect,
           onTap: () => _save(connect: true),
         ),

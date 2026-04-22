@@ -211,11 +211,11 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
             style: TextStyle(color: AppTheme.fg),
           ),
           actions: [
-            AppDialogAction.secondary(
+            AppButton.secondary(
               label: l10n.cancel,
               onTap: () => Navigator.pop(ctx, false),
             ),
-            AppDialogAction.destructive(
+            AppButton.destructive(
               label: l10n.resetAllDataConfirmAction,
               onTap: () => Navigator.pop(ctx, true),
             ),

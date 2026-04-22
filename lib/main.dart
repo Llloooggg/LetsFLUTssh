@@ -301,7 +301,7 @@ void _showGlobalErrorDialog(BuildContext context, Object error) {
           ),
           actions: [
             if (!loggingEnabled)
-              AppDialogAction.secondary(
+              AppButton.secondary(
                 label: 'Enable Logging',
                 onTap: () {
                   AppLogger.instance.setEnabled(true);
@@ -318,7 +318,7 @@ void _showGlobalErrorDialog(BuildContext context, Object error) {
                   );
                 },
               ),
-            AppDialogAction.primary(
+            AppButton.primary(
               label: 'OK',
               onTap: () => Navigator.of(ctx).pop(),
             ),
@@ -1909,8 +1909,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           ],
         ),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.pop(ctx)),
-          AppDialogAction.secondary(
+          AppButton.cancel(onTap: () => Navigator.pop(ctx)),
+          AppButton.secondary(
             label: S.of(ctx).skipThisVersion,
             onTap: () {
               Navigator.pop(ctx);
@@ -1938,7 +1938,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     bool hasAsset,
   ) {
     if (hasAsset) {
-      return AppDialogAction.primary(
+      return AppButton.primary(
         label: S.of(ctx).downloadAndInstall,
         onTap: () {
           Navigator.pop(ctx);
@@ -1946,7 +1946,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         },
       );
     }
-    return AppDialogAction.primary(
+    return AppButton.primary(
       label: S.of(ctx).openInBrowser,
       onTap: () async {
         Navigator.pop(ctx);

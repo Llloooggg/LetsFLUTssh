@@ -110,7 +110,7 @@ class QrDisplayScreen extends StatelessWidget {
         ],
       ),
       actions: [
-        AppDialogAction.primary(
+        AppButton.primary(
           label: S.of(context).copyLink,
           onTap: () {
             Clipboard.setData(ClipboardData(text: data));

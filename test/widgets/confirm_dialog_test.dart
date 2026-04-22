@@ -122,7 +122,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      // Non-destructive uses AppDialogAction.primary (accent bg), not .destructive (red bg)
+      // Non-destructive uses AppButton.primary (accent bg), not .destructive (red bg)
       // Title "Save" + button "Save" = 2
       expect(find.text('Save'), findsNWidgets(2));
       expect(find.text('Cancel'), findsOneWidget);

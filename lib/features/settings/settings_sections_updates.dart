@@ -399,7 +399,7 @@ class _ChangelogButton extends StatelessWidget {
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
             ),
           ),
-          actions: [AppDialogAction.cancel(onTap: () => Navigator.pop(ctx))],
+          actions: [AppButton.cancel(onTap: () => Navigator.pop(ctx))],
         ),
       ),
       icon: const Icon(Icons.article_outlined, size: 18),

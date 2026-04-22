@@ -175,7 +175,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             },
           ),
         ),
-        actions: [AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop())],
+        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
       ),
     );
 
@@ -651,7 +651,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             ),
           ),
         ),
-        actions: [AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop())],
+        actions: [AppButton.cancel(onTap: () => Navigator.of(ctx).pop())],
       ),
     );
 
@@ -1048,8 +1048,8 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        AppDialogAction.primary(
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.primary(
           label: confirmLabel,
           enabled: errorText == null,
           onTap: () => Navigator.of(context).pop(nameCtrl.text),

@@ -321,8 +321,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
         ),
         actions: [
-          AppDialogAction.cancel(onTap: () => Navigator.of(ctx).pop(false)),
-          AppDialogAction.primary(
+          AppButton.cancel(onTap: () => Navigator.of(ctx).pop(false)),
+          AppButton.primary(
             label: S.of(context).exit,
             onTap: () => Navigator.of(ctx).pop(true),
           ),

@@ -169,8 +169,8 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
         ],
       ),
       actions: [
-        AppDialogAction.cancel(onTap: () => Navigator.of(context).pop()),
-        AppDialogAction.primary(label: s.importAction, onTap: _submit),
+        AppButton.cancel(onTap: () => Navigator.of(context).pop()),
+        AppButton.primary(label: s.importAction, onTap: _submit),
       ],
     );
   }

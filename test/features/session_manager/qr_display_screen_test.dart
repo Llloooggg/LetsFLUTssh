@@ -151,7 +151,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The copy action lives in the dialog's action bar as an
-      // AppDialogAction.primary (label-only) — no icon any more.
+      // AppButton.primary (label-only) — no icon any more.
       expect(find.text('Copy Link'), findsOneWidget);
     });
 
