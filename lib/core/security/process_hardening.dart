@@ -56,9 +56,7 @@ class ProcessHardening {
 
   /// Linux/Android: `prctl(PR_SET_DUMPABLE, 0)` — 38 is PR_SET_DUMPABLE.
   static void _prctlNoDumpable() {
-    final libc = DynamicLibrary.open('libc.so.6');
-    // Fallback: Android uses libc.so, not libc.so.6. Try that if the first
-    // open failed implicitly via exception.
+    final libc = _openLibc();
     final prctl = libc
         .lookup<NativeFunction<_PrctlC>>('prctl')
         .asFunction<_PrctlDart>();
@@ -96,9 +94,7 @@ class ProcessHardening {
       // macOS. `struct rlimit { rlim_t rlim_cur; rlim_t rlim_max; }` is
       // two `unsigned long` words on every 64-bit POSIX target shipped.
       const rlimitCore = 4;
-      final libc = Platform.isMacOS
-          ? DynamicLibrary.process()
-          : DynamicLibrary.open('libc.so.6');
+      final libc = Platform.isMacOS ? DynamicLibrary.process() : _openLibc();
       final setrlimit = libc
           .lookup<NativeFunction<_SetRLimitC>>('setrlimit')
           .asFunction<_SetRLimitDart>();
@@ -157,6 +153,22 @@ class ProcessHardening {
 
 typedef _SetErrorModeC = Uint32 Function(Uint32);
 typedef _SetErrorModeDart = int Function(int);
+
+/// Resolve a process-wide libc on Linux **or** Android.
+///
+/// Glibc ships `libc.so.6` (the `.6` is the ABI-version suffix); Bionic
+/// on Android ships `libc.so` with no version suffix. Trying `libc.so.6`
+/// first and falling back to `libc.so` keeps the release binary
+/// portable across both without a compile-time Platform check —
+/// `Platform.isAndroid` would miss ChromeOS/WSL-ish edge cases where
+/// the reverse is true, and the dlopen cost of the miss is negligible.
+DynamicLibrary _openLibc() {
+  try {
+    return DynamicLibrary.open('libc.so.6');
+  } catch (_) {
+    return DynamicLibrary.open('libc.so');
+  }
+}
 
 typedef _PrctlC =
     Int32 Function(
