@@ -409,6 +409,11 @@ class AppConfig {
   /// Sentinel for clearing nullable fields in [copyWith].
   static const _unset = Object();
 
+  /// Non-security preferences copy. Split out from [copyWithSecurity]
+  /// to keep the parameter count below the S107 threshold and to
+  /// encode the two axes the UI actually uses: preference screens
+  /// only ever touch these fields, while the unlock / tier flow
+  /// only ever touches [security] / [securityProbeCache].
   AppConfig copyWith({
     TerminalConfig? terminal,
     SshDefaults? ssh,
@@ -417,8 +422,6 @@ class AppConfig {
     int? transferWorkers,
     int? maxHistory,
     Object? locale = _unset,
-    Object? security = _unset,
-    Object? securityProbeCache = _unset,
   }) {
     return AppConfig(
       terminal: terminal ?? this.terminal,
@@ -428,6 +431,27 @@ class AppConfig {
       transferWorkers: transferWorkers ?? this.transferWorkers,
       maxHistory: maxHistory ?? this.maxHistory,
       locale: identical(locale, _unset) ? this.locale : locale as String?,
+      security: security,
+      securityProbeCache: securityProbeCache,
+    );
+  }
+
+  /// Security-only copy. Pair for [copyWith] — see its docs for why
+  /// the split exists. Either or both fields may be cleared by
+  /// passing `null`; omitting a parameter leaves the current value
+  /// in place.
+  AppConfig copyWithSecurity({
+    Object? security = _unset,
+    Object? securityProbeCache = _unset,
+  }) {
+    return AppConfig(
+      terminal: terminal,
+      ssh: ssh,
+      ui: ui,
+      behavior: behavior,
+      transferWorkers: transferWorkers,
+      maxHistory: maxHistory,
+      locale: locale,
       security: identical(security, _unset)
           ? this.security
           : security as SecurityConfig?,

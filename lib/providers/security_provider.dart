@@ -72,7 +72,7 @@ final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
   // safe direction.
   await ref
       .read(configProvider.notifier)
-      .update((c) => c.copyWith(securityProbeCache: fresh));
+      .update((c) => c.copyWithSecurity(securityProbeCache: fresh));
   return fresh;
 });
 

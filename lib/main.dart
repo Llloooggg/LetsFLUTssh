@@ -1344,7 +1344,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ref.invalidate(keyringProbeDetailProvider);
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(security: null, securityProbeCache: null));
+        .update((c) => c.copyWithSecurity(security: null, securityProbeCache: null));
     // Clear the reset-toast flag before re-entering the security
     // pipeline: the nested `_initSecurity` paths set it in half a
     // dozen places (`legacy-orphan wipe`, `_unlockParanoid`,
@@ -1483,7 +1483,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     ).wipeAll();
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(security: null, securityProbeCache: null));
+        .update((c) => c.copyWithSecurity(security: null, securityProbeCache: null));
     _credentialsWereReset = true;
     _corruptionRetries = 0;
     if (!mounted) return;
@@ -1529,7 +1529,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     final next = SecurityConfig(tier: tier, modifiers: resolved);
     await ref
         .read(configProvider.notifier)
-        .update((cfg) => cfg.copyWith(security: next));
+        .update((cfg) => cfg.copyWithSecurity(security: next));
   }
 
   /// Resolve the biometric prompt reason string synchronously. Kept

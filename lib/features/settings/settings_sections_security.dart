@@ -512,7 +512,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // the new snapshot back to config.
     await ref
         .read(configProvider.notifier)
-        .update((c) => c.copyWith(securityProbeCache: null));
+        .update((c) => c.copyWithSecurity(securityProbeCache: null));
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
@@ -773,7 +773,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         if (existing == next) return;
         await ref
             .read(configProvider.notifier)
-            .update((cfg) => cfg.copyWith(security: next));
+            .update((cfg) => cfg.copyWithSecurity(security: next));
       },
       clearPrevious: () async {
         // Previous-tier cleanup (biometric vault clear, keychain

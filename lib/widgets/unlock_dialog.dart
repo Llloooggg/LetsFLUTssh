@@ -301,7 +301,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     try {
       await ref
           .read(configProvider.notifier)
-          .update((c) => c.copyWith(security: null));
+          .update((c) => c.copyWithSecurity(security: null));
     } catch (e) {
       AppLogger.instance.log(
         'Forgot-password config clear failed: $e',
