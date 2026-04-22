@@ -121,10 +121,21 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
       // Override terminal.onOutput to apply keyboard bar modifiers
       // (Ctrl/Alt) to system keyboard input before sending to shell.
+      //
+      // Encode via `utf8.encode` — `String.codeUnits` returns UTF-16
+      // code units, and `Uint8List.fromList` masks each element to its
+      // low byte, which silently collapses every non-ASCII codepoint
+      // onto the 0x00–0xFF range. On a Russian Gboard long-press the
+      // symptom was Cyrillic letters landing as ASCII punctuation /
+      // digits: U+0430 `а` → 0x30 `0`, U+0440 `р` → 0x40 `@`, and so
+      // on across U+0430..U+044F → 0x30..0x4F. The same truncation
+      // would silently corrupt CJK, Arabic, emoji and every other
+      // non-ASCII script. `utf8.encode` produces the correct
+      // multi-byte sequence the SSH shell expects.
       _terminal.onOutput = (data) {
         final transformed =
             _keyboardKey.currentState?.applyModifiers(data) ?? data;
-        _shellConn?.shell.write(Uint8List.fromList(transformed.codeUnits));
+        _shellConn?.shell.write(Uint8List.fromList(utf8.encode(transformed)));
       };
 
       if (mounted) setState(() {});
