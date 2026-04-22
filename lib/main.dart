@@ -53,7 +53,6 @@ import 'widgets/lfs_import_dialog.dart';
 import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
-import 'widgets/hover_region.dart';
 import 'widgets/toast.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/tools/tools_dialog.dart';
@@ -2518,8 +2517,12 @@ class _Toolbar extends StatelessWidget {
                 ? S.of(context).hideSidebar
                 : S.of(context).showSidebar,
           ),
-        _TextButton(label: S.of(context).tools, onTap: onTools),
-        _TextButton(label: S.of(context).settings, onTap: onSettings),
+        AppButton(label: S.of(context).tools, onTap: onTools, dense: true),
+        AppButton(
+          label: S.of(context).settings,
+          onTap: onSettings,
+          dense: true,
+        ),
         const Spacer(),
         if (isTerminalTab) ...[
           AppIconButton(
@@ -2540,34 +2543,6 @@ class _Toolbar extends StatelessWidget {
 }
 
 /// VS Code-style text button for the toolbar.
-class _TextButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _TextButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    // `HoverRegion` auto-disables selection on its child when a
-    // gesture is bound (see `widgets/hover_region.dart`), so the
-    // toolbar Tools / Settings labels stay outside the ambient
-    // `SelectionArea` without an explicit wrap.
-    return HoverRegion(
-      onTap: onTap,
-      builder: (hovered) => Container(
-        height: AppTheme.controlHeightXs,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        color: hovered ? AppTheme.hover : Colors.transparent,
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-        ),
-      ),
-    );
-  }
-}
-
 /// Minimal app shown when another instance is already running.
 class _AlreadyRunningApp extends StatelessWidget {
   const _AlreadyRunningApp();
@@ -2589,6 +2564,11 @@ class _AlreadyRunningApp extends StatelessWidget {
                 style: TextStyle(fontSize: AppFonts.lg),
               ),
               const SizedBox(height: 24),
+              // `_AlreadyRunningApp` is the bare `MaterialApp` we
+              // raise when another instance is already up — it runs
+              // *before* the main app's `AppTheme` + widget registry
+              // resolve, so `AppButton` isn't reachable here. Keep
+              // the bare `FilledButton` for this exit-dialog only.
               FilledButton(onPressed: () => exit(0), child: const Text('OK')),
             ],
           ),
