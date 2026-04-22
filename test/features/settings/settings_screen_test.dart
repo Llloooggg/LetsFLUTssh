@@ -268,6 +268,7 @@ void main() {
         sessionProvider.overrideWith(
           () => PrePopulatedSessionNotifier(sessionList),
         ),
+        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         secureKeyStorageProvider.overrideWithValue(fakeKeyStorage),
         keyStoreProvider.overrideWithValue(FakeKeyStore([])),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),

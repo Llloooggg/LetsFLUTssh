@@ -68,6 +68,7 @@ void main() {
         sessionProvider.overrideWith(
           () => PrePopulatedSessionNotifier(sessionList),
         ),
+        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
       ],

@@ -38,6 +38,16 @@ class PrePopulatedSessionNotifier extends SessionNotifier {
   }
 }
 
+/// [SessionsLoadingNotifier] that reports "already loaded" on build.
+/// `sessionsLoadingProvider` defaults to `true` for the production
+/// cold-start path — tests that mount `SessionPanel` should include
+/// this override (or its `.overrideWith` shorthand) so the sidebar
+/// paints the tree immediately instead of the blank placeholder.
+class IdleSessionsLoadingNotifier extends SessionsLoadingNotifier {
+  @override
+  bool build() => false;
+}
+
 /// A WorkspaceNotifier that starts with a pre-built state.
 class PrePopulatedWorkspaceNotifier extends WorkspaceNotifier {
   final WorkspaceState _initialState;

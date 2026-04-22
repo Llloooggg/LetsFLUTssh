@@ -120,6 +120,7 @@ void main() {
         overrides: [
           sessionStoreProvider.overrideWithValue(SessionStore()),
           sessionProvider.overrideWith(SessionNotifier.new),
+          sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(
             ConnectionManager(knownHosts: KnownHostsManager()),
@@ -199,6 +200,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -243,6 +247,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -287,6 +294,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -403,6 +413,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -467,6 +480,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -528,6 +544,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -591,6 +610,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -649,6 +671,9 @@ void main() {
             overrides: [
               sessionStoreProvider.overrideWithValue(SessionStore()),
               sessionProvider.overrideWith(SessionNotifier.new),
+              sessionsLoadingProvider.overrideWith(
+                IdleSessionsLoadingNotifier.new,
+              ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
               connectionManagerProvider.overrideWithValue(
                 ConnectionManager(knownHosts: KnownHostsManager()),
@@ -694,6 +719,7 @@ void main() {
           sessionProvider.overrideWith(
             () => PrePopulatedSessionNotifier(store.sessions),
           ),
+          sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
           connectionManagerProvider.overrideWithValue(manager),
         ],
@@ -880,6 +906,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -926,6 +955,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -970,6 +1002,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1016,6 +1051,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1062,6 +1100,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1114,6 +1155,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1151,6 +1195,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1211,6 +1258,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1269,6 +1319,9 @@ void main() {
               sessionStoreProvider.overrideWithValue(SessionStore()),
               sessionProvider.overrideWith(
                 () => PrePopulatedSessionNotifier(sessions),
+              ),
+              sessionsLoadingProvider.overrideWith(
+                IdleSessionsLoadingNotifier.new,
               ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
               connectionManagerProvider.overrideWithValue(
@@ -1333,6 +1386,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1377,6 +1433,9 @@ void main() {
             overrides: [
               sessionStoreProvider.overrideWithValue(SessionStore()),
               sessionProvider.overrideWith(SessionNotifier.new),
+              sessionsLoadingProvider.overrideWith(
+                IdleSessionsLoadingNotifier.new,
+              ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
               connectionManagerProvider.overrideWithValue(
                 ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1419,6 +1478,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1466,6 +1528,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1536,6 +1601,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1597,6 +1665,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1686,6 +1757,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1774,6 +1848,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1832,6 +1909,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1890,6 +1970,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1944,6 +2027,9 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
@@ -1980,6 +2066,5 @@ void main() {
         findsOneWidget,
       );
     });
-
   });
 }

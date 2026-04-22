@@ -70,6 +70,7 @@ void main() {
               ? () => PrePopulatedSessionNotifier(sessions)
               : SessionNotifier.new,
         ),
+        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
         connectionManagerProvider.overrideWithValue(
           ConnectionManager(knownHosts: KnownHostsManager()),
