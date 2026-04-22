@@ -183,9 +183,21 @@ class _CountLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+    // Match the search bar's intrinsic height so the label's baseline
+    // sits on the same visual centerline — Row's `CrossAxisAlignment
+    // .center` centers by *container* height, but a bare `Text` at
+    // xs (~14 px) next to a 28-px `AppDataSearchBar` still reads as
+    // "count floats above the bar" because human eyes compare glyph
+    // centers, not bounding-box centers. Giving the label the same
+    // 28-px slot aligns the baselines and kills the mismatch.
+    return SizedBox(
+      height: AppTheme.controlHeightSm,
+      child: Center(
+        child: Text(
+          text,
+          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim),
+        ),
+      ),
     );
   }
 }
