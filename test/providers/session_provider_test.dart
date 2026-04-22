@@ -283,4 +283,66 @@ void main() {
       expect(tree, isNotEmpty);
     });
   });
+
+  group('SessionsLoadingNotifier', () {
+    test('defaults to loading=true so the cold-start first frame is blank', () {
+      // The sidebar reads this flag to tell "still loading" apart from
+      // "no sessions yet". Defaulting to `true` is what closes the
+      // cold-start "No sessions" flash — flipping the default to
+      // `false` would regress the flash.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(sessionsLoadingProvider), isTrue);
+    });
+
+    test('markIdle flips the flag to false', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(sessionsLoadingProvider.notifier).markIdle();
+      expect(container.read(sessionsLoadingProvider), isFalse);
+    });
+
+    test('markLoading restores the flag after idle', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(sessionsLoadingProvider.notifier).markIdle();
+      container.read(sessionsLoadingProvider.notifier).markLoading();
+      expect(container.read(sessionsLoadingProvider), isTrue);
+    });
+
+    test('SessionNotifier.load clears the loading flag on success', () async {
+      final store = FakeSessionStore();
+      final container = ProviderContainer(
+        overrides: [sessionStoreProvider.overrideWithValue(store)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(sessionsLoadingProvider), isTrue);
+      await container.read(sessionProvider.notifier).load();
+      expect(container.read(sessionsLoadingProvider), isFalse);
+    });
+
+    test(
+      'SessionNotifier.load clears the loading flag even on DB failure',
+      () async {
+        // `load()` swallows + logs the error. The finally block must
+        // still flip the flag — otherwise the sidebar stays blank
+        // forever when the DB cannot be opened.
+        final container = ProviderContainer(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(_ThrowingSessionStore()),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(sessionProvider.notifier).load();
+        expect(container.read(sessionsLoadingProvider), isFalse);
+      },
+    );
+  });
+}
+
+class _ThrowingSessionStore extends FakeSessionStore {
+  @override
+  Future<List<Session>> load() async {
+    throw StateError('simulated DB open failure');
+  }
 }

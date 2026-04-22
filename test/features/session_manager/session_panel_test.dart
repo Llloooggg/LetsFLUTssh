@@ -218,6 +218,49 @@ void main() {
       expect(find.text('No saved sessions'), findsNothing);
       expect(find.text('Staging'), findsOneWidget);
     });
+
+    testWidgets('loading flag hides the empty state on cold start', (
+      tester,
+    ) async {
+      // Regression gate: `sessionsLoadingProvider = true` means the
+      // first DB load is in flight. The sidebar must render a blank
+      // slot, not the "No saved sessions" empty state — otherwise
+      // cold-start flashes "your sessions are gone" before the load
+      // resolves.
+      final tree = SessionTree.build(const []);
+      final store = FakeSessionStore();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStoreProvider.overrideWithValue(store),
+            sessionProvider.overrideWith(
+              () => PrePopulatedSessionNotifier(const []),
+            ),
+            // Default for sessionsLoadingProvider is already `true`,
+            // but state the intent so the test fails loudly if that
+            // default ever changes.
+            sessionsLoadingProvider.overrideWith(SessionsLoadingNotifier.new),
+            sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
+            filteredSessionTreeProvider.overrideWithValue(tree),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 600,
+                child: SessionPanel(onConnect: (_) {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('No saved sessions'), findsNothing);
+      expect(find.text('Add Session'), findsNothing);
+    });
   });
 
   group('SessionPanel — search bar', () {

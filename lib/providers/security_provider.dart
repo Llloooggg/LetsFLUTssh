@@ -26,23 +26,18 @@ final secureKeyStorageProvider = Provider<SecureKeyStorage>(
 /// because the subprocess wrappers target `/usr/bin/openssl`,
 /// `/usr/bin/security`, and `/usr/bin/codesign` which only exist on
 /// macOS. UI code is responsible for gating the provider behind
-/// `Platform.isMacOS` before invoking [ResignService.ensureIdentity]
+/// `plat.isMacosPlatform` before invoking [ResignService.ensureIdentity]
 /// / [ResignService.resignBundle]. Kept here rather than in a
 /// dedicated file so the wizard + settings surfaces that need the
 /// self-sign flow pick it up through the same `security_provider`
 /// module every other tier dependency comes from.
 ///
-/// UI hookup TODO (tracked in `docs/ARCHITECTURE.md §3.6 macOS
-/// self-sign lifecycle`): the first-launch wizard + the Settings →
-/// Security tier card need a macOS-only "Enable Keychain" action
-/// that calls `ensureIdentity()` + `resignBundle(appBundle)` against
-/// the live bundle (`Platform.resolvedExecutable` → walk up twice
-/// to the `.app` root, same pattern as `updateServiceProvider`'s
-/// MacosInstaller adapter). On success the wizard invalidates
-/// `securityCapabilitiesProvider` so T1 re-renders as available.
-/// The button needs fresh localisation entries in every `app_*.arb`
-/// (label + password-prompt prep copy + failure copy) which lands
-/// in a follow-up commit.
+/// Consumers: first-launch pre-prompt in [_offerMacosSelfSign], the
+/// Settings → Security section Enable / Remove identity block, and
+/// the [MacosInstaller] update adapter (re-sign the freshly-copied
+/// bundle during a silent update). See
+/// [docs/ARCHITECTURE.md §3.6 macOS self-sign lifecycle] for the full
+/// flow.
 final resignServiceProvider = Provider<ResignService>(
   (_) => const ResignService(),
 );

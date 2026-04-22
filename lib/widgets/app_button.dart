@@ -114,109 +114,28 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mobile = isMobilePlatform;
-    final hasBg = background != null;
-    final effectiveBg = enabled ? background : AppTheme.bg4;
-    final defaultFg = hasBg ? AppTheme.onAccent : AppTheme.fgDim;
-    final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
-
-    // Dense mode shrinks the touch target on every platform to the
-    // desktop-compact height — mobile's default 48-px target is the
-    // right choice for primary surfaces but reads as "too big" in
-    // toolbars / inline dense lists.
-    final height = dense
-        ? AppTheme.controlHeightXs
-        : (mobile ? AppTheme.barHeightLg : AppTheme.controlHeightXs);
-    final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg, dense: dense);
-    final vPad = dense ? 4.0 : 6.0;
-    final fontSize = (mobile && !dense) ? AppFonts.md : AppFonts.sm;
-    // Every button carries at least a 4-px radius so dense toolbar
-    // buttons (Settings → Check for updates, key-manager toolbar, etc.)
-    // don't render as bare square chips against the rounded inputs /
-    // cards around them. Mobile primary buttons (non-dense) keep the
-    // larger 6-px radius that matches the 44-px tap target. The
-    // previous `BorderRadius.zero` on dense was the "uglhy" read users
-    // called out — it made every dense action button read as an
-    // unstyled placeholder.
-    final radius = (mobile && !dense) ? AppTheme.radiusMd : AppTheme.radiusSm;
-
-    final bool tapActive = enabled && !loading;
-
-    // `softWrap: true` + `maxLines: 2` so extreme translations
-    // (e.g. Russian "Сгенерировать ключ" on a 320-px mobile
-    // button) break to a second line instead of scale-shrinking
-    // to barely-readable 10-pt. The prior `FittedBox(scaleDown)`
-    // + `maxLines: 1` layout shrank every long label down until
-    // the Cyrillic / German captions were unreadable on narrow
-    // modals; swapping to a wrap-first button keeps the native
-    // font size and grows the button vertically when needed.
-    // `ellipsis` caps the worst outlier at two lines rather
-    // than letting the button unbounded-grow the footer.
-    final Widget label0 = Text(
-      label,
-      textAlign: TextAlign.center,
-      softWrap: true,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: AppFonts.inter(
-        fontSize: fontSize,
-        fontWeight: hasBg ? FontWeight.w500 : null,
-        color: effectiveFg,
-      ),
-    );
-
-    // Loading state takes over the leading icon slot — the label
-    // itself stays visible so the user keeps reading "Checking…"
-    // while the spinner animates. Matches the Material
-    // `FilledButton.icon(icon: CircularProgressIndicator)` pattern we
-    // replaced across the app, and avoids the jitter that a
-    // "spinner → spinner+label" swap would create when the async
-    // flow resolves a few hundred ms later.
-    final Widget spinner = SizedBox(
-      width: fontSize,
-      height: fontSize,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
-      ),
-    );
-    final Widget child;
-    if (loading) {
-      child = Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          spinner,
-          SizedBox(width: dense ? 4 : 6),
-          Flexible(child: label0),
-        ],
-      );
-    } else if (icon != null) {
-      child = Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: fontSize + 2, color: effectiveFg),
-          SizedBox(width: dense ? 4 : 6),
-          Flexible(child: label0),
-        ],
-      );
-    } else {
-      child = label0;
-    }
-
+    final style = _resolveStyle();
+    final Widget child = _buildChild(style);
     Widget button = HoverRegion(
-      cursor: tapActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onTap: tapActive ? onTap : null,
+      cursor: style.tapActive
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onTap: style.tapActive ? onTap : null,
       builder: (hovered) => Container(
-        constraints: BoxConstraints(minHeight: height),
-        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+        constraints: BoxConstraints(minHeight: style.height),
+        padding: EdgeInsets.symmetric(
+          horizontal: style.hPad,
+          vertical: style.vPad,
+        ),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: _buttonColor(hasBg, hovered, effectiveBg, tapActive),
-          borderRadius: radius,
+          color: _buttonColor(
+            style.hasBg,
+            hovered,
+            style.effectiveBg,
+            style.tapActive,
+          ),
+          borderRadius: style.radius,
         ),
         child: child,
       ),
@@ -226,6 +145,108 @@ class AppButton extends StatelessWidget {
       button = SizedBox(width: double.infinity, child: button);
     }
     return button;
+  }
+
+  /// Resolve every geometry / colour / state field into a single
+  /// [_AppButtonStyle] bag. Split out of [build] so the main method
+  /// stays at a flat complexity the S3776 cognitive-complexity rule
+  /// accepts (the sequential resolution steps inflate the count
+  /// otherwise) and so the dense / mobile / loading branching lives
+  /// in one place.
+  _AppButtonStyle _resolveStyle() {
+    final mobile = isMobilePlatform;
+    final hasBg = background != null;
+    final effectiveBg = enabled ? background : AppTheme.bg4;
+    final defaultFg = hasBg ? AppTheme.onAccent : AppTheme.fgDim;
+    final effectiveFg = enabled ? (foreground ?? defaultFg) : AppTheme.fgFaint;
+    final double height = _resolveHeight(mobile: mobile);
+    final hPad = _horizontalPadding(mobile: mobile, hasBg: hasBg, dense: dense);
+    final vPad = dense ? 4.0 : 6.0;
+    final fontSize = (mobile && !dense) ? AppFonts.md : AppFonts.sm;
+    // Every button carries at least a 4-px radius so dense toolbar
+    // buttons (Settings → Check for updates, key-manager toolbar, etc.)
+    // don't render as bare square chips against the rounded inputs /
+    // cards around them. Mobile primary buttons (non-dense) keep the
+    // larger 6-px radius that matches the 44-px tap target.
+    final radius = (mobile && !dense) ? AppTheme.radiusMd : AppTheme.radiusSm;
+    return _AppButtonStyle(
+      hasBg: hasBg,
+      effectiveBg: effectiveBg,
+      effectiveFg: effectiveFg,
+      height: height,
+      hPad: hPad,
+      vPad: vPad,
+      fontSize: fontSize,
+      radius: radius,
+      tapActive: enabled && !loading,
+    );
+  }
+
+  /// Dense mode shrinks the touch target on every platform to the
+  /// desktop-compact height — mobile's default 48-px target is the
+  /// right choice for primary surfaces but reads as "too big" in
+  /// toolbars / inline dense lists.
+  double _resolveHeight({required bool mobile}) {
+    if (dense) return AppTheme.controlHeightXs;
+    if (mobile) return AppTheme.barHeightLg;
+    return AppTheme.controlHeightXs;
+  }
+
+  /// Choose the inner child for the button based on loading / icon
+  /// slots. `softWrap: true` + `maxLines: 2` so extreme translations
+  /// (e.g. Russian "Сгенерировать ключ" on a 320-px mobile button)
+  /// break to a second line instead of scale-shrinking to barely-
+  /// readable 10-pt. `ellipsis` caps the worst outlier at two lines
+  /// rather than letting the button unbounded-grow the footer.
+  Widget _buildChild(_AppButtonStyle style) {
+    final Widget label0 = Text(
+      label,
+      textAlign: TextAlign.center,
+      softWrap: true,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: AppFonts.inter(
+        fontSize: style.fontSize,
+        fontWeight: style.hasBg ? FontWeight.w500 : null,
+        color: style.effectiveFg,
+      ),
+    );
+    if (loading) {
+      // Loading takes the leading icon slot — the label itself stays
+      // visible so the user keeps reading "Checking…" while the
+      // spinner animates.
+      return _row(
+        leading: SizedBox(
+          width: style.fontSize,
+          height: style.fontSize,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(style.effectiveFg),
+          ),
+        ),
+        label: label0,
+      );
+    }
+    if (icon != null) {
+      return _row(
+        leading: Icon(icon, size: style.fontSize + 2, color: style.effectiveFg),
+        label: label0,
+      );
+    }
+    return label0;
+  }
+
+  Widget _row({required Widget leading, required Widget label}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        leading,
+        SizedBox(width: dense ? 4 : 6),
+        Flexible(child: label),
+      ],
+    );
   }
 
   static double _horizontalPadding({
@@ -253,6 +274,32 @@ class AppButton extends StatelessWidget {
 
   static Color _lighten(Color c) =>
       Color.lerp(c, const Color(0xFFFFFFFF), 0.08)!;
+}
+
+/// Resolved geometry + colour + state snapshot for one `AppButton.build`
+/// pass. Groups the 9 intermediate locals so `build` stays flat for the
+/// S3776 cognitive-complexity rule.
+class _AppButtonStyle {
+  final bool hasBg;
+  final Color? effectiveBg;
+  final Color effectiveFg;
+  final double height;
+  final double hPad;
+  final double vPad;
+  final double fontSize;
+  final BorderRadius radius;
+  final bool tapActive;
+  const _AppButtonStyle({
+    required this.hasBg,
+    required this.effectiveBg,
+    required this.effectiveFg,
+    required this.height,
+    required this.hPad,
+    required this.vPad,
+    required this.fontSize,
+    required this.radius,
+    required this.tapActive,
+  });
 }
 
 class _CancelAction extends AppButton {

@@ -372,11 +372,13 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
                       // fast enough that the blank slot is
                       // indistinguishable from "still drawing the
                       // first frame".
-                      child: loading
-                          ? const SizedBox.shrink()
-                          : tree.isEmpty
-                          ? _EmptyState(onAdd: () => _addSession(context, ref))
-                          : _buildTreeView(context, ref, tree, mobile),
+                      child: _buildSidebarBody(
+                        context,
+                        ref,
+                        tree,
+                        mobile,
+                        loading,
+                      ),
                     ),
                     if (!mobile)
                       _SessionDetailsPanel(
@@ -393,6 +395,25 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         ),
       ),
     );
+  }
+
+  /// Pick the expanded-body widget for the sidebar slot: a blank
+  /// placeholder while the first DB load is in flight, then either
+  /// the empty-state prompt (no sessions yet) or the actual tree.
+  /// Extracted from `build` so the three-way branch is no longer a
+  /// nested ternary (S3358).
+  Widget _buildSidebarBody(
+    BuildContext context,
+    WidgetRef ref,
+    List<SessionTreeNode> tree,
+    bool mobile,
+    bool loading,
+  ) {
+    if (loading) return const SizedBox.shrink();
+    if (tree.isEmpty) {
+      return _EmptyState(onAdd: () => _addSession(context, ref));
+    }
+    return _buildTreeView(context, ref, tree, mobile);
   }
 
   Session? _focusedSession(WidgetRef ref) {
