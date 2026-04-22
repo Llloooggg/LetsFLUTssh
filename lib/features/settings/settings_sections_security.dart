@@ -629,74 +629,114 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }
 
   Future<void> _applyTierChange(SecuritySetupResult result) async {
-    final keyStorage = ref.read(secureKeyStorageProvider);
-    final gate = ref.read(keychainPasswordGateProvider);
-    final hwVault = ref.read(hardwareTierVaultProvider);
-    final manager = ref.read(masterPasswordProvider);
-    final bioVault = ref.read(biometricKeyVaultProvider);
-
-    final mods = result.modifiers;
     switch (result.tier) {
       case SecurityTier.plaintext:
-        await _applyAlwaysRekey(null, SecurityTier.plaintext, mods);
-        await keyStorage.deleteKey();
-        await gate.clear();
-        await hwVault.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyPlaintextTier(result);
       case SecurityTier.keychain:
-        final key = AesGcm.generateKey();
-        final stored = await keyStorage.writeKey(key);
-        if (!stored) throw StateError('keychain write failed');
-        await _applyAlwaysRekey(key, SecurityTier.keychain, mods);
-        await gate.clear();
-        await hwVault.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyKeychainTier(result);
       case SecurityTier.keychainWithPassword:
-        final short = result.shortPassword;
-        if (short == null || short.isEmpty) {
-          throw StateError('short password missing');
-        }
-        await gate.setPassword(short);
-        final key = AesGcm.generateKey();
-        final stored = await keyStorage.writeKey(key);
-        if (!stored) {
-          await gate.clear();
-          throw StateError('keychain write failed');
-        }
-        await _applyAlwaysRekey(key, SecurityTier.keychainWithPassword, mods);
-        await hwVault.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyKeychainWithPasswordTier(result);
       case SecurityTier.hardware:
-        // Hardware tier now accepts a passwordless seal: when the
-        // wizard returns `pin == null` (user left the password
-        // modifier off for T2) the vault derives an empty auth
-        // value and seals under SE/TPM isolation alone. The
-        // modifiers snapshot `mods.password` stays the source of
-        // truth for later unlock flows, so persisting it alongside
-        // the tier keeps the read side in sync.
-        final key = AesGcm.generateKey();
-        final sealed = await hwVault.store(dbKey: key, pin: result.pin);
-        if (!sealed) throw StateError('hardware seal failed');
-        await _applyAlwaysRekey(key, SecurityTier.hardware, mods);
-        await keyStorage.deleteKey();
-        await gate.clear();
-        if (await manager.isEnabled()) await manager.disable();
-        await bioVault.clear();
+        await _applyHardwareTier(result);
       case SecurityTier.paranoid:
-        final pw = result.masterPassword;
-        if (pw == null || pw.isEmpty) {
-          throw StateError('master password missing');
-        }
-        final key = await manager.enable(pw);
-        await _applyAlwaysRekey(key, SecurityTier.paranoid, mods);
-        await keyStorage.deleteKey();
-        await gate.clear();
-        await hwVault.clear();
-        await bioVault.clear();
+        await _applyParanoidTier(result);
     }
+  }
+
+  Future<void> _applyPlaintextTier(SecuritySetupResult result) async {
+    await _applyAlwaysRekey(null, SecurityTier.plaintext, result.modifiers);
+    await _clearAllTierSecrets();
+  }
+
+  Future<void> _applyKeychainTier(SecuritySetupResult result) async {
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (!stored) throw StateError('keychain write failed');
+    await _applyAlwaysRekey(key, SecurityTier.keychain, result.modifiers);
+    await _clearNonKeychainTierSecrets();
+  }
+
+  Future<void> _applyKeychainWithPasswordTier(
+    SecuritySetupResult result,
+  ) async {
+    final short = result.shortPassword;
+    if (short == null || short.isEmpty) {
+      throw StateError('short password missing');
+    }
+    final keyStorage = ref.read(secureKeyStorageProvider);
+    final gate = ref.read(keychainPasswordGateProvider);
+    await gate.setPassword(short);
+    final key = AesGcm.generateKey();
+    final stored = await keyStorage.writeKey(key);
+    if (!stored) {
+      await gate.clear();
+      throw StateError('keychain write failed');
+    }
+    await _applyAlwaysRekey(
+      key,
+      SecurityTier.keychainWithPassword,
+      result.modifiers,
+    );
+    await ref.read(hardwareTierVaultProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  Future<void> _applyHardwareTier(SecuritySetupResult result) async {
+    // Hardware tier now accepts a passwordless seal: when the
+    // wizard returns `pin == null` (user left the password
+    // modifier off for T2) the vault derives an empty auth value
+    // and seals under SE/TPM isolation alone. The modifiers
+    // snapshot `mods.password` stays the source of truth for
+    // later unlock flows, so persisting it alongside the tier
+    // keeps the read side in sync.
+    final hwVault = ref.read(hardwareTierVaultProvider);
+    final key = AesGcm.generateKey();
+    final sealed = await hwVault.store(dbKey: key, pin: result.pin);
+    if (!sealed) throw StateError('hardware seal failed');
+    await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);
+    await ref.read(secureKeyStorageProvider).deleteKey();
+    await ref.read(keychainPasswordGateProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  Future<void> _applyParanoidTier(SecuritySetupResult result) async {
+    final pw = result.masterPassword;
+    if (pw == null || pw.isEmpty) {
+      throw StateError('master password missing');
+    }
+    final manager = ref.read(masterPasswordProvider);
+    final key = await manager.enable(pw);
+    await _applyAlwaysRekey(key, SecurityTier.paranoid, result.modifiers);
+    await ref.read(secureKeyStorageProvider).deleteKey();
+    await ref.read(keychainPasswordGateProvider).clear();
+    await ref.read(hardwareTierVaultProvider).clear();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  /// Wipe every tier vault — used on T0 (plaintext) switch.
+  Future<void> _clearAllTierSecrets() async {
+    await ref.read(secureKeyStorageProvider).deleteKey();
+    await ref.read(keychainPasswordGateProvider).clear();
+    await ref.read(hardwareTierVaultProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
+  }
+
+  /// Wipe every tier vault *except* the keychain entry — used on T1
+  /// switch where [_applyKeychainTier] has just written a fresh DB
+  /// key into the keychain and must not immediately delete it.
+  Future<void> _clearNonKeychainTierSecrets() async {
+    await ref.read(keychainPasswordGateProvider).clear();
+    await ref.read(hardwareTierVaultProvider).clear();
+    final manager = ref.read(masterPasswordProvider);
+    if (await manager.isEnabled()) await manager.disable();
+    await ref.read(biometricKeyVaultProvider).clear();
   }
 
   /// Rekey the live database under [key] (or convert to plaintext
