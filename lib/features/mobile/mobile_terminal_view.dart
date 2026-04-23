@@ -185,7 +185,22 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     final buf = _terminal.buffer;
     if (buf.lines.length == 0) return;
     final anchor = _evictionAnchor;
-    if (anchor == null || !anchor.attached) {
+    if (anchor == null) {
+      _rebuildEvictionAnchor();
+      return;
+    }
+    if (!anchor.attached) {
+      // The anchor's line was evicted off the front between the last
+      // tick and this one. Minimum evictions since last tick is
+      // `_evictionAnchorYBaseline + 1` — the baseline number needed to
+      // drop anchor.y to 0 plus the eviction that dropped the line
+      // itself. Extra evictions past that are unrecoverable (no
+      // anchor to read), but over-reporting the minimum still keeps
+      // the visible content closer to its pre-burst position than
+      // doing nothing. Burst-sized writes large enough to evict the
+      // mid-buffer anchor in one tick are already extreme (`maxLines`
+      // / 2 lines in one `notifyListeners` call).
+      _compensateScrollForEviction(_evictionAnchorYBaseline + 1);
       _rebuildEvictionAnchor();
       return;
     }
@@ -227,6 +242,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   /// controller has no clients yet (first frame) or when the user is
   /// already pinned to the bottom (xterm's own stick-to-bottom path
   /// covers it).
+  ///
+  /// Uses `ScrollPosition.correctBy` (not `jumpTo`) so the correction
+  /// is silent: it does not notify listeners and does not abort an
+  /// in-flight user drag. xterm's own `_offset.correctBy` uses the
+  /// same primitive on its stick-to-bottom branch; this is the
+  /// mirror path for the scrolled-up case.
   void _compensateScrollForEviction(int evicted) {
     if (!_terminalScrollController.hasClients) return;
     final pos = _terminalScrollController.position;
@@ -235,11 +256,18 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     if (pos.pixels >= pos.maxScrollExtent - 1) return;
     final cellHeight = _fontSize * kTerminalLineHeight;
     if (cellHeight <= 0) return;
-    final desired = (pos.pixels - evicted * cellHeight).clamp(
+    final delta = -evicted * cellHeight;
+    // Clamp the delta so `pos.pixels + delta` stays inside the new
+    // scroll extents. Without the clamp a burst large enough to push
+    // us below `minScrollExtent` would leave the viewport stuck at a
+    // negative offset until the next scroll gesture.
+    final target = (pos.pixels + delta).clamp(
       pos.minScrollExtent,
       pos.maxScrollExtent,
     );
-    _terminalScrollController.jumpTo(desired);
+    final clampedDelta = target - pos.pixels;
+    if (clampedDelta == 0) return;
+    pos.correctBy(clampedDelta);
   }
 
   /// Arm the debounce timer so we update [_appliedKeyboardInset] only
@@ -605,33 +633,49 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           // cursor-pan deltas keep flowing.
           AbsorbPointer(
             absorbing: _copyMode,
-            child: TerminalView(
-              _terminal,
-              controller: _terminalController,
-              scrollController: _terminalScrollController,
-              autofocus: true,
-              backgroundOpacity: 1.0,
-              padding: const EdgeInsets.all(4),
-              theme: AppTheme.terminalTheme,
-              textStyle: TerminalStyle(
-                fontSize: _fontSize,
-                fontFamily: AppFonts.monoFamily,
-                fontFamilyFallback: AppFonts.monoFallback,
+            // Slow-fling physics. xterm 4.0.0's rendering + our
+            // eviction compensator both run during `notifyListeners`
+            // after each `terminal.write`; a fling that outruns that
+            // pipeline lets the user's pixel offset drift across
+            // lines xterm hasn't yet committed, which surfaces as the
+            // "chunk fell out of the middle" artefact other mobile
+            // terminals (Termux et al.) solve the same way — they
+            // artificially slow the scroll. `_MobileTerminalScroll`
+            // extends ClampingScrollPhysics and caps ballistic
+            // velocity + raises friction so the render + compensator
+            // always keep up, at the cost of a slightly less snappy
+            // fling. ScrollConfiguration wires it onto xterm's
+            // internal Scrollable without needing a fork.
+            child: ScrollConfiguration(
+              behavior: const _SlowTerminalScrollBehavior(),
+              child: TerminalView(
+                _terminal,
+                controller: _terminalController,
+                scrollController: _terminalScrollController,
+                autofocus: true,
+                backgroundOpacity: 1.0,
+                padding: const EdgeInsets.all(4),
+                theme: AppTheme.terminalTheme,
+                textStyle: TerminalStyle(
+                  fontSize: _fontSize,
+                  fontFamily: AppFonts.monoFamily,
+                  fontFamilyFallback: AppFonts.monoFallback,
+                ),
+                // xterm's default is `TextInputType.emailAddress`,
+                // which tells Gboard/iOS that the field holds an
+                // email — the IME then surfaces email-specific
+                // helpers (the clipboard/@-symbol pill, auto-suggest
+                // toolbars that wouldn't dismiss with a tap on the
+                // terminal) that users correctly interpreted as
+                // "random popups I can't close". `TextInputType.text`
+                // removes the email hint while still advertising a
+                // text field so IMEs keep full cursor-gesture support;
+                // xterm's own `CustomTextEdit` already disables
+                // autocorrect, suggestions, and IME personalisation
+                // inside its `TextInputConfiguration`, so the field
+                // stays prediction-free regardless.
+                keyboardType: TextInputType.text,
               ),
-              // xterm's default is `TextInputType.emailAddress`, which
-              // tells Gboard/iOS that the field holds an email — the
-              // IME then surfaces email-specific helpers (the
-              // clipboard/@-symbol pill, auto-suggest toolbars that
-              // wouldn't dismiss with a tap on the terminal) that
-              // users correctly interpreted as "random popups I
-              // can't close". `TextInputType.text` removes the
-              // email hint while still advertising a text field so
-              // IMEs keep full cursor-gesture support; xterm's own
-              // `CustomTextEdit` already disables autocorrect,
-              // suggestions, and IME personalisation inside its
-              // `TextInputConfiguration`, so the field stays
-              // prediction-free regardless.
-              keyboardType: TextInputType.text,
             ),
           ),
           Positioned.fill(
@@ -652,5 +696,49 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         ],
       ),
     );
+  }
+}
+
+/// Scroll behaviour that installs [_SlowTerminalScrollPhysics] onto
+/// every descendant `Scrollable` — specifically the one xterm's
+/// `TerminalView` builds internally, which we can't reach with a
+/// direct `physics:` param since xterm 4.0.0 does not expose one.
+class _SlowTerminalScrollBehavior extends MaterialScrollBehavior {
+  const _SlowTerminalScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const _SlowTerminalScrollPhysics();
+}
+
+/// Scroll physics for xterm's mobile viewport. Identical to
+/// [ClampingScrollPhysics] on the drag side; the fling side caps
+/// initial velocity and raises friction so a flick does not outrun
+/// xterm's render + [_MobileTerminalViewState._onTerminalChanged]
+/// eviction compensator. Fast scrolls that hit the uncapped default
+/// were visibly ripping scrollback mid-paste (the "чанк выпадает"
+/// report) because the pixel offset was advancing across rows xterm
+/// hadn't yet committed. Termux et al. mitigate the same race with a
+/// velocity cap; this is the same trick for this project.
+class _SlowTerminalScrollPhysics extends ClampingScrollPhysics {
+  const _SlowTerminalScrollPhysics({super.parent});
+
+  /// Cap for fling velocity in logical pixels per second. Picked at
+  /// ~1 viewport per second on a phone — slow enough that xterm's
+  /// per-line paint keeps up without feeling sluggish on short drags
+  /// (drag velocity is untouched).
+  static const _maxFlingVelocity = 1200.0;
+
+  @override
+  _SlowTerminalScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      _SlowTerminalScrollPhysics(parent: buildParent(ancestor));
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    final clamped = velocity.clamp(-_maxFlingVelocity, _maxFlingVelocity);
+    return super.createBallisticSimulation(position, clamped);
   }
 }
