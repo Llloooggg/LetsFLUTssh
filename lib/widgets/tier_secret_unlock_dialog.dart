@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../core/security/password_rate_limiter.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
@@ -51,6 +52,8 @@ class TierSecretUnlockDialog extends StatefulWidget {
     this.maxLength,
     this.onReset,
     this.rateLimiter,
+    this.biometricUnlock,
+    this.autoTriggerBiometric = true,
   });
 
   final TierSecretUnlockLabels labels;
@@ -73,6 +76,21 @@ class TierSecretUnlockDialog extends StatefulWidget {
   /// button. The caller owns the limiter's lifecycle.
   final PasswordRateLimiter? rateLimiter;
 
+  /// Optional biometric unlock callback. When non-null, the dialog
+  /// auto-fires it on first frame (unless [autoTriggerBiometric] is
+  /// false) and renders a retry button under the Unlock action so
+  /// the user can re-invoke the system biometric prompt without
+  /// relaunching the app. Returns the unwrapped key on success, or
+  /// null on any failure / cancellation / missing prerequisite.
+  final Future<List<int>?> Function()? biometricUnlock;
+
+  /// Whether to auto-fire [biometricUnlock] on first frame. Callers
+  /// that already tried biometrics before opening the dialog (e.g.
+  /// the startup `_unlockKeychainWithPassword` path) pass `false`
+  /// to avoid a double-cancellation loop while keeping the retry
+  /// button reachable from the dialog itself.
+  final bool autoTriggerBiometric;
+
   static Future<List<int>?> show(
     BuildContext context, {
     required TierSecretUnlockLabels labels,
@@ -81,6 +99,8 @@ class TierSecretUnlockDialog extends StatefulWidget {
     int? maxLength,
     Future<void> Function()? onReset,
     PasswordRateLimiter? rateLimiter,
+    Future<List<int>?> Function()? biometricUnlock,
+    bool autoTriggerBiometric = true,
   }) {
     return showDialog<List<int>?>(
       context: context,
@@ -92,6 +112,8 @@ class TierSecretUnlockDialog extends StatefulWidget {
         maxLength: maxLength,
         onReset: onReset,
         rateLimiter: rateLimiter,
+        biometricUnlock: biometricUnlock,
+        autoTriggerBiometric: autoTriggerBiometric,
       ),
     );
   }
@@ -106,6 +128,14 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   bool _busy = false;
   bool _wrong = false;
   bool _obscure = true;
+  bool _biometricInFlight = false;
+
+  /// Null while the initial probe runs, then true when a biometric
+  /// retry button should render, false when the callback is missing
+  /// or the probe failed. Mirrors `UnlockDialog._biometricOffered`
+  /// so the user sees the same two-state button behaviour.
+  bool? _biometricOffered;
+  String? _bioError;
   Timer? _cooldownTicker;
   RateLimitStatus _cooldown = const RateLimitStatus(
     failureCount: 0,
@@ -116,6 +146,54 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   void initState() {
     super.initState();
     _refreshCooldown();
+    if (widget.biometricUnlock != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.autoTriggerBiometric) {
+          _tryBiometric();
+        } else {
+          // Probe so the retry button renders; do not fire the
+          // system prompt — caller already tried once.
+          setState(() => _biometricOffered = true);
+        }
+      });
+    }
+  }
+
+  Future<void> _tryBiometric() async {
+    final cb = widget.biometricUnlock;
+    if (cb == null || _biometricInFlight || _busy) return;
+    if (_cooldown.isLocked) return;
+    _biometricInFlight = true;
+    setState(() {
+      _biometricOffered = true;
+      _bioError = null;
+    });
+    try {
+      final key = await cb();
+      if (!mounted) return;
+      if (key == null) {
+        setState(() {
+          _biometricInFlight = false;
+          _bioError = S.of(context).biometricUnlockCancelled;
+        });
+        _focus.requestFocus();
+        return;
+      }
+      Navigator.of(context).pop(key);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tier-secret dialog biometric unlock threw: $e',
+        name: 'TierSecretUnlockDialog',
+        error: e,
+      );
+      if (!mounted) return;
+      setState(() {
+        _biometricInFlight = false;
+        _bioError = S.of(context).biometricUnlockFailed;
+      });
+      _focus.requestFocus();
+    }
   }
 
   void _refreshCooldown() {
@@ -286,6 +364,17 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     ),
                     const SizedBox(height: 8),
                   ],
+                  if (_bioError != null) ...[
+                    Text(
+                      _bioError!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: AppFonts.sm,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   SecurePasswordField(
                     controller: _ctrl,
                     focusNode: _focus,
@@ -314,7 +403,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  if (_busy) ...[
+                  if (_busy || _biometricInFlight) ...[
                     const SizedBox(
                       width: 20,
                       height: 20,
@@ -326,6 +415,14 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                       fullWidth: true,
                       onTap: _cooldown.isLocked ? null : _submit,
                     ),
+                    if (_biometricOffered == true) ...[
+                      const SizedBox(height: 8),
+                      AppButton(
+                        label: l10n.biometricUnlockTitle,
+                        icon: Icons.fingerprint,
+                        onTap: _cooldown.isLocked ? null : _tryBiometric,
+                      ),
+                    ],
                     if (widget.onReset != null) ...[
                       const SizedBox(height: 12),
                       AppButton(label: l10n.forgotPassword, onTap: _reset),

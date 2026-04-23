@@ -174,34 +174,9 @@ void main() {
     });
   });
 
-  group('CopyModeHint + CopyModeToolbar — Column placement helpers', () {
-    testWidgets(
-      'hint copy swaps between tap-to-start and extending once anchor is set',
-      (tester) async {
-        await tester.pumpWidget(_app(const CopyModeHint(anchorSet: false)));
-        final ctx = tester.element(find.byType(CopyModeHint));
-        expect(find.text(S.of(ctx).copyModeTapToStart), findsOneWidget);
-
-        await tester.pumpWidget(_app(const CopyModeHint(anchorSet: true)));
-        expect(find.text(S.of(ctx).copyModeExtending), findsOneWidget);
-      },
-    );
-
-    testWidgets('toolbar Copy + Cancel fire the right callbacks', (
-      tester,
-    ) async {
-      var copy = 0;
-      var cancel = 0;
-      await tester.pumpWidget(
-        _app(CopyModeToolbar(onCopy: () => copy++, onCancel: () => cancel++)),
-      );
-      await tester.tap(find.text('Copy'));
-      await tester.pump();
-      expect(copy, 1);
-      expect(cancel, 0);
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      expect(cancel, 1);
-    });
-  });
+  // CopyModeHint and CopyModeToolbar were removed: the bar's row
+  // now swaps its own contents between normal keys and copy-mode
+  // content inside the same fixed-height Container, which keeps
+  // the terminal widget a constant size across copy-mode toggles.
+  // Coverage for the swap lives in the SshKeyboardBar test file.
 }

@@ -402,6 +402,27 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         _masterPasswordCtrl.wipeAndClear();
         _masterPasswordConfirmCtrl.wipeAndClear();
         setState(() => _busy = false);
+        // Post-frame sync: after the parent's Apply pipeline has
+        // flushed its `setState` + our build runs, re-read the
+        // applied spec value and snap both `_initial` and
+        // `_pending` to it. `didUpdateWidget` already does this
+        // when `spec.value` transitions, but it only fires on
+        // change — if the value never changed (apply cancelled /
+        // failed / no-op) but local `_pending` diverged from it,
+        // Apply would stay enabled. This guard snaps on every
+        // apply exit, success OR abort, so the card always lands
+        // back on the applied state when the flow unwinds.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final applied = widget.biometricSpec?.value ?? false;
+          if (applied == _initialBiometric && applied == _pendingBiometric) {
+            return;
+          }
+          setState(() {
+            _initialBiometric = applied;
+            _pendingBiometric = applied;
+          });
+        });
       }
     }
   }

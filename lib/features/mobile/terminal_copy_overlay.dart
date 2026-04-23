@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../terminal/cursor_overlay.dart' show kTerminalLineHeight;
 
@@ -282,109 +281,12 @@ class _CursorMarker extends StatelessWidget {
   }
 }
 
-/// Copy-mode hint banner rendered *above* the terminal in the mobile
-/// Column layout so it pushes the terminal down instead of overlaying
-/// its last row. Swaps between "tap to mark start" and "tap to extend"
-/// copy once the user drops an anchor.
-class CopyModeHint extends StatelessWidget {
-  const CopyModeHint({super.key, required this.anchorSet});
-
-  final bool anchorSet;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    final text = anchorSet ? l10n.copyModeExtending : l10n.copyModeTapToStart;
-    return Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      color: AppTheme.bg3,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: AppFonts.sm,
-          color: AppTheme.fg,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-/// Copy-mode action bar (Copy + Cancel). Lives *below* the terminal in
-/// the mobile Column layout so it shrinks the terminal viewport rather
-/// than covering it and butts flush against the SSH keyboard bar / soft
-/// keyboard underneath.
-class CopyModeToolbar extends StatelessWidget {
-  const CopyModeToolbar({
-    super.key,
-    required this.onCopy,
-    required this.onCancel,
-  });
-
-  final VoidCallback onCopy;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: AppTheme.bg3,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _ToolbarButton(icon: Icons.copy, label: l10n.copy, onTap: onCopy),
-          const SizedBox(width: 16),
-          _ToolbarButton(
-            icon: Icons.close,
-            label: l10n.cancel,
-            onTap: onCancel,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToolbarButton extends StatelessWidget {
-  const _ToolbarButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: AppTheme.radiusLg,
-      child: InkWell(
-        canRequestFocus: false,
-        onTap: onTap,
-        borderRadius: AppTheme.radiusLg,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: theme.colorScheme.onSurface),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppFonts.md,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// The former CopyModeHint / CopyModeToolbar helpers were removed: the
+// stable-height layout now swaps the SshKeyboardBar's own row content
+// between a normal-keys variant and a copy-mode variant (hint text +
+// Copy + Cancel) inside the SAME `itemHeightLg` container. Having
+// dedicated banner / toolbar widgets next to the terminal forced the
+// terminal's widget height to change every time copy mode toggled,
+// which was the source of the mid-buffer reshuffle users kept
+// reporting. See `ssh_keyboard_bar._buildCopyModeRow` for the new
+// hint + action surface.

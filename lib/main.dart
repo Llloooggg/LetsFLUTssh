@@ -854,7 +854,36 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
       return;
     }
-    final key = await _showL2UnlockDialog(gate, keyStorage);
+    // Biometric shortcut. If the user opted in and the platform
+    // reports a live sensor + stored vault, try the biometric
+    // prompt FIRST so they never see the password dialog on a
+    // successful unlock. Same pattern as `_unlockParanoid`. Failures
+    // fall through to the password dialog, which also gets an
+    // explicit biometric retry button so the user can re-invoke
+    // the system prompt without relaunching the app.
+    var biometricAttempted = false;
+    final vault = ref.read(biometricKeyVaultProvider);
+    final bio = ref.read(biometricAuthProvider);
+    if (await vault.isStored() && await bio.isAvailable()) {
+      biometricAttempted = true;
+      final bioKey = await _tryBiometricUnlock();
+      if (bioKey != null) {
+        await _injectDatabase(
+          key: bioKey,
+          level: SecurityTier.keychainWithPassword,
+        );
+        AppLogger.instance.log(
+          'L2 keychain+password unlocked via biometrics',
+          name: 'App',
+        );
+        return;
+      }
+    }
+    final key = await _showL2UnlockDialog(
+      gate,
+      keyStorage,
+      autoTriggerBiometric: !biometricAttempted,
+    );
     if (key != null) {
       await _injectDatabase(
         key: Uint8List.fromList(key),
@@ -869,20 +898,27 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
   Future<List<int>?> _showL2UnlockDialog(
     KeychainPasswordGate gate,
-    SecureKeyStorage keyStorage,
-  ) async {
+    SecureKeyStorage keyStorage, {
+    bool autoTriggerBiometric = true,
+  }) async {
     // Resolve the persisted rate limiter before touching any context —
     // keeps the use_build_context_synchronously lint happy.
     final limiter = await gate.rateLimiter();
     if (!mounted) return null;
-    return _showL2DialogSync(gate, keyStorage, limiter);
+    return _showL2DialogSync(
+      gate,
+      keyStorage,
+      limiter,
+      autoTriggerBiometric: autoTriggerBiometric,
+    );
   }
 
   Future<List<int>?> _showL2DialogSync(
     KeychainPasswordGate gate,
     SecureKeyStorage keyStorage,
-    PasswordRateLimiter? limiter,
-  ) {
+    PasswordRateLimiter? limiter, {
+    bool autoTriggerBiometric = true,
+  }) {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
     final l10n = S.of(ctx);
@@ -899,6 +935,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         if (!await gate.verify(password)) return null;
         return keyStorage.readKey();
       },
+      biometricUnlock: _biometricUnlockForTierDialog,
+      autoTriggerBiometric: autoTriggerBiometric,
       onReset: () async {
         await WipeAllService(
           credentialCacheEvict: ref
@@ -915,6 +953,39 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         requestSecurityReinit(ref);
       },
     );
+  }
+
+  /// Biometric-unlock callback shared by both tier-secret dialogs
+  /// (T1+pw and T2+pw). Returns the unwrapped DB key on success,
+  /// `null` on any failure / cancellation / missing prerequisite —
+  /// the dialog surfaces its own error row if the probe fails and
+  /// keeps the password fallback available.
+  Future<List<int>?> _biometricUnlockForTierDialog() async {
+    // Resolve the localized prompt BEFORE any awaits so the
+    // BuildContext does not leak across an async gap. `navigatorKey`
+    // is the root navigator; `currentContext` is safe to read here
+    // because this function is only ever called from a UI event
+    // handler (mount / retry tap) with the app tree still alive.
+    final ctx = navigatorKey.currentContext;
+    final reason = ctx != null
+        ? S.of(ctx).biometricUnlockPrompt
+        : 'Biometric unlock';
+    try {
+      final vault = ref.read(biometricKeyVaultProvider);
+      if (!await vault.isStored()) return null;
+      final bio = ref.read(biometricAuthProvider);
+      if (!await bio.isAvailable()) return null;
+      if (!await bio.authenticate(reason)) return null;
+      final key = await vault.read();
+      return key;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tier-secret dialog biometric unlock failed: $e',
+        name: 'App',
+        error: e,
+      );
+      return null;
+    }
   }
 
   /// L3 (hardware + PIN) unlock: show the PIN pad, call
@@ -963,13 +1034,43 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
       return;
     }
+    // Biometric shortcut for T2+pw — same pattern as T1+pw. The
+    // hardware vault's primary wrap runs silently without Hello, and
+    // the biometric overlay is a separate Hello-gated key we keep
+    // populated when the user opts in; here we skip straight to the
+    // Dart-side biometric-key vault which already holds the unwrapped
+    // DB key on a successful enable. No re-prompt for the T2 password
+    // on the biometric path — that's the whole point.
+    var biometricAttempted = false;
+    final vault2 = ref.read(biometricKeyVaultProvider);
+    final bio = ref.read(biometricAuthProvider);
+    if (await vault2.isStored() && await bio.isAvailable()) {
+      biometricAttempted = true;
+      final bioKey = await _tryBiometricUnlock();
+      if (bioKey != null) {
+        await _injectDatabase(
+          key: bioKey,
+          level: SecurityTier.hardware,
+          modifiers: mods,
+        );
+        AppLogger.instance.log(
+          'L3 hardware-vault unlocked via biometrics',
+          name: 'App',
+        );
+        return;
+      }
+    }
     // `_showL3UnlockDialog` runs DB injection inside its `verify`
     // callback so the dialog's spinner stays visible for the full
     // TPM / Secure Enclave unseal + drift DB open round-trip — on
     // Windows the NCrypt unseal alone takes ~1 s, and the user would
     // otherwise see a frozen screen between dialog pop and the
     // first unlocked-UI frame.
-    final unlocked = await _showL3UnlockDialog(vault, mods);
+    final unlocked = await _showL3UnlockDialog(
+      vault,
+      mods,
+      autoTriggerBiometric: !biometricAttempted,
+    );
     if (unlocked) {
       AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
       return;
@@ -985,8 +1086,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// (user cancelled, wrong password, or chose reset).
   Future<bool> _showL3UnlockDialog(
     HardwareTierVault vault,
-    SecurityTierModifiers? mods,
-  ) async {
+    SecurityTierModifiers? mods, {
+    bool autoTriggerBiometric = true,
+  }) async {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return false;
     final l10n = S.of(ctx);
@@ -1024,6 +1126,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         );
         return unsealed;
       },
+      biometricUnlock: () async {
+        final key = await _biometricUnlockForTierDialog();
+        if (key == null) return null;
+        // Same chain-into-the-await trick as the `verify` path so
+        // the dialog's spinner stays visible across the drift DB
+        // open that follows a successful biometric unlock.
+        await _injectDatabase(
+          key: Uint8List.fromList(key),
+          level: SecurityTier.hardware,
+          modifiers: mods,
+        );
+        return key;
+      },
+      autoTriggerBiometric: autoTriggerBiometric,
       onReset: () async {
         await WipeAllService(
           credentialCacheEvict: ref

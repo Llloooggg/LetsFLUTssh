@@ -285,11 +285,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // extending from the same start point.
     if (_copyMode && _pointers.isEmpty) {
       _copyOverlayKey.currentState?.onAnchorDown();
-      // Force a rebuild so the `CopyModeHint` copy in the parent Column
-      // flips from "tap to start" to "tap to extend" once `anchorSet`
-      // becomes true. `TerminalCopyOverlay` uses a GlobalKey state
-      // lookup, so `setState` on this parent widget re-reads the flag
-      // on the next build.
+      // Force a rebuild so the SSH bar's copy-mode row flips its hint
+      // copy from "tap to start" to "tap to extend" once `anchorSet`
+      // becomes true. `TerminalCopyOverlay` exposes the flag via its
+      // GlobalKey state, and the bar reads it through the `anchorSet`
+      // prop we pass on every build — `setState` here triggers the
+      // re-read.
       if (mounted) setState(() {});
     }
   }
@@ -343,11 +344,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _keyboardKey.currentState?.exitCopyMode();
   }
 
-  void _cancelCopyMode() {
-    HapticFeedback.lightImpact();
-    _keyboardKey.currentState?.exitCopyMode();
-  }
-
   @override
   Widget build(BuildContext context) {
     // React to font size changes from settings slider
@@ -357,124 +353,93 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _fontSize = configFontSize;
     }
 
-    // Layout rationale.
+    // Layout rationale — the stable-height / translate model.
     //
-    // The terminal area's bottom tracks the bar's bottom so the last
-    // rendered terminal row sits **exactly** at the keyboard bar's
-    // top edge. Previously the reservation was fixed (nav-bar +
-    // bar) which kept the terminal a constant height across
-    // keyboard events — that avoided xterm reflow, but pushed
-    // content under the keyboard bar on every keyboard open. Users
-    // pointed out text was getting obscured; the new rule is
-    // "terminal ends where the bar begins". The xterm resize that
-    // results from keyboard open/close is unavoidable — pure
-    // height changes in xterm's buffer `resize` only trim the
-    // bottom, not rewrap the middle, so the visual cost is lines
-    // scrolling into the scrollback, not mid-buffer garbage.
+    // The terminal widget must NEVER change size at runtime. Any
+    // height change propagates into xterm's `Terminal.buffer.resize`,
+    // which reshuffles scrollback lines and has been the root cause
+    // of every "mid-buffer gaps" and "copy-mode-exit breaks scrollback"
+    // report in this file's history. The prior "terminal ends at bar
+    // top" attempt and the "hint as Positioned overlay" attempt each
+    // traded one regression for another. This layout removes the
+    // tradeoff entirely:
     //
-    // Copy-mode hint + toolbar are **overlays** on top of the
-    // terminal rather than Column children — so toggling copy mode
-    // does NOT resize the terminal widget. That avoids the second
-    // user report ("huge middle gaps when entering copy mode with
-    // lots of text"): the gaps were xterm reacting to the layout
-    // shrink from the hint being inserted above the terminal.
-    // With overlays, the first + last visible rows are briefly
-    // covered by the hint / toolbar banners while copy mode is
-    // active — the user can still scroll, and the trade is much
-    // better than mid-buffer artefacts.
+    //   1. MobileShell sets `resizeToAvoidBottomInset: false` for
+    //      this page, so the Scaffold body stays at full viewport
+    //      height when the system keyboard opens. The body's
+    //      `constraints.maxHeight` is therefore stable.
+    //   2. A Column of `[Expanded(terminal), SshKeyboardBar]`
+    //      occupies a fixed-height slot of `bodyH - navBarHeight`
+    //      so the SSH bar always sits above the mobile-shell nav.
+    //      Terminal height inside that Column is constant —
+    //      `bodyH - navBarHeight - barHeight` — regardless of
+    //      keyboard state.
+    //   3. When the keyboard is bigger than the nav bar (the
+    //      common case), the whole Column is translated UP by
+    //      `keyboardInset - navBarHeight` so the bar sits flush
+    //      against the keyboard's top edge. A `ClipRect` above
+    //      clips the Column's top overflow so translated rows
+    //      don't paint over the mobile-shell AppBar. Terminal
+    //      widget size is untouched — only its on-screen position
+    //      changes.
+    //   4. Copy mode swaps the bar's *contents* in place (same
+    //      `itemHeightLg` Container). The hint copy + Copy/Cancel
+    //      buttons render INSIDE the bar's row; there is no
+    //      separate banner over the terminal's first row, no
+    //      second toolbar shifting the terminal's size. Users get
+    //      the hint without losing any terminal rows.
+    //
+    // With this model `TerminalView` only ever calls `buffer.resize`
+    // at mount (initial layout) — never on keyboard open/close, never
+    // on copy-mode toggle, never on orientation change within the
+    // same body height. The only remaining resize trigger is actual
+    // rotation (body size really does change), which is unavoidable.
     final mq = MediaQuery.of(context);
     final keyboardInset = mq.viewInsets.bottom;
-    // Bottom nav bar (MobileShell) sits at the very bottom of the
-    // viewport. MobileShell turns on `extendBody: true` for the
-    // terminal page so this MobileTerminalView renders under the nav
-    // bar — that's why the bar's `bottom` offset must clamp to
-    // `navBarHeight` when the keyboard is closed (so the bar sits
-    // above the nav, not behind it) and follow `keyboardInset` when
-    // the keyboard covers both nav and lower content.
     const navBarHeight = AppTheme.itemHeightXl;
-    final barBottom = math.max(navBarHeight, keyboardInset);
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
-    // Terminal reservation = barBottom + barHeight. Keeps the last
-    // rendered row at the bar's top, regardless of keyboard state.
-    // Copy-mode toolbar adds its own slot only when visible so the
-    // bar+toolbar stack stays flush with the terminal edge.
-    final bottomStripHeight =
-        barBottom +
-        AppTheme.itemHeightXl +
-        (_copyMode ? _copyToolbarHeight : 0);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Terminal: bottom pinned to `bottomStripHeight` which tracks
-        // the keyboard. `SelectionContainer.disabled` opts the area
-        // out of any ancestor `SelectionArea` so taps on xterm cannot
-        // trigger a system text-selection toolbar.
-        Positioned(
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: bottomStripHeight,
-          child: SelectionContainer.disabled(child: _buildTerminalArea()),
-        ),
-        // Copy-mode hint — overlay at the top of the terminal when
-        // active. Rendered as a `Positioned` rather than a Column
-        // child so entering copy mode doesn't resize the terminal
-        // widget (which would trigger xterm buffer.resize, the
-        // source of the "huge middle gaps when entering copy mode
-        // with a full screen of text" report). Hint covers the top
-        // row while copy mode is live — acceptable: user is aiming
-        // the virtual cursor, not reading the covered row.
-        if (_copyMode)
-          Positioned(
-            left: 0,
-            top: 0,
-            right: 0,
-            child: SelectionContainer.disabled(
-              child: CopyModeHint(anchorSet: anchorSet),
-            ),
-          ),
-        // Bottom control strip — floats above the soft keyboard via
-        // `viewInsets.bottom`, clamped to `navBarHeight` so it stays
-        // above the mobile shell's bottom nav bar when the keyboard is
-        // closed. Copy toolbar stacks on top of the SSH keyboard bar
-        // when copy mode is active; otherwise just the keyboard bar.
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: barBottom,
-          child: SelectionContainer.disabled(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_copyMode)
-                  SizedBox(
-                    height: _copyToolbarHeight,
-                    child: CopyModeToolbar(
-                      onCopy: _copyFromOverlay,
-                      onCancel: _cancelCopyMode,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bodyH = constraints.maxHeight;
+        final stackH = math.max(0.0, bodyH - navBarHeight);
+        // Distance to push the whole stack up so the bar sits flush
+        // with the keyboard top. Zero when the keyboard is hidden or
+        // smaller than the nav bar (the nav-bar clamp already covers
+        // that visually).
+        final translateUp = math.max(0.0, keyboardInset - navBarHeight);
+        return ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: navBarHeight + translateUp,
+                height: stackH,
+                child: SelectionContainer.disabled(
+                  child: Column(
+                    children: [
+                      Expanded(child: _buildTerminalArea()),
+                      SshKeyboardBar(
+                        key: _keyboardKey,
+                        onInput: _onKeyboardInput,
+                        onPaste: _paste,
+                        onSnippets: _showSnippets,
+                        onCopyModeChanged: _onCopyModeChanged,
+                        onCopyPressed: _copyFromOverlay,
+                        anchorSet: anchorSet,
+                      ),
+                    ],
                   ),
-                SshKeyboardBar(
-                  key: _keyboardKey,
-                  onInput: _onKeyboardInput,
-                  onPaste: _paste,
-                  onSnippets: _showSnippets,
-                  onCopyModeChanged: _onCopyModeChanged,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
-
-  /// Fixed height for the copy-mode toolbar slot. Matches the Material
-  /// 48-dp tap-target grid and the `itemHeightLg` theme constant used by
-  /// other inline action rows, so the bottom strip lines up with the SSH
-  /// keyboard bar's button row.
-  static const double _copyToolbarHeight = AppTheme.itemHeightLg;
 
   Widget _buildTerminalArea() {
     // xterm's `TerminalView` paints whole cells only — its viewport

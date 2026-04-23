@@ -845,24 +845,17 @@ void main() {
 
       expect(controller.suspendedPointerInputs, isFalse);
 
-      // Once copy mode is active, the overlay surfaces its own `Icons.copy`
-      // button (the clipboard action inside the copy toolbar), so a bare
-      // `find.byIcon(Icons.copy)` matches two widgets. Scope the finder to
-      // the keyboard bar — that one is the mode toggle, present in both
-      // states, and the test only cares about flipping it.
-      final toggleCopyButton = find.descendant(
-        of: find.byType(SshKeyboardBar),
-        matching: find.byIcon(Icons.copy),
-      );
-
-      // Tap select button
-      await tester.tap(toggleCopyButton);
+      // Enter copy mode via the Copy icon in the normal bar row.
+      await tester.tap(find.byIcon(Icons.copy));
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isTrue);
 
-      // Tap again to deactivate
-      await tester.tap(toggleCopyButton);
+      // Exit via the Cancel (close) icon that the bar swaps in for
+      // its copy-mode content — Icons.copy in this state is the Copy
+      // action, not a toggle, so tapping it would fire onCopyPressed
+      // instead of leaving copy mode.
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isFalse);
@@ -897,13 +890,12 @@ void main() {
       await tester.tap(find.byIcon(Icons.copy));
       await tester.pumpAndSettle();
 
-      // Overlay mounts with its toolbar. Two "Copy" strings are expected:
-      // one from the keyboard-bar tooltip stays out of the tree (tooltips
-      // are not rendered until hovered), so the text we see is the
-      // overlay's own Copy button.
+      // Overlay mounts; the SSH bar's row swaps to copy-mode content
+      // with a hint + Copy + Cancel actions (icons only, no labels).
+      // The Copy action is `Icons.copy`, Cancel is `Icons.close`.
       expect(find.byType(TerminalCopyOverlay), findsOneWidget);
-      expect(find.text('Copy'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
     });
 
     testWidgets('tapping overlay Cancel exits copy mode', (tester) async {
@@ -927,7 +919,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TerminalCopyOverlay), findsOneWidget);
 
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
       expect(find.byType(TerminalCopyOverlay), findsNothing);
     });
@@ -1078,7 +1070,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(guard().absorbing, isTrue);
 
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
       expect(guard().absorbing, isFalse);
     });
