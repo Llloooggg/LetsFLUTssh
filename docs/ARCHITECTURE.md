@@ -300,8 +300,8 @@ class KnownHostsManager {
   Future<void> removeHost(String hostPort);
   Future<void> removeMultiple(Set<String> hostPorts);
   Future<void> clearAll();
-  Future<int> importFromFile(String path);  // merge from OpenSSH file, returns added count
-  String exportToString();                  // serialize to OpenSSH format
+  Future<int> importFromFile(String path);  // merge entries, returns added count
+  String exportToString();                  // serialize to LetsFLUTssh wire format
 
   // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
   // Write lock: _withWriteLock() serializes file writes via chained futures.
@@ -455,7 +455,7 @@ JSON → deflate → base64url. Top-level keys:
 | `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId |
 | `eg` | `List<String>` | Empty folder paths |
 | `c` | `Map` | App config JSON |
-| `kh` | `String` | Known hosts (OpenSSH format) |
+| `kh` | `String` | Known hosts, LetsFLUTssh wire format (`host:port keytype base64key`, one per line — round-trips through `KnownHostsManager.importFromString/exportToString`; NOT OpenSSH `~/.ssh/known_hosts`) |
 | `tg` | `List<{i, n, cl?}>` | Tags (id, name, optional color) |
 | `st` | `List<{si, ti}>` | Session→tag links |
 | `ft` | `List<{fi, ti}>` | Folder→tag links (folderPath, tagId) |
@@ -1650,7 +1650,7 @@ payload = ZIP archive:
   empty_folders.json      ← list of empty folder paths
   keys.json               ← manager SSH keys (label, type, public/private key)
   config.json             ← app configuration
-  known_hosts             ← TOFU host key database (OpenSSH format)
+  known_hosts             ← TOFU host key database (LetsFLUTssh wire format, not real OpenSSH)
   tags.json               ← tag definitions (id, name, color)
   session_tags.json       ← session→tag assignments
   folder_tags.json        ← folder→tag assignments

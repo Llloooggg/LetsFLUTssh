@@ -359,7 +359,7 @@ void main() {
       expect(manager.count, 2);
     });
 
-    test('exportToString produces OpenSSH format', () async {
+    test('exportToString produces the LetsFLUTssh wire format', () async {
       manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();
       await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
@@ -368,6 +368,28 @@ void main() {
       final exported = await manager.exportToString();
       expect(exported, contains('alpha.com:22 ssh-rsa'));
       expect(exported, contains('beta.com:2222 ssh-ed25519'));
+    });
+
+    test('export → import round-trip preserves every entry verbatim', () async {
+      // Pins the wire-format symmetry that `.lfs` archive import
+      // relies on: whatever `exportToString` writes, `importFromString`
+      // must read back into the same (hostPort → keyString) pairs. A
+      // drift in either end would silently corrupt every user's TOFU
+      // history the next time they round-tripped an archive.
+      manager.onUnknownHost = (_, _, _, _) async => true;
+      await manager.load();
+      await manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2, 3]);
+      await manager.verify('beta.com', 2222, 'ssh-ed25519', [4, 5, 6]);
+
+      final wire = await manager.exportToString();
+
+      final fresh = KnownHostsManager()..setDatabase(openTestDatabase());
+      await fresh.load();
+      final added = await fresh.importFromString(wire);
+
+      expect(added, 2);
+      expect(fresh.entries['alpha.com:22'], manager.entries['alpha.com:22']);
+      expect(fresh.entries['beta.com:2222'], manager.entries['beta.com:2222']);
     });
 
     test(

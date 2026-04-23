@@ -306,7 +306,7 @@ class KnownHostsManager {
     AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
   });
 
-  /// Import entries from an OpenSSH-format known_hosts file.
+  /// Import entries from a LetsFLUTssh-format known_hosts file.
   ///
   /// Returns the number of new entries added (existing hosts are skipped).
   Future<int> importFromFile(String path) async {
@@ -316,7 +316,17 @@ class KnownHostsManager {
     return importFromString(content);
   }
 
-  /// Import entries from an OpenSSH-format known_hosts string.
+  /// Import entries from a LetsFLUTssh-format known_hosts string.
+  ///
+  /// Format is space-separated `host:port keytype base64key`, one entry
+  /// per line. Blank lines and `#`-prefixed comments are skipped. This
+  /// is NOT the OpenSSH `~/.ssh/known_hosts` wire format — real
+  /// OpenSSH uses `host` (port 22) or `[host]:port` for non-default
+  /// ports, supports hashed hostnames, comma-separated host aliases,
+  /// and `@cert-authority` / `@revoked` markers, none of which this
+  /// parser understands. The format exists purely for round-tripping
+  /// through our own `.lfs` archive export; paired with
+  /// [exportToString] below.
   ///
   /// Returns the number of new entries added (existing hosts are skipped).
   Future<int> importFromString(String content) => _serializeWrite(() async {
@@ -355,8 +365,14 @@ class KnownHostsManager {
     );
   }
 
-  /// Export all entries to OpenSSH known_hosts format.
-  /// Export all known hosts to OpenSSH format.
+  /// Export all entries to the LetsFLUTssh known_hosts wire format.
+  ///
+  /// Emits `host:port keytype base64key`, one entry per line —
+  /// symmetric with [importFromString] above. This is NOT real
+  /// OpenSSH format (that would be `host` / `[host]:port` with
+  /// brackets for non-default ports); the format is private to the
+  /// `.lfs` archive round-trip so the exporter stays a single
+  /// trivial line.
   ///
   /// Ensures the in-memory cache is hydrated first: callers that export
   /// before any `verify()` / known-hosts-UI interaction in this session
