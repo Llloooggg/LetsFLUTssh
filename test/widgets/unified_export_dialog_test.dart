@@ -210,7 +210,7 @@ void main() {
         expect(checkboxFor('App Settings').value, isFalse);
         expect(checkboxFor('Session passwords').value, isTrue);
         expect(checkboxFor('Session keys').value, isFalse);
-        expect(checkboxFor('Session SSH keys').value, isFalse);
+        expect(checkboxFor('Session keys (manager)').value, isFalse);
         expect(checkboxFor('All manager keys').value, isFalse);
         expect(checkboxFor('Known Hosts').value, isFalse);
         expect(checkboxFor('Tags').value, isTrue);
@@ -785,7 +785,7 @@ void main() {
           // SSH keys → flips includeManagerKeys to true, clears all-keys.
           await tester.tap(find.text('What to export:'));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Session SSH keys'));
+          await tester.tap(find.text('Session keys (manager)'));
           await tester.pump();
           await tester.tap(find.text('Export'));
           await tester.pumpAndSettle();

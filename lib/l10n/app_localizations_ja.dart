@@ -2474,7 +2474,7 @@ class SJa extends S {
   String get presetCustom => 'カスタム';
 
   @override
-  String get sessionSshKeys => 'セッションの SSH 鍵';
+  String get sessionSshKeys => 'セッション鍵 (マネージャー)';
 
   @override
   String get allManagerKeys => 'マネージャーのすべての鍵';

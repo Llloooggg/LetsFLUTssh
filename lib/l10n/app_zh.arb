@@ -649,7 +649,7 @@
   "presetFullImport": "完整导入",
   "presetSelective": "选择性",
   "presetCustom": "自定义",
-  "sessionSshKeys": "会话 SSH 密钥",
+  "sessionSshKeys": "会话密钥 (管理器)",
   "allManagerKeys": "管理器中的所有密钥",
   "languageSubtitle": "界面语言",
   "themeSubtitle": "深色、浅色或跟随系统",

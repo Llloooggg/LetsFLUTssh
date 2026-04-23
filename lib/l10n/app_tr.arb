@@ -649,7 +649,7 @@
   "presetFullImport": "Tam içe aktarma",
   "presetSelective": "Seçici",
   "presetCustom": "Özel",
-  "sessionSshKeys": "Oturum SSH anahtarları",
+  "sessionSshKeys": "Oturum anahtarları (yönetici)",
   "allManagerKeys": "Tüm yönetici anahtarları",
   "languageSubtitle": "Arayüz dili",
   "themeSubtitle": "Koyu, açık veya sistemle uyumlu",

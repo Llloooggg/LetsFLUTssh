@@ -2561,7 +2561,7 @@ class STr extends S {
   String get presetCustom => 'Özel';
 
   @override
-  String get sessionSshKeys => 'Oturum SSH anahtarları';
+  String get sessionSshKeys => 'Oturum anahtarları (yönetici)';
 
   @override
   String get allManagerKeys => 'Tüm yönetici anahtarları';

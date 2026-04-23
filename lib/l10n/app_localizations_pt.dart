@@ -2566,7 +2566,7 @@ class SPt extends S {
   String get presetCustom => 'Personalizado';
 
   @override
-  String get sessionSshKeys => 'Chaves SSH da sessão';
+  String get sessionSshKeys => 'Chaves de sessão (gerenciador)';
 
   @override
   String get allManagerKeys => 'Todas as chaves do gerenciador';

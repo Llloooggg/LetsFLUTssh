@@ -4482,7 +4482,7 @@ abstract class S {
   /// No description provided for @sessionSshKeys.
   ///
   /// In en, this message translates to:
-  /// **'Session SSH keys'**
+  /// **'Session keys (manager)'**
   String get sessionSshKeys;
 
   /// No description provided for @allManagerKeys.

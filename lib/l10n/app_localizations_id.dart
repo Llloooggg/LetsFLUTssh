@@ -2558,7 +2558,7 @@ class SId extends S {
   String get presetCustom => 'Kustom';
 
   @override
-  String get sessionSshKeys => 'Kunci SSH sesi';
+  String get sessionSshKeys => 'Kunci sesi (pengelola)';
 
   @override
   String get allManagerKeys => 'Semua kunci di pengelola';

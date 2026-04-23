@@ -649,7 +649,7 @@
   "presetFullImport": "Impor lengkap",
   "presetSelective": "Selektif",
   "presetCustom": "Kustom",
-  "sessionSshKeys": "Kunci SSH sesi",
+  "sessionSshKeys": "Kunci sesi (pengelola)",
   "allManagerKeys": "Semua kunci di pengelola",
   "languageSubtitle": "Bahasa antarmuka",
   "themeSubtitle": "Gelap, terang, atau mengikuti sistem",

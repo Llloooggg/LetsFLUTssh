@@ -2539,7 +2539,7 @@ class SVi extends S {
   String get presetCustom => 'Tùy chỉnh';
 
   @override
-  String get sessionSshKeys => 'Khóa SSH của phiên';
+  String get sessionSshKeys => 'Khóa phiên (trình quản lý)';
 
   @override
   String get allManagerKeys => 'Tất cả khóa trong trình quản lý';

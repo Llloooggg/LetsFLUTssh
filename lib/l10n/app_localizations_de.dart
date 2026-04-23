@@ -2579,7 +2579,7 @@ class SDe extends S {
   String get presetCustom => 'Benutzerdefiniert';
 
   @override
-  String get sessionSshKeys => 'SSH-Schlüssel der Sitzung';
+  String get sessionSshKeys => 'Sitzungsschlüssel (Manager)';
 
   @override
   String get allManagerKeys => 'Alle Manager-Schlüssel';

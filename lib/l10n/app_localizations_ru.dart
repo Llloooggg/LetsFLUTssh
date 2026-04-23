@@ -2570,7 +2570,7 @@ class SRu extends S {
   String get presetCustom => 'Настраиваемый';
 
   @override
-  String get sessionSshKeys => 'SSH-ключи сессий';
+  String get sessionSshKeys => 'Ключи сессий (из менеджера)';
 
   @override
   String get allManagerKeys => 'Все ключи из менеджера';

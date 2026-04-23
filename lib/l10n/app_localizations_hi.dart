@@ -2553,7 +2553,7 @@ class SHi extends S {
   String get presetCustom => 'कस्टम';
 
   @override
-  String get sessionSshKeys => 'सत्र की SSH कुंजियाँ';
+  String get sessionSshKeys => 'सत्र कुंजियाँ (मैनेजर)';
 
   @override
   String get allManagerKeys => 'प्रबंधक की सभी कुंजियाँ';

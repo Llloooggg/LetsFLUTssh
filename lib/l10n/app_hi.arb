@@ -649,7 +649,7 @@
   "presetFullImport": "पूर्ण आयात",
   "presetSelective": "चयनात्मक",
   "presetCustom": "कस्टम",
-  "sessionSshKeys": "सत्र की SSH कुंजियाँ",
+  "sessionSshKeys": "सत्र कुंजियाँ (मैनेजर)",
   "allManagerKeys": "प्रबंधक की सभी कुंजियाँ",
   "languageSubtitle": "इंटरफ़ेस की भाषा",
   "themeSubtitle": "डार्क, लाइट या सिस्टम के अनुसार",

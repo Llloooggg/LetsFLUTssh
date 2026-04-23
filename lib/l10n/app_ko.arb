@@ -649,7 +649,7 @@
   "presetFullImport": "전체 가져오기",
   "presetSelective": "선택적",
   "presetCustom": "사용자 지정",
-  "sessionSshKeys": "세션 SSH 키",
+  "sessionSshKeys": "세션 키 (매니저)",
   "allManagerKeys": "모든 관리자 키",
   "languageSubtitle": "인터페이스 언어",
   "themeSubtitle": "다크, 라이트 또는 시스템 따라가기",

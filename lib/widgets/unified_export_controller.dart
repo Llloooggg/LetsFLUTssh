@@ -114,8 +114,20 @@ class UnifiedExportController extends ChangeNotifier {
       (_options.includeSnippets && data.snippets.isNotEmpty);
 
   ExportPreset get activePreset {
-    if (_isPresetActive(_fullBackupPreset)) return ExportPreset.fullBackup;
-    if (_isPresetActive(_sessionsPreset)) return ExportPreset.sessions;
+    // In QR mode the Full-backup / Sessions presets default their
+    // key toggles (embedded + manager) to *off* because QR payloads
+    // are sharply size-limited and keys bloat them. Match either
+    // the file-mode or QR-mode variant for each preset so the
+    // active-chip highlight tracks the user's current selection
+    // regardless of which mode they last switched.
+    if (_isPresetActive(_fullBackupPreset) ||
+        _isPresetActive(_fullBackupPresetQr)) {
+      return ExportPreset.fullBackup;
+    }
+    if (_isPresetActive(_sessionsPreset) ||
+        _isPresetActive(_sessionsPresetQr)) {
+      return ExportPreset.sessions;
+    }
     return ExportPreset.custom;
   }
 
@@ -520,7 +532,7 @@ class UnifiedExportController extends ChangeNotifier {
 
   void applyFullBackupPreset() {
     _invalidatePayloadCache();
-    _options = _fullBackupPreset;
+    _options = isQrMode ? _fullBackupPresetQr : _fullBackupPreset;
     _selectedIds.addAll(data.sessions.map((s) => s.id));
     notifyListeners();
   }
@@ -529,7 +541,7 @@ class UnifiedExportController extends ChangeNotifier {
   /// chip re-selects all so the highlight matches the chip's meaning.
   void applySessionsPreset() {
     _invalidatePayloadCache();
-    _options = _sessionsPreset;
+    _options = isQrMode ? _sessionsPresetQr : _sessionsPreset;
     _selectedIds.addAll(data.sessions.map((s) => s.id));
     notifyListeners();
   }
@@ -616,6 +628,35 @@ class UnifiedExportController extends ChangeNotifier {
     includePasswords: true,
     includeEmbeddedKeys: true,
     includeManagerKeys: true,
+    includeTags: true,
+    includeSnippets: true,
+  );
+
+  /// QR-mode variants of the presets. SSH keys (both the embedded
+  /// per-session slot and the manager-pulled slot) are off by default
+  /// because QR payloads have a hard size ceiling and a single
+  /// 4096-bit RSA key alone blows past it. Users who explicitly want
+  /// keys over a QR scan toggle them on individually; the chip-level
+  /// "Full backup" / "Sessions" one-click preset no longer ships them
+  /// pre-selected in QR mode.
+  static const _fullBackupPresetQr = ExportOptions(
+    includeSessions: true,
+    includeConfig: true,
+    includeKnownHosts: true,
+    includePasswords: true,
+    includeEmbeddedKeys: false,
+    includeAllManagerKeys: false,
+    includeTags: true,
+    includeSnippets: true,
+  );
+
+  static const _sessionsPresetQr = ExportOptions(
+    includeSessions: true,
+    includeConfig: false,
+    includeKnownHosts: false,
+    includePasswords: true,
+    includeEmbeddedKeys: false,
+    includeManagerKeys: false,
     includeTags: true,
     includeSnippets: true,
   );

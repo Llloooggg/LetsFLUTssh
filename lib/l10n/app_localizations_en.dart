@@ -2542,7 +2542,7 @@ class SEn extends S {
   String get presetCustom => 'Custom';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Session keys (manager)';
 
   @override
   String get allManagerKeys => 'All manager keys';

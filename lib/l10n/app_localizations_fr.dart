@@ -2586,7 +2586,7 @@ class SFr extends S {
   String get presetCustom => 'Personnalisé';
 
   @override
-  String get sessionSshKeys => 'Clés SSH de la session';
+  String get sessionSshKeys => 'Clés de session (gestionnaire)';
 
   @override
   String get allManagerKeys => 'Toutes les clés du gestionnaire';

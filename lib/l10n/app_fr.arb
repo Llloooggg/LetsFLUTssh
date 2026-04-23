@@ -649,7 +649,7 @@
   "presetFullImport": "Import complet",
   "presetSelective": "Sélectif",
   "presetCustom": "Personnalisé",
-  "sessionSshKeys": "Clés SSH de la session",
+  "sessionSshKeys": "Clés de session (gestionnaire)",
   "allManagerKeys": "Toutes les clés du gestionnaire",
   "languageSubtitle": "Langue de l'interface",
   "themeSubtitle": "Sombre, clair ou suivre le système",

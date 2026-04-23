@@ -2472,7 +2472,7 @@ class SKo extends S {
   String get presetCustom => '사용자 지정';
 
   @override
-  String get sessionSshKeys => '세션 SSH 키';
+  String get sessionSshKeys => '세션 키 (매니저)';
 
   @override
   String get allManagerKeys => '모든 관리자 키';
