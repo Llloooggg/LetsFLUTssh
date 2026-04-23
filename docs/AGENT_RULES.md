@@ -414,9 +414,15 @@ Target: 100% coverage (excluding the OS-specific / external-integration edges na
 ## Commits & Versioning
 
 - **Agent does not commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
-- **HARD STOP between fixes** — implement fix → write tests → update docs → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exceptions:**
+- **HARD STOP between fixes** — implement fix → write tests → update docs → **emit a post-fix summary** → **stop and ask user to commit**. Do NOT start the next fix until the current one is committed. **Exceptions:**
   - The user signals batch mode — "fix all and push", "don't ask", "go through the plan", "stop asking", or the same intent in any language. Execute end-to-end without pausing between fixes.
   - A series of related doc, rule, or convention edits in a single session — batch into **one** commit at the natural end of the arc instead of firing `/commit` after every sub-chunk. Individual doc chunks each "complete on their own" do not warrant individual commits when the user is mentally treating the whole arc as one pass.
+- **Post-fix summary is mandatory.** Before the "commit?" prompt (single fix) OR at the natural end of a batched arc (batch mode), state in plain language, for each bug fixed in that round:
+  1. **Symptom** — the user-visible behaviour that was wrong (their literal complaint, if applicable).
+  2. **Root cause** — why it happened (stale state, missing branch, wrong invariant, race, etc.), named with the specific file / function / field involved.
+  3. **Fix** — what you changed to address the root cause, not just "I edited file X".
+  
+  Do NOT skip this because the diff "speaks for itself" — the user reads the summary to decide whether you actually understood the bug. If you cannot write the root cause clearly, you have not understood it; investigate further before committing. One bug per paragraph; keep each under ~5 lines. This is a user-facing explanation, not internal notes — write it that way. **Batch mode** — emit a single combined report at the end of the arc covering every fix landed, not a summary per sub-commit.
 - Format per [CONTRIBUTING.md](CONTRIBUTING.md#commit-messages). Messages drive auto-changelog — keep them user-readable.
 - **Use `type(scope):` with parenthesized scope** for commits that touch a specific module (e.g. `refactor(import): ...`, `test(known-hosts): ...`, `feat(installer): ...`). Drop the scope only when the change is genuinely cross-cutting and no single module name fits. Scope must be lowercase, alphanumeric + dashes.
 - **Version bumps are automatic.** The `/pr` skill runs `scripts/bump-version.sh` before creating PR — it parses conventional commits since the last tag and bumps `pubspec.yaml` (patch for fix/refactor/perf/build/deps, minor for feat, major for BREAKING CHANGE; chore/docs/test/ci/Revert = no bump). **Do NOT bump version manually** — just use correct conventional commit prefixes. Dependabot PRs are bumped by CI (`dependabot-auto.yml`).

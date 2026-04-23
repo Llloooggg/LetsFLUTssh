@@ -39,7 +39,7 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 These apply to every response without re-reading:
 
 - **Don't commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
-- **HARD STOP between fixes** — implement → tests → docs → **ask to commit**. Don't start the next fix until current is committed. Overrides: (a) user signals batch mode ("fix all and push", "don't ask", "go through the plan", "stop asking", or the same intent in any language) → batch end-to-end; (b) series of related doc/rule/convention edits in one session → one commit at the arc's end, not per chunk.
+- **HARD STOP between fixes** — implement → tests → docs → **post-fix summary (symptom / root cause / fix)** → **ask to commit**. Don't start the next fix until current is committed. Overrides: (a) user signals batch mode ("fix all and push", "don't ask", "go through the plan", "stop asking", or the same intent in any language) → batch end-to-end + emit a single combined summary covering every fix at the end of the arc; (b) series of related doc/rule/convention edits in one session → one commit at the arc's end, not per chunk. Full rule: [AGENT_RULES § Commits & Versioning](docs/AGENT_RULES.md#commits--versioning).
 - **Default branch is `dev`.** Never push to `main` directly.
 - **All files in English only** — code, comments, commits, docs.
 - **No plan-item IDs in public artifacts** — no `P1.2-*` / `Phase E1` / `Task 3.2` in commits, code, filenames, or any tracked doc. Full rule: [AGENT_RULES § Plan-Item IDs Stay Internal](docs/AGENT_RULES.md#plan-item-ids-stay-internal).
