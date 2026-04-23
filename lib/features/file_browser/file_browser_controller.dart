@@ -161,13 +161,36 @@ class FilePaneController extends ChangeNotifier {
   }
 
   /// Go to parent directory.
+  ///
+  /// Accepts both forward and backslash separators so the same
+  /// controller handles the Windows local pane (native paths like
+  /// `C:\Users\foo`) and the SFTP pane (always forward-slash) without
+  /// a platform branch at the call site. The `lastIndexOf('/')` form
+  /// that lived here dropped every Windows `Up` click back to `/`,
+  /// which the local `Directory.list` then rejected as "path not
+  /// found".
   Future<void> navigateUp() async {
-    if (_currentPath == '/') return;
-    final parent = _currentPath.endsWith('/')
-        ? _currentPath.substring(0, _currentPath.length - 1)
-        : _currentPath;
-    final idx = parent.lastIndexOf('/');
-    final up = idx <= 0 ? '/' : parent.substring(0, idx);
+    if (_currentPath.isEmpty || _currentPath == '/') return;
+    // Windows drive root — `C:\`, `D:/` — has no parent. Match both
+    // separator forms in case the fs layer handed us a trailing `/`.
+    if (RegExp(r'^[A-Za-z]:[\\/]?$').hasMatch(_currentPath)) return;
+    var parent = _currentPath;
+    if (parent.endsWith('/') || parent.endsWith(r'\')) {
+      parent = parent.substring(0, parent.length - 1);
+    }
+    final idx = parent.lastIndexOf(RegExp(r'[\\/]'));
+    if (idx < 0) return;
+    if (idx == 0) {
+      await navigateTo('/');
+      return;
+    }
+    final up = parent.substring(0, idx);
+    // `up` of `C:\Users` becomes `C:`; snap the drive root's
+    // trailing separator back so `list()` gets the canonical form.
+    if (RegExp(r'^[A-Za-z]:$').hasMatch(up)) {
+      await navigateTo('$up\\');
+      return;
+    }
     await navigateTo(up);
   }
 
