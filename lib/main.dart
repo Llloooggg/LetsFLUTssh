@@ -28,7 +28,6 @@ import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
 import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
-import 'widgets/app_selection_area.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
 import 'widgets/auto_lock_detector.dart';
@@ -2282,10 +2281,24 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   Widget build(BuildContext context) {
     // Mobile: completely different navigation (bottom nav bar).
-    // SelectionArea sits above MobileShell so every plain Text in
-    // the mobile tree supports drag-select + long-press copy.
+    //
+    // An earlier iteration wrapped the entire MobileShell in
+    // `AppSelectionArea` so every plain Text across the mobile tree
+    // supported drag-select + long-press copy. That collided with the
+    // xterm widget on the Terminal page: Android's long-press on the
+    // SelectionArea surfaced the system Paste / Select-All toolbar
+    // over the terminal even though the xterm subtree has no
+    // selectable text — `SelectionContainer.disabled` inside
+    // MobileTerminalView was not enough because the SelectionArea's
+    // own gesture recognizers (TapAndDragGestureRecognizer,
+    // LongPressGestureRecognizer) still win the arena across the
+    // whole subtree. Terminal taps must not trigger a system
+    // selection toolbar — the dedicated Copy button is the
+    // sanctioned copy surface on mobile. Text selection on the
+    // non-terminal mobile screens is wired per-screen via local
+    // `AppSelectionArea` wrappers where the feature earns its keep.
     if (plat.isMobilePlatform) {
-      return const AppSelectionArea(child: MobileShell());
+      return const MobileShell();
     }
 
     final ws = ref.watch(workspaceProvider);

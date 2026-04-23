@@ -75,6 +75,16 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         // normal body-above-nav layout.
         extendBody: _navIndex == 1,
         body: SafeArea(
+          // Bottom SafeArea reserves the nav-bar slot by padding the
+          // body, which cancels `extendBody: true` — the body ends up
+          // at `viewport - navHeight` and the SSH keyboard bar floats
+          // `navHeight` above the soft keyboard. Disabling the bottom
+          // safe area on the terminal page lets the body run the full
+          // viewport, so MobileTerminalView's Positioned(bottom:
+          // keyboardInset) lands the SSH bar flush against the
+          // keyboard. The nav bar on top of the body already handles
+          // its own bottom inset via the Scaffold.
+          bottom: _navIndex != 1,
           child: Column(
             children: [
               _buildAppBar(context, allTabs.length),
