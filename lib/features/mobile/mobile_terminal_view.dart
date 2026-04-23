@@ -376,15 +376,29 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     //
     // Reading `MediaQuery.viewInsetsOf(context)` here is load-
     // bearing: it registers a dependency on MediaQuery so build
-    // fires on every keyboard-animation tick, which in turn arms
-    // the debouncer (_scheduleKeyboardInsetSettle below). Layout
-    // itself still uses the *settled* `_appliedKeyboardInset` —
-    // the raw value only drives the debounce timer.
+    // fires on every keyboard-animation tick, which both arms the
+    // debouncer for terminal-side layout and lets the SSH bar
+    // track the sliding keyboard in real time.
+    //
+    // Two separate `bottom` offsets come out of this split:
+    //   * `_barBottomLive` follows the raw inset — the bar slides
+    //     with the keyboard so the user sees a smooth motion
+    //     rather than a post-animation snap.
+    //   * `_terminalBottomSettled` uses the debounced
+    //     `_appliedKeyboardInset` — the xterm-hosting `Positioned`
+    //     keeps its size until the animation settles, so
+    //     `Terminal.buffer.resize` fires exactly once per
+    //     keyboard open / close. During the animation the terminal
+    //     keeps its old rendered height; the bar paints on top of
+    //     the lower rows, and those rows briefly tuck behind the
+    //     bar + keyboard. No scrollback shuffle, no visual rip.
     final rawKeyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     _scheduleKeyboardInsetSettle(rawKeyboardInset);
     const navBarHeight = AppTheme.itemHeightXl;
     const barHeight = AppTheme.itemHeightLg;
-    final barBottom = math.max(navBarHeight, _appliedKeyboardInset);
+    final barBottomLive = math.max(navBarHeight, rawKeyboardInset);
+    final terminalBottomSettled =
+        math.max(navBarHeight, _appliedKeyboardInset) + barHeight;
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
     return Stack(
@@ -394,13 +408,13 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           left: 0,
           right: 0,
           top: 0,
-          bottom: barBottom + barHeight,
+          bottom: terminalBottomSettled,
           child: SelectionContainer.disabled(child: _buildTerminalArea()),
         ),
         Positioned(
           left: 0,
           right: 0,
-          bottom: barBottom,
+          bottom: barBottomLive,
           height: barHeight,
           child: SelectionContainer.disabled(
             child: SshKeyboardBar(
