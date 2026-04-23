@@ -166,10 +166,10 @@ void main() {
                     hint: 'pin',
                     inputLabel: 'PIN',
                     wrongSecretLabel: 'wrong',
+                    numeric: true,
+                    maxLength: 4,
                   ),
                   verify: (typed) async => typed.codeUnits,
-                  numeric: true,
-                  maxLength: 4,
                 );
               },
             ),

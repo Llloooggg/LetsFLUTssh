@@ -921,8 +921,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         if (!await gate.verify(password)) return null;
         return keyStorage.readKey();
       },
-      biometricUnlock: _biometricUnlockForTierDialog,
-      autoTriggerBiometric: autoTriggerBiometric,
+      biometric: TierSecretUnlockBiometric(
+        unlock: _biometricUnlockForTierDialog,
+        autoTrigger: autoTriggerBiometric,
+      ),
       onReset: () async {
         await WipeAllService(
           credentialCacheEvict: ref
@@ -1112,20 +1114,22 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         );
         return unsealed;
       },
-      biometricUnlock: () async {
-        final key = await _biometricUnlockForTierDialog();
-        if (key == null) return null;
-        // Same chain-into-the-await trick as the `verify` path so
-        // the dialog's spinner stays visible across the drift DB
-        // open that follows a successful biometric unlock.
-        await _injectDatabase(
-          key: Uint8List.fromList(key),
-          level: SecurityTier.hardware,
-          modifiers: mods,
-        );
-        return key;
-      },
-      autoTriggerBiometric: autoTriggerBiometric,
+      biometric: TierSecretUnlockBiometric(
+        unlock: () async {
+          final key = await _biometricUnlockForTierDialog();
+          if (key == null) return null;
+          // Same chain-into-the-await trick as the `verify` path so
+          // the dialog's spinner stays visible across the drift DB
+          // open that follows a successful biometric unlock.
+          await _injectDatabase(
+            key: Uint8List.fromList(key),
+            level: SecurityTier.hardware,
+            modifiers: mods,
+          );
+          return key;
+        },
+        autoTrigger: autoTriggerBiometric,
+      ),
       onReset: () async {
         await WipeAllService(
           credentialCacheEvict: ref

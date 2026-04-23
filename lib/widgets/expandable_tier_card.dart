@@ -352,45 +352,61 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     }
   }
 
+  /// Normalize the card's tier to the target tier the apply pipeline
+  /// expects. The UI treats T1 as a single tier card; on apply, the
+  /// presence of a short password flips it to `keychainWithPassword`
+  /// so `_applyTierChange` routes to the right handler.
+  SecurityTier _resolveTargetTier() {
+    if (widget.tier == SecurityTier.keychain && _passwordEnabled) {
+      return SecurityTier.keychainWithPassword;
+    }
+    return widget.tier;
+  }
+
+  SecurityTierModifiers _resolveModifiers() => SecurityTierModifiers(
+    password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
+    biometric: widget.currentModifiers.biometric,
+  );
+
+  String? _shortPasswordPayload() {
+    if (!_requiresPasswordInput) return null;
+    if (widget.tier != SecurityTier.keychain) return null;
+    return _passwordCtrl.text;
+  }
+
+  String? _pinPayload() {
+    if (!_requiresPasswordInput) return null;
+    if (widget.tier != SecurityTier.hardware) return null;
+    return _passwordCtrl.text;
+  }
+
+  /// `null` means "no change to biometric"; otherwise the pending
+  /// value the user has toggled to. Only the post-apply biometric
+  /// step cares about the true/false; a diverged pending drives the
+  /// batched password prompt in `onSelectTier`.
+  bool? _pendingBiometricDiff() {
+    if (widget.biometricSpec == null) return null;
+    if (_pendingBiometric == _initialBiometric) return null;
+    return _pendingBiometric;
+  }
+
   Future<void> _onSelect() async {
     if (!_selectEnabled) return;
     setState(() => _busy = true);
     try {
-      SecurityTier target = widget.tier;
-      if (target == SecurityTier.keychain && _passwordEnabled) {
-        target = SecurityTier.keychainWithPassword;
-      }
-      final mods = SecurityTierModifiers(
-        password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
-        biometric: widget.currentModifiers.biometric,
-      );
       // T1 uses `shortPassword` against the keychain-password gate;
       // T2 uses the same value as the PIN HMAC input to the hw
       // vault. Same UX field, different backend consumer — the
       // tier switcher routes it. Paranoid uses `masterPassword`.
-      final shortPw =
-          _requiresPasswordInput && widget.tier == SecurityTier.keychain
-          ? _passwordCtrl.text
-          : null;
-      final pin = _requiresPasswordInput && widget.tier == SecurityTier.hardware
-          ? _passwordCtrl.text
-          : null;
-      // Forward the *pending* biometric flag when it diverges from
-      // the currently-applied value, so `onSelectTier` can batch the
-      // biometric enable / disable work with the tier switch +
-      // single password prompt. Null means "no change to biometric".
-      final biometric = widget.biometricSpec == null
-          ? null
-          : (_pendingBiometric == _initialBiometric ? null : _pendingBiometric);
       await widget.onSelect(
-        tier: target,
-        modifiers: mods,
-        shortPassword: shortPw,
-        pin: pin,
+        tier: _resolveTargetTier(),
+        modifiers: _resolveModifiers(),
+        shortPassword: _shortPasswordPayload(),
+        pin: _pinPayload(),
         masterPassword: _requiresMasterPasswordInput
             ? _masterPasswordCtrl.text
             : null,
-        pendingBiometric: biometric,
+        pendingBiometric: _pendingBiometricDiff(),
       );
     } finally {
       if (mounted) {

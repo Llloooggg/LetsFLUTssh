@@ -458,9 +458,7 @@ Future<void> _parallelForEach<T>(
 ) async {
   if (items.isEmpty) return;
   final queue = List<T>.of(items);
-  final limit = concurrency < 1
-      ? 1
-      : (concurrency > queue.length ? queue.length : concurrency);
+  final limit = concurrency.clamp(1, queue.length);
   Future<void> worker() async {
     while (queue.isNotEmpty) {
       final next = queue.removeLast();
