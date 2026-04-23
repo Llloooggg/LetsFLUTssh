@@ -78,7 +78,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
           _busy = false;
           _wrong = true;
         });
-        _pwCtrl.clear();
+        // Zero the prior string instead of a bare `clear()` — the
+        // wrong-password buffer is a secret the user just typed and
+        // we have no reason to let the interim `String` on the Dart
+        // heap wait for GC any longer than the accepted-password
+        // path does.
+        _pwCtrl.wipeAndClear();
         _focusNode.requestFocus();
         return;
       }

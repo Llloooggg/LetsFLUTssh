@@ -223,6 +223,19 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           alignLabelWithHint: true,
                         ),
                         maxLines: 5,
+                        // PEM body is a private key — force every
+                        // IME "learn what the user typed" knob off
+                        // so pasted / typed key material does not
+                        // end up in the OS autocorrect / predictive-
+                        // text / spellcheck personalised-learning
+                        // dictionary. Multi-line, so `obscureText`
+                        // is not an option; the hardening flags are.
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        enableIMEPersonalizedLearning: false,
+                        smartDashesType: SmartDashesType.disabled,
+                        smartQuotesType: SmartQuotesType.disabled,
+                        textCapitalization: TextCapitalization.none,
                         style: TextStyle(
                           fontFamily: 'monospace',
                           fontSize: AppFonts.sm,
