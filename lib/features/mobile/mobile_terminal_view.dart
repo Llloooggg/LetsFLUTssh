@@ -84,6 +84,21 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   /// them here is still useful for future multi-touch gestures.
   final Map<int, Offset> _pointers = {};
 
+  /// Debounced soft-keyboard inset. The raw `viewInsets.bottom` ticks
+  /// once per animation frame while the keyboard slides in or out,
+  /// which — fed straight into the layout — would drive a terminal
+  /// height change and a matching `Terminal.buffer.resize` every
+  /// frame. Each frame-level resize is lossy on xterm's rows-shrink
+  /// path: lines near the cursor shuffle in and out of scrollback,
+  /// and if the user also scrolls the terminal mid-animation the
+  /// visible scrollback appears to rip. The debouncer freezes layout
+  /// at the previous stable inset until the raw value has held still
+  /// for [_insetSettleDuration]; then we apply one resize for the
+  /// whole animation.
+  double _appliedKeyboardInset = 0;
+  Timer? _insetSettleTimer;
+  static const _insetSettleDuration = Duration(milliseconds: 200);
+
   @override
   void initState() {
     super.initState();
@@ -122,6 +137,30 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     if (_copyMode) return;
     if (_terminalController.selection == null) return;
     _terminalController.clearSelection();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleKeyboardInsetSettle();
+  }
+
+  /// Arm the debounce timer so we update [_appliedKeyboardInset] only
+  /// after the raw `viewInsets.bottom` has stopped ticking for
+  /// [_insetSettleDuration]. Called from [didChangeDependencies] —
+  /// Flutter rebuilds the subtree on every inset tick during the
+  /// keyboard slide animation, so this runs once per animation frame
+  /// and keeps resetting the timer until the animation ends.
+  void _scheduleKeyboardInsetSettle() {
+    final raw = MediaQuery.of(context).viewInsets.bottom;
+    if (raw == _appliedKeyboardInset) return;
+    _insetSettleTimer?.cancel();
+    _insetSettleTimer = Timer(_insetSettleDuration, () {
+      if (!mounted) return;
+      final now = MediaQuery.of(context).viewInsets.bottom;
+      if (now == _appliedKeyboardInset) return;
+      setState(() => _appliedKeyboardInset = now);
+    });
   }
 
   Future<void> _connectAndOpenShell() async {
@@ -204,6 +243,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     TerminalScrubber.instance.unregister(_terminal);
     _progressSub?.cancel();
     _shellConn?.close();
+    _insetSettleTimer?.cancel();
     _terminalController.removeListener(_enforceCopyModeSelectionGuard);
     _terminalController.dispose();
     _terminalScrollController.dispose();
@@ -333,13 +373,14 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // the Scaffold body stays at full height regardless of the
     // keyboard. The bar's `bottom` offset clamps to `navBarHeight`
     // (sits above the mobile-shell nav bar when the keyboard is
-    // hidden) and follows `keyboardInset` once the keyboard
-    // covers both nav and lower content.
-    final mq = MediaQuery.of(context);
-    final keyboardInset = mq.viewInsets.bottom;
+    // hidden) and follows the *settled* keyboard inset once the
+    // animation has finished. `_appliedKeyboardInset` is updated
+    // through the [_scheduleKeyboardInsetSettle] debouncer so we
+    // don't re-layout (and re-resize xterm) on every animation
+    // frame — per-frame resizes visibly rip the scrollback.
     const navBarHeight = AppTheme.itemHeightXl;
     const barHeight = AppTheme.itemHeightLg;
-    final barBottom = math.max(navBarHeight, keyboardInset);
+    final barBottom = math.max(navBarHeight, _appliedKeyboardInset);
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
     return Stack(
