@@ -99,9 +99,6 @@ class SZh extends S {
   String get nextStep => '下一步';
 
   @override
-  String get includeCredentials => '包含密码和 SSH 密钥';
-
-  @override
   String get includePasswords => '会话密码';
 
   @override
@@ -123,12 +120,6 @@ class SZh extends S {
   String exportTotalSize(String size) {
     return '总大小: $size';
   }
-
-  @override
-  String get qrCredentialsWarning => '密码和 SSH 密钥将在 QR 码中可见';
-
-  @override
-  String get qrCredentialsTooLarge => '凭证使 QR 码过大';
 
   @override
   String get terminal => '终端';
@@ -243,11 +234,6 @@ class SZh extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return '通过 QR 导入了 $count 个会话';
-  }
-
-  @override
   String importedSessions(int count) {
     return '已导入 $count 个会话';
   }
@@ -303,9 +289,6 @@ class SZh extends S {
 
   @override
   String get noSessions => '没有会话';
-
-  @override
-  String get noSessionsToExport => '没有可导出的会话';
 
   @override
   String nSelectedCount(int count) {
@@ -434,9 +417,6 @@ class SZh extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => '暂无其他选项';
 
   @override
   String get saveAndConnect => '保存并连接';
@@ -594,9 +574,6 @@ class SZh extends S {
   String get controllersNotInitialized => '控制器未初始化';
 
   @override
-  String get initializingSftp => '正在初始化 SFTP...';
-
-  @override
   String get clearHistory => '清除历史';
 
   @override
@@ -607,9 +584,6 @@ class SZh extends S {
 
   @override
   String get duplicateTabShortcut => '复制标签页 (Ctrl+\\)';
-
-  @override
-  String get copyDown => '向下复制';
 
   @override
   String get previous => '上一个';
@@ -717,12 +691,6 @@ class SZh extends S {
   String get exportData => '导出数据';
 
   @override
-  String get exportDataSubtitle => '将会话、配置和密钥保存为加密的 .lfs 文件';
-
-  @override
-  String get importDataSubtitle => '从 .lfs 文件加载数据';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '找到 $count 个主机';
   }
@@ -733,11 +701,6 @@ class SZh extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return '无法读取以下主机的密钥文件：$hosts。这些主机将在没有凭据的情况下被导入。';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return '已导入到文件夹：$folder';
   }
 
   @override
@@ -805,34 +768,10 @@ class SZh extends S {
   String get passwordStrengthVeryStrong => '很强';
 
   @override
-  String get tierRecommendedBadge => '推荐';
-
-  @override
-  String get tierCurrentBadge => '当前';
-
-  @override
-  String get tierAlternativeBranchLabel => '替代方案 — 不信任操作系统';
-
-  @override
-  String get tierUpcomingTooltip => '将在后续版本中提供。';
-
-  @override
-  String get tierUpcomingNotes => '此层级的底层机制尚未发布。该行可见是为了让您知道此选项存在。';
-
-  @override
   String get tierPlaintextLabel => '明文';
 
   @override
   String get tierPlaintextSubtitle => '无加密 — 仅文件权限';
-
-  @override
-  String get tierPlaintextThreat1 => '任何拥有文件系统访问权限的人都能读取您的数据';
-
-  @override
-  String get tierPlaintextThreat2 => '意外同步或备份会暴露一切';
-
-  @override
-  String get tierPlaintextNotes => '仅在受信任的隔离环境中使用。';
 
   @override
   String get tierKeychainLabel => '钥匙串';
@@ -843,70 +782,13 @@ class SZh extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => '同一机器上的其他用户';
-
-  @override
-  String get tierKeychainProtect2 => '没有操作系统登录的被盗磁盘';
-
-  @override
-  String get tierKeychainThreat1 => '在您的操作系统账户下运行的恶意软件';
-
-  @override
-  String get tierKeychainThreat2 => '接管您的操作系统登录的攻击者';
-
-  @override
   String get tierKeychainUnavailable => '此安装无法使用操作系统钥匙串。';
-
-  @override
-  String get tierKeychainPassProtect1 => '坐在您桌前的同事';
-
-  @override
-  String get tierKeychainPassProtect2 => '具有解锁访问权限的路人';
-
-  @override
-  String get tierKeychainPassThreat1 => '拥有磁盘上文件的离线攻击者';
-
-  @override
-  String get tierKeychainPassThreat2 => '与钥匙串相同的操作系统入侵风险';
 
   @override
   String get tierHardwareLabel => '硬件';
 
   @override
-  String get tierHardwareSubtitle => '硬件绑定的 vault + 带锁定的短 PIN';
-
-  @override
-  String get tierHardwareProtect1 => 'PIN 的离线暴力破解（硬件速率限制）';
-
-  @override
-  String get tierHardwareProtect2 => '磁盘或 keychain blob 被盗';
-
-  @override
-  String get tierHardwareThreat1 => '安全模块上的操作系统或固件 CVE';
-
-  @override
-  String get tierHardwareThreat2 => '强制生物识别解锁（如果启用）';
-
-  @override
   String get tierParanoidLabel => '主密码 (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle => '长密码 + Argon2id。密钥从不进入操作系统。';
-
-  @override
-  String get tierParanoidProtect1 => '操作系统钥匙串入侵';
-
-  @override
-  String get tierParanoidProtect2 => '被盗磁盘（只要您的密码足够强）';
-
-  @override
-  String get tierParanoidThreat1 => '捕获您密码的键盘记录器';
-
-  @override
-  String get tierParanoidThreat2 => '弱密码 + 离线 Argon2id 破解';
-
-  @override
-  String get tierParanoidNotes => '此层级上的生物识别按设计禁用。';
 
   @override
   String get tierHardwareUnavailable => '此安装不支持硬件保险库。';
@@ -949,18 +831,6 @@ class SZh extends S {
 
   @override
   String get pathToLfsFile => '.lfs 文件路径';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => '浏览';
-
-  @override
-  String get shareViaQrCode => '通过 QR 码分享';
-
-  @override
-  String get shareViaQrSubtitle => '将会话导出为 QR 码，供其他设备扫描';
 
   @override
   String get dataLocation => '数据位置';
@@ -1045,14 +915,6 @@ class SZh extends S {
 
   @override
   String get useSftpFromSessions => '从会话中使用 \"SFTP\"';
-
-  @override
-  String get anotherInstanceRunning => 'LetsFLUTssh 的另一个实例已在运行。';
-
-  @override
-  String importFailedShort(String error) {
-    return '导入失败：$error';
-  }
 
   @override
   String get saveLogAs => '日志另存为';
@@ -1286,16 +1148,6 @@ class SZh extends S {
   String get errSessionClosed => '会话已关闭';
 
   @override
-  String errShellError(String error) {
-    return 'Shell 错误：$error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return '重新连接失败：$error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'SFTP 初始化失败：$error';
   }
@@ -1304,9 +1156,6 @@ class SZh extends S {
   String errDownloadFailed(String error) {
     return '下载失败：$error';
   }
-
-  @override
-  String get errDecryptionFailed => '凭据解密失败。密钥文件可能已损坏。';
 
   @override
   String get errExportPickerUnavailable => '系统文件夹选择器不可用。请尝试其他位置或检查应用的存储权限。';
@@ -1321,16 +1170,7 @@ class SZh extends S {
   String get biometricUnlockSubtitle => '无需输入密码——使用设备生物识别传感器解锁。';
 
   @override
-  String get biometricNotAvailable => '此设备不支持生物识别解锁。';
-
-  @override
   String get biometricEnableFailed => '无法启用生物识别解锁。';
-
-  @override
-  String get biometricEnabled => '已启用生物识别解锁';
-
-  @override
-  String get biometricDisabled => '已停用生物识别解锁';
 
   @override
   String get biometricUnlockFailed => '生物识别解锁失败。请输入主密码。';
@@ -1342,9 +1182,6 @@ class SZh extends S {
   String get biometricNotEnrolled => '此设备未注册任何生物识别凭据。';
 
   @override
-  String get biometricRequiresMasterPassword => '请先设置主密码以启用生物识别解锁。';
-
-  @override
   String get biometricSensorNotAvailable => '此设备没有生物识别传感器。';
 
   @override
@@ -1352,22 +1189,10 @@ class SZh extends S {
       '指纹服务 (fprintd) 未安装。请参阅 README → Installation。';
 
   @override
-  String get biometricBackingHardware => '硬件支持 (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => '软件支持';
-
-  @override
   String get currentPasswordIncorrect => '当前密码不正确';
 
   @override
   String get wrongPassword => '密码错误';
-
-  @override
-  String get useKeychain => '使用操作系统钥匙串加密';
-
-  @override
-  String get useKeychainSubtitle => '将数据库密钥保存在系统凭据存储中。关闭 = 明文数据库。';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh 已锁定';
@@ -1477,9 +1302,6 @@ class SZh extends S {
   String get progressWritingArchive => '正在写入归档…';
 
   @override
-  String get progressReencrypting => '正在重新加密存储…';
-
-  @override
   String get progressWorking => '处理中…';
 
   @override
@@ -1539,9 +1361,6 @@ class SZh extends S {
 
   @override
   String get subitems => '项目';
-
-  @override
-  String get storagePermissionRequired => '需要存储权限才能浏览本地文件';
 
   @override
   String get grantPermission => '授予权限';
@@ -1687,20 +1506,6 @@ class SZh extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH 连接';
-
-  @override
-  String get sshConnectionChannelDesc => '在后台保持 SSH 连接活跃。';
-
-  @override
-  String get sshActive => 'SSH 活跃';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count 个活跃连接';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count 个项目，$size';
   }
@@ -1750,9 +1555,6 @@ class SZh extends S {
 
   @override
   String get clearAllKnownHostsConfirm => '移除所有已知主机？每个服务器密钥都需要重新验证。';
-
-  @override
-  String get importKnownHostsSubtitle => '从 OpenSSH known_hosts 文件导入';
 
   @override
   String get clearedAllHosts => '已清除所有已知主机';
@@ -1840,9 +1642,6 @@ class SZh extends S {
   String get selectFromKeyStore => '从密钥库选择';
 
   @override
-  String get noKeySelected => '未选择密钥';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1874,24 +1673,6 @@ class SZh extends S {
   String get rememberPassphrase => '在此会话中记住';
 
   @override
-  String get masterPasswordSubtitle => '使用密码保护已保存的凭据';
-
-  @override
-  String get setMasterPassword => '设置主密码';
-
-  @override
-  String get changeMasterPassword => '更改主密码';
-
-  @override
-  String get removeMasterPassword => '移除主密码';
-
-  @override
-  String get masterPasswordEnabled => '凭据受主密码保护';
-
-  @override
-  String get masterPasswordDisabled => '凭据使用自动生成的密钥（无密码）';
-
-  @override
   String get enterMasterPassword => '输入主密码以访问已保存的凭据。';
 
   @override
@@ -1904,26 +1685,7 @@ class SZh extends S {
   String get currentPassword => '当前密码';
 
   @override
-  String get masterPasswordSet => '主密码已启用';
-
-  @override
-  String get masterPasswordChanged => '主密码已更改';
-
-  @override
-  String get masterPasswordRemoved => '主密码已移除';
-
-  @override
-  String get masterPasswordWarning => '如果您忘记此密码，所有保存的密码和 SSH 密钥将丢失。无法恢复。';
-
-  @override
   String get forgotPassword => '忘记密码？';
-
-  @override
-  String get forgotPasswordWarning =>
-      '这将删除所有已保存的密码、SSH 密钥和密码短语。会话和设置将保留。此操作不可撤销。';
-
-  @override
-  String get resetAndDeleteCredentials => '重置并删除凭据';
 
   @override
   String get credentialsReset => '所有已保存的凭据已删除';
@@ -1970,80 +1732,10 @@ class SZh extends S {
   String get derivingKey => '正在生成加密密钥...';
 
   @override
-  String get reEncrypting => '正在重新加密数据...';
-
-  @override
-  String get confirmRemoveMasterPassword => '输入当前密码以移除主密码保护。凭据将使用自动生成的密钥重新加密。';
-
-  @override
   String get securitySetupTitle => '安全设置';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return '检测到系统钥匙串 ($keychainName)。您的数据将使用系统钥匙串自动加密。';
-  }
-
-  @override
-  String get securitySetupKeychainOptional => '您还可以设置主密码以获得额外保护。';
-
-  @override
-  String get securitySetupNoKeychain =>
-      '未检测到系统钥匙串。没有钥匙串，您的会话数据（主机、密码、密钥）将以明文存储。';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      '这在 WSL、无头 Linux 或最小安装中很正常。要在 Linux 上启用 keychain：安装 libsecret 和 keyring daemon（如 gnome-keyring）。';
-
-  @override
-  String get securitySetupRecommendMasterPassword => '建议设置主密码以保护您的数据。';
-
-  @override
-  String get continueWithKeychain => '使用钥匙串继续';
-
-  @override
-  String get continueWithoutEncryption => '不加密继续';
-
-  @override
-  String get securityLevel => '安全级别';
-
-  @override
-  String get securityLevelPlaintext => '无';
-
-  @override
-  String get securityLevelKeychain => '系统钥匙串';
-
-  @override
-  String get securityLevelMasterPassword => '主密码';
-
-  @override
-  String get keychainStatus => '钥匙串';
-
-  @override
   String get keychainAvailable => '可用';
-
-  @override
-  String get keychainNotAvailable => '不可用';
-
-  @override
-  String get enableKeychain => '启用钥匙串加密';
-
-  @override
-  String get enableKeychainSubtitle => '使用系统钥匙串重新加密存储的数据';
-
-  @override
-  String get keychainEnabled => '钥匙串加密已启用';
-
-  @override
-  String get manageMasterPassword => '管理主密码';
-
-  @override
-  String get manageMasterPasswordSubtitle => '设置、更改或移除主密码';
-
-  @override
-  String get changeSecurityTier => '更改安全等级';
-
-  @override
-  String get changeSecurityTierSubtitle => '打开等级梯并切换到其他安全等级';
 
   @override
   String get changeSecurityTierConfirm => '正在用新等级重新加密数据库。此过程不可中断——请保持应用打开直到完成。';
@@ -2065,51 +1757,14 @@ class SZh extends S {
       '此设备支持硬件存储。请在“设置 → 安全”中升级以使用 TPM / Secure Enclave 绑定。';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      '硬件存储不可用——未在此设备上检测到 TPM 2.0。';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      '硬件存储不可用——此设备未报告 Secure Enclave。';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      '硬件存储不可用——请安装 tpm2-tools 并接入 TPM 2.0 设备以启用。';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      '硬件存储不可用——此设备未报告 StrongBox 或 TEE。';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric => '此设备不支持硬件存储。';
 
   @override
   String get firstLaunchSecurityOpenSettings => '打开设置';
 
   @override
-  String get firstLaunchSecurityDismiss => '知道了';
-
-  @override
-  String get securityHardwareUpgradeTitle => '可使用硬件存储';
-
-  @override
-  String get securityHardwareUpgradeBody => '升级以将机密绑定到 TPM / Secure Enclave。';
-
-  @override
-  String get securityHardwareUpgradeAction => '升级';
-
-  @override
-  String get securityHardwareUnavailableTitle => '硬件存储不可用';
-
-  @override
   String get wizardReducedBanner =>
       '本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。';
-
-  @override
-  String get tierBlockProtectsHeader => '可抵御';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => '无法抵御';
 
   @override
   String get tierBlockProtectsEmpty => '该等级无可抵御项。';
@@ -2125,24 +1780,6 @@ class SZh extends S {
 
   @override
   String get securitySetupApply => '应用';
-
-  @override
-  String get passwordDisabledPlaintext => '无加密等级不存储可用密码保护的机密。';
-
-  @override
-  String get passwordDisabledParanoid => 'Paranoid 从密码派生数据库密钥——始终开启。';
-
-  @override
-  String get passwordSubtitleOn => '已开启——解锁时需要密码';
-
-  @override
-  String get passwordSubtitleOff => '已关闭——点击为当前等级添加密码';
-
-  @override
-  String get passwordSubtitleParanoid => '必需——主密码就是该等级的机密';
-
-  @override
-  String get passwordSubtitlePlaintext => '不适用——此等级未加密';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2330,9 +1967,6 @@ class SZh extends S {
   }
 
   @override
-  String get runSnippet => '运行';
-
-  @override
   String get pinToSession => '固定到此会话';
 
   @override
@@ -2343,9 +1977,6 @@ class SZh extends S {
 
   @override
   String get allSnippets => '全部';
-
-  @override
-  String get sendToTerminal => '发送到终端';
 
   @override
   String get commandCopied => '命令已复制到剪贴板';
@@ -2409,32 +2040,6 @@ class SZh extends S {
 
   @override
   String get sessionsOnly => '会话';
-
-  @override
-  String get allKeysFromManager => '管理器中的所有密钥';
-
-  @override
-  String exportTags(int count) {
-    return '标签 ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return '代码片段 ($count)';
-  }
-
-  @override
-  String get disableKeychain => '禁用钥匙串加密';
-
-  @override
-  String get disableKeychainSubtitle => '切换到明文存储（不推荐）';
-
-  @override
-  String get disableKeychainConfirm =>
-      '数据库将在无密钥的情况下重新加密。会话和密钥将以明文形式存储在磁盘上。是否继续？';
-
-  @override
-  String get keychainDisabled => '钥匙串加密已禁用';
 
   @override
   String get presetFullImport => '完整导入';
@@ -2558,15 +2163,6 @@ class SZh extends S {
   String get legendDoesNotProtect => '未保护';
 
   @override
-  String get legendNotApplicable => '不适用——此等级没有用户密钥';
-
-  @override
-  String get legendWeakPasswordWarning => '可接受弱密码 — 安全性由另一层承担（硬件速率限制或密钥封装绑定）';
-
-  @override
-  String get legendStrongPasswordRecommended => '强烈建议使用长口令——此等级的安全性依赖于它';
-
-  @override
   String get colT0 => 'T0 明文';
 
   @override
@@ -2589,9 +2185,6 @@ class SZh extends S {
 
   @override
   String get colParanoid => '偏执模式';
-
-  @override
-  String get securityComparisonTableTitle => '安全等级——并排对比';
 
   @override
   String get securityComparisonTableThreatColumn => '威胁';
@@ -2625,19 +2218,10 @@ class SZh extends S {
   String get resetAllDataFailed => '重置失败';
 
   @override
-  String get compareAllTiersSubtitle => '并排查看每个等级可抵御的威胁。';
-
-  @override
   String get autoLockRequiresPassword => '自动锁定需要在当前等级上设置密码。';
 
   @override
   String get recommendedBadge => '推荐';
-
-  @override
-  String get continueWithRecommended => '使用推荐设置继续';
-
-  @override
-  String get customizeSecurity => '自定义安全设置';
 
   @override
   String get tierHardwareSubtitleHonest => '进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。';
@@ -2649,9 +2233,6 @@ class SZh extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       '运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。';
-
-  @override
-  String get securitySetupContinue => '继续';
 
   @override
   String get currentTierBadge => '当前';

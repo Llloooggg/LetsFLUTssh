@@ -99,9 +99,6 @@ class SDe extends S {
   String get nextStep => 'Weiter';
 
   @override
-  String get includeCredentials => 'Passwörter und SSH-Schlüssel einbeziehen';
-
-  @override
   String get includePasswords => 'Sitzungs-Passwörter';
 
   @override
@@ -125,13 +122,6 @@ class SDe extends S {
   String exportTotalSize(String size) {
     return 'Gesamtgröße: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'Passwörter und SSH-Schlüssel SIND im QR-Code sichtbar';
-
-  @override
-  String get qrCredentialsTooLarge => 'Anmeldedaten machen den QR-Code zu groß';
 
   @override
   String get terminal => 'Terminal';
@@ -249,11 +239,6 @@ class SDe extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return '$count Sitzung(en) über QR importiert';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count Sitzung(en) importiert';
   }
@@ -311,9 +296,6 @@ class SDe extends S {
 
   @override
   String get noSessions => 'Keine Sitzungen';
-
-  @override
-  String get noSessionsToExport => 'Keine Sitzungen zum Exportieren';
 
   @override
   String nSelectedCount(int count) {
@@ -442,9 +424,6 @@ class SDe extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'Noch keine zusätzlichen Optionen';
 
   @override
   String get saveAndConnect => 'Speichern & Verbinden';
@@ -610,9 +589,6 @@ class SDe extends S {
   String get controllersNotInitialized => 'Controller nicht initialisiert';
 
   @override
-  String get initializingSftp => 'SFTP wird initialisiert...';
-
-  @override
   String get clearHistory => 'Verlauf löschen';
 
   @override
@@ -623,9 +599,6 @@ class SDe extends S {
 
   @override
   String get duplicateTabShortcut => 'Tab duplizieren (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'Nach unten kopieren';
 
   @override
   String get previous => 'Vorheriges';
@@ -734,13 +707,6 @@ class SDe extends S {
   String get exportData => 'Daten exportieren';
 
   @override
-  String get exportDataSubtitle =>
-      'Sitzungen, Konfiguration und Schlüssel in verschlüsselter .lfs-Datei speichern';
-
-  @override
-  String get importDataSubtitle => 'Daten aus .lfs-Datei laden';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count Host(s) gefunden';
   }
@@ -752,11 +718,6 @@ class SDe extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'Schlüsseldateien konnten nicht gelesen werden für: $hosts. Diese Hosts werden ohne Anmeldedaten importiert.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'Importiert in Ordner: $folder';
   }
 
   @override
@@ -829,40 +790,11 @@ class SDe extends S {
   String get passwordStrengthVeryStrong => 'Sehr stark';
 
   @override
-  String get tierRecommendedBadge => 'Empfohlen';
-
-  @override
-  String get tierCurrentBadge => 'Aktuell';
-
-  @override
-  String get tierAlternativeBranchLabel =>
-      'Alternative — dem OS nicht vertrauen';
-
-  @override
-  String get tierUpcomingTooltip => 'Kommt in einer späteren Version.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'Die zugrundeliegende Infrastruktur dieser Stufe ist noch nicht ausgeliefert. Die Zeile ist sichtbar, damit Sie wissen, dass die Option existiert.';
-
-  @override
   String get tierPlaintextLabel => 'Klartext';
 
   @override
   String get tierPlaintextSubtitle =>
       'Keine Verschlüsselung — nur Dateiberechtigungen';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'Jeder mit Dateisystemzugriff liest Ihre Daten';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'Versehentliche Sync oder Backup legt alles offen';
-
-  @override
-  String get tierPlaintextNotes =>
-      'Nur in vertrauenswürdigen, isolierten Umgebungen verwenden.';
 
   @override
   String get tierKeychainLabel => 'Schlüsselbund';
@@ -873,81 +805,14 @@ class SDe extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'Andere Benutzer auf derselben Maschine';
-
-  @override
-  String get tierKeychainProtect2 => 'Gestohlene Festplatte ohne OS-Login';
-
-  @override
-  String get tierKeychainThreat1 => 'Malware unter Ihrem OS-Konto';
-
-  @override
-  String get tierKeychainThreat2 => 'Angreifer, der Ihr OS-Login übernimmt';
-
-  @override
   String get tierKeychainUnavailable =>
       'OS-Schlüsselbund auf dieser Installation nicht verfügbar.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'Kollege an Ihrem Schreibtisch';
-
-  @override
-  String get tierKeychainPassProtect2 => 'Vorbeikommender mit offenem Zugriff';
-
-  @override
-  String get tierKeychainPassThreat1 =>
-      'Offline-Angreifer mit der Datei auf Festplatte';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'Die gleichen Risiken einer OS-Kompromittierung wie beim Schlüsselbund';
 
   @override
   String get tierHardwareLabel => 'Hardware';
 
   @override
-  String get tierHardwareSubtitle =>
-      'Hardware-gebundener Tresor + kurze PIN mit Sperrung';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'Offline-Brute-Force der PIN (Hardware-Rate-Limit)';
-
-  @override
-  String get tierHardwareProtect2 =>
-      'Diebstahl von Festplatte und Schlüsselbund-Blob';
-
-  @override
-  String get tierHardwareThreat1 => 'OS- oder Firmware-CVE am Sicherheitsmodul';
-
-  @override
-  String get tierHardwareThreat2 =>
-      'Erzwungene Biometrie-Entsperrung (falls aktiviert)';
-
-  @override
   String get tierParanoidLabel => 'Master-Passwort (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'Langes Passwort + Argon2id. Der Schlüssel gelangt nie ins OS.';
-
-  @override
-  String get tierParanoidProtect1 => 'Kompromittierung des OS-Schlüsselbundes';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'Gestohlene Festplatte (solange das Passwort stark ist)';
-
-  @override
-  String get tierParanoidThreat1 => 'Keylogger, der Ihr Passwort erfasst';
-
-  @override
-  String get tierParanoidThreat2 =>
-      'Schwaches Passwort + Offline-Argon2id-Cracking';
-
-  @override
-  String get tierParanoidNotes =>
-      'Biometrie ist auf dieser Stufe per Design deaktiviert.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -992,19 +857,6 @@ class SDe extends S {
 
   @override
   String get pathToLfsFile => 'Pfad zur .lfs-Datei';
-
-  @override
-  String get hintLfsPath => '/pfad/zum/export.lfs';
-
-  @override
-  String get browse => 'Durchsuchen';
-
-  @override
-  String get shareViaQrCode => 'Per QR-Code teilen';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'Sitzungen als QR exportieren, um sie mit einem anderen Gerät zu scannen';
 
   @override
   String get dataLocation => 'Datenspeicherort';
@@ -1089,15 +941,6 @@ class SDe extends S {
 
   @override
   String get useSftpFromSessions => 'Verwenden Sie \"SFTP\" unter Sitzungen';
-
-  @override
-  String get anotherInstanceRunning =>
-      'Eine weitere Instanz von LetsFLUTssh läuft bereits.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'Import fehlgeschlagen: $error';
-  }
 
   @override
   String get saveLogAs => 'Protokoll speichern unter';
@@ -1341,16 +1184,6 @@ class SDe extends S {
   String get errSessionClosed => 'Sitzung geschlossen';
 
   @override
-  String errShellError(String error) {
-    return 'Shell-Fehler: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'Wiederverbindung fehlgeschlagen: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'SFTP-Initialisierung fehlgeschlagen: $error';
   }
@@ -1359,10 +1192,6 @@ class SDe extends S {
   String errDownloadFailed(String error) {
     return 'Download fehlgeschlagen: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Zugangsdaten konnten nicht entschlüsselt werden. Die Schlüsseldatei ist möglicherweise beschädigt.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1379,18 +1208,8 @@ class SDe extends S {
       'Passwort nicht eingeben — mit dem Biometriesensor des Geräts entsperren.';
 
   @override
-  String get biometricNotAvailable =>
-      'Biometrische Entsperrung ist auf diesem Gerät nicht verfügbar.';
-
-  @override
   String get biometricEnableFailed =>
       'Biometrische Entsperrung konnte nicht aktiviert werden.';
-
-  @override
-  String get biometricEnabled => 'Biometrische Entsperrung aktiviert';
-
-  @override
-  String get biometricDisabled => 'Biometrische Entsperrung deaktiviert';
 
   @override
   String get biometricUnlockFailed =>
@@ -1405,10 +1224,6 @@ class SDe extends S {
       'Auf diesem Gerät sind keine biometrischen Daten registriert.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'Legen Sie zuerst ein Masterpasswort fest, um die biometrische Entsperrung zu aktivieren.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'Dieses Gerät verfügt über keinen biometrischen Sensor.';
 
@@ -1417,24 +1232,10 @@ class SDe extends S {
       'Fingerabdruckdienst (fprintd) ist nicht installiert. Siehe README → Installation.';
 
   @override
-  String get biometricBackingHardware =>
-      'Hardware-gestützt (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'Software-gestützt';
-
-  @override
   String get currentPasswordIncorrect => 'Aktuelles Passwort ist falsch';
 
   @override
   String get wrongPassword => 'Falsches Passwort';
-
-  @override
-  String get useKeychain => 'Mit Betriebssystem-Schlüsselbund verschlüsseln';
-
-  @override
-  String get useKeychainSubtitle =>
-      'Den Datenbankschlüssel im OS-Schlüsselbund ablegen. Aus = Klartext-Datenbank.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh ist gesperrt';
@@ -1549,9 +1350,6 @@ class SDe extends S {
   String get progressWritingArchive => 'Archiv wird geschrieben…';
 
   @override
-  String get progressReencrypting => 'Speicher wird neu verschlüsselt…';
-
-  @override
   String get progressWorking => 'Wird bearbeitet…';
 
   @override
@@ -1614,10 +1412,6 @@ class SDe extends S {
 
   @override
   String get subitems => 'Elemente';
-
-  @override
-  String get storagePermissionRequired =>
-      'Speicherberechtigung erforderlich, um lokale Dateien zu durchsuchen';
 
   @override
   String get grantPermission => 'Berechtigung erteilen';
@@ -1765,21 +1559,6 @@ class SDe extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH-Verbindung';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'Hält SSH-Verbindungen im Hintergrund aufrecht.';
-
-  @override
-  String get sshActive => 'SSH aktiv';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count aktive Verbindung(en)';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count Elemente, $size';
   }
@@ -1833,9 +1612,6 @@ class SDe extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'Alle bekannten Hosts entfernen? Jeder Serverschlüssel muss erneut bestätigt werden.';
-
-  @override
-  String get importKnownHostsSubtitle => 'Import aus OpenSSH known_hosts-Datei';
 
   @override
   String get clearedAllHosts => 'Alle bekannten Hosts gelöscht';
@@ -1927,9 +1703,6 @@ class SDe extends S {
   String get selectFromKeyStore => 'Aus Schlüsselspeicher auswählen';
 
   @override
-  String get noKeySelected => 'Kein Schlüssel ausgewählt';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1963,27 +1736,6 @@ class SDe extends S {
   String get rememberPassphrase => 'Für diese Sitzung merken';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Gespeicherte Anmeldedaten mit Passwort schützen';
-
-  @override
-  String get setMasterPassword => 'Master-Passwort festlegen';
-
-  @override
-  String get changeMasterPassword => 'Master-Passwort ändern';
-
-  @override
-  String get removeMasterPassword => 'Master-Passwort entfernen';
-
-  @override
-  String get masterPasswordEnabled =>
-      'Anmeldedaten sind durch Master-Passwort geschützt';
-
-  @override
-  String get masterPasswordDisabled =>
-      'Anmeldedaten verwenden automatisch generierten Schlüssel (kein Passwort)';
-
-  @override
   String get enterMasterPassword =>
       'Geben Sie das Master-Passwort ein, um Ihre gespeicherten Anmeldedaten zu entsperren.';
 
@@ -1998,27 +1750,7 @@ class SDe extends S {
   String get currentPassword => 'Aktuelles Passwort';
 
   @override
-  String get masterPasswordSet => 'Master-Passwort aktiviert';
-
-  @override
-  String get masterPasswordChanged => 'Master-Passwort geändert';
-
-  @override
-  String get masterPasswordRemoved => 'Master-Passwort entfernt';
-
-  @override
-  String get masterPasswordWarning =>
-      'Wenn Sie dieses Passwort vergessen, gehen alle gespeicherten Passwörter und SSH-Schlüssel verloren. Eine Wiederherstellung ist nicht möglich.';
-
-  @override
   String get forgotPassword => 'Passwort vergessen?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'Dies löscht ALLE gespeicherten Passwörter, SSH-Schlüssel und Passphrasen. Sitzungen und Einstellungen bleiben erhalten. Dies kann nicht rückgängig gemacht werden.';
-
-  @override
-  String get resetAndDeleteCredentials => 'Zurücksetzen und Daten löschen';
 
   @override
   String get credentialsReset =>
@@ -2068,86 +1800,10 @@ class SDe extends S {
   String get derivingKey => 'Verschlüsselungsschlüssel wird abgeleitet...';
 
   @override
-  String get reEncrypting => 'Daten werden neu verschlüsselt...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'Geben Sie Ihr aktuelles Passwort ein, um den Master-Passwort-Schutz zu entfernen. Anmeldedaten werden mit einem automatisch generierten Schlüssel neu verschlüsselt.';
-
-  @override
   String get securitySetupTitle => 'Sicherheitseinrichtung';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'OS-Schlüsselbund erkannt ($keychainName). Ihre Daten werden automatisch mit Ihrem System-Schlüsselbund verschlüsselt.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'Sie können auch ein Master-Passwort für zusätzlichen Schutz festlegen.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'Kein OS-Schlüsselbund erkannt. Ohne Schlüsselbund werden Ihre Sitzungsdaten (Hosts, Passwörter, Schlüssel) im Klartext gespeichert.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'Dies ist normal bei WSL, Headless Linux oder Minimalinstallationen. Zur Aktivierung des Schlüsselbunds unter Linux: Installieren Sie libsecret und einen Keyring-Daemon (z. B. gnome-keyring).';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'Wir empfehlen, ein Master-Passwort zum Schutz Ihrer Daten festzulegen.';
-
-  @override
-  String get continueWithKeychain => 'Mit Schlüsselbund fortfahren';
-
-  @override
-  String get continueWithoutEncryption => 'Ohne Verschlüsselung fortfahren';
-
-  @override
-  String get securityLevel => 'Sicherheitsstufe';
-
-  @override
-  String get securityLevelPlaintext => 'Keine';
-
-  @override
-  String get securityLevelKeychain => 'OS-Schlüsselbund';
-
-  @override
-  String get securityLevelMasterPassword => 'Master-Passwort';
-
-  @override
-  String get keychainStatus => 'Schlüsselbund';
-
-  @override
   String get keychainAvailable => 'Verfügbar';
-
-  @override
-  String get keychainNotAvailable => 'Nicht verfügbar';
-
-  @override
-  String get enableKeychain => 'Schlüsselbund-Verschlüsselung aktivieren';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'Gespeicherte Daten mit OS-Schlüsselbund neu verschlüsseln';
-
-  @override
-  String get keychainEnabled => 'Schlüsselbund-Verschlüsselung aktiviert';
-
-  @override
-  String get manageMasterPassword => 'Master-Passwort verwalten';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'Master-Passwort festlegen, ändern oder entfernen';
-
-  @override
-  String get changeSecurityTier => 'Sicherheitsstufe ändern';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'Stufenleiter öffnen und eine andere Sicherheitsstufe wählen';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2172,22 +1828,6 @@ class SDe extends S {
       'Auf diesem Gerät ist hardwaregestützter Speicher verfügbar. Wechsle unter Einstellungen → Sicherheit, um TPM / Secure Enclave zu nutzen.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'Hardwaregestützter Speicher nicht verfügbar — kein TPM 2.0 auf diesem Gerät erkannt.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'Hardwaregestützter Speicher nicht verfügbar — dieses Gerät meldet keine Secure Enclave.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Hardwaregestützter Speicher nicht verfügbar — installiere tpm2-tools; außerdem wird ein TPM-2.0-Gerät benötigt.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'Hardwaregestützter Speicher nicht verfügbar — dieses Gerät meldet keine StrongBox oder TEE.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'Hardwaregestützter Speicher auf diesem Gerät nicht verfügbar.';
 
@@ -2195,32 +1835,8 @@ class SDe extends S {
   String get firstLaunchSecurityOpenSettings => 'Einstellungen öffnen';
 
   @override
-  String get firstLaunchSecurityDismiss => 'Verstanden';
-
-  @override
-  String get securityHardwareUpgradeTitle =>
-      'Hardwaregestützter Speicher verfügbar';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'Aktualisiere, um Geheimnisse an TPM / Secure Enclave zu binden.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'Aktualisieren';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'Hardwaregestützter Speicher nicht verfügbar';
-
-  @override
   String get wizardReducedBanner =>
       'Der Schlüsselbund des Betriebssystems ist bei dieser Installation nicht erreichbar. Wähle zwischen keiner Verschlüsselung (T0) und einem Master-Passwort (Paranoid). Installiere gnome-keyring, kwallet oder einen anderen libsecret-Anbieter, um die Keychain-Stufe zu aktivieren.';
-
-  @override
-  String get tierBlockProtectsHeader => 'SCHÜTZT VOR';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'SCHÜTZT NICHT VOR';
 
   @override
   String get tierBlockProtectsEmpty => 'Auf dieser Stufe nichts.';
@@ -2236,29 +1852,6 @@ class SDe extends S {
 
   @override
   String get securitySetupApply => 'Übernehmen';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'Die Plaintext-Stufe speichert kein Geheimnis, das ein Passwort schützen könnte.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid leitet den Datenbankschlüssel aus dem Passwort ab — Passwort ist immer an.';
-
-  @override
-  String get passwordSubtitleOn => 'An — Passwort beim Entsperren erforderlich';
-
-  @override
-  String get passwordSubtitleOff =>
-      'Aus — tippen, um auf dieser Stufe ein Passwort hinzuzufügen';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'Erforderlich — das Master-Passwort ist das Geheimnis der Stufe';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'Nicht anwendbar — keine Verschlüsselung auf dieser Stufe';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2457,9 +2050,6 @@ class SDe extends S {
   }
 
   @override
-  String get runSnippet => 'Ausführen';
-
-  @override
   String get pinToSession => 'An diese Sitzung anheften';
 
   @override
@@ -2470,9 +2060,6 @@ class SDe extends S {
 
   @override
   String get allSnippets => 'Alle';
-
-  @override
-  String get sendToTerminal => 'An Terminal senden';
 
   @override
   String get commandCopied => 'Befehl in die Zwischenablage kopiert';
@@ -2538,33 +2125,6 @@ class SDe extends S {
 
   @override
   String get sessionsOnly => 'Sitzungen';
-
-  @override
-  String get allKeysFromManager => 'Alle Schlüssel aus dem Manager';
-
-  @override
-  String exportTags(int count) {
-    return 'Schlagwörter ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'Codeschnipsel ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'Schlüsselbund-Verschlüsselung deaktivieren';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'Auf Klartextspeicherung umstellen (nicht empfohlen)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'Die Datenbank wird ohne Schlüssel neu verschlüsselt. Sitzungen und Schlüssel werden im Klartext auf der Festplatte gespeichert. Fortfahren?';
-
-  @override
-  String get keychainDisabled => 'Schlüsselbund-Verschlüsselung deaktiviert';
 
   @override
   String get presetFullImport => 'Vollständiger Import';
@@ -2696,18 +2256,6 @@ class SDe extends S {
   String get legendDoesNotProtect => 'Nicht geschützt';
 
   @override
-  String get legendNotApplicable =>
-      'Nicht zutreffend — auf dieser Stufe gibt es kein eingegebenes Geheimnis';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'Schwaches Passwort akzeptabel — eine andere Schicht (Hardware-Rate-Limit oder Key-Wrapping) übernimmt den Schutz';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'Eine lange Passphrase wird dringend empfohlen — die Sicherheit dieser Stufe hängt davon ab';
-
-  @override
   String get colT0 => 'T0 Klartext';
 
   @override
@@ -2730,10 +2278,6 @@ class SDe extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'Sicherheitsstufen — Direktvergleich';
 
   @override
   String get securityComparisonTableThreatColumn => 'Bedrohung';
@@ -2768,21 +2312,11 @@ class SDe extends S {
   String get resetAllDataFailed => 'Zurücksetzen fehlgeschlagen';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'Sehen Sie nebeneinander, wogegen jede Stufe schützt.';
-
-  @override
   String get autoLockRequiresPassword =>
       'Auto-Sperre erfordert ein Passwort auf der aktiven Stufe.';
 
   @override
   String get recommendedBadge => 'EMPFOHLEN';
-
-  @override
-  String get continueWithRecommended => 'Mit Empfehlung fortfahren';
-
-  @override
-  String get customizeSecurity => 'Sicherheit anpassen';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2795,9 +2329,6 @@ class SDe extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'Runtime-Bedrohungen (Malware desselben Benutzers, Speicherabbild des laufenden Prozesses) werden in jeder Stufe als ✗ dargestellt. Sie werden durch separate Mitigationsfunktionen behandelt, die unabhängig von der gewählten Stufe gelten.';
-
-  @override
-  String get securitySetupContinue => 'Weiter';
 
   @override
   String get currentTierBadge => 'AKTUELL';

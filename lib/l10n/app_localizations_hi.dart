@@ -99,9 +99,6 @@ class SHi extends S {
   String get nextStep => 'अगला';
 
   @override
-  String get includeCredentials => 'पासवर्ड और SSH कुंजियां शामिल करें';
-
-  @override
   String get includePasswords => 'सेशन पासवर्ड';
 
   @override
@@ -125,14 +122,6 @@ class SHi extends S {
   String exportTotalSize(String size) {
     return 'कुल आकार: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'पासवर्ड और SSH कुंजियां QR कोड में दिखेंगी';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'क्रेडेंशियल QR कोड को बहुत बड़ा बनाते हैं';
 
   @override
   String get terminal => 'टर्मिनल';
@@ -249,11 +238,6 @@ class SHi extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'QR से $count सत्र आयात किए गए';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count सत्र आयात किए गए';
   }
@@ -311,9 +295,6 @@ class SHi extends S {
 
   @override
   String get noSessions => 'कोई सत्र नहीं';
-
-  @override
-  String get noSessionsToExport => 'निर्यात के लिए कोई सत्र नहीं';
 
   @override
   String nSelectedCount(int count) {
@@ -442,9 +423,6 @@ class SHi extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'अभी कोई अतिरिक्त विकल्प नहीं';
 
   @override
   String get saveAndConnect => 'सहेजें और कनेक्ट करें';
@@ -606,9 +584,6 @@ class SHi extends S {
   String get controllersNotInitialized => 'कंट्रोलर आरंभ नहीं हुए';
 
   @override
-  String get initializingSftp => 'SFTP आरंभ हो रहा है...';
-
-  @override
   String get clearHistory => 'इतिहास साफ़ करें';
 
   @override
@@ -619,9 +594,6 @@ class SHi extends S {
 
   @override
   String get duplicateTabShortcut => 'टैब डुप्लिकेट करें (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'नीचे कॉपी करें';
 
   @override
   String get previous => 'पिछला';
@@ -729,13 +701,6 @@ class SHi extends S {
   String get exportData => 'डेटा निर्यात करें';
 
   @override
-  String get exportDataSubtitle =>
-      'सत्र, कॉन्फ़िग और कुंजियों को एन्क्रिप्टेड .lfs फ़ाइल में सहेजें';
-
-  @override
-  String get importDataSubtitle => '.lfs फ़ाइल से डेटा लोड करें';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count होस्ट मिले';
   }
@@ -747,11 +712,6 @@ class SHi extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'इनके लिए कुंजी फ़ाइलें नहीं पढ़ी जा सकीं: $hosts. ये होस्ट बिना क्रेडेंशियल के आयात होंगे।';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'फ़ोल्डर में आयात किया गया: $folder';
   }
 
   @override
@@ -823,39 +783,11 @@ class SHi extends S {
   String get passwordStrengthVeryStrong => 'बहुत मज़बूत';
 
   @override
-  String get tierRecommendedBadge => 'अनुशंसित';
-
-  @override
-  String get tierCurrentBadge => 'वर्तमान';
-
-  @override
-  String get tierAlternativeBranchLabel => 'विकल्प — OS पर भरोसा न करें';
-
-  @override
-  String get tierUpcomingTooltip => 'आगामी संस्करण में आएगा।';
-
-  @override
-  String get tierUpcomingNotes =>
-      'इस स्तर का अंतर्निहित ढाँचा अभी उपलब्ध नहीं है। पंक्ति दिखाई दे रही है ताकि आपको पता चले कि विकल्प मौजूद है।';
-
-  @override
   String get tierPlaintextLabel => 'सादा टेक्स्ट';
 
   @override
   String get tierPlaintextSubtitle =>
       'कोई एन्क्रिप्शन नहीं — केवल फ़ाइल अनुमतियाँ';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'फ़ाइल सिस्टम एक्सेस वाला कोई भी आपका डेटा पढ़ लेता है';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'गलती से सिंक या बैकअप सब कुछ उजागर कर देता है';
-
-  @override
-  String get tierPlaintextNotes =>
-      'केवल विश्वसनीय, पृथक वातावरण में उपयोग करें।';
 
   @override
   String get tierKeychainLabel => 'कीचेन';
@@ -866,78 +798,14 @@ class SHi extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'उसी मशीन पर अन्य उपयोगकर्ता';
-
-  @override
-  String get tierKeychainProtect2 => 'OS लॉगिन के बिना चुराई गई डिस्क';
-
-  @override
-  String get tierKeychainThreat1 => 'आपके OS खाते में चल रहा मैलवेयर';
-
-  @override
-  String get tierKeychainThreat2 =>
-      'एक हमलावर जो आपके OS लॉगिन पर कब्ज़ा कर लेता है';
-
-  @override
   String get tierKeychainUnavailable =>
       'इस इंस्टॉल पर OS कीचेन उपलब्ध नहीं है।';
-
-  @override
-  String get tierKeychainPassProtect1 => 'आपके डेस्क पर बैठा सहकर्मी';
-
-  @override
-  String get tierKeychainPassProtect2 => 'अनलॉक एक्सेस वाला एक राहगीर';
-
-  @override
-  String get tierKeychainPassThreat1 => 'डिस्क पर फ़ाइल वाला ऑफ़लाइन हमलावर';
-
-  @override
-  String get tierKeychainPassThreat2 => 'कीचेन के समान OS-समझौते के जोखिम';
 
   @override
   String get tierHardwareLabel => 'हार्डवेयर';
 
   @override
-  String get tierHardwareSubtitle =>
-      'हार्डवेयर-बाध्य वॉल्ट + लॉकआउट के साथ छोटा PIN';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'PIN का ऑफ़लाइन ब्रूट फ़ोर्स (हार्डवेयर रेट-लिमिट)';
-
-  @override
-  String get tierHardwareProtect2 => 'डिस्क और कीचेन ब्लॉब चुराना';
-
-  @override
-  String get tierHardwareThreat1 => 'सुरक्षित मॉड्यूल पर OS या फ़र्मवेयर CVE';
-
-  @override
-  String get tierHardwareThreat2 => 'जबरन बायोमेट्रिक अनलॉक (यदि सक्षम हो)';
-
-  @override
   String get tierParanoidLabel => 'मास्टर पासवर्ड (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'लंबा पासवर्ड + Argon2id। कुंजी कभी OS में प्रवेश नहीं करती।';
-
-  @override
-  String get tierParanoidProtect1 => 'OS कीचेन समझौता';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'चुराई गई डिस्क (जब तक आपका पासवर्ड मज़बूत है)';
-
-  @override
-  String get tierParanoidThreat1 => 'आपका पासवर्ड पकड़ने वाला कीलॉगर';
-
-  @override
-  String get tierParanoidThreat2 =>
-      'कमज़ोर पासवर्ड + ऑफ़लाइन Argon2id क्रैकिंग';
-
-  @override
-  String get tierParanoidNotes =>
-      'इस स्तर पर बायोमेट्रिक डिज़ाइन द्वारा अक्षम है।';
 
   @override
   String get tierHardwareUnavailable =>
@@ -981,19 +849,6 @@ class SHi extends S {
 
   @override
   String get pathToLfsFile => '.lfs फ़ाइल का पथ';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => 'ब्राउज़ करें';
-
-  @override
-  String get shareViaQrCode => 'QR कोड से साझा करें';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'दूसरे डिवाइस से स्कैन करने के लिए सत्रों को QR कोड में निर्यात करें';
 
   @override
   String get dataLocation => 'डेटा स्थान';
@@ -1078,15 +933,6 @@ class SHi extends S {
 
   @override
   String get useSftpFromSessions => 'सत्रों से \"SFTP\" का उपयोग करें';
-
-  @override
-  String get anotherInstanceRunning =>
-      'LetsFLUTssh का एक अन्य इंस्टेंस पहले से चल रहा है।';
-
-  @override
-  String importFailedShort(String error) {
-    return 'आयात विफल: $error';
-  }
 
   @override
   String get saveLogAs => 'लॉग इस रूप में सहेजें';
@@ -1327,16 +1173,6 @@ class SHi extends S {
   String get errSessionClosed => 'सत्र बंद';
 
   @override
-  String errShellError(String error) {
-    return 'शेल त्रुटि: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'पुनः कनेक्ट विफल: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'SFTP आरंभ करने में विफल: $error';
   }
@@ -1345,10 +1181,6 @@ class SHi extends S {
   String errDownloadFailed(String error) {
     return 'डाउनलोड विफल: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Credentials decrypt करने में विफल। Key file corrupt हो सकती है।';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1365,18 +1197,8 @@ class SHi extends S {
       'पासवर्ड टाइप न करें — डिवाइस के बायोमेट्रिक सेंसर से अनलॉक करें।';
 
   @override
-  String get biometricNotAvailable =>
-      'इस डिवाइस पर बायोमेट्रिक अनलॉक उपलब्ध नहीं है।';
-
-  @override
   String get biometricEnableFailed =>
       'बायोमेट्रिक अनलॉक चालू नहीं किया जा सका।';
-
-  @override
-  String get biometricEnabled => 'बायोमेट्रिक अनलॉक सक्षम';
-
-  @override
-  String get biometricDisabled => 'बायोमेट्रिक अनलॉक अक्षम';
 
   @override
   String get biometricUnlockFailed =>
@@ -1390,10 +1212,6 @@ class SHi extends S {
       'इस डिवाइस पर कोई बायोमेट्रिक क्रेडेंशियल पंजीकृत नहीं है।';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'बायोमेट्रिक अनलॉक सक्षम करने के लिए पहले एक मास्टर पासवर्ड सेट करें।';
-
-  @override
   String get biometricSensorNotAvailable =>
       'इस डिवाइस पर कोई बायोमेट्रिक सेंसर नहीं है।';
 
@@ -1402,24 +1220,10 @@ class SHi extends S {
       'फ़िंगरप्रिंट सेवा (fprintd) स्थापित नहीं है। README → Installation देखें।';
 
   @override
-  String get biometricBackingHardware =>
-      'हार्डवेयर-समर्थित (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'सॉफ़्टवेयर-समर्थित';
-
-  @override
   String get currentPasswordIncorrect => 'वर्तमान पासवर्ड गलत है';
 
   @override
   String get wrongPassword => 'गलत पासवर्ड';
-
-  @override
-  String get useKeychain => 'OS कीचेन से एन्क्रिप्ट करें';
-
-  @override
-  String get useKeychainSubtitle =>
-      'डेटाबेस कुंजी को सिस्टम क्रेडेंशियल स्टोर में रखें। बंद = सादा-पाठ डेटाबेस।';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh लॉक है';
@@ -1533,9 +1337,6 @@ class SHi extends S {
   String get progressWritingArchive => 'संग्रह लिखा जा रहा है…';
 
   @override
-  String get progressReencrypting => 'स्टोर फिर से एन्क्रिप्ट किए जा रहे हैं…';
-
-  @override
   String get progressWorking => 'प्रसंस्करण…';
 
   @override
@@ -1597,10 +1398,6 @@ class SHi extends S {
 
   @override
   String get subitems => 'आइटम';
-
-  @override
-  String get storagePermissionRequired =>
-      'स्थानीय फ़ाइलें ब्राउज़ करने के लिए स्टोरेज अनुमति आवश्यक है';
 
   @override
   String get grantPermission => 'अनुमति दें';
@@ -1748,21 +1545,6 @@ class SHi extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH कनेक्शन';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'SSH कनेक्शन को पृष्ठभूमि में सक्रिय रखता है।';
-
-  @override
-  String get sshActive => 'SSH सक्रिय';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count सक्रिय कनेक्शन';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count आइटम, $size';
   }
@@ -1816,10 +1598,6 @@ class SHi extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'सभी ज्ञात होस्ट हटाएं? प्रत्येक सर्वर कुंजी की पुनः पुष्टि करनी होगी।';
-
-  @override
-  String get importKnownHostsSubtitle =>
-      'OpenSSH known_hosts फ़ाइल से आयात करें';
 
   @override
   String get clearedAllHosts => 'सभी ज्ञात होस्ट साफ़ किए गए';
@@ -1909,9 +1687,6 @@ class SHi extends S {
   String get selectFromKeyStore => 'कुंजी भंडार से चुनें';
 
   @override
-  String get noKeySelected => 'कोई कुंजी नहीं चुनी गई';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1944,27 +1719,6 @@ class SHi extends S {
   String get rememberPassphrase => 'इस सत्र के लिए याद रखें';
 
   @override
-  String get masterPasswordSubtitle =>
-      'सहेजे गए क्रेडेंशियल को पासवर्ड से सुरक्षित करें';
-
-  @override
-  String get setMasterPassword => 'मास्टर पासवर्ड सेट करें';
-
-  @override
-  String get changeMasterPassword => 'मास्टर पासवर्ड बदलें';
-
-  @override
-  String get removeMasterPassword => 'मास्टर पासवर्ड हटाएं';
-
-  @override
-  String get masterPasswordEnabled =>
-      'क्रेडेंशियल मास्टर पासवर्ड से सुरक्षित हैं';
-
-  @override
-  String get masterPasswordDisabled =>
-      'क्रेडेंशियल स्वचालित रूप से जनरेट की गई कुंजी का उपयोग करते हैं (पासवर्ड नहीं)';
-
-  @override
   String get enterMasterPassword =>
       'सहेजे गए क्रेडेंशियल तक पहुँचने के लिए मास्टर पासवर्ड दर्ज करें।';
 
@@ -1978,27 +1732,7 @@ class SHi extends S {
   String get currentPassword => 'वर्तमान पासवर्ड';
 
   @override
-  String get masterPasswordSet => 'मास्टर पासवर्ड सक्रिय किया गया';
-
-  @override
-  String get masterPasswordChanged => 'मास्टर पासवर्ड बदला गया';
-
-  @override
-  String get masterPasswordRemoved => 'मास्टर पासवर्ड हटाया गया';
-
-  @override
-  String get masterPasswordWarning =>
-      'यदि आप यह पासवर्ड भूल जाते हैं, तो सभी सहेजे गए पासवर्ड और SSH कुंजियाँ खो जाएंगी। पुनर्प्राप्ति संभव नहीं है।';
-
-  @override
   String get forgotPassword => 'पासवर्ड भूल गए?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'यह सभी सहेजे गए पासवर्ड, SSH कुंजियाँ और पासफ़्रेज़ हटा देगा। सत्र और सेटिंग्स बनी रहेंगी। यह क्रिया पूर्ववत नहीं की जा सकती।';
-
-  @override
-  String get resetAndDeleteCredentials => 'रीसेट करें और डेटा हटाएं';
 
   @override
   String get credentialsReset => 'सभी सहेजे गए क्रेडेंशियल हटा दिए गए';
@@ -2047,86 +1781,10 @@ class SHi extends S {
   String get derivingKey => 'एन्क्रिप्शन कुंजी बनाई जा रही है...';
 
   @override
-  String get reEncrypting => 'डेटा पुनः एन्क्रिप्ट हो रहा है...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'मास्टर पासवर्ड सुरक्षा हटाने के लिए वर्तमान पासवर्ड दर्ज करें। क्रेडेंशियल स्वचालित कुंजी से पुनः एन्क्रिप्ट होंगे।';
-
-  @override
   String get securitySetupTitle => 'सुरक्षा सेटअप';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'OS कीचेन पाया गया ($keychainName)। आपका डेटा सिस्टम कीचेन का उपयोग करके स्वचालित रूप से एन्क्रिप्ट किया जाएगा।';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'अतिरिक्त सुरक्षा के लिए मास्टर पासवर्ड भी सेट कर सकते हैं।';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'OS कीचेन नहीं पाया गया। कीचेन के बिना, सत्र डेटा (होस्ट, पासवर्ड, कुंजियाँ) सादे पाठ में संग्रहीत होगा।';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'WSL, हेडलेस Linux या न्यूनतम इंस्टॉलेशन में यह सामान्य है। Linux पर कीचेन सक्षम करने के लिए: libsecret और कीरिंग डेमन (जैसे gnome-keyring) इंस्टॉल करें।';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'अपने डेटा की सुरक्षा के लिए मास्टर पासवर्ड सेट करने की सिफारिश की जाती है।';
-
-  @override
-  String get continueWithKeychain => 'कीचेन के साथ जारी रखें';
-
-  @override
-  String get continueWithoutEncryption => 'एन्क्रिप्शन के बिना जारी रखें';
-
-  @override
-  String get securityLevel => 'सुरक्षा स्तर';
-
-  @override
-  String get securityLevelPlaintext => 'कोई नहीं';
-
-  @override
-  String get securityLevelKeychain => 'OS कीचेन';
-
-  @override
-  String get securityLevelMasterPassword => 'मास्टर पासवर्ड';
-
-  @override
-  String get keychainStatus => 'कीचेन';
-
-  @override
   String get keychainAvailable => 'उपलब्ध';
-
-  @override
-  String get keychainNotAvailable => 'अनुपलब्ध';
-
-  @override
-  String get enableKeychain => 'कीचेन एन्क्रिप्शन सक्षम करें';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'OS कीचेन का उपयोग करके संग्रहीत डेटा को पुनः एन्क्रिप्ट करें';
-
-  @override
-  String get keychainEnabled => 'कीचेन एन्क्रिप्शन सक्षम';
-
-  @override
-  String get manageMasterPassword => 'मास्टर पासवर्ड प्रबंधित करें';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'मास्टर पासवर्ड सेट, बदलें या हटाएं';
-
-  @override
-  String get changeSecurityTier => 'सुरक्षा स्तर बदलें';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'स्तर सीढ़ी खोलें और अलग सुरक्षा स्तर पर जाएँ';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2150,22 +1808,6 @@ class SHi extends S {
       'इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध है। TPM / Secure Enclave बाइंडिंग के लिए सेटिंग्स → सुरक्षा से अपग्रेड करें।';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — इस डिवाइस पर TPM 2.0 नहीं मिला।';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — यह डिवाइस Secure Enclave की रिपोर्ट नहीं करता।';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — इसे सक्षम करने के लिए tpm2-tools और TPM 2.0 डिवाइस स्थापित करें।';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है — यह डिवाइस StrongBox या TEE की रिपोर्ट नहीं करता।';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'इस डिवाइस पर हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं है।';
 
@@ -2173,31 +1815,8 @@ class SHi extends S {
   String get firstLaunchSecurityOpenSettings => 'सेटिंग्स खोलें';
 
   @override
-  String get firstLaunchSecurityDismiss => 'समझ गया';
-
-  @override
-  String get securityHardwareUpgradeTitle => 'हार्डवेयर-आधारित स्टोरेज उपलब्ध';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'रहस्यों को TPM / Secure Enclave से बाँधने के लिए अपग्रेड करें।';
-
-  @override
-  String get securityHardwareUpgradeAction => 'अपग्रेड करें';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'हार्डवेयर-आधारित स्टोरेज उपलब्ध नहीं';
-
-  @override
   String get wizardReducedBanner =>
       'इस इंस्टॉलेशन में OS कीचेन उपलब्ध नहीं है। कोई एन्क्रिप्शन नहीं (T0) और मास्टर पासवर्ड (Paranoid) में से चुनें। Keychain स्तर सक्षम करने के लिए gnome-keyring, kwallet या कोई अन्य libsecret प्रदाता स्थापित करें।';
-
-  @override
-  String get tierBlockProtectsHeader => 'इनसे बचाता है';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'इनसे नहीं बचाता';
 
   @override
   String get tierBlockProtectsEmpty => 'इस स्तर पर कुछ नहीं।';
@@ -2213,29 +1832,6 @@ class SHi extends S {
 
   @override
   String get securitySetupApply => 'लागू करें';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'सादा स्तर कोई रहस्य नहीं रखता जिसे पासवर्ड से बचाया जा सके।';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid पासवर्ड से डीबी कुंजी निकालता है — हमेशा चालू।';
-
-  @override
-  String get passwordSubtitleOn => 'चालू — अनलॉक पर पासवर्ड आवश्यक';
-
-  @override
-  String get passwordSubtitleOff =>
-      'बंद — इस स्तर पर पासवर्ड जोड़ने के लिए टैप करें';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'आवश्यक — मास्टर पासवर्ड ही स्तर का रहस्य है';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'लागू नहीं — इस स्तर में कोई एन्क्रिप्शन नहीं';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2432,9 +2028,6 @@ class SHi extends S {
   }
 
   @override
-  String get runSnippet => 'चलाएँ';
-
-  @override
   String get pinToSession => 'इस सत्र पर पिन करें';
 
   @override
@@ -2445,9 +2038,6 @@ class SHi extends S {
 
   @override
   String get allSnippets => 'सभी';
-
-  @override
-  String get sendToTerminal => 'टर्मिनल पर भेजें';
 
   @override
   String get commandCopied => 'कमांड कॉपी की गई';
@@ -2512,33 +2102,6 @@ class SHi extends S {
 
   @override
   String get sessionsOnly => 'सत्र';
-
-  @override
-  String get allKeysFromManager => 'प्रबंधक से सभी कुंजियाँ';
-
-  @override
-  String exportTags(int count) {
-    return 'टैग ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'स्निपेट ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'कीचेन एन्क्रिप्शन अक्षम करें';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'सादा पाठ संग्रहण पर स्विच करें (अनुशंसित नहीं)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'डेटाबेस को बिना कुंजी के फिर से एन्क्रिप्ट किया जाएगा। सत्र और कुंजियाँ डिस्क पर सादे पाठ में संग्रहीत की जाएँगी। जारी रखें?';
-
-  @override
-  String get keychainDisabled => 'कीचेन एन्क्रिप्शन अक्षम किया गया';
 
   @override
   String get presetFullImport => 'पूर्ण आयात';
@@ -2668,18 +2231,6 @@ class SHi extends S {
   String get legendDoesNotProtect => 'सुरक्षित नहीं';
 
   @override
-  String get legendNotApplicable =>
-      'लागू नहीं — इस टीयर के लिए कोई उपयोगकर्ता गुप्त नहीं है';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'कमज़ोर पासवर्ड चलेगा — security का बोझ दूसरी layer (hardware rate limiter या wrapped-key binding) उठाती है';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'एक लंबा पासफ़्रेज़ अत्यधिक अनुशंसित है — इस टीयर की सुरक्षा इस पर निर्भर है';
-
-  @override
   String get colT0 => 'T0 सादा पाठ';
 
   @override
@@ -2702,9 +2253,6 @@ class SHi extends S {
 
   @override
   String get colParanoid => 'पैरानॉइड';
-
-  @override
-  String get securityComparisonTableTitle => 'सुरक्षा टीयर — आमने-सामने तुलना';
 
   @override
   String get securityComparisonTableThreatColumn => 'ख़तरा';
@@ -2739,21 +2287,11 @@ class SHi extends S {
   String get resetAllDataFailed => 'रीसेट विफल';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'देखें कि प्रत्येक टीयर किससे रक्षा करता है, आमने-सामने तुलना में।';
-
-  @override
   String get autoLockRequiresPassword =>
       'ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।';
 
   @override
   String get recommendedBadge => 'अनुशंसित';
-
-  @override
-  String get continueWithRecommended => 'अनुशंसित के साथ जारी रखें';
-
-  @override
-  String get customizeSecurity => 'सुरक्षा अनुकूलित करें';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2766,9 +2304,6 @@ class SHi extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।';
-
-  @override
-  String get securitySetupContinue => 'जारी रखें';
 
   @override
   String get currentTierBadge => 'वर्तमान';

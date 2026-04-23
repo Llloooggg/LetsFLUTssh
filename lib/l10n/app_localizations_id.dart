@@ -99,9 +99,6 @@ class SId extends S {
   String get nextStep => 'Berikutnya';
 
   @override
-  String get includeCredentials => 'Sertakan kata sandi dan kunci SSH';
-
-  @override
   String get includePasswords => 'Kata sandi sesi';
 
   @override
@@ -125,14 +122,6 @@ class SId extends S {
   String exportTotalSize(String size) {
     return 'Ukuran total: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'Kata sandi dan kunci SSH AKAN terlihat di kode QR';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'Kredensial membuat kode QR terlalu besar';
 
   @override
   String get terminal => 'Terminal';
@@ -249,11 +238,6 @@ class SId extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return '$count sesi diimpor via QR';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count sesi diimpor';
   }
@@ -309,9 +293,6 @@ class SId extends S {
 
   @override
   String get noSessions => 'Tidak ada sesi';
-
-  @override
-  String get noSessionsToExport => 'Tidak ada sesi untuk diekspor';
 
   @override
   String nSelectedCount(int count) {
@@ -440,9 +421,6 @@ class SId extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'Belum ada opsi tambahan';
 
   @override
   String get saveAndConnect => 'Simpan & Hubungkan';
@@ -607,9 +585,6 @@ class SId extends S {
   String get controllersNotInitialized => 'Controller belum diinisialisasi';
 
   @override
-  String get initializingSftp => 'Menginisialisasi SFTP...';
-
-  @override
   String get clearHistory => 'Hapus riwayat';
 
   @override
@@ -620,9 +595,6 @@ class SId extends S {
 
   @override
   String get duplicateTabShortcut => 'Duplikat Tab (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'Salin ke Bawah';
 
   @override
   String get previous => 'Sebelumnya';
@@ -731,13 +703,6 @@ class SId extends S {
   String get exportData => 'Ekspor Data';
 
   @override
-  String get exportDataSubtitle =>
-      'Simpan sesi, konfigurasi, dan kunci ke file .lfs terenkripsi';
-
-  @override
-  String get importDataSubtitle => 'Muat data dari file .lfs';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host ditemukan';
   }
@@ -749,11 +714,6 @@ class SId extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'Tidak dapat membaca file kunci untuk: $hosts. Host ini akan diimpor tanpa kredensial.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'Diimpor ke folder: $folder';
   }
 
   @override
@@ -826,39 +786,10 @@ class SId extends S {
   String get passwordStrengthVeryStrong => 'Sangat kuat';
 
   @override
-  String get tierRecommendedBadge => 'Direkomendasikan';
-
-  @override
-  String get tierCurrentBadge => 'Saat ini';
-
-  @override
-  String get tierAlternativeBranchLabel =>
-      'Alternatif — jangan percaya pada OS';
-
-  @override
-  String get tierUpcomingTooltip => 'Akan hadir di versi mendatang.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'Infrastruktur di balik tingkat ini belum dirilis. Baris ini terlihat agar Anda tahu opsi tersebut ada.';
-
-  @override
   String get tierPlaintextLabel => 'Teks biasa';
 
   @override
   String get tierPlaintextSubtitle => 'Tanpa enkripsi — hanya izin file';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'Siapa pun dengan akses sistem file membaca data Anda';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'Sinkronisasi atau cadangan tidak sengaja mengungkap semuanya';
-
-  @override
-  String get tierPlaintextNotes =>
-      'Hanya gunakan di lingkungan tepercaya dan terisolasi.';
 
   @override
   String get tierKeychainLabel => 'Keychain';
@@ -869,81 +800,14 @@ class SId extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'Pengguna lain pada mesin yang sama';
-
-  @override
-  String get tierKeychainProtect2 => 'Disk yang dicuri tanpa login OS';
-
-  @override
-  String get tierKeychainThreat1 =>
-      'Malware yang berjalan di bawah akun OS Anda';
-
-  @override
-  String get tierKeychainThreat2 =>
-      'Penyerang yang mengambil alih login OS Anda';
-
-  @override
   String get tierKeychainUnavailable =>
       'Keychain OS tidak tersedia pada instalasi ini.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'Rekan kerja yang duduk di meja Anda';
-
-  @override
-  String get tierKeychainPassProtect2 => 'Pelintas dengan akses terbuka';
-
-  @override
-  String get tierKeychainPassThreat1 => 'Penyerang offline dengan file di disk';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'Risiko kompromi OS yang sama seperti Keychain';
 
   @override
   String get tierHardwareLabel => 'Hardware';
 
   @override
-  String get tierHardwareSubtitle =>
-      'Vault terikat hardware + PIN pendek dengan lockout';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'Brute force offline pada PIN (rate-limit hardware)';
-
-  @override
-  String get tierHardwareProtect2 => 'Mencuri disk dan blob keychain';
-
-  @override
-  String get tierHardwareThreat1 => 'CVE OS atau firmware pada modul aman';
-
-  @override
-  String get tierHardwareThreat2 =>
-      'Buka kunci biometrik secara paksa (jika diaktifkan)';
-
-  @override
   String get tierParanoidLabel => 'Kata sandi utama (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'Kata sandi panjang + Argon2id. Kunci tidak pernah masuk ke OS.';
-
-  @override
-  String get tierParanoidProtect1 => 'Kompromi keychain OS';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'Disk dicuri (selama kata sandi Anda kuat)';
-
-  @override
-  String get tierParanoidThreat1 => 'Keylogger yang menangkap kata sandi Anda';
-
-  @override
-  String get tierParanoidThreat2 =>
-      'Kata sandi lemah + brute-force Argon2id offline';
-
-  @override
-  String get tierParanoidNotes =>
-      'Biometrik dinonaktifkan secara desain pada tingkat ini.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -988,19 +852,6 @@ class SId extends S {
 
   @override
   String get pathToLfsFile => 'Jalur file .lfs';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => 'Telusuri';
-
-  @override
-  String get shareViaQrCode => 'Bagikan via Kode QR';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'Ekspor sesi ke kode QR untuk dipindai perangkat lain';
 
   @override
   String get dataLocation => 'Lokasi Data';
@@ -1085,15 +936,6 @@ class SId extends S {
 
   @override
   String get useSftpFromSessions => 'Gunakan \"SFTP\" dari Sesi';
-
-  @override
-  String get anotherInstanceRunning =>
-      'Instance LetsFLUTssh lain sudah berjalan.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'Impor gagal: $error';
-  }
 
   @override
   String get saveLogAs => 'Simpan log sebagai';
@@ -1333,16 +1175,6 @@ class SId extends S {
   String get errSessionClosed => 'Sesi ditutup';
 
   @override
-  String errShellError(String error) {
-    return 'Kesalahan shell: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'Gagal menghubungkan ulang: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'Gagal menginisialisasi SFTP: $error';
   }
@@ -1351,10 +1183,6 @@ class SId extends S {
   String errDownloadFailed(String error) {
     return 'Unduhan gagal: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Gagal mendekripsi kredensial. File kunci mungkin rusak.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1371,18 +1199,8 @@ class SId extends S {
       'Tidak perlu mengetik kata sandi — buka kunci dengan sensor biometrik perangkat.';
 
   @override
-  String get biometricNotAvailable =>
-      'Buka kunci biometrik tidak tersedia di perangkat ini.';
-
-  @override
   String get biometricEnableFailed =>
       'Tidak dapat mengaktifkan buka kunci biometrik.';
-
-  @override
-  String get biometricEnabled => 'Buka kunci biometrik diaktifkan';
-
-  @override
-  String get biometricDisabled => 'Buka kunci biometrik dinonaktifkan';
 
   @override
   String get biometricUnlockFailed =>
@@ -1396,10 +1214,6 @@ class SId extends S {
       'Tidak ada kredensial biometrik yang terdaftar di perangkat ini.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'Atur kata sandi utama terlebih dahulu untuk mengaktifkan buka kunci biometrik.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'Perangkat ini tidak memiliki sensor biometrik.';
 
@@ -1408,24 +1222,10 @@ class SId extends S {
       'Layanan sidik jari (fprintd) belum terpasang. Lihat README → Installation.';
 
   @override
-  String get biometricBackingHardware =>
-      'Didukung hardware (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'Didukung software';
-
-  @override
   String get currentPasswordIncorrect => 'Kata sandi saat ini salah';
 
   @override
   String get wrongPassword => 'Kata sandi salah';
-
-  @override
-  String get useKeychain => 'Enkripsi dengan keychain OS';
-
-  @override
-  String get useKeychainSubtitle =>
-      'Simpan kunci basis data di penyimpanan kredensial sistem. Mati = basis data teks biasa.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh terkunci';
@@ -1538,9 +1338,6 @@ class SId extends S {
   String get progressWritingArchive => 'Menulis arsip…';
 
   @override
-  String get progressReencrypting => 'Mengenkripsi ulang penyimpanan…';
-
-  @override
   String get progressWorking => 'Memproses…';
 
   @override
@@ -1603,10 +1400,6 @@ class SId extends S {
 
   @override
   String get subitems => 'Item';
-
-  @override
-  String get storagePermissionRequired =>
-      'Izin penyimpanan diperlukan untuk menjelajahi file lokal';
 
   @override
   String get grantPermission => 'Berikan izin';
@@ -1754,21 +1547,6 @@ class SId extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'Koneksi SSH';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'Menjaga koneksi SSH tetap aktif di latar belakang.';
-
-  @override
-  String get sshActive => 'SSH aktif';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count koneksi aktif';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count item, $size';
   }
@@ -1820,9 +1598,6 @@ class SId extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'Hapus semua host dikenal? Setiap kunci server perlu diverifikasi ulang.';
-
-  @override
-  String get importKnownHostsSubtitle => 'Impor dari file OpenSSH known_hosts';
 
   @override
   String get clearedAllHosts => 'Semua host dikenal telah dihapus';
@@ -1911,9 +1686,6 @@ class SId extends S {
   String get selectFromKeyStore => 'Pilih dari penyimpanan kunci';
 
   @override
-  String get noKeySelected => 'Tidak ada kunci dipilih';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1945,26 +1717,6 @@ class SId extends S {
   String get rememberPassphrase => 'Ingat untuk sesi ini';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Lindungi kredensial tersimpan dengan kata sandi';
-
-  @override
-  String get setMasterPassword => 'Atur kata sandi utama';
-
-  @override
-  String get changeMasterPassword => 'Ubah kata sandi utama';
-
-  @override
-  String get removeMasterPassword => 'Hapus kata sandi utama';
-
-  @override
-  String get masterPasswordEnabled => 'Kredensial dilindungi kata sandi utama';
-
-  @override
-  String get masterPasswordDisabled =>
-      'Kredensial menggunakan kunci otomatis (tanpa kata sandi)';
-
-  @override
   String get enterMasterPassword =>
       'Masukkan kata sandi utama untuk mengakses kredensial tersimpan.';
 
@@ -1978,27 +1730,7 @@ class SId extends S {
   String get currentPassword => 'Kata sandi saat ini';
 
   @override
-  String get masterPasswordSet => 'Kata sandi utama diaktifkan';
-
-  @override
-  String get masterPasswordChanged => 'Kata sandi utama diubah';
-
-  @override
-  String get masterPasswordRemoved => 'Kata sandi utama dihapus';
-
-  @override
-  String get masterPasswordWarning =>
-      'Jika Anda lupa kata sandi ini, semua kata sandi dan kunci SSH tersimpan akan hilang. Tidak ada pemulihan.';
-
-  @override
   String get forgotPassword => 'Lupa kata sandi?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'Ini akan menghapus SEMUA kata sandi, kunci SSH, dan frasa sandi tersimpan. Sesi dan pengaturan akan dipertahankan. Tindakan ini tidak dapat dibatalkan.';
-
-  @override
-  String get resetAndDeleteCredentials => 'Reset dan hapus data';
 
   @override
   String get credentialsReset => 'Semua kredensial tersimpan telah dihapus';
@@ -2047,86 +1779,10 @@ class SId extends S {
   String get derivingKey => 'Membuat kunci enkripsi...';
 
   @override
-  String get reEncrypting => 'Mengenkripsi ulang data...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'Masukkan kata sandi saat ini untuk menghapus perlindungan kata sandi utama. Kredensial akan dienkripsi ulang dengan kunci otomatis.';
-
-  @override
   String get securitySetupTitle => 'Pengaturan keamanan';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'Keychain sistem terdeteksi ($keychainName). Data Anda akan otomatis dienkripsi menggunakan keychain sistem.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'Anda juga bisa mengatur kata sandi utama untuk perlindungan tambahan.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'Keychain sistem tidak terdeteksi. Tanpa keychain, data sesi (host, kata sandi, kunci) akan disimpan dalam teks biasa.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'Ini normal di WSL, Linux headless, atau instalasi minimal. Untuk mengaktifkan keychain di Linux: instal libsecret dan keyring daemon (mis. gnome-keyring).';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'Kami sarankan mengatur kata sandi utama untuk melindungi data Anda.';
-
-  @override
-  String get continueWithKeychain => 'Lanjutkan dengan keychain';
-
-  @override
-  String get continueWithoutEncryption => 'Lanjutkan tanpa enkripsi';
-
-  @override
-  String get securityLevel => 'Tingkat keamanan';
-
-  @override
-  String get securityLevelPlaintext => 'Tidak ada';
-
-  @override
-  String get securityLevelKeychain => 'Keychain sistem';
-
-  @override
-  String get securityLevelMasterPassword => 'Kata sandi utama';
-
-  @override
-  String get keychainStatus => 'Keychain';
-
-  @override
   String get keychainAvailable => 'Tersedia';
-
-  @override
-  String get keychainNotAvailable => 'Tidak tersedia';
-
-  @override
-  String get enableKeychain => 'Aktifkan enkripsi keychain';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'Enkripsi ulang data tersimpan menggunakan keychain sistem';
-
-  @override
-  String get keychainEnabled => 'Enkripsi rantai kunci diaktifkan';
-
-  @override
-  String get manageMasterPassword => 'Kelola kata sandi utama';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'Atur, ubah, atau hapus kata sandi utama';
-
-  @override
-  String get changeSecurityTier => 'Ubah Tingkat Keamanan';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'Buka tangga tingkat dan pindah ke tingkat keamanan lain';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2151,22 +1807,6 @@ class SId extends S {
       'Penyimpanan berbasis perangkat keras tersedia di perangkat ini. Tingkatkan di Pengaturan → Keamanan untuk pengikatan TPM / Secure Enclave.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'Penyimpanan berbasis perangkat keras tidak tersedia — TPM 2.0 tidak terdeteksi di perangkat ini.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'Penyimpanan berbasis perangkat keras tidak tersedia — perangkat ini tidak melaporkan Secure Enclave.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Penyimpanan berbasis perangkat keras tidak tersedia — pasang tpm2-tools dan perangkat TPM 2.0 untuk mengaktifkannya.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'Penyimpanan berbasis perangkat keras tidak tersedia — perangkat ini tidak melaporkan StrongBox atau TEE.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'Penyimpanan berbasis perangkat keras tidak tersedia di perangkat ini.';
 
@@ -2174,32 +1814,8 @@ class SId extends S {
   String get firstLaunchSecurityOpenSettings => 'Buka Pengaturan';
 
   @override
-  String get firstLaunchSecurityDismiss => 'Mengerti';
-
-  @override
-  String get securityHardwareUpgradeTitle =>
-      'Penyimpanan berbasis perangkat keras tersedia';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'Tingkatkan untuk mengikat rahasia ke TPM / Secure Enclave.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'Tingkatkan';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'Penyimpanan berbasis perangkat keras tidak tersedia';
-
-  @override
   String get wizardReducedBanner =>
       'Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.';
-
-  @override
-  String get tierBlockProtectsHeader => 'MELINDUNGI DARI';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'TIDAK MELINDUNGI';
 
   @override
   String get tierBlockProtectsEmpty => 'Tidak ada pada tingkat ini.';
@@ -2216,29 +1832,6 @@ class SId extends S {
 
   @override
   String get securitySetupApply => 'Terapkan';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'Tingkat tanpa enkripsi tidak menyimpan rahasia untuk dilindungi kata sandi.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid menurunkan kunci basis data dari kata sandi — selalu aktif.';
-
-  @override
-  String get passwordSubtitleOn => 'Aktif — kata sandi diminta saat membuka';
-
-  @override
-  String get passwordSubtitleOff =>
-      'Nonaktif — ketuk untuk menambah kata sandi di tingkat ini';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'Wajib — kata sandi utama adalah rahasia tingkatan';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'Tidak berlaku — tingkat ini tanpa enkripsi';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2437,9 +2030,6 @@ class SId extends S {
   }
 
   @override
-  String get runSnippet => 'Jalankan';
-
-  @override
   String get pinToSession => 'Sematkan ke sesi ini';
 
   @override
@@ -2450,9 +2040,6 @@ class SId extends S {
 
   @override
   String get allSnippets => 'Semua';
-
-  @override
-  String get sendToTerminal => 'Kirim ke terminal';
 
   @override
   String get commandCopied => 'Perintah disalin';
@@ -2517,33 +2104,6 @@ class SId extends S {
 
   @override
   String get sessionsOnly => 'Sesi';
-
-  @override
-  String get allKeysFromManager => 'Semua kunci dari manajer';
-
-  @override
-  String exportTags(int count) {
-    return 'Tag ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'Cuplikan ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'Nonaktifkan enkripsi keychain';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'Beralih ke penyimpanan teks biasa (tidak disarankan)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'Basis data akan dienkripsi ulang tanpa kunci. Sesi dan kunci akan disimpan dalam teks biasa di disk. Lanjutkan?';
-
-  @override
-  String get keychainDisabled => 'Enkripsi keychain dinonaktifkan';
 
   @override
   String get presetFullImport => 'Impor lengkap';
@@ -2675,18 +2235,6 @@ class SId extends S {
   String get legendDoesNotProtect => 'Tidak terlindungi';
 
   @override
-  String get legendNotApplicable =>
-      'Tidak berlaku — tier ini tidak memiliki rahasia pengguna';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'Kata sandi lemah dapat diterima — lapisan lain (pembatas laju perangkat keras atau pengikatan kunci yang dibungkus) yang memikul keamanan';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'Frasa sandi panjang sangat disarankan — keamanan tier ini bergantung padanya';
-
-  @override
   String get colT0 => 'T0 Teks polos';
 
   @override
@@ -2709,10 +2257,6 @@ class SId extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'Tier keamanan — perbandingan berdampingan';
 
   @override
   String get securityComparisonTableThreatColumn => 'Ancaman';
@@ -2747,22 +2291,11 @@ class SId extends S {
   String get resetAllDataFailed => 'Reset gagal';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'Lihat berdampingan apa yang dilindungi oleh setiap tier.';
-
-  @override
   String get autoLockRequiresPassword =>
       'Kunci otomatis memerlukan kata sandi pada tier aktif.';
 
   @override
   String get recommendedBadge => 'DIREKOMENDASIKAN';
-
-  @override
-  String get continueWithRecommended =>
-      'Lanjutkan dengan yang direkomendasikan';
-
-  @override
-  String get customizeSecurity => 'Sesuaikan keamanan';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2775,9 +2308,6 @@ class SId extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih.';
-
-  @override
-  String get securitySetupContinue => 'Lanjutkan';
 
   @override
   String get currentTierBadge => 'SAAT INI';

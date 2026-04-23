@@ -99,9 +99,6 @@ class SRu extends S {
   String get nextStep => 'Далее';
 
   @override
-  String get includeCredentials => 'Включить пароли и SSH ключи';
-
-  @override
   String get includePasswords => 'Пароли сессий';
 
   @override
@@ -125,13 +122,6 @@ class SRu extends S {
   String exportTotalSize(String size) {
     return 'Общий размер: $size';
   }
-
-  @override
-  String get qrCredentialsWarning => 'Пароли и SSH ключи БУДУТ видны в QR-коде';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'Учётные данные делают QR-код слишком большим';
 
   @override
   String get terminal => 'Терминал';
@@ -248,11 +238,6 @@ class SRu extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'Импортировано сессий через QR: $count';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'Импортировано сессий: $count';
   }
@@ -314,9 +299,6 @@ class SRu extends S {
 
   @override
   String get noSessions => 'Нет сессий';
-
-  @override
-  String get noSessionsToExport => 'Нет сессий для экспорта';
 
   @override
   String nSelectedCount(int count) {
@@ -445,9 +427,6 @@ class SRu extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'Дополнительных параметров пока нет';
 
   @override
   String get saveAndConnect => 'Сохранить и подключиться';
@@ -610,9 +589,6 @@ class SRu extends S {
   String get controllersNotInitialized => 'Контроллеры не инициализированы';
 
   @override
-  String get initializingSftp => 'Инициализация SFTP...';
-
-  @override
   String get clearHistory => 'Очистить историю';
 
   @override
@@ -623,9 +599,6 @@ class SRu extends S {
 
   @override
   String get duplicateTabShortcut => 'Дублировать вкладку (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'Копировать вниз';
 
   @override
   String get previous => 'Предыдущий';
@@ -734,13 +707,6 @@ class SRu extends S {
   String get exportData => 'Экспорт данных';
 
   @override
-  String get exportDataSubtitle =>
-      'Сохранить сессии, конфигурацию и ключи в зашифрованный файл .lfs';
-
-  @override
-  String get importDataSubtitle => 'Загрузить данные из файла .lfs';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'Найдено хостов: $count';
   }
@@ -752,11 +718,6 @@ class SRu extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'Не удалось прочитать файлы ключей для: $hosts. Эти хосты будут импортированы без учётных данных.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'Импортировано в папку: $folder';
   }
 
   @override
@@ -828,39 +789,11 @@ class SRu extends S {
   String get passwordStrengthVeryStrong => 'Очень сильный';
 
   @override
-  String get tierRecommendedBadge => 'Рекомендуется';
-
-  @override
-  String get tierCurrentBadge => 'Текущий';
-
-  @override
-  String get tierAlternativeBranchLabel => 'Альтернатива — не доверять ОС';
-
-  @override
-  String get tierUpcomingTooltip => 'Появится в будущей версии.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'Базовый механизм этого уровня ещё не реализован. Строка видна, чтобы вы знали, что опция существует.';
-
-  @override
   String get tierPlaintextLabel => 'Без шифрования';
 
   @override
   String get tierPlaintextSubtitle =>
       'Без шифрования — только права доступа к файлам';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'Любой с доступом к файловой системе читает ваши данные';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'Случайная синхронизация или бэкап раскрывают всё';
-
-  @override
-  String get tierPlaintextNotes =>
-      'Использовать только в доверенных изолированных средах.';
 
   @override
   String get tierKeychainLabel => 'Keychain';
@@ -871,77 +804,14 @@ class SRu extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'Другие пользователи на той же машине';
-
-  @override
-  String get tierKeychainProtect2 => 'Украденный диск без входа в ОС';
-
-  @override
-  String get tierKeychainThreat1 => 'Вредоносное ПО под вашей учёткой ОС';
-
-  @override
-  String get tierKeychainThreat2 => 'Злоумышленник, получивший ваш вход в ОС';
-
-  @override
   String get tierKeychainUnavailable =>
       'Keychain ОС недоступен в этой установке.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'Коллега за вашим столом';
-
-  @override
-  String get tierKeychainPassProtect2 => 'Прохожий с открытым доступом';
-
-  @override
-  String get tierKeychainPassThreat1 => 'Оффлайн-атакующий с файлом на диске';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'Те же риски компрометации ОС, что и у Keychain';
 
   @override
   String get tierHardwareLabel => 'Аппаратное';
 
   @override
-  String get tierHardwareSubtitle =>
-      'Хранилище, привязанное к оборудованию + короткий PIN с блокировкой';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'Оффлайн-брутфорс PIN (аппаратный rate-limit)';
-
-  @override
-  String get tierHardwareProtect2 => 'Кража диска и блоба keychain';
-
-  @override
-  String get tierHardwareThreat1 => 'CVE ОС или прошивки безопасного модуля';
-
-  @override
-  String get tierHardwareThreat2 =>
-      'Принудительный биометрический unlock (если включён)';
-
-  @override
   String get tierParanoidLabel => 'Мастер-пароль (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'Длинный пароль + Argon2id. Ключ никогда не попадает в ОС.';
-
-  @override
-  String get tierParanoidProtect1 => 'Компрометация keychain ОС';
-
-  @override
-  String get tierParanoidProtect2 => 'Украденный диск (пока пароль надёжен)';
-
-  @override
-  String get tierParanoidThreat1 => 'Кейлоггер, перехватывающий ваш пароль';
-
-  @override
-  String get tierParanoidThreat2 => 'Слабый пароль + оффлайн-взлом Argon2id';
-
-  @override
-  String get tierParanoidNotes =>
-      'Биометрия отключена на этом уровне по замыслу.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -985,19 +855,6 @@ class SRu extends S {
 
   @override
   String get pathToLfsFile => 'Путь к файлу .lfs';
-
-  @override
-  String get hintLfsPath => '/путь/к/файлу.lfs';
-
-  @override
-  String get browse => 'Обзор';
-
-  @override
-  String get shareViaQrCode => 'Поделиться через QR-код';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'Экспортировать сессии в QR для сканирования другим устройством';
 
   @override
   String get dataLocation => 'Расположение данных';
@@ -1082,15 +939,6 @@ class SRu extends S {
 
   @override
   String get useSftpFromSessions => 'Используйте \"SFTP\" из раздела Сессии';
-
-  @override
-  String get anotherInstanceRunning =>
-      'Другой экземпляр LetsFLUTssh уже запущен.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'Ошибка импорта: $error';
-  }
 
   @override
   String get saveLogAs => 'Сохранить журнал как';
@@ -1330,16 +1178,6 @@ class SRu extends S {
   String get errSessionClosed => 'Сессия закрыта';
 
   @override
-  String errShellError(String error) {
-    return 'Ошибка оболочки: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'Ошибка повторного подключения: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'Не удалось инициализировать SFTP: $error';
   }
@@ -1348,10 +1186,6 @@ class SRu extends S {
   String errDownloadFailed(String error) {
     return 'Ошибка загрузки: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Не удалось расшифровать учётные данные. Файл ключа может быть повреждён.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1368,18 +1202,8 @@ class SRu extends S {
       'Не вводить пароль — разблокировать биометрическим сенсором устройства.';
 
   @override
-  String get biometricNotAvailable =>
-      'Биометрическая разблокировка недоступна на этом устройстве.';
-
-  @override
   String get biometricEnableFailed =>
       'Не удалось включить биометрическую разблокировку.';
-
-  @override
-  String get biometricEnabled => 'Биометрическая разблокировка включена';
-
-  @override
-  String get biometricDisabled => 'Биометрическая разблокировка отключена';
 
   @override
   String get biometricUnlockFailed =>
@@ -1393,10 +1217,6 @@ class SRu extends S {
       'На этом устройстве не зарегистрированы биометрические данные.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'Сначала задайте мастер-пароль, чтобы включить разблокировку по биометрии.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'На этом устройстве нет биометрического датчика.';
 
@@ -1405,24 +1225,10 @@ class SRu extends S {
       'Служба отпечатков пальцев (fprintd) не установлена. См. README → Installation.';
 
   @override
-  String get biometricBackingHardware =>
-      'Аппаратная защита (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'Программная защита';
-
-  @override
   String get currentPasswordIncorrect => 'Неверный текущий пароль';
 
   @override
   String get wrongPassword => 'Неверный пароль';
-
-  @override
-  String get useKeychain => 'Шифровать ключом ОС';
-
-  @override
-  String get useKeychainSubtitle =>
-      'Хранить ключ базы данных в системном хранилище учётных данных. Выкл. = база данных без шифрования.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh заблокирован';
@@ -1539,9 +1345,6 @@ class SRu extends S {
   String get progressWritingArchive => 'Запись архива…';
 
   @override
-  String get progressReencrypting => 'Повторное шифрование…';
-
-  @override
   String get progressWorking => 'Обработка…';
 
   @override
@@ -1604,10 +1407,6 @@ class SRu extends S {
 
   @override
   String get subitems => 'Элементы';
-
-  @override
-  String get storagePermissionRequired =>
-      'Для просмотра локальных файлов необходимо разрешение на доступ к хранилищу';
 
   @override
   String get grantPermission => 'Дать разрешение';
@@ -1755,21 +1554,6 @@ class SRu extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH-соединение';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'Поддержание SSH-соединений в фоновом режиме.';
-
-  @override
-  String get sshActive => 'SSH активен';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count активных соединений';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count элементов, $size';
   }
@@ -1824,9 +1608,6 @@ class SRu extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'Удалить все известные хосты? При подключении к каждому серверу потребуется повторная проверка ключа.';
-
-  @override
-  String get importKnownHostsSubtitle => 'Импорт из файла OpenSSH known_hosts';
 
   @override
   String get clearedAllHosts => 'Все известные хосты очищены';
@@ -1916,9 +1697,6 @@ class SRu extends S {
   String get selectFromKeyStore => 'Выбрать из хранилища ключей';
 
   @override
-  String get noKeySelected => 'Ключ не выбран';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1952,26 +1730,6 @@ class SRu extends S {
   String get rememberPassphrase => 'Запомнить для этой сессии';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Защита сохранённых учётных данных паролем';
-
-  @override
-  String get setMasterPassword => 'Установить мастер-пароль';
-
-  @override
-  String get changeMasterPassword => 'Изменить мастер-пароль';
-
-  @override
-  String get removeMasterPassword => 'Удалить мастер-пароль';
-
-  @override
-  String get masterPasswordEnabled => 'Учётные данные защищены мастер-паролем';
-
-  @override
-  String get masterPasswordDisabled =>
-      'Учётные данные используют автогенерированный ключ (без пароля)';
-
-  @override
   String get enterMasterPassword =>
       'Введите мастер-пароль для доступа к сохранённым учётным данным.';
 
@@ -1985,27 +1743,7 @@ class SRu extends S {
   String get currentPassword => 'Текущий пароль';
 
   @override
-  String get masterPasswordSet => 'Мастер-пароль установлен';
-
-  @override
-  String get masterPasswordChanged => 'Мастер-пароль изменён';
-
-  @override
-  String get masterPasswordRemoved => 'Мастер-пароль удалён';
-
-  @override
-  String get masterPasswordWarning =>
-      'Если вы забудете этот пароль, все сохранённые пароли и SSH-ключи будут потеряны. Восстановление невозможно.';
-
-  @override
   String get forgotPassword => 'Забыли пароль?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'Это удалит ВСЕ сохранённые пароли, SSH-ключи и парольные фразы. Сессии и настройки будут сохранены. Это действие необратимо.';
-
-  @override
-  String get resetAndDeleteCredentials => 'Сбросить и удалить данные';
 
   @override
   String get credentialsReset => 'Все сохранённые учётные данные удалены';
@@ -2054,86 +1792,10 @@ class SRu extends S {
   String get derivingKey => 'Генерация ключа шифрования...';
 
   @override
-  String get reEncrypting => 'Перешифрование данных...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'Введите текущий пароль для отключения защиты мастер-паролем. Учётные данные будут перешифрованы автогенерированным ключом.';
-
-  @override
   String get securitySetupTitle => 'Настройка безопасности';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'Обнаружена связка ключей ОС ($keychainName). Ваши данные будут автоматически зашифрованы с использованием системной связки ключей.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'Вы также можете установить мастер-пароль для дополнительной защиты.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'Связка ключей ОС не обнаружена. Без неё данные сессий (хосты, пароли, ключи) будут храниться в открытом виде.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'Это нормально для WSL, безголового Linux или минимальных установок. Для включения связки ключей в Linux: установите libsecret и демон связки ключей (напр. gnome-keyring).';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'Рекомендуем установить мастер-пароль для защиты ваших данных.';
-
-  @override
-  String get continueWithKeychain => 'Продолжить со связкой ключей';
-
-  @override
-  String get continueWithoutEncryption => 'Продолжить без шифрования';
-
-  @override
-  String get securityLevel => 'Уровень безопасности';
-
-  @override
-  String get securityLevelPlaintext => 'Нет';
-
-  @override
-  String get securityLevelKeychain => 'Связка ключей ОС';
-
-  @override
-  String get securityLevelMasterPassword => 'Мастер-пароль';
-
-  @override
-  String get keychainStatus => 'Связка ключей';
-
-  @override
   String get keychainAvailable => 'Доступна';
-
-  @override
-  String get keychainNotAvailable => 'Недоступна';
-
-  @override
-  String get enableKeychain => 'Включить шифрование через связку ключей';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'Перешифровать сохранённые данные с помощью связки ключей ОС';
-
-  @override
-  String get keychainEnabled => 'Шифрование через связку ключей включено';
-
-  @override
-  String get manageMasterPassword => 'Управление мастер-паролем';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'Установить, изменить или удалить мастер-пароль';
-
-  @override
-  String get changeSecurityTier => 'Сменить уровень безопасности';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'Открыть лестницу уровней и перейти на другой';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2158,22 +1820,6 @@ class SRu extends S {
       'На устройстве доступно аппаратное хранилище. Повысьте уровень в Настройки → Безопасность для привязки к TPM / Secure Enclave.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'Аппаратное хранилище недоступно — TPM 2.0 не обнаружен.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'Аппаратное хранилище недоступно — устройство не сообщает о наличии Secure Enclave.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Аппаратное хранилище недоступно — установите tpm2-tools и устройство TPM 2.0, чтобы включить его.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'Аппаратное хранилище недоступно — устройство не сообщает о наличии StrongBox или TEE.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'Аппаратное хранилище недоступно на этом устройстве.';
 
@@ -2181,31 +1827,8 @@ class SRu extends S {
   String get firstLaunchSecurityOpenSettings => 'Открыть настройки';
 
   @override
-  String get firstLaunchSecurityDismiss => 'Понятно';
-
-  @override
-  String get securityHardwareUpgradeTitle => 'Доступно аппаратное хранилище';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'Повысьте уровень, чтобы привязать секреты к TPM / Secure Enclave.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'Повысить';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'Аппаратное хранилище недоступно';
-
-  @override
   String get wizardReducedBanner =>
       'Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.';
-
-  @override
-  String get tierBlockProtectsHeader => 'ЗАЩИЩАЕТ ОТ';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'НЕ ЗАЩИЩАЕТ ОТ';
 
   @override
   String get tierBlockProtectsEmpty => 'На этом уровне — ничего.';
@@ -2221,30 +1844,6 @@ class SRu extends S {
 
   @override
   String get securitySetupApply => 'Применить';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'В режиме без шифрования пароль защищать нечего.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid выводит ключ БД из пароля — пароль всегда включён.';
-
-  @override
-  String get passwordSubtitleOn =>
-      'Включён — пароль запрашивается при разблокировке';
-
-  @override
-  String get passwordSubtitleOff =>
-      'Выключен — нажмите, чтобы добавить пароль на этом уровне';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'Обязателен — мастер-пароль и есть секрет уровня';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'Не применимо — на этом уровне нет шифрования';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2447,9 +2046,6 @@ class SRu extends S {
   }
 
   @override
-  String get runSnippet => 'Запустить';
-
-  @override
   String get pinToSession => 'Закрепить за этой сессией';
 
   @override
@@ -2460,9 +2056,6 @@ class SRu extends S {
 
   @override
   String get allSnippets => 'Все';
-
-  @override
-  String get sendToTerminal => 'Отправить в терминал';
 
   @override
   String get commandCopied => 'Команда скопирована';
@@ -2529,33 +2122,6 @@ class SRu extends S {
 
   @override
   String get sessionsOnly => 'Сессии';
-
-  @override
-  String get allKeysFromManager => 'Все ключи из менеджера';
-
-  @override
-  String exportTags(int count) {
-    return 'Теги ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'Сниппеты ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'Отключить шифрование связки ключей';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'Перейти к хранению в открытом виде (не рекомендуется)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'База данных будет перешифрована без ключа. Сессии и ключи будут храниться на диске в открытом виде. Продолжить?';
-
-  @override
-  String get keychainDisabled => 'Шифрование связки ключей отключено';
 
   @override
   String get presetFullImport => 'Полный импорт';
@@ -2686,18 +2252,6 @@ class SRu extends S {
   String get legendDoesNotProtect => 'Не защищает';
 
   @override
-  String get legendNotApplicable =>
-      'Неприменимо — у этого уровня нет пользовательского секрета';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'Слабый пароль допустим — безопасность обеспечивает другой слой (аппаратный ограничитель попыток или привязка обёрнутого ключа)';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'Настоятельно рекомендуется длинная парольная фраза — безопасность этого уровня зависит от неё';
-
-  @override
   String get colT0 => 'T0 Открытый текст';
 
   @override
@@ -2720,10 +2274,6 @@ class SRu extends S {
 
   @override
   String get colParanoid => 'Параноидальный';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'Уровни безопасности — сравнение бок о бок';
 
   @override
   String get securityComparisonTableThreatColumn => 'Угроза';
@@ -2758,21 +2308,11 @@ class SRu extends S {
   String get resetAllDataFailed => 'Не удалось выполнить сброс';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'Посмотрите бок о бок, от чего защищает каждый уровень.';
-
-  @override
   String get autoLockRequiresPassword =>
       'Для авто-блокировки нужен пароль на активном уровне.';
 
   @override
   String get recommendedBadge => 'РЕКОМЕНДУЕТСЯ';
-
-  @override
-  String get continueWithRecommended => 'Продолжить с рекомендуемым';
-
-  @override
-  String get customizeSecurity => 'Настроить безопасность';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2785,9 +2325,6 @@ class SRu extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'Угрозы во время выполнения (runtime — malware от того же пользователя, дамп памяти живого процесса) показаны как ✗ во всех уровнях. Они устраняются отдельными функциями защиты, применяемыми независимо от выбранного уровня.';
-
-  @override
-  String get securitySetupContinue => 'Продолжить';
 
   @override
   String get currentTierBadge => 'ТЕКУЩИЙ';

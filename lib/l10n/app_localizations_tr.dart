@@ -99,9 +99,6 @@ class STr extends S {
   String get nextStep => 'İleri';
 
   @override
-  String get includeCredentials => 'Şifreleri ve SSH anahtarlarını dahil et';
-
-  @override
   String get includePasswords => 'Oturum parolaları';
 
   @override
@@ -125,14 +122,6 @@ class STr extends S {
   String exportTotalSize(String size) {
     return 'Toplam boyut: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'Şifreler ve SSH anahtarları QR kodunda GÖRÜNECEK';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'Kimlik bilgileri QR kodunu çok büyük yapıyor';
 
   @override
   String get terminal => 'Terminal';
@@ -250,11 +239,6 @@ class STr extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'QR ile $count oturum içe aktarıldı';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count oturum içe aktarıldı';
   }
@@ -310,9 +294,6 @@ class STr extends S {
 
   @override
   String get noSessions => 'Oturum yok';
-
-  @override
-  String get noSessionsToExport => 'Dışa aktarılacak oturum yok';
 
   @override
   String nSelectedCount(int count) {
@@ -441,9 +422,6 @@ class STr extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'Henüz ek seçenek yok';
 
   @override
   String get saveAndConnect => 'Kaydet ve Bağlan';
@@ -607,9 +585,6 @@ class STr extends S {
   String get controllersNotInitialized => 'Controller\'lar başlatılmadı';
 
   @override
-  String get initializingSftp => 'SFTP başlatılıyor...';
-
-  @override
   String get clearHistory => 'Geçmişi temizle';
 
   @override
@@ -620,9 +595,6 @@ class STr extends S {
 
   @override
   String get duplicateTabShortcut => 'Sekmeyi Çoğalt (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'Aşağı Kopyala';
 
   @override
   String get previous => 'Önceki';
@@ -731,13 +703,6 @@ class STr extends S {
   String get exportData => 'Veriyi Dışa Aktar';
 
   @override
-  String get exportDataSubtitle =>
-      'Oturumları, yapılandırmayı ve anahtarları şifreli .lfs dosyasına kaydet';
-
-  @override
-  String get importDataSubtitle => '.lfs dosyasından veri yükle';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host bulundu';
   }
@@ -749,11 +714,6 @@ class STr extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'Şu hostlar için anahtar dosyaları okunamadı: $hosts. Bu hostlar kimlik bilgileri olmadan içe aktarılacak.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'Klasöre içe aktarıldı: $folder';
   }
 
   @override
@@ -826,39 +786,10 @@ class STr extends S {
   String get passwordStrengthVeryStrong => 'Çok güçlü';
 
   @override
-  String get tierRecommendedBadge => 'Önerilen';
-
-  @override
-  String get tierCurrentBadge => 'Mevcut';
-
-  @override
-  String get tierAlternativeBranchLabel =>
-      'Alternatif — işletim sistemine güvenmeyin';
-
-  @override
-  String get tierUpcomingTooltip => 'Yakında bir sürümde geliyor.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'Bu katmanın temel altyapısı henüz yayınlanmadı. Satır, seçeneğin var olduğunu bilmeniz için görünür durumda.';
-
-  @override
   String get tierPlaintextLabel => 'Düz metin';
 
   @override
   String get tierPlaintextSubtitle => 'Şifreleme yok — yalnızca dosya izinleri';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'Dosya sistemine erişimi olan herkes verilerinizi okur';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'Yanlışlıkla senkronizasyon veya yedekleme her şeyi açığa çıkarır';
-
-  @override
-  String get tierPlaintextNotes =>
-      'Yalnızca güvenilir, yalıtılmış ortamlarda kullanın.';
 
   @override
   String get tierKeychainLabel => 'Keychain';
@@ -869,84 +800,14 @@ class STr extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'Aynı makinede diğer kullanıcılar';
-
-  @override
-  String get tierKeychainProtect2 =>
-      'İşletim sistemi oturumu olmadan çalınan disk';
-
-  @override
-  String get tierKeychainThreat1 =>
-      'İşletim sistemi hesabınız altında çalışan kötü amaçlı yazılım';
-
-  @override
-  String get tierKeychainThreat2 =>
-      'İşletim sistemi oturumunuzu ele geçiren saldırgan';
-
-  @override
   String get tierKeychainUnavailable =>
       'Bu kurulumda işletim sistemi anahtarlığı kullanılamıyor.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'Masanızda oturan iş arkadaşı';
-
-  @override
-  String get tierKeychainPassProtect2 =>
-      'Kilidi açık erişimi olan bir yoldan geçen';
-
-  @override
-  String get tierKeychainPassThreat1 =>
-      'Diskte dosyayı olan çevrimdışı saldırgan';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'Anahtarlık ile aynı işletim sistemi tehlikeleri';
 
   @override
   String get tierHardwareLabel => 'Donanım';
 
   @override
-  String get tierHardwareSubtitle =>
-      'Donanıma bağlı kasa + kilitlemeli kısa PIN';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'PIN\'in çevrimdışı kaba kuvvet saldırısı (donanım hız sınırı)';
-
-  @override
-  String get tierHardwareProtect2 =>
-      'Diskin ve anahtarlık blob\'unun çalınması';
-
-  @override
-  String get tierHardwareThreat1 =>
-      'Güvenli modül üzerinde işletim sistemi veya bellenim CVE\'si';
-
-  @override
-  String get tierHardwareThreat2 => 'Zorla biyometrik kilit açma (etkinse)';
-
-  @override
   String get tierParanoidLabel => 'Ana parola (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'Uzun parola + Argon2id. Anahtar hiçbir zaman işletim sistemine girmez.';
-
-  @override
-  String get tierParanoidProtect1 => 'İşletim sistemi anahtarlığı ihlali';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'Çalınan disk (parolanız güçlü olduğu sürece)';
-
-  @override
-  String get tierParanoidThreat1 => 'Parolanızı yakalayan keylogger';
-
-  @override
-  String get tierParanoidThreat2 => 'Zayıf parola + çevrimdışı Argon2id kırma';
-
-  @override
-  String get tierParanoidNotes =>
-      'Bu katmanda biyometri tasarım gereği devre dışıdır.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -990,19 +851,6 @@ class STr extends S {
 
   @override
   String get pathToLfsFile => '.lfs dosya yolu';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => 'Gözat';
-
-  @override
-  String get shareViaQrCode => 'QR Kodu ile Paylaş';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'Oturumları başka bir cihazdan taranmak üzere QR koduna aktar';
 
   @override
   String get dataLocation => 'Veri Konumu';
@@ -1087,15 +935,6 @@ class STr extends S {
 
   @override
   String get useSftpFromSessions => 'Oturumlardan \"SFTP\" kullanın';
-
-  @override
-  String get anotherInstanceRunning =>
-      'LetsFLUTssh\'ın başka bir örneği zaten çalışıyor.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'İçe aktarma başarısız: $error';
-  }
 
   @override
   String get saveLogAs => 'Günlüğü farklı kaydet';
@@ -1335,16 +1174,6 @@ class STr extends S {
   String get errSessionClosed => 'Oturum kapatıldı';
 
   @override
-  String errShellError(String error) {
-    return 'Kabuk hatası: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'Yeniden bağlanma başarısız: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'SFTP başlatılamadı: $error';
   }
@@ -1353,10 +1182,6 @@ class STr extends S {
   String errDownloadFailed(String error) {
     return 'İndirme başarısız: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Kimlik bilgileri çözülemedi. Anahtar dosyası bozulmuş olabilir.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1373,18 +1198,8 @@ class STr extends S {
       'Parolayı yazmayın — cihazın biyometrik sensörüyle kilidi açın.';
 
   @override
-  String get biometricNotAvailable =>
-      'Bu cihazda biyometrik kilit açma kullanılamıyor.';
-
-  @override
   String get biometricEnableFailed =>
       'Biyometrik kilit açma etkinleştirilemedi.';
-
-  @override
-  String get biometricEnabled => 'Biyometrik kilit açma etkinleştirildi';
-
-  @override
-  String get biometricDisabled => 'Biyometrik kilit açma devre dışı';
 
   @override
   String get biometricUnlockFailed =>
@@ -1398,10 +1213,6 @@ class STr extends S {
       'Bu cihazda kayıtlı biyometrik kimlik bilgisi yok.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'Biyometrik kilit açmayı etkinleştirmek için önce bir ana parola belirleyin.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'Bu cihazın biyometrik sensörü yok.';
 
@@ -1410,24 +1221,10 @@ class STr extends S {
       'Parmak izi hizmeti (fprintd) yüklü değil. README → Installation bölümüne bakın.';
 
   @override
-  String get biometricBackingHardware =>
-      'Donanım destekli (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'Yazılım destekli';
-
-  @override
   String get currentPasswordIncorrect => 'Mevcut parola yanlış';
 
   @override
   String get wrongPassword => 'Yanlış parola';
-
-  @override
-  String get useKeychain => 'İşletim sistemi anahtarlığıyla şifrele';
-
-  @override
-  String get useKeychainSubtitle =>
-      'Veritabanı anahtarını sistemin kimlik bilgisi deposunda sakla. Kapalı = düz metin veritabanı.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh kilitli';
@@ -1540,9 +1337,6 @@ class STr extends S {
   String get progressWritingArchive => 'Arşiv yazılıyor…';
 
   @override
-  String get progressReencrypting => 'Depolar yeniden şifreleniyor…';
-
-  @override
   String get progressWorking => 'İşleniyor…';
 
   @override
@@ -1605,10 +1399,6 @@ class STr extends S {
 
   @override
   String get subitems => 'Öğeler';
-
-  @override
-  String get storagePermissionRequired =>
-      'Yerel dosyalara göz atmak için depolama izni gerekli';
 
   @override
   String get grantPermission => 'İzin ver';
@@ -1756,21 +1546,6 @@ class STr extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Bağlantısı';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'SSH bağlantılarını arka planda canlı tutar.';
-
-  @override
-  String get sshActive => 'SSH aktif';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count aktif bağlantı';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count öğe, $size';
   }
@@ -1823,10 +1598,6 @@ class STr extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'Tüm bilinen sunucular kaldırılsın mı? Her sunucu anahtarı yeniden doğrulanmalı.';
-
-  @override
-  String get importKnownHostsSubtitle =>
-      'OpenSSH known_hosts dosyasından içe aktar';
 
   @override
   String get clearedAllHosts => 'Tüm bilinen sunucular temizlendi';
@@ -1915,9 +1686,6 @@ class STr extends S {
   String get selectFromKeyStore => 'Anahtar deposundan seç';
 
   @override
-  String get noKeySelected => 'Anahtar seçilmedi';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1950,26 +1718,6 @@ class STr extends S {
   String get rememberPassphrase => 'Bu oturumluk hatırla';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Kayıtlı kimlik bilgilerini şifreyle koruyun';
-
-  @override
-  String get setMasterPassword => 'Ana şifre belirle';
-
-  @override
-  String get changeMasterPassword => 'Ana şifreyi değiştir';
-
-  @override
-  String get removeMasterPassword => 'Ana şifreyi kaldır';
-
-  @override
-  String get masterPasswordEnabled => 'Kimlik bilgileri ana şifreyle korunuyor';
-
-  @override
-  String get masterPasswordDisabled =>
-      'Kimlik bilgileri otomatik oluşturulan anahtar kullanıyor (şifresiz)';
-
-  @override
   String get enterMasterPassword =>
       'Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.';
 
@@ -1983,27 +1731,7 @@ class STr extends S {
   String get currentPassword => 'Mevcut şifre';
 
   @override
-  String get masterPasswordSet => 'Ana şifre etkinleştirildi';
-
-  @override
-  String get masterPasswordChanged => 'Ana şifre değiştirildi';
-
-  @override
-  String get masterPasswordRemoved => 'Ana şifre kaldırıldı';
-
-  @override
-  String get masterPasswordWarning =>
-      'Bu şifreyi unutursanız, tüm kayıtlı şifreler ve SSH anahtarları kaybolacak. Kurtarma mümkün değil.';
-
-  @override
   String get forgotPassword => 'Şifrenizi mi unuttunuz?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'Bu işlem TÜM kayıtlı şifreleri, SSH anahtarlarını ve parolaları silecek. Oturumlar ve ayarlar korunacak. Bu işlem geri alınamaz.';
-
-  @override
-  String get resetAndDeleteCredentials => 'Sıfırla ve verileri sil';
 
   @override
   String get credentialsReset => 'Tüm kayıtlı kimlik bilgileri silindi';
@@ -2052,86 +1780,10 @@ class STr extends S {
   String get derivingKey => 'Şifreleme anahtarı türetiliyor...';
 
   @override
-  String get reEncrypting => 'Veriler yeniden şifreleniyor...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'Ana şifre korumasını kaldırmak için mevcut şifrenizi girin. Kimlik bilgileri otomatik anahtarla yeniden şifrelenecek.';
-
-  @override
   String get securitySetupTitle => 'Güvenlik ayarları';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'Sistem keychain\'i algılandı ($keychainName). Verileriniz sistem keychain\'i kullanılarak otomatik şifrelenecek.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'Ek koruma için ana şifre de belirleyebilirsiniz.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'Sistem anahtar zinciri algılanmadı. Anahtar zinciri olmadan oturum verileriniz (sunucular, şifreler, anahtarlar) düz metin olarak saklanacak.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'WSL, grafik arayüzsüz Linux veya minimal kurulumlar için normaldir. Linux\'ta anahtar zincirini etkinleştirmek için: libsecret ve bir anahtar zinciri arka plan hizmeti (örn. gnome-keyring) yükleyin.';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'Verilerinizi korumak için ana şifre belirlemenizi öneriyoruz.';
-
-  @override
-  String get continueWithKeychain => 'Anahtar zinciriyle devam et';
-
-  @override
-  String get continueWithoutEncryption => 'Şifreleme olmadan devam et';
-
-  @override
-  String get securityLevel => 'Güvenlik düzeyi';
-
-  @override
-  String get securityLevelPlaintext => 'Yok';
-
-  @override
-  String get securityLevelKeychain => 'Sistem keychain\'i';
-
-  @override
-  String get securityLevelMasterPassword => 'Ana şifre';
-
-  @override
-  String get keychainStatus => 'Keychain';
-
-  @override
   String get keychainAvailable => 'Kullanılabilir';
-
-  @override
-  String get keychainNotAvailable => 'Kullanılamaz';
-
-  @override
-  String get enableKeychain => 'Keychain şifrelemesini etkinleştir';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'Sistem keychain\'ini kullanarak saklanan verileri yeniden şifrele';
-
-  @override
-  String get keychainEnabled => 'Anahtar zinciri şifrelemesi etkinleştirildi';
-
-  @override
-  String get manageMasterPassword => 'Ana şifreyi yönet';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'Ana şifreyi belirle, değiştir veya kaldır';
-
-  @override
-  String get changeSecurityTier => 'Güvenlik düzeyini değiştir';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'Düzey merdivenini açın ve farklı bir güvenlik düzeyine geçin';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2155,22 +1807,6 @@ class STr extends S {
       'Bu cihazda donanım destekli depolama mevcut. TPM / Secure Enclave bağlaması için Ayarlar → Güvenlik\'ten yükseltin.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'Donanım destekli depolama kullanılamıyor — bu cihazda TPM 2.0 algılanmadı.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'Donanım destekli depolama kullanılamıyor — bu cihaz Secure Enclave bildirmiyor.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Donanım destekli depolama kullanılamıyor — etkinleştirmek için tpm2-tools ve bir TPM 2.0 aygıtı kurun.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'Donanım destekli depolama kullanılamıyor — bu cihaz StrongBox veya TEE bildirmiyor.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'Bu cihazda donanım destekli depolama kullanılamıyor.';
 
@@ -2178,31 +1814,8 @@ class STr extends S {
   String get firstLaunchSecurityOpenSettings => 'Ayarları Aç';
 
   @override
-  String get firstLaunchSecurityDismiss => 'Anladım';
-
-  @override
-  String get securityHardwareUpgradeTitle => 'Donanım destekli depolama mevcut';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'Sırları TPM / Secure Enclave\'a bağlamak için yükseltin.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'Yükselt';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'Donanım destekli depolama kullanılamıyor';
-
-  @override
   String get wizardReducedBanner =>
       'İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.';
-
-  @override
-  String get tierBlockProtectsHeader => 'KORUR';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'KORUMAZ';
 
   @override
   String get tierBlockProtectsEmpty => 'Bu katmanda hiçbir şey.';
@@ -2218,29 +1831,6 @@ class STr extends S {
 
   @override
   String get securitySetupApply => 'Uygula';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'Şifrelemesiz katmanda parolayla korunacak bir sır yok.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid, veritabanı anahtarını paroladan türetir — her zaman açık.';
-
-  @override
-  String get passwordSubtitleOn => 'Açık — kilit açarken parola istenir';
-
-  @override
-  String get passwordSubtitleOff =>
-      'Kapalı — bu katmana parola eklemek için dokun';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'Zorunlu — ana parola katmanın sırrıdır';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'Geçerli değil — bu katmanda şifreleme yok';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2438,9 +2028,6 @@ class STr extends S {
   }
 
   @override
-  String get runSnippet => 'Çalıştır';
-
-  @override
   String get pinToSession => 'Bu oturuma sabitle';
 
   @override
@@ -2451,9 +2038,6 @@ class STr extends S {
 
   @override
   String get allSnippets => 'Tümü';
-
-  @override
-  String get sendToTerminal => 'Terminale gönder';
 
   @override
   String get commandCopied => 'Komut panoya kopyalandı';
@@ -2519,34 +2103,6 @@ class STr extends S {
 
   @override
   String get sessionsOnly => 'Oturumlar';
-
-  @override
-  String get allKeysFromManager => 'Yöneticiden tüm anahtarlar';
-
-  @override
-  String exportTags(int count) {
-    return 'Etiketler ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'Kod parçacıkları ($count)';
-  }
-
-  @override
-  String get disableKeychain =>
-      'Anahtar zinciri şifrelemesini devre dışı bırak';
-
-  @override
-  String get disableKeychainSubtitle => 'Düz metin depolamaya geç (önerilmez)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'Veritabanı anahtarsız olarak yeniden şifrelenecek. Oturumlar ve anahtarlar diskte düz metin olarak saklanacak. Devam edilsin mi?';
-
-  @override
-  String get keychainDisabled =>
-      'Anahtar zinciri şifrelemesi devre dışı bırakıldı';
 
   @override
   String get presetFullImport => 'Tam içe aktarma';
@@ -2682,18 +2238,6 @@ class STr extends S {
   String get legendDoesNotProtect => 'Korunmuyor';
 
   @override
-  String get legendNotApplicable =>
-      'Uygulanamaz — bu katmanda kullanıcı gizi yok';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'Zayıf parola kabul edilebilir — güvenliği başka bir katman (donanımsal hız sınırlayıcı ya da sarılmış anahtar bağlaması) üstlenir';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'Uzun bir passphrase kesinlikle önerilir — bu katmanın güvenliği buna bağlıdır';
-
-  @override
   String get colT0 => 'T0 Düz metin';
 
   @override
@@ -2716,10 +2260,6 @@ class STr extends S {
 
   @override
   String get colParanoid => 'Paranoyak';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'Güvenlik katmanları — yan yana karşılaştırma';
 
   @override
   String get securityComparisonTableThreatColumn => 'Tehdit';
@@ -2754,21 +2294,11 @@ class STr extends S {
   String get resetAllDataFailed => 'Sıfırlama başarısız';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'Her katmanın neye karşı koruduğunu yan yana görün.';
-
-  @override
   String get autoLockRequiresPassword =>
       'Otomatik kilit, aktif katmanda bir parola gerektirir.';
 
   @override
   String get recommendedBadge => 'ÖNERİLEN';
-
-  @override
-  String get continueWithRecommended => 'Önerilenle devam et';
-
-  @override
-  String get customizeSecurity => 'Güvenliği özelleştir';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2781,9 +2311,6 @@ class STr extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır.';
-
-  @override
-  String get securitySetupContinue => 'Devam';
 
   @override
   String get currentTierBadge => 'GEÇERLİ';

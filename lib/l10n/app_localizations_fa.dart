@@ -99,9 +99,6 @@ class SFa extends S {
   String get nextStep => 'بعدی';
 
   @override
-  String get includeCredentials => 'شامل رمزهای عبور و کلیدهای SSH';
-
-  @override
   String get includePasswords => 'رمزهای عبور نشست‌ها';
 
   @override
@@ -125,14 +122,6 @@ class SFa extends S {
   String exportTotalSize(String size) {
     return 'حجم کل: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'رمزهای عبور و کلیدهای SSH در کد QR قابل مشاهده خواهند بود';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'اعتبارنامه‌ها کد QR را خیلی بزرگ می‌کنند';
 
   @override
   String get terminal => 'ترمینال';
@@ -248,11 +237,6 @@ class SFa extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return '$count جلسه از طریق QR وارد شد';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count جلسه وارد شد';
   }
@@ -308,9 +292,6 @@ class SFa extends S {
 
   @override
   String get noSessions => 'هیچ جلسه‌ای وجود ندارد';
-
-  @override
-  String get noSessionsToExport => 'هیچ جلسه‌ای برای خروجی وجود ندارد';
 
   @override
   String nSelectedCount(int count) {
@@ -439,9 +420,6 @@ class SFa extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'هنوز گزینه اضافی‌ای وجود ندارد';
 
   @override
   String get saveAndConnect => 'ذخیره و اتصال';
@@ -603,9 +581,6 @@ class SFa extends S {
   String get controllersNotInitialized => 'کنترل‌کننده‌ها مقداردهی نشده‌اند';
 
   @override
-  String get initializingSftp => 'در حال راه‌اندازی SFTP...';
-
-  @override
   String get clearHistory => 'پاک کردن تاریخچه';
 
   @override
@@ -616,9 +591,6 @@ class SFa extends S {
 
   @override
   String get duplicateTabShortcut => 'کپی تب (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'کپی به پایین';
 
   @override
   String get previous => 'قبلی';
@@ -727,13 +699,6 @@ class SFa extends S {
   String get exportData => 'خروجی گرفتن از داده';
 
   @override
-  String get exportDataSubtitle =>
-      'ذخیره جلسات، تنظیمات و کلیدها در فایل رمزگذاری‌شده .lfs';
-
-  @override
-  String get importDataSubtitle => 'بارگذاری داده از فایل .lfs';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count میزبان یافت شد';
   }
@@ -745,11 +710,6 @@ class SFa extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'نمی‌توان فایل‌های کلید را برای این موارد خواند: $hosts. این میزبان‌ها بدون اعتبارنامه وارد می‌شوند.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'وارد شد به پوشه: $folder';
   }
 
   @override
@@ -821,39 +781,10 @@ class SFa extends S {
   String get passwordStrengthVeryStrong => 'بسیار قوی';
 
   @override
-  String get tierRecommendedBadge => 'توصیه شده';
-
-  @override
-  String get tierCurrentBadge => 'فعلی';
-
-  @override
-  String get tierAlternativeBranchLabel =>
-      'گزینه جایگزین — به سیستم‌عامل اعتماد نکنید';
-
-  @override
-  String get tierUpcomingTooltip => 'در نسخه‌ای آینده ارائه می‌شود.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'زیرساخت این لایه هنوز ارائه نشده است. ردیف قابل مشاهده است تا بدانید این گزینه وجود دارد.';
-
-  @override
   String get tierPlaintextLabel => 'متن ساده';
 
   @override
   String get tierPlaintextSubtitle => 'بدون رمزنگاری — فقط مجوزهای فایل';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'هر کسی با دسترسی به سیستم فایل داده‌های شما را می‌خواند';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'همگام‌سازی یا پشتیبان‌گیری تصادفی همه چیز را فاش می‌کند';
-
-  @override
-  String get tierPlaintextNotes =>
-      'فقط در محیط‌های مورد اعتماد و منزوی استفاده کنید.';
 
   @override
   String get tierKeychainLabel => 'Keychain';
@@ -864,79 +795,14 @@ class SFa extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'کاربران دیگر روی همان دستگاه';
-
-  @override
-  String get tierKeychainProtect2 => 'دیسک دزدیده شده بدون ورود به سیستم‌عامل';
-
-  @override
-  String get tierKeychainThreat1 =>
-      'بدافزاری که تحت حساب سیستم‌عامل شما اجرا می‌شود';
-
-  @override
-  String get tierKeychainThreat2 =>
-      'مهاجمی که ورود به سیستم‌عامل شما را به دست می‌گیرد';
-
-  @override
   String get tierKeychainUnavailable =>
       'زنجیره کلید سیستم‌عامل در این نصب در دسترس نیست.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'همکاری که پشت میز شما می‌نشیند';
-
-  @override
-  String get tierKeychainPassProtect2 => 'رهگذری با دسترسی باز';
-
-  @override
-  String get tierKeychainPassThreat1 => 'مهاجم آفلاین با فایل روی دیسک';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'همان خطرات سازش سیستم‌عامل مانند زنجیره کلید';
 
   @override
   String get tierHardwareLabel => 'سخت‌افزار';
 
   @override
-  String get tierHardwareSubtitle =>
-      'vault گره‌خورده به سخت‌افزار + PIN کوتاه با lockout';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'حمله brute-force آفلاین روی PIN (محدودیت نرخ سخت‌افزاری)';
-
-  @override
-  String get tierHardwareProtect2 => 'سرقت دیسک و blob زنجیره کلید';
-
-  @override
-  String get tierHardwareThreat1 => 'CVE سیستم‌عامل یا firmware روی ماژول امن';
-
-  @override
-  String get tierHardwareThreat2 => 'بازگشایی اجباری بیومتریک (اگر فعال باشد)';
-
-  @override
   String get tierParanoidLabel => 'رمز عبور اصلی (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'رمز عبور طولانی + Argon2id. کلید هرگز وارد سیستم‌عامل نمی‌شود.';
-
-  @override
-  String get tierParanoidProtect1 => 'سازش زنجیره کلید سیستم‌عامل';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'دیسک دزدیده شده (تا زمانی که رمز عبور شما قوی باشد)';
-
-  @override
-  String get tierParanoidThreat1 => 'کیلاگری که رمز عبور شما را ضبط می‌کند';
-
-  @override
-  String get tierParanoidThreat2 => 'رمز عبور ضعیف + شکستن Argon2id آفلاین';
-
-  @override
-  String get tierParanoidNotes =>
-      'بیومتریک به طور طراحی در این لایه غیرفعال است.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -981,19 +847,6 @@ class SFa extends S {
 
   @override
   String get pathToLfsFile => 'مسیر فایل .lfs';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => 'مرور';
-
-  @override
-  String get shareViaQrCode => 'اشتراک‌گذاری از طریق کد QR';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'خروجی گرفتن از جلسات به QR برای اسکن توسط دستگاه دیگر';
 
   @override
   String get dataLocation => 'محل داده';
@@ -1078,15 +931,6 @@ class SFa extends S {
 
   @override
   String get useSftpFromSessions => 'از «SFTP» در جلسات استفاده کنید';
-
-  @override
-  String get anotherInstanceRunning =>
-      'نسخه دیگری از LetsFLUTssh در حال اجرا است.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'وارد کردن ناموفق بود: $error';
-  }
 
   @override
   String get saveLogAs => 'ذخیره گزارش به عنوان';
@@ -1324,16 +1168,6 @@ class SFa extends S {
   String get errSessionClosed => 'جلسه بسته شد';
 
   @override
-  String errShellError(String error) {
-    return 'خطای شل: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'اتصال مجدد ناموفق بود: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'راه‌اندازی SFTP ناموفق بود: $error';
   }
@@ -1342,10 +1176,6 @@ class SFa extends S {
   String errDownloadFailed(String error) {
     return 'دانلود ناموفق بود: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'رمزگشایی اعتبارنامه ناموفق بود. فایل کلید ممکن است خراب باشد.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1362,18 +1192,8 @@ class SFa extends S {
       'گذرواژه را تایپ نکنید — با سنسور بیومتریک دستگاه قفل را باز کنید.';
 
   @override
-  String get biometricNotAvailable =>
-      'باز کردن قفل زیست‌سنجی روی این دستگاه در دسترس نیست.';
-
-  @override
   String get biometricEnableFailed =>
       'فعال‌سازی باز کردن قفل زیست‌سنجی ممکن نشد.';
-
-  @override
-  String get biometricEnabled => 'باز کردن قفل زیست‌سنجی فعال شد';
-
-  @override
-  String get biometricDisabled => 'باز کردن قفل زیست‌سنجی غیرفعال شد';
 
   @override
   String get biometricUnlockFailed =>
@@ -1387,10 +1207,6 @@ class SFa extends S {
       'هیچ اطلاعات زیست‌سنجی روی این دستگاه ثبت نشده است.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'ابتدا یک رمز عبور اصلی تنظیم کنید تا باز کردن قفل با زیست‌سنجی فعال شود.';
-
-  @override
   String get biometricSensorNotAvailable => 'این دستگاه سنسور زیست‌سنجی ندارد.';
 
   @override
@@ -1398,24 +1214,10 @@ class SFa extends S {
       'سرویس اثر انگشت (fprintd) نصب نشده است. README ← نصب را ببینید.';
 
   @override
-  String get biometricBackingHardware =>
-      'پشتیبانی سخت‌افزاری (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'پشتیبانی نرم‌افزاری';
-
-  @override
   String get currentPasswordIncorrect => 'گذرواژهٔ فعلی نادرست است';
 
   @override
   String get wrongPassword => 'گذرواژهٔ نادرست';
-
-  @override
-  String get useKeychain => 'رمزگذاری با کی‌چین سیستم‌عامل';
-
-  @override
-  String get useKeychainSubtitle =>
-      'کلید پایگاه داده در مخزن اعتبارنامهٔ سیستم ذخیره می‌شود. خاموش = پایگاه داده به‌صورت متن ساده.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh قفل است';
@@ -1528,9 +1330,6 @@ class SFa extends S {
   String get progressWritingArchive => 'در حال نوشتن بایگانی…';
 
   @override
-  String get progressReencrypting => 'در حال رمزگذاری مجدد مخازن…';
-
-  @override
   String get progressWorking => 'در حال پردازش…';
 
   @override
@@ -1592,10 +1391,6 @@ class SFa extends S {
 
   @override
   String get subitems => 'موارد';
-
-  @override
-  String get storagePermissionRequired =>
-      'برای مرور فایل‌های محلی مجوز ذخیره‌سازی لازم است';
 
   @override
   String get grantPermission => 'اعطای مجوز';
@@ -1743,21 +1538,6 @@ class SFa extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'اتصال SSH';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'اتصالات SSH را در پس‌زمینه فعال نگه می‌دارد.';
-
-  @override
-  String get sshActive => 'SSH فعال';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count اتصال فعال';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count مورد، $size';
   }
@@ -1809,10 +1589,6 @@ class SFa extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'همه میزبان‌های شناخته شده حذف شوند؟ کلید هر سرور باید دوباره تأیید شود.';
-
-  @override
-  String get importKnownHostsSubtitle =>
-      'وارد کردن از فایل OpenSSH known_hosts';
 
   @override
   String get clearedAllHosts => 'همه میزبان‌های شناخته شده پاک شدند';
@@ -1901,9 +1677,6 @@ class SFa extends S {
   String get selectFromKeyStore => 'انتخاب از مخزن کلید';
 
   @override
-  String get noKeySelected => 'کلیدی انتخاب نشده';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1935,27 +1708,6 @@ class SFa extends S {
   String get rememberPassphrase => 'در این جلسه به خاطر بسپار';
 
   @override
-  String get masterPasswordSubtitle =>
-      'محافظت از اعتبارنامه‌های ذخیره شده با رمز عبور';
-
-  @override
-  String get setMasterPassword => 'تنظیم رمز عبور اصلی';
-
-  @override
-  String get changeMasterPassword => 'تغییر رمز عبور اصلی';
-
-  @override
-  String get removeMasterPassword => 'حذف رمز عبور اصلی';
-
-  @override
-  String get masterPasswordEnabled =>
-      'اعتبارنامه‌ها با رمز عبور اصلی محافظت می‌شوند';
-
-  @override
-  String get masterPasswordDisabled =>
-      'اعتبارنامه‌ها از کلید خودکار استفاده می‌کنند (بدون رمز عبور)';
-
-  @override
   String get enterMasterPassword =>
       'رمز عبور اصلی را برای دسترسی به اعتبارنامه‌های ذخیره شده وارد کنید.';
 
@@ -1969,27 +1721,7 @@ class SFa extends S {
   String get currentPassword => 'رمز عبور فعلی';
 
   @override
-  String get masterPasswordSet => 'رمز عبور اصلی فعال شد';
-
-  @override
-  String get masterPasswordChanged => 'رمز عبور اصلی تغییر کرد';
-
-  @override
-  String get masterPasswordRemoved => 'رمز عبور اصلی حذف شد';
-
-  @override
-  String get masterPasswordWarning =>
-      'اگر این رمز عبور را فراموش کنید، تمام رمزهای عبور و کلیدهای SSH ذخیره شده از بین می‌روند. بازیابی ممکن نیست.';
-
-  @override
   String get forgotPassword => 'رمز عبور را فراموش کرده‌اید؟';
-
-  @override
-  String get forgotPasswordWarning =>
-      'این کار تمام رمزهای عبور، کلیدهای SSH و عبارات عبور ذخیره شده را حذف می‌کند. جلسات و تنظیمات حفظ می‌شوند. این عمل قابل بازگشت نیست.';
-
-  @override
-  String get resetAndDeleteCredentials => 'بازنشانی و حذف داده‌ها';
 
   @override
   String get credentialsReset => 'تمام اعتبارنامه‌های ذخیره شده حذف شدند';
@@ -2038,86 +1770,10 @@ class SFa extends S {
   String get derivingKey => 'در حال ساخت کلید رمزنگاری...';
 
   @override
-  String get reEncrypting => 'در حال رمزنگاری مجدد داده‌ها...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'رمز عبور فعلی را برای حذف محافظت رمز عبور اصلی وارد کنید. اعتبارنامه‌ها با کلید خودکار مجدداً رمزنگاری می‌شوند.';
-
-  @override
   String get securitySetupTitle => 'تنظیمات امنیتی';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'زنجیره کلید سیستم شناسایی شد ($keychainName). داده‌های شما به طور خودکار با زنجیره کلید سیستم رمزنگاری می‌شوند.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'همچنین می‌توانید رمز عبور اصلی برای محافظت بیشتر تنظیم کنید.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'زنجیره کلید سیستم شناسایی نشد. بدون آن، داده‌های جلسه (میزبان‌ها، رمزهای عبور، کلیدها) به صورت متن ساده ذخیره می‌شوند.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'این در WSL، لینوکس بدون رابط گرافیکی یا نصب‌های حداقلی عادی است. برای فعال‌سازی زنجیره کلید در لینوکس: libsecret و یک دیمن زنجیره کلید (مثلاً gnome-keyring) نصب کنید.';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'توصیه می‌کنیم رمز عبور اصلی برای محافظت از داده‌هایتان تنظیم کنید.';
-
-  @override
-  String get continueWithKeychain => 'ادامه با زنجیره کلید';
-
-  @override
-  String get continueWithoutEncryption => 'ادامه بدون رمزنگاری';
-
-  @override
-  String get securityLevel => 'سطح امنیت';
-
-  @override
-  String get securityLevelPlaintext => 'بدون';
-
-  @override
-  String get securityLevelKeychain => 'Keychain سیستم';
-
-  @override
-  String get securityLevelMasterPassword => 'رمز عبور اصلی';
-
-  @override
-  String get keychainStatus => 'Keychain';
-
-  @override
   String get keychainAvailable => 'در دسترس';
-
-  @override
-  String get keychainNotAvailable => 'در دسترس نیست';
-
-  @override
-  String get enableKeychain => 'فعال‌سازی رمزنگاری با Keychain';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'دوباره‌رمزنگاری داده‌های ذخیره‌شده با استفاده از Keychain سیستم';
-
-  @override
-  String get keychainEnabled => 'رمزنگاری زنجیره کلید فعال شد';
-
-  @override
-  String get manageMasterPassword => 'مدیریت رمز عبور اصلی';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'تنظیم، تغییر یا حذف رمز عبور اصلی';
-
-  @override
-  String get changeSecurityTier => 'تغییر سطح امنیت';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'نردبان سطوح را باز کرده و به سطح امنیتی دیگر بروید';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2141,22 +1797,6 @@ class SFa extends S {
       'ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس است. برای اتصال TPM / Secure Enclave از تنظیمات ← امنیت ارتقا دهید.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — TPM 2.0 روی این دستگاه شناسایی نشد.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — این دستگاه Secure Enclave را گزارش نمی‌کند.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — برای فعال‌سازی، tpm2-tools و دستگاه TPM 2.0 را نصب کنید.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'ذخیره‌سازی مبتنی بر سخت‌افزار در دسترس نیست — این دستگاه StrongBox یا TEE را گزارش نمی‌کند.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'ذخیره‌سازی مبتنی بر سخت‌افزار روی این دستگاه در دسترس نیست.';
 
@@ -2164,32 +1804,8 @@ class SFa extends S {
   String get firstLaunchSecurityOpenSettings => 'باز کردن تنظیمات';
 
   @override
-  String get firstLaunchSecurityDismiss => 'باشه';
-
-  @override
-  String get securityHardwareUpgradeTitle =>
-      'ذخیره‌سازی سخت‌افزاری در دسترس است';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'برای اتصال اسرار به TPM / Secure Enclave ارتقا دهید.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'ارتقا';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'ذخیره‌سازی سخت‌افزاری در دسترس نیست';
-
-  @override
   String get wizardReducedBanner =>
       'Keychain سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا ارائه‌دهندهٔ libsecret دیگری را نصب کنید.';
-
-  @override
-  String get tierBlockProtectsHeader => 'محافظت در برابر';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'محافظت نمی‌کند در برابر';
 
   @override
   String get tierBlockProtectsEmpty => 'در این سطح چیزی نیست.';
@@ -2205,29 +1821,6 @@ class SFa extends S {
 
   @override
   String get securitySetupApply => 'اعمال';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'سطح بدون رمزگذاری هیچ رازی برای محافظت با گذرواژه ندارد.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid کلید پایگاه‌داده را از گذرواژه استخراج می‌کند — همیشه فعال است.';
-
-  @override
-  String get passwordSubtitleOn => 'فعال — هنگام باز کردن قفل گذرواژه لازم است';
-
-  @override
-  String get passwordSubtitleOff =>
-      'غیرفعال — برای افزودن گذرواژه در این سطح ضربه بزنید';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'الزامی — گذرواژهٔ اصلی همان راز سطح است';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'در دسترس نیست — این سطح رمزگذاری ندارد';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2424,9 +2017,6 @@ class SFa extends S {
   }
 
   @override
-  String get runSnippet => 'اجرا';
-
-  @override
   String get pinToSession => 'سنجاق کردن به این نشست';
 
   @override
@@ -2437,9 +2027,6 @@ class SFa extends S {
 
   @override
   String get allSnippets => 'همه';
-
-  @override
-  String get sendToTerminal => 'ارسال به ترمینال';
 
   @override
   String get commandCopied => 'دستور کپی شد';
@@ -2505,33 +2092,6 @@ class SFa extends S {
 
   @override
   String get sessionsOnly => 'نشست‌ها';
-
-  @override
-  String get allKeysFromManager => 'همه کلیدها از مدیر';
-
-  @override
-  String exportTags(int count) {
-    return 'برچسب‌ها ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'قطعه‌ها ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'غیرفعال‌سازی رمزنگاری با Keychain';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'تغییر به ذخیره‌سازی متن ساده (توصیه نمی‌شود)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'پایگاه داده بدون کلید دوباره رمزنگاری می‌شود. نشست‌ها و کلیدها به‌صورت متن ساده روی دیسک ذخیره خواهند شد. ادامه می‌دهید؟';
-
-  @override
-  String get keychainDisabled => 'رمزنگاری Keychain غیرفعال شد';
 
   @override
   String get presetFullImport => 'واردات کامل';
@@ -2660,17 +2220,6 @@ class SFa extends S {
   String get legendDoesNotProtect => 'محافظت نمی‌شود';
 
   @override
-  String get legendNotApplicable => 'قابل اعمال نیست — این سطح رمز کاربر ندارد';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'رمز ضعیف پذیرفتنی است — لایه‌ای دیگر (محدودکنندهٔ نرخ سخت‌افزاری یا پیوند کلید پیچیده) امنیت را بر دوش می‌کشد';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'استفاده از عبارت عبور طولانی به‌شدت توصیه می‌شود — امنیت این سطح به آن وابسته است';
-
-  @override
   String get colT0 => 'T0 متن ساده';
 
   @override
@@ -2693,9 +2242,6 @@ class SFa extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle => 'سطوح امنیتی — مقایسهٔ کنار هم';
 
   @override
   String get securityComparisonTableThreatColumn => 'تهدید';
@@ -2730,21 +2276,11 @@ class SFa extends S {
   String get resetAllDataFailed => 'بازنشانی ناموفق بود';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'در کنار هم ببینید هر سطح در برابر چه چیزی محافظت می‌کند.';
-
-  @override
   String get autoLockRequiresPassword =>
       'قفل خودکار نیازمند رمز عبور در سطح فعلی است.';
 
   @override
   String get recommendedBadge => 'توصیه‌شده';
-
-  @override
-  String get continueWithRecommended => 'ادامه با گزینه توصیه‌شده';
-
-  @override
-  String get customizeSecurity => 'سفارشی‌سازی امنیت';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2757,9 +2293,6 @@ class SFa extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند.';
-
-  @override
-  String get securitySetupContinue => 'ادامه';
 
   @override
   String get currentTierBadge => 'فعلی';
