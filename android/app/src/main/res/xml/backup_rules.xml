@@ -1,7 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 6-11 (API 23-30) backup rules.
-     Excludes encrypted credential files from Auto Backup. -->
+<!-- Android 6-11 (API 23-30) Auto Backup rules.
+     `allowBackup="false"` in AndroidManifest already blocks Auto
+     Backup for the whole app on every SDK; these explicit excludes
+     are belt-and-braces. The pre-12 branch has no `device-transfer`
+     section — that only exists on API 31+ data-extraction-rules.
+
+     Keep the exclude list in sync with
+     `android/app/src/main/res/xml/data_extraction_rules.xml`:
+     every sensitive file under `filesDir` must be listed here too
+     so pre-12 devices get the same backup-exclusion story. -->
 <full-backup-content>
-    <exclude domain="root" path="credentials.enc" />
-    <exclude domain="root" path="credentials.key" />
+    <exclude domain="file" path="credentials.kdf" />
+    <exclude domain="file" path="credentials.salt" />
+    <exclude domain="file" path="credentials.verify" />
+    <exclude domain="file" path="credentials.key" />
+    <exclude domain="file" path="security_pass_hash.bin" />
+    <exclude domain="file" path="rate_limit_state.bin" />
+    <exclude domain="file" path=".tier-transition-pending" />
+    <exclude domain="file" path="hardware_vault.bin" />
+    <exclude domain="file" path="hardware_vault_android.bin" />
+    <exclude domain="file" path="hardware_vault_apple.bin" />
+    <exclude domain="file" path="hardware_vault_ios.bin" />
+    <exclude domain="file" path="hardware_vault_macos.bin" />
+    <exclude domain="file" path="hardware_vault_windows.bin" />
+    <exclude domain="file" path="hardware_vault_linux.bin" />
+    <exclude domain="file" path="hardware_vault_salt.bin" />
+    <exclude domain="file" path="hardware_vault.tpm" />
+    <exclude domain="file" path="hardware_vault_password_overlay_android.bin" />
+    <exclude domain="file" path="hardware_vault_password_overlay_apple.bin" />
+    <exclude domain="file" path="hardware_vault_password_overlay_windows.bin" />
+    <exclude domain="file" path="biometric_vault.tpm" />
+    <exclude domain="file" path="config.json" />
+    <exclude domain="file" path="migration_history.json" />
+    <exclude domain="file" path="letsflutssh.db" />
+    <exclude domain="file" path="letsflutssh.db-wal" />
+    <exclude domain="file" path="letsflutssh.db-shm" />
+    <exclude domain="file" path="letsflutssh.db-journal" />
+    <exclude domain="file" path="logs" />
 </full-backup-content>
