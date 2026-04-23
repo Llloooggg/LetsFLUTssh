@@ -17,6 +17,7 @@ Future<void> _noop({
   String? shortPassword,
   String? pin,
   String? masterPassword,
+  bool? pendingBiometric,
 }) async {}
 
 void main() {
@@ -140,6 +141,7 @@ void main() {
         String? shortPassword,
         String? pin,
         String? masterPassword,
+  bool? pendingBiometric,
       }) async {
         capturedTier = tier;
         capturedMods = modifiers;
@@ -181,6 +183,7 @@ void main() {
           String? shortPassword,
           String? pin,
           String? masterPassword,
+  bool? pendingBiometric,
         }) async {
           capturedTier = tier;
           captured = masterPassword;
@@ -227,6 +230,7 @@ void main() {
           String? shortPassword,
           String? pin,
           String? masterPassword,
+  bool? pendingBiometric,
         }) async {
           calls++;
         }
@@ -267,6 +271,7 @@ void main() {
           String? shortPassword,
           String? pin,
           String? masterPassword,
+  bool? pendingBiometric,
         }) async {
           capturedTier = tier;
           capturedShort = shortPassword;

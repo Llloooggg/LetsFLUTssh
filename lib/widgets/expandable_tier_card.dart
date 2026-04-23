@@ -21,6 +21,7 @@ typedef TierSelectCallback =
       String? shortPassword,
       String? pin,
       String? masterPassword,
+      bool? pendingBiometric,
     });
 
 /// Expandable tier card — the Settings Security ladder unit.
@@ -143,6 +144,17 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   late bool _passwordEnabled;
   bool _busy = false;
 
+  /// Pending biometric-modifier state. Starts at whatever the parent
+  /// spec reports as the current applied value; the toggle mutates
+  /// this flag only — the actual enable / disable work (platform
+  /// biometric prompt + vault stash) is deferred until the user taps
+  /// Apply. That batches the password prompt with the tier change
+  /// instead of asking on every toggle flip, which was the prior
+  /// behaviour and surprised users who flipped the toggle twice
+  /// before Applying.
+  late bool _pendingBiometric;
+  late bool _initialBiometric;
+
   final _passwordCtrl = TextEditingController();
   final _passwordConfirmCtrl = TextEditingController();
   final _masterPasswordCtrl = TextEditingController();
@@ -156,6 +168,24 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       widget.currentTier,
       widget.currentModifiers,
     );
+    final initial = widget.biometricSpec?.value ?? false;
+    _pendingBiometric = initial;
+    _initialBiometric = initial;
+  }
+
+  @override
+  void didUpdateWidget(ExpandableTierCard old) {
+    super.didUpdateWidget(old);
+    // Re-seat the pending biometric flag when the parent re-builds
+    // with a fresh applied-state snapshot (tier switch, external
+    // settings change). Without this the card would show a stale
+    // pending value after Apply completes and the parent pushes a
+    // new `biometricSpec.value` down.
+    final next = widget.biometricSpec?.value ?? false;
+    if (next != _initialBiometric) {
+      _initialBiometric = next;
+      _pendingBiometric = next;
+    }
   }
 
   @override
@@ -209,10 +239,11 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         current == SecurityTier.keychainWithPassword ||
         current == SecurityTier.paranoid;
     if (_passwordEnabled != currentHasPassword) return false;
-    // Biometric flips through the Settings BiometricPrompt +
-    // vault-stash path directly (via [ExpandableTierCard.biometricSpec]),
-    // not through this card's pending Apply state — so the
-    // "does pending match current?" check ignores biometric.
+    // Pending biometric: the card owns the toggle state and batches
+    // the enable / disable work into the Apply step. A toggle that
+    // diverges from the applied value must re-enable Apply so the
+    // user can commit the change with a single password prompt.
+    if (_pendingBiometric != _initialBiometric) return false;
     return true;
   }
 
@@ -301,6 +332,13 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       final pin = _requiresPasswordInput && widget.tier == SecurityTier.hardware
           ? _passwordCtrl.text
           : null;
+      // Forward the *pending* biometric flag when it diverges from
+      // the currently-applied value, so `onSelectTier` can batch the
+      // biometric enable / disable work with the tier switch +
+      // single password prompt. Null means "no change to biometric".
+      final biometric = widget.biometricSpec == null
+          ? null
+          : (_pendingBiometric == _initialBiometric ? null : _pendingBiometric);
       await widget.onSelect(
         tier: target,
         modifiers: mods,
@@ -309,6 +347,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         masterPassword: _requiresMasterPasswordInput
             ? _masterPasswordCtrl.text
             : null,
+        pendingBiometric: biometric,
       );
     } finally {
       if (mounted) {
@@ -466,9 +505,16 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     label: l10n.biometricUnlockTitle,
     subtitle: l10n.biometricUnlockSubtitle,
     icon: Icons.fingerprint,
-    value: widget.biometricSpec!.value,
+    // Show the *pending* value so rapid-fire toggles read correctly
+    // (on → off → on leaves the user back at the applied state with
+    // the Apply button disabled because `_matchesCurrentConfig`
+    // equates pending == applied, not "any interaction happened").
+    value: _pendingBiometric,
     enabled: widget.biometricSpec!.enabled,
-    onChanged: widget.biometricSpec!.onChanged,
+    // Mutate local pending state only — the actual enable / disable
+    // runs from `onSelectTier` after a single batched password
+    // prompt.
+    onChanged: (v) => setState(() => _pendingBiometric = v),
     disabledReason: widget.biometricSpec!.disabledReason,
   );
 

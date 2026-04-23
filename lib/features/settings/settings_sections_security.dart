@@ -296,12 +296,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       );
     }
 
-    // All preconditions satisfied — toggle flips via the existing
-    // BiometricPrompt + vault-stash flow.
+    // All preconditions satisfied. The card owns the pending
+    // biometric state from here on — the toggle mutates local state
+    // only, and the real enable / disable work runs from
+    // `onSelectTier` after the user taps Apply (single batched
+    // password prompt + platform biometric prompt). The `onChanged`
+    // hook on the spec is intentionally a no-op; it's still required
+    // by the spec shape for potential future call sites.
     return BiometricModifierSpec(
       enabled: _biometricProbed,
       value: _biometricEnabled == true,
-      onChanged: (v) => _toggleBiometricUnlock(context, v),
+      onChanged: (_) {},
       disabledReason: null,
     );
   }
@@ -325,6 +330,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     String? shortPassword,
     String? pin,
     String? masterPassword,
+    bool? pendingBiometric,
   }) async {
     final l10n = S.of(context);
     final keychainAvail = ref
@@ -340,22 +346,38 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     );
 
     // Gate password-dropping transitions on a fresh current-password
-    // entry. Symmetric with `_enableBiometricUnlock` — enabling a
-    // biometric shortcut prompts for the password, so *removing* the
-    // password must also prompt, otherwise the two flows behave
-    // asymmetrically and an accidental tap could unset a security
-    // control without confirmation. Supported today: T1+pw → any
-    // weaker tier (verify via KeychainPasswordGate), Paranoid → any
-    // weaker tier (verify via MasterPasswordManager). T2 password
-    // drop-off is not gated here because the only way to verify the
-    // T2 password is to unseal against the hardware vault, which
-    // triggers a biometric prompt and couples the confirmation with
-    // the actual tier switch — the hardware isolation is strong
-    // enough that a bystander cannot flip T2+pw → T2 without the
-    // chip responding anyway.
+    // entry. Symmetric with the biometric enable path — enabling a
+    // biometric shortcut also prompts for the password at Apply time
+    // below, so *removing* the password must also prompt, otherwise
+    // the two flows behave asymmetrically and an accidental tap
+    // could unset a security control without confirmation.
+    // Supported today: T1+pw → any weaker tier (verify via
+    // KeychainPasswordGate), Paranoid → any weaker tier (verify via
+    // MasterPasswordManager). T2 password drop-off is not gated here
+    // because the only way to verify the T2 password is to unseal
+    // against the hardware vault, which triggers a biometric prompt
+    // and couples the confirmation with the actual tier switch.
     final currentTier = ref.read(securityStateProvider).level;
     if (!await _confirmCurrentPasswordIfDropping(currentTier, tier)) {
       return;
+    }
+
+    // Biometric enable requires the current password to cache the
+    // DB key in the biometric-gated vault. We prompt for it here so
+    // the user types the password exactly once per Apply, even when
+    // they combined a tier switch with a biometric toggle. Disable
+    // is free — it just wipes the vault — but still routes through
+    // the post-Apply step below.
+    Uint8List? biometricKeyToStash;
+    if (pendingBiometric == true) {
+      biometricKeyToStash = await _captureKeyForBiometricEnable(
+        currentTier,
+        tier,
+        shortPassword: shortPassword,
+        pin: pin,
+        masterPassword: masterPassword,
+      );
+      if (biometricKeyToStash == null) return; // user cancelled / wrong pw
     }
 
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
@@ -363,6 +385,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     AppProgressBarDialog.show(context, reporter);
     try {
       await _applyTierChange(result);
+      await _applyPendingBiometric(
+        pendingBiometric,
+        keyFromEnable: biometricKeyToStash,
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
       Toast.show(
@@ -784,70 +810,118 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  Future<void> _toggleBiometricUnlock(BuildContext context, bool enable) async {
-    if (enable) {
-      await _enableBiometricUnlock(context);
-    } else {
-      await _disableBiometricUnlock(context);
+  // `_toggleBiometricUnlock` / `_enableBiometricUnlock` /
+  // `_disableBiometricUnlock` used to be the direct-fire handlers on
+  // the biometric toggle — tapping the toggle ran the enable/disable
+  // flow right away, prompting for the password every time. The card
+  // now owns a pending-biometric flag batched into the Apply step
+  // (`_applyPendingBiometric`), which prompts for the password at
+  // most once per Apply regardless of how many times the toggle was
+  // flipped. The old handlers were removed along with the toggle
+  // invocation; `_confirmCurrentPasswordIfDropping` covers the
+  // password-drop symmetry.
+
+  /// Capture the DB key for a biometric enable. When the Apply
+  /// transition is between two different tiers, the NEW tier's
+  /// secret (typed in the card) is the one we can derive the key
+  /// from — after `_applyTierChange` runs, that's the key the
+  /// tier holds. Same-tier enable (user toggled biometric without
+  /// changing the tier) falls back to re-prompting the current
+  /// password via [_enableBiometricDialogPrompt].
+  ///
+  /// Returns null when the user cancels or types the wrong password;
+  /// the caller aborts the whole Apply on null.
+  Future<Uint8List?> _captureKeyForBiometricEnable(
+    SecurityTier current,
+    SecurityTier next, {
+    String? shortPassword,
+    String? pin,
+    String? masterPassword,
+  }) async {
+    // Case 1: tier changes → the post-apply state will hold a fresh
+    // DB key derived from the NEW password. Those provisioning paths
+    // are already password-verified by definition (the user typed
+    // the new password into the card), so no extra prompt is needed.
+    // We surface the key by reading it after `_applyTierChange`
+    // runs — returning a non-null sentinel here signals "wait for
+    // apply, then fetch". Sentinel is a zero-length buffer that
+    // [_applyPendingBiometric] replaces with the real key.
+    if (current != next) return Uint8List(0);
+    if (current == SecurityTier.keychainWithPassword) {
+      final entered = await _enableBiometricDialogPrompt();
+      if (entered == null) return null;
+      if (!mounted) return null;
+      final gate = ref.read(keychainPasswordGateProvider);
+      final ok = await gate.verify(entered);
+      if (!ok) {
+        if (mounted) {
+          Toast.show(
+            context,
+            message: S.of(context).currentPasswordIncorrect,
+            level: ToastLevel.error,
+          );
+        }
+        return null;
+      }
+      final key = await ref.read(secureKeyStorageProvider).readKey();
+      return key;
     }
+    if (current == SecurityTier.paranoid) {
+      final entered = await _enableBiometricDialogPrompt();
+      if (entered == null) return null;
+      if (!mounted) return null;
+      return ref.read(masterPasswordProvider).verifyAndDerive(entered);
+    }
+    // T1 / T2 without password, or plaintext: no key to cache. Return
+    // empty sentinel so the post-apply step skips the enable (nothing
+    // to protect anyway).
+    return Uint8List(0);
   }
 
-  /// Cache the DB key in the biometric-gated vault. Requires a fresh
-  /// password prompt so an accidental toggle tap can't silently enable
-  /// biometric access; the live key in SecurityState is the same bytes
-  /// we'd store, but forcing re-entry matches user expectation.
-  ///
-  /// The password-verification path branches on the active tier:
-  ///   * Paranoid → master-password Argon2id verify+derive via
-  ///     [MasterPasswordManager].
-  ///   * Keychain + password (T1 + pw) → gate-password HMAC verify via
-  ///     [KeychainPasswordGate], then read the random DB key from the
-  ///     OS keychain via [SecureKeyStorage.readKey]. Running
-  ///     `MasterPasswordManager.verifyAndDerive` on T1 threw
-  ///     `MasterPasswordException('Master password is not enabled')`
-  ///     — there is no KDF record on disk in T1, and the gate
-  ///     password isn't a key-derivation secret in the first place.
-  Future<void> _enableBiometricUnlock(BuildContext context) async {
-    final l10n = S.of(context);
-    final currentCtrl = TextEditingController();
-    final password = await AppDialog.show<String>(
+  /// Show the reusable current-password prompt shared with the
+  /// "drop password" confirmation flow. Returns null when the user
+  /// cancels.
+  Future<String?> _enableBiometricDialogPrompt() {
+    final ctrl = TextEditingController();
+    return AppDialog.show<String>(
       context,
-      builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+      builder: (ctx) => _EnableBiometricDialog(currentCtrl: ctrl),
     );
-    if (password == null || !context.mounted) return;
+  }
 
-    final tier = ref.read(securityStateProvider).level;
-    final Uint8List? key;
-    if (tier == SecurityTier.paranoid) {
-      final manager = ref.read(masterPasswordProvider);
-      // Single Argon2id pass: verify + derive at once so the enable
-      // flow doesn't double the memory-hard KDF wait on mobile.
-      key = await manager.verifyAndDerive(password);
-    } else if (tier == SecurityTier.keychainWithPassword) {
-      final gate = ref.read(keychainPasswordGateProvider);
-      final ok = await gate.verify(password);
-      key = ok ? await ref.read(secureKeyStorageProvider).readKey() : null;
-    } else {
-      key = null;
-    }
-    if (key == null) {
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).currentPasswordIncorrect,
-          level: ToastLevel.error,
-        );
-      }
+  /// Apply the pending biometric toggle from the tier card. Called
+  /// inside `onSelectTier` right after `_applyTierChange`, so the
+  /// security state has already flipped to the target tier and the
+  /// fresh DB key is in `securityStateProvider` (for tier changes)
+  /// or readable via the matching gate (for same-tier toggles).
+  ///
+  /// [pending] is null for "no change", true for enable, false for
+  /// disable. [keyFromEnable] is the sentinel from
+  /// [_captureKeyForBiometricEnable]: a zero-length buffer means
+  /// "read the current DB key after apply"; non-empty means "use
+  /// this as the vault payload".
+  Future<void> _applyPendingBiometric(
+    bool? pending, {
+    required Uint8List? keyFromEnable,
+  }) async {
+    if (pending == null) return;
+    if (!pending) {
+      await ref.read(biometricKeyVaultProvider).clear();
+      if (!mounted) return;
+      setState(() => _biometricEnabled = false);
       return;
     }
-
+    // Enable path — we have a candidate key (zero-length means "pull
+    // from the freshly-applied tier").
+    Uint8List? key = keyFromEnable;
+    if (key != null && key.isEmpty) {
+      key = ref.read(securityStateProvider).encryptionKey;
+    }
+    if (key == null) return;
     final bio = ref.read(biometricAuthProvider);
+    final l10n = S.of(context);
     if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
-      // Cancel / lockout / biometricOnly-without-enrollment all land
-      // here as a silent `false` from local_auth. Surface a toast so
-      // the user knows why the toggle didn't flip — the prior code
-      // returned quietly and looked like the tap did nothing.
-      if (context.mounted) {
+      if (mounted) {
         Toast.show(
           context,
           message: l10n.biometricUnlockCancelled,
@@ -856,43 +930,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       }
       return;
     }
-    final vault = ref.read(biometricKeyVaultProvider);
-    final stored = await vault.store(key);
+    final stored = await ref.read(biometricKeyVaultProvider).store(key);
     if (!mounted) return;
-
     if (!stored) {
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: l10n.biometricEnableFailed,
-          level: ToastLevel.error,
-        );
-      }
+      Toast.show(
+        context,
+        message: l10n.biometricEnableFailed,
+        level: ToastLevel.error,
+      );
       return;
     }
-
     setState(() => _biometricEnabled = true);
-    if (context.mounted) {
-      Toast.show(
-        context,
-        message: l10n.biometricEnabled,
-        level: ToastLevel.success,
-      );
-    }
-  }
-
-  Future<void> _disableBiometricUnlock(BuildContext context) async {
-    final l10n = S.of(context);
-    await ref.read(biometricKeyVaultProvider).clear();
-    if (!mounted) return;
-    setState(() => _biometricEnabled = false);
-    if (context.mounted) {
-      Toast.show(
-        context,
-        message: l10n.biometricDisabled,
-        level: ToastLevel.success,
-      );
-    }
   }
 
   /// True when the transition from [current] → [next] drops a
