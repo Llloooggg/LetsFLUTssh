@@ -29,11 +29,13 @@ import 'terminal_copy_overlay.dart';
 /// No tiling/splitting — single pane, full screen.
 ///
 /// **Gestures**. One-finger drags go to xterm (tap, scroll, long-press →
-/// select-word). Two-finger drags are tracked manually via [Listener] and
-/// translated into a pinch-zoom (font size) without routing through
-/// Flutter's [ScaleGestureRecognizer] — the stock recognizer treats a
-/// single-finger drag as a 1× scale and wins the gesture arena, which
-/// silently kills xterm's long-press recognizer on the same subtree.
+/// select-word). Font size is driven exclusively by the Settings slider —
+/// pinch-to-zoom is intentionally absent: every pinch frame updated
+/// `_fontSize`, which propagated into `TerminalView` and triggered a
+/// per-frame `Terminal.buffer.resize` (columns change with cell width),
+/// and even xterm's reflow path leaves the scrollback visibly shuffled
+/// across dozens of such resize calls. One font change per settings
+/// commit is a manageable single reflow; dozens per pinch are not.
 ///
 /// **Copy mode**. Tapping the Copy button in the keyboard bar enters a
 /// trackpad-style [TerminalCopyOverlay]: xterm pointer input is
@@ -43,9 +45,7 @@ import 'terminal_copy_overlay.dart';
 /// pointer-down — this gives the user an explicit "aim" phase: drag
 /// the virtual cursor to the start cell, lift → anchor drops, then
 /// drag again to extend. Subsequent pointer-ups don't re-anchor, so
-/// the user can lift + re-touch without losing progress. Two-finger
-/// pinch still zooms in copy mode. The Copy/Cancel toolbar lives in
-/// the parent Column (below the terminal), not floating over it.
+/// the user can lift + re-touch without losing progress.
 class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
@@ -78,17 +78,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   bool _copyMode = false;
 
   /// Manual pointer tracking — the outer [Listener] mirrors every active
-  /// pointer here so we can distinguish single-finger drags (cursor pan in
-  /// copy mode, otherwise delegated to xterm) from two-finger drags
-  /// (pinch). See the class docstring for the rationale against
-  /// [ScaleGestureRecognizer].
+  /// pointer here so the copy-mode overlay can pan the virtual cursor
+  /// on single-finger drags. Two-finger gestures are not used anywhere
+  /// (pinch-to-zoom was removed per the class docstring); tracking
+  /// them here is still useful for future multi-touch gestures.
   final Map<int, Offset> _pointers = {};
-
-  /// Pinch state — initial distance between the first two pointers and
-  /// the font size at the moment the pinch started. Null when fewer than
-  /// two pointers are down.
-  double? _pinchInitialDistance;
-  double? _pinchInitialFontSize;
 
   @override
   void initState() {
@@ -243,41 +237,30 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _onPointerDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
-    if (_pointers.length == 2) {
-      _beginPinch();
-    }
-    // Intentionally no `onAnchorDown` here — in copy mode the first
-    // touch moves the cursor freely so the user can *aim* at the start
-    // of the selection before committing. The anchor drops on the
-    // matching pointer-up below (aim-first, then extend). Two touches
-    // are the pinch-zoom signal; no anchor logic for them.
+    // Multi-touch is intentionally unused: pinch-to-zoom was removed
+    // because every pinch frame drove a `_fontSize` mutation that
+    // propagated through `TerminalView` into `Terminal.buffer.resize`,
+    // which reflowed columns and reshuffled scrollback dozens of
+    // times per gesture. Font size is now driven exclusively by the
+    // Settings slider (one commit = one reflow).
   }
 
   void _onPointerMove(PointerMoveEvent e) {
     final prev = _pointers[e.pointer];
     if (prev == null) return;
     _pointers[e.pointer] = e.localPosition;
-    if (_pointers.length == 1) {
-      if (_copyMode) {
-        _copyOverlayKey.currentState?.onCursorPan(e.delta);
-      }
-      // Non-copy mode single-finger: do nothing — the pointer event has
-      // already reached xterm (Listener does not consume events), which
-      // handles tap / long-press / drag-select on its own. The
-      // controller-side guard in [_enforceCopyModeSelectionGuard] wipes
-      // any selection xterm tries to stamp.
-      return;
+    if (_pointers.length == 1 && _copyMode) {
+      _copyOverlayKey.currentState?.onCursorPan(e.delta);
     }
-    if (_pointers.length >= 2 && _pinchInitialDistance != null) {
-      _updatePinch();
-    }
+    // Single-finger outside copy mode: do nothing — the pointer event
+    // has already reached xterm (Listener does not consume events),
+    // which handles tap / long-press / drag-select on its own. The
+    // controller-side guard in [_enforceCopyModeSelectionGuard] wipes
+    // any selection xterm tries to stamp.
   }
 
   void _onPointerUp(PointerEvent e) {
     _pointers.remove(e.pointer);
-    if (_pointers.length < 2 && _pinchInitialDistance != null) {
-      _endPinch();
-    }
     // Copy mode's two-phase model: the first *release* (after the user
     // has aimed the virtual cursor at the start of the selection) drops
     // the anchor. Subsequent releases don't re-anchor — [onAnchorDown]
@@ -295,43 +278,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     }
   }
 
-  // ── Pinch-zoom ───────────────────────────────────────────────────────
-
-  void _beginPinch() {
-    final positions = _pointers.values.toList(growable: false);
-    if (positions.length < 2) return;
-    _pinchInitialDistance = (positions[0] - positions[1]).distance;
-    _pinchInitialFontSize = _fontSize;
-  }
-
-  void _updatePinch() {
-    final positions = _pointers.values.toList(growable: false);
-    if (positions.length < 2) return;
-    final d = (positions[0] - positions[1]).distance;
-    final d0 = _pinchInitialDistance;
-    final f0 = _pinchInitialFontSize;
-    if (d0 == null || f0 == null || d0 == 0) return;
-    final scaled = (f0 * (d / d0)).clamp(8.0, 24.0);
-    if ((scaled - _fontSize).abs() < 0.1) return;
-    setState(() {
-      _fontSize = scaled;
-    });
-  }
-
-  void _endPinch() {
-    if (_pinchInitialFontSize == null) return;
-    _pinchInitialDistance = null;
-    _pinchInitialFontSize = null;
-    // Persist pinch-zoomed font size to config so the next launch / tab
-    // uses the same size. The config save is debounced + async, so this
-    // does not stall the UI even on slow storage.
-    ref
-        .read(configProvider.notifier)
-        .update(
-          (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: _fontSize)),
-        );
-  }
-
   // ── Copy mode ────────────────────────────────────────────────────────
 
   void _onCopyModeChanged(bool active) {
@@ -346,12 +292,13 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   @override
   Widget build(BuildContext context) {
-    // React to font size changes from settings slider
-    final configFontSize = ref.watch(configProvider.select((c) => c.fontSize));
-    if (_pinchInitialFontSize == null) {
-      // Update only when not pinch-zooming
-      _fontSize = configFontSize;
-    }
+    // React to font size changes from the Settings slider. This
+    // triggers an xterm `buffer.resize` (cell width + height both
+    // change, so columns AND rows move), which runs one reflow.
+    // Accepted tradeoff — single commit per slider release on the
+    // settings side means a single visible reflow, not the dozens
+    // pinch-to-zoom used to produce.
+    _fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
     // Layout rationale — reflow-on-keyboard, stable-on-copy-mode.
     //
