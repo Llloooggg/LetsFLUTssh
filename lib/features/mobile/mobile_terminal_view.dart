@@ -99,6 +99,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   Timer? _insetSettleTimer;
   static const _insetSettleDuration = Duration(milliseconds: 200);
 
+  /// Eviction watchdog — see [_onTerminalChanged] for the rationale.
+  /// A `CellAnchor` at a stable point in the buffer lets us detect how
+  /// many lines have been evicted off the front of xterm's circular
+  /// scrollback since the last write, so the scroll controller can
+  /// compensate and the user's pixel-level scroll position stays
+  /// anchored to the same content across eviction.
+  CellAnchor? _evictionAnchor;
+  int _evictionAnchorYBaseline = 0;
+
   @override
   void initState() {
     super.initState();
@@ -119,6 +128,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // `notifyListeners`. Users who want to select text must enter copy
     // mode via the keyboard bar's 📋 button.
     _terminalController.addListener(_enforceCopyModeSelectionGuard);
+    // xterm 4.0.0 does not correct `_scrollOffset` when the circular
+    // scrollback evicts the front line under `maxLines`. If the user
+    // is scrolled up mid-paste, the content at their pixel offset
+    // shifts up one row per eviction — visually reads as "a chunk of
+    // text fell out of the middle". `_onTerminalChanged` detects
+    // evictions via a stable `CellAnchor` and nudges the shared
+    // `ScrollController` back so the pixel offset stays anchored to
+    // the same content.
+    _terminal.addListener(_onTerminalChanged);
     // Delay connection until after the first frame so TerminalView can
     // set the correct terminal dimensions. Without this, the shell opens
     // with the default 80x24 and the server sends output for that size;
@@ -137,6 +155,91 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     if (_copyMode) return;
     if (_terminalController.selection == null) return;
     _terminalController.clearSelection();
+  }
+
+  /// Fired by `Terminal.notifyListeners()` after every parse. Two jobs:
+  ///
+  ///   1. Detect how many lines have been evicted off the front of the
+  ///      circular scrollback since the last call. A `CellAnchor`
+  ///      bound to a buffer line exposes that line's current relative
+  ///      index via `anchor.y`. Every eviction increments
+  ///      `IndexAwareCircularBuffer._absoluteStartIndex` by one, which
+  ///      decrements `anchor.y` by one. The delta between two
+  ///      consecutive ticks is therefore the exact eviction count —
+  ///      xterm does not expose that count directly, so the anchor
+  ///      trick is the only public-API path.
+  ///   2. When the user is scrolled up (`pixels < maxScrollExtent`,
+  ///      i.e. `_stickToBottom=false`), compensate for the eviction by
+  ///      shrinking the scroll offset by `evicted * cellHeight`. xterm
+  ///      paints the buffer from `_scrollOffset / cellHeight`, so
+  ///      leaving the offset alone would visually slide the content at
+  ///      the user's position up by one row per eviction — the "chunk
+  ///      fell out of the middle" rip. When the user is pinned to
+  ///      bottom, xterm's own `_offset.correctBy` already handles it;
+  ///      we leave that path untouched.
+  ///
+  /// The anchor is disposed + rebuilt when its owning line gets
+  /// evicted (anchor detaches) so the watchdog survives indefinite
+  /// output.
+  void _onTerminalChanged() {
+    final buf = _terminal.buffer;
+    if (buf.lines.length == 0) return;
+    final anchor = _evictionAnchor;
+    if (anchor == null || !anchor.attached) {
+      _rebuildEvictionAnchor();
+      return;
+    }
+    final currentY = anchor.y;
+    final evicted = _evictionAnchorYBaseline - currentY;
+    if (evicted <= 0) {
+      _evictionAnchorYBaseline = currentY;
+      return;
+    }
+    _evictionAnchorYBaseline = currentY;
+    _compensateScrollForEviction(evicted);
+    // Re-park the anchor near the middle of the live buffer so it
+    // keeps a comfortable distance from the front (cheaper than
+    // checking `attached` every tick once the buffer is at cap and
+    // the anchor's line is about to evict).
+    if (currentY < buf.viewHeight) {
+      _rebuildEvictionAnchor();
+    }
+  }
+
+  void _rebuildEvictionAnchor() {
+    _evictionAnchor?.dispose();
+    final buf = _terminal.buffer;
+    if (buf.lines.length == 0) {
+      _evictionAnchor = null;
+      _evictionAnchorYBaseline = 0;
+      return;
+    }
+    // Park the anchor near the middle of the live buffer so it
+    // survives many evictions before its line drops off the front.
+    final y = buf.lines.length ~/ 2;
+    _evictionAnchor = buf.createAnchor(0, y);
+    _evictionAnchorYBaseline = _evictionAnchor!.y;
+  }
+
+  /// Shift [_terminalScrollController] by `-evicted * cellHeight` so
+  /// the pixel-level scroll position keeps pointing at the same
+  /// content after xterm drops lines off the front. No-op when the
+  /// controller has no clients yet (first frame) or when the user is
+  /// already pinned to the bottom (xterm's own stick-to-bottom path
+  /// covers it).
+  void _compensateScrollForEviction(int evicted) {
+    if (!_terminalScrollController.hasClients) return;
+    final pos = _terminalScrollController.position;
+    // User is pinned to bottom (or within one cell of it): xterm's
+    // `_stickToBottom` branch auto-corrects; leave it alone.
+    if (pos.pixels >= pos.maxScrollExtent - 1) return;
+    final cellHeight = _fontSize * kTerminalLineHeight;
+    if (cellHeight <= 0) return;
+    final desired = (pos.pixels - evicted * cellHeight).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    _terminalScrollController.jumpTo(desired);
   }
 
   /// Arm the debounce timer so we update [_appliedKeyboardInset] only
@@ -239,6 +342,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _progressSub?.cancel();
     _shellConn?.close();
     _insetSettleTimer?.cancel();
+    _terminal.removeListener(_onTerminalChanged);
+    _evictionAnchor?.dispose();
+    _evictionAnchor = null;
     _terminalController.removeListener(_enforceCopyModeSelectionGuard);
     _terminalController.dispose();
     _terminalScrollController.dispose();
