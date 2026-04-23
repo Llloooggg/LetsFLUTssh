@@ -275,10 +275,16 @@ class HardwareTierVault {
       if (_usesMethodChannel) {
         try {
           await _channel.invokeMethod<bool>('clear');
-        } catch (_) {
+        } catch (e) {
           // Best-effort — the salt file is authoritative for "is
           // stored", so failing to tell the native side about a
-          // clear still degrades safely into "locked out".
+          // clear still degrades safely into "locked out". Log the
+          // native miss anyway so a support trace points at a stale
+          // native-side blob the next tier-switch has to tolerate.
+          AppLogger.instance.log(
+            'HardwareTierVault native clear failed (salt delete continues): $e',
+            name: 'HardwareTierVault',
+          );
         }
         final saltFile = await _saltFile();
         if (await saltFile.exists()) await saltFile.delete();

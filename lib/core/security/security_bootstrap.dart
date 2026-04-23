@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../utils/logger.dart';
 import 'biometric_auth.dart';
 import 'hardware_tier_vault.dart';
 import 'linux/fprintd_client.dart';
@@ -176,10 +177,18 @@ Future<SecurityCapabilities> probeCapabilities({
   final bio = biometricAuth ?? BiometricAuth();
   final fprintd = fprintdClient ?? FprintdClient();
 
-  Future<T> safely<T>(Future<T> Function() fn, T fallback) async {
+  Future<T> safely<T>(Future<T> Function() fn, T fallback, String probe) async {
     try {
       return await fn();
-    } catch (_) {
+    } catch (e) {
+      // Log the miss so a support trace shows which capability
+      // probe timed out / threw — silent fallbacks used to leave
+      // the wizard's tier list looking "unexpectedly small" on
+      // boxes where D-Bus stalls or a plugin is misregistered.
+      AppLogger.instance.log(
+        'Capability probe "$probe" failed (defaulting): $e',
+        name: 'SecurityBootstrap',
+      );
       return fallback;
     }
   }
@@ -191,17 +200,30 @@ Future<SecurityCapabilities> probeCapabilities({
   // so we skip the separate `isAvailable` call and derive the bool
   // from the reason code; same trick for keychain, where `probe()`
   // returns a classified enum and the bool is "probe says available".
+  AppLogger.instance.log(
+    'Probing security capabilities (linuxHost=$linux)',
+    name: 'SecurityBootstrap',
+  );
+
   final results = await Future.wait<Object>([
-    safely(keyStorage.probe, KeyringProbeResult.probeFailed),
-    safely(() async {
-      final res = await bio.availability();
-      return res == null;
-    }, false),
+    safely(keyStorage.probe, KeyringProbeResult.probeFailed, 'keychain'),
+    safely(
+      () async {
+        final res = await bio.availability();
+        return res == null;
+      },
+      false,
+      'biometric',
+    ),
     linux
-        ? safely(() async {
-            final hash = await fprintd.getEnrolmentHash();
-            return hash != null && hash.isNotEmpty;
-          }, false)
+        ? safely(
+            () async {
+              final hash = await fprintd.getEnrolmentHash();
+              return hash != null && hash.isNotEmpty;
+            },
+            false,
+            'fprintd',
+          )
         : Future.value(false),
     // Raw platform-specific hardware-vault reason code. Carried as a
     // string so `core/security` does not need to import the
@@ -209,12 +231,12 @@ Future<SecurityCapabilities> probeCapabilities({
     // would invert the dependency direction); the wizard + Settings
     // code at the widgets/providers layer map the code back to an
     // enum + localised reason copy.
-    safely(hardwareVault.probeDetail, 'unknown'),
+    safely(hardwareVault.probeDetail, 'unknown', 'hardware'),
   ]);
 
   final keyringProbe = results[0] as KeyringProbeResult;
   final hardwareCode = results[3] as String;
-  return SecurityCapabilities(
+  final caps = SecurityCapabilities(
     keychainAvailable: keyringProbe == KeyringProbeResult.available,
     hardwareVaultAvailable: hardwareCode == 'available',
     biometricAvailable: results[1] as bool,
@@ -223,6 +245,16 @@ Future<SecurityCapabilities> probeCapabilities({
     keychainProbe: keyringProbe,
     hardwareProbeCode: hardwareCode,
   );
+  // Flat, greppable one-liner so a support trace pins which branches
+  // the wizard went down. No user strings in here — enum names and
+  // booleans only — so the sanitizer has nothing to do.
+  AppLogger.instance.log(
+    'Capabilities: keychain=${caps.keychainProbe.name} '
+    'hardware=${caps.hardwareProbeCode} biometric=${caps.biometricAvailable} '
+    'fprintd=${caps.fprintdAvailable}',
+    name: 'SecurityBootstrap',
+  );
+  return caps;
 }
 
 /// Pure mapping (tier selected in wizard + modifier flags) → the

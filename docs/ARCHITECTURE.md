@@ -4100,12 +4100,49 @@ Usage: `sanitizeErrorMessage(message)` before logging any error that may contain
 
 ```dart
 void log(String message, {String? name, Object? error, StackTrace? stackTrace});
+Future<void> logCritical(String message, {String? name, Object? error, StackTrace? stackTrace});
 ```
 
-- File logging is **disabled by default** — user enables via Settings → Enable Logging
-- Auto-rotation at 5 MB, keeps 3 rotated files
-- **Never** log sensitive data — use `sanitizeErrorMessage()` for error messages
-- `stackTrace` parameter writes full stack trace to log file for debugging
+- File logging is **disabled by default** — user enables via Settings → Enable Logging. The default-off stance is load-bearing: it protects users who never touch Settings from carrying a forensic trail around.
+- Auto-rotation at 5 MB, keeps 3 rotated files, file chmod-0600 on POSIX.
+- **Every message is auto-sanitized** before it leaves the process — both the `dart:developer` forward and the disk append run through `AppLogger.sanitize` which chains `redactSecrets` → `sanitizeErrorMessage` (the table [above](#sensitive-data-sanitization-utilssanitizedart)). Callers do not pre-sanitize by hand; `'Connect failed: $e'` is fine, the sanitizer picks the user@host / IP / PEM out of `$e`'s string form.
+- `logCritical` is the crash-path variant — writes straight to disk even when `enabled` is false so the three global error boundaries in `main.dart` (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded`), the `MigrationRunner` fatal branch and `verifyDatabaseReadable` always leave a forensic breadcrumb. Routine lines stay on the opt-out gate.
+- `stackTrace` parameter writes full stack trace to the log file for debugging; the trace also passes through `sanitize` so paths and IPs in frames are redacted.
+
+##### Logging conventions (when to log, what to write)
+
+The default-off sink means **there is no "log spam" cost** — only users who opted in pay the write, and they opted in because they want the detail. The rule is **err on more not fewer**, not the other way around.
+
+*Required log points — add a line at every one:*
+
+- Entry / exit of any operation that touches disk, the DB, the network, a subprocess, or a native plugin (success or failure).
+- Every branch of a user-consequential `try/catch`, including the "caught and continued" path. A silent fallback with no log line is invisible in a support trace.
+- Every decision on ambiguous input: archive kind detected, migration applied, TOFU branch chosen, tier transition fired, fallback path taken.
+- Every guard a past bugfix added — if the guard fires in the future, the log line is what points the investigator at the original bug.
+
+*Tag naming — module-scoped, not file-scoped.* `'KnownHosts'`, `'FilePane'`, `'KdfParams'`, `'MigrationRunner'`, `'Session'`, `'SecureClipboard'`. Grep existing `name: '...'` usage before inventing a new tag so one module stays under one tag.
+
+*Free-form user-chosen strings are the sanitizer's blind spot.* Session labels, key labels, tag names, snippet titles, folder names have no regex shape — a sanitizer pattern strict enough to catch them would false-positive everywhere. For those, log the marker `<label>` or `<name>` instead of the value, e.g.:
+
+```dart
+// session_connect.dart — keyId IS safe (opaque UUID), label is NOT.
+AppLogger.instance.log(
+  'Resolved keyId ${session.keyId} → <label>',
+  name: 'Session',
+);
+```
+
+*Never compose a message that embeds a raw secret.* The sanitizer catches PEM blocks and long base64 runs, but a short passphrase / master password falls through. Keep the secret in the code path, not the string:
+
+```dart
+// OK — the sanitizer redacts user@host and host:port from dartssh2 error.
+AppLogger.instance.log('SSH auth failed: $e', name: 'Connect', error: e);
+
+// NOT OK — `$typedPassword` falls through every sanitizer rule.
+AppLogger.instance.log('Login failed with $typedPassword', name: 'Connect');
+```
+
+*Never call `print` or `dart:developer` log directly.* `print` survives into release builds and bypasses both the sanitizer and the file sink; `dev.log` bypasses the sanitizer. Both leak the raw message into whatever host is capturing stdout (`adb logcat`, Xcode Console, `flutter run` terminal, CI runner logs).
 
 #### Local Error Handling
 

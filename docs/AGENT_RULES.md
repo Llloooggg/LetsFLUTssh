@@ -264,6 +264,27 @@ Reference: full project-wide formulation in [ARCHITECTURE §1 Reuse principle](A
 - Credentials in `CredentialStore` (AES-256-GCM), NOT in plain JSON — [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity)
 - **State placement** — app-wide state → Riverpod `NotifierProvider`; widget-local state (dialog / pane / panel / tab) with constructor-injected args or caches → `ChangeNotifier` + `AnimatedBuilder` (canonical examples: `FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`). Side-channel Riverpod overrides for widget-local state = boilerplate with no win — [§4.3 Widget-local controllers](ARCHITECTURE.md#43-widget-local-controllers-changenotifier)
 
+### Logging — AppLogger, Auto-Sanitized, Err On More Not Less
+
+Every log line goes through `AppLogger.instance.log(message, name: 'Tag', error: e, stackTrace: st)`. Never call `print`, never call `dart:developer`'s `log` directly — both bypass the sanitizer and the file sink, and `print` survives into release builds. The file sink is opt-in off by default (Settings → Enable Logging); routine lines write to `dart:developer` + optional disk, crash paths use `logCritical` to bypass the opt-out.
+
+**Every log message passes through `AppLogger.sanitize` automatically** — `redactSecrets` scrubs PEM private keys and long base64 runs, then `sanitizeErrorMessage` redacts IPv4/IPv6, `user@host`, `host:port`, Windows `C:\Users\<name>` and Unix `/home/<name>` paths, plus `as <user>` / `user=<user>` / `login=<user>` shapes from dartssh2 exception text. You do **not** pre-sanitize by hand; the logger does it. The one thing the sanitizer cannot catch is **free-form user-chosen strings** (session labels, key labels, tag names, snippet titles, folder names) — those have no regex shape. For those, log the marker `<label>` or `<name>` instead of the value, the same way `session_connect.dart:resolveConfig` writes `'Resolved keyId X → <label>'`. See [ARCHITECTURE §17 Error Handling](ARCHITECTURE.md#17-error-handling--sanitization) for the full sanitizer table.
+
+**Add logs generously.** The default file sink is off so there is no "log spam" cost to worry about; only users who opted into logging pay the write, and they opted in because they want the detail. Log at every load-bearing state transition:
+
+- entry/exit of any operation that touches disk, the DB, the network, a subprocess, or a native plugin — mention success or failure of each
+- every branch of user-consequential `try/catch`, including the swallowed-and-continued path (`on FormatException catch (e) { AppLogger.instance.log('Malformed X: $e', name: 'Tag'); return null; }` — without this, the silent fallback is invisible in a support trace)
+- every decision the code makes on ambiguous input (archive kind detected, migration applied, TOFU branch taken, tier transition reached, fallback path chosen)
+- every place a previous bug could have surfaced — if the fix added a guard, log the guard firing
+
+When you notice existing code missing a log on one of the above, add it in the same commit as the code change — "extending logging" never needs its own justification commit. The rule is **err on the side of more logs**, not fewer; the test is "could a user hand me the log and could I tell what happened without reproducing?" — if no, add lines until yes.
+
+**Name tags are module-scoped, not file-scoped**: `'FilePane'`, `'Session'`, `'KdfParams'`, `'MigrationRunner'`, `'KnownHosts'`, `'SecureClipboard'`. Grep existing `name: '...'` usage before inventing a new tag so a single module's lines stay greppable under one tag.
+
+**Never compose a message that embeds a raw password, passphrase, or private-key byte.** The sanitizer catches PEM blocks and long base64 runs, but a short passphrase or a typed master password falls through. Put them in the code path, not the log string — log `'Password verify failed'`, never `'Password verify failed: $typedPassword'`. Same rule for error paths: `catch (e)` → `AppLogger.instance.log('X failed: $e', name: 'Tag', error: e)` is fine (dartssh2 exception text goes through the sanitizer); `AppLogger.instance.log('X failed with pass $password: $e', name: 'Tag')` is not.
+
+**Critical paths use `logCritical`**. Global crash handlers (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded`), migration fatals, and the DB integrity-probe failure write through `logCritical` so the file line lands even when the user has routine logging off — a first-launch crash has to be debuggable without a settings visit first.
+
 ### Theme & UI Constants
 OneDark theme: centralized in `app_theme.dart`, semantic color constants, no hardcoded `Colors` — [§8 Theme](ARCHITECTURE.md#8-theme-system)
 
