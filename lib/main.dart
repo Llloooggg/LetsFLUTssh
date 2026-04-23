@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/app_localizations.dart';
 import 'app/already_running_app.dart';
+import 'app/app_toolbar.dart';
 import 'app/global_error_dialog.dart';
 import 'core/config/config_store.dart';
 import 'core/shortcut_registry.dart';
@@ -52,7 +53,6 @@ import 'core/security/security_tier.dart';
 import 'features/settings/security_tier_switcher.dart';
 import 'widgets/lfs_import_dialog.dart';
 import 'widgets/link_import_preview_dialog.dart';
-import 'widgets/app_icon_button.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/toast.dart';
 import 'widgets/update_progress_indicator.dart';
@@ -2452,13 +2452,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  _Toolbar _buildToolbar({
+  AppToolbar _buildToolbar({
     required bool isNarrow,
     required TabEntry? activeTab,
   }) {
     final tab = activeTab;
     final hasTab = tab != null;
-    return _Toolbar(
+    return AppToolbar(
       sidebarOpen: _sidebarOpen,
       onToggleSidebar: () => setState(() => _sidebarOpen = !_sidebarOpen),
       showMenuButton: isNarrow,
@@ -2724,72 +2724,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       runInTransaction: store.database == null
           ? null
           : <T>(body) => store.database!.transaction(body),
-    );
-  }
-}
-
-class _Toolbar extends StatelessWidget {
-  final bool sidebarOpen;
-  final VoidCallback onToggleSidebar;
-  final bool showMenuButton;
-  final bool isTerminalTab;
-  final VoidCallback? onDuplicateTab;
-  final VoidCallback? onDuplicateDown;
-  final VoidCallback onTools;
-  final VoidCallback onSettings;
-
-  const _Toolbar({
-    required this.sidebarOpen,
-    required this.onToggleSidebar,
-    this.showMenuButton = false,
-    this.isTerminalTab = false,
-    this.onDuplicateTab,
-    this.onDuplicateDown,
-    required this.onTools,
-    required this.onSettings,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const SizedBox(width: 2),
-        if (showMenuButton)
-          AppIconButton(
-            icon: Icons.menu,
-            onTap: () => Scaffold.of(context).openDrawer(),
-            tooltip: S.of(context).sessions,
-            color: AppTheme.fgDim,
-          )
-        else
-          AppIconButton(
-            icon: sidebarOpen ? Icons.chevron_left : Icons.chevron_right,
-            onTap: onToggleSidebar,
-            tooltip: sidebarOpen
-                ? S.of(context).hideSidebar
-                : S.of(context).showSidebar,
-          ),
-        AppButton(label: S.of(context).tools, onTap: onTools, dense: true),
-        AppButton(
-          label: S.of(context).settings,
-          onTap: onSettings,
-          dense: true,
-        ),
-        const Spacer(),
-        if (isTerminalTab) ...[
-          AppIconButton(
-            icon: Icons.content_copy,
-            onTap: onDuplicateTab,
-            tooltip: S.of(context).duplicateTabShortcut,
-          ),
-          AppIconButton(
-            icon: Icons.horizontal_split,
-            onTap: onDuplicateDown,
-            tooltip: S.of(context).duplicateDownShortcut,
-          ),
-        ],
-        const SizedBox(width: 2),
-      ],
     );
   }
 }
