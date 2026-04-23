@@ -142,8 +142,9 @@ in the path**. The chip refuses to unseal without the original device.
 
 A separate branch, not a "higher tier". The database key is **not
 persisted** anywhere. The user chooses a master password; on every
-unlock the key is derived per-session through Argon2id (64 MiB / 3
-iterations / 4 lanes by default) and lives only in a page-locked
+unlock the key is derived per-session through Argon2id (46 MiB / 2
+iterations / 1 lane — OWASP 2024 recommended floor, per
+`KdfParams.productionDefaults`) and lives only in a page-locked
 native buffer during the unlocked window. On lock the buffer is
 zeroed and freed.
 
@@ -357,8 +358,9 @@ or crypto wallet on consumer hardware.
 * **Offline brute force** is ✓ only when a user password is set —
   the threat as formulated ("attacker tries passwords offline") does
   not apply without a password, and Argon2id with production
-  parameters (256 MiB / 3 iterations / 4 parallel) is what turns
-  brute-force attempts into a wall-clock problem. T2 + pw gets the
+  parameters (46 MiB / 2 iterations / 1 lane — the OWASP 2024 floor
+  per `KdfParams.productionDefaults`) is what turns brute-force
+  attempts into a wall-clock problem. T2 + pw gets the
   same ✓ as T1 + pw because the blob-plus-chip requirement adds to
   (not replaces) the Argon2id cost; removing the pw on T2 drops the
   row to ✗ symmetrically with T1.

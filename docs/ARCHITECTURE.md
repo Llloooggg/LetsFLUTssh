@@ -4383,6 +4383,7 @@ flowchart TD
 | `pointycastle` | AES-256-GCM (`.lfs` archive encryption) + Argon2id (KEK derivation) |
 | `pinenacl` | Ed25519 verify for release-signature check |
 | `crypto` | SHA-256 over DER for SPKI pinning |
+| `asn1lib` | X.509 ASN.1 parse for SPKI extraction in `CertPinning.extractSpki` — promoted from transitive to direct dep; was already pulled in via `pointycastle`, made explicit so the import is load-bearing rather than relying on a sibling's graph |
 | `path_provider` | App data directories |
 | `archive` | ZIP for .lfs export/import |
 | `desktop_drop` | OS drag & drop |
