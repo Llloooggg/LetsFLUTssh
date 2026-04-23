@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
 import 'mode_button.dart';
 import 'styled_form_field.dart';
@@ -51,6 +52,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
 
   @override
   void dispose() {
+    _passwordCtrl.wipeAndClear();
     _passwordCtrl.dispose();
     super.dispose();
   }

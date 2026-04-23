@@ -952,13 +952,21 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   /// Show the reusable current-password prompt shared with the
   /// "drop password" confirmation flow. Returns null when the user
-  /// cancels.
-  Future<String?> _enableBiometricDialogPrompt() {
+  /// cancels. The backing controller is wiped and disposed on every
+  /// exit path so the typed current-password does not linger on the
+  /// Dart heap — `_EnableBiometricDialog` is a view; the secret
+  /// belongs to this scope.
+  Future<String?> _enableBiometricDialogPrompt() async {
     final ctrl = TextEditingController();
-    return AppDialog.show<String>(
-      context,
-      builder: (ctx) => _EnableBiometricDialog(currentCtrl: ctrl),
-    );
+    try {
+      return await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _EnableBiometricDialog(currentCtrl: ctrl),
+      );
+    } finally {
+      ctrl.wipeAndClear();
+      ctrl.dispose();
+    }
   }
 
   /// Apply the pending biometric toggle from the tier card. Called
@@ -1040,10 +1048,16 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   ) async {
     if (!_isVerifiablePasswordDrop(current, next)) return true;
     final currentCtrl = TextEditingController();
-    final entered = await AppDialog.show<String>(
-      context,
-      builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
-    );
+    final String? entered;
+    try {
+      entered = await AppDialog.show<String>(
+        context,
+        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+      );
+    } finally {
+      currentCtrl.wipeAndClear();
+      currentCtrl.dispose();
+    }
     if (entered == null) return false;
     if (!mounted) return false;
     final ok = current == SecurityTier.paranoid

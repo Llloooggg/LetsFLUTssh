@@ -20,6 +20,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
+import '../../utils/secret_controller.dart';
 import '../tags/tag_assign_dialog.dart';
 
 /// Result of the session edit dialog.
@@ -130,6 +131,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   @override
   void dispose() {
+    // Secret-bearing controllers — overwrite with null bytes and
+    // clear before disposing so the Dart-heap residency window for
+    // the typed password / PEM body / passphrase ends at dialog
+    // close, not whenever the next GC cycle reclaims the immutable
+    // String. Matches the wipe discipline ExpandableTierCard +
+    // SecurityPasswordField already follow.
+    _passwordCtrl.wipeAndClear();
+    _keyDataCtrl.wipeAndClear();
+    _passphraseCtrl.wipeAndClear();
     _labelCtrl.dispose();
     _folderCtrl.dispose();
     _hostCtrl.dispose();
