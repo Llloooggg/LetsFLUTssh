@@ -1428,7 +1428,7 @@
   "presetFullImport": "Full import",
   "presetSelective": "Selective",
   "presetCustom": "Custom",
-  "sessionSshKeys": "Session SSH keys",
+  "sessionSshKeys": "Session keys (manager)",
   "allManagerKeys": "All manager keys",
   "browseFiles": "Browse files…",
   "sshDirSessionAlreadyImported": "already in sessions",

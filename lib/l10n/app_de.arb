@@ -649,7 +649,7 @@
   "presetFullImport": "Vollständiger Import",
   "presetSelective": "Selektiv",
   "presetCustom": "Benutzerdefiniert",
-  "sessionSshKeys": "SSH-Schlüssel der Sitzung",
+  "sessionSshKeys": "Sitzungsschlüssel (Manager)",
   "allManagerKeys": "Alle Manager-Schlüssel",
   "languageSubtitle": "Sprache der Benutzeroberfläche",
   "themeSubtitle": "Dunkel, hell oder dem System folgen",

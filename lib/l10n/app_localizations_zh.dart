@@ -2449,7 +2449,7 @@ class SZh extends S {
   String get presetCustom => '自定义';
 
   @override
-  String get sessionSshKeys => '会话 SSH 密钥';
+  String get sessionSshKeys => '会话密钥 (管理器)';
 
   @override
   String get allManagerKeys => '管理器中的所有密钥';

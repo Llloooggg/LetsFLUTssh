@@ -649,7 +649,7 @@
   "presetFullImport": "واردات کامل",
   "presetSelective": "انتخابی",
   "presetCustom": "سفارشی",
-  "sessionSshKeys": "کلیدهای SSH جلسه",
+  "sessionSshKeys": "کلیدهای جلسه (مدیر)",
   "allManagerKeys": "همهٔ کلیدهای مدیر",
   "languageSubtitle": "زبان رابط کاربری",
   "themeSubtitle": "تیره، روشن یا پیروی از سیستم",

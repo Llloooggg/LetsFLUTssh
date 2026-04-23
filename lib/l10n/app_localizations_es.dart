@@ -2576,7 +2576,7 @@ class SEs extends S {
   String get presetCustom => 'Personalizado';
 
   @override
-  String get sessionSshKeys => 'Claves SSH de la sesión';
+  String get sessionSshKeys => 'Claves de sesión (gestor)';
 
   @override
   String get allManagerKeys => 'Todas las claves del gestor';

@@ -649,7 +649,7 @@
   "presetFullImport": "استيراد كامل",
   "presetSelective": "انتقائي",
   "presetCustom": "مخصص",
-  "sessionSshKeys": "مفاتيح SSH للجلسة",
+  "sessionSshKeys": "مفاتيح الجلسة (المدير)",
   "allManagerKeys": "جميع المفاتيح في المدير",
   "languageSubtitle": "لغة الواجهة",
   "themeSubtitle": "داكن أو فاتح أو اتباع النظام",

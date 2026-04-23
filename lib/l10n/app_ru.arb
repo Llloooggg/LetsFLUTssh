@@ -649,7 +649,7 @@
   "presetFullImport": "Полный импорт",
   "presetSelective": "Выборочно",
   "presetCustom": "Настраиваемый",
-  "sessionSshKeys": "SSH-ключи сессий",
+  "sessionSshKeys": "Ключи сессий (из менеджера)",
   "allManagerKeys": "Все ключи из менеджера",
   "languageSubtitle": "Язык интерфейса",
   "themeSubtitle": "Тёмная, светлая или следовать системе",

@@ -649,7 +649,7 @@
   "presetFullImport": "Nhập toàn bộ",
   "presetSelective": "Chọn lọc",
   "presetCustom": "Tùy chỉnh",
-  "sessionSshKeys": "Khóa SSH của phiên",
+  "sessionSshKeys": "Khóa phiên (trình quản lý)",
   "allManagerKeys": "Tất cả khóa trong trình quản lý",
   "languageSubtitle": "Ngôn ngữ giao diện",
   "themeSubtitle": "Tối, sáng hoặc theo hệ thống",

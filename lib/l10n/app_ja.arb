@@ -649,7 +649,7 @@
   "presetFullImport": "完全インポート",
   "presetSelective": "選択的",
   "presetCustom": "カスタム",
-  "sessionSshKeys": "セッションの SSH 鍵",
+  "sessionSshKeys": "セッション鍵 (マネージャー)",
   "allManagerKeys": "マネージャーのすべての鍵",
   "languageSubtitle": "インターフェースの言語",
   "themeSubtitle": "ダーク、ライト、またはシステムに従う",

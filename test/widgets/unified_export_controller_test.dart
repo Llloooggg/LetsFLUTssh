@@ -176,9 +176,12 @@ void main() {
     });
 
     test(
-      'applyFullBackupPreset flips every flag and re-selects every session',
+      'applyFullBackupPreset (file mode) flips every flag and re-selects every session',
       () {
-        final c = _ctrl(sessions: [_s('1', 'A'), _s('2', 'B')], isQrMode: true);
+        final c = _ctrl(
+          sessions: [_s('1', 'A'), _s('2', 'B')],
+          isQrMode: false,
+        );
         c.toggleAll(false);
         c.applyFullBackupPreset();
 
@@ -187,6 +190,27 @@ void main() {
         expect(c.options.includeConfig, isTrue);
         expect(c.options.includeKnownHosts, isTrue);
         expect(c.options.includeAllManagerKeys, isTrue);
+        expect(c.options.includeEmbeddedKeys, isTrue);
+        expect(c.activePreset, ExportPreset.fullBackup);
+      },
+    );
+
+    test(
+      'applyFullBackupPreset (QR mode) turns key toggles off by default',
+      () {
+        // QR payloads are sharply size-limited — a 4096-bit RSA key
+        // alone exceeds the ceiling. The "Full backup" chip in QR mode
+        // therefore ships with embedded + manager keys unchecked; the
+        // user opts in manually if they want to pay the size cost.
+        final c = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+        c.applyFullBackupPreset();
+
+        expect(c.options.includeSessions, isTrue);
+        expect(c.options.includeConfig, isTrue);
+        expect(c.options.includeKnownHosts, isTrue);
+        expect(c.options.includePasswords, isTrue);
+        expect(c.options.includeEmbeddedKeys, isFalse);
+        expect(c.options.includeAllManagerKeys, isFalse);
         expect(c.activePreset, ExportPreset.fullBackup);
       },
     );

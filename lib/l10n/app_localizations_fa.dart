@@ -2546,7 +2546,7 @@ class SFa extends S {
   String get presetCustom => 'سفارشی';
 
   @override
-  String get sessionSshKeys => 'کلیدهای SSH جلسه';
+  String get sessionSshKeys => 'کلیدهای جلسه (مدیر)';
 
   @override
   String get allManagerKeys => 'همهٔ کلیدهای مدیر';

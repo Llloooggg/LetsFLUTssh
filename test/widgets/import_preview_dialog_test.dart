@@ -344,7 +344,7 @@ void main() {
 
         // Default: Full preset → includeAllManagerKeys true, includeManagerKeys
         // false. Tap "Session keys" to flip to session-only mode.
-        await tester.tap(find.text('Session SSH keys'));
+        await tester.tap(find.text('Session keys (manager)'));
         await tester.pump();
         await tester.tap(find.text('Import'));
         await tester.pumpAndSettle();

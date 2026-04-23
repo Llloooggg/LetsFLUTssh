@@ -2548,7 +2548,7 @@ class SAr extends S {
   String get presetCustom => 'مخصص';
 
   @override
-  String get sessionSshKeys => 'مفاتيح SSH للجلسة';
+  String get sessionSshKeys => 'مفاتيح الجلسة (المدير)';
 
   @override
   String get allManagerKeys => 'جميع المفاتيح في المدير';
