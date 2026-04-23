@@ -11,7 +11,6 @@ class _FakeKeychain implements Keychain {
   bool certPresent;
   bool importCalled = false;
   bool trustCalled = false;
-  bool removeTrustCalled = false;
   int deleteIdentityCalls = 0;
   int deleteCertCalls = 0;
 
@@ -36,11 +35,6 @@ class _FakeKeychain implements Keychain {
   @override
   Future<void> addTrustedCert(File crtPath) async {
     trustCalled = true;
-  }
-
-  @override
-  Future<void> removeTrustedCert() async {
-    removeTrustCalled = true;
   }
 
   @override
@@ -219,12 +213,15 @@ void main() {
 
   group('ResignService.uninstallIdentity', () {
     test(
-      'calls remove-trust + delete-identity + delete-cert in order',
+      'calls delete-identity + delete-certificate (no remove-trust step)',
       () async {
+        // Intentionally skips `remove-trusted-cert`. The surviving
+        // trust entry references a cert that is about to be deleted,
+        // so it becomes an inactive dangling reference — see
+        // [ResignService.uninstallIdentity] for the rationale.
         final kc = _FakeKeychain(certPresent: true);
         final svc = ResignService(keychain: kc, codesigner: _FakeCodesigner());
         await svc.uninstallIdentity();
-        expect(kc.removeTrustCalled, isTrue);
         expect(kc.deleteIdentityCalls, 1);
         expect(kc.deleteCertCalls, 1);
       },

@@ -99,19 +99,6 @@ class Keychain {
     }
   }
 
-  /// Remove the user-domain trust entry. Swallows "no matching
-  /// entry" because the earlier `add-trusted-cert` may have written
-  /// to either `-d` (admin) or the user domain depending on macOS
-  /// version — the uninstall path calls this best-effort before the
-  /// cert-delete pass finishes the cleanup.
-  Future<void> removeTrustedCert() async {
-    await runner.run(_securityPath, [
-      'remove-trusted-cert',
-      '-d',
-      keychainPath,
-    ]);
-  }
-
   /// Delete the cert-with-private-key identity pair. `delete-identity`
   /// sweeps both the cert and its matching private key in one call.
   Future<void> deleteIdentity(String commonName) async {

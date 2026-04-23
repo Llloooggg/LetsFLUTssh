@@ -83,20 +83,21 @@ void main() {
       expect(call, containsAllInOrder(['-r', 'trustRoot']));
     });
 
-    test('uninstall delete-identity + delete-certificate + untrust', () async {
+    test('uninstall invokes delete-identity + delete-certificate', () async {
+      // No `remove-trusted-cert` step: once the cert is deleted, the
+      // user-domain trust entry references a missing cert and is
+      // inactive for macOS's trust evaluator. See
+      // [ResignService.uninstallIdentity] for the rationale.
       final runner = _FakeRunner([
         ProcessResult(1, 0, '', ''),
         ProcessResult(2, 0, '', ''),
-        ProcessResult(3, 0, '', ''),
       ]);
       final kc = Keychain(runner: runner, keychainPath: '/tmp/k');
-      await kc.removeTrustedCert();
       await kc.deleteIdentity('CN');
       await kc.deleteCertificate('CN');
-      expect(runner.calls, hasLength(3));
-      expect(runner.calls[0], contains('remove-trusted-cert'));
-      expect(runner.calls[1], contains('delete-identity'));
-      expect(runner.calls[2], contains('delete-certificate'));
+      expect(runner.calls, hasLength(2));
+      expect(runner.calls[0], contains('delete-identity'));
+      expect(runner.calls[1], contains('delete-certificate'));
     });
   });
 }
