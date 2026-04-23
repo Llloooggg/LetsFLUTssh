@@ -12,6 +12,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
+import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/main.dart';
 import 'package:letsflutssh/providers/config_provider.dart';

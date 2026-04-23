@@ -11,12 +11,13 @@ import 'l10n/app_localizations.dart';
 import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
 import 'app/global_error_dialog.dart';
+import 'app/import_flow.dart';
+import 'app/navigator_key.dart';
 import 'app/update_dialog_flow.dart';
 import 'core/config/config_store.dart';
 import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
-import 'core/session/qr_codec.dart';
 import 'core/db/database.dart';
 import 'core/db/database_opener.dart';
 import 'core/security/aes_gcm.dart';
@@ -26,11 +27,8 @@ import 'core/security/process_hardening.dart';
 import 'core/security/master_password.dart';
 import 'core/security/secure_key_storage.dart';
 import 'core/security/security_bootstrap.dart';
-import 'core/import/import_service.dart';
-import 'core/progress/progress_reporter.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
-import 'features/settings/export_import.dart';
 import 'widgets/app_dialog.dart';
 import 'widgets/host_key_dialog.dart';
 import 'widgets/passphrase_dialog.dart';
@@ -52,8 +50,6 @@ import 'core/migration/schema_versions.dart';
 import 'core/security/password_rate_limiter.dart';
 import 'core/security/security_tier.dart';
 import 'features/settings/security_tier_switcher.dart';
-import 'widgets/lfs_import_dialog.dart';
-import 'widgets/link_import_preview_dialog.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/toast.dart';
 import 'features/settings/settings_screen.dart';
@@ -82,14 +78,9 @@ import 'providers/update_provider.dart';
 import 'providers/version_provider.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'theme/app_theme.dart';
-import 'utils/format.dart';
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
 import 'utils/sanitize.dart';
-
-/// Global navigator key for showing dialogs from non-UI contexts
-/// (e.g., host key verification during SSH handshake).
-final navigatorKey = GlobalKey<NavigatorState>();
 
 /// Single-instance lock — kept alive for the process lifetime.
 /// The OS releases the file lock automatically on exit (even on crash).
@@ -2072,7 +2063,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
-          _showLfsImportDialog(ctx, filePath);
+          showLfsImportDialog(ctx, ref, filePath);
         }
       });
     };
@@ -2099,7 +2090,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         '${data.emptyFolders.length} folder(s)',
         name: 'DeepLink',
       );
-      _handleQrImport(data);
+      handleQrImport(ref, data);
     };
     _deepLinkHandler.onQrImportVersionTooNew = (found, supported) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2238,7 +2229,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         .where((f) => f.path.endsWith('.lfs'))
         .toList();
     if (lfsFiles.isNotEmpty) {
-      _showLfsImportDialog(context, lfsFiles.first.path);
+      showLfsImportDialog(context, ref, lfsFiles.first.path);
     }
   }
 
@@ -2325,227 +2316,5 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           await SessionConnect.connectTerminal(context, ref, session);
         }
     }
-  }
-
-  Future<void> _handleQrImport(ExportPayloadData data) async {
-    // Ask the user what to bring in before writing anything — mirrors the
-    // .lfs and paste-link flows so QR imports aren't the only path that
-    // silently clobbers merge/replace choices and data-type selection.
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null || !ctx.mounted) return;
-    final choice = await LinkImportPreviewDialog.show(ctx, payload: data);
-    if (choice == null) return;
-
-    // Build the full ImportResult from the payload, then let
-    // [ImportResult.filtered] drop whatever the user unchecked.
-    final fullResult = ImportResult(
-      sessions: data.sessions,
-      emptyFolders: data.emptyFolders,
-      managerKeys: data.managerKeys,
-      tags: data.tags,
-      sessionTags: data.sessionTags,
-      folderTags: data.folderTags,
-      snippets: data.snippets,
-      sessionSnippets: data.sessionSnippets,
-      config: data.config,
-      mode: choice.mode,
-      knownHostsContent: data.knownHostsContent,
-      includeTags: data.tags.isNotEmpty,
-      includeSnippets: data.snippets.isNotEmpty,
-      includeKnownHosts: data.knownHostsContent != null,
-    );
-    final importResult = fullResult.filtered(choice.options, choice.mode);
-
-    try {
-      final summary = await _buildImportService().applyResult(importResult);
-      _invalidateImportProviders();
-
-      AppLogger.instance.log(
-        'QR import complete: ${summary.sessions} session(s), '
-        '${summary.managerKeys} key(s), '
-        '${summary.tags} tag(s), '
-        '${summary.snippets} snippet(s)',
-        name: 'App',
-      );
-
-      // Context may have been torn down during the import await — re-read
-      // off the global navigator key so we don't paint onto a disposed tree.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final postCtx = navigatorKey.currentContext;
-        if (postCtx != null && postCtx.mounted) {
-          Toast.show(
-            postCtx,
-            message: formatImportSummary(S.of(postCtx), summary),
-            level: ToastLevel.success,
-          );
-        }
-      });
-    } catch (e) {
-      AppLogger.instance.log('QR import failed: $e', name: 'App', error: e);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final postCtx = navigatorKey.currentContext;
-        if (postCtx != null && postCtx.mounted) {
-          Toast.show(
-            postCtx,
-            message: S
-                .of(postCtx)
-                .importFailed(localizeError(S.of(postCtx), e)),
-            level: ToastLevel.error,
-          );
-        }
-      });
-    }
-  }
-
-  Future<void> _showLfsImportDialog(
-    BuildContext context,
-    String filePath,
-  ) async {
-    AppLogger.instance.log(
-      'LFS import started: ${filePath.split('/').last}',
-      name: 'App',
-    );
-    // Classify the file before any prompt. Rejects non-LFS content
-    // (e.g. an .apk picked by mistake — Android SAF ignores the .lfs
-    // extension filter) and lets us skip the password prompt for
-    // unencrypted (plain-ZIP) exports.
-    final kind = ExportImport.probeArchive(filePath);
-    if (kind == LfsArchiveKind.notLfs) {
-      Toast.show(
-        context,
-        message: S.of(context).errLfsNotArchive,
-        level: ToastLevel.error,
-      );
-      return;
-    }
-    final result = await LfsImportDialog.show(
-      context,
-      filePath: filePath,
-      isEncrypted: kind == LfsArchiveKind.encryptedLfs,
-    );
-    if (result == null || !context.mounted) return;
-
-    // Show progress bar while Argon2id + decryption run in isolate and
-    // the subsequent per-store writes stream step counts back to the UI.
-    final l10n = S.of(context);
-    final progress = ProgressReporter(l10n.progressReadingArchive);
-    AppProgressBarDialog.show(context, progress);
-    var progressShown = true;
-
-    try {
-      final importResult = await ExportImport.import_(
-        filePath: filePath,
-        masterPassword: result.password,
-        mode: result.mode,
-        options: const ExportOptions(
-          includeSessions: true,
-          includeConfig: true,
-          includeKnownHosts: true,
-          includeManagerKeys: true,
-          includeTags: true,
-          includeSnippets: true,
-        ),
-        progress: progress,
-        l10n: l10n,
-      );
-
-      final summary = await _buildImportService().applyResult(
-        importResult,
-        progress: progress,
-        l10n: l10n,
-      );
-      _invalidateImportProviders();
-
-      AppLogger.instance.log(
-        'LFS import success: ${summary.sessions} session(s)',
-        name: 'App',
-      );
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        progressShown = false;
-        Toast.show(
-          context,
-          message: formatImportSummary(S.of(context), summary),
-          level: ToastLevel.success,
-        );
-      }
-    } catch (e) {
-      AppLogger.instance.log('LFS import failed: $e', name: 'App', error: e);
-      if (progressShown && context.mounted) {
-        Navigator.of(context).pop();
-        progressShown = false;
-      }
-      if (context.mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).importFailed(localizeError(S.of(context), e)),
-          level: ToastLevel.error,
-        );
-      }
-    } finally {
-      if (progressShown && context.mounted) {
-        Navigator.of(context).pop();
-      }
-      progress.dispose();
-    }
-  }
-
-  /// Refresh all cached FutureProviders after a QR or LFS import so the UI
-  /// picks up newly imported keys, tags and snippets without an app restart.
-  void _invalidateImportProviders() {
-    ref.invalidate(sshKeysProvider);
-    ref.invalidate(tagsProvider);
-    ref.invalidate(snippetsProvider);
-  }
-
-  ImportService _buildImportService() {
-    final store = ref.read(sessionStoreProvider);
-    final keyStore = ref.read(keyStoreProvider);
-    final tagStore = ref.read(tagStoreProvider);
-    final snippetStore = ref.read(snippetStoreProvider);
-    final knownHostsMgr = ref.read(knownHostsProvider);
-    return ImportService(
-      addSession: (s) => ref.read(sessionProvider.notifier).add(s),
-      addEmptyFolder: (f) => store.addEmptyFolder(f),
-      deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
-      getSessions: () => ref.read(sessionProvider),
-      applyConfig: (config) =>
-          ref.read(configProvider.notifier).update((_) => config),
-      saveManagerKey: (entry) => keyStore.importForMerge(entry),
-      saveTag: (tag) async {
-        await tagStore.add(tag);
-        return tag.id;
-      },
-      tagSession: tagStore.tagSession,
-      tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
-      saveSnippet: (snippet) async {
-        await snippetStore.add(snippet);
-        return snippet.id;
-      },
-      linkSnippetToSession: snippetStore.linkToSession,
-      getEmptyFolders: () => store.emptyFolders,
-      restoreSnapshot: (sessions, folders) =>
-          store.restoreSnapshot(sessions, folders),
-      existingTagIds: () async =>
-          (await tagStore.loadAll()).map((t) => t.id).toSet(),
-      existingSnippetIds: () async =>
-          (await snippetStore.loadAll()).map((s) => s.id).toSet(),
-      getCurrentConfig: () => ref.read(configProvider),
-      loadAllTags: () => tagStore.loadAll(),
-      deleteAllTags: () => tagStore.deleteAll(),
-      loadAllSnippets: () => snippetStore.loadAll(),
-      deleteAllSnippets: () => snippetStore.deleteAll(),
-      exportKnownHosts: () => knownHostsMgr.exportToString(),
-      clearKnownHosts: () => knownHostsMgr.clearAll(),
-      importKnownHosts: (content) async {
-        await knownHostsMgr.importFromString(content);
-      },
-      existingManagerKeyIds: () async =>
-          (await keyStore.loadAll()).keys.toSet(),
-      deleteManagerKey: keyStore.delete,
-      runInTransaction: store.database == null
-          ? null
-          : <T>(body) => store.database!.transaction(body),
-    );
   }
 }
