@@ -142,11 +142,17 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
   /// whole-cell remainder, and update the live selection. Called by the
   /// parent [MobileTerminalView] when a single-pointer drag is in flight.
   ///
-  /// When the cursor would step past the viewport edge we scroll the
-  /// xterm buffer in that direction by the overflow cells instead of
-  /// clamping — this lets a single drag extend the selection through
-  /// as much scrollback as the buffer holds. Horizontal overflow still
-  /// clamps: xterm's viewport has no horizontal scrollback.
+  /// Horizontal overflow rolls onto the next buffer row (and vice versa
+  /// on negative dx): a long pasted line that soft-wraps at the right
+  /// edge of the viewport lives on multiple buffer rows, and the copy
+  /// cursor has to be able to cross that wrap in one continuous drag.
+  /// The old `_cursorX.clamp(0, viewWidth - 1)` behaviour parked the
+  /// cursor at the right edge and refused to advance even though the
+  /// wrap continuation was plainly visible on the next row.
+  ///
+  /// Vertical overflow past the top / bottom viewport edge scrolls the
+  /// xterm buffer in that direction by the overflow cells — a single
+  /// drag can extend the selection through the entire scrollback.
   void onCursorPan(Offset delta) {
     final cell = _measureCellSize();
     _pxX += delta.dx;
@@ -156,22 +162,41 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     if (dx == 0 && dy == 0) return;
     _pxX -= dx * cell.width;
     _pxY -= dy * cell.height;
+
+    final viewWidth = widget.terminal.viewWidth;
     final viewMaxY = widget.terminal.viewHeight - 1;
-    final targetY = _cursorY + dy;
+
+    // Linearise the grid into row-major cell indices so a horizontal
+    // overflow rolls to the next row instead of clamping at the right
+    // edge. Dart's `~/` truncates toward zero, which is wrong for
+    // negative values (we want floor), so the negative branch uses
+    // `ceil(abs/viewWidth)` and flips the sign — that gives the same
+    // result as `combined.floor()` without importing `dart:math`.
+    final combined = _cursorY * viewWidth + _cursorX + dx + dy * viewWidth;
+    int newY;
+    final int newX;
+    if (combined >= 0) {
+      newY = combined ~/ viewWidth;
+      newX = combined - newY * viewWidth;
+    } else {
+      final abs = -combined;
+      newY = -((abs + viewWidth - 1) ~/ viewWidth);
+      newX = combined - newY * viewWidth;
+    }
+
     int scrollOverflowCells = 0;
-    int newY = targetY;
-    if (targetY < 0) {
-      scrollOverflowCells = targetY; // negative → scroll up into scrollback
+    if (newY < 0) {
+      scrollOverflowCells = newY; // negative → scroll up into scrollback
       newY = 0;
-    } else if (targetY > viewMaxY) {
-      scrollOverflowCells = targetY - viewMaxY; // positive → toward live bottom
+    } else if (newY > viewMaxY) {
+      scrollOverflowCells = newY - viewMaxY; // positive → toward live bottom
       newY = viewMaxY;
     }
     if (scrollOverflowCells != 0) {
       _scrollByCells(scrollOverflowCells, cell.height);
     }
     setState(() {
-      _cursorX = (_cursorX + dx).clamp(0, widget.terminal.viewWidth - 1);
+      _cursorX = newX.clamp(0, viewWidth - 1);
       _cursorY = newY;
       _syncSelection();
     });
