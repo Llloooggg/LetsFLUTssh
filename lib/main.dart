@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
 import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
+import 'app/deep_link_wiring.dart';
 import 'app/global_error_dialog.dart';
 import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
@@ -1937,7 +1938,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void initState() {
     super.initState();
-    _setupDeepLinks();
+    wireDeepLinks(_deepLinkHandler, ref);
     _listenForStartupUpdate();
     _listenForFirstLaunchBanner();
   }
@@ -2037,74 +2038,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     if (ctx != null && ctx.mounted) {
       showUpdateDialog(context: ctx, ref: ref, info: next.info!);
     }
-  }
-
-  void _setupDeepLinks() {
-    _deepLinkHandler.onConnect = (config) {
-      AppLogger.instance.log(
-        'Deep link: connect to ${config.displayName}',
-        name: 'DeepLink',
-      );
-      // Defer to next frame — when resuming from background the navigator
-      // context may not be available yet on the current frame.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx == null) return;
-        final manager = ref.read(connectionManagerProvider);
-        final conn = manager.connectAsync(config, label: config.displayName);
-        ref.read(workspaceProvider.notifier).addTerminalTab(conn);
-      });
-    };
-    _deepLinkHandler.onLfsFileOpened = (filePath) {
-      AppLogger.instance.log(
-        'Deep link: LFS file opened — $filePath',
-        name: 'DeepLink',
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null && ctx.mounted) {
-          showLfsImportDialog(ctx, ref, filePath);
-        }
-      });
-    };
-    _deepLinkHandler.onKeyFileOpened = (filePath) {
-      AppLogger.instance.log(
-        'Deep link: SSH key file received — $filePath',
-        name: 'DeepLink',
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null && ctx.mounted) {
-          Toast.show(
-            ctx,
-            message: S.of(ctx).sshKeyReceived(filePath.split('/').last),
-            level: ToastLevel.info,
-          );
-        }
-      });
-    };
-    _deepLinkHandler.onQrImport = (data) {
-      AppLogger.instance.log(
-        'Deep link: QR import — '
-        '${data.sessions.length} session(s), '
-        '${data.emptyFolders.length} folder(s)',
-        name: 'DeepLink',
-      );
-      handleQrImport(ref, data);
-    };
-    _deepLinkHandler.onQrImportVersionTooNew = (found, supported) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null && ctx.mounted) {
-          Toast.show(
-            ctx,
-            message: S.of(ctx).errLfsUnsupportedVersion(found, supported),
-            level: ToastLevel.warning,
-          );
-        }
-      });
-    };
-    _deepLinkHandler.init();
   }
 
   @override
