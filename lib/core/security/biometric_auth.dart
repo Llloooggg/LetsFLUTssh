@@ -59,12 +59,14 @@ enum BiometricBackingLevel {
 typedef BiometricAvailability = BiometricUnavailableReason?;
 
 /// Thin wrapper around [LocalAuthentication] for the optional biometric
-/// unlock of master-password mode.
+/// unlock on T1+password and T2+password. Paranoid does not expose a
+/// biometric shortcut by design — see ARCHITECTURE §3.6 → Biometric
+/// unlock for the rationale.
 ///
 /// **Threat model**: biometrics is a UX shortcut, not a new cryptographic
-/// layer — the master-password-derived KEK is the real secret, the
-/// biometric gate only decides whether to reveal the cached key to the
-/// process.
+/// layer — the tier's user-typed secret is the real gate, the biometric
+/// slot only decides whether to reveal the cached key without requiring
+/// the user to retype.
 class BiometricAuth {
   final LocalAuthentication _auth;
   final FprintdClient _fprintd;

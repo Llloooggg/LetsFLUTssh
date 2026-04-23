@@ -9,7 +9,6 @@ import '../core/security/password_rate_limiter.dart';
 import '../core/security/wipe_all_service.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
-import '../providers/security_provider.dart';
 import '../providers/security_reinit_provider.dart';
 import '../providers/session_credential_cache_provider.dart';
 import '../theme/app_theme.dart';
@@ -25,24 +24,19 @@ import 'secure_screen_scope.dart';
 /// Non-dismissible — the user must enter the correct password or reset.
 /// Returns the derived encryption key on success, or null if reset was chosen.
 ///
-/// When biometric unlock is opted in, the dialog auto-triggers the biometric
-/// prompt on first frame (unless [autoTriggerBiometric] is false). The
-/// password field remains the fallback so users can still type if biometrics
-/// fail or are cancelled. The retry button stays available whenever the
-/// vault is stashed + platform reports biometric ready.
+/// Paranoid tier is the only caller for this dialog. Biometric unlock is
+/// intentionally absent: the Paranoid premise is "no OS trust", and a
+/// biometric-gated keychain slot would pull the DB key back into exactly
+/// the OS layer the tier is meant to avoid. `settings_sections_security.
+/// _biometricSpecFor` refuses to render the biometric toggle on Paranoid,
+/// so the vault is never populated on this tier — there is nothing to
+/// invoke. T1+password and T2+password use [`TierSecretUnlockDialog`]
+/// which DOES carry the biometric retry button since those tiers can
+/// legitimately opt in to a biometric-gated vault.
 class UnlockDialog extends ConsumerStatefulWidget {
   final MasterPasswordManager manager;
 
-  /// Whether the dialog should auto-fire the biometric prompt on first
-  /// frame. Set to `false` by main.dart when it already tried biometric
-  /// before showing the dialog — avoids a double-cancellation loop.
-  final bool autoTriggerBiometric;
-
-  const UnlockDialog({
-    super.key,
-    required this.manager,
-    this.autoTriggerBiometric = true,
-  });
+  const UnlockDialog({super.key, required this.manager});
 
   /// Show the unlock dialog and return the derived key.
   ///
@@ -50,16 +44,12 @@ class UnlockDialog extends ConsumerStatefulWidget {
   static Future<Uint8List?> show(
     BuildContext context, {
     required MasterPasswordManager manager,
-    bool autoTriggerBiometric = true,
   }) {
     return showDialog<Uint8List>(
       context: context,
       barrierDismissible: false,
       animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => UnlockDialog(
-        manager: manager,
-        autoTriggerBiometric: autoTriggerBiometric,
-      ),
+      builder: (_) => UnlockDialog(manager: manager),
     );
   }
 
@@ -73,13 +63,6 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
   bool _obscure = true;
   bool _busy = false;
   bool _wrongPassword = false;
-  bool _biometricTried = false;
-
-  /// Whether biometric unlock is even possible here: vault has a stashed
-  /// key AND platform reports a real sensor with enrolled credentials.
-  /// Null while async probe is running. Drives the retry button.
-  bool? _biometricOffered;
-  String? _bioError;
 
   /// Cooldown ticker — refreshes `_cooldown` every second so the
   /// countdown shown under the password field stays accurate without
@@ -96,11 +79,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     _cooldown = widget.manager.rateLimitStatus();
     if (_cooldown.isLocked) _startCooldownTicker();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.autoTriggerBiometric) {
-        _tryBiometric();
-      } else {
-        _probeBiometricOffered();
-      }
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
@@ -117,29 +96,6 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     });
   }
 
-  /// Probe whether biometric unlock is available without firing the prompt.
-  /// Used when the caller (main.dart) already tried biometrics once — the
-  /// retry button should still be rendered, but we must not auto-invoke
-  /// the system prompt a second time.
-  Future<void> _probeBiometricOffered() async {
-    try {
-      final vault = ref.read(biometricKeyVaultProvider);
-      if (!await vault.isStored()) {
-        _markBiometricUnavailable();
-        return;
-      }
-      final bio = ref.read(biometricAuthProvider);
-      if (!await bio.isAvailable()) {
-        _markBiometricUnavailable();
-        return;
-      }
-      if (mounted) setState(() => _biometricOffered = true);
-      _focusNode.requestFocus();
-    } catch (_) {
-      _markBiometricUnavailable();
-    }
-  }
-
   @override
   void dispose() {
     _cooldownTicker?.cancel();
@@ -147,75 +103,6 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     _passwordCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  /// Probe biometric vault + platform; on success pop with the cached key.
-  /// Every failure path surfaces a visible error instead of leaving the
-  /// user staring at a dead dialog — mirrors LockScreen._tryBiometric.
-  Future<void> _tryBiometric() async {
-    if (_biometricTried) return;
-    _biometricTried = true;
-    try {
-      final vault = ref.read(biometricKeyVaultProvider);
-      final stored = await vault.isStored();
-      if (!stored) {
-        _markBiometricUnavailable();
-        return;
-      }
-      final bio = ref.read(biometricAuthProvider);
-      if (!await bio.isAvailable()) {
-        _markBiometricUnavailable();
-        return;
-      }
-      if (mounted) setState(() => _biometricOffered = true);
-      if (!mounted) return;
-      final reason = S.of(context).biometricUnlockPrompt;
-      final ok = await bio.authenticate(reason);
-      if (!ok) {
-        _reportBiometricFailure(
-          mounted ? S.of(context).biometricUnlockCancelled : null,
-        );
-        return;
-      }
-      final key = await vault.read();
-      if (key == null) {
-        _reportBiometricFailure(
-          mounted ? S.of(context).biometricUnlockFailed : null,
-        );
-        return;
-      }
-      if (!mounted) return;
-      Navigator.of(context).pop(key);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Biometric unlock failed: $e',
-        name: 'UnlockDialog',
-        error: e,
-      );
-      _reportBiometricFailure(
-        mounted ? S.of(context).biometricUnlockFailed : null,
-      );
-    }
-  }
-
-  void _markBiometricUnavailable() {
-    if (!mounted) return;
-    setState(() => _biometricOffered = false);
-    _focusNode.requestFocus();
-  }
-
-  void _reportBiometricFailure(String? message) {
-    if (!mounted) return;
-    setState(() => _bioError = message);
-    _focusNode.requestFocus();
-  }
-
-  /// Re-arm biometric and run it again — mirrors LockScreen retry.
-  Future<void> _retryBiometric() async {
-    if (_busy) return;
-    setState(() => _bioError = null);
-    _biometricTried = false;
-    await _tryBiometric();
   }
 
   Future<void> _unlock() async {
@@ -410,17 +297,6 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                     ),
                     const SizedBox(height: 8),
                   ],
-                  if (_bioError != null) ...[
-                    Text(
-                      _bioError!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: AppFonts.sm,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
                   SecurePasswordField(
                     controller: _passwordCtrl,
                     focusNode: _focusNode,
@@ -460,14 +336,6 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       fullWidth: true,
                       onTap: _cooldown.isLocked ? null : _unlock,
                     ),
-                    if (_biometricOffered == true) ...[
-                      const SizedBox(height: 8),
-                      AppButton(
-                        label: l10n.biometricUnlockTitle,
-                        icon: Icons.fingerprint,
-                        onTap: _retryBiometric,
-                      ),
-                    ],
                     const SizedBox(height: 12),
                     AppButton(
                       label: l10n.forgotPassword,

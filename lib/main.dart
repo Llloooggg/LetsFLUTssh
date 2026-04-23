@@ -784,32 +784,18 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
   }
 
-  /// Paranoid (master password) unlock — biometric shortcut first,
-  /// then the dialog. Extracted so both the explicit-tier branch and
-  /// the legacy-infer fallback reach the same code path.
+  /// Paranoid (master password) unlock.
+  ///
+  /// Biometric unlock is **not** offered on Paranoid by design: the
+  /// tier's premise is "no OS trust", and a biometric-gated keychain
+  /// slot would pull the DB key back into the OS keychain layer
+  /// Paranoid is meant to avoid. `settings_sections_security.
+  /// _biometricSpecFor` already refuses to render the toggle on
+  /// Paranoid; the startup path mirrors that — no vault probe, no
+  /// auto-trigger, straight to the master-password dialog.
   Future<void> _unlockParanoid(MasterPasswordManager manager) async {
-    var biometricAttempted = false;
-    if (await manager.isEnabled()) {
-      final vault = ref.read(biometricKeyVaultProvider);
-      final bio = ref.read(biometricAuthProvider);
-      if (await vault.isStored() && await bio.isAvailable()) {
-        biometricAttempted = true;
-        final bioKey = await _tryBiometricUnlock();
-        if (bioKey != null) {
-          await _injectDatabase(key: bioKey, level: SecurityTier.paranoid);
-          AppLogger.instance.log(
-            'Master password unlocked via biometrics',
-            name: 'App',
-          );
-          return;
-        }
-      }
-    }
     if (!mounted) return;
-    final derivedKey = await _showUnlockDialog(
-      manager,
-      autoTriggerBiometric: !biometricAttempted,
-    );
+    final derivedKey = await _showUnlockDialog(manager);
     if (derivedKey != null) {
       await _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
       AppLogger.instance.log('Master password unlocked', name: 'App');
@@ -1890,17 +1876,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// Separated to avoid the `use_build_context_synchronously` lint — the
   /// context is obtained synchronously within this method, not across an
   /// async gap.
-  Future<Uint8List?> _showUnlockDialog(
-    MasterPasswordManager manager, {
-    bool autoTriggerBiometric = true,
-  }) {
+  Future<Uint8List?> _showUnlockDialog(MasterPasswordManager manager) {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
-    return UnlockDialog.show(
-      ctx,
-      manager: manager,
-      autoTriggerBiometric: autoTriggerBiometric,
-    );
+    return UnlockDialog.show(ctx, manager: manager);
   }
 
   void _setupHostKeyCallbacks() {
