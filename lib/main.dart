@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/app_localizations.dart';
+import 'app/already_running_app.dart';
+import 'app/global_error_dialog.dart';
 import 'core/config/config_store.dart';
 import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
@@ -165,7 +167,7 @@ Future<void> main() async {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = navigatorKey.currentContext;
       if (ctx != null && ctx.mounted) {
-        _showGlobalErrorDialog(ctx, error);
+        showGlobalErrorDialog(ctx, error);
       }
     });
     WidgetsBinding.instance.ensureVisualUpdate();
@@ -207,7 +209,7 @@ Future<void> main() async {
         'Another instance detected — showing blocker',
         name: 'App',
       );
-      runApp(const _AlreadyRunningApp());
+      runApp(const AlreadyRunningApp());
       return;
     }
   }
@@ -245,93 +247,12 @@ Future<void> main() async {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
-          _showGlobalErrorDialog(ctx, error);
+          showGlobalErrorDialog(ctx, error);
         }
       });
       WidgetsBinding.instance.ensureVisualUpdate();
     },
   );
-}
-
-/// Shows a user-friendly error dialog for unhandled async errors.
-/// Error is already logged by the global error handler — this just shows a brief message.
-void _showGlobalErrorDialog(BuildContext context, Object error) {
-  final errorType = error.runtimeType.toString();
-  final loggingEnabled = AppLogger.instance.enabled;
-
-  try {
-    showDialog<void>(
-      context: context,
-      useRootNavigator: true,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return AppDialog(
-          title: 'Unexpected Error',
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'An unexpected error occurred. The app will continue running.',
-                style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                loggingEnabled
-                    ? 'Full details have been saved to the log file.'
-                    : 'Enable logging in Settings to save error details.',
-                style: TextStyle(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.fgFaint,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Error: $errorType',
-                style: TextStyle(
-                  fontSize: AppFonts.xxs,
-                  color: AppTheme.fgFaint,
-                  fontFamily: 'JetBrains Mono',
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-          actions: [
-            if (!loggingEnabled)
-              AppButton.secondary(
-                label: 'Enable Logging',
-                onTap: () {
-                  AppLogger.instance.setEnabled(true);
-                  AppLogger.instance.log(
-                    'Logging enabled after error: $errorType',
-                    name: 'ErrorBoundary',
-                  );
-                  Navigator.of(ctx).pop();
-                  Toast.show(
-                    ctx,
-                    message:
-                        'Logging enabled — errors will be saved to log file',
-                    level: ToastLevel.success,
-                  );
-                },
-              ),
-            AppButton.primary(
-              label: 'OK',
-              onTap: () => Navigator.of(ctx).pop(),
-            ),
-          ],
-        );
-      },
-    );
-  } catch (e) {
-    // If dialog fails to show, at least log it
-    AppLogger.instance.log(
-      'Failed to show error dialog: $e',
-      name: 'ErrorBoundary',
-    );
-  }
 }
 
 class LetsFLUTsshApp extends ConsumerStatefulWidget {
@@ -2869,42 +2790,6 @@ class _Toolbar extends StatelessWidget {
         ],
         const SizedBox(width: 2),
       ],
-    );
-  }
-}
-
-/// VS Code-style text button for the toolbar.
-/// Minimal app shown when another instance is already running.
-class _AlreadyRunningApp extends StatelessWidget {
-  const _AlreadyRunningApp();
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
-      home: Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.block, size: 48, color: AppTheme.fgDim),
-              const SizedBox(height: 16),
-              Text(
-                'Another instance of LetsFLUTssh is already running.',
-                style: TextStyle(fontSize: AppFonts.lg),
-              ),
-              const SizedBox(height: 24),
-              // `_AlreadyRunningApp` is the bare `MaterialApp` we
-              // raise when another instance is already up — it runs
-              // *before* the main app's `AppTheme` + widget registry
-              // resolve, so `AppButton` isn't reachable here. Keep
-              // the bare `FilledButton` for this exit-dialog only.
-              FilledButton(onPressed: () => exit(0), child: const Text('OK')),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
