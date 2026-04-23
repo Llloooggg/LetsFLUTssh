@@ -14,6 +14,7 @@ import 'app/deep_link_wiring.dart';
 import 'app/global_error_dialog.dart';
 import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
+import 'app/security_dialogs.dart';
 import 'app/update_dialog_flow.dart';
 import 'core/config/config_store.dart';
 import 'core/shortcut_registry.dart';
@@ -37,7 +38,6 @@ import 'widgets/auto_lock_detector.dart';
 import 'widgets/lock_screen.dart';
 import 'widgets/security_setup_dialog.dart';
 import 'widgets/tier_secret_unlock_dialog.dart';
-import 'widgets/unlock_dialog.dart';
 import 'widgets/db_corrupt_dialog.dart';
 import 'widgets/first_launch_security_toast.dart';
 import 'widgets/tier_reset_dialog.dart';
@@ -512,7 +512,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// about which key we attempted — so it collapses into the exit
   /// branch.
   Future<void> _handleMigrationFailure() async {
-    final choice = await _showDbCorruptDialog();
+    final choice = await showDbCorruptDialog();
     switch (choice) {
       case DbCorruptChoice.exitApp:
       case DbCorruptChoice.tryOtherTier:
@@ -625,7 +625,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         currentSecurity == null && await wiper.hasAnyState();
     if (!legacyConfig && !orphanArtefacts) return false;
     if (!mounted) return true;
-    final choice = await _showTierResetDialog();
+    final choice = await showTierResetDialog();
     if (choice == TierResetChoice.exitApp) {
       AppLogger.instance.log(
         'Legacy state detected (configVersion=$configVersion, '
@@ -706,7 +706,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// auto-trigger, straight to the master-password dialog.
   Future<void> _unlockParanoid(MasterPasswordManager manager) async {
     if (!mounted) return;
-    final derivedKey = await _showUnlockDialog(manager);
+    final derivedKey = await showUnlockDialog(manager);
     if (derivedKey != null) {
       await _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
       AppLogger.instance.log('Master password unlocked', name: 'App');
@@ -1482,27 +1482,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// success, null on user cancel / auth failure.
   Future<Uint8List?> _tryBiometricUnlock() async {
     final bio = ref.read(biometricAuthProvider);
-    final reason = _localizedBiometricReason();
+    final reason = localizedBiometricReason();
     final ok = await bio.authenticate(reason);
     if (!ok) return null;
     final vault = ref.read(biometricKeyVaultProvider);
     return vault.read();
-  }
-
-  /// Show the tier-reset dialog shown once per install to users
-  /// coming off the pre-tier security model.
-  Future<TierResetChoice> _showTierResetDialog() {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return Future.value(TierResetChoice.exitApp);
-    return TierResetDialog.show(ctx);
-  }
-
-  /// Show the DB-corruption reset dialog via the synchronously-resolved
-  /// navigator context so the BuildContext never escapes an async gap.
-  Future<DbCorruptChoice> _showDbCorruptDialog() {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return Future.value(DbCorruptChoice.exitApp);
-    return DbCorruptDialog.show(ctx);
   }
 
   /// Post-`_initSecurity` integrity probe. Runs one trivial SELECT
@@ -1529,7 +1513,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       'Database readability probe failed — offering reset dialog',
       name: 'App',
     );
-    final choice = await _showDbCorruptDialog();
+    final choice = await showDbCorruptDialog();
     switch (choice) {
       case DbCorruptChoice.exitApp:
         AppLogger.instance.log(
@@ -1772,25 +1756,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     await ref
         .read(configProvider.notifier)
         .update((cfg) => cfg.copyWithSecurity(security: next));
-  }
-
-  /// Resolve the biometric prompt reason string synchronously. Kept
-  /// separate so the `BuildContext` never escapes across an await.
-  String _localizedBiometricReason() {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return 'Unlock LetsFLUTssh';
-    return S.of(ctx).biometricUnlockPrompt;
-  }
-
-  /// Show unlock dialog using the navigator key context.
-  ///
-  /// Separated to avoid the `use_build_context_synchronously` lint — the
-  /// context is obtained synchronously within this method, not across an
-  /// async gap.
-  Future<Uint8List?> _showUnlockDialog(MasterPasswordManager manager) {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return Future.value(null);
-    return UnlockDialog.show(ctx, manager: manager);
   }
 
   void _setupHostKeyCallbacks() {
