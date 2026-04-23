@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:asn1lib/asn1lib.dart';
 import 'package:crypto/crypto.dart';
 
 import '../../utils/logger.dart';
@@ -22,9 +24,11 @@ import '../../utils/logger.dart';
 ///
 /// ## Capturing a new pin
 ///
-/// SPKIs need refreshing whenever GitHub rotates the leaf certificate
-/// (typically every 1–2 years). Capture both endpoints and add the
-/// resulting hashes here:
+/// SPKIs need refreshing whenever GitHub rotates the keypair backing
+/// the leaf certificate. Routine leaf rotations that reuse the same
+/// keypair keep the same SPKI — the hash survives those; only a
+/// genuine key change (rare, explicit rotation) forces a new pin.
+/// Capture both endpoints and add the resulting hashes here:
 ///
 /// ```
 /// for host in api.github.com objects.githubusercontent.com; do
@@ -35,6 +39,12 @@ import '../../utils/logger.dart';
 ///     | openssl enc -base64
 /// done
 /// ```
+///
+/// The openssl pipeline intentionally mirrors what [accept] computes:
+/// it extracts the SubjectPublicKeyInfo subtree from the presented
+/// certificate, DER-encodes it, then SHA-256 + base64. The Dart side
+/// parses `cert.der` through [asn1lib]'s ASN.1 decoder and walks to
+/// the same SPKI node before hashing — same bytes in, same hash out.
 ///
 /// Pin **at least two** values per host (current + next backup, so a
 /// single key rotation does not brick the updater). Also keep the
@@ -81,13 +91,80 @@ class CertPinning {
       );
       return false; // let the regular CA-trust flow fail
     }
-    final spki = base64.encode(sha256.convert(cert.der).bytes);
+    final spkiBytes = extractSpki(Uint8List.fromList(cert.der));
+    if (spkiBytes == null) {
+      AppLogger.instance.log(
+        'SPKI extraction failed for $host — cert ASN.1 did not parse',
+        name: 'CertPinning',
+      );
+      return false;
+    }
+    final spki = base64.encode(sha256.convert(spkiBytes).bytes);
     if (pins.contains(spki)) return true;
     AppLogger.instance.log(
       'SPKI pin mismatch for $host (presented=$spki, pinned=${pins.length})',
       name: 'CertPinning',
     );
     return false;
+  }
+
+  /// Extract the DER-encoded `SubjectPublicKeyInfo` subtree from an
+  /// X.509 certificate. SPKI is the stable hash target across leaf
+  /// rotations: when a CA re-issues a cert with the same keypair
+  /// (the normal renewal path) the SPKI bytes are byte-identical, so
+  /// a pin survives routine rotations. Hashing the full cert DER
+  /// would break on every rotation even when the key is unchanged.
+  ///
+  /// X.509 shape — see RFC 5280 § 4.1:
+  /// ```
+  /// Certificate ::= SEQUENCE {
+  ///   tbsCertificate       TBSCertificate,
+  ///   signatureAlgorithm   AlgorithmIdentifier,
+  ///   signatureValue       BIT STRING
+  /// }
+  /// TBSCertificate ::= SEQUENCE {
+  ///   version          [0] EXPLICIT Version DEFAULT v1,
+  ///   serialNumber         CertificateSerialNumber,
+  ///   signature            AlgorithmIdentifier,
+  ///   issuer               Name,
+  ///   validity             Validity,
+  ///   subject              Name,
+  ///   subjectPublicKeyInfo SubjectPublicKeyInfo,   ← target
+  ///   ...
+  /// }
+  /// ```
+  /// The `[0] EXPLICIT` version tag is context-specific 0 (tag byte
+  /// `0xA0`). When present, SPKI is the 7th element of tbsCertificate
+  /// (index 6); when absent (v1 cert), it is the 6th (index 5).
+  ///
+  /// Returns null on any parse failure — the caller rejects the
+  /// handshake in that case, which is the correct failure mode under
+  /// a pinning policy.
+  ///
+  /// Exposed public (static) so [test/core/update/cert_pinning_test.dart]
+  /// can assert same-key / different-key fixtures produce same /
+  /// different SPKI bytes.
+  static Uint8List? extractSpki(Uint8List certDer) {
+    try {
+      final parser = ASN1Parser(certDer);
+      final certSeq = parser.nextObject();
+      if (certSeq is! ASN1Sequence) return null;
+      final tbs = certSeq.elements.isNotEmpty ? certSeq.elements[0] : null;
+      if (tbs is! ASN1Sequence) return null;
+      final hasVersion =
+          tbs.elements.isNotEmpty && (tbs.elements[0].tag & 0xff) == 0xA0;
+      final spkiIndex = hasVersion ? 6 : 5;
+      if (spkiIndex >= tbs.elements.length) return null;
+      final spki = tbs.elements[spkiIndex];
+      if (spki is! ASN1Sequence) return null;
+      return spki.encodedBytes;
+    } catch (e) {
+      AppLogger.instance.log(
+        'cert_pinning: ASN.1 parse failed: $e',
+        name: 'CertPinning',
+      );
+      return null;
+    }
   }
 
   /// Configure [client] so that any handshake the system CA flow rejects

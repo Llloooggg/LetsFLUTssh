@@ -37,6 +37,12 @@ dependencies:
   # SHA-256 digest helper (used for SPKI pinning in update channel)
   crypto: ^3.0.5
 
+  # X.509 ASN.1 parsing for SPKI extraction in cert_pinning.dart.
+  # Pulled in as a transitive already (via pointycastle); promoted to a
+  # direct dependency so the import is explicit rather than relying on
+  # a sibling's dep graph.
+  asn1lib: ^1.6.5
+
   # Archive (pure Dart ZIP)
   archive: ^4.0.4
 

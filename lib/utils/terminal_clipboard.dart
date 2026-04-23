@@ -4,9 +4,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
+import '../core/security/secure_clipboard.dart';
+
 /// Shared clipboard operations for terminal views (desktop + mobile).
 class TerminalClipboard {
   TerminalClipboard._();
+
+  /// Injected for tests — production reads the default platform-channel
+  /// wiring. Swap via [debugSetSecureClipboard] in widget tests.
+  static SecureClipboard _secureClipboard = SecureClipboard();
+
+  @visibleForTesting
+  static void debugSetSecureClipboard(SecureClipboard c) {
+    _secureClipboard = c;
+  }
+
+  @visibleForTesting
+  static void debugResetSecureClipboard() {
+    _secureClipboard = SecureClipboard();
+  }
 
   /// Time to keep a copied secret on the clipboard before overwriting it.
   /// Long enough to paste it once into another window; short enough that
@@ -24,14 +40,30 @@ class TerminalClipboard {
   static String? _lastSecretWritten;
 
   /// Copy the current selection text to clipboard and clear selection.
-  /// If the copied text looks like a secret (PEM block, long base64 blob,
-  /// or anything resembling a key fingerprint), schedule a wipe of the
-  /// system clipboard after [secretClipboardLifetime].
+  /// Sensitive-looking content (PEM blocks, long base64 runs) is
+  /// routed through [SecureClipboard] so it never lands in Windows
+  /// clipboard history / macOS Handoff / Android 13+ toast preview /
+  /// iOS Universal Clipboard. Non-sensitive selections take the stock
+  /// clipboard path so normal copy/paste workflow (Win+V, cross-
+  /// device sync) keeps working for non-secrets.
+  ///
+  /// In both cases a local 30-second auto-wipe is armed for sensitive
+  /// payloads so the *current* clipboard slot is also cleared after
+  /// the user has had a chance to paste once; the sync opt-out and
+  /// the auto-wipe defend two different layers of the clipboard
+  /// threat model and are independent.
   static void copy(Terminal terminal, TerminalController controller) {
     final selection = controller.selection;
     if (selection == null) return;
     final text = terminal.buffer.getText(selection);
-    Clipboard.setData(ClipboardData(text: text));
+    if (_looksSensitive(text)) {
+      // Fire-and-forget — `SecureClipboard.setText` falls back to the
+      // stock clipboard on Linux / missing-plugin so a copy action
+      // always succeeds visibly on the user's side.
+      unawaited(_secureClipboard.setText(text));
+    } else {
+      Clipboard.setData(ClipboardData(text: text));
+    }
     controller.clearSelection();
     _maybeArmWipe(text);
   }

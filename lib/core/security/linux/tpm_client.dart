@@ -198,7 +198,16 @@ class TpmClient {
       final privPath = p.join(workDir.path, 'sealed.priv');
       final secretPath = p.join(workDir.path, 'secret.bin');
       await File(secretPath).writeAsBytes(secret, flush: true);
-      final authArg = 'hex:${hex(authValue)}';
+      // tpm2-tools auth value routed through `file:<path>` instead of
+      // the inline `hex:<hex>` form so the HMAC never crosses argv.
+      // /proc/<pid>/cmdline is readable cross-UID depending on the
+      // kernel hidepid mount option (default hidepid=0 on many
+      // distros) — the auth value is the exact bytes an attacker
+      // needs to unseal the blob, so any exposure there bypasses the
+      // Dart-side cooldown entirely (TPM lockout is still intact).
+      // `_wipeDir` zero-overwrites every file in workDir before
+      // delete, so the auth file is self-cleaning.
+      final authArg = await _writeAuthFile(workDir, authValue);
       final createPrimary = await _runTpm([
         'createprimary',
         '-Q',
@@ -252,7 +261,9 @@ class TpmClient {
       final loadedCtx = p.join(workDir.path, 'loaded.ctx');
       await File(pubPath).writeAsBytes(pub, flush: true);
       await File(privPath).writeAsBytes(priv, flush: true);
-      final authArg = 'hex:${hex(authValue)}';
+      // See `seal` — auth value via `file:<path>` so the HMAC never
+      // crosses argv / /proc/<pid>/cmdline.
+      final authArg = await _writeAuthFile(workDir, authValue);
       final createPrimary = await _runTpm([
         'createprimary',
         '-Q',
@@ -346,13 +357,19 @@ class TpmClient {
     }
   }
 
-  /// Lowercase hex helper — tpm2-tools auth values use `hex:<hex>`.
-  static String hex(Uint8List bytes) {
-    final sb = StringBuffer();
-    for (final b in bytes) {
-      sb.write(b.toRadixString(16).padLeft(2, '0'));
+  /// Write [authValue] to a freshly-named file under [dir] and return
+  /// the tpm2-tools `file:<path>` argument pointing at it. The file
+  /// uses 0600 perms before the path is returned. The caller's
+  /// `_wipeDir` zero-overwrites and unlinks the file when the seal /
+  /// unseal flow tears down [dir].
+  Future<String> _writeAuthFile(Directory dir, Uint8List authValue) async {
+    final path = p.join(dir.path, 'auth.bin');
+    final file = File(path);
+    await file.writeAsBytes(authValue, flush: true);
+    if (Platform.isLinux || Platform.isMacOS) {
+      await Process.run('chmod', ['600', path]);
     }
-    return sb.toString();
+    return 'file:$path';
   }
 
   static Uint8List _pack(Uint8List pub, Uint8List priv) {

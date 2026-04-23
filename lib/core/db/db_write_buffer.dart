@@ -14,14 +14,26 @@ import 'database.dart';
 /// operations inside a single transaction against the freshly re-opened
 /// database.
 ///
-/// Cap is a hard safety rail — 500 rows across all tables is enough for
-/// the realistic auto-lock window (minutes) and small enough that the
-/// RAM footprint stays bounded. Hitting the cap drops the oldest entry
-/// (FIFO eviction) and logs a warning; write-loss is preferable to an
-/// unbounded RAM-pressure build-up while the user is away from the
-/// desk. A production-visible cap-hit is itself a signal that the
+/// Cap is a hard safety rail — 5000 rows across all tables is generous
+/// for realistic auto-lock windows (minutes to tens of minutes) while
+/// keeping the RAM footprint bounded. Hitting the cap drops the oldest
+/// entry (FIFO eviction) and logs a warning; write-loss is preferable
+/// to an unbounded RAM-pressure build-up while the user is away from
+/// the desk. A production-visible cap-hit is itself a signal that the
 /// encrypted log sink (or whatever high-volume writer triggered it)
 /// needs its own flush policy.
+///
+/// Cap sizing history. The initial 500 was sized for usage-stat rows
+/// accrued while the user was idle and assumed the buffer's only
+/// consumer would be low-volume per-session telemetry. The intended
+/// follow-on consumer is an encrypted log sink, which can burst well
+/// past 500 entries/second during verbose SSH handshakes or stack
+/// traces; at 500 cap and a few-hundred-ms drain window the FIFO
+/// eviction silently ate a majority of log lines, which is exactly
+/// the audit-trail outcome the sink exists to preserve. 5000 entries
+/// × ~100 bytes per captured closure + arguments ≈ 500 KB headroom,
+/// which fits comfortably inside the auto-lock RAM budget that already
+/// holds xterm ring buffers and SFTP queues.
 ///
 /// This class is intentionally storage-agnostic — it accepts `Future
 /// Function(AppDatabase)` callbacks so the caller owns the exact
@@ -29,7 +41,7 @@ import 'database.dart';
 /// operations inside `transaction` cleanly; the buffer is just a FIFO
 /// that hands each queued closure to drift at replay time.
 class DbWriteBuffer {
-  DbWriteBuffer({int maxEntries = 500}) : _maxEntries = maxEntries;
+  DbWriteBuffer({int maxEntries = 5000}) : _maxEntries = maxEntries;
 
   final int _maxEntries;
   final List<Future<void> Function(AppDatabase db)> _queue = [];

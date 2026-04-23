@@ -855,7 +855,7 @@ Per-platform dispatch:
 
 | Platform | Binding | File | PIN channel |
 |---|---|---|---|
-| **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p hex:<digest>` as the unseal auth value — TPM lockout is the rate limiter |
+| **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p file:<path>` as the unseal auth value — TPM lockout is the rate limiter |
 | **iOS / macOS** | P-256 in Secure Enclave (`kSecAttrTokenIDSecureEnclave`) with `.biometryCurrentSet` via [`HardwareVaultPlugin.swift`](../ios/Runner/HardwareVaultPlugin.swift) / [`macos/Runner/HardwareVaultPlugin.swift`](../macos/Runner/HardwareVaultPlugin.swift) | `hardware_vault_apple.bin` (native side) + `hardware_vault_salt.bin` (Dart side) | PIN HMAC is an external gate — SE accepts only biometrics for release |
 | **Android** | AES-256-GCM in Keystore with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` + StrongBox preferred, via [`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) | `hardware_vault_android.bin` + salt file | PIN HMAC is an external gate — Keystore requires `BiometricPrompt.CryptoObject` for release |
 | **Windows** | CNG / `NCrypt` on the Microsoft Platform Crypto Provider (TPM 2.0) via [`hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp). Falls back to Microsoft Software KSP when no TPM. Primary wrap is silent (no Hello); biometric overlay is a second NCrypt key with `NCRYPT_UI_PROTECT_KEY` that Hello gates | `hardware_vault_windows.bin` + overlay file + salt file | PIN HMAC is an external gate — wrong PIN fails without waking the TPM |
@@ -899,7 +899,9 @@ Optional on **T1+password and T2+password only**. Paranoid is intentionally excl
 
 **Atomic writes — biometric vault.** `BiometricKeyVault._linuxSeal` writes the TPM-sealed `biometric_vault.tpm` through [`writeBytesAtomic`](../lib/utils/file_utils.dart) — matching the same invariant the L3 hardware vault already enforces (`hardware_vault.bin`, `hardware_vault_salt.bin`). A torn write would leave `isStored()` returning true against a truncated blob; next launch the unseal returns garbage, and `_tryBiometricUnlock` silently falls back to the password dialog with no "vault broken" hint, forcing the user to type the PIN on every launch even though they enabled biometric specifically to avoid that. Regression guard: `test/core/security/biometric_key_vault_test.dart` "linuxSeal writes atomically — no .tmp sibling survives".
 
-**Linux — TPM2 seal layer (`tpm2-tools`).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which shells out to `tpm2 createprimary` + `tpm2 create -p hex:<digest>`; the resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`tpm2 createprimary` + `tpm2 load` + `tpm2 unseal -p hex:<digest>`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. TPM2 policy via shell-out was chosen over FFI to `libtss2-esys` per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install): the seal/unseal flow runs once per unlock, ESAPI is a thick C API, and `tpm2-tools` already ships a battle-tested wrapper the user installs via README. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
+**TPM auth value never crosses argv.** On every `tpm2 create -p …` / `tpm2 unseal -p …` call, [`TpmClient`](../lib/core/security/linux/tpm_client.dart) writes the HMAC auth value to a sibling `auth.bin` inside the per-call temp directory and passes `-p file:<path>` to the CLI. The earlier `-p hex:<hex>` form embedded the exact bytes an attacker needs to unseal the blob in the process command line; `/proc/<pid>/cmdline` is readable cross-UID on distros that default to `hidepid=0`, so the leak bypassed the Dart-side cooldown entirely (TPM lockout still applied, but the Dart backoff did not). The temp file lives under `workDir` which `_wipeDir` zero-overwrites and unlinks on every exit path, so the auth file is self-cleaning. Per `docs/AGENT_RULES.md` § Self-Contained Binary the tpm2-tools dependency is a rung-3 opt-in, but the threat-model invariant applies regardless of whether the install is bundled.
+
+**Linux — TPM2 seal layer (`tpm2-tools`).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which shells out to `tpm2 createprimary` + `tpm2 create -p file:<path>`; the resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`tpm2 createprimary` + `tpm2 load` + `tpm2 unseal -p file:<path>`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. TPM2 policy via shell-out was chosen over FFI to `libtss2-esys` per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install): the seal/unseal flow runs once per unlock, ESAPI is a thick C API, and `tpm2-tools` already ships a battle-tested wrapper the user installs via README. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
 
 `BiometricAuth.backingLevel()` reports how the active biometric vault is protecting the cached DB key — `hardware` on iOS/macOS (Secure Enclave via `biometryCurrentSet`), `software` on Android/Windows/Linux until the respective hardware-binding path lands (dedicated Keystore + `BiometricPrompt.CryptoObject` on Android; CNG Platform Crypto Provider on Windows; TPM2 seal bound to the fprintd enrolment hash on Linux). The Settings biometric toggle concatenates the localised backing-level label into its subtitle when the toggle is on, so the user can tell hardware binding apart from software fallback without opening the source.
 
@@ -1016,7 +1018,9 @@ Why the cache survives the lock while the DB key does not: the cache plaintext i
 
 Neither class is wired yet — `AppLogger` still writes to the file sink. The wiring commit will (a) add an `app_logs` table + schema bump in drift, (b) swap `AppLogger._sink` for a `LogBatchQueue` once `_injectDatabase` is called, (c) rewrite the Settings → Logging live-log viewer to stream via the DAO, and (d) drop the file target except during bootstrap. Landing the queue + buffer now keeps the scaffolding commit small and the schema-bump commit focused on migration mechanics.
 
-**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 500 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
+**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 5000 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
+
+**Cap sizing.** Original cap was 500 entries, adequate for a buffer whose only consumer was per-session telemetry. The intended follow-on consumer is an encrypted log sink, which can burst past 500 entries/second on verbose SSH handshakes or stack traces; at 500 the FIFO eviction would silently eat most log lines under a flood, which is exactly the audit-trail outcome the sink exists to preserve. 5000 × ~100 bytes per captured closure ≈ 500 KB headroom — small next to the xterm ring buffers + SFTP queues that already live in the auto-lock RAM budget.
 
 **Drain invariant: pull-then-clear, not snapshot-then-clear.** `drain(db)` copies the pending list into a local variable *and* empties `_queue` **before** opening the drift transaction. Any `append` that fires at an `await` boundary inside a queued op (single-isolate Dart still interleaves microtasks between each `await op(db)`) therefore lands in the now-empty `_queue` and is picked up by the follow-on drain. An earlier version snapshotted the queue and called `_queue.clear()` *after* the commit, which silently dropped every mid-drain append. The snapshot-then-clear shape also mis-handled the cap-eviction path: a flood filling the queue past `_maxEntries` during the drain would have `clear()`-wiped the post-eviction survivors. On transaction failure the pulled batch is prepended back onto the queue so FIFO order is preserved for the retry.
 
@@ -1077,6 +1081,8 @@ Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security
 *Why two layers:* the opt-out flags are a compliance hint to well-behaved consumers. They do not stop a malicious process on the same user session from reading the clipboard — that is what the 30-second wipe addresses. Together they cover the typical attacker shapes: clipboard history / cloud sync (Layer 1) and live paste-sniffers (Layer 2).
 
 *Fallback:* if the native channel returns `MissingPluginException` (test harness, platform not yet wired), `SecureClipboard` falls through to Flutter's stock `Clipboard.setData` rather than refusing to copy. The wipe timer still runs, so the payload never sits on the clipboard longer than the window.
+
+*Terminal-copy integration.* [`TerminalClipboard.copy`](../lib/utils/terminal_clipboard.dart) runs the sensitivity heuristic on the selected text and routes through `SecureClipboard` when the selection matches (PEM private-key markers or a ≥ 200-char base64-alphabet run); non-sensitive selections take the stock `Clipboard.setData` path so routine copies (filenames, command fragments) still benefit from Win+V / Handoff. Without this branch, a terminal user running `cat ~/.ssh/id_ed25519` or `vault kv get secret/api-token` would land the secret in Windows clipboard-history / iCloud-synced pasteboard / Android 13+ preview toast — the 30-second auto-wipe protects the live slot but cannot retract what the sync layers already ingested. Regression guard: `test/utils/terminal_clipboard_test.dart` "sensitive payload goes through SecureClipboard".
 
 #### Password entry widget
 
@@ -1673,6 +1679,20 @@ Import caps bound Argon2id params from an untrusted header
 pin the isolate into swap. Unencrypted ZIP archives keep their
 `PK\x03\x04` magic and are handled separately.
 
+On iOS and Android the effective ceiling drops to 512 MiB
+(`mobileImportArgon2idMemoryKiB`) — the Android OOM killer on a 2 GB
+baseline device will terminate the process well before the 1 GiB
+ceiling is reached, and legitimate exports never need more than the
+production default (46 MiB) anyway. An earlier revision tried to
+derive the cap at runtime from `ProcessInfo.maxRss * 4`, but `maxRss`
+is the current process peak, not total physical RAM — cold-start
+under-estimated (tiny peak → spurious "malformed header" rejections
+of valid archives) and long-running warm sessions over-estimated. A
+flat floor matches the real DoS threat; probing true total RAM would
+require a new per-platform method channel purely for this check,
+which is disproportionate to the bug. `debugMemoryProbeOverride`
+stays as the test injection point.
+
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
 bytes (the `PK\x03\x04` local-file-header magic) instead of the
@@ -1767,10 +1787,17 @@ Supporting classes in the same directory:
   rotation playbook.
 - **`CertPinning`** (`cert_pinning.dart`) — installs a
   `badCertificateCallback` on the update-download HTTP client that
-  checks the leaf cert's SPKI against a per-host pin set. Pin map is
-  empty by default (falls back to system CA); populating it flips the
-  updater into strict-pinning mode. Defence against DNS / CA
-  compromise of `api.github.com` / `objects.githubusercontent.com`.
+  hashes the presented cert's `SubjectPublicKeyInfo` subtree (ASN.1-
+  parsed out of `cert.der` via `asn1lib`) and compares against a
+  per-host pin set. Pin map is empty by default (falls back to system
+  CA); populating it flips the updater into strict-pinning mode.
+  Defence against DNS / CA compromise of `api.github.com` /
+  `objects.githubusercontent.com`. SPKI (not full-cert) pinning is
+  load-bearing: a routine leaf rotation that re-signs the same
+  keypair — the normal renewal path — keeps the SPKI bytes unchanged,
+  so the pin survives without a release. Only a genuine key rotation
+  (rare, explicit) forces a new pin, which is the behaviour the
+  backup-pin mechanism is designed for.
 - **`InvalidReleaseSignatureException`** — thrown from
   `UpdateService.downloadAsset` when the signature check fails. Distinct
   from network errors so the UI can surface a "security-coloured" toast
@@ -3960,13 +3987,21 @@ Already-installed builds keep verifying via the (now-active) backup
 pin. Full playbook in [`SECURITY.md`](SECURITY.md).
 
 **SPKI pinning (optional, off by default):** `CertPinning` adds a
-`badCertificateCallback` on the update HTTP client that checks the
-presented leaf cert's SPKI against a per-host pin set. Pin map is
-empty until the maintainer captures the current GitHub SPKI hashes
-via the `openssl s_client | x509 -pubkey | sha256 | base64` pipeline
-documented in the class. Shipping empty pins keeps behaviour at
-system-CA validation (same as before); populated pins strengthen the
-transport layer on top of the release signature.
+`badCertificateCallback` on the update HTTP client that parses the
+presented X.509 certificate's ASN.1, extracts the
+`SubjectPublicKeyInfo` subtree (via `asn1lib`), SHA-256's the DER
+bytes of that subtree, and compares against a per-host pin set. Pin
+map is empty until the maintainer captures the current GitHub SPKI
+hashes via the `openssl s_client | x509 -pubkey | sha256 | base64`
+pipeline documented in the class. Shipping empty pins keeps behaviour
+at system-CA validation (same as before); populated pins strengthen
+the transport layer on top of the release signature. Hashing the SPKI
+(not the full cert DER) means the pin survives routine leaf rotations
+that re-sign the same keypair — only a genuine key rotation breaks
+the pin, which is the behaviour the backup-pin mechanism is designed
+to handle. Regression guard: `test/core/update/cert_pinning_test.dart`
+"extractSpki returns identical bytes for two certs sharing a keypair"
+and "extractSpki returns different bytes for different keypairs".
 
 ### .lfs export
 

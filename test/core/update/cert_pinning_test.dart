@@ -1,8 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
+import 'package:asn1lib/asn1lib.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/update/cert_pinning.dart';
 
@@ -45,19 +44,54 @@ void main() {
     );
 
     test(
-      'SPKI hash digest output matches the canonical sha256(der) base64',
+      'extractSpki returns identical bytes for two certs sharing a keypair',
       () {
-        // Sanity check that the digest function used by accept is the one we
-        // documented in the pin-capture playbook (sha256 over the cert DER).
-        final bytes = List<int>.generate(64, (i) => i);
-        final expected = base64.encode(sha256.convert(bytes).bytes);
-        // The class API only exposes `accept`, so we verify the canonical
-        // formula here — when pins are populated, this is exactly the
-        // string they must contain.
-        expect(expected, isNotEmpty);
-        expect(expected.length, greaterThan(40));
+        // Pin invariant: a cert renewal that keeps the same keypair must
+        // produce the same SPKI bytes (and therefore the same pin). This
+        // is the whole point of SPKI pinning over full-cert pinning —
+        // without it, every routine leaf rotation would break the
+        // updater. Two minimal X.509 structures with identical SPKI
+        // payloads but different serial numbers / subjects must hash
+        // equal.
+        final spki = _fakeSpki([0xAA, 0xBB, 0xCC]);
+        final certA = _buildMinimalX509Cert(
+          spki: spki,
+          serial: 1,
+          subjectCommonName: 'original',
+        );
+        final certB = _buildMinimalX509Cert(
+          spki: spki,
+          serial: 2,
+          subjectCommonName: 'renewed',
+        );
+        expect(CertPinning.extractSpki(certA), CertPinning.extractSpki(certB));
       },
     );
+
+    test('extractSpki returns different bytes for different keypairs', () {
+      // Flip side of the pinning contract: a genuine key rotation must
+      // break the pin so the updater refuses to talk to the new host
+      // until someone deliberately rolls the pin forward.
+      final certA = _buildMinimalX509Cert(
+        spki: _fakeSpki([0xAA, 0xBB]),
+        serial: 1,
+        subjectCommonName: 'hostA',
+      );
+      final certB = _buildMinimalX509Cert(
+        spki: _fakeSpki([0xDD, 0xEE]),
+        serial: 2,
+        subjectCommonName: 'hostA',
+      );
+      expect(
+        CertPinning.extractSpki(certA),
+        isNot(equals(CertPinning.extractSpki(certB))),
+      );
+    });
+
+    test('extractSpki returns null on torn / non-ASN.1 input', () {
+      expect(CertPinning.extractSpki(Uint8List.fromList([0])), isNull);
+      expect(CertPinning.extractSpki(Uint8List.fromList([1, 2, 3])), isNull);
+    });
   });
 
   group('CertPinning.enforce', () {
@@ -83,6 +117,77 @@ void main() {
       },
     );
   });
+}
+
+/// Build a minimal X.509-shaped ASN.1 structure with a caller-supplied
+/// SubjectPublicKeyInfo subtree. Not a signature-valid cert — the
+/// [CertPinning.extractSpki] logic only walks the outer SEQUENCE /
+/// tbsCertificate / SPKI path, so sibling elements need only exist
+/// with any valid ASN.1 shape.
+Uint8List _buildMinimalX509Cert({
+  required Uint8List spki,
+  required int serial,
+  required String subjectCommonName,
+}) {
+  // Decode the caller's SPKI bytes into an ASN1Object so the outer
+  // TBS sequence can re-encode it verbatim through `.encodedBytes`.
+  final spkiObj = ASN1Parser(spki).nextObject();
+  // Minimal issuer / subject — a single RDN with a dummy OID. The
+  // SPKI-extraction path does not read these, but asn1lib's encoder
+  // refuses empty structural nodes in some versions.
+  ASN1Object name(String cn) {
+    final rdn = ASN1Set()
+      ..add(
+        ASN1Sequence()
+          ..add(ASN1ObjectIdentifier.fromComponentString('2.5.4.3'))
+          ..add(ASN1PrintableString(cn)),
+      );
+    return ASN1Sequence()..add(rdn);
+  }
+
+  final validity = ASN1Sequence()
+    ..add(ASN1UtcTime(DateTime.utc(2020, 1, 1)))
+    ..add(ASN1UtcTime(DateTime.utc(2099, 12, 31)));
+  final sigAlg = ASN1Sequence()
+    ..add(ASN1ObjectIdentifier.fromComponentString('1.2.840.113549.1.1.11'))
+    ..add(ASN1Null());
+
+  // [0] EXPLICIT version wrapper — tag 0xA0 with the contained
+  // INTEGER as content. Encode an INTEGER then prepend the explicit
+  // wrapper bytes.
+  final inner = ASN1Integer(BigInt.from(2)); // v3
+  final innerBytes = inner.encodedBytes;
+  final versionExplicit = ASN1Object.fromBytes(
+    Uint8List.fromList([0xA0, innerBytes.length, ...innerBytes]),
+  );
+
+  final tbs = ASN1Sequence()
+    ..add(versionExplicit)
+    ..add(ASN1Integer(BigInt.from(serial)))
+    ..add(sigAlg)
+    ..add(name('issuer'))
+    ..add(validity)
+    ..add(name(subjectCommonName))
+    ..add(spkiObj);
+
+  final cert = ASN1Sequence()
+    ..add(tbs)
+    ..add(sigAlg)
+    ..add(ASN1BitString(Uint8List.fromList([0])));
+
+  return cert.encodedBytes;
+}
+
+/// Build a SubjectPublicKeyInfo node with a caller-chosen key payload.
+/// Shape: `SEQUENCE { AlgorithmIdentifier, BIT STRING }` per RFC 5280.
+Uint8List _fakeSpki(List<int> keyBytes) {
+  final algo = ASN1Sequence()
+    ..add(ASN1ObjectIdentifier.fromComponentString('1.2.840.113549.1.1.1'))
+    ..add(ASN1Null());
+  final seq = ASN1Sequence()
+    ..add(algo)
+    ..add(ASN1BitString(Uint8List.fromList(keyBytes)));
+  return seq.encodedBytes;
 }
 
 /// Captures the `badCertificateCallback` setter value so the test can
