@@ -504,7 +504,7 @@ void main() {
       await tester.pumpWidget(buildApp());
       expect(find.text('Terminal'), findsOneWidget);
       expect(find.text('Scrollback Lines'), findsOneWidget);
-      expect(find.text('5000'), findsOneWidget);
+      expect(find.text('20000'), findsOneWidget);
     });
 
     testWidgets('scrollback field with custom value', (tester) async {
@@ -520,7 +520,7 @@ void main() {
 
     testWidgets('scrollback field accepts valid input', (tester) async {
       await tester.pumpWidget(buildApp());
-      final field = find.widgetWithText(TextFormField, '5000');
+      final field = find.widgetWithText(TextFormField, '20000');
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '8000');
@@ -531,7 +531,7 @@ void main() {
 
     testWidgets('scrollback accepts boundary value 100', (tester) async {
       await tester.pumpWidget(buildFullApp());
-      final field = find.widgetWithText(TextFormField, '5000');
+      final field = find.widgetWithText(TextFormField, '20000');
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '100');
@@ -542,7 +542,7 @@ void main() {
 
     testWidgets('scrollback out of range rejected (below min)', (tester) async {
       await tester.pumpWidget(buildFullApp());
-      final field = find.widgetWithText(TextFormField, '5000');
+      final field = find.widgetWithText(TextFormField, '20000');
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '50');
@@ -553,7 +553,7 @@ void main() {
 
     testWidgets('scrollback out of range rejected (above max)', (tester) async {
       await tester.pumpWidget(buildApp());
-      final field = find.widgetWithText(TextFormField, '5000');
+      final field = find.widgetWithText(TextFormField, '20000');
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '999999');
@@ -563,7 +563,7 @@ void main() {
 
     testWidgets('scrollback non-numeric value does not crash', (tester) async {
       await tester.pumpWidget(buildApp());
-      final field = find.widgetWithText(TextFormField, '5000');
+      final field = find.widgetWithText(TextFormField, '20000');
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, 'abc');
@@ -573,7 +573,7 @@ void main() {
 
     testWidgets('scrollback accepts 10000', (tester) async {
       await tester.pumpWidget(buildFullApp());
-      final field = find.widgetWithText(TextFormField, '5000');
+      final field = find.widgetWithText(TextFormField, '20000');
       await tester.tap(field);
       await tester.pumpAndSettle();
       await tester.enterText(field, '10000');

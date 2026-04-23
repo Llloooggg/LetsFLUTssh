@@ -10,7 +10,19 @@ class TerminalConfig {
   const TerminalConfig({
     this.fontSize = 14.0,
     this.theme = 'system',
-    this.scrollback = 5000,
+    // Scrollback default raised from 5000 → 20000 lines. Motivation:
+    // xterm 4.0.0's `_scrollOffset` is not corrected when the front
+    // of the circular buffer is evicted under `maxLines`. A user
+    // who has scrolled up (_stickToBottom=false) watches the content
+    // at their current pixel offset shift up line-by-line as new
+    // output pushes old lines off the front — visually reads as
+    // "a paragraph fell out of the middle". Bumping the cap pushes
+    // the threshold well beyond a realistic single-session paste
+    // volume on mobile so eviction rarely fires during normal use.
+    // A proper fix requires patching xterm to adjust the pixel
+    // offset on each eviction; that's a fork-worthy change deferred
+    // until the behaviour reappears at the larger cap.
+    this.scrollback = 20000,
   });
 
   static const defaults = TerminalConfig();
