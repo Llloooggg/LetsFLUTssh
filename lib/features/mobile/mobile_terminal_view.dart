@@ -99,14 +99,28 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   Timer? _insetSettleTimer;
   static const _insetSettleDuration = Duration(milliseconds: 200);
 
-  /// Eviction watchdog — see [_onTerminalChanged] for the rationale.
-  /// A `CellAnchor` at a stable point in the buffer lets us detect how
-  /// many lines have been evicted off the front of xterm's circular
-  /// scrollback since the last write, so the scroll controller can
-  /// compensate and the user's pixel-level scroll position stays
-  /// anchored to the same content across eviction.
-  CellAnchor? _evictionAnchor;
-  int _evictionAnchorYBaseline = 0;
+  // `xterm.dart` 4.0.0 ships a known scrollback-corruption bug in
+  // `Buffer.scrollUp` / `scrollDown` (issue #222): the in-place index
+  // shift leaves detached `BufferLine` objects at intermediate slots
+  // of the `IndexAwareCircularBuffer`, and in release mode (no
+  // assertions) this silently mis-indexes lines — visible as
+  // "chunks of text disappearing from the middle of the scrollback"
+  // during vim / tmux / htop / paste-driven escape-sequence traffic.
+  // Client-side workarounds (eviction watchdog via `CellAnchor`,
+  // slow-fling `ClampingScrollPhysics`, scroll-offset compensation
+  // via `ScrollPosition.correctBy`) were tried and reverted: they
+  // masked the symptom without fixing the root cause, and xterm's
+  // own `_scrollToBottom` path bypasses the shared scroll controller
+  // anyway (issue #218). The honest stance is to wait on the
+  // upstream patch.
+  //
+  //   https://github.com/TerminalStudio/xterm.dart/issues/222
+  //
+  // Related upstream items that would let us re-enable a subset of
+  // the mitigations cleanly once merged: PR #219 adds a
+  // `scrollOnInput` flag (stops xterm fighting our scroll position);
+  // PR #220 adds a `scrollPhysics` parameter (lets us install a
+  // velocity cap without a `ScrollConfiguration` hack).
 
   @override
   void initState() {
@@ -128,15 +142,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // `notifyListeners`. Users who want to select text must enter copy
     // mode via the keyboard bar's 📋 button.
     _terminalController.addListener(_enforceCopyModeSelectionGuard);
-    // xterm 4.0.0 does not correct `_scrollOffset` when the circular
-    // scrollback evicts the front line under `maxLines`. If the user
-    // is scrolled up mid-paste, the content at their pixel offset
-    // shifts up one row per eviction — visually reads as "a chunk of
-    // text fell out of the middle". `_onTerminalChanged` detects
-    // evictions via a stable `CellAnchor` and nudges the shared
-    // `ScrollController` back so the pixel offset stays anchored to
-    // the same content.
-    _terminal.addListener(_onTerminalChanged);
     // Delay connection until after the first frame so TerminalView can
     // set the correct terminal dimensions. Without this, the shell opens
     // with the default 80x24 and the server sends output for that size;
@@ -155,119 +160,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     if (_copyMode) return;
     if (_terminalController.selection == null) return;
     _terminalController.clearSelection();
-  }
-
-  /// Fired by `Terminal.notifyListeners()` after every parse. Two jobs:
-  ///
-  ///   1. Detect how many lines have been evicted off the front of the
-  ///      circular scrollback since the last call. A `CellAnchor`
-  ///      bound to a buffer line exposes that line's current relative
-  ///      index via `anchor.y`. Every eviction increments
-  ///      `IndexAwareCircularBuffer._absoluteStartIndex` by one, which
-  ///      decrements `anchor.y` by one. The delta between two
-  ///      consecutive ticks is therefore the exact eviction count —
-  ///      xterm does not expose that count directly, so the anchor
-  ///      trick is the only public-API path.
-  ///   2. When the user is scrolled up (`pixels < maxScrollExtent`,
-  ///      i.e. `_stickToBottom=false`), compensate for the eviction by
-  ///      shrinking the scroll offset by `evicted * cellHeight`. xterm
-  ///      paints the buffer from `_scrollOffset / cellHeight`, so
-  ///      leaving the offset alone would visually slide the content at
-  ///      the user's position up by one row per eviction — the "chunk
-  ///      fell out of the middle" rip. When the user is pinned to
-  ///      bottom, xterm's own `_offset.correctBy` already handles it;
-  ///      we leave that path untouched.
-  ///
-  /// The anchor is disposed + rebuilt when its owning line gets
-  /// evicted (anchor detaches) so the watchdog survives indefinite
-  /// output.
-  void _onTerminalChanged() {
-    final buf = _terminal.buffer;
-    if (buf.lines.length == 0) return;
-    final anchor = _evictionAnchor;
-    if (anchor == null) {
-      _rebuildEvictionAnchor();
-      return;
-    }
-    if (!anchor.attached) {
-      // The anchor's line was evicted off the front between the last
-      // tick and this one. Minimum evictions since last tick is
-      // `_evictionAnchorYBaseline + 1` — the baseline number needed to
-      // drop anchor.y to 0 plus the eviction that dropped the line
-      // itself. Extra evictions past that are unrecoverable (no
-      // anchor to read), but over-reporting the minimum still keeps
-      // the visible content closer to its pre-burst position than
-      // doing nothing. Burst-sized writes large enough to evict the
-      // mid-buffer anchor in one tick are already extreme (`maxLines`
-      // / 2 lines in one `notifyListeners` call).
-      _compensateScrollForEviction(_evictionAnchorYBaseline + 1);
-      _rebuildEvictionAnchor();
-      return;
-    }
-    final currentY = anchor.y;
-    final evicted = _evictionAnchorYBaseline - currentY;
-    if (evicted <= 0) {
-      _evictionAnchorYBaseline = currentY;
-      return;
-    }
-    _evictionAnchorYBaseline = currentY;
-    _compensateScrollForEviction(evicted);
-    // Re-park the anchor near the middle of the live buffer so it
-    // keeps a comfortable distance from the front (cheaper than
-    // checking `attached` every tick once the buffer is at cap and
-    // the anchor's line is about to evict).
-    if (currentY < buf.viewHeight) {
-      _rebuildEvictionAnchor();
-    }
-  }
-
-  void _rebuildEvictionAnchor() {
-    _evictionAnchor?.dispose();
-    final buf = _terminal.buffer;
-    if (buf.lines.length == 0) {
-      _evictionAnchor = null;
-      _evictionAnchorYBaseline = 0;
-      return;
-    }
-    // Park the anchor near the middle of the live buffer so it
-    // survives many evictions before its line drops off the front.
-    final y = buf.lines.length ~/ 2;
-    _evictionAnchor = buf.createAnchor(0, y);
-    _evictionAnchorYBaseline = _evictionAnchor!.y;
-  }
-
-  /// Shift [_terminalScrollController] by `-evicted * cellHeight` so
-  /// the pixel-level scroll position keeps pointing at the same
-  /// content after xterm drops lines off the front. No-op when the
-  /// controller has no clients yet (first frame) or when the user is
-  /// already pinned to the bottom (xterm's own stick-to-bottom path
-  /// covers it).
-  ///
-  /// Uses `ScrollPosition.correctBy` (not `jumpTo`) so the correction
-  /// is silent: it does not notify listeners and does not abort an
-  /// in-flight user drag. xterm's own `_offset.correctBy` uses the
-  /// same primitive on its stick-to-bottom branch; this is the
-  /// mirror path for the scrolled-up case.
-  void _compensateScrollForEviction(int evicted) {
-    if (!_terminalScrollController.hasClients) return;
-    final pos = _terminalScrollController.position;
-    // User is pinned to bottom (or within one cell of it): xterm's
-    // `_stickToBottom` branch auto-corrects; leave it alone.
-    if (pos.pixels >= pos.maxScrollExtent - 1) return;
-    final cellHeight = _fontSize * kTerminalLineHeight;
-    if (cellHeight <= 0) return;
-    final delta = -evicted * cellHeight;
-    // Clamp the delta so `pos.pixels + delta` stays inside the new
-    // scroll extents. Without the clamp a burst large enough to push
-    // us below `minScrollExtent` would leave the viewport stuck at a
-    // negative offset until the next scroll gesture.
-    final target = (pos.pixels + delta).clamp(
-      pos.minScrollExtent,
-      pos.maxScrollExtent,
-    );
-    final clampedDelta = target - pos.pixels;
-    if (clampedDelta == 0) return;
-    pos.correctBy(clampedDelta);
   }
 
   /// Arm the debounce timer so we update [_appliedKeyboardInset] only
@@ -370,9 +262,6 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _progressSub?.cancel();
     _shellConn?.close();
     _insetSettleTimer?.cancel();
-    _terminal.removeListener(_onTerminalChanged);
-    _evictionAnchor?.dispose();
-    _evictionAnchor = null;
     _terminalController.removeListener(_enforceCopyModeSelectionGuard);
     _terminalController.dispose();
     _terminalScrollController.dispose();
@@ -633,49 +522,33 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           // cursor-pan deltas keep flowing.
           AbsorbPointer(
             absorbing: _copyMode,
-            // Slow-fling physics. xterm 4.0.0's rendering + our
-            // eviction compensator both run during `notifyListeners`
-            // after each `terminal.write`; a fling that outruns that
-            // pipeline lets the user's pixel offset drift across
-            // lines xterm hasn't yet committed, which surfaces as the
-            // "chunk fell out of the middle" artefact other mobile
-            // terminals (Termux et al.) solve the same way — they
-            // artificially slow the scroll. `_MobileTerminalScroll`
-            // extends ClampingScrollPhysics and caps ballistic
-            // velocity + raises friction so the render + compensator
-            // always keep up, at the cost of a slightly less snappy
-            // fling. ScrollConfiguration wires it onto xterm's
-            // internal Scrollable without needing a fork.
-            child: ScrollConfiguration(
-              behavior: const _SlowTerminalScrollBehavior(),
-              child: TerminalView(
-                _terminal,
-                controller: _terminalController,
-                scrollController: _terminalScrollController,
-                autofocus: true,
-                backgroundOpacity: 1.0,
-                padding: const EdgeInsets.all(4),
-                theme: AppTheme.terminalTheme,
-                textStyle: TerminalStyle(
-                  fontSize: _fontSize,
-                  fontFamily: AppFonts.monoFamily,
-                  fontFamilyFallback: AppFonts.monoFallback,
-                ),
-                // xterm's default is `TextInputType.emailAddress`,
-                // which tells Gboard/iOS that the field holds an
-                // email — the IME then surfaces email-specific
-                // helpers (the clipboard/@-symbol pill, auto-suggest
-                // toolbars that wouldn't dismiss with a tap on the
-                // terminal) that users correctly interpreted as
-                // "random popups I can't close". `TextInputType.text`
-                // removes the email hint while still advertising a
-                // text field so IMEs keep full cursor-gesture support;
-                // xterm's own `CustomTextEdit` already disables
-                // autocorrect, suggestions, and IME personalisation
-                // inside its `TextInputConfiguration`, so the field
-                // stays prediction-free regardless.
-                keyboardType: TextInputType.text,
+            child: TerminalView(
+              _terminal,
+              controller: _terminalController,
+              scrollController: _terminalScrollController,
+              autofocus: true,
+              backgroundOpacity: 1.0,
+              padding: const EdgeInsets.all(4),
+              theme: AppTheme.terminalTheme,
+              textStyle: TerminalStyle(
+                fontSize: _fontSize,
+                fontFamily: AppFonts.monoFamily,
+                fontFamilyFallback: AppFonts.monoFallback,
               ),
+              // xterm's default is `TextInputType.emailAddress`, which
+              // tells Gboard/iOS that the field holds an email — the
+              // IME then surfaces email-specific helpers (the
+              // clipboard/@-symbol pill, auto-suggest toolbars that
+              // wouldn't dismiss with a tap on the terminal) that
+              // users correctly interpreted as "random popups I
+              // can't close". `TextInputType.text` removes the
+              // email hint while still advertising a text field so
+              // IMEs keep full cursor-gesture support; xterm's own
+              // `CustomTextEdit` already disables autocorrect,
+              // suggestions, and IME personalisation inside its
+              // `TextInputConfiguration`, so the field stays
+              // prediction-free regardless.
+              keyboardType: TextInputType.text,
             ),
           ),
           Positioned.fill(
@@ -696,49 +569,5 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
         ],
       ),
     );
-  }
-}
-
-/// Scroll behaviour that installs [_SlowTerminalScrollPhysics] onto
-/// every descendant `Scrollable` — specifically the one xterm's
-/// `TerminalView` builds internally, which we can't reach with a
-/// direct `physics:` param since xterm 4.0.0 does not expose one.
-class _SlowTerminalScrollBehavior extends MaterialScrollBehavior {
-  const _SlowTerminalScrollBehavior();
-
-  @override
-  ScrollPhysics getScrollPhysics(BuildContext context) =>
-      const _SlowTerminalScrollPhysics();
-}
-
-/// Scroll physics for xterm's mobile viewport. Identical to
-/// [ClampingScrollPhysics] on the drag side; the fling side caps
-/// initial velocity and raises friction so a flick does not outrun
-/// xterm's render + [_MobileTerminalViewState._onTerminalChanged]
-/// eviction compensator. Fast scrolls that hit the uncapped default
-/// were visibly ripping scrollback mid-paste (the "чанк выпадает"
-/// report) because the pixel offset was advancing across rows xterm
-/// hadn't yet committed. Termux et al. mitigate the same race with a
-/// velocity cap; this is the same trick for this project.
-class _SlowTerminalScrollPhysics extends ClampingScrollPhysics {
-  const _SlowTerminalScrollPhysics({super.parent});
-
-  /// Cap for fling velocity in logical pixels per second. Picked at
-  /// ~1 viewport per second on a phone — slow enough that xterm's
-  /// per-line paint keeps up without feeling sluggish on short drags
-  /// (drag velocity is untouched).
-  static const _maxFlingVelocity = 1200.0;
-
-  @override
-  _SlowTerminalScrollPhysics applyTo(ScrollPhysics? ancestor) =>
-      _SlowTerminalScrollPhysics(parent: buildParent(ancestor));
-
-  @override
-  Simulation? createBallisticSimulation(
-    ScrollMetrics position,
-    double velocity,
-  ) {
-    final clamped = velocity.clamp(-_maxFlingVelocity, _maxFlingVelocity);
-    return super.createBallisticSimulation(position, clamped);
   }
 }

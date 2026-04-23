@@ -34,7 +34,7 @@ void main() {
       final config = await store.load();
       expect(config.fontSize, 14.0);
       expect(config.theme, 'system');
-      expect(config.scrollback, 20000);
+      expect(config.scrollback, 5000);
     });
 
     test('save and load roundtrip', () async {

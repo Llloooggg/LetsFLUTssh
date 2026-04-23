@@ -10,7 +10,7 @@ void main() {
         const config = TerminalConfig();
         expect(config.fontSize, 14.0);
         expect(config.theme, 'system');
-        expect(config.scrollback, 20000);
+        expect(config.scrollback, 5000);
       });
 
       test('static defaults matches default constructor', () {
@@ -181,7 +181,7 @@ void main() {
         final json = const TerminalConfig().toJson();
         expect(json, containsPair('font_size', 14.0));
         expect(json, containsPair('theme', 'system'));
-        expect(json, containsPair('scrollback', 20000));
+        expect(json, containsPair('scrollback', 5000));
       });
 
       test('fromJson() with empty map falls back to defaults', () {
@@ -1061,7 +1061,7 @@ void main() {
         // Terminal keys
         expect(json, containsPair('font_size', 14.0));
         expect(json, containsPair('theme', 'system'));
-        expect(json, containsPair('scrollback', 20000));
+        expect(json, containsPair('scrollback', 5000));
         // SSH keys
         expect(json, containsPair('keepalive_sec', 30));
         expect(json, containsPair('default_port', 22));
