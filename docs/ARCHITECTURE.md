@@ -868,6 +868,18 @@ Per-install salt is generated on `store()` and written alongside the sealed blob
 
 **Atomic writes.** Both `hardware_vault.bin` (Linux sealed blob + salt JSON) and `hardware_vault_salt.bin` (method-channel platforms, salt only) are written through [`writeBytesAtomic`](../lib/utils/file_utils.dart) — tmp-file + `hardenFilePerms` + rename. A crash mid-flush therefore leaves either the previous record or the new record on disk, never a torn file. Matters on the Linux path because the sealed blob + salt live in the same file (a torn JSON unseals into nothing); matters on method-channel platforms because the salt is half of the unseal contract (the other half being the wrapped key the native plugin holds), and a half-written salt bricks the vault permanently.
 
+**Native-side atomicity — every platform.** The invariant extends into the native plugins that own the wrapped-key half of the vault:
+
+| Platform | File | Mechanism |
+|---|---|---|
+| **iOS / macOS** | `hardware_vault_apple.bin`, `hardware_vault_password_overlay_apple.bin` | `Data.write(to:options:[.atomic, .completeFileProtection])` — Swift's own tmp-file + rename. |
+| **Android** | `hardware_vault_android.bin`, `hardware_vault_password_overlay_android.bin` | Custom `atomicWrite` helper in `HardwareVaultPlugin.kt`: write tmp sibling, `setReadable(false, false) + (true, true)` for 0600, `File.renameTo` atomic inode swap on ext4 / f2fs. |
+| **Windows** | `hardware_vault_windows.bin`, `hardware_vault_password_overlay_windows.bin` | `WriteAll` in `hardware_vault_plugin.cpp`: `std::ofstream` into `<target>.tmp`, `ReplaceFileW` with `REPLACEFILE_WRITE_THROUGH` when the target already exists, `MoveFileExW(MOVEFILE_REPLACE_EXISTING \| MOVEFILE_WRITE_THROUGH)` fallback. |
+
+A torn blob on any platform otherwise yields `readVault` → null → `isStored` → true-but-garbage → next unseal returns nothing → Dart side silently drops biometric / hardware unlock without a "vault corrupted" hint. The invariant matches the Dart-side hardware-vault atomic write and the biometric-vault atomic write already enforced by `writeBytesAtomic`.
+
+**Windows private-key export policy.** Keys created by `HardwareVaultPlugin.OpenOrCreateKey` (both primary data-wrap and biometric overlay) pin `NCRYPT_EXPORT_POLICY_PROPERTY = 0` (`NCRYPT_ALLOW_EXPORT_NONE`) via `NCryptSetProperty` before `NCryptFinalizeKey`. On the Platform Crypto Provider (TPM 2.0) path keys are non-exportable by design; the Microsoft Software KSP fallback, which the provider ladder selects when no TPM is reachable, defaults to `NCRYPT_ALLOW_EXPORT_FLAG | NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG` — any local-user process could otherwise call `NCryptExportKey` to lift the DB-wrap RSA private key in plaintext, defeating the separation between the ciphertext file and the wrapping key. Setting the policy to 0 covers both providers uniformly and has to happen *before* `Finalize` because CNG rejects policy changes on finalized keys. Mirror of Android's `setInvalidatedByBiometricEnrollment` invariant: both pin the private key to the hardware-backed storage so the blob on disk is only useful in combination with the live CNG / Keystore handle.
+
 #### Rate limiters — per-tier matrix
 
 [`PasswordRateLimiter`](../lib/core/security/password_rate_limiter.dart) is the abstract base; three concrete variants cover the tier matrix:

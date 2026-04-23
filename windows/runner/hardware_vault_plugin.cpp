@@ -82,13 +82,48 @@ bool ConstantTimeEquals(const std::vector<uint8_t>& a,
   return diff == 0;
 }
 
+// Atomic write: stream to a temp sibling, flush, then `ReplaceFileW`
+// (or `MoveFileExW` fallback) into the target name. A plain truncate
+// + stream write leaves a torn blob on disk if the process is killed
+// mid-flush (user logs out, OS kill, power loss) — `ReadAll` then
+// fails on the torn length prefix and the Dart side treats it as
+// "vault not stored", silently dropping the user back to the password
+// dialog with no corruption hint. Rename on NTFS is atomic inside the
+// same volume, which is always the case here (tmp file sits next to
+// the target under `LOCALAPPDATA\LetsFLUTssh`).
 bool WriteAll(const std::filesystem::path& path,
               const std::vector<uint8_t>& data) {
-  std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
-  if (!ofs) return false;
-  ofs.write(reinterpret_cast<const char*>(data.data()),
-            static_cast<std::streamsize>(data.size()));
-  return ofs.good();
+  std::error_code ec;
+  std::filesystem::create_directories(path.parent_path(), ec);
+  auto tmp = path;
+  tmp += L".tmp";
+  {
+    std::ofstream ofs(tmp, std::ios::binary | std::ios::trunc);
+    if (!ofs) return false;
+    ofs.write(reinterpret_cast<const char*>(data.data()),
+              static_cast<std::streamsize>(data.size()));
+    ofs.flush();
+    if (!ofs.good()) {
+      std::filesystem::remove(tmp, ec);
+      return false;
+    }
+  }
+  // Prefer `ReplaceFileW` when the target already exists (preserves
+  // ACLs + attributes, flushes tmp write through the cache); fall
+  // back to `MoveFileExW` with `REPLACE_EXISTING` when not.
+  if (std::filesystem::exists(path, ec)) {
+    if (ReplaceFileW(path.c_str(), tmp.c_str(), nullptr,
+                     REPLACEFILE_WRITE_THROUGH, nullptr, nullptr)) {
+      return true;
+    }
+    // ReplaceFileW failed — fall through to MoveFileExW.
+  }
+  if (!MoveFileExW(tmp.c_str(), path.c_str(),
+                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    std::filesystem::remove(tmp, ec);
+    return false;
+  }
+  return true;
 }
 
 std::optional<std::vector<uint8_t>> ReadAll(const std::filesystem::path& path) {
@@ -218,6 +253,23 @@ NCRYPT_KEY_HANDLE OpenOrCreateKey(ProviderHandle& prov,
   NCryptSetProperty(key, NCRYPT_LENGTH_PROPERTY,
                     reinterpret_cast<PBYTE>(&len), sizeof(len),
                     NCRYPT_PERSIST_FLAG);
+
+  // Mark the private key non-exportable. On the Platform Crypto
+  // Provider (TPM path) keys are already non-exportable by design;
+  // the Microsoft Software KSP fallback defaults to
+  // `NCRYPT_ALLOW_EXPORT_FLAG | NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG`
+  // (export allowed, including plaintext). That default lets any
+  // attacker with HKCU read call `NCryptExportKey` to lift the DB-
+  // wrap private key in the clear — defeating the whole point of
+  // keeping the DB key out of the ciphertext file. Setting 0
+  // (NCRYPT_ALLOW_EXPORT_NONE) pins the key to the CNG-backed
+  // storage regardless of which provider won the `OpenProvider`
+  // race. Must be set before `NCryptFinalizeKey` — CNG rejects the
+  // policy change once the key is finalized.
+  DWORD export_policy = 0;
+  NCryptSetProperty(key, NCRYPT_EXPORT_POLICY_PROPERTY,
+                    reinterpret_cast<PBYTE>(&export_policy),
+                    sizeof(export_policy), NCRYPT_PERSIST_FLAG);
 
   if (require_ui) {
     NCRYPT_UI_POLICY ui = {0};
