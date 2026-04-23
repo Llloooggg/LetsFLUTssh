@@ -2531,9 +2531,6 @@ class SRu extends S {
   String get sessionsOnly => 'Сессии';
 
   @override
-  String get sessionKeysFromManager => 'Ключи сессий из менеджера';
-
-  @override
   String get allKeysFromManager => 'Все ключи из менеджера';
 
   @override

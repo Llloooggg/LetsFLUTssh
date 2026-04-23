@@ -528,6 +528,60 @@ void main() {
     });
   });
 
+  group('UnifiedExportController — tags/snippets count toward QR size', () {
+    test('enabling tags raises QR payloadSize by their compressed cost', () {
+      // Regression guard: a prior implementation set
+      // `options.includeTags = true` on the size-calc call but passed
+      // `tags: const []` (the default), so the encoder skipped the
+      // `tg` section entirely and the UI under-counted the QR payload.
+      // The real export path *does* pass the tags list in, so
+      // `fitsInQr` must agree with what the user will actually emit.
+      final tag = Tag(
+        id: 't',
+        name: 'production-web-servers-with-a-deliberately-long-name',
+        color: '#ff0000',
+        createdAt: DateTime(2025),
+      );
+      final base = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+      final withTags = _ctrl(
+        sessions: [_s('1', 'A')],
+        tags: [tag],
+        isQrMode: true,
+      );
+      expect(
+        withTags.payloadSize,
+        greaterThan(base.payloadSize),
+        reason:
+            'tag bytes must land in the compressed payload when '
+            'includeTags is on — otherwise fitsInQr lies',
+      );
+    });
+
+    test(
+      'enabling snippets raises QR payloadSize by their compressed cost',
+      () {
+        final snippet = Snippet(
+          id: 'sn',
+          title: 'restart-nginx-with-verification',
+          command: 'sudo systemctl restart nginx && systemctl status nginx',
+          createdAt: DateTime(2025),
+          updatedAt: DateTime(2025),
+        );
+        final base = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+        final withSnippets = _ctrl(
+          sessions: [_s('1', 'A')],
+          snippets: [snippet],
+          isQrMode: true,
+        );
+        expect(
+          withSnippets.payloadSize,
+          greaterThan(base.payloadSize),
+          reason: 'snippet bytes must land in the compressed QR payload',
+        );
+      },
+    );
+  });
+
   group('UnifiedExportController — fitsInQr', () {
     test('always true in LFS mode regardless of payload size', () {
       // LFS has no QR ceiling — archive can be any size. Spec: the

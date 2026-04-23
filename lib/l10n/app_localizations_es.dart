@@ -2537,9 +2537,6 @@ class SEs extends S {
   String get sessionsOnly => 'Sesiones';
 
   @override
-  String get sessionKeysFromManager => 'Claves de sesión del gestor';
-
-  @override
   String get allKeysFromManager => 'Todas las claves del gestor';
 
   @override

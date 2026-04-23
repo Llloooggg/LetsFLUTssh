@@ -758,6 +758,58 @@ void main() {
   });
 
   group('ConnectionManager.reconnect — generation counter', () {
+    test(
+      'stale onDisconnect does not clobber the active sshConnection',
+      () async {
+        // Regression guard: the onDisconnect callback captured the
+        // shared Connection object and wiped `conn.sshConnection` +
+        // `conn.state` unconditionally. When an older generation's
+        // transport was torn down (stale cleanup, late OS close) the
+        // callback would overwrite a newer generation's assigned
+        // sshConnection and flip the UI to "disconnected" while the
+        // new connection was in fact live. The fix adds an identity
+        // guard: the callback only clobbers when it matches the
+        // currently-assigned transport.
+        final fakes = <FakeSSHConnection>[];
+        final mgr = ConnectionManager(
+          knownHosts: knownHosts,
+          connectionFactory: (config, kh) {
+            final fake = FakeSSHConnection(config: config, knownHosts: kh);
+            fakes.add(fake);
+            return fake;
+          },
+        );
+
+        const config = SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        );
+        final conn = mgr.connectAsync(config);
+        await conn.ready;
+        expect(conn.isConnected, isTrue);
+        final gen1 = fakes.last;
+
+        mgr.reconnect(conn.id);
+        await conn.ready;
+        final gen2 = fakes.last;
+        expect(conn.sshConnection, gen2);
+        expect(conn.state, SSHConnectionState.connected);
+
+        // Fire the stale generation's onDisconnect — this is what the
+        // transport does on a late OS close after being superseded.
+        gen1.onDisconnect?.call();
+        await Future.delayed(Duration.zero);
+
+        expect(
+          conn.sshConnection,
+          gen2,
+          reason: 'identity-guarded callback must not wipe the live transport',
+        );
+        expect(conn.state, SSHConnectionState.connected);
+
+        mgr.dispose();
+      },
+    );
+
     test('stale reconnect result is discarded', () async {
       final completers = <Completer<void>>[];
       final mgr = ConnectionManager(

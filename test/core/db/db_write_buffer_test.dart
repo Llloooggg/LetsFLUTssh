@@ -70,5 +70,30 @@ void main() {
       buffer.clear();
       expect(buffer.isEmpty, isTrue);
     });
+
+    test('ops appended during drain survive for the next drain', () async {
+      // Regression guard: a prior implementation snapshotted the queue
+      // and then called `_queue.clear()` after the commit, which
+      // silently dropped any op that arrived at an `await` boundary
+      // inside the transaction. The current implementation pulls the
+      // queue to empty BEFORE the transaction runs, so appends made
+      // during the await land in the now-empty buffer and get picked
+      // up by the follow-up drain.
+      final buffer = DbWriteBuffer();
+      final order = <int>[];
+      // First op sneaks a new append into the buffer mid-drain; if the
+      // pre-fix `clear()` behaviour were still in effect the second
+      // entry would be wiped before the next drain could see it.
+      buffer.append((_) async {
+        order.add(1);
+        buffer.append((_) async => order.add(2));
+      });
+      await buffer.drain(db);
+      expect(order, [1]);
+      expect(buffer.length, 1, reason: 'mid-drain append preserved');
+      await buffer.drain(db);
+      expect(order, [1, 2]);
+      expect(buffer.isEmpty, isTrue);
+    });
   });
 }

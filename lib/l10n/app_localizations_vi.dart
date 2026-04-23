@@ -2500,9 +2500,6 @@ class SVi extends S {
   String get sessionsOnly => 'Phiên';
 
   @override
-  String get sessionKeysFromManager => 'Khóa phiên từ trình quản lý';
-
-  @override
   String get allKeysFromManager => 'Tất cả khóa từ trình quản lý';
 
   @override

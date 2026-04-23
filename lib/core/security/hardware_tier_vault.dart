@@ -183,8 +183,14 @@ class HardwareTierVault {
           'salt': base64.encode(salt),
           'sealed': base64.encode(sealed),
         });
-        await file.writeAsBytes(utf8.encode(blob), flush: true);
-        await hardenFilePerms(file.path);
+        // Atomic write — a crash mid-flush on direct `writeAsBytes`
+        // could leave `hardware_vault.bin` half-written, bricking the
+        // tier (unseal path reads the JSON and throws on malformed
+        // input; user sees "unlock failed" with no recoverable state).
+        // `writeBytesAtomic` writes to `<path>.tmp` first, chmods it,
+        // then renames — either the previous sealed blob survives or
+        // the new one does, never a torn file.
+        await writeBytesAtomic(file.path, utf8.encode(blob));
         return true;
       }
       if (_usesMethodChannel) {
@@ -288,8 +294,12 @@ class HardwareTierVault {
   Future<void> _writeSaltFile(Uint8List salt) async {
     final file = await _saltFile();
     await file.parent.create(recursive: true);
-    await file.writeAsBytes(salt, flush: true);
-    await hardenFilePerms(file.path);
+    // Salt is half of the unseal contract on method-channel platforms
+    // (the other half lives inside the native hw-vault); a torn salt
+    // file from a mid-write crash would fail HMAC derivation and
+    // permanently lock the user out. Atomic write rules out that
+    // tear — the previous salt survives on failure.
+    await writeBytesAtomic(file.path, salt);
   }
 
   Future<Uint8List?> _readSaltFile() async {

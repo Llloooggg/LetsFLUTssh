@@ -382,6 +382,33 @@ void main() {
       expect(key.currentState!.applyModifiers('hello'), 'hello');
     });
 
+    testWidgets('applyModifiers combines Ctrl and Alt (C-M-x)', (tester) async {
+      // Regression guard: a prior implementation wrote both transforms
+      // to the SAME `result` slot, reading the original `data` each
+      // time, so the Ctrl branch overwrote the Alt one and Alt+Ctrl+X
+      // produced bare Ctrl+X (`\x18`). Emacs `C-M-x` / readline
+      // meta-control sequences must come out as `ESC + Ctrl-X`
+      // (`\x1b\x18`), chaining the two transforms through a single
+      // cascading `result`.
+      final key = GlobalKey<SshKeyboardBarState>();
+      await tester.pumpWidget(buildApp(onInput: (_) {}, keyboardKey: key));
+
+      await tester.tap(find.text('Ctrl'));
+      await tester.pump();
+      await tester.tap(find.text('Alt'));
+      await tester.pump();
+
+      final result = key.currentState!.applyModifiers('x');
+      expect(
+        result,
+        SshKeySequences.altKey(SshKeySequences.ctrlKey('x')),
+        reason: 'Alt must wrap Ctrl, not replace it',
+      );
+      expect(result.length, 2, reason: 'ESC + control byte = two bytes');
+      expect(result.codeUnitAt(0), 0x1b, reason: 'leading ESC from Alt');
+      expect(result.codeUnitAt(1), 0x18, reason: 'trailing Ctrl-X from Ctrl');
+    });
+
     testWidgets('applyModifiers with locked Ctrl persists across calls', (
       tester,
     ) async {

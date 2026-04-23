@@ -2527,9 +2527,6 @@ class SPt extends S {
   String get sessionsOnly => 'Sessões';
 
   @override
-  String get sessionKeysFromManager => 'Chaves de sessão do gerenciador';
-
-  @override
   String get allKeysFromManager => 'Todas as chaves do gerenciador';
 
   @override

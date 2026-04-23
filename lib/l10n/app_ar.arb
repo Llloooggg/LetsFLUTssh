@@ -632,7 +632,6 @@
   "nextStep": "التالي",
   "fullBackup": "نسخة احتياطية كاملة",
   "sessionsOnly": "الجلسات",
-  "sessionKeysFromManager": "مفاتيح الجلسات من المدير",
   "allKeysFromManager": "جميع المفاتيح من المدير",
   "exportTags": "الوسوم ({count})",
   "exportSnippets": "القصاصات ({count})",

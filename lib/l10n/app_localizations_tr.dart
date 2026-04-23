@@ -2521,9 +2521,6 @@ class STr extends S {
   String get sessionsOnly => 'Oturumlar';
 
   @override
-  String get sessionKeysFromManager => 'Yöneticiden oturum anahtarları';
-
-  @override
   String get allKeysFromManager => 'Yöneticiden tüm anahtarlar';
 
   @override

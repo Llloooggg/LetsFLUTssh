@@ -2509,9 +2509,6 @@ class SAr extends S {
   String get sessionsOnly => 'الجلسات';
 
   @override
-  String get sessionKeysFromManager => 'مفاتيح الجلسات من المدير';
-
-  @override
   String get allKeysFromManager => 'جميع المفاتيح من المدير';
 
   @override

@@ -68,8 +68,22 @@ class KdfParams {
     }
   }
 
+  /// Sanity ceilings for Argon2id params. A legitimate header writes
+  /// production defaults (46 MiB, 2 iters, 1 lane); future profile
+  /// bumps would at most double those. The upper bounds exist to
+  /// defuse a crafted `credentials.kdf` that asks for absurd costs —
+  /// 4 GiB of memory, a million iterations — which would wedge the
+  /// unlock isolate rather than fail cleanly. 1 GiB / 16 iters / 8
+  /// lanes gives ~20× headroom over today's production profile, well
+  /// past any plausible security bump, while keeping a single
+  /// malicious header from turning into an OOM on unlock.
+  static const int _argon2idMaxMemoryKiB = 1024 * 1024; // 1 GiB
+  static const int _argon2idMaxIterations = 16;
+  static const int _argon2idMaxParallelism = 8;
+
   /// Deserialize algorithm + params starting at [bytes]. Throws
-  /// [FormatException] on unknown algorithm ID or truncated buffer.
+  /// [FormatException] on unknown algorithm ID, truncated buffer, or
+  /// params outside the sanity ceilings documented above.
   ///
   /// Returns the parsed params; callers pass [bytes.sublist(0,
   /// encodedLength)] back to `encode()` for round-trip.
@@ -95,6 +109,24 @@ class KdfParams {
         final par = b.getUint8(9);
         if (mem == 0 || iters == 0 || par == 0) {
           throw const FormatException('KdfParams: Argon2id params must be > 0');
+        }
+        if (mem > _argon2idMaxMemoryKiB) {
+          throw FormatException(
+            'KdfParams: Argon2id memory $mem KiB exceeds sanity cap '
+            '$_argon2idMaxMemoryKiB KiB',
+          );
+        }
+        if (iters > _argon2idMaxIterations) {
+          throw FormatException(
+            'KdfParams: Argon2id iterations $iters exceeds sanity cap '
+            '$_argon2idMaxIterations',
+          );
+        }
+        if (par > _argon2idMaxParallelism) {
+          throw FormatException(
+            'KdfParams: Argon2id parallelism $par exceeds sanity cap '
+            '$_argon2idMaxParallelism',
+          );
         }
         return KdfParams._(
           algorithm: algo,

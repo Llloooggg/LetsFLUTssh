@@ -2503,9 +2503,6 @@ class SEn extends S {
   String get sessionsOnly => 'Sessions';
 
   @override
-  String get sessionKeysFromManager => 'Session keys from manager';
-
-  @override
   String get allKeysFromManager => 'All keys from manager';
 
   @override

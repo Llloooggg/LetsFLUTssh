@@ -632,7 +632,6 @@
   "nextStep": "بعدی",
   "fullBackup": "پشتیبان‌گیری کامل",
   "sessionsOnly": "نشست‌ها",
-  "sessionKeysFromManager": "کلیدهای نشست از مدیر",
   "allKeysFromManager": "همه کلیدها از مدیر",
   "exportTags": "برچسب‌ها ({count})",
   "exportSnippets": "قطعه‌ها ({count})",

@@ -632,7 +632,6 @@
   "nextStep": "다음",
   "fullBackup": "전체 백업",
   "sessionsOnly": "세션",
-  "sessionKeysFromManager": "키 관리자의 세션 키",
   "allKeysFromManager": "키 관리자의 모든 키",
   "exportTags": "태그 ({count})",
   "exportSnippets": "스니펫 ({count})",

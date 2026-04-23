@@ -1403,7 +1403,6 @@
   "editTags": "Edit Tags",
   "fullBackup": "Full backup",
   "sessionsOnly": "Sessions",
-  "sessionKeysFromManager": "Session keys from manager",
   "allKeysFromManager": "All keys from manager",
   "exportTags": "Tags ({count})",
   "@exportTags": {

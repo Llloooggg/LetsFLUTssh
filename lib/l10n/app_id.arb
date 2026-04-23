@@ -632,7 +632,6 @@
   "nextStep": "Berikutnya",
   "fullBackup": "Cadangan lengkap",
   "sessionsOnly": "Sesi",
-  "sessionKeysFromManager": "Kunci sesi dari manajer",
   "allKeysFromManager": "Semua kunci dari manajer",
   "exportTags": "Tag ({count})",
   "exportSnippets": "Cuplikan ({count})",

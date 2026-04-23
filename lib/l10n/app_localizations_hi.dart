@@ -2514,9 +2514,6 @@ class SHi extends S {
   String get sessionsOnly => 'सत्र';
 
   @override
-  String get sessionKeysFromManager => 'प्रबंधक से सत्र कुंजियाँ';
-
-  @override
   String get allKeysFromManager => 'प्रबंधक से सभी कुंजियाँ';
 
   @override

@@ -2540,9 +2540,6 @@ class SDe extends S {
   String get sessionsOnly => 'Sitzungen';
 
   @override
-  String get sessionKeysFromManager => 'Sitzungsschlüssel aus dem Manager';
-
-  @override
   String get allKeysFromManager => 'Alle Schlüssel aus dem Manager';
 
   @override

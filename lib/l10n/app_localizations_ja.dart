@@ -2436,9 +2436,6 @@ class SJa extends S {
   String get sessionsOnly => 'セッション';
 
   @override
-  String get sessionKeysFromManager => 'マネージャーのセッション鍵';
-
-  @override
   String get allKeysFromManager => 'マネージャーの全ての鍵';
 
   @override

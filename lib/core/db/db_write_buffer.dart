@@ -60,24 +60,37 @@ class DbWriteBuffer {
   }
 
   /// Replay every queued op against [db] inside a single transaction.
-  /// On any error the transaction rolls back and the queue is
-  /// preserved for a follow-up retry; a permanent failure should not
-  /// silently eat pending writes.
+  /// On any error the transaction rolls back and the captured batch is
+  /// prepended back onto the queue for a follow-up retry; a permanent
+  /// failure should not silently eat pending writes.
+  ///
+  /// **Ordering invariant**: the queue is pulled to an empty state
+  /// *before* the transaction opens. Any `append` that fires while the
+  /// transaction awaits lands in the now-empty `_queue` and will be
+  /// picked up by the next `drain`. A prior version snapshotted the
+  /// queue and then called `_queue.clear()` after the commit, which
+  /// silently dropped every op that arrived mid-drain (single-isolate
+  /// Dart still interleaves at every `await` boundary). It also
+  /// mis-handled the cap-eviction path: if a flood filled the queue
+  /// past `_maxEntries` during the drain, `clear()` would wipe the
+  /// evicted-but-rotated-in survivors that the append path had never
+  /// meant to discard.
   Future<void> drain(AppDatabase db) async {
     if (_queue.isEmpty) return;
     final pending = List<Future<void> Function(AppDatabase)>.from(_queue);
+    _queue.clear();
     try {
       await db.transaction(() async {
         for (final op in pending) {
           await op(db);
         }
       });
-      _queue.clear();
       AppLogger.instance.log(
         'DbWriteBuffer drained ${pending.length} queued writes',
         name: 'DbWriteBuffer',
       );
     } catch (e) {
+      _queue.insertAll(0, pending);
       AppLogger.instance.log(
         'DbWriteBuffer drain failed, queue preserved: $e',
         name: 'DbWriteBuffer',

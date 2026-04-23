@@ -185,6 +185,22 @@ class UnifiedExportController extends ChangeNotifier {
   }
 
   /// QR payload size: deflate-compressed JSON, base64url-encoded.
+  ///
+  /// Tags + snippets are folded into the estimate so the "fits in QR"
+  /// gate reflects the full payload the real export at
+  /// `settings_sections_data._generateQrExport` will emit. Omitting
+  /// them here used to make the UI claim "fits" while the encoder
+  /// silently appended the `tg` / `sn` sections on export and pushed
+  /// past the 2 KB ceiling — the user then got a bare "QR too large"
+  /// toast with no indication that tags were the culprit.
+  ///
+  /// Session↔tag / folder↔tag / session↔snippet link tables are NOT
+  /// included here because the dialog data carrier does not hold them
+  /// (they are collected lazily via DAO calls after the dialog closes).
+  /// The compressed size contribution of link tables is small versus
+  /// the tag / snippet bodies themselves, so the estimate remains
+  /// conservative — worst case we slightly under-count by a few tens
+  /// of bytes, not a kilobyte.
   int _qrPayloadSize() {
     final base = calculateExportPayloadSize(
       selectedSessions,
@@ -197,6 +213,8 @@ class UnifiedExportController extends ChangeNotifier {
         knownHostsContent: _options.includeKnownHosts
             ? data.knownHostsContent
             : null,
+        tags: _options.includeTags ? data.tags : const [],
+        snippets: _options.includeSnippets ? data.snippets : const [],
       ),
     );
     return _options.hasManagerKeys ? base + managerKeysExtraSize : base;

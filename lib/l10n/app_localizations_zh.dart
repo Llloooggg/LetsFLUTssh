@@ -2411,9 +2411,6 @@ class SZh extends S {
   String get sessionsOnly => '会话';
 
   @override
-  String get sessionKeysFromManager => '管理器中的会话密钥';
-
-  @override
   String get allKeysFromManager => '管理器中的所有密钥';
 
   @override

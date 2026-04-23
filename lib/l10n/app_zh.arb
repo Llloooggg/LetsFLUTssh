@@ -632,7 +632,6 @@
   "nextStep": "下一步",
   "fullBackup": "完整备份",
   "sessionsOnly": "会话",
-  "sessionKeysFromManager": "管理器中的会话密钥",
   "allKeysFromManager": "管理器中的所有密钥",
   "exportTags": "标签 ({count})",
   "exportSnippets": "代码片段 ({count})",

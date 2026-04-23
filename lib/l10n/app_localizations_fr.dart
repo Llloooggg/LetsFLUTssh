@@ -2547,9 +2547,6 @@ class SFr extends S {
   String get sessionsOnly => 'Sessions uniquement';
 
   @override
-  String get sessionKeysFromManager => 'Clés de session du gestionnaire';
-
-  @override
   String get allKeysFromManager => 'Toutes les clés du gestionnaire';
 
   @override

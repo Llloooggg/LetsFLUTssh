@@ -2519,9 +2519,6 @@ class SId extends S {
   String get sessionsOnly => 'Sesi';
 
   @override
-  String get sessionKeysFromManager => 'Kunci sesi dari manajer';
-
-  @override
   String get allKeysFromManager => 'Semua kunci dari manajer';
 
   @override

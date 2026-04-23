@@ -632,7 +632,6 @@
   "nextStep": "İleri",
   "fullBackup": "Tam yedekleme",
   "sessionsOnly": "Oturumlar",
-  "sessionKeysFromManager": "Yöneticiden oturum anahtarları",
   "allKeysFromManager": "Yöneticiden tüm anahtarlar",
   "exportTags": "Etiketler ({count})",
   "exportSnippets": "Kod parçacıkları ({count})",

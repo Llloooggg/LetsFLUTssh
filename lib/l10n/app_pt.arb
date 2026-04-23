@@ -632,7 +632,6 @@
   "nextStep": "Próximo",
   "fullBackup": "Backup completo",
   "sessionsOnly": "Sessões",
-  "sessionKeysFromManager": "Chaves de sessão do gerenciador",
   "allKeysFromManager": "Todas as chaves do gerenciador",
   "exportTags": "Etiquetas ({count})",
   "exportSnippets": "Trechos ({count})",

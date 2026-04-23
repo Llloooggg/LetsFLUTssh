@@ -632,7 +632,6 @@
   "nextStep": "次へ",
   "fullBackup": "フルバックアップ",
   "sessionsOnly": "セッション",
-  "sessionKeysFromManager": "マネージャーのセッション鍵",
   "allKeysFromManager": "マネージャーの全ての鍵",
   "exportTags": "タグ ({count})",
   "exportSnippets": "スニペット ({count})",

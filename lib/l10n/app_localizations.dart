@@ -4413,12 +4413,6 @@ abstract class S {
   /// **'Sessions'**
   String get sessionsOnly;
 
-  /// No description provided for @sessionKeysFromManager.
-  ///
-  /// In en, this message translates to:
-  /// **'Session keys from manager'**
-  String get sessionKeysFromManager;
-
   /// No description provided for @allKeysFromManager.
   ///
   /// In en, this message translates to:

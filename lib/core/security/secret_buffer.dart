@@ -26,6 +26,15 @@ import 'libc_loader.dart';
 /// already holding locks). The class logs and continues — the buffer still
 /// exists, it just isn't pinned. Failing hard would turn a hardening nicety
 /// into a liveness bug.
+///
+/// **Finalizer safety-net**. A [NativeFinalizer] is attached on every
+/// allocation so that, if a caller forgets to call [dispose], the native
+/// memory is still `free`d when the Dart object is GC'd. The finalizer
+/// does NOT zero the bytes (it cannot run Dart code) and does NOT
+/// `munlock` the page — so the leaked window between the last reference
+/// drop and GC still holds plaintext in RAM, potentially in a locked
+/// page. Call `dispose` explicitly: the finalizer is a backstop against
+/// leak-on-exception, not a replacement for deterministic cleanup.
 class SecretBuffer implements Finalizable {
   final Pointer<Uint8> _ptr;
   final int _length;
@@ -33,6 +42,14 @@ class SecretBuffer implements Finalizable {
   final bool _locked;
 
   SecretBuffer._(this._ptr, this._length, this._locked);
+
+  /// Auto-cleanup hook. If the `SecretBuffer` is GC'd without an explicit
+  /// `dispose()`, the calloc allocator's native `free` runs against the
+  /// pointer — plugging the memory leak at the cost of skipping the zeroing
+  /// + munlock steps `dispose()` would have performed. [dispose] detaches
+  /// this finalizer so the deterministic path is not followed by a
+  /// double-free from the allocator.
+  static final _finalizer = NativeFinalizer(calloc.nativeFree);
 
   /// Allocate a zero-filled buffer of [length] bytes and attempt to lock it
   /// into RAM. Returns a managed [SecretBuffer]; call [dispose] when done.
@@ -42,7 +59,9 @@ class SecretBuffer implements Finalizable {
     }
     final ptr = calloc<Uint8>(length);
     final locked = _lock(ptr, length);
-    return SecretBuffer._(ptr, length, locked);
+    final buf = SecretBuffer._(ptr, length, locked);
+    _finalizer.attach(buf, ptr.cast(), detach: buf, externalSize: length);
+    return buf;
   }
 
   /// Copy bytes from [source] into a fresh locked buffer. The source is
@@ -85,6 +104,11 @@ class SecretBuffer implements Finalizable {
     if (_locked) {
       _unlock(_ptr, _length);
     }
+    // Detach the finalizer BEFORE we free the pointer ourselves — otherwise
+    // a post-`dispose` GC would fire the native-free hook on an already-freed
+    // pointer, which is a use-after-free on the allocator and can corrupt
+    // unrelated native memory.
+    _finalizer.detach(this);
     calloc.free(_ptr);
   }
 

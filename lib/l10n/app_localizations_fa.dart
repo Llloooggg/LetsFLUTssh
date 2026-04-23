@@ -2507,9 +2507,6 @@ class SFa extends S {
   String get sessionsOnly => 'نشست‌ها';
 
   @override
-  String get sessionKeysFromManager => 'کلیدهای نشست از مدیر';
-
-  @override
   String get allKeysFromManager => 'همه کلیدها از مدیر';
 
   @override

@@ -2434,9 +2434,6 @@ class SKo extends S {
   String get sessionsOnly => '세션';
 
   @override
-  String get sessionKeysFromManager => '키 관리자의 세션 키';
-
-  @override
   String get allKeysFromManager => '키 관리자의 모든 키';
 
   @override
