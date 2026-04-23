@@ -402,21 +402,27 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   void _onPointerUp(PointerEvent e) {
     _pointers.remove(e.pointer);
-    // Copy mode's two-phase model: the first *release* (after the user
-    // has aimed the virtual cursor at the start of the selection) drops
-    // the anchor. Subsequent releases don't re-anchor — [onAnchorDown]
-    // is idempotent — so the user can lift and re-touch to keep
-    // extending from the same start point.
-    if (_copyMode && _pointers.isEmpty) {
-      _copyOverlayKey.currentState?.onAnchorDown();
-      // Force a rebuild so the SSH bar's copy-mode row flips its hint
-      // copy from "tap to start" to "tap to extend" once `anchorSet`
-      // becomes true. `TerminalCopyOverlay` exposes the flag via its
-      // GlobalKey state, and the bar reads it through the `anchorSet`
-      // prop we pass on every build — `setState` here triggers the
-      // re-read.
-      if (mounted) setState(() {});
-    }
+    // Anchor drop is no longer bound to pointer-up. Earlier revisions
+    // auto-committed the anchor on the first release, which forced
+    // the user to land the cursor in a single uninterrupted drag —
+    // too demanding on a phone viewport where the target cell is
+    // often under the thumb and the user needs to lift + re-grip to
+    // aim. The explicit "Set anchor" button in the copy-mode bar row
+    // now commits the anchor; lifts are free aim passes until then.
+  }
+
+  /// Fired by the copy-mode row's "Set anchor" button. Drops the
+  /// selection anchor at the current virtual cursor position and
+  /// flips the bar from the aim hint to the extend hint.
+  void _onSetCopyAnchor() {
+    if (!_copyMode) return;
+    _copyOverlayKey.currentState?.onAnchorDown();
+    HapticFeedback.selectionClick();
+    // `anchorSet` is exposed via the overlay's GlobalKey state and the
+    // bar reads it through the `anchorSet` prop on every build;
+    // `setState` forces the re-read so the row's affordances flip to
+    // the post-anchor layout (Copy replaces the anchor button).
+    if (mounted) setState(() {});
   }
 
   // ── Copy mode ────────────────────────────────────────────────────────
@@ -530,6 +536,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               onSnippets: _showSnippets,
               onCopyModeChanged: _onCopyModeChanged,
               onCopyPressed: _copyFromOverlay,
+              onAnchorPressed: _onSetCopyAnchor,
               anchorSet: anchorSet,
             ),
           ),

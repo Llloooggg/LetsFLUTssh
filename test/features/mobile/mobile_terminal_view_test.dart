@@ -891,11 +891,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Overlay mounts; the SSH bar's row swaps to copy-mode content
-      // with a hint + Copy + Cancel actions (icons only, no labels).
-      // The Copy action is `Icons.copy`, Cancel is `Icons.close`.
+      // with a hint + Set-Anchor (Icons.adjust) + Cancel. The Copy
+      // action only appears AFTER the user explicitly commits the
+      // anchor via the Set-Anchor button, since aiming on a phone
+      // can take more than one drag.
       expect(find.byType(TerminalCopyOverlay), findsOneWidget);
-      expect(find.byIcon(Icons.copy), findsOneWidget);
+      expect(find.byIcon(Icons.adjust), findsOneWidget);
       expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsNothing);
     });
 
     testWidgets('tapping overlay Cancel exits copy mode', (tester) async {
@@ -972,14 +975,15 @@ void main() {
     );
 
     testWidgets(
-      'first pointer-down does NOT drop a selection anchor (aim phase)',
+      'pointer events alone never drop the selection anchor (aim phase)',
       (tester) async {
-        // Regression gate for the two-phase copy-mode model: when the
-        // user first touches the terminal after toggling copy mode,
-        // the virtual cursor must move freely without committing an
-        // anchor. The anchor drops only on the matching pointer-up.
-        // A regression that re-stamps on pointer-down breaks the "aim
-        // the start cell, then extend" flow.
+        // Regression gate for the two-phase copy-mode model: pointer
+        // events only aim the virtual cursor. Anchor commit is
+        // exclusively driven by the Set-Anchor button on the bar —
+        // lifts, multiple touches, moves, none of them drop an
+        // anchor. Earlier revisions committed on the first lift,
+        // which failed the "can't aim in one drag" reports from
+        // phone users.
         final mockSsh = MockSSHConnection();
         final mockSession = MockSSHSession();
         final conn = connectedConn(mockSsh, mockSession);
@@ -1003,29 +1007,26 @@ void main() {
           find.byType(TerminalCopyOverlay),
         );
 
-        // Start a pointer gesture inside the terminal area, move, but
-        // do NOT release yet.
+        // Drag + lift + drag + lift — two full pointer cycles must
+        // still leave `anchorSet` false.
         final termCenter = tester.getCenter(find.byType(TerminalView));
-        final gesture = await tester.startGesture(termCenter);
-        await tester.pump();
-        await gesture.moveBy(const Offset(40, 0));
-        await tester.pump();
-
-        expect(
-          overlay.anchorSet,
-          isFalse,
-          reason: 'Aim phase: anchor must not be set before the first lift',
-        );
-
-        // Lifting the finger commits the anchor.
-        await gesture.up();
+        final first = await tester.startGesture(termCenter);
+        await first.moveBy(const Offset(40, 0));
+        await first.up();
         await tester.pumpAndSettle();
+        expect(overlay.anchorSet, isFalse);
 
-        expect(
-          overlay.anchorSet,
-          isTrue,
-          reason: 'First pointer-up in copy mode drops the anchor',
-        );
+        final second = await tester.startGesture(termCenter);
+        await second.moveBy(const Offset(20, 20));
+        await second.up();
+        await tester.pumpAndSettle();
+        expect(overlay.anchorSet, isFalse);
+
+        // Tapping the Set-Anchor action on the bar is the only way
+        // to commit.
+        await tester.tap(find.byIcon(Icons.adjust));
+        await tester.pumpAndSettle();
+        expect(overlay.anchorSet, isTrue);
       },
     );
 

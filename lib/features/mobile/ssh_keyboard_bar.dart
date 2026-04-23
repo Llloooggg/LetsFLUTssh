@@ -40,14 +40,25 @@ class SshKeyboardBar extends StatefulWidget {
   final ValueChanged<bool>? onCopyModeChanged;
 
   /// Called when the user taps the Copy action inside the copy-mode
-  /// row. Only consulted while copy mode is active. Exiting copy
-  /// mode after Copy is the parent's responsibility via
+  /// row. Only consulted while copy mode is active AND the selection
+  /// anchor has already been committed ([anchorSet] true). Exiting
+  /// copy mode after Copy is the parent's responsibility via
   /// [SshKeyboardBarState.exitCopyMode].
   final VoidCallback? onCopyPressed;
 
+  /// Called when the user taps the "Set anchor" action in the
+  /// copy-mode row before [anchorSet] flips. Signals the parent
+  /// overlay to drop the selection anchor at the current virtual
+  /// cursor position. Without the explicit tap the overlay stays in
+  /// the free-aim phase: drags move the cursor, lifts do nothing —
+  /// this lets the user re-grip without committing an anchor they
+  /// did not mean to.
+  final VoidCallback? onAnchorPressed;
+
   /// Whether the overlay's selection anchor has been dropped. Drives
-  /// the copy-mode hint copy between "tap to mark start" (no anchor
-  /// yet) and "tap to extend" (anchor set). Defaults to `false`.
+  /// both the hint copy (aim → extend) and the action buttons in the
+  /// copy-mode row ("Set anchor" before → "Copy" after). Defaults to
+  /// `false`.
   final bool anchorSet;
 
   const SshKeyboardBar({
@@ -57,6 +68,7 @@ class SshKeyboardBar extends StatefulWidget {
     this.onSnippets,
     this.onCopyModeChanged,
     this.onCopyPressed,
+    this.onAnchorPressed,
     this.anchorSet = false,
   });
 
@@ -240,6 +252,21 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     final hint = widget.anchorSet
         ? l10n.copyModeExtending
         : l10n.copyModeTapToStart;
+    // Action layout follows the two-phase copy-mode state machine:
+    //   * Before the anchor is committed — show the crosshair-style
+    //     "Set anchor" button. Swipes only aim the cursor; the user
+    //     presses this button when they have the start cell pinned.
+    //   * After the anchor is committed — swap in the Copy action.
+    // Cancel stays in both phases as a bailout.
+    final actionButton = widget.anchorSet
+        ? _KeyButton(
+            icon: Icons.copy,
+            onTap: () => widget.onCopyPressed?.call(),
+          )
+        : _KeyButton(
+            icon: Icons.adjust,
+            onTap: () => widget.onAnchorPressed?.call(),
+          );
     return Row(
       children: [
         Expanded(
@@ -257,12 +284,7 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
             ),
           ),
         ),
-        _KeyButton(
-          icon: Icons.copy,
-          onTap: () {
-            widget.onCopyPressed?.call();
-          },
-        ),
+        actionButton,
         _KeyButton(icon: Icons.close, onTap: exitCopyMode),
       ],
     );
