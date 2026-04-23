@@ -139,27 +139,22 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _terminalController.clearSelection();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scheduleKeyboardInsetSettle();
-  }
-
   /// Arm the debounce timer so we update [_appliedKeyboardInset] only
   /// after the raw `viewInsets.bottom` has stopped ticking for
-  /// [_insetSettleDuration]. Called from [didChangeDependencies] —
-  /// Flutter rebuilds the subtree on every inset tick during the
-  /// keyboard slide animation, so this runs once per animation frame
-  /// and keeps resetting the timer until the animation ends.
-  void _scheduleKeyboardInsetSettle() {
-    final raw = MediaQuery.of(context).viewInsets.bottom;
+  /// [_insetSettleDuration]. Called from [build] — Flutter rebuilds
+  /// the subtree on every inset tick during the keyboard slide
+  /// animation (we read `MediaQuery.viewInsetsOf(context)` there to
+  /// register the dependency), so this runs once per animation frame
+  /// and keeps resetting the timer until the animation ends. Takes
+  /// the raw value as an argument so we don't re-read MediaQuery in
+  /// the timer callback — by the time the callback fires the context
+  /// may have been deactivated.
+  void _scheduleKeyboardInsetSettle(double raw) {
     if (raw == _appliedKeyboardInset) return;
     _insetSettleTimer?.cancel();
     _insetSettleTimer = Timer(_insetSettleDuration, () {
       if (!mounted) return;
-      final now = MediaQuery.of(context).viewInsets.bottom;
-      if (now == _appliedKeyboardInset) return;
-      setState(() => _appliedKeyboardInset = now);
+      setState(() => _appliedKeyboardInset = raw);
     });
   }
 
@@ -378,6 +373,15 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     // through the [_scheduleKeyboardInsetSettle] debouncer so we
     // don't re-layout (and re-resize xterm) on every animation
     // frame — per-frame resizes visibly rip the scrollback.
+    //
+    // Reading `MediaQuery.viewInsetsOf(context)` here is load-
+    // bearing: it registers a dependency on MediaQuery so build
+    // fires on every keyboard-animation tick, which in turn arms
+    // the debouncer (_scheduleKeyboardInsetSettle below). Layout
+    // itself still uses the *settled* `_appliedKeyboardInset` —
+    // the raw value only drives the debounce timer.
+    final rawKeyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    _scheduleKeyboardInsetSettle(rawKeyboardInset);
     const navBarHeight = AppTheme.itemHeightXl;
     const barHeight = AppTheme.itemHeightLg;
     final barBottom = math.max(navBarHeight, _appliedKeyboardInset);
