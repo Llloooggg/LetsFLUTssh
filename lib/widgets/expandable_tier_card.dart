@@ -247,13 +247,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// off should see Select re-enable.
   bool get _matchesCurrentConfig {
     if (!_isCurrent) return false;
-    final current = widget.currentTier;
-    final mods = widget.currentModifiers;
-    final currentHasPassword =
-        mods.password ||
-        current == SecurityTier.keychainWithPassword ||
-        current == SecurityTier.paranoid;
-    if (_passwordEnabled != currentHasPassword) return false;
+    if (_passwordEnabled != _currentHasPassword) return false;
     // Pending biometric: the card owns the toggle state and batches
     // the enable / disable work into the Apply step. A toggle that
     // diverges from the applied value must re-enable Apply so the
@@ -274,14 +268,48 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// long password; T2: brute-force resistance from the hardware
   /// lockout on a short password) are surfaced as a hint under
   /// the field, not as a different field name.
-  bool get _requiresPasswordInput =>
-      !_matchesCurrentConfig &&
-      (widget.tier == SecurityTier.keychain ||
-          widget.tier == SecurityTier.hardware) &&
-      _passwordEnabled;
+  ///
+  /// Suppressed when the user is already on this tier *with the
+  /// password modifier on* — the only remaining divergence in that
+  /// state is the biometric flag, and the post-Apply biometric step
+  /// prompts for the live password through its own dialog. Asking
+  /// the user to re-type the password twice (card fields + dialog)
+  /// was the user-report bug that "two password fields are showing
+  /// on my own tier".
+  bool get _requiresPasswordInput {
+    if (widget.tier != SecurityTier.keychain &&
+        widget.tier != SecurityTier.hardware) {
+      return false;
+    }
+    if (!_passwordEnabled) return false;
+    if (_isCurrent && _currentHasPassword) return false;
+    return true;
+  }
 
-  bool get _requiresMasterPasswordInput =>
-      !_matchesCurrentConfig && widget.tier == SecurityTier.paranoid;
+  /// Same reasoning as [_requiresPasswordInput]: on Paranoid a
+  /// biometric-only toggle does not change the master password, and
+  /// the post-Apply biometric step re-prompts via the shared dialog,
+  /// so rendering the master-password pair on the current card is
+  /// redundant UI.
+  bool get _requiresMasterPasswordInput {
+    if (widget.tier != SecurityTier.paranoid) return false;
+    if (_isCurrent) return false;
+    return true;
+  }
+
+  /// Whether the currently-applied tier + modifiers already carry a
+  /// user-typed password. Paranoid is always true; T1+password is
+  /// true; T2 with `password` modifier is true. Derived from the
+  /// applied state the parent pushed down, not the pending card
+  /// state, because this predicate exists to tell the render code
+  /// whether we need a fresh password from the user.
+  bool get _currentHasPassword {
+    final current = widget.currentTier;
+    final mods = widget.currentModifiers;
+    return mods.password ||
+        current == SecurityTier.keychainWithPassword ||
+        current == SecurityTier.paranoid;
+  }
 
   bool get _inputsReady {
     if (_requiresPasswordInput) {

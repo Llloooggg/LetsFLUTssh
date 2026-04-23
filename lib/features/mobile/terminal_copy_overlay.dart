@@ -32,6 +32,7 @@ class TerminalCopyOverlay extends StatefulWidget {
     super.key,
     required this.terminal,
     required this.controller,
+    required this.scrollController,
     required this.fontSize,
     required this.fontFamily,
     required this.fontFamilyFallback,
@@ -40,6 +41,12 @@ class TerminalCopyOverlay extends StatefulWidget {
 
   final Terminal terminal;
   final TerminalController controller;
+
+  /// Shared with `TerminalView` so edge-panning during copy mode
+  /// scrolls the xterm viewport instead of clamping the virtual
+  /// cursor inside the visible rows — without this the user could
+  /// never select more than one screen of text at a time.
+  final ScrollController scrollController;
   final double fontSize;
   final String fontFamily;
   final List<String> fontFamilyFallback;
@@ -135,6 +142,12 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
   /// Consume [delta] pixels of finger movement, advance the cursor by the
   /// whole-cell remainder, and update the live selection. Called by the
   /// parent [MobileTerminalView] when a single-pointer drag is in flight.
+  ///
+  /// When the cursor would step past the viewport edge we scroll the
+  /// xterm buffer in that direction by the overflow cells instead of
+  /// clamping — this lets a single drag extend the selection through
+  /// as much scrollback as the buffer holds. Horizontal overflow still
+  /// clamps: xterm's viewport has no horizontal scrollback.
   void onCursorPan(Offset delta) {
     final cell = _measureCellSize();
     _pxX += delta.dx;
@@ -144,11 +157,39 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     if (dx == 0 && dy == 0) return;
     _pxX -= dx * cell.width;
     _pxY -= dy * cell.height;
+    final viewMaxY = widget.terminal.viewHeight - 1;
+    final targetY = _cursorY + dy;
+    int scrollOverflowCells = 0;
+    int newY = targetY;
+    if (targetY < 0) {
+      scrollOverflowCells = targetY; // negative → scroll up into scrollback
+      newY = 0;
+    } else if (targetY > viewMaxY) {
+      scrollOverflowCells = targetY - viewMaxY; // positive → toward live bottom
+      newY = viewMaxY;
+    }
+    if (scrollOverflowCells != 0) {
+      _scrollByCells(scrollOverflowCells, cell.height);
+    }
     setState(() {
       _cursorX = (_cursorX + dx).clamp(0, widget.terminal.viewWidth - 1);
-      _cursorY = (_cursorY + dy).clamp(0, widget.terminal.viewHeight - 1);
+      _cursorY = newY;
       _syncSelection();
     });
+  }
+
+  /// Jump the shared scroll controller by [cells] rows worth of pixels,
+  /// clamping to the scrollable extent. No-op when the controller is
+  /// not attached (widget still building) or the extent is zero (buffer
+  /// fits in the viewport).
+  void _scrollByCells(int cells, double cellHeight) {
+    if (!widget.scrollController.hasClients) return;
+    final pos = widget.scrollController.position;
+    final desired = (widget.scrollController.offset + cells * cellHeight).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    widget.scrollController.jumpTo(desired);
   }
 
   /// Drop the selection anchor at the current cursor position. Called by
@@ -158,11 +199,27 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
   /// progress.
   void onAnchorDown() {
     if (_anchorX != null) return;
-    final buf = widget.terminal.buffer;
-    final viewStart = buf.lines.length - buf.viewHeight;
     _anchorX = _cursorX;
-    _anchorYAbs = _cursorY + viewStart;
+    _anchorYAbs = _cursorY + _viewportStartLine();
     _syncSelection();
+  }
+
+  /// Buffer-absolute index of the first visible row, accounting for
+  /// live scroll offset. The old `buf.lines.length - buf.viewHeight`
+  /// formula only held when the view was pinned to the bottom —
+  /// during copy mode the user can scroll up, so we derive the
+  /// visible start from the shared scroll controller instead.
+  int _viewportStartLine() {
+    final buf = widget.terminal.buffer;
+    if (!widget.scrollController.hasClients) {
+      return buf.lines.length - buf.viewHeight;
+    }
+    final cellHeight = _measureCellSize().height;
+    if (cellHeight <= 0) return buf.lines.length - buf.viewHeight;
+    // Scroll offset pixels ÷ cell height = absolute row index of the
+    // topmost visible line (xterm renders from row 0 at offset 0,
+    // matching the same convention).
+    return (widget.scrollController.offset / cellHeight).floor();
   }
 
   void _syncSelection() {
@@ -170,8 +227,7 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     final ay = _anchorYAbs;
     if (ax == null || ay == null) return;
     final buf = widget.terminal.buffer;
-    final viewStart = buf.lines.length - buf.viewHeight;
-    final cyAbs = _cursorY + viewStart;
+    final cyAbs = _cursorY + _viewportStartLine();
     widget.controller.setSelection(
       buf.createAnchor(ax, ay),
       buf.createAnchor(_cursorX, cyAbs),

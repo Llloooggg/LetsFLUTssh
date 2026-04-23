@@ -358,6 +358,27 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // against the hardware vault, which triggers a biometric prompt
     // and couples the confirmation with the actual tier switch.
     final currentTier = ref.read(securityStateProvider).level;
+    final currentMods =
+        ref.read(configProvider).security?.modifiers ??
+        SecurityTierModifiers.defaults;
+    // A biometric-only flip on the already-applied tier (same tier
+    // AND same `password` modifier state) must not go through the
+    // tier-rekey pipeline. The docs' always-rekey invariant covers
+    // modifier flips that change the DB-key wrapping (password on
+    // ↔ off flips the HMAC gate / changes T1 ↔ T1+pw); toggling
+    // biometric does neither — it only (re)populates the biometric-
+    // gated keychain slot with the already-derived key, so rekeying
+    // would throw off the user (re-prompt for the password for no
+    // cryptographic gain). This branch forwards the biometric flip
+    // alone.
+    final biometricOnlyChange =
+        tier == currentTier &&
+        modifiers.password == currentMods.password &&
+        pendingBiometric != null;
+    if (biometricOnlyChange) {
+      await _applyBiometricOnlyToggle(pendingBiometric, currentTier);
+      return;
+    }
     if (!await _confirmCurrentPasswordIfDropping(currentTier, tier)) {
       return;
     }
@@ -400,6 +421,57 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     } catch (e) {
       AppLogger.instance.log(
         'Tier change failed: $e',
+        name: 'Settings',
+        error: e,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: '${l10n.changeSecurityTierFailed}: $e',
+        level: ToastLevel.error,
+      );
+    }
+  }
+
+  /// Handle the tier-card Apply when the only pending change is the
+  /// biometric toggle on the currently-applied tier. Skips the
+  /// tier-switch rekey entirely and runs just the biometric enable /
+  /// disable step with its own password prompt (enable) or straight
+  /// vault clear (disable).
+  Future<void> _applyBiometricOnlyToggle(
+    bool? pendingBiometric,
+    SecurityTier currentTier,
+  ) async {
+    if (pendingBiometric == null) return;
+    final l10n = S.of(context);
+    Uint8List? keyToStash;
+    if (pendingBiometric) {
+      // Same password-prompt path as the post-tier-change biometric
+      // enable — asks for the current password, verifies it against
+      // the live gate, returns the derived DB key.
+      keyToStash = await _captureKeyForBiometricEnable(
+        currentTier,
+        currentTier,
+      );
+      if (keyToStash == null) return; // user cancelled / wrong password
+    }
+    if (!mounted) return;
+    final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
+    AppProgressBarDialog.show(context, reporter);
+    try {
+      await _applyPendingBiometric(pendingBiometric, keyFromEnable: keyToStash);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: l10n.changeSecurityTierDone,
+        level: ToastLevel.success,
+      );
+      _checkState();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Biometric-only apply failed: $e',
         name: 'Settings',
         error: e,
       );

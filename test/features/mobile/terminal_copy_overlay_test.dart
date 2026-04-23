@@ -19,11 +19,13 @@ Widget _app(Widget child) {
 TerminalCopyOverlay _buildOverlay({
   required Terminal terminal,
   required TerminalController controller,
+  required ScrollController scrollController,
   Key? key,
 }) => TerminalCopyOverlay(
   key: key,
   terminal: terminal,
   controller: controller,
+  scrollController: scrollController,
   fontSize: 14,
   fontFamily: AppFonts.monoFamily,
   fontFamilyFallback: AppFonts.monoFallback,
@@ -36,9 +38,16 @@ void main() {
     ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
+      final scroll = ScrollController();
 
       await tester.pumpWidget(
-        _app(_buildOverlay(terminal: terminal, controller: controller)),
+        _app(
+          _buildOverlay(
+            terminal: terminal,
+            controller: controller,
+            scrollController: scroll,
+          ),
+        ),
       );
 
       expect(controller.suspendedPointerInputs, isTrue);
@@ -52,12 +61,19 @@ void main() {
       final terminal = Terminal(maxLines: 100);
       terminal.write('hello world');
       final controller = TerminalController();
+      final scroll = ScrollController();
       final line = terminal.buffer.lines[0];
       controller.setSelection(line.createAnchor(0), line.createAnchor(5));
       expect(controller.selection, isNotNull);
 
       await tester.pumpWidget(
-        _app(_buildOverlay(terminal: terminal, controller: controller)),
+        _app(
+          _buildOverlay(
+            terminal: terminal,
+            controller: controller,
+            scrollController: scroll,
+          ),
+        ),
       );
 
       expect(controller.selection, isNull);
@@ -71,11 +87,17 @@ void main() {
       final terminal = Terminal(maxLines: 100);
       terminal.write('hello world');
       final controller = TerminalController();
+      final scroll = ScrollController();
       final key = GlobalKey<TerminalCopyOverlayState>();
 
       await tester.pumpWidget(
         _app(
-          _buildOverlay(terminal: terminal, controller: controller, key: key),
+          _buildOverlay(
+            terminal: terminal,
+            controller: controller,
+            scrollController: scroll,
+            key: key,
+          ),
         ),
       );
 
@@ -96,11 +118,17 @@ void main() {
     ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
+      final scroll = ScrollController();
       final key = GlobalKey<TerminalCopyOverlayState>();
 
       await tester.pumpWidget(
         _app(
-          _buildOverlay(terminal: terminal, controller: controller, key: key),
+          _buildOverlay(
+            terminal: terminal,
+            controller: controller,
+            scrollController: scroll,
+            key: key,
+          ),
         ),
       );
 
@@ -120,11 +148,17 @@ void main() {
       final terminal = Terminal(maxLines: 100);
       terminal.write('hello world');
       final controller = TerminalController();
+      final scroll = ScrollController();
       final key = GlobalKey<TerminalCopyOverlayState>();
 
       await tester.pumpWidget(
         _app(
-          _buildOverlay(terminal: terminal, controller: controller, key: key),
+          _buildOverlay(
+            terminal: terminal,
+            controller: controller,
+            scrollController: scroll,
+            key: key,
+          ),
         ),
       );
 

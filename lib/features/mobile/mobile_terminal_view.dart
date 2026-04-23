@@ -58,6 +58,15 @@ class MobileTerminalView extends ConsumerStatefulWidget {
 class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
+
+  /// Shared with the copy overlay. Passing a `ScrollController`
+  /// into `TerminalView` gives us a handle to the viewport offset
+  /// so copy mode can scroll the buffer when the virtual cursor
+  /// hits the top / bottom edge during selection extension.
+  /// Without this the cursor clamps inside the visible viewport,
+  /// making it impossible to select more than one screen's worth
+  /// of scrollback in one gesture.
+  final ScrollController _terminalScrollController = ScrollController();
   final _keyboardKey = GlobalKey<SshKeyboardBarState>();
   final _copyOverlayKey = GlobalKey<TerminalCopyOverlayState>();
   ShellConnection? _shellConn;
@@ -203,6 +212,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     _shellConn?.close();
     _terminalController.removeListener(_enforceCopyModeSelectionGuard);
     _terminalController.dispose();
+    _terminalScrollController.dispose();
     super.dispose();
   }
 
@@ -347,29 +357,31 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _fontSize = configFontSize;
     }
 
-    // Layout rationale. Scaffold disables `resizeToAvoidBottomInset` on
-    // the terminal page (see MobileShell) so the viewport never shrinks
-    // when the soft keyboard opens — shrinking would make xterm reflow
-    // its buffer and duplicate the first scrollback lines (see commit
-    // 20c60c9). That's the **hard** invariant: the terminal's rendered
-    // size cannot track the keyboard.
+    // Layout rationale.
     //
-    // Copy-mode hint + toolbar are a different story. They are small
-    // strips (~24 px + ~40 px) and shrinking the terminal by that much
-    // is user-visible *and requested* — the toolbar must dock against
-    // the virtual keyboard so the user's thumb does not chase a
-    // floating button while selecting. A minor reflow when the mode
-    // toggles is the tradeoff.
+    // The terminal area's bottom tracks the bar's bottom so the last
+    // rendered terminal row sits **exactly** at the keyboard bar's
+    // top edge. Previously the reservation was fixed (nav-bar +
+    // bar) which kept the terminal a constant height across
+    // keyboard events — that avoided xterm reflow, but pushed
+    // content under the keyboard bar on every keyboard open. Users
+    // pointed out text was getting obscured; the new rule is
+    // "terminal ends where the bar begins". The xterm resize that
+    // results from keyboard open/close is unavoidable — pure
+    // height changes in xterm's buffer `resize` only trim the
+    // bottom, not rewrap the middle, so the visual cost is lines
+    // scrolling into the scrollback, not mid-buffer garbage.
     //
-    // Result: Stack with the terminal Column reserving only the
-    // keyboard-bar slot at the bottom (fixed `itemHeightXl`, not
-    // keyboard-inset-aware). The bottom control strip — either the SSH
-    // keyboard bar (normal mode) or the copy-mode toolbar (copy mode)
-    // — lives in a separate Positioned that floats above the soft
-    // keyboard via `viewInsets.bottom`. Swapping the bottom widget
-    // between the two modes keeps the visible height of the terminal
-    // stable across keyboard open/close and matches what the user asked
-    // for ("toolbar docked against keyboard").
+    // Copy-mode hint + toolbar are **overlays** on top of the
+    // terminal rather than Column children — so toggling copy mode
+    // does NOT resize the terminal widget. That avoids the second
+    // user report ("huge middle gaps when entering copy mode with
+    // lots of text"): the gaps were xterm reacting to the layout
+    // shrink from the hint being inserted above the terminal.
+    // With overlays, the first + last visible rows are briefly
+    // covered by the hint / toolbar banners while copy mode is
+    // active — the user can still scroll, and the trade is much
+    // better than mid-buffer artefacts.
     final mq = MediaQuery.of(context);
     final keyboardInset = mq.viewInsets.bottom;
     // Bottom nav bar (MobileShell) sits at the very bottom of the
@@ -383,49 +395,45 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     final barBottom = math.max(navBarHeight, keyboardInset);
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
-    // Reserve enough vertical space below the terminal Column for the
-    // bottom control strip (toolbar stacked on top of the SSH keyboard
-    // bar in copy mode, or just the keyboard bar in normal mode) PLUS
-    // the fixed nav-bar slot underneath. The reservation is a fixed
-    // constant — it never tracks `viewInsets` — so the terminal
-    // widget's height is invariant across keyboard open/close. Hint +
-    // toolbar toggling still reflows by their own small height; the
-    // terminal never reflows by the ~300 px the soft keyboard would
-    // otherwise consume.
+    // Terminal reservation = barBottom + barHeight. Keeps the last
+    // rendered row at the bar's top, regardless of keyboard state.
+    // Copy-mode toolbar adds its own slot only when visible so the
+    // bar+toolbar stack stays flush with the terminal edge.
     final bottomStripHeight =
-        navBarHeight +
+        barBottom +
         AppTheme.itemHeightXl +
         (_copyMode ? _copyToolbarHeight : 0);
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Terminal + hint: bottom pinned to a fixed `bottomStripHeight`
-        // — does NOT include `keyboardInset`. Terminal rendered height
-        // stays constant while the keyboard opens / closes.
-        //
-        // `SelectionContainer.disabled` opts the terminal area out of
-        // the app-wide `AppSelectionArea` that wraps `MobileShell`:
-        // without it, taps inside the xterm widget could bubble up to
-        // the SelectionArea's gesture recognizers and bring up the
-        // system text-selection toolbar ("select all / copy / paste"),
-        // which is a surprise on a terminal whose copy path is a
-        // dedicated Copy button. The overlay is still fully
-        // interactive — SelectionContainer.disabled only suppresses
-        // the selection machinery, not taps.
+        // Terminal: bottom pinned to `bottomStripHeight` which tracks
+        // the keyboard. `SelectionContainer.disabled` opts the area
+        // out of any ancestor `SelectionArea` so taps on xterm cannot
+        // trigger a system text-selection toolbar.
         Positioned(
           left: 0,
           top: 0,
           right: 0,
           bottom: bottomStripHeight,
-          child: SelectionContainer.disabled(
-            child: Column(
-              children: [
-                if (_copyMode) CopyModeHint(anchorSet: anchorSet),
-                Expanded(child: _buildTerminalArea()),
-              ],
+          child: SelectionContainer.disabled(child: _buildTerminalArea()),
+        ),
+        // Copy-mode hint — overlay at the top of the terminal when
+        // active. Rendered as a `Positioned` rather than a Column
+        // child so entering copy mode doesn't resize the terminal
+        // widget (which would trigger xterm buffer.resize, the
+        // source of the "huge middle gaps when entering copy mode
+        // with a full screen of text" report). Hint covers the top
+        // row while copy mode is live — acceptable: user is aiming
+        // the virtual cursor, not reading the covered row.
+        if (_copyMode)
+          Positioned(
+            left: 0,
+            top: 0,
+            right: 0,
+            child: SelectionContainer.disabled(
+              child: CopyModeHint(anchorSet: anchorSet),
             ),
           ),
-        ),
         // Bottom control strip — floats above the soft keyboard via
         // `viewInsets.bottom`, clamped to `navBarHeight` so it stays
         // above the mobile shell's bottom nav bar when the keyboard is
@@ -531,6 +539,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
             child: TerminalView(
               _terminal,
               controller: _terminalController,
+              scrollController: _terminalScrollController,
               autofocus: true,
               backgroundOpacity: 1.0,
               padding: const EdgeInsets.all(4),
@@ -565,6 +574,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
                 key: _copyOverlayKey,
                 terminal: _terminal,
                 controller: _terminalController,
+                scrollController: _terminalScrollController,
                 fontSize: _fontSize,
                 fontFamily: AppFonts.monoFamily,
                 fontFamilyFallback: AppFonts.monoFallback,
