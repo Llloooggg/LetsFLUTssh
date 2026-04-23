@@ -126,7 +126,26 @@ class KnownHostsManager {
   }
 
   /// Verify host key. Returns true if accepted.
+  ///
+  /// Serialised against every other mutator via `_serializeWrite` so a
+  /// user-initiated `clearAll` / `removeMultiple` / `importFromString`
+  /// cannot interleave between the cache read and the follow-on
+  /// `_addHost` / `_updateHost`. Prior shape: reader path could call
+  /// `onUnknownHost` (long-running user prompt), user taps Accept, the
+  /// pending `clearAll` — which was queued while the prompt was open
+  /// — wiped `_hosts` and the DB, then `_addHost` re-wrote the row
+  /// the user had just told us to forget.
+  ///
+  /// Verifies are rare and short; full serialisation does not hurt
+  /// throughput and keeps the invariant trivial.
   Future<bool> verify(
+    String host,
+    int port,
+    String keyType,
+    List<int> keyBytes,
+  ) => _serializeWrite(() => _verifyInner(host, port, keyType, keyBytes));
+
+  Future<bool> _verifyInner(
     String host,
     int port,
     String keyType,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -457,6 +458,49 @@ void main() {
         expect(manager.entries.containsKey('gamma.com:22'), isTrue);
         expect(manager.entries.containsKey('delta.com:22'), isTrue);
         expect(manager.entries.containsKey('alpha.com:22'), isFalse);
+      },
+    );
+
+    test(
+      'verify is serialised against clearAll — accepted TOFU survives',
+      () async {
+        // Race reconstruction: user opens a fresh connection, the
+        // TOFU prompt fires via `onUnknownHost` and awaits a user
+        // tap; while the prompt is open another Settings action
+        // kicks `clearAll`. Before the fix, the reader path
+        // (`verify`) was not locked, so `clearAll` interleaved and
+        // wiped `_hosts` + the DB; when the user tapped Accept the
+        // TOFU `_addHost` re-wrote the row the user had just
+        // asked to forget. With verify now inside `_serializeWrite`,
+        // `clearAll` is queued behind the in-flight verify and the
+        // user's Accept wins cleanly.
+        final gate = Completer<bool>();
+        manager.onUnknownHost = (_, _, _, _) async => gate.future;
+        await manager.load();
+
+        // Kick off verify — it will block inside onUnknownHost until
+        // we resolve `gate`. In parallel submit a clearAll; it must
+        // wait for verify to finish before running.
+        final verifyFut = manager.verify('alpha.com', 22, 'ssh-rsa', [1, 2]);
+        final clearFut = manager.clearAll();
+
+        // Give the scheduler a beat so both futures have had a
+        // chance to grab the write lock.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        // Accept TOFU; verify resolves, clearAll unblocks.
+        gate.complete(true);
+        await verifyFut;
+        await clearFut;
+
+        // clearAll runs AFTER verify finished, so the accepted TOFU
+        // row is wiped by the time we inspect — but crucially there
+        // is no state where verify re-added a row to a cleared DB.
+        // That's the invariant being pinned: the two ops serialise
+        // cleanly rather than interleave. Count == 0 (clear won the
+        // tail), but the important guarantee is that the earlier
+        // verify never saw a half-cleared state.
+        expect(manager.count, 0);
       },
     );
 

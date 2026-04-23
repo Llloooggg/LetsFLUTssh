@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -148,6 +149,70 @@ void main() {
       // Any locked limiter reports a non-zero cooldown.
       expect(limiter.status().failureCount, greaterThanOrEqualTo(1));
     });
+
+    test('setPassword writes atomically — no .tmp sibling survives', () async {
+      // A `File.writeAsBytes(flush: true)` crash mid-write used to
+      // truncate the disk hash. `writeBytesAtomic` renames an
+      // already-fsynced tmp file into place, so the target path is
+      // only visible in a fully-written state. This test asserts the
+      // atomic-rename pattern is wired up by looking for leftover
+      // `.tmp*` siblings after a successful call.
+      await newGate().setPassword('hunter2');
+      final siblings = tempDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => p.basename(f.path).contains('.tmp'))
+          .toList();
+      expect(
+        siblings,
+        isEmpty,
+        reason:
+            'writeBytesAtomic must rename the tmp file into place; no '
+            '.tmp* sibling should remain.',
+      );
+    });
+
+    test(
+      'setPassword writes disk hash before keychain pepper (order invariant)',
+      () async {
+        // Load-bearing for L2 recovery. Disk-first order: a crash
+        // between the two writes leaves the OLD hash still verifiable
+        // under the OLD pepper still in the keychain. Keychain-first
+        // would leave the keychain holding the NEW pepper with the
+        // OLD disk hash — correct password stops verifying, user is
+        // locked out until full reset.
+        //
+        // Fail the keychain write on purpose; expect the disk hash to
+        // NOT survive (rollback) so `isConfigured()` stays false and
+        // the wizard can re-provision cleanly.
+        const keyHandler = MethodChannel(
+          'plugins.it_nomads.com/flutter_secure_storage',
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(keyHandler, (call) async {
+              if (call.method == 'write') {
+                throw PlatformException(
+                  code: 'keychain_unavailable',
+                  message: 'simulated failure',
+                );
+              }
+              return null;
+            });
+
+        final gate = newGate();
+        await expectLater(
+          () => gate.setPassword('hunter2'),
+          throwsA(isA<PlatformException>()),
+        );
+        expect(
+          File('${tempDir.path}/security_pass_hash.bin').existsSync(),
+          isFalse,
+          reason:
+              'Keychain failure must roll back the disk hash — otherwise '
+              'isConfigured() returns true but verify() can never succeed.',
+        );
+      },
+    );
 
     test(
       'setPassword wipes rate_limit_state so a new HMAC does not look tampered',

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -398,9 +397,3 @@ class TpmClient {
     ]);
   }
 }
-
-// Kept at file bottom so the top of the file reads as the public
-// contract first. Not exported; callers rely only on the typed
-// methods above.
-// ignore: unused_element
-String _base64Debug(Uint8List bytes) => base64Encode(bytes);

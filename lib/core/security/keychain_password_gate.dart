@@ -105,16 +105,39 @@ class KeychainPasswordGate {
     final pepper = _rand(_pepperLength);
     final hmac = _computeHmac(password, salt, pepper);
 
-    await _keychain.write(key: _pepperKey, value: base64.encode(pepper));
-
     final file = await _hashFile();
     await file.parent.create(recursive: true);
     final blob = jsonEncode({
       'salt': base64.encode(salt),
       'hmac': base64.encode(hmac),
     });
-    await file.writeAsBytes(utf8.encode(blob), flush: true);
-    await hardenFilePerms(file.path);
+    // Two invariants, both load-bearing for L2:
+    //
+    //   (1) Atomic write of the disk hash. A `File.writeAsBytes` crash
+    //       mid-flush yields torn JSON; next launch `verify()` throws
+    //       on decode and falls back to plaintext-tier unlock — the
+    //       user thought L2 protected them, wakes up on L0.
+    //   (2) Disk before keychain. Old order (keychain-first) could
+    //       crash between steps and leave keychain holding the NEW
+    //       pepper while disk holds the OLD salt+HMAC; on next launch
+    //       the correct password fails to verify (HMAC mismatch),
+    //       forcing "forgot password" wipe. Disk-first means a crash
+    //       between steps leaves the OLD state fully verifiable under
+    //       the OLD pepper still in the keychain.
+    await writeBytesAtomic(file.path, utf8.encode(blob));
+    try {
+      await _keychain.write(key: _pepperKey, value: base64.encode(pepper));
+    } catch (e) {
+      // Keychain write failed after the disk hash landed. The gate is
+      // now half-configured — pepper missing, disk hash present but
+      // unverifiable. Delete the disk hash so `isConfigured()` returns
+      // false and the next open routes through the wizard instead of
+      // perma-rejecting the correct password.
+      try {
+        await file.delete();
+      } catch (_) {}
+      rethrow;
+    }
 
     await _clearRateLimitState();
   }
