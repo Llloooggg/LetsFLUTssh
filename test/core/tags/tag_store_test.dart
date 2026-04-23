@@ -155,4 +155,44 @@ void main() {
       expect(tags, isEmpty);
     });
   });
+
+  group('TagStore — unattached database (locked)', () {
+    test('add / delete / deleteAll are no-ops without a DB', () async {
+      // `setDatabase` has not been called. All write paths must
+      // silently return so the caller can treat them uniformly
+      // before and after the DB unlock.
+      final unattached = TagStore();
+      await unattached.add(Tag(name: 'A'));
+      await unattached.delete('whatever');
+      await unattached.deleteAll();
+    });
+
+    test('session/folder tagging paths are no-ops without a DB', () async {
+      final unattached = TagStore();
+      await unattached.tagSession('s', 't');
+      await unattached.untagSession('s', 't');
+      await unattached.tagFolder('f', 't');
+      await unattached.untagFolder('f', 't');
+      expect(await unattached.getForSession('s'), isEmpty);
+      expect(await unattached.getForFolder('f'), isEmpty);
+    });
+  });
+
+  group('TagStore.deleteAll with a DB attached', () {
+    test('wipes every tag + cascades session/folder links', () async {
+      final t1 = Tag(name: 'Alpha');
+      final t2 = Tag(name: 'Beta');
+      await store.add(t1);
+      await store.add(t2);
+      await store.tagSession('s1', t1.id);
+      await store.tagFolder('f1', t2.id);
+
+      await store.deleteAll();
+      expect(await store.loadAll(), isEmpty);
+      // Link rows ride on the `onDelete: cascade` FK — the dao clears
+      // them as a side-effect of the parent delete.
+      expect(await store.getForSession('s1'), isEmpty);
+      expect(await store.getForFolder('f1'), isEmpty);
+    });
+  });
 }

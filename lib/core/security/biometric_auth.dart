@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import '../../utils/logger.dart';
 import 'linux/fprintd_client.dart';
 import 'linux/tpm_client.dart';
+import 'windows/winbio_probe.dart';
 
 /// Why biometric unlock is unavailable. Distinguishes "no hardware"
 /// from "hardware but nothing enrolled" so the UI can show a tooltip
@@ -58,24 +59,29 @@ enum BiometricBackingLevel {
 typedef BiometricAvailability = BiometricUnavailableReason?;
 
 /// Thin wrapper around [LocalAuthentication] for the optional biometric
-/// unlock of master-password mode.
+/// unlock on T1+password and T2+password. Paranoid does not expose a
+/// biometric shortcut by design — see ARCHITECTURE §3.6 → Biometric
+/// unlock for the rationale.
 ///
 /// **Threat model**: biometrics is a UX shortcut, not a new cryptographic
-/// layer — the master-password-derived KEK is the real secret, the
-/// biometric gate only decides whether to reveal the cached key to the
-/// process.
+/// layer — the tier's user-typed secret is the real gate, the biometric
+/// slot only decides whether to reveal the cached key without requiring
+/// the user to retype.
 class BiometricAuth {
   final LocalAuthentication _auth;
   final FprintdClient _fprintd;
   final TpmClient _tpm;
+  final WinBioProbe _winbio;
 
   BiometricAuth({
     LocalAuthentication? auth,
     FprintdClient? fprintdClient,
     TpmClient? tpmClient,
+    WinBioProbe? winbioProbe,
   }) : _auth = auth ?? LocalAuthentication(),
        _fprintd = fprintdClient ?? FprintdClient(),
-       _tpm = tpmClient ?? TpmClient();
+       _tpm = tpmClient ?? TpmClient(),
+       _winbio = winbioProbe ?? const WinBioProbe();
 
   /// Convenience: true if [availability] returns null.
   Future<bool> isAvailable() async => (await availability()) == null;
@@ -123,11 +129,22 @@ class BiometricAuth {
   ///
   /// Windows caveat: `canCheckBiometrics` + a non-empty
   /// `getAvailableBiometrics` only signal that Windows Hello is
-  /// configured — which is satisfied by a PIN alone. We additionally
-  /// filter the enrolled list for a real bio type (fingerprint, face,
-  /// iris, strong) so a PIN-only Hello device is correctly reported
-  /// as [BiometricUnavailableReason.notEnrolled] instead of claiming
-  /// biometrics work.
+  /// configured — which is satisfied by a PIN alone. Two safeguards
+  /// apply:
+  ///
+  ///   1. The enrolled list is filtered for a real bio type
+  ///      (fingerprint, face, iris, strong). A PIN-only Hello device
+  ///      therefore falls to [BiometricUnavailableReason.notEnrolled].
+  ///   2. An extra `winbio.dll` probe enumerates the *physical*
+  ///      biometric sensors attached to the host — local_auth has
+  ///      been observed returning `BiometricType.strong` on Hello
+  ///      PIN-only setups depending on the build, so the Dart-side
+  ///      filter alone isn't enough. Zero units → the hardware isn't
+  ///      there; the toggle must not light up, regardless of what
+  ///      UserConsentVerifier claims. The probe is a straight
+  ///      `WinBioEnumBiometricUnits(factor=FINGERPRINT|FACIAL|IRIS)`
+  ///      + `WinBioFree` — no prompts, no side effects, runs on every
+  ///      Windows SKU we ship to.
   Future<BiometricAvailability> availability() async {
     if (Platform.isLinux) return _linuxAvailability();
     try {
@@ -144,6 +161,16 @@ class BiometricAuth {
             t == BiometricType.strong,
       );
       if (!hasRealBiometric) return BiometricUnavailableReason.notEnrolled;
+      if (Platform.isWindows) {
+        final units = await _winbio.countBiometricUnits();
+        if (units == 0) {
+          AppLogger.instance.log(
+            'WinBio reports zero biometric units; demoting Hello to noSensor',
+            name: 'BiometricAuth',
+          );
+          return BiometricUnavailableReason.noSensor;
+        }
+      }
       return null;
     } catch (e) {
       AppLogger.instance.log(

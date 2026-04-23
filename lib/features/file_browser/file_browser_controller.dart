@@ -64,6 +64,15 @@ class FilePaneController extends ChangeNotifier {
   final Queue<String> _folderSizeQueue = Queue();
   static const _maxConcurrentSizeCalcs = 2;
 
+  /// Revision counter bumped every time a queued folder-size calculation
+  /// resolves (or is cleared). Exposed so the file-row's size Text can
+  /// subscribe via [ValueListenableBuilder] without going through the
+  /// main [ChangeNotifier] — a completion of a background size probe
+  /// used to notify every pane listener and rebuild the entire pane just
+  /// to update a single row's trailing text.
+  final ValueNotifier<int> _folderSizeRevision = ValueNotifier<int>(0);
+  ValueListenable<int> get folderSizeRevision => _folderSizeRevision;
+
   // Navigation history
   final _backStack = <String>[];
   final _forwardStack = <String>[];
@@ -87,7 +96,7 @@ class FilePaneController extends ChangeNotifier {
   /// `requestFolderSize` retries from scratch. Used by the "retry" affordance
   /// in the UI when the user wants to re-attempt a failed calculation.
   void clearFolderSize(String path) {
-    if (_folderSizes.remove(path) != null) notifyListeners();
+    if (_folderSizes.remove(path) != null) _folderSizeRevision.value++;
   }
 
   /// Request async folder size calculation (queued, max 2 concurrent).
@@ -112,7 +121,7 @@ class FilePaneController extends ChangeNotifier {
           .then((size) {
             _folderSizes[path] = FolderSizeOk(size);
             _folderSizesPending.remove(path);
-            notifyListeners();
+            _folderSizeRevision.value++;
             _drainSizeQueue();
           })
           .catchError((e) {
@@ -125,7 +134,7 @@ class FilePaneController extends ChangeNotifier {
               'Folder size failed: $path: $e',
               name: 'FilePane',
             );
-            notifyListeners();
+            _folderSizeRevision.value++;
             _drainSizeQueue();
           });
     }
@@ -308,6 +317,7 @@ class FilePaneController extends ChangeNotifier {
   void dispose() {
     _backStack.clear();
     _forwardStack.clear();
+    _folderSizeRevision.dispose();
     super.dispose();
   }
 }

@@ -730,20 +730,46 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final entry = ctrl.entries[index];
     final isSelected = ctrl.selected.contains(entry.path);
 
-    // Trigger async folder size calculation for directories (if enabled)
-    String? folderSizeText;
+    // Directories with the size column enabled subscribe to the folder-size
+    // revision directly, so a completed background dir-size probe refreshes
+    // just this row's trailing text instead of going through the pane's
+    // main ChangeNotifier (which would rebuild the entire 700+ line tree).
     if (entry.isDir && widget.showFolderSizes) {
-      final cachedSize = ctrl.folderSize(entry.path);
-      folderSizeText = switch (cachedSize) {
-        FolderSizeOk(:final bytes) => formatSize(bytes),
-        FolderSizeFailed() => '?',
-        null => () {
-          ctrl.requestFolderSize(entry.path);
-          return '...';
-        }(),
-      };
+      return ValueListenableBuilder<int>(
+        valueListenable: ctrl.folderSizeRevision,
+        builder: (context, _, child) {
+          final cachedSize = ctrl.folderSize(entry.path);
+          final folderSizeText = switch (cachedSize) {
+            FolderSizeOk(:final bytes) => formatSize(bytes),
+            FolderSizeFailed() => '?',
+            null => () {
+              ctrl.requestFolderSize(entry.path);
+              return '...';
+            }(),
+          };
+          return _buildFileRowWrapper(
+            context,
+            theme,
+            entry,
+            isSelected,
+            cols,
+            folderSizeText,
+          );
+        },
+      );
     }
 
+    return _buildFileRowWrapper(context, theme, entry, isSelected, cols, null);
+  }
+
+  Widget _buildFileRowWrapper(
+    BuildContext context,
+    ThemeData theme,
+    FileEntry entry,
+    bool isSelected,
+    ({bool size, bool modified, bool mode, bool owner}) cols,
+    String? folderSizeText,
+  ) {
     final row = FileRow(
       key: ValueKey(entry.path),
       entry: entry,

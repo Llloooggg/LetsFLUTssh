@@ -5,75 +5,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/biometric_auth.dart';
-import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/widgets/unlock_dialog.dart';
 
-/// Biometric vault with no stashed key — forces the dialog onto the
-/// password path the existing tests expect.
-class _NoBiometricVault extends BiometricKeyVault {
-  @override
-  Future<bool> isStored() async => false;
-
-  @override
-  Future<Uint8List?> read() async => null;
-}
-
-class _NoBiometricAuth extends BiometricAuth {
-  @override
-  Future<bool> isAvailable() async => false;
-
-  @override
-  Future<BiometricAvailability> availability() async =>
-      BiometricUnavailableReason.platformUnsupported;
-
-  @override
-  Future<bool> authenticate(String reason) async => false;
-}
-
-/// Biometric vault + auth that both succeed — drives the biometric-priority
-/// path (auto-trigger on first frame, pop with cached key).
-class _StashedBiometricVault extends BiometricKeyVault {
-  final Uint8List key;
-
-  _StashedBiometricVault(this.key);
-
-  @override
-  Future<bool> isStored() async => true;
-
-  @override
-  Future<Uint8List?> read() async => key;
-}
-
-class _OkBiometricAuth extends BiometricAuth {
-  int authenticateCalls = 0;
-
-  @override
-  Future<bool> isAvailable() async => true;
-
-  @override
-  Future<BiometricAvailability> availability() async => null;
-
-  @override
-  Future<bool> authenticate(String reason) async {
-    authenticateCalls++;
-    return true;
-  }
-}
-
-class _CancelledBiometricAuth extends BiometricAuth {
-  @override
-  Future<bool> isAvailable() async => true;
-
-  @override
-  Future<BiometricAvailability> availability() async => null;
-
-  @override
-  Future<bool> authenticate(String reason) async => false;
-}
+// UnlockDialog is Paranoid-only and no longer probes the biometric
+// providers at all — the tier's "no OS trust" premise rules out a
+// biometric-gated vault (see the dialog's class docstring). The
+// previous test harness stubbed both providers to drive the
+// biometric-priority flow; with that flow removed, there is nothing
+// to override and no biometric stubs to carry.
 
 void main() {
   late Directory tempDir;
@@ -99,17 +40,12 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  List<Override> defaultOverrides() => <Override>[
-    biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
-    biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
-  ];
-
   Widget buildApp({
     required void Function(BuildContext) onPressed,
     List<Override>? overrides,
   }) {
     return ProviderScope(
-      overrides: overrides ?? defaultOverrides(),
+      overrides: overrides ?? const <Override>[],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
@@ -271,9 +207,15 @@ void main() {
       expect(popScope.canPop, isFalse);
     });
 
-    testWidgets('biometric retry button hidden when biometric unavailable', (
+    testWidgets('no biometric retry button — Paranoid does not expose it', (
       tester,
     ) async {
+      // Paranoid tier does not offer biometric unlock by design: the
+      // tier's premise is "no OS trust" and a biometric-gated vault
+      // would pull the DB key back into the OS keychain layer the
+      // tier avoids. The dialog must therefore never render the
+      // fingerprint retry affordance, regardless of what the
+      // platform biometric stack says.
       await openDialog(
         tester,
         onPressed: (ctx) {
@@ -281,81 +223,7 @@ void main() {
         },
       );
 
-      // No stashed key + unavailable auth → action surface hides the
-      // retry button instead of rendering a dead control.
       expect(find.byIcon(Icons.fingerprint), findsNothing);
-    });
-  });
-
-  group('UnlockDialog biometric priority', () {
-    testWidgets(
-      'auto-triggers biometric on first frame and pops with cached key',
-      (tester) async {
-        final cachedKey = Uint8List.fromList(List.filled(32, 9));
-        final auth = _OkBiometricAuth();
-        final stub = _StubMasterPasswordManager(
-          basePath: tempDir.path,
-          acceptPassword: false,
-        );
-
-        await tester.pumpWidget(
-          buildApp(
-            onPressed: (ctx) {
-              UnlockDialog.show(ctx, manager: stub);
-            },
-            overrides: [
-              biometricKeyVaultProvider.overrideWithValue(
-                _StashedBiometricVault(cachedKey),
-              ),
-              biometricAuthProvider.overrideWithValue(auth),
-            ],
-          ),
-        );
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
-
-        expect(
-          auth.authenticateCalls,
-          1,
-          reason: 'biometric prompt must auto-fire on first frame',
-        );
-        // Dialog popped → back at the open button.
-        expect(find.text('Master Password'), findsNothing);
-      },
-    );
-
-    testWidgets('cancelled biometric shows retry button + error label', (
-      tester,
-    ) async {
-      final cachedKey = Uint8List.fromList(List.filled(32, 9));
-      final stub = _StubMasterPasswordManager(
-        basePath: tempDir.path,
-        acceptPassword: false,
-      );
-
-      await tester.pumpWidget(
-        buildApp(
-          onPressed: (ctx) {
-            UnlockDialog.show(ctx, manager: stub);
-          },
-          overrides: [
-            biometricKeyVaultProvider.overrideWithValue(
-              _StashedBiometricVault(cachedKey),
-            ),
-            biometricAuthProvider.overrideWithValue(_CancelledBiometricAuth()),
-          ],
-        ),
-      );
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      // Dialog still open — biometric cancelled, not success.
-      expect(find.text('Master Password'), findsOneWidget);
-      // Retry button is visible (action surface remembers biometric
-      // was offered).
-      expect(find.byIcon(Icons.fingerprint), findsOneWidget);
-      // Cancellation surfaces as a visible error, not silent.
-      expect(find.text('Biometric unlock cancelled.'), findsOneWidget);
     });
   });
 

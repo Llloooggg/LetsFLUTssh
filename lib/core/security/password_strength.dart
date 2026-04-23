@@ -27,6 +27,16 @@ enum PasswordStrength {
   veryStrong,
 }
 
+/// Character-class regexes compiled once at load time. Previously the
+/// body of [assessPasswordStrength] allocated four fresh [RegExp] objects
+/// on every keystroke while the master-password meter re-ran live; on a
+/// long typed password that churn showed up in the paint budget next to
+/// the meter widget itself.
+final _hasLowerRegex = RegExp(r'[a-z]');
+final _hasUpperRegex = RegExp(r'[A-Z]');
+final _hasDigitRegex = RegExp(r'[0-9]');
+final _hasSymbolRegex = RegExp(r'[^A-Za-z0-9]');
+
 /// Classify [password] into a [PasswordStrength] tier. Pure function —
 /// unit-testable, no I/O, no allocations beyond the regex matches the
 /// caller already pays for.
@@ -34,10 +44,10 @@ PasswordStrength assessPasswordStrength(String password) {
   if (password.isEmpty) return PasswordStrength.empty;
 
   final length = password.length;
-  final hasLower = password.contains(RegExp(r'[a-z]'));
-  final hasUpper = password.contains(RegExp(r'[A-Z]'));
-  final hasDigit = password.contains(RegExp(r'[0-9]'));
-  final hasSymbol = password.contains(RegExp(r'[^A-Za-z0-9]'));
+  final hasLower = password.contains(_hasLowerRegex);
+  final hasUpper = password.contains(_hasUpperRegex);
+  final hasDigit = password.contains(_hasDigitRegex);
+  final hasSymbol = password.contains(_hasSymbolRegex);
   final classes =
       (hasLower ? 1 : 0) +
       (hasUpper ? 1 : 0) +

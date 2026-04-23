@@ -16,6 +16,15 @@ class SFTPService {
   /// Chunk size for streaming file uploads (64 KiB).
   static const _uploadChunkSize = 65536;
 
+  /// Maximum number of files transferred in parallel within a single
+  /// directory level during [uploadDir] / [downloadDir]. Kept modest
+  /// on purpose: dartssh2 pipelines channel operations over a single
+  /// TCP connection, and too many concurrent SFTP file handles can
+  /// blow past the server-side MaxSessions limit (OpenSSH defaults to
+  /// 10). Subdirectories are still walked sequentially, so the global
+  /// in-flight count is bounded by this constant.
+  static const _maxConcurrentFileTransfers = 4;
+
   final SftpClient _sftp;
 
   SFTPService(this._sftp);
@@ -296,33 +305,47 @@ class SFTPService {
       AppLogger.instance.log('mkdir $remoteDir: $e', name: 'SFTP');
     }
 
+    // Split the directory contents into files and subdirs. Files at this
+    // level run in parallel (bounded by [_maxConcurrentFileTransfers]);
+    // subdirectories are walked sequentially so the global in-flight count
+    // never exceeds the limit even on deep trees.
     final dir = Directory(localDir);
+    final files = <File>[];
+    final subdirs = <Directory>[];
     await for (final entity in dir.list()) {
-      final name = p.basename(entity.path);
-      final remotePath = p.posix.join(remoteDir, name);
-
       if (entity is Directory) {
-        await _uploadDirRecursive(
-          entity.path,
-          remotePath,
-          onProgress,
-          totalFiles,
-          counter,
-          depth + 1,
-        );
+        subdirs.add(entity);
       } else if (entity is File) {
-        await upload(entity.path, remotePath, null);
-        counter.value++;
-        onProgress?.call(
-          TransferProgress(
-            fileName: name,
-            totalBytes: totalFiles,
-            doneBytes: counter.value,
-            isUpload: true,
-            isCompleted: counter.value >= totalFiles,
-          ),
-        );
+        files.add(entity);
       }
+    }
+
+    await _parallelForEach(files, _maxConcurrentFileTransfers, (file) async {
+      final name = p.basename(file.path);
+      final remotePath = p.posix.join(remoteDir, name);
+      await upload(file.path, remotePath, null);
+      counter.value++;
+      onProgress?.call(
+        TransferProgress(
+          fileName: name,
+          totalBytes: totalFiles,
+          doneBytes: counter.value,
+          isUpload: true,
+          isCompleted: counter.value >= totalFiles,
+        ),
+      );
+    });
+
+    for (final sub in subdirs) {
+      final name = p.basename(sub.path);
+      await _uploadDirRecursive(
+        sub.path,
+        p.posix.join(remoteDir, name),
+        onProgress,
+        totalFiles,
+        counter,
+        depth + 1,
+      );
     }
   }
 
@@ -372,33 +395,37 @@ class SFTPService {
     }
     await Directory(localDir).create(recursive: true);
 
+    // Mirror [_uploadDirRecursive]: split into files + subdirs, transfer
+    // the file bucket in parallel at this level, recurse into subdirs
+    // sequentially so global concurrency stays bounded.
     final items = await list(remoteDir);
+    final files = items.where((i) => !i.isDir).toList();
+    final subdirs = items.where((i) => i.isDir).toList();
 
-    for (final item in items) {
+    await _parallelForEach(files, _maxConcurrentFileTransfers, (item) async {
       final localPath = p.join(localDir, item.name);
+      await download(item.path, localPath, null);
+      counter.value++;
+      onProgress?.call(
+        TransferProgress(
+          fileName: item.name,
+          totalBytes: totalFiles,
+          doneBytes: counter.value,
+          isUpload: false,
+          isCompleted: counter.value >= totalFiles,
+        ),
+      );
+    });
 
-      if (item.isDir) {
-        await _downloadDirRecursive(
-          item.path,
-          localPath,
-          onProgress,
-          totalFiles,
-          counter,
-          depth + 1,
-        );
-      } else {
-        await download(item.path, localPath, null);
-        counter.value++;
-        onProgress?.call(
-          TransferProgress(
-            fileName: item.name,
-            totalBytes: totalFiles,
-            doneBytes: counter.value,
-            isUpload: false,
-            isCompleted: counter.value >= totalFiles,
-          ),
-        );
-      }
+    for (final sub in subdirs) {
+      await _downloadDirRecursive(
+        sub.path,
+        p.join(localDir, sub.name),
+        onProgress,
+        totalFiles,
+        counter,
+        depth + 1,
+      );
     }
   }
 
@@ -418,6 +445,30 @@ class SFTPService {
 /// Mutable counter for tracking progress across recursive calls.
 class _Counter {
   int value = 0;
+}
+
+/// Run [action] for every element in [items] with at most [concurrency]
+/// in-flight calls. Workers pull from a shared queue so slow entries do
+/// not stall the faster ones. Errors propagate from [Future.wait]; a
+/// failed worker aborts the remaining queue by design.
+Future<void> _parallelForEach<T>(
+  List<T> items,
+  int concurrency,
+  Future<void> Function(T) action,
+) async {
+  if (items.isEmpty) return;
+  final queue = List<T>.of(items);
+  final limit = concurrency < 1
+      ? 1
+      : (concurrency > queue.length ? queue.length : concurrency);
+  Future<void> worker() async {
+    while (queue.isNotEmpty) {
+      final next = queue.removeLast();
+      await action(next);
+    }
+  }
+
+  await Future.wait(List.generate(limit, (_) => worker()));
 }
 
 /// Remote file system implementation wrapping SFTPService.

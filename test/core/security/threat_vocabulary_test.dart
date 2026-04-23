@@ -298,4 +298,60 @@ void main() {
       });
     }
   });
+
+  group('ThreatModel value-type contract', () {
+    test('== is true for identical fields, false when any field diverges', () {
+      // Widget consumers use equality to detect config changes — a
+      // refactor that dropped one of the three fields from the
+      // comparison would let the UI render a stale threat table after
+      // a modifier flip.
+      const a = ThreatModel(
+        tier: ThreatTier.keychain,
+        password: true,
+        biometric: false,
+      );
+      const b = ThreatModel(
+        tier: ThreatTier.keychain,
+        password: true,
+        biometric: false,
+      );
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(
+        a == const ThreatModel(tier: ThreatTier.hardware, password: true),
+        isFalse,
+      );
+      expect(
+        a == const ThreatModel(tier: ThreatTier.keychain, password: false),
+        isFalse,
+      );
+      expect(
+        a ==
+            const ThreatModel(
+              tier: ThreatTier.keychain,
+              password: true,
+              biometric: true,
+            ),
+        isFalse,
+      );
+    });
+
+    test('identical() short-circuit still reports equality', () {
+      const m = ThreatModel(tier: ThreatTier.paranoid, password: true);
+      // ignore: unrelated_type_equality_checks
+      expect(m == m, isTrue);
+    });
+
+    test('toString surfaces tier + flags for log + dev-tools triage', () {
+      const m = ThreatModel(
+        tier: ThreatTier.hardware,
+        password: true,
+        biometric: true,
+      );
+      final repr = m.toString();
+      expect(repr, contains('hardware'));
+      expect(repr, contains('password=true'));
+      expect(repr, contains('biometric=true'));
+    });
+  });
 }

@@ -365,14 +365,20 @@ void main() {
       expect(ctrl.folderSize('/home/docs'), const FolderSizeFailed());
     });
 
-    test('requestFolderSize notifies listeners on success', () async {
+    test('requestFolderSize notifies folderSizeRevision on success', () async {
       await ctrl.init();
       fs.dirSizeResults['/home/docs'] = 2048;
-      var notified = 0;
-      ctrl.addListener(() => notified++);
+      // Folder-size completions are routed through a dedicated ValueNotifier
+      // so they do not force a full pane rebuild via the main ChangeNotifier.
+      // The contract is exercised by subscribing to folderSizeRevision.
+      var sizeRevisionNotified = 0;
+      ctrl.folderSizeRevision.addListener(() => sizeRevisionNotified++);
+      var mainNotified = 0;
+      ctrl.addListener(() => mainNotified++);
       ctrl.requestFolderSize('/home/docs');
       await Future<void>.delayed(Duration.zero);
-      expect(notified, greaterThanOrEqualTo(1));
+      expect(sizeRevisionNotified, greaterThanOrEqualTo(1));
+      expect(mainNotified, 0);
     });
 
     test('navigateTo clears folder size caches', () async {

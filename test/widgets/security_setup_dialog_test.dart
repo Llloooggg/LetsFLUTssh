@@ -257,5 +257,75 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('plaintext ack checkbox unlocks the Enable button', (
+      tester,
+    ) async {
+      // Regression gate for the "ack the risk → submit enabled" loop.
+      // An earlier refactor short-circuited the ack flag on tier
+      // switch and left the button stuck disabled.
+      await openDialog(tester, caps: allCaps);
+      final context = tester.element(find.byType(SecuritySetupDialog));
+      await tester.tap(find.text('T0'));
+      await tester.pumpAndSettle();
+
+      // The ack checkbox may be scrolled off the 800×600 test viewport
+      // on a ladder with all four tiers rendered; ensureVisible first.
+      await tester.ensureVisible(find.byType(Checkbox));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Checkbox));
+      await tester.pumpAndSettle();
+
+      final submit =
+          find.text(S.of(context).securitySetupEnable).evaluate().isNotEmpty
+          ? find.text(S.of(context).securitySetupEnable)
+          : find.text(S.of(context).securitySetupApply);
+      final btn = tester.widget<AppButton>(
+        find.ancestor(
+          of: submit,
+          matching: find.byWidgetPredicate((w) => w is AppButton),
+        ),
+      );
+      expect(btn.onTap, isNotNull, reason: 'Ack ticked → Enable must re-arm');
+    });
+
+    testWidgets(
+      'Keychain + Hardware rows render when both capabilities are available',
+      (tester) async {
+        // A prior bug hid T1 when T2 was also offered; this pins the
+        // full-ladder render.
+        await openDialog(tester, caps: allCaps);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        expect(find.text(S.of(context).tierKeychainLabel), findsOneWidget);
+        expect(find.text(S.of(context).tierHardwareLabel), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Compare-all-tiers shortcut renders when full ladder is available',
+      (tester) async {
+        await openDialog(tester, caps: allCaps);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        expect(find.text(S.of(context).compareAllTiers), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'first-launch path (currentTier=null) shows Enable CTA, not Apply',
+      (tester) async {
+        // The submit CTA is label-sensitive — "Enable" is the
+        // first-launch copy, "Apply" is the Settings re-run copy.
+        // Passing no `currentTier` must produce the first-launch label.
+        await openDialog(tester, caps: allCaps);
+        final context = tester.element(find.byType(SecuritySetupDialog));
+        expect(
+          find.text(S.of(context).securitySetupEnable),
+          findsOneWidget,
+          reason:
+              'First-launch flow shows the "Enable" button, not the Settings'
+              ' "Apply" label',
+        );
+      },
+    );
   });
 }

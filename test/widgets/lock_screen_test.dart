@@ -65,6 +65,16 @@ class _NoBiometricAuth extends BiometricAuth {
   Future<bool> authenticate(String reason) async => false;
 }
 
+// Biometric success / cancellation stubs were removed along with the
+// LockScreen biometric surface — Paranoid (the tier driving this
+// screen) opts out of biometric by design, so no fingerprint auto-
+// trigger and no retry button survive. The `_NoBiometric*` stubs
+// above are still used by the password-path tests to override the
+// providers that the old LockScreen used to consume; keeping them
+// around rather than dropping overrides entirely makes those tests
+// robust to a future tier that does route biometric through this
+// screen.
+
 void main() {
   // Use an all-zero key — content doesn't matter for the contract, only
   // that the right bytes reach securityStateProvider.
@@ -209,6 +219,39 @@ void main() {
         0,
         reason: 'empty input must not trigger a verify round-trip',
       );
+      expect(container.read(lockStateProvider), true);
+    },
+  );
+
+  testWidgets(
+    'lock screen has no biometric affordance — Paranoid opts out by design',
+    (tester) async {
+      // Paranoid is the only tier that drives LockScreen (other
+      // tiers have no mid-session re-auth surface yet), and Paranoid
+      // does not expose biometric unlock — see ARCHITECTURE §3.6 →
+      // Biometric unlock. The lock screen must therefore render no
+      // fingerprint button, nothing to auto-trigger, nothing to
+      // retry. Pin that invariant.
+      final mp = _FakeMasterPassword(expectedPassword: 'x', keyBytes: zeroKey);
+      final container = ProviderContainer(
+        overrides: [masterPasswordProvider.overrideWithValue(mp)],
+      );
+      addTearDown(container.dispose);
+      container.read(lockStateProvider.notifier).lock();
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: Scaffold(body: LockScreen()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.fingerprint), findsNothing);
       expect(container.read(lockStateProvider), true);
     },
   );

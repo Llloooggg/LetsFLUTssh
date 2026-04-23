@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
@@ -12,6 +13,7 @@ import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
+import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
@@ -45,6 +47,7 @@ class _FailingConnectionManager extends ConnectionManager {
 class _FakeConnectionManager extends ConnectionManager {
   String? lastLabel;
   String? lastSessionId;
+  SSHConfig? lastConfig;
 
   _FakeConnectionManager() : super(knownHosts: KnownHostsManager());
 
@@ -56,6 +59,7 @@ class _FakeConnectionManager extends ConnectionManager {
   }) {
     lastLabel = label;
     lastSessionId = sessionId;
+    lastConfig = config;
     return Connection(
       id: 'fake-conn-1',
       label: label ?? config.displayName,
@@ -64,6 +68,15 @@ class _FakeConnectionManager extends ConnectionManager {
       state: SSHConnectionState.connected,
     );
   }
+}
+
+/// In-memory KeyStore stand-in — [SessionConnect] only reads via `get()`.
+class _FakeKeyStore extends KeyStore {
+  _FakeKeyStore(this._entries);
+  final Map<String, SshKeyEntry> _entries;
+
+  @override
+  Future<SshKeyEntry?> get(String id) async => _entries[id];
 }
 
 void main() {
@@ -818,6 +831,128 @@ void main() {
       expect(result, isTrue);
       fakeManager.dispose();
     });
+
+    testWidgets(
+      'keyId on the session resolves against the key store and injects keyData',
+      (tester) async {
+        // The `_resolveConfig` helper looks up `session.keyId` in the
+        // key store and copies the entry's `privateKey` into the
+        // SSHConfig's `keyData` slot — the only way a session with a
+        // key reference reaches the connection manager with actual
+        // PEM material. A regression that dropped the lookup would
+        // quietly fall back to password auth and surface as "server
+        // disconnected" only during the handshake.
+        final fakeManager = _FakeConnectionManager();
+        final fakeKeyStore = _FakeKeyStore({
+          'k-1': SshKeyEntry(
+            id: 'k-1',
+            label: 'staging',
+            privateKey: '-----BEGIN KEY-----',
+            publicKey: 'ssh-ed25519 AAAA',
+            keyType: 'ed25519',
+            createdAt: DateTime(2024),
+          ),
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              connectionManagerProvider.overrideWithValue(fakeManager),
+              keyStoreProvider.overrideWithValue(fakeKeyStore),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Consumer(
+                builder: (context, ref, _) {
+                  return Scaffold(
+                    body: ElevatedButton(
+                      onPressed: () {
+                        final session = Session(
+                          id: 's1',
+                          label: 'Keyed',
+                          server: const ServerAddress(
+                            host: '10.0.0.1',
+                            user: 'root',
+                          ),
+                          auth: const SessionAuth(keyId: 'k-1'),
+                        );
+                        SessionConnect.connectTerminal(context, ref, session);
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.tap(find.text('Connect'));
+        await tester.pumpAndSettle();
+
+        expect(
+          fakeManager.lastConfig?.keyData,
+          '-----BEGIN KEY-----',
+          reason: 'keyId must be resolved into inline keyData before connect',
+        );
+        fakeManager.dispose();
+      },
+    );
+
+    testWidgets(
+      'missing keyId entry surfaces a no-crash fallback without keyData',
+      (tester) async {
+        final fakeManager = _FakeConnectionManager();
+        final fakeKeyStore = _FakeKeyStore({}); // no entries
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              connectionManagerProvider.overrideWithValue(fakeManager),
+              keyStoreProvider.overrideWithValue(fakeKeyStore),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Consumer(
+                builder: (context, ref, _) {
+                  return Scaffold(
+                    body: ElevatedButton(
+                      onPressed: () {
+                        final session = Session(
+                          id: 's1',
+                          label: 'Orphan',
+                          server: const ServerAddress(
+                            host: '10.0.0.1',
+                            user: 'root',
+                          ),
+                          auth: const SessionAuth(keyId: 'ghost'),
+                        );
+                        SessionConnect.connectTerminal(context, ref, session);
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.tap(find.text('Connect'));
+        await tester.pumpAndSettle();
+
+        expect(
+          fakeManager.lastConfig?.keyData,
+          isEmpty,
+          reason: 'Missing key entry must not invent keyData',
+        );
+        fakeManager.dispose();
+      },
+    );
 
     testWidgets('incomplete session shows warning toast', (tester) async {
       final fakeManager = _FakeConnectionManager();

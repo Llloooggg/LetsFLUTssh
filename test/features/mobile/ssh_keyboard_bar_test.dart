@@ -425,11 +425,15 @@ void main() {
         buildApp(onInput: (_) {}, onCopyModeChanged: modes.add),
       );
 
+      // Enter copy mode via the Copy icon in the normal row.
       await tester.tap(find.byIcon(Icons.copy));
       await tester.pump();
       expect(modes, [true]);
 
-      await tester.tap(find.byIcon(Icons.copy));
+      // Exit via the Cancel (close) icon that now lives inside the
+      // in-place copy-mode row — Icons.copy in this row is the Copy
+      // action (fires onCopyPressed), not a toggle.
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
       expect(modes, [true, false]);
     });
@@ -444,7 +448,9 @@ void main() {
       await tester.pump();
       expect(key.currentState!.copyMode, isTrue);
 
-      await tester.tap(find.byIcon(Icons.copy));
+      // The copy-mode row swaps the normal keys for a hint + Copy +
+      // Cancel — Cancel (Icons.close) is the tap target that exits.
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
       expect(key.currentState!.copyMode, isFalse);
     });

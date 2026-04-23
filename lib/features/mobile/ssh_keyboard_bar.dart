@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import 'ssh_key_sequences.dart';
 
@@ -9,6 +10,18 @@ import 'ssh_key_sequences.dart';
 /// Sits above the system keyboard. Ctrl/Alt are sticky toggles:
 /// tap once → active (highlighted), next key combines with modifier,
 /// then modifier deactivates. Double-tap → lock on.
+///
+/// **Copy-mode swap.** When the user enters copy mode the main row
+/// replaces the keys Row in-place with a copy-mode Row (hint text +
+/// Copy + Cancel), keeping the outer `Container(height: itemHeightLg)`
+/// constant. Swapping the *contents* — not the widget — is the load-
+/// bearing invariant: any widget-tree height change would propagate
+/// into the enclosing `MobileTerminalView` Column and force an
+/// xterm `buffer.resize`, which reshuffles scrollback lines and was
+/// the root cause of the recurring "mid-buffer gaps on copy toggle"
+/// reports. The bar is also the single surface for the hint — no
+/// separate banner over the terminal rows, so none of the terminal's
+/// visible rows are ever covered.
 class SshKeyboardBar extends StatefulWidget {
   /// Called when the bar produces input to send to the terminal.
   final void Function(String data) onInput;
@@ -20,13 +33,33 @@ class SshKeyboardBar extends StatefulWidget {
   /// is hidden — desktop / read-only views can keep the bar minimal.
   final VoidCallback? onSnippets;
 
-  /// Called when the user taps the Copy button — the parent enters the
-  /// trackpad-style copy mode ([TerminalCopyOverlay]) on `true` and
-  /// exits on `false`. The bar tracks the active state so the button
-  /// renders highlighted while copy mode is on; the parent can flip it
-  /// back to inactive programmatically via [SshKeyboardBarState.exitCopyMode]
-  /// when the user taps Copy/Cancel inside the overlay.
+  /// Called when the bar's copy-mode state flips. The parent drives
+  /// the trackpad-style [TerminalCopyOverlay] on `true` and tears it
+  /// down on `false`. The bar tracks active state so the main row
+  /// swaps to the copy-mode variant while the mode is live.
   final ValueChanged<bool>? onCopyModeChanged;
+
+  /// Called when the user taps the Copy action inside the copy-mode
+  /// row. Only consulted while copy mode is active AND the selection
+  /// anchor has already been committed ([anchorSet] true). Exiting
+  /// copy mode after Copy is the parent's responsibility via
+  /// [SshKeyboardBarState.exitCopyMode].
+  final VoidCallback? onCopyPressed;
+
+  /// Called when the user taps the "Set anchor" action in the
+  /// copy-mode row before [anchorSet] flips. Signals the parent
+  /// overlay to drop the selection anchor at the current virtual
+  /// cursor position. Without the explicit tap the overlay stays in
+  /// the free-aim phase: drags move the cursor, lifts do nothing —
+  /// this lets the user re-grip without committing an anchor they
+  /// did not mean to.
+  final VoidCallback? onAnchorPressed;
+
+  /// Whether the overlay's selection anchor has been dropped. Drives
+  /// both the hint copy (aim → extend) and the action buttons in the
+  /// copy-mode row ("Set anchor" before → "Copy" after). Defaults to
+  /// `false`.
+  final bool anchorSet;
 
   const SshKeyboardBar({
     super.key,
@@ -34,6 +67,9 @@ class SshKeyboardBar extends StatefulWidget {
     this.onPaste,
     this.onSnippets,
     this.onCopyModeChanged,
+    this.onCopyPressed,
+    this.onAnchorPressed,
+    this.anchorSet = false,
   });
 
   @override
@@ -51,9 +87,9 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
   /// Whether trackpad-style copy mode is active.
   bool get copyMode => _copyMode;
 
-  /// Exit copy mode programmatically (e.g. after the overlay's Copy or
-  /// Cancel tap closes the session). The parent calls this so the Copy
-  /// button on the bar stops showing the "active" highlight.
+  /// Exit copy mode programmatically. Called by the parent after
+  /// the user taps Copy (copy finished → close the session) or
+  /// when any external teardown needs the bar back to normal.
   void exitCopyMode() {
     if (!_copyMode) return;
     setState(() => _copyMode = false);
@@ -99,6 +135,11 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     }
   }
 
+  void _enterCopyMode() {
+    setState(() => _copyMode = true);
+    widget.onCopyModeChanged?.call(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -107,8 +148,10 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // F-keys row (expandable)
-        if (_showFnKeys)
+        // F-keys row — only in normal mode. In copy mode we collapse
+        // to the single main row so the bar height does not grow /
+        // shrink, which would otherwise resize the terminal above.
+        if (_showFnKeys && !_copyMode)
           Container(
             height: AppTheme.barHeightLg,
             color: barColor,
@@ -124,91 +167,125 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
               ],
             ),
           ),
-        // Main row
+        // Main row — height identical between the two content
+        // variants so copy-mode toggling never changes the outer
+        // bar size.
         Container(
           height: AppTheme.itemHeightLg,
           color: barColor,
           padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Row(
+          child: _copyMode ? _buildCopyModeRow() : _buildNormalRow(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNormalRow() {
+    return Row(
+      children: [
+        // Scrollable keys
+        Expanded(
+          child: ListView(
+            scrollDirection: Axis.horizontal,
             children: [
-              // Scrollable keys
-              Expanded(
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _KeyButton(
-                      label: 'Esc',
-                      onTap: () => _send(SshKeySequences.escape),
-                    ),
-                    _KeyButton(
-                      label: 'Tab',
-                      onTap: () => _send(SshKeySequences.tab),
-                    ),
-                    _ModifierButton(
-                      label: 'Ctrl',
-                      state: _ctrl,
-                      onTap: () => setState(
-                        () => _toggleModifier(_ctrl, (s) => _ctrl = s),
-                      ),
-                    ),
-                    _ModifierButton(
-                      label: 'Alt',
-                      state: _alt,
-                      onTap: () => setState(
-                        () => _toggleModifier(_alt, (s) => _alt = s),
-                      ),
-                    ),
-                    _KeyButton(
-                      icon: Icons.keyboard_arrow_left,
-                      onTap: () => _send(SshKeySequences.arrowLeft),
-                    ),
-                    _KeyButton(
-                      icon: Icons.keyboard_arrow_up,
-                      onTap: () => _send(SshKeySequences.arrowUp),
-                    ),
-                    _KeyButton(
-                      icon: Icons.keyboard_arrow_down,
-                      onTap: () => _send(SshKeySequences.arrowDown),
-                    ),
-                    _KeyButton(
-                      icon: Icons.keyboard_arrow_right,
-                      onTap: () => _send(SshKeySequences.arrowRight),
-                    ),
-                    _KeyButton(label: '|', onTap: () => _send('|')),
-                    _KeyButton(label: '~', onTap: () => _send('~')),
-                    _KeyButton(label: '/', onTap: () => _send('/')),
-                    _KeyButton(label: '-', onTap: () => _send('-')),
-                  ],
-                ),
-              ),
-              // Paste + Snippets + Select + Fn — fixed right edge
-              if (widget.onSnippets != null)
-                _KeyButton(
-                  icon: Icons.code,
-                  onTap: () => widget.onSnippets!.call(),
-                ),
               _KeyButton(
-                icon: Icons.paste,
-                onTap: () {
-                  widget.onPaste?.call();
-                },
+                label: 'Esc',
+                onTap: () => _send(SshKeySequences.escape),
+              ),
+              _KeyButton(label: 'Tab', onTap: () => _send(SshKeySequences.tab)),
+              _ModifierButton(
+                label: 'Ctrl',
+                state: _ctrl,
+                onTap: () =>
+                    setState(() => _toggleModifier(_ctrl, (s) => _ctrl = s)),
+              ),
+              _ModifierButton(
+                label: 'Alt',
+                state: _alt,
+                onTap: () =>
+                    setState(() => _toggleModifier(_alt, (s) => _alt = s)),
               ),
               _KeyButton(
-                icon: Icons.copy,
-                isActive: _copyMode,
-                onTap: () {
-                  setState(() => _copyMode = !_copyMode);
-                  widget.onCopyModeChanged?.call(_copyMode);
-                },
+                icon: Icons.keyboard_arrow_left,
+                onTap: () => _send(SshKeySequences.arrowLeft),
               ),
               _KeyButton(
-                label: 'Fn',
-                isActive: _showFnKeys,
-                onTap: () => setState(() => _showFnKeys = !_showFnKeys),
+                icon: Icons.keyboard_arrow_up,
+                onTap: () => _send(SshKeySequences.arrowUp),
               ),
+              _KeyButton(
+                icon: Icons.keyboard_arrow_down,
+                onTap: () => _send(SshKeySequences.arrowDown),
+              ),
+              _KeyButton(
+                icon: Icons.keyboard_arrow_right,
+                onTap: () => _send(SshKeySequences.arrowRight),
+              ),
+              _KeyButton(label: '|', onTap: () => _send('|')),
+              _KeyButton(label: '~', onTap: () => _send('~')),
+              _KeyButton(label: '/', onTap: () => _send('/')),
+              _KeyButton(label: '-', onTap: () => _send('-')),
             ],
           ),
         ),
+        if (widget.onSnippets != null)
+          _KeyButton(icon: Icons.code, onTap: () => widget.onSnippets!.call()),
+        _KeyButton(
+          icon: Icons.paste,
+          onTap: () {
+            widget.onPaste?.call();
+          },
+        ),
+        _KeyButton(icon: Icons.copy, onTap: _enterCopyMode),
+        _KeyButton(
+          label: 'Fn',
+          isActive: _showFnKeys,
+          onTap: () => setState(() => _showFnKeys = !_showFnKeys),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCopyModeRow() {
+    final l10n = S.of(context);
+    final theme = Theme.of(context);
+    final hint = widget.anchorSet
+        ? l10n.copyModeExtending
+        : l10n.copyModeTapToStart;
+    // Action layout follows the two-phase copy-mode state machine:
+    //   * Before the anchor is committed — show the crosshair-style
+    //     "Set anchor" button. Swipes only aim the cursor; the user
+    //     presses this button when they have the start cell pinned.
+    //   * After the anchor is committed — swap in the Copy action.
+    // Cancel stays in both phases as a bailout.
+    final actionButton = widget.anchorSet
+        ? _KeyButton(
+            icon: Icons.copy,
+            onTap: () => widget.onCopyPressed?.call(),
+          )
+        : _KeyButton(
+            icon: Icons.adjust,
+            onTap: () => widget.onAnchorPressed?.call(),
+          );
+    return Row(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              hint,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        actionButton,
+        _KeyButton(icon: Icons.close, onTap: exitCopyMode),
       ],
     );
   }

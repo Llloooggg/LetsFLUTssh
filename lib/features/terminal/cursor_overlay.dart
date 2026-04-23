@@ -13,6 +13,19 @@ import '../../theme/app_theme.dart';
 /// the classic "inverted cursor" look without forking the package.
 ///
 /// Place inside a [Stack] on top of [TerminalView] with identical sizing.
+///
+/// ### Line-height invariant
+///
+/// xterm's [TerminalStyle] defaults to `height: 1.2` (line_height multiplier)
+/// and the internal painter multiplies the ParagraphStyle by that value when
+/// measuring cell size. Our overlay measures cells independently to place the
+/// inverted-colour glyph, so the measurement must use the same multiplier —
+/// otherwise the cell row stride drifts by ~20 % and the painted character
+/// lands a couple of rows off from the real cursor for every scroll. Same
+/// reason the mobile [TerminalCopyOverlay] applies [kTerminalLineHeight] to
+/// its virtual-cursor marker + selection anchor math.
+const double kTerminalLineHeight = 1.2;
+
 class CursorTextOverlay extends StatefulWidget {
   const CursorTextOverlay({
     super.key,
@@ -36,7 +49,25 @@ class CursorTextOverlay extends StatefulWidget {
 class _CursorTextOverlayState extends State<CursorTextOverlay> {
   final _repaint = ValueNotifier<int>(0);
 
-  void _onTerminalChanged() => _repaint.value++;
+  /// Coalesce bursts of terminal change events into one repaint per frame.
+  /// xterm's [Terminal] fires its listeners on every write callback, which
+  /// on a busy stream (large SSH paste, long-running build output) can be
+  /// hundreds of callbacks per frame. Without throttling each callback
+  /// forced a [CustomPainter] repaint — we measure the same cursor cell,
+  /// build a paragraph, draw it, dispose — at a frequency far above vsync.
+  /// [_repaintScheduled] gates the `addPostFrameCallback` so we bump the
+  /// [ValueNotifier] at most once per frame.
+  bool _repaintScheduled = false;
+
+  void _onTerminalChanged() {
+    if (_repaintScheduled) return;
+    _repaintScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _repaintScheduled = false;
+      if (!mounted) return;
+      _repaint.value++;
+    });
+  }
 
   @override
   void initState() {
@@ -96,8 +127,13 @@ class _CursorCharPainter extends CustomPainter {
   Size? _cellSize;
   double? _cachedFontSize;
 
-  /// Measure cell size the same way xterm does: lay out "mmmmmmmmmm" and
-  /// divide by 10 to get the average character width.
+  /// Measure cell size the same way xterm does: lay out "mmmmmmmmmm" with
+  /// the matching line-height multiplier and divide by 10 for width. The
+  /// [kTerminalLineHeight] multiplier is applied on the [ui.ParagraphStyle]
+  /// — xterm passes it via `ParagraphStyle.height`, which is how its
+  /// painter lands cell rows at `row * (fontSize * 1.2)` rather than raw
+  /// ascent+descent. Drop the multiplier here and every cursor paint lands
+  /// ~20 % higher than the real glyph.
   Size _measureCellSize() {
     if (_cellSize != null && _cachedFontSize == fontSize) return _cellSize!;
 
@@ -105,10 +141,12 @@ class _CursorCharPainter extends CustomPainter {
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
       fontSize: fontSize,
+      height: kTerminalLineHeight,
     );
-    final builder = ui.ParagraphBuilder(ui.ParagraphStyle())
-      ..pushStyle(style)
-      ..addText('mmmmmmmmmm');
+    final builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(height: kTerminalLineHeight))
+          ..pushStyle(style)
+          ..addText('mmmmmmmmmm');
     final paragraph = builder.build()
       ..layout(const ui.ParagraphConstraints(width: double.infinity));
 
@@ -146,16 +184,21 @@ class _CursorCharPainter extends CustomPainter {
     final y = visibleRow * cell.height + padding.top;
 
     // Build inverted-color character: use the terminal background as text.
+    // The line-height multiplier must match xterm's painter — otherwise the
+    // glyph baseline slides up within the cell and the inverted char lands
+    // above the real glyph it is meant to cover.
     final textColor = AppTheme.bg2;
     final style = ui.TextStyle(
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
       fontSize: fontSize,
+      height: kTerminalLineHeight,
       color: textColor,
     );
-    final builder = ui.ParagraphBuilder(ui.ParagraphStyle())
-      ..pushStyle(style)
-      ..addText(String.fromCharCode(charCode));
+    final builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(height: kTerminalLineHeight))
+          ..pushStyle(style)
+          ..addText(String.fromCharCode(charCode));
     final paragraph = builder.build()
       ..layout(const ui.ParagraphConstraints(width: double.infinity));
 

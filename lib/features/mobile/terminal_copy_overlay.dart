@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../terminal/cursor_overlay.dart' show kTerminalLineHeight;
 
 /// Trackpad-style copy mode for the mobile terminal.
 ///
@@ -31,21 +31,24 @@ class TerminalCopyOverlay extends StatefulWidget {
     super.key,
     required this.terminal,
     required this.controller,
+    required this.scrollController,
     required this.fontSize,
     required this.fontFamily,
     required this.fontFamilyFallback,
-    required this.onCopy,
-    required this.onCancel,
     this.padding = const EdgeInsets.all(4),
   });
 
   final Terminal terminal;
   final TerminalController controller;
+
+  /// Shared with `TerminalView` so edge-panning during copy mode
+  /// scrolls the xterm viewport instead of clamping the virtual
+  /// cursor inside the visible rows — without this the user could
+  /// never select more than one screen of text at a time.
+  final ScrollController scrollController;
   final double fontSize;
   final String fontFamily;
   final List<String> fontFamilyFallback;
-  final VoidCallback onCopy;
-  final VoidCallback onCancel;
   final EdgeInsets padding;
 
   @override
@@ -112,14 +115,20 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
         _measuredFontFamily == widget.fontFamily) {
       return _cellSize!;
     }
+    // Must match xterm's painter: `height: kTerminalLineHeight` on both
+    // the paragraph style and the text style, otherwise the virtual
+    // cursor marker lands ~20 % off from the xterm-rendered glyphs and
+    // selection anchors drift below the cursor cell.
     final style = ui.TextStyle(
       fontFamily: widget.fontFamily,
       fontFamilyFallback: widget.fontFamilyFallback,
       fontSize: widget.fontSize,
+      height: kTerminalLineHeight,
     );
-    final builder = ui.ParagraphBuilder(ui.ParagraphStyle())
-      ..pushStyle(style)
-      ..addText('mmmmmmmmmm');
+    final builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(height: kTerminalLineHeight))
+          ..pushStyle(style)
+          ..addText('mmmmmmmmmm');
     final paragraph = builder.build()
       ..layout(const ui.ParagraphConstraints(width: double.infinity));
     _cellSize = Size(paragraph.maxIntrinsicWidth / 10, paragraph.height);
@@ -132,6 +141,18 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
   /// Consume [delta] pixels of finger movement, advance the cursor by the
   /// whole-cell remainder, and update the live selection. Called by the
   /// parent [MobileTerminalView] when a single-pointer drag is in flight.
+  ///
+  /// Horizontal overflow rolls onto the next buffer row (and vice versa
+  /// on negative dx): a long pasted line that soft-wraps at the right
+  /// edge of the viewport lives on multiple buffer rows, and the copy
+  /// cursor has to be able to cross that wrap in one continuous drag.
+  /// The old `_cursorX.clamp(0, viewWidth - 1)` behaviour parked the
+  /// cursor at the right edge and refused to advance even though the
+  /// wrap continuation was plainly visible on the next row.
+  ///
+  /// Vertical overflow past the top / bottom viewport edge scrolls the
+  /// xterm buffer in that direction by the overflow cells — a single
+  /// drag can extend the selection through the entire scrollback.
   void onCursorPan(Offset delta) {
     final cell = _measureCellSize();
     _pxX += delta.dx;
@@ -141,11 +162,58 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     if (dx == 0 && dy == 0) return;
     _pxX -= dx * cell.width;
     _pxY -= dy * cell.height;
+
+    final viewWidth = widget.terminal.viewWidth;
+    final viewMaxY = widget.terminal.viewHeight - 1;
+
+    // Linearise the grid into row-major cell indices so a horizontal
+    // overflow rolls to the next row instead of clamping at the right
+    // edge. Dart's `~/` truncates toward zero, which is wrong for
+    // negative values (we want floor), so the negative branch uses
+    // `ceil(abs/viewWidth)` and flips the sign — that gives the same
+    // result as `combined.floor()` without importing `dart:math`.
+    final combined = _cursorY * viewWidth + _cursorX + dx + dy * viewWidth;
+    int newY;
+    final int newX;
+    if (combined >= 0) {
+      newY = combined ~/ viewWidth;
+      newX = combined - newY * viewWidth;
+    } else {
+      final abs = -combined;
+      newY = -((abs + viewWidth - 1) ~/ viewWidth);
+      newX = combined - newY * viewWidth;
+    }
+
+    int scrollOverflowCells = 0;
+    if (newY < 0) {
+      scrollOverflowCells = newY; // negative → scroll up into scrollback
+      newY = 0;
+    } else if (newY > viewMaxY) {
+      scrollOverflowCells = newY - viewMaxY; // positive → toward live bottom
+      newY = viewMaxY;
+    }
+    if (scrollOverflowCells != 0) {
+      _scrollByCells(scrollOverflowCells, cell.height);
+    }
     setState(() {
-      _cursorX = (_cursorX + dx).clamp(0, widget.terminal.viewWidth - 1);
-      _cursorY = (_cursorY + dy).clamp(0, widget.terminal.viewHeight - 1);
+      _cursorX = newX.clamp(0, viewWidth - 1);
+      _cursorY = newY;
       _syncSelection();
     });
+  }
+
+  /// Jump the shared scroll controller by [cells] rows worth of pixels,
+  /// clamping to the scrollable extent. No-op when the controller is
+  /// not attached (widget still building) or the extent is zero (buffer
+  /// fits in the viewport).
+  void _scrollByCells(int cells, double cellHeight) {
+    if (!widget.scrollController.hasClients) return;
+    final pos = widget.scrollController.position;
+    final desired = (widget.scrollController.offset + cells * cellHeight).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    widget.scrollController.jumpTo(desired);
   }
 
   /// Drop the selection anchor at the current cursor position. Called by
@@ -155,11 +223,27 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
   /// progress.
   void onAnchorDown() {
     if (_anchorX != null) return;
-    final buf = widget.terminal.buffer;
-    final viewStart = buf.lines.length - buf.viewHeight;
     _anchorX = _cursorX;
-    _anchorYAbs = _cursorY + viewStart;
+    _anchorYAbs = _cursorY + _viewportStartLine();
     _syncSelection();
+  }
+
+  /// Buffer-absolute index of the first visible row, accounting for
+  /// live scroll offset. The old `buf.lines.length - buf.viewHeight`
+  /// formula only held when the view was pinned to the bottom —
+  /// during copy mode the user can scroll up, so we derive the
+  /// visible start from the shared scroll controller instead.
+  int _viewportStartLine() {
+    final buf = widget.terminal.buffer;
+    if (!widget.scrollController.hasClients) {
+      return buf.lines.length - buf.viewHeight;
+    }
+    final cellHeight = _measureCellSize().height;
+    if (cellHeight <= 0) return buf.lines.length - buf.viewHeight;
+    // Scroll offset pixels ÷ cell height = absolute row index of the
+    // topmost visible line (xterm renders from row 0 at offset 0,
+    // matching the same convention).
+    return (widget.scrollController.offset / cellHeight).floor();
   }
 
   void _syncSelection() {
@@ -167,53 +251,43 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     final ay = _anchorYAbs;
     if (ax == null || ay == null) return;
     final buf = widget.terminal.buffer;
-    final viewStart = buf.lines.length - buf.viewHeight;
-    final cyAbs = _cursorY + viewStart;
+    final cyAbs = _cursorY + _viewportStartLine();
     widget.controller.setSelection(
       buf.createAnchor(ax, ay),
       buf.createAnchor(_cursorX, cyAbs),
     );
   }
 
+  /// True after the first [onAnchorDown] — surfaced so the parent can
+  /// swap between "Tap to mark start" and "Tap to extend" hint copy in
+  /// the top hint bar that now lives above the terminal in the mobile
+  /// Column layout.
+  bool get anchorSet => _anchorX != null;
+
   @override
   Widget build(BuildContext context) {
     final cell = _measureCellSize();
     final x = _cursorX * cell.width + widget.padding.left;
     final y = _cursorY * cell.height + widget.padding.top;
-    // The cursor marker and hint banner must not intercept pointer
-    // events — the enclosing `MobileTerminalView` listens on the whole
-    // terminal area for cursor-pan deltas, and a non-translucent widget
-    // above the terminal would swallow those events. The toolbar, in
-    // contrast, *needs* taps to route to Copy / Cancel, so it lives
-    // outside the `IgnorePointer`.
-    return Stack(
-      children: [
-        IgnorePointer(
-          child: Stack(
-            children: [
-              Positioned(
-                left: x,
-                top: y,
-                width: cell.width,
-                height: cell.height,
-                child: const _CursorMarker(),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                child: _CopyHint(anchorSet: _anchorX != null),
-              ),
-            ],
+    // Cursor marker only. The hint banner and Copy/Cancel toolbar moved
+    // out to `MobileTerminalView`'s Column so they shrink the terminal
+    // instead of floating over its last row (covering the active line
+    // is unusable on a 400 px-tall phone viewport). Pointer events on
+    // the cursor must not be intercepted: the enclosing Listener reads
+    // cursor-pan deltas via `onCursorPan`, and an opaque widget on top
+    // would swallow them.
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            left: x,
+            top: y,
+            width: cell.width,
+            height: cell.height,
+            child: const _CursorMarker(),
           ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _CopyToolbar(onCopy: widget.onCopy, onCancel: widget.onCancel),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -232,98 +306,12 @@ class _CursorMarker extends StatelessWidget {
   }
 }
 
-class _CopyHint extends StatelessWidget {
-  const _CopyHint({required this.anchorSet});
-  final bool anchorSet;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    final text = anchorSet ? l10n.copyModeExtending : l10n.copyModeTapToStart;
-    return Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      color: AppTheme.bg3.withValues(alpha: 0.85),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: AppFonts.sm,
-          color: AppTheme.fg,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-class _CopyToolbar extends StatelessWidget {
-  const _CopyToolbar({required this.onCopy, required this.onCancel});
-  final VoidCallback onCopy;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    return IgnorePointer(
-      ignoring: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.bg3.withValues(alpha: 0.92),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _ToolbarButton(icon: Icons.copy, label: l10n.copy, onTap: onCopy),
-            const SizedBox(width: 16),
-            _ToolbarButton(
-              icon: Icons.close,
-              label: l10n.cancel,
-              onTap: onCancel,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolbarButton extends StatelessWidget {
-  const _ToolbarButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: AppTheme.radiusLg,
-      child: InkWell(
-        canRequestFocus: false,
-        onTap: onTap,
-        borderRadius: AppTheme.radiusLg,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: theme.colorScheme.onSurface),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppFonts.md,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// The former CopyModeHint / CopyModeToolbar helpers were removed: the
+// stable-height layout now swaps the SshKeyboardBar's own row content
+// between a normal-keys variant and a copy-mode variant (hint text +
+// Copy + Cancel) inside the SAME `itemHeightLg` container. Having
+// dedicated banner / toolbar widgets next to the terminal forced the
+// terminal's widget height to change every time copy mode toggled,
+// which was the source of the mid-buffer reshuffle users kept
+// reporting. See `ssh_keyboard_bar._buildCopyModeRow` for the new
+// hint + action surface.

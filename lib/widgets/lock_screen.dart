@@ -17,10 +17,13 @@ import 'secure_screen_scope.dart';
 
 /// Full-screen lock overlay shown while [lockStateProvider] is true.
 ///
-/// Tries biometric unlock first (if the user enabled it) and falls back to
-/// a master-password form. On success it re-derives the DB key, pushes it
-/// into [securityStateProvider], and flips [lockStateProvider] back to
-/// unlocked — the root widget tree is rebuilt to the normal app UI.
+/// Currently a Paranoid-only re-auth surface: `_releaseLock` pushes a
+/// master-password-derived key into [securityStateProvider] under
+/// `SecurityTier.paranoid`, and `_submitPassword` drives
+/// [MasterPasswordManager]. Biometric unlock is deliberately absent —
+/// Paranoid opts out of biometric by design (see ARCHITECTURE §3.6 →
+/// Biometric unlock for the rationale), so there is nothing to
+/// auto-trigger and no fingerprint affordance to render.
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
 
@@ -33,21 +36,13 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   final _focusNode = FocusNode();
   bool _busy = false;
   bool _wrong = false;
-  bool _biometricTried = false;
-  String? _bioError;
-
-  /// Whether biometric unlock is even possible on this device: vault
-  /// has a stashed key AND the platform reports a real sensor with
-  /// enrolled credentials. Null while the async probe is running.
-  /// The fingerprint button is only rendered when this is true —
-  /// the lock screen is an action surface, and an action the user
-  /// cannot perform should not have a dead button.
-  bool? _biometricOffered;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometric());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
   }
 
   @override
@@ -56,80 +51,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     _pwCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  /// Probe the biometric vault and platform; on success swap the lock
-  /// screen for the normal UI. Every failure path surfaces a visible
-  /// error instead of leaving the user staring at the same screen —
-  /// the original bug report was "я ввел биометрию, нихера не
-  /// произошло, экран остался висеть" because a null vault read or
-  /// cancelled prompt returned silently.
-  Future<void> _tryBiometric() async {
-    if (_biometricTried) return;
-    _biometricTried = true;
-    try {
-      final vault = ref.read(biometricKeyVaultProvider);
-      final stored = await vault.isStored();
-      if (!stored) {
-        _markBiometricUnavailable();
-        return;
-      }
-      final bio = ref.read(biometricAuthProvider);
-      if (!await bio.isAvailable()) {
-        _markBiometricUnavailable();
-        return;
-      }
-      if (mounted) setState(() => _biometricOffered = true);
-      if (!mounted) return;
-      final reason = S.of(context).biometricUnlockPrompt;
-      final ok = await bio.authenticate(reason);
-      if (!ok) {
-        _reportBiometricFailure(
-          mounted ? S.of(context).biometricUnlockCancelled : null,
-        );
-        return;
-      }
-      final key = await vault.read();
-      if (key == null) {
-        _reportBiometricFailure(
-          mounted ? S.of(context).biometricUnlockFailed : null,
-        );
-        return;
-      }
-      if (!mounted) return;
-      _releaseLock(key);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Biometric unlock failed: $e',
-        name: 'LockScreen',
-        error: e,
-      );
-      _reportBiometricFailure(
-        mounted ? S.of(context).biometricUnlockFailed : null,
-      );
-    }
-  }
-
-  void _markBiometricUnavailable() {
-    if (!mounted) return;
-    setState(() => _biometricOffered = false);
-    _focusNode.requestFocus();
-  }
-
-  void _reportBiometricFailure(String? message) {
-    if (!mounted) return;
-    setState(() => _bioError = message);
-    _focusNode.requestFocus();
-  }
-
-  /// Re-arm biometric and run it again. The user tapped the "Unlock
-  /// with biometrics" button — previously this only flipped the guard
-  /// flag without actually retrying, so the button appeared dead.
-  Future<void> _retryBiometric() async {
-    if (_busy) return;
-    setState(() => _bioError = null);
-    _biometricTried = false;
-    await _tryBiometric();
   }
 
   void _releaseLock(Uint8List key) {
@@ -231,17 +152,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         ),
                       ),
                     ],
-                    if (_bioError != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        _bioError!,
-                        style: TextStyle(
-                          color: AppTheme.red,
-                          fontSize: AppFonts.xs,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
                     const SizedBox(height: 16),
                     // The button renders as a plain `Text('...')` under
                     // the busy flag rather than `loading: _busy`. A
@@ -256,14 +166,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       label: _busy ? '...' : l10n.unlock,
                       onTap: _busy ? null : _submitPassword,
                     ),
-                    if (_biometricOffered == true) ...[
-                      const SizedBox(height: 8),
-                      AppButton(
-                        label: l10n.biometricUnlockTitle,
-                        icon: Icons.fingerprint,
-                        onTap: _busy ? null : _retryBiometric,
-                      ),
-                    ],
                   ],
                 ),
               ),

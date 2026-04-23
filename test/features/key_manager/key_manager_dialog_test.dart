@@ -340,5 +340,128 @@ void main() {
       Toast.clearAllForTest();
       await tester.pump();
     });
+
+    testWidgets('search filters the key list by label (case-insensitive)', (
+      tester,
+    ) async {
+      fakeStore = FakeKeyStore([
+        SshKeyEntry(
+          id: 'p',
+          label: 'Production',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'ed25519',
+          createdAt: DateTime(2024, 1, 1),
+        ),
+        SshKeyEntry(
+          id: 's',
+          label: 'Staging',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'rsa',
+          createdAt: DateTime(2024, 1, 2),
+        ),
+      ]);
+      await openDialog(tester);
+
+      expect(find.text('Production'), findsOneWidget);
+      expect(find.text('Staging'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'prod');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Production'), findsOneWidget);
+      expect(find.text('Staging'), findsNothing);
+    });
+
+    testWidgets('search by key type surfaces only matching entries', (
+      tester,
+    ) async {
+      // The `_filtered` predicate checks both label and keyType, so a
+      // user searching "rsa" gets only RSA keys even when labels
+      // don't mention the algo.
+      fakeStore = FakeKeyStore([
+        SshKeyEntry(
+          id: 'a',
+          label: 'Alpha',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'ed25519',
+          createdAt: DateTime(2024, 1, 1),
+        ),
+        SshKeyEntry(
+          id: 'b',
+          label: 'Beta',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'rsa',
+          createdAt: DateTime(2024, 1, 2),
+        ),
+      ]);
+      await openDialog(tester);
+
+      await tester.enterText(find.byType(TextField), 'rsa');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Alpha'), findsNothing);
+      expect(find.text('Beta'), findsOneWidget);
+    });
+
+    testWidgets('empty search query restores the full list of keys', (
+      tester,
+    ) async {
+      fakeStore = FakeKeyStore([
+        SshKeyEntry(
+          id: 'a',
+          label: 'Alpha',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'ed25519',
+          createdAt: DateTime(2024, 1, 1),
+        ),
+        SshKeyEntry(
+          id: 'b',
+          label: 'Beta',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'rsa',
+          createdAt: DateTime(2024, 1, 2),
+        ),
+      ]);
+      await openDialog(tester);
+
+      await tester.enterText(find.byType(TextField), 'alpha');
+      await tester.pumpAndSettle();
+      expect(find.text('Beta'), findsNothing);
+
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+      expect(find.text('Alpha'), findsOneWidget);
+      expect(find.text('Beta'), findsOneWidget);
+    });
+
+    testWidgets('search with no matches surfaces the empty-results state', (
+      tester,
+    ) async {
+      fakeStore = FakeKeyStore([
+        SshKeyEntry(
+          id: 'a',
+          label: 'Alpha',
+          privateKey: '',
+          publicKey: '',
+          keyType: 'ed25519',
+          createdAt: DateTime(2024, 1, 1),
+        ),
+      ]);
+      await openDialog(tester);
+
+      await tester.enterText(find.byType(TextField), 'nothing-matches');
+      await tester.pumpAndSettle();
+
+      // Generic empty-results copy from l10n — shared with snippet /
+      // tag managers. Any change to the shared wording surfaces here
+      // first because the key manager has the richer fixture.
+      expect(find.text('No results'), findsOneWidget);
+    });
   });
 }

@@ -16,6 +16,21 @@ Widget _app(Widget child) {
   );
 }
 
+TerminalCopyOverlay _buildOverlay({
+  required Terminal terminal,
+  required TerminalController controller,
+  required ScrollController scrollController,
+  Key? key,
+}) => TerminalCopyOverlay(
+  key: key,
+  terminal: terminal,
+  controller: controller,
+  scrollController: scrollController,
+  fontSize: 14,
+  fontFamily: AppFonts.monoFamily,
+  fontFamilyFallback: AppFonts.monoFallback,
+);
+
 void main() {
   group('TerminalCopyOverlay — lifecycle', () {
     testWidgets('suspends pointer input on mount and restores on dispose', (
@@ -23,17 +38,14 @@ void main() {
     ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
+      final scroll = ScrollController();
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
+          _buildOverlay(
             terminal: terminal,
             controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
+            scrollController: scroll,
           ),
         ),
       );
@@ -49,75 +61,22 @@ void main() {
       final terminal = Terminal(maxLines: 100);
       terminal.write('hello world');
       final controller = TerminalController();
+      final scroll = ScrollController();
       final line = terminal.buffer.lines[0];
       controller.setSelection(line.createAnchor(0), line.createAnchor(5));
       expect(controller.selection, isNotNull);
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
+          _buildOverlay(
             terminal: terminal,
             controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
+            scrollController: scroll,
           ),
         ),
       );
 
       expect(controller.selection, isNull);
-    });
-  });
-
-  group('TerminalCopyOverlay — toolbar actions', () {
-    testWidgets('tapping Copy button fires onCopy', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-      var fired = 0;
-
-      await tester.pumpWidget(
-        _app(
-          TerminalCopyOverlay(
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () => fired++,
-            onCancel: () {},
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Copy'));
-      await tester.pump();
-      expect(fired, 1);
-    });
-
-    testWidgets('tapping Cancel button fires onCancel', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-      var fired = 0;
-
-      await tester.pumpWidget(
-        _app(
-          TerminalCopyOverlay(
-            terminal: terminal,
-            controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () => fired++,
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      expect(fired, 1);
     });
   });
 
@@ -128,32 +87,30 @@ void main() {
       final terminal = Terminal(maxLines: 100);
       terminal.write('hello world');
       final controller = TerminalController();
+      final scroll = ScrollController();
       final key = GlobalKey<TerminalCopyOverlayState>();
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
-            key: key,
+          _buildOverlay(
             terminal: terminal,
             controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
+            scrollController: scroll,
+            key: key,
           ),
         ),
       );
 
-      // Before first anchor-down, selection is empty.
+      // Before first anchor-down, selection is empty and `anchorSet` is
+      // false — parent uses it to swap the hint copy in the Column layout.
       expect(controller.selection, isNull);
+      expect(key.currentState!.anchorSet, isFalse);
 
       key.currentState!.onAnchorDown();
       await tester.pump();
 
-      // Anchor + extent are both at the cursor, so the range is zero-
-      // width but the controller reports a non-null selection.
       expect(controller.selection, isNotNull);
+      expect(key.currentState!.anchorSet, isTrue);
     });
 
     testWidgets('onAnchorDown is idempotent after the first call', (
@@ -161,19 +118,16 @@ void main() {
     ) async {
       final terminal = Terminal(maxLines: 100);
       final controller = TerminalController();
+      final scroll = ScrollController();
       final key = GlobalKey<TerminalCopyOverlayState>();
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
-            key: key,
+          _buildOverlay(
             terminal: terminal,
             controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
+            scrollController: scroll,
+            key: key,
           ),
         ),
       );
@@ -194,19 +148,16 @@ void main() {
       final terminal = Terminal(maxLines: 100);
       terminal.write('hello world');
       final controller = TerminalController();
+      final scroll = ScrollController();
       final key = GlobalKey<TerminalCopyOverlayState>();
 
       await tester.pumpWidget(
         _app(
-          TerminalCopyOverlay(
-            key: key,
+          _buildOverlay(
             terminal: terminal,
             controller: controller,
-            fontSize: 14,
-            fontFamily: AppFonts.monoFamily,
-            fontFamilyFallback: AppFonts.monoFallback,
-            onCopy: () {},
-            onCancel: () {},
+            scrollController: scroll,
+            key: key,
           ),
         ),
       );
@@ -222,4 +173,10 @@ void main() {
       expect(sel.end.x, greaterThan(sel.begin.x));
     });
   });
+
+  // CopyModeHint and CopyModeToolbar were removed: the bar's row
+  // now swaps its own contents between normal keys and copy-mode
+  // content inside the same fixed-height Container, which keeps
+  // the terminal widget a constant size across copy-mode toggles.
+  // Coverage for the swap lives in the SshKeyboardBar test file.
 }

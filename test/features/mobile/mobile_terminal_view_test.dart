@@ -845,24 +845,17 @@ void main() {
 
       expect(controller.suspendedPointerInputs, isFalse);
 
-      // Once copy mode is active, the overlay surfaces its own `Icons.copy`
-      // button (the clipboard action inside the copy toolbar), so a bare
-      // `find.byIcon(Icons.copy)` matches two widgets. Scope the finder to
-      // the keyboard bar — that one is the mode toggle, present in both
-      // states, and the test only cares about flipping it.
-      final toggleCopyButton = find.descendant(
-        of: find.byType(SshKeyboardBar),
-        matching: find.byIcon(Icons.copy),
-      );
-
-      // Tap select button
-      await tester.tap(toggleCopyButton);
+      // Enter copy mode via the Copy icon in the normal bar row.
+      await tester.tap(find.byIcon(Icons.copy));
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isTrue);
 
-      // Tap again to deactivate
-      await tester.tap(toggleCopyButton);
+      // Exit via the Cancel (close) icon that the bar swaps in for
+      // its copy-mode content — Icons.copy in this state is the Copy
+      // action, not a toggle, so tapping it would fire onCopyPressed
+      // instead of leaving copy mode.
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
 
       expect(controller.suspendedPointerInputs, isFalse);
@@ -897,13 +890,15 @@ void main() {
       await tester.tap(find.byIcon(Icons.copy));
       await tester.pumpAndSettle();
 
-      // Overlay mounts with its toolbar. Two "Copy" strings are expected:
-      // one from the keyboard-bar tooltip stays out of the tree (tooltips
-      // are not rendered until hovered), so the text we see is the
-      // overlay's own Copy button.
+      // Overlay mounts; the SSH bar's row swaps to copy-mode content
+      // with a hint + Set-Anchor (Icons.adjust) + Cancel. The Copy
+      // action only appears AFTER the user explicitly commits the
+      // anchor via the Set-Anchor button, since aiming on a phone
+      // can take more than one drag.
       expect(find.byType(TerminalCopyOverlay), findsOneWidget);
-      expect(find.text('Copy'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.byIcon(Icons.adjust), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsNothing);
     });
 
     testWidgets('tapping overlay Cancel exits copy mode', (tester) async {
@@ -927,9 +922,196 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TerminalCopyOverlay), findsOneWidget);
 
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
       expect(find.byType(TerminalCopyOverlay), findsNothing);
+    });
+
+    testWidgets(
+      'selection set outside copy mode is cleared by the mobile guard',
+      (tester) async {
+        // Pin the "no touch-selection outside copy mode" invariant. xterm's
+        // TerminalGestureHandler routes long-press + drag into
+        // `controller.setSelection`; on mobile that path must not leave a
+        // selection behind — the sanctioned selection surface is the
+        // copy-mode overlay, nothing else. We simulate the xterm path by
+        // poking the controller directly, which is what its internal gesture
+        // handler does on a long-press → word select.
+        final mockSsh = MockSSHConnection();
+        final mockSession = MockSSHSession();
+        final conn = connectedConn(mockSsh, mockSession);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(body: MobileTerminalView(connection: conn)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Reach the controller through the mounted TerminalView.
+        final tv = tester.widget<TerminalView>(find.byType(TerminalView));
+        final controller = tv.controller!;
+        final terminal = tv.terminal;
+        // Make sure the buffer has something to anchor against.
+        terminal.write('hello world\r\n');
+        await tester.pump();
+
+        final buf = terminal.buffer;
+        controller.setSelection(buf.createAnchor(0, 0), buf.createAnchor(5, 0));
+        // The guard runs inside `addListener` → the listener fires
+        // synchronously during `setSelection`, so by the time the call
+        // returns the controller should already be back to null.
+        expect(
+          controller.selection,
+          isNull,
+          reason: 'Mobile guard must clear any selection set outside copy mode',
+        );
+      },
+    );
+
+    testWidgets(
+      'pointer events alone never drop the selection anchor (aim phase)',
+      (tester) async {
+        // Regression gate for the two-phase copy-mode model: pointer
+        // events only aim the virtual cursor. Anchor commit is
+        // exclusively driven by the Set-Anchor button on the bar —
+        // lifts, multiple touches, moves, none of them drop an
+        // anchor. Earlier revisions committed on the first lift,
+        // which failed the "can't aim in one drag" reports from
+        // phone users.
+        final mockSsh = MockSSHConnection();
+        final mockSession = MockSSHSession();
+        final conn = connectedConn(mockSsh, mockSession);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Scaffold(body: MobileTerminalView(connection: conn)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.copy));
+        await tester.pumpAndSettle();
+
+        final overlay = tester.state<TerminalCopyOverlayState>(
+          find.byType(TerminalCopyOverlay),
+        );
+
+        // Drag + lift + drag + lift — two full pointer cycles must
+        // still leave `anchorSet` false.
+        final termCenter = tester.getCenter(find.byType(TerminalView));
+        final first = await tester.startGesture(termCenter);
+        await first.moveBy(const Offset(40, 0));
+        await first.up();
+        await tester.pumpAndSettle();
+        expect(overlay.anchorSet, isFalse);
+
+        final second = await tester.startGesture(termCenter);
+        await second.moveBy(const Offset(20, 20));
+        await second.up();
+        await tester.pumpAndSettle();
+        expect(overlay.anchorSet, isFalse);
+
+        // Tapping the Set-Anchor action on the bar is the only way
+        // to commit.
+        await tester.tap(find.byIcon(Icons.adjust));
+        await tester.pumpAndSettle();
+        expect(overlay.anchorSet, isTrue);
+      },
+    );
+
+    testWidgets('AbsorbPointer gates the terminal while copy mode is active', (
+      tester,
+    ) async {
+      // Regression gate. xterm's internal PanGestureRecognizer was
+      // racing `TerminalCopyOverlay.onCursorPan` on every frame —
+      // both wrote to `TerminalController.setSelection`, which painted
+      // duplicate scrollback rows and left selection gaps. The fix
+      // wraps `TerminalView` in an `AbsorbPointer` whose `absorbing`
+      // flag tracks `_copyMode`. Pin that invariant here: when the
+      // mode is off, the AbsorbPointer is transparent; when the
+      // overlay is active, it absorbs.
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      AbsorbPointer guard() {
+        final finder = find.ancestor(
+          of: find.byType(TerminalView),
+          matching: find.byType(AbsorbPointer),
+        );
+        return tester.widget<AbsorbPointer>(finder.first);
+      }
+
+      expect(guard().absorbing, isFalse);
+
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pumpAndSettle();
+      expect(guard().absorbing, isTrue);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(guard().absorbing, isFalse);
+    });
+
+    testWidgets('selection set INSIDE copy mode survives the guard', (
+      tester,
+    ) async {
+      // Inverse of the above — once the overlay is mounted the guard
+      // must step aside, otherwise the user's extend-selection path
+      // through the overlay would stamp and immediately lose every
+      // anchor.
+      final mockSsh = MockSSHConnection();
+      final mockSession = MockSSHSession();
+      final conn = connectedConn(mockSsh, mockSession);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(body: MobileTerminalView(connection: conn)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enter copy mode via the keyboard bar's Copy button.
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pumpAndSettle();
+      expect(find.byType(TerminalCopyOverlay), findsOneWidget);
+
+      final tv = tester.widget<TerminalView>(find.byType(TerminalView));
+      final controller = tv.controller!;
+      final terminal = tv.terminal;
+      terminal.write('hello world\r\n');
+      await tester.pump();
+      final buf = terminal.buffer;
+      controller.setSelection(buf.createAnchor(0, 0), buf.createAnchor(5, 0));
+      expect(controller.selection, isNotNull);
     });
   });
 }

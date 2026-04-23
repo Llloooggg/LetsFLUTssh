@@ -34,7 +34,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
 - **Security** — encrypted SQLite storage (ChaCha20-Poly1305 AEAD via SQLite3MultipleCiphers — native AEAD with per-page 16-byte authentication tags, constant-time by design, D.J. Bernstein / Signal / WireGuard lineage). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](docs/SECURITY.md)
 - **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
-- **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), pinch-to-zoom, deep links
+- **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), terminal font slider in Settings, deep links
 - **Auth** — password, key file, PEM text
 - **Themes** — OneDark / One Light, system auto-detection
 
