@@ -353,91 +353,76 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _fontSize = configFontSize;
     }
 
-    // Layout rationale — the stable-height / translate model.
+    // Layout rationale — reflow-on-keyboard, stable-on-copy-mode.
     //
-    // The terminal widget must NEVER change size at runtime. Any
-    // height change propagates into xterm's `Terminal.buffer.resize`,
-    // which reshuffles scrollback lines and has been the root cause
-    // of every "mid-buffer gaps" and "copy-mode-exit breaks scrollback"
-    // report in this file's history. The prior "terminal ends at bar
-    // top" attempt and the "hint as Positioned overlay" attempt each
-    // traded one regression for another. This layout removes the
-    // tradeoff entirely:
+    // Two triggers could resize the terminal widget: soft-keyboard
+    // open/close, and copy-mode toggle. Each one propagates into
+    // `Terminal.buffer.resize`, and xterm's resize has visible
+    // side effects. The compromise landing here:
     //
-    //   1. MobileShell sets `resizeToAvoidBottomInset: false` for
-    //      this page, so the Scaffold body stays at full viewport
-    //      height when the system keyboard opens. The body's
-    //      `constraints.maxHeight` is therefore stable.
-    //   2. A Column of `[Expanded(terminal), SshKeyboardBar]`
-    //      occupies a fixed-height slot of `bodyH - navBarHeight`
-    //      so the SSH bar always sits above the mobile-shell nav.
-    //      Terminal height inside that Column is constant —
-    //      `bodyH - navBarHeight - barHeight` — regardless of
-    //      keyboard state.
-    //   3. When the keyboard is bigger than the nav bar (the
-    //      common case), the whole Column is translated UP by
-    //      `keyboardInset - navBarHeight` so the bar sits flush
-    //      against the keyboard's top edge. A `ClipRect` above
-    //      clips the Column's top overflow so translated rows
-    //      don't paint over the mobile-shell AppBar. Terminal
-    //      widget size is untouched — only its on-screen position
-    //      changes.
-    //   4. Copy mode swaps the bar's *contents* in place (same
-    //      `itemHeightLg` Container). The hint copy + Copy/Cancel
-    //      buttons render INSIDE the bar's row; there is no
-    //      separate banner over the terminal's first row, no
-    //      second toolbar shifting the terminal's size. Users get
-    //      the hint without losing any terminal rows.
+    //   - **Keyboard reflow is allowed.** When the soft keyboard
+    //     opens, the terminal shrinks to the free area above the
+    //     SSH bar (which floats flush against the keyboard top).
+    //     xterm runs its rows-only resize path — popping empty
+    //     trailing lines when the cursor is already at bottom,
+    //     otherwise moving the cursor up — and the earlier rows
+    //     become reachable via xterm's own scrollback gesture.
+    //     The prior "translate + ClipRect + stable height"
+    //     attempt avoided the resize but parked the top rows
+    //     off-screen under the mobile-shell AppBar with NO way
+    //     for the user to scroll them back into view (scrolling
+    //     xterm moves the whole render, not the clip), which is
+    //     worse than a clean reflow.
+    //   - **Copy-mode toggle is stable.** `SshKeyboardBar` swaps
+    //     its row content in-place between normal keys and the
+    //     copy-mode variant (hint + Copy + Cancel) inside the
+    //     same `itemHeightLg` Container. No widget in the column
+    //     changes height on toggle, so `buffer.resize` does not
+    //     fire when the user enters or leaves copy mode — that
+    //     was the scrollback-corruption path.
     //
-    // With this model `TerminalView` only ever calls `buffer.resize`
-    // at mount (initial layout) — never on keyboard open/close, never
-    // on copy-mode toggle, never on orientation change within the
-    // same body height. The only remaining resize trigger is actual
-    // rotation (body size really does change), which is unavoidable.
+    // `MobileShell` already sets `resizeToAvoidBottomInset: false`
+    // on the terminal page, so we own the keyboard layout here —
+    // the Scaffold body stays at full height regardless of the
+    // keyboard. The bar's `bottom` offset clamps to `navBarHeight`
+    // (sits above the mobile-shell nav bar when the keyboard is
+    // hidden) and follows `keyboardInset` once the keyboard
+    // covers both nav and lower content.
     final mq = MediaQuery.of(context);
     final keyboardInset = mq.viewInsets.bottom;
     const navBarHeight = AppTheme.itemHeightXl;
+    const barHeight = AppTheme.itemHeightLg;
+    final barBottom = math.max(navBarHeight, keyboardInset);
     final anchorSet =
         _copyMode && (_copyOverlayKey.currentState?.anchorSet ?? false);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bodyH = constraints.maxHeight;
-        final stackH = math.max(0.0, bodyH - navBarHeight);
-        // Distance to push the whole stack up so the bar sits flush
-        // with the keyboard top. Zero when the keyboard is hidden or
-        // smaller than the nav bar (the nav-bar clamp already covers
-        // that visually).
-        final translateUp = math.max(0.0, keyboardInset - navBarHeight);
-        return ClipRect(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: navBarHeight + translateUp,
-                height: stackH,
-                child: SelectionContainer.disabled(
-                  child: Column(
-                    children: [
-                      Expanded(child: _buildTerminalArea()),
-                      SshKeyboardBar(
-                        key: _keyboardKey,
-                        onInput: _onKeyboardInput,
-                        onPaste: _paste,
-                        onSnippets: _showSnippets,
-                        onCopyModeChanged: _onCopyModeChanged,
-                        onCopyPressed: _copyFromOverlay,
-                        anchorSet: anchorSet,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: barBottom + barHeight,
+          child: SelectionContainer.disabled(child: _buildTerminalArea()),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: barBottom,
+          height: barHeight,
+          child: SelectionContainer.disabled(
+            child: SshKeyboardBar(
+              key: _keyboardKey,
+              onInput: _onKeyboardInput,
+              onPaste: _paste,
+              onSnippets: _showSnippets,
+              onCopyModeChanged: _onCopyModeChanged,
+              onCopyPressed: _copyFromOverlay,
+              anchorSet: anchorSet,
+            ),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
