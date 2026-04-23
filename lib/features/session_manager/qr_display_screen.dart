@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/security/clipboard_secret.dart';
+import '../../core/security/secure_clipboard.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
@@ -112,13 +113,30 @@ class QrDisplayScreen extends StatelessWidget {
       actions: [
         AppButton.primary(
           label: S.of(context).copyLink,
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: data));
-            Toast.show(
-              context,
-              message: S.of(context).linkCopied,
-              level: ToastLevel.success,
-            );
+          onTap: () async {
+            // When the payload carries credentials the copy MUST
+            // opt out of Win+V history / macOS Universal Clipboard /
+            // Android 13+ clipboard preview / iOS Handoff, and
+            // auto-wipe after 30s so the secret does not linger for
+            // the next app that reads the clipboard. Same treatment
+            // `ClipboardSecret` applies to every other "Copy
+            // password" button in the app — keep it consistent so a
+            // QR flow is not a silent hole in the clipboard-hygiene
+            // story. Non-credential QR links (host/user/port deep
+            // links) keep the stock clipboard path so regular
+            // paste-to-browser workflows still benefit from Win+V.
+            if (containsCredentials) {
+              await ClipboardSecret().copySecret(data);
+            } else {
+              await SecureClipboard().setText(data);
+            }
+            if (context.mounted) {
+              Toast.show(
+                context,
+                message: S.of(context).linkCopied,
+                level: ToastLevel.success,
+              );
+            }
           },
         ),
       ],
