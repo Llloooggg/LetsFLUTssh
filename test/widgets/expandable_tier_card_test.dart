@@ -141,7 +141,7 @@ void main() {
         String? shortPassword,
         String? pin,
         String? masterPassword,
-  bool? pendingBiometric,
+        bool? pendingBiometric,
       }) async {
         capturedTier = tier;
         capturedMods = modifiers;
@@ -183,7 +183,7 @@ void main() {
           String? shortPassword,
           String? pin,
           String? masterPassword,
-  bool? pendingBiometric,
+          bool? pendingBiometric,
         }) async {
           capturedTier = tier;
           captured = masterPassword;
@@ -230,7 +230,7 @@ void main() {
           String? shortPassword,
           String? pin,
           String? masterPassword,
-  bool? pendingBiometric,
+          bool? pendingBiometric,
         }) async {
           calls++;
         }
@@ -271,7 +271,7 @@ void main() {
           String? shortPassword,
           String? pin,
           String? masterPassword,
-  bool? pendingBiometric,
+          bool? pendingBiometric,
         }) async {
           capturedTier = tier;
           capturedShort = shortPassword;
@@ -325,6 +325,62 @@ void main() {
           find.byWidgetPredicate((w) => w is AppButton),
         );
         expect(button.onTap, isNull);
+      },
+    );
+
+    testWidgets(
+      'parent-pushed applied-state change resets pending password + re-locks Apply',
+      (tester) async {
+        // Regression gate for the "Apply stays active after nothing
+        // changed" bug: after `onSelectTier` finishes and the parent
+        // rebuilds with a fresh `currentTier` + `currentModifiers`,
+        // the card must reseat `_passwordEnabled` + wipe the pending
+        // password text so `_matchesCurrentConfig` reports match and
+        // Apply clamps back to null. Without the reset the
+        // pre-apply pending state lingers and Apply stays tappable
+        // even though the displayed config is identical to what was
+        // just applied.
+        await tester.pumpWidget(
+          _wrap(
+            const ExpandableTierCard(
+              tier: SecurityTier.keychain,
+              currentTier: SecurityTier.keychain,
+              currentModifiers: SecurityTierModifiers(),
+              tierAvailable: true,
+              initiallyExpanded: true,
+              onSelect: _noop,
+            ),
+          ),
+        );
+        AppButton button() => tester.widget<AppButton>(
+          find.byWidgetPredicate((w) => w is AppButton),
+        );
+        expect(
+          button().onTap,
+          isNull,
+          reason: 'Initial match on current T1 must leave Apply disabled',
+        );
+
+        // Simulate user applying password on → parent rebuild lands
+        // the card with currentTier=keychainWithPassword + password=true.
+        await tester.pumpWidget(
+          _wrap(
+            const ExpandableTierCard(
+              tier: SecurityTier.keychain,
+              currentTier: SecurityTier.keychainWithPassword,
+              currentModifiers: SecurityTierModifiers(password: true),
+              tierAvailable: true,
+              initiallyExpanded: true,
+              onSelect: _noop,
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          button().onTap,
+          isNull,
+          reason: 'After applied-state change the card must re-match + lock',
+        );
       },
     );
   });

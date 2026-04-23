@@ -176,11 +176,26 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   @override
   void didUpdateWidget(ExpandableTierCard old) {
     super.didUpdateWidget(old);
-    // Re-seat the pending biometric flag when the parent re-builds
-    // with a fresh applied-state snapshot (tier switch, external
-    // settings change). Without this the card would show a stale
-    // pending value after Apply completes and the parent pushes a
-    // new `biometricSpec.value` down.
+    // Re-seat every pending-vs-applied field when the parent pushes
+    // a new applied-state snapshot down (tier switch completed,
+    // settings reset, biometric toggled externally). Without these
+    // resets the card keeps the PRE-apply pending values and the
+    // Apply button stays enabled even though the tier + modifiers
+    // now match the fresh applied state.
+    if (old.currentTier != widget.currentTier ||
+        old.currentModifiers != widget.currentModifiers) {
+      _passwordEnabled = _derivePassword(
+        widget.currentTier,
+        widget.currentModifiers,
+      );
+      // Typed secrets from the prior provisioning flow are also
+      // stale — the user's last Apply consumed them. Wipe so the
+      // input fields render empty on the next expand.
+      _passwordCtrl.wipeAndClear();
+      _passwordConfirmCtrl.wipeAndClear();
+      _masterPasswordCtrl.wipeAndClear();
+      _masterPasswordConfirmCtrl.wipeAndClear();
+    }
     final next = widget.biometricSpec?.value ?? false;
     if (next != _initialBiometric) {
       _initialBiometric = next;
