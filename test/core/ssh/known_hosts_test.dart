@@ -383,7 +383,14 @@ void main() {
 
       final wire = await manager.exportToString();
 
-      final fresh = KnownHostsManager()..setDatabase(openTestDatabase());
+      // Second AppDatabase gets its own scoped tearDown so it does
+      // not leak into the next test's setUp — a leftover instance
+      // trips drift's "multiple databases opened" warning because
+      // drift tracks every constructed GeneratedDatabase in a
+      // global registry until close().
+      final freshDb = openTestDatabase();
+      addTearDown(freshDb.close);
+      final fresh = KnownHostsManager()..setDatabase(freshDb);
       await fresh.load();
       final added = await fresh.importFromString(wire);
 
