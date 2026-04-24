@@ -84,7 +84,7 @@ void main() {
       // the function without pumping any widget. No Provider
       // container required because the early-return happens before
       // any `ref.read` fires.
-      final payload = const ExportPayloadData(sessions: [], emptyFolders: {});
+      const payload = ExportPayloadData(sessions: [], emptyFolders: {});
 
       late WidgetRef capturedRef;
       await tester.pumpWidget(
