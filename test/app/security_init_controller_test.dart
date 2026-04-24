@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/app/security_init_controller.dart';
 import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/core/db/database_opener.dart';
@@ -649,6 +650,63 @@ void main() {
 
         expect(capturedKey, isNull);
         expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'first-launch with available keychain auto-wires T1 without the wizard',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              // A keystorage that reports available drives the
+              // capabilities probe's `keychainAvailable` flag true,
+              // which lets `_firstLaunchSetup` take the auto-setup
+              // path instead of the wizard.
+              secureKeyStorage: FakeSecureKeyStorage(available: true),
+            ),
+            child: MaterialApp(
+              // Bind the global navigatorKey so `_firstLaunchSetup`'s
+              // null-context guard passes and the auto-setup path can
+              // run. Without this the helper exits at the
+              // `if (ctx == null) return;` line and never reaches
+              // `_autoSetupKeychain`.
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      return testDb;
+                    },
+                    // No DB yet — first-launch branch.
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // `_autoSetupKeychain` generates a fresh AES-256 key, writes
+        // it to the fake keystore, then injects the DB with that key.
+        // Opener sees 32 non-null bytes; the reset flag stays false
+        // because this is a clean first-launch, not a recovery.
+        expect(capturedKey, isNotNull);
+        expect(capturedKey!.length, 32);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isFalse);
         expect(ctrl!.isReady, isTrue);
         ctrl!.dispose();
       },
