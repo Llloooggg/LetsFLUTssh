@@ -74,11 +74,45 @@ import 'security_dialogs.dart';
 ///   5. `dispose()` called from the state's `dispose()` so any
 ///      in-flight async completes into a disposed flag instead of
 ///      touching the DB.
+/// Signature of `openDatabase` from `database_opener.dart`. Matching
+/// shape is what lets tests pass `openTestDatabase` (in-memory, no
+/// cipher) in place of the real file-backed opener.
+typedef DbOpener = AppDatabase Function({Uint8List? encryptionKey});
+
+/// Signature of `databaseFileExists` — async bool probe on the app-
+/// support directory. Lets tests flip "first launch vs existing install"
+/// without touching the filesystem.
+typedef DbFileExistsProbe = Future<bool> Function();
+
+/// Signature of `verifyDatabaseReadable` — trivial `SELECT 1` probe.
+/// Injectable so tests can simulate a corrupt database without a real
+/// MC cipher mismatch on disk.
+typedef DbReadableProbe = Future<bool> Function(AppDatabase);
+
 class SecurityInitController {
   final WidgetRef ref;
   final bool Function() isMounted;
 
-  SecurityInitController({required this.ref, required this.isMounted});
+  /// Test seams — production leaves every field at the default so the
+  /// byte-for-byte unlock path stays identical. The three hooks
+  /// mirror `database_opener.dart`'s top-level functions; tests swap
+  /// in an in-memory `openTestDatabase`, a canned "file exists" flag,
+  /// and a deterministic readability probe. Same indirection-through-
+  /// field pattern already used by `SecurityTierSwitcher._rekey` and
+  /// `HardwareTierVault._stateFile` — no new vocabulary.
+  final DbOpener _dbOpener;
+  final DbFileExistsProbe _dbFileExists;
+  final DbReadableProbe _verifyReadable;
+
+  SecurityInitController({
+    required this.ref,
+    required this.isMounted,
+    DbOpener? dbOpener,
+    DbFileExistsProbe? dbFileExists,
+    DbReadableProbe? verifyReadable,
+  }) : _dbOpener = dbOpener ?? openDatabase,
+       _dbFileExists = dbFileExists ?? databaseFileExists,
+       _verifyReadable = verifyReadable ?? verifyDatabaseReadable;
 
   // ── State fields ────────────────────────────────────────────
 
@@ -246,7 +280,7 @@ class SecurityInitController {
       _markSecurityReady();
       return;
     }
-    if (await verifyDatabaseReadable(db)) {
+    if (await _verifyReadable(db)) {
       _markSecurityReady();
       return;
     }
@@ -365,7 +399,7 @@ class SecurityInitController {
       return;
     }
 
-    final dbExists = await databaseFileExists();
+    final dbExists = await _dbFileExists();
     if (dbExists) {
       await _unlockExistingDatabase(manager, keyStorage);
       return;
@@ -1025,7 +1059,7 @@ class SecurityInitController {
     SecurityTierModifiers? modifiers,
   }) async {
     if (_disposed) return;
-    final db = openDatabase(encryptionKey: key);
+    final db = _dbOpener(encryptionKey: key);
     _activeDatabase = db;
     ref.read(sessionStoreProvider).setDatabase(db);
     ref.read(keyStoreProvider).setDatabase(db);
@@ -1116,7 +1150,7 @@ class SecurityInitController {
     final keyStorage = ref.read(secureKeyStorageProvider);
     await _firstLaunchSetup(manager, keyStorage);
     final fresh = _activeDatabase;
-    if (fresh != null && await verifyDatabaseReadable(fresh)) {
+    if (fresh != null && await _verifyReadable(fresh)) {
       _markSecurityReady();
     }
   }

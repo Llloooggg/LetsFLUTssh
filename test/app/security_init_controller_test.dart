@@ -1,9 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/security_init_controller.dart';
+import 'package:letsflutssh/core/db/database.dart';
+import 'package:letsflutssh/core/db/database_opener.dart';
+import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/providers/security_provider.dart';
 
 import '../helpers/fake_native_plugins.dart';
 import '../helpers/fake_path_provider.dart';
@@ -200,5 +205,99 @@ void main() {
       expect(ctrl!.isReady, isTrue);
       ctrl!.dispose();
     });
+  });
+
+  group('SecurityInitController — DB seam integration', () {
+    // These tests drive the DB-injection path through the three
+    // seams (dbOpener / dbFileExists / verifyReadable) without going
+    // through `bootstrap()`. The full migration + first-launch chain
+    // has a dialog-harness dependency tracked separately; the path
+    // we can pin today is `reopenAfterUnlock` — it walks
+    // `_injectDatabase` exactly once with a key from
+    // `securityStateProvider`, so it exercises the same store-fanout
+    // + probe hooks that bootstrap would.
+
+    late Directory tmpDir;
+    late AppDatabase testDb;
+    setUp(() {
+      tmpDir = installFakePathProvider();
+      installFakeSecureStorage();
+      installFakeNativePlugins();
+      testDb = openTestDatabase();
+    });
+
+    tearDown(() async {
+      await testDb.close();
+      uninstallFakeNativePlugins();
+      uninstallFakeSecureStorage();
+      uninstallFakePathProvider(tmpDir);
+    });
+
+    testWidgets(
+      'reopenAfterUnlock routes the DB open through the injected dbOpener',
+      (tester) async {
+        SecurityInitController? ctrl;
+        var opens = 0;
+        var lastKey = Uint8List(0);
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    // Counter + key capture — the real opener would
+                    // construct a fresh AppDatabase; the seam must
+                    // propagate whatever key the unlock path derived.
+                    dbOpener: ({encryptionKey}) {
+                      opens++;
+                      // Snapshot — the key is a live alias into the
+                      // previous SecretBuffer, which the follow-up
+                      // `securityStateProvider.set` disposes before
+                      // the test's expect() runs. Copy here so the
+                      // assertion sees the bytes from the moment of
+                      // injection, not random freed memory.
+                      lastKey = Uint8List.fromList(
+                        encryptionKey ?? const <int>[],
+                      );
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        // Seed the security state with a keychain-tier key so
+        // reopenAfterUnlock does not early-exit on the null-key guard.
+        final key = Uint8List.fromList(List.filled(32, 7));
+        capturedRef
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychain, key);
+
+        // `reopenAfterUnlock` awaits `configProvider.update`, which
+        // blocks on a 300 ms debounce Timer. Under FakeAsync (the
+        // default for testWidgets) the Timer never fires, so run the
+        // unlock chain inside `tester.runAsync` where real-time Timers
+        // progress. After the chain resolves, return to FakeAsync for
+        // teardown.
+        await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+
+        // The seam was the single open path — no other call site in
+        // `_injectDatabase` bypasses it. The captured key equals the
+        // one `securityStateProvider` held, proving the unlock path
+        // forwarded the real key rather than zeroing it en route.
+        expect(opens, 1);
+        expect(lastKey, equals(key));
+        ctrl!.dispose();
+      },
+    );
   });
 }
