@@ -209,13 +209,15 @@ void main() {
 
   group('SecurityInitController — DB seam integration', () {
     // These tests drive the DB-injection path through the three
-    // seams (dbOpener / dbFileExists / verifyReadable) without going
-    // through `bootstrap()`. The full migration + first-launch chain
-    // has a dialog-harness dependency tracked separately; the path
-    // we can pin today is `reopenAfterUnlock` — it walks
-    // `_injectDatabase` exactly once with a key from
-    // `securityStateProvider`, so it exercises the same store-fanout
-    // + probe hooks that bootstrap would.
+    // seams (dbOpener / dbFileExists / verifyReadable). Full bootstrap
+    // works end-to-end when the async chain runs under
+    // `tester.runAsync` — configProvider's 300 ms debounce Timer
+    // never fires under FakeAsync, which is why the naive
+    // `await ctrl.bootstrap()` inside testWidgets used to deadlock.
+    // The first-launch wizard exits silently when the test widget
+    // tree mounts a plain `MaterialApp` without binding the global
+    // `navigatorKey` — the helper reads `navigatorKey.currentContext`
+    // and returns early on null, so no dialog actually fires.
 
     late Directory tmpDir;
     late AppDatabase testDb;
@@ -232,6 +234,108 @@ void main() {
       uninstallFakeSecureStorage();
       uninstallFakePathProvider(tmpDir);
     });
+
+    testWidgets(
+      'bootstrap on an existing plaintext install flips isReady to true',
+      (tester) async {
+        SecurityInitController? ctrl;
+        var opens = 0;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      opens++;
+                      return testDb;
+                    },
+                    // Lie about file presence so `_initSecurity` skips
+                    // the first-launch wizard and takes the existing-
+                    // install branch.
+                    dbFileExists: () async => true,
+                    // MC cipher is not linked into flutter test; skip
+                    // the real probe and pin the controller's post-
+                    // probe isReady contract.
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        // `runAsync` escapes FakeAsync so configProvider's 300 ms
+        // debounce Timer fires — `_persistSecurityTier` waits on
+        // that Timer and would otherwise deadlock.
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // AppConfig.defaults has security=null; master password is
+        // disabled; the keychain is empty. Legacy-infer falls through
+        // to the "plaintext mode (existing DB)" branch — one dbOpener
+        // call, isReady flipped after the readability probe.
+        expect(opens, 1);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap on a first-launch install exits silently on null navigator',
+      (tester) async {
+        SecurityInitController? ctrl;
+        var opens = 0;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      opens++;
+                      return testDb;
+                    },
+                    // No DB on disk — first-launch branch.
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // First-launch reads `navigatorKey.currentContext`; the test
+        // widget tree uses a plain MaterialApp without binding that
+        // global key so the resolver returns null and the wizard
+        // helper exits silently. No DB ever opens because no tier
+        // was chosen, handleCorruption sees a null `_activeDatabase`
+        // and flips isReady regardless — same contract tested in the
+        // guard-clause group above.
+        expect(opens, 0);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    // reinitFromReset is not pinned here — the flow closes
+    // `_activeDatabase` and re-runs `_firstLaunchSetup`. On the null-
+    // navigator test tree the wizard exits silently without opening a
+    // new DB, so the follow-up `_markSecurityReady` runs against an
+    // `AutoLockStore` still holding the closed previous DB and throws
+    // `Bad state`. The production flow opens a fresh DB from the
+    // wizard's chosen tier before `_markSecurityReady` runs, so the
+    // stale reference is swapped before any probe. Covering this path
+    // needs either an autoLockStoreProvider override or a dialog
+    // harness — tracked under Proposal B.
 
     testWidgets(
       'handleCorruption on a reopened DB probes once and flips isReady',
