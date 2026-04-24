@@ -1563,7 +1563,7 @@ class AppConfig {
 
   final int transferWorkers;      // 1+ (default 2)
   final int maxHistory;           // ≥0 (default 500)
-  final bool enableLogging;
+  final LogLevel? logLevel;       // null = off; debug/info/warn/error = threshold
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
   final String? locale;             // null = OS auto-detect, or any of 15 supported locale codes
@@ -2566,6 +2566,43 @@ AppDivider.indented({Color? color})  // indent = 8, endIndent = 8
 ColumnResizeHandle({required void Function(double dx) onDrag})
 ```
 Draggable column-resize handle for table headers. Place between a flexible column and a fixed-width column. The `onDrag` callback receives the raw horizontal delta (positive = right). Callers negate the delta when the fixed column is to the right of the handle. Used in `FilePane` and `TransferPanel` column headers.
+
+### AppPopupSelect
+
+```dart
+class AppPopupSelectOption<T> {
+  const AppPopupSelectOption({
+    required this.value,
+    required this.label,
+    this.secondary,  // dim right-aligned tail (e.g. "Russian" next to "Русский")
+  });
+}
+
+class AppPopupSelect<T> extends StatelessWidget {
+  const AppPopupSelect({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.leadingIcon,
+    this.menuMinWidth = 200,
+  });
+}
+```
+
+Shared dropdown picker matching the project's canonical dropdown
+look: compact `bg3` trigger + down-arrow opening a `bg2`,
+`radiusMd`, no-animation `PopupMenuButton` with themed items.
+Replaces ad-hoc `DropdownButton` / one-off `PopupMenuButton` copies.
+Current callers: `_LanguageTile`, `_LogLevelSelector`. New level /
+enum / locale-style pickers should go through this widget rather
+than re-rolling a `DropdownButton` — the `PopupMenuButton` owned
+animation controller ignores the project-wide animations-off
+`MediaQuery`, and the one widget opts out of it once.
+
+**Trigger label flex** — `Flexible` + `TextOverflow.ellipsis`
+prevents fractional-pixel overflow on tight settings columns (the
+RenderFlex "overflowed by 5.2 px" shape a raw `DropdownButton`
+renders on narrow layouts).
 
 ### StyledFormField / FieldLabel / StyledInput
 
@@ -3707,7 +3744,7 @@ AppConfig {
   }
   transferWorkers: int    // 1+, default 2
   maxHistory: int         // ≥0, default 500
-  enableLogging: bool
+  logLevel: LogLevel?     // null = off (default); debug / info / warn / error = threshold
   checkUpdatesOnStart: bool
   skippedVersion: String?
   locale: String?           // null = OS auto-detect, or supported locale code
