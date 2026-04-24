@@ -410,23 +410,20 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   /// the stack-trace body too.
   List<LogEntry> _filterEntries(List<LogEntry> raw) {
     final lower = _query.toLowerCase();
-    return raw
-        .where((e) {
-          if (e.isHeader) return true;
-          if (e.level != null && !_visibleLevels.contains(e.level)) {
-            return false;
-          }
-          if (lower.isEmpty) return true;
-          if (e.message.toLowerCase().contains(lower)) return true;
-          if (e.tag != null && e.tag!.toLowerCase().contains(lower)) {
-            return true;
-          }
-          for (final c in e.continuations) {
-            if (c.toLowerCase().contains(lower)) return true;
-          }
-          return false;
-        })
-        .toList(growable: false);
+    return raw.where((e) => _shouldShow(e, lower)).toList(growable: false);
+  }
+
+  bool _shouldShow(LogEntry e, String lower) {
+    if (e.isHeader) return true;
+    if (e.level != null && !_visibleLevels.contains(e.level)) return false;
+    if (lower.isEmpty) return true;
+    return _matchesQuery(e, lower);
+  }
+
+  bool _matchesQuery(LogEntry e, String lower) {
+    if (e.message.toLowerCase().contains(lower)) return true;
+    if (e.tag != null && e.tag!.toLowerCase().contains(lower)) return true;
+    return e.continuations.any((c) => c.toLowerCase().contains(lower));
   }
 }
 
