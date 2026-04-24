@@ -281,6 +281,46 @@ void main() {
       expect(ctrl.currentPath, '/home');
     });
 
+    test('navigateUp on a Windows-style path walks the backslash', () async {
+      // Local pane on Windows hands back native paths from
+      // `entity.path` — `C:\Users\foo\bar`. The controller must
+      // honour backslash separators so the "Up" button stays
+      // useful on Windows; the lastIndexOf('/') shape used to
+      // collapse every Windows click to '/' which list() then
+      // rejected as "path not found".
+      final winFs = _MockFS({r'C:\Users\foo': [], r'C:\Users': []});
+      final winCtrl = FilePaneController(fs: winFs, label: 'Local');
+      await winCtrl.navigateTo(r'C:\Users\foo', addToHistory: false);
+      await winCtrl.navigateUp();
+      expect(winCtrl.currentPath, r'C:\Users');
+    });
+
+    test('navigateUp at a Windows drive root is a no-op', () async {
+      // `C:\` has no parent. Both `C:\` and `C:/` (the form SFTP
+      // would emit if it ever surfaced a Windows path) must short-
+      // circuit before the separator scan.
+      final winFs = _MockFS({r'C:\': []});
+      final winCtrl = FilePaneController(fs: winFs, label: 'Local');
+      await winCtrl.navigateTo(r'C:\', addToHistory: false);
+      await winCtrl.navigateUp();
+      expect(winCtrl.currentPath, r'C:\');
+    });
+
+    test(
+      'navigateUp from a second-level Windows dir snaps to drive root',
+      () async {
+        // `C:\Users` → parent should be `C:\`, not `C:`. The
+        // controller snaps a bare drive letter back to the
+        // canonical `C:\` so the subsequent `list()` call hits a
+        // shape dart:io accepts.
+        final winFs = _MockFS({r'C:\Users': [], r'C:\': []});
+        final winCtrl = FilePaneController(fs: winFs, label: 'Local');
+        await winCtrl.navigateTo(r'C:\Users', addToHistory: false);
+        await winCtrl.navigateUp();
+        expect(winCtrl.currentPath, r'C:\');
+      },
+    );
+
     test('sort by owner column', () async {
       await ctrl.init();
       ctrl.setSort(SortColumn.owner);

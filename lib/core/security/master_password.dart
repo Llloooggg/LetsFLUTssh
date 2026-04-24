@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
 import 'package:pointycastle/export.dart';
 
@@ -47,6 +48,7 @@ class MasterPasswordManager {
 
   /// Lower KDF cost for tests. Restores to production defaults when
   /// called with null. NEVER call from production code.
+  @visibleForTesting
   static void debugSetKdfParams(KdfParams? params) {
     _defaultParams = params ?? KdfParams.productionDefaults;
   }

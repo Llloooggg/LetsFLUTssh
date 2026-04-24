@@ -12,6 +12,8 @@
         <exclude domain="file" path="credentials.verify" />
         <exclude domain="file" path="credentials.key" />
         <exclude domain="file" path="security_pass_hash.bin" />
+        <exclude domain="file" path="rate_limit_state.bin" />
+        <exclude domain="file" path=".tier-transition-pending" />
         <exclude domain="file" path="hardware_vault.bin" />
         <exclude domain="file" path="hardware_vault_android.bin" />
         <exclude domain="file" path="hardware_vault_apple.bin" />
@@ -45,6 +47,8 @@
         <exclude domain="file" path="credentials.verify" />
         <exclude domain="file" path="credentials.key" />
         <exclude domain="file" path="security_pass_hash.bin" />
+        <exclude domain="file" path="rate_limit_state.bin" />
+        <exclude domain="file" path=".tier-transition-pending" />
         <exclude domain="file" path="hardware_vault.bin" />
         <exclude domain="file" path="hardware_vault_android.bin" />
         <exclude domain="file" path="hardware_vault_apple.bin" />

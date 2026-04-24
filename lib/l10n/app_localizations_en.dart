@@ -99,9 +99,6 @@ class SEn extends S {
   String get nextStep => 'Next';
 
   @override
-  String get includeCredentials => 'Include passwords and SSH keys';
-
-  @override
   String get includePasswords => 'Session passwords';
 
   @override
@@ -124,14 +121,6 @@ class SEn extends S {
   String exportTotalSize(String size) {
     return 'Total size: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'Credentials make the QR code too large. Remove some sessions or disable credentials.';
 
   @override
   String get terminal => 'Terminal';
@@ -248,11 +237,6 @@ class SEn extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'Imported $count session(s) via QR';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'Imported $count session(s)';
   }
@@ -310,9 +294,6 @@ class SEn extends S {
 
   @override
   String get noSessions => 'No sessions';
-
-  @override
-  String get noSessionsToExport => 'No sessions to export';
 
   @override
   String nSelectedCount(int count) {
@@ -441,9 +422,6 @@ class SEn extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'No additional options yet';
 
   @override
   String get saveAndConnect => 'Save & Connect';
@@ -605,9 +583,6 @@ class SEn extends S {
   String get controllersNotInitialized => 'Controllers not initialized';
 
   @override
-  String get initializingSftp => 'Initializing SFTP...';
-
-  @override
   String get clearHistory => 'Clear history';
 
   @override
@@ -618,9 +593,6 @@ class SEn extends S {
 
   @override
   String get duplicateTabShortcut => 'Duplicate Tab (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'Copy Down';
 
   @override
   String get previous => 'Previous';
@@ -729,13 +701,6 @@ class SEn extends S {
   String get exportData => 'Export Data';
 
   @override
-  String get exportDataSubtitle =>
-      'Save sessions, config, and keys to encrypted .lfs file';
-
-  @override
-  String get importDataSubtitle => 'Load data from .lfs file';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host(s) found';
   }
@@ -747,11 +712,6 @@ class SEn extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'Could not read key files for: $hosts. These hosts will be imported without credentials.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'Imported to folder: $folder';
   }
 
   @override
@@ -823,38 +783,10 @@ class SEn extends S {
   String get passwordStrengthVeryStrong => 'Very strong';
 
   @override
-  String get tierRecommendedBadge => 'Recommended';
-
-  @override
-  String get tierCurrentBadge => 'Current';
-
-  @override
-  String get tierAlternativeBranchLabel => 'Alternative — don\'t trust the OS';
-
-  @override
-  String get tierUpcomingTooltip => 'Ships in an upcoming version.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'This tier\'s underlying plumbing is not shipped yet. The row is visible so you know the option exists.';
-
-  @override
   String get tierPlaintextLabel => 'Plaintext';
 
   @override
   String get tierPlaintextSubtitle => 'No encryption — file permissions only';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'Anyone with filesystem access reads your data';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'Accidental sync or backup reveals everything';
-
-  @override
-  String get tierPlaintextNotes =>
-      'Use only in trusted, isolated environments.';
 
   @override
   String get tierKeychainLabel => 'Keychain';
@@ -865,77 +797,14 @@ class SEn extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'Other users on the same machine';
-
-  @override
-  String get tierKeychainProtect2 => 'Stolen disk without the OS login';
-
-  @override
-  String get tierKeychainThreat1 => 'Malware running under your OS account';
-
-  @override
-  String get tierKeychainThreat2 => 'An attacker who takes over your OS login';
-
-  @override
   String get tierKeychainUnavailable =>
       'OS keychain not available on this install.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'Coworker sitting at your desk';
-
-  @override
-  String get tierKeychainPassProtect2 => 'A passerby with unlocked access';
-
-  @override
-  String get tierKeychainPassThreat1 =>
-      'Offline attacker with the file on disk';
-
-  @override
-  String get tierKeychainPassThreat2 => 'Same OS-compromise risks as Keychain';
 
   @override
   String get tierHardwareLabel => 'Hardware';
 
   @override
-  String get tierHardwareSubtitle =>
-      'Hardware-bound vault + short PIN with lockout';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'Offline brute force of the PIN (hardware rate-limit)';
-
-  @override
-  String get tierHardwareProtect2 => 'Stealing the disk and the keychain blob';
-
-  @override
-  String get tierHardwareThreat1 => 'OS or firmware CVE on the secure module';
-
-  @override
-  String get tierHardwareThreat2 => 'Forced biometric unlock (if enabled)';
-
-  @override
   String get tierParanoidLabel => 'Master password (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'Long password + Argon2id. Key never enters the OS.';
-
-  @override
-  String get tierParanoidProtect1 => 'OS keychain compromise';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'Stolen disk (as long as your password is strong)';
-
-  @override
-  String get tierParanoidThreat1 => 'Keylogger capturing your password';
-
-  @override
-  String get tierParanoidThreat2 => 'Weak password + offline Argon2id cracking';
-
-  @override
-  String get tierParanoidNotes =>
-      'Biometric is disabled by design on this tier.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -979,19 +848,6 @@ class SEn extends S {
 
   @override
   String get pathToLfsFile => 'Path to .lfs file';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => 'Browse';
-
-  @override
-  String get shareViaQrCode => 'Share via QR Code';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'Export sessions to QR for scanning by another device';
 
   @override
   String get dataLocation => 'Data Location';
@@ -1076,15 +932,6 @@ class SEn extends S {
 
   @override
   String get useSftpFromSessions => 'Use \"SFTP\" from Sessions';
-
-  @override
-  String get anotherInstanceRunning =>
-      'Another instance of LetsFLUTssh is already running.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'Import failed: $error';
-  }
 
   @override
   String get saveLogAs => 'Save log as';
@@ -1322,16 +1169,6 @@ class SEn extends S {
   String get errSessionClosed => 'Session closed';
 
   @override
-  String errShellError(String error) {
-    return 'Shell error: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'Reconnect failed: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'Failed to initialize SFTP: $error';
   }
@@ -1340,10 +1177,6 @@ class SEn extends S {
   String errDownloadFailed(String error) {
     return 'Download failed: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Failed to decrypt credentials. Key file may be corrupted.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1360,17 +1193,7 @@ class SEn extends S {
       'Skip typing the password — unlock with the device biometric sensor.';
 
   @override
-  String get biometricNotAvailable =>
-      'Biometric unlock is not available on this device.';
-
-  @override
   String get biometricEnableFailed => 'Could not enable biometric unlock.';
-
-  @override
-  String get biometricEnabled => 'Biometric unlock enabled';
-
-  @override
-  String get biometricDisabled => 'Biometric unlock disabled';
 
   @override
   String get biometricUnlockFailed =>
@@ -1384,10 +1207,6 @@ class SEn extends S {
       'No biometric credentials enrolled on this device.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'Set a master password first to enable biometric unlock.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'This device has no biometric sensor.';
 
@@ -1396,24 +1215,10 @@ class SEn extends S {
       'Fingerprint service (fprintd) is not installed. See README → Installation.';
 
   @override
-  String get biometricBackingHardware =>
-      'Hardware-backed (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'Software-backed';
-
-  @override
   String get currentPasswordIncorrect => 'Current password is incorrect';
 
   @override
   String get wrongPassword => 'Wrong password';
-
-  @override
-  String get useKeychain => 'Encrypt with OS keychain';
-
-  @override
-  String get useKeychainSubtitle =>
-      'Store the database key in the system credential store. Off = plaintext database.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh is locked';
@@ -1527,9 +1332,6 @@ class SEn extends S {
   String get progressWritingArchive => 'Writing archive…';
 
   @override
-  String get progressReencrypting => 'Re-encrypting stores…';
-
-  @override
   String get progressWorking => 'Working…';
 
   @override
@@ -1591,10 +1393,6 @@ class SEn extends S {
 
   @override
   String get subitems => 'Items';
-
-  @override
-  String get storagePermissionRequired =>
-      'Storage permission required to browse local files';
 
   @override
   String get grantPermission => 'Grant Permission';
@@ -1742,21 +1540,6 @@ class SEn extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH Connection';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'Keeps SSH connections alive in the background.';
-
-  @override
-  String get sshActive => 'SSH active';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count active connection(s)';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count items, $size';
   }
@@ -1809,9 +1592,6 @@ class SEn extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'Remove all known hosts? You will be prompted to verify each server key again.';
-
-  @override
-  String get importKnownHostsSubtitle => 'Import from OpenSSH known_hosts file';
 
   @override
   String get clearedAllHosts => 'Cleared all known hosts';
@@ -1899,9 +1679,6 @@ class SEn extends S {
   String get selectFromKeyStore => 'Select from Key Store';
 
   @override
-  String get noKeySelected => 'No key selected';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1934,27 +1711,6 @@ class SEn extends S {
   String get rememberPassphrase => 'Remember for this session';
 
   @override
-  String get masterPasswordSubtitle =>
-      'Protect saved credentials with a password';
-
-  @override
-  String get setMasterPassword => 'Set Master Password';
-
-  @override
-  String get changeMasterPassword => 'Change Master Password';
-
-  @override
-  String get removeMasterPassword => 'Remove Master Password';
-
-  @override
-  String get masterPasswordEnabled =>
-      'Credentials are protected by master password';
-
-  @override
-  String get masterPasswordDisabled =>
-      'Credentials use auto-generated key (no password)';
-
-  @override
   String get enterMasterPassword =>
       'Enter master password to unlock your saved credentials.';
 
@@ -1968,27 +1724,7 @@ class SEn extends S {
   String get currentPassword => 'Current Password';
 
   @override
-  String get masterPasswordSet => 'Master password enabled';
-
-  @override
-  String get masterPasswordChanged => 'Master password changed';
-
-  @override
-  String get masterPasswordRemoved => 'Master password removed';
-
-  @override
-  String get masterPasswordWarning =>
-      'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.';
-
-  @override
   String get forgotPassword => 'Forgot Password?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.';
-
-  @override
-  String get resetAndDeleteCredentials => 'Reset & Delete Credentials';
 
   @override
   String get credentialsReset => 'All saved credentials have been deleted';
@@ -2037,86 +1773,10 @@ class SEn extends S {
   String get derivingKey => 'Deriving encryption key...';
 
   @override
-  String get reEncrypting => 'Re-encrypting data...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.';
-
-  @override
   String get securitySetupTitle => 'Security Setup';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'OS Keychain detected ($keychainName). Your data will be automatically encrypted using your system keychain.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'You can also set a master password for additional protection.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'We recommend setting a master password to protect your data.';
-
-  @override
-  String get continueWithKeychain => 'Continue with Keychain';
-
-  @override
-  String get continueWithoutEncryption => 'Continue without Encryption';
-
-  @override
-  String get securityLevel => 'Security Level';
-
-  @override
-  String get securityLevelPlaintext => 'None';
-
-  @override
-  String get securityLevelKeychain => 'OS Keychain';
-
-  @override
-  String get securityLevelMasterPassword => 'Master Password';
-
-  @override
-  String get keychainStatus => 'Keychain';
-
-  @override
   String get keychainAvailable => 'Available';
-
-  @override
-  String get keychainNotAvailable => 'Not available';
-
-  @override
-  String get enableKeychain => 'Enable Keychain Encryption';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'Re-encrypt stored data using OS keychain';
-
-  @override
-  String get keychainEnabled => 'Keychain encryption enabled';
-
-  @override
-  String get manageMasterPassword => 'Manage Master Password';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'Set, change, or remove master password';
-
-  @override
-  String get changeSecurityTier => 'Change Security Tier';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'Open the tier ladder and switch to a different security level';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2140,22 +1800,6 @@ class SEn extends S {
       'Hardware-backed storage is available on this device. Upgrade in Settings → Security for TPM / Secure Enclave binding.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'Hardware-backed storage is unavailable — no TPM 2.0 detected on this device.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'Hardware-backed storage is unavailable — this device does not report a Secure Enclave.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Hardware-backed storage is unavailable — install tpm2-tools and a TPM 2.0 device to enable it.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'Hardware-backed storage is unavailable — this device does not report a StrongBox or TEE.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'Hardware-backed storage is unavailable on this device.';
 
@@ -2163,32 +1807,8 @@ class SEn extends S {
   String get firstLaunchSecurityOpenSettings => 'Open Settings';
 
   @override
-  String get firstLaunchSecurityDismiss => 'Got it';
-
-  @override
-  String get securityHardwareUpgradeTitle =>
-      'Hardware-backed storage available';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'Upgrade to bind secrets to TPM / Secure Enclave.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'Upgrade';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'Hardware-backed storage unavailable';
-
-  @override
   String get wizardReducedBanner =>
       'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.';
-
-  @override
-  String get tierBlockProtectsHeader => 'PROTECTS AGAINST';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'DOES NOT PROTECT';
 
   @override
   String get tierBlockProtectsEmpty => 'Nothing on this tier.';
@@ -2204,28 +1824,6 @@ class SEn extends S {
 
   @override
   String get securitySetupApply => 'Apply';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'Plaintext tier stores no secret to protect with a password.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid derives the database key from the password — it is always on.';
-
-  @override
-  String get passwordSubtitleOn => 'On — password required on unlock';
-
-  @override
-  String get passwordSubtitleOff => 'Off — tap to add a password on this tier';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'Required — the master password is the tier\'s secret';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'Not applicable — no encryption on this tier';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2421,9 +2019,6 @@ class SEn extends S {
   }
 
   @override
-  String get runSnippet => 'Run';
-
-  @override
   String get pinToSession => 'Pin to this session';
 
   @override
@@ -2434,9 +2029,6 @@ class SEn extends S {
 
   @override
   String get allSnippets => 'All';
-
-  @override
-  String get sendToTerminal => 'Send to terminal';
 
   @override
   String get commandCopied => 'Command copied to clipboard';
@@ -2503,36 +2095,6 @@ class SEn extends S {
   String get sessionsOnly => 'Sessions';
 
   @override
-  String get sessionKeysFromManager => 'Session keys from manager';
-
-  @override
-  String get allKeysFromManager => 'All keys from manager';
-
-  @override
-  String exportTags(int count) {
-    return 'Tags ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'Snippets ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'Disable keychain encryption';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'Switch to plaintext storage (not recommended)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'The database will be re-encrypted without a key. Sessions and keys will be stored in plaintext on disk. Continue?';
-
-  @override
-  String get keychainDisabled => 'Keychain encryption disabled';
-
-  @override
   String get presetFullImport => 'Full import';
 
   @override
@@ -2542,7 +2104,7 @@ class SEn extends S {
   String get presetCustom => 'Custom';
 
   @override
-  String get sessionSshKeys => 'Session SSH keys';
+  String get sessionSshKeys => 'Session keys (manager)';
 
   @override
   String get allManagerKeys => 'All manager keys';
@@ -2660,18 +2222,6 @@ class SEn extends S {
   String get legendDoesNotProtect => 'Not protected';
 
   @override
-  String get legendNotApplicable =>
-      'Not applicable — no user secret for this tier';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'A long passphrase is strongly recommended — this tier\'s security depends on it';
-
-  @override
   String get colT0 => 'T0 Plaintext';
 
   @override
@@ -2694,10 +2244,6 @@ class SEn extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'Security tiers — side-by-side comparison';
 
   @override
   String get securityComparisonTableThreatColumn => 'Threat';
@@ -2732,21 +2278,11 @@ class SEn extends S {
   String get resetAllDataFailed => 'Reset failed';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'See what each tier protects against, side-by-side.';
-
-  @override
   String get autoLockRequiresPassword =>
       'Auto-lock requires a password on the active tier.';
 
   @override
   String get recommendedBadge => 'RECOMMENDED';
-
-  @override
-  String get continueWithRecommended => 'Continue with recommended';
-
-  @override
-  String get customizeSecurity => 'Customize security';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2759,9 +2295,6 @@ class SEn extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.';
-
-  @override
-  String get securitySetupContinue => 'Continue';
 
   @override
   String get currentTierBadge => 'CURRENT';

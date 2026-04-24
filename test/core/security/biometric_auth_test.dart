@@ -167,6 +167,55 @@ void main() {
       expect(fake.verifyCalls, 1);
     });
   });
+
+  group('BiometricAuth.isAvailable', () {
+    test('mirrors availability() == null', () async {
+      if (!Platform.isLinux) return;
+      // Pin the convenience accessor so a refactor that renames
+      // `availability` to return a boolean directly (or inverts the
+      // meaning) catches here — lock-screen wiring across multiple
+      // call sites relies on "true means ready".
+      final ready = BiometricAuth(
+        fprintdClient: _FakeFprintdClient(reachable: true, hasFingers: true),
+      );
+      expect(await ready.isAvailable(), isTrue);
+
+      final notReady = BiometricAuth(
+        fprintdClient: _FakeFprintdClient(reachable: false, hasFingers: false),
+      );
+      expect(await notReady.isAvailable(), isFalse);
+    });
+  });
+
+  group('BiometricAuth._linuxAvailability — exception path', () {
+    test('collapses throwing fprintd probe to systemServiceMissing', () async {
+      if (!Platform.isLinux) return;
+      // A D-Bus transport error surfaces as an arbitrary exception; the
+      // probe catches it and returns systemServiceMissing so the UI
+      // shows the rung-3 install snippet instead of a raw stack trace.
+      final bio = BiometricAuth(fprintdClient: _ThrowingFprintdClient());
+      expect(
+        await bio.availability(),
+        BiometricUnavailableReason.systemServiceMissing,
+      );
+    });
+  });
+}
+
+/// FprintdClient that throws on the first D-Bus call — emulates the
+/// "daemon socket disappeared mid-probe" failure mode.
+class _ThrowingFprintdClient implements FprintdClient {
+  @override
+  Future<bool> isServiceReachable() async => throw StateError('dbus gone');
+
+  @override
+  Future<bool> hasEnrolledFingers() async => false;
+
+  @override
+  Future<bool> verify() async => false;
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeTpmClient implements TpmClient {

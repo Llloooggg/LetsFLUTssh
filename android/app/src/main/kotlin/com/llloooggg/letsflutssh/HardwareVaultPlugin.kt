@@ -383,12 +383,7 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         out.write(iv)
         out.write(intToBytes(ciphertext.size))
         out.write(ciphertext)
-        val file = biometricPasswordFile()
-        file.writeBytes(out.toByteArray())
-        file.setReadable(false, false)
-        file.setReadable(true, true)
-        file.setWritable(false, false)
-        file.setWritable(true, true)
+        atomicWrite(biometricPasswordFile(), out.toByteArray())
     }
 
     private data class BiometricPasswordBlob(
@@ -520,12 +515,44 @@ class HardwareVaultPlugin(private val activity: FragmentActivity) {
         out.write(iv)
         out.write(intToBytes(ciphertext.size))
         out.write(ciphertext)
-        val file = vaultFile()
-        file.writeBytes(out.toByteArray())
-        file.setReadable(false, false)
-        file.setReadable(true, true)
-        file.setWritable(false, false)
-        file.setWritable(true, true)
+        atomicWrite(vaultFile(), out.toByteArray())
+    }
+
+    /**
+     * Tmp-file + atomic-rename write. A plain `file.writeBytes(...)`
+     * truncates then writes in a single call; a crash mid-flush (OOM
+     * kill, power loss, kernel panic) leaves a torn blob on disk.
+     * `readVault` / `readBiometricPasswordBlob` then fail on the torn
+     * length prefix and return null, which the Dart side treats as
+     * "vault not stored" → silent fallback to the password dialog /
+     * T2 greyed out with no "vault corrupted" hint. Rename is atomic
+     * on every POSIX filesystem Android uses (ext4 / f2fs / etc.).
+     *
+     * Owner-only perms applied to the tmp file before rename so the
+     * final inode lands with the restricted mode from the first
+     * instant it is reachable under the target name.
+     */
+    private fun atomicWrite(target: File, bytes: ByteArray) {
+        val tmp = File(target.parentFile, "${target.name}.tmp${System.nanoTime()}")
+        try {
+            tmp.writeBytes(bytes)
+            tmp.setReadable(false, false)
+            tmp.setReadable(true, true)
+            tmp.setWritable(false, false)
+            tmp.setWritable(true, true)
+            // File.renameTo on ext4 / f2fs is an atomic inode swap.
+            if (!tmp.renameTo(target)) {
+                // Fallback: delete target first, then rename. Loses
+                // atomicity only in the narrow window between the two
+                // ops — still better than leaving a torn file on an
+                // FS that rejects in-place rename.
+                target.delete()
+                tmp.renameTo(target)
+            }
+        } catch (t: Throwable) {
+            tmp.delete()
+            throw t
+        }
     }
 
     private fun readVault(): VaultBlob? {

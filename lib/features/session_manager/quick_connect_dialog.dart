@@ -11,6 +11,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../utils/platform.dart';
+import '../../utils/secret_controller.dart';
 
 /// Quick Connect — shown as a bottom sheet.
 class QuickConnectDialog extends StatefulWidget {
@@ -46,6 +47,13 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
 
   @override
   void dispose() {
+    // Wipe secret-bearing controllers before dispose so the typed
+    // password / PEM body / passphrase do not linger on the Dart
+    // heap waiting for the next GC cycle. Same hygiene pattern
+    // session_edit_dialog + expandable_tier_card follow.
+    _passwordCtrl.wipeAndClear();
+    _keyDataCtrl.wipeAndClear();
+    _passphraseCtrl.wipeAndClear();
     _hostCtrl.dispose();
     _portCtrl.dispose();
     _userCtrl.dispose();
@@ -84,6 +92,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
       allowMultiple: false,
       type: FileType.any,
     );
+    if (!mounted) return;
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
     final pemContent = KeyFileHelper.tryReadPemKey(path);
@@ -215,6 +224,19 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
                           alignLabelWithHint: true,
                         ),
                         maxLines: 5,
+                        // PEM body is a private key — force every
+                        // IME "learn what the user typed" knob off
+                        // so pasted / typed key material does not
+                        // end up in the OS autocorrect / predictive-
+                        // text / spellcheck personalised-learning
+                        // dictionary. Multi-line, so `obscureText`
+                        // is not an option; the hardening flags are.
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        enableIMEPersonalizedLearning: false,
+                        smartDashesType: SmartDashesType.disabled,
+                        smartQuotesType: SmartQuotesType.disabled,
+                        textCapitalization: TextCapitalization.none,
                         style: TextStyle(
                           fontFamily: 'monospace',
                           fontSize: AppFonts.sm,

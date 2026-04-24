@@ -61,6 +61,7 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
 
   Future<void> _pasteFromClipboard() async {
     final data = await Clipboard.getData('text/plain');
+    if (!mounted) return;
     final text = data?.text;
     if (text == null || text.isEmpty) return;
     setState(() {

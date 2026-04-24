@@ -115,14 +115,24 @@ class ResignService {
     }
   }
 
-  /// Uninstall path — remove trust entry, identity, and cert. Leaves
-  /// the .app itself alone; the user's T1 items become unreadable
-  /// but the bundle is still present and will run on the original
-  /// ad-hoc signature.
+  /// Uninstall path — drop the identity + cert. Leaves the .app
+  /// itself alone; the user's T1 items become unreadable but the
+  /// bundle is still present and will run on the original ad-hoc
+  /// signature.
+  ///
+  /// No explicit `remove-trusted-cert` step: the user-domain trust
+  /// entry written by [ensureIdentity] is keyed by the cert's SHA-1
+  /// hash, and macOS's trust evaluator skips entries whose
+  /// referenced cert is missing from any keychain. So once
+  /// `delete-identity` + `delete-certificate` sweep the cert away,
+  /// the surviving trust entry is an inactive dangling reference —
+  /// equivalent to removal from every security standpoint that
+  /// matters, and cheaper than the alternatives (exporting the cert
+  /// to a tmp file to pass back to `remove-trusted-cert`, or
+  /// rewriting the trust domain via `trust-settings-import`).
   Future<void> uninstallIdentity({
     String commonName = CertFactory.defaultCommonName,
   }) async {
-    await keychain.removeTrustedCert();
     await keychain.deleteIdentity(commonName);
     await keychain.deleteCertificate(commonName);
   }
@@ -162,8 +172,6 @@ class _DefaultKeychain implements Keychain {
   }) => _lazy().importPkcs12(p12Path: p12Path, passphrase: passphrase);
   @override
   Future<void> addTrustedCert(File crtPath) => _lazy().addTrustedCert(crtPath);
-  @override
-  Future<void> removeTrustedCert() => _lazy().removeTrustedCert();
   @override
   Future<void> deleteIdentity(String commonName) =>
       _lazy().deleteIdentity(commonName);

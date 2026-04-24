@@ -99,9 +99,6 @@ class SAr extends S {
   String get nextStep => 'التالي';
 
   @override
-  String get includeCredentials => 'تضمين كلمات المرور ومفاتيح SSH';
-
-  @override
   String get includePasswords => 'كلمات مرور الجلسات';
 
   @override
@@ -123,13 +120,6 @@ class SAr extends S {
   String exportTotalSize(String size) {
     return 'الحجم الإجمالي: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'ستكون كلمات المرور ومفاتيح SSH مرئية في رمز QR';
-
-  @override
-  String get qrCredentialsTooLarge => 'بيانات الاعتماد تجعل رمز QR كبيرًا جدًا';
 
   @override
   String get terminal => 'الطرفية';
@@ -246,11 +236,6 @@ class SAr extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'تم استيراد $count جلسة عبر QR';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'تم استيراد $count جلسة';
   }
@@ -316,9 +301,6 @@ class SAr extends S {
 
   @override
   String get noSessions => 'لا توجد جلسات';
-
-  @override
-  String get noSessionsToExport => 'لا توجد جلسات للتصدير';
 
   @override
   String nSelectedCount(int count) {
@@ -447,9 +429,6 @@ class SAr extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'لا توجد خيارات إضافية بعد';
 
   @override
   String get saveAndConnect => 'حفظ واتصال';
@@ -611,9 +590,6 @@ class SAr extends S {
   String get controllersNotInitialized => 'لم تتم تهيئة المتحكمات';
 
   @override
-  String get initializingSftp => 'جارٍ تهيئة SFTP...';
-
-  @override
   String get clearHistory => 'مسح السجل';
 
   @override
@@ -624,9 +600,6 @@ class SAr extends S {
 
   @override
   String get duplicateTabShortcut => 'تكرار التبويب (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'نسخ للأسفل';
 
   @override
   String get previous => 'السابق';
@@ -735,13 +708,6 @@ class SAr extends S {
   String get exportData => 'تصدير البيانات';
 
   @override
-  String get exportDataSubtitle =>
-      'حفظ الجلسات والإعدادات والمفاتيح في ملف .lfs مشفّر';
-
-  @override
-  String get importDataSubtitle => 'تحميل البيانات من ملف .lfs';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return 'تم العثور على $count مضيف';
   }
@@ -753,11 +719,6 @@ class SAr extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'تعذر قراءة ملفات المفاتيح لـ: $hosts. سيتم استيراد هؤلاء المضيفين بدون بيانات اعتماد.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'تم الاستيراد إلى المجلد: $folder';
   }
 
   @override
@@ -829,36 +790,10 @@ class SAr extends S {
   String get passwordStrengthVeryStrong => 'قوية جدًا';
 
   @override
-  String get tierRecommendedBadge => 'موصى به';
-
-  @override
-  String get tierCurrentBadge => 'الحالي';
-
-  @override
-  String get tierAlternativeBranchLabel => 'بديل — لا تثق بنظام التشغيل';
-
-  @override
-  String get tierUpcomingTooltip => 'يصدر في إصدار قادم.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'الأساس الفني لهذه الطبقة لم يُشحن بعد. الصف مرئي لتعلم أن الخيار موجود.';
-
-  @override
   String get tierPlaintextLabel => 'نص عادي';
 
   @override
   String get tierPlaintextSubtitle => 'بدون تشفير — أذونات الملفات فقط';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'أي شخص لديه وصول لنظام الملفات يقرأ بياناتك';
-
-  @override
-  String get tierPlaintextThreat2 => 'مزامنة أو نسخ احتياطي عرضي يكشف كل شيء';
-
-  @override
-  String get tierPlaintextNotes => 'استخدم فقط في بيئات موثوقة ومعزولة.';
 
   @override
   String get tierKeychainLabel => 'سلسلة مفاتيح';
@@ -869,75 +804,14 @@ class SAr extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'مستخدمون آخرون على نفس الجهاز';
-
-  @override
-  String get tierKeychainProtect2 => 'قرص مسروق بدون تسجيل دخول النظام';
-
-  @override
-  String get tierKeychainThreat1 => 'برامج ضارة تعمل تحت حساب نظامك';
-
-  @override
-  String get tierKeychainThreat2 => 'مهاجم يستولي على تسجيل دخول النظام';
-
-  @override
   String get tierKeychainUnavailable =>
       'سلسلة مفاتيح النظام غير متوفرة في هذه النسخة.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'زميل يجلس على مكتبك';
-
-  @override
-  String get tierKeychainPassProtect2 => 'عابر لديه وصول مفتوح';
-
-  @override
-  String get tierKeychainPassThreat1 => 'مهاجم غير متصل لديه الملف على القرص';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'نفس مخاطر اختراق نظام التشغيل كالسلسلة';
 
   @override
   String get tierHardwareLabel => 'جهاز';
 
   @override
-  String get tierHardwareSubtitle => 'خزينة مرتبطة بالجهاز + PIN قصير مع إقفال';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'القوة الغاشمة دون اتصال للـ PIN (حد معدل أجهزة)';
-
-  @override
-  String get tierHardwareProtect2 => 'سرقة القرص وblob سلسلة المفاتيح';
-
-  @override
-  String get tierHardwareThreat1 =>
-      'ثغرة في نظام التشغيل أو البرامج الثابتة للوحدة الآمنة';
-
-  @override
-  String get tierHardwareThreat2 => 'فتح قسري بالبيومتريا (إذا كان مفعّلًا)';
-
-  @override
   String get tierParanoidLabel => 'كلمة المرور الرئيسية (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'كلمة مرور طويلة + Argon2id. المفتاح لا يدخل نظام التشغيل.';
-
-  @override
-  String get tierParanoidProtect1 => 'اختراق سلسلة مفاتيح نظام التشغيل';
-
-  @override
-  String get tierParanoidProtect2 => 'قرص مسروق (طالما كلمة مرورك قوية)';
-
-  @override
-  String get tierParanoidThreat1 => 'كيلوجر يلتقط كلمة مرورك';
-
-  @override
-  String get tierParanoidThreat2 => 'كلمة مرور ضعيفة + كسر Argon2id دون اتصال';
-
-  @override
-  String get tierParanoidNotes => 'البيومتريا معطلة بالتصميم على هذه الطبقة.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -981,18 +855,6 @@ class SAr extends S {
 
   @override
   String get pathToLfsFile => 'مسار ملف .lfs';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => 'تصفح';
-
-  @override
-  String get shareViaQrCode => 'مشاركة عبر رمز QR';
-
-  @override
-  String get shareViaQrSubtitle => 'تصدير الجلسات إلى رمز QR لمسحه من جهاز آخر';
 
   @override
   String get dataLocation => 'موقع البيانات';
@@ -1077,15 +939,6 @@ class SAr extends S {
 
   @override
   String get useSftpFromSessions => 'استخدم \"SFTP\" من الجلسات';
-
-  @override
-  String get anotherInstanceRunning =>
-      'نسخة أخرى من LetsFLUTssh قيد التشغيل بالفعل.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'فشل الاستيراد: $error';
-  }
 
   @override
   String get saveLogAs => 'حفظ السجل باسم';
@@ -1323,16 +1176,6 @@ class SAr extends S {
   String get errSessionClosed => 'تم إغلاق الجلسة';
 
   @override
-  String errShellError(String error) {
-    return 'خطأ في shell: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'فشلت إعادة الاتصال: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'فشلت تهيئة SFTP: $error';
   }
@@ -1341,10 +1184,6 @@ class SAr extends S {
   String errDownloadFailed(String error) {
     return 'فشل التنزيل: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'فشل فك تشفير بيانات الاعتماد. قد يكون ملف المفتاح تالفاً.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1361,16 +1200,7 @@ class SAr extends S {
       'لا تحتاج إلى كتابة كلمة المرور — افتح القفل باستخدام مستشعر البصمة في الجهاز.';
 
   @override
-  String get biometricNotAvailable => 'الفتح بالبصمة غير متاح على هذا الجهاز.';
-
-  @override
   String get biometricEnableFailed => 'تعذّر تفعيل الفتح بالبصمة.';
-
-  @override
-  String get biometricEnabled => 'تم تفعيل الفتح بالبصمة';
-
-  @override
-  String get biometricDisabled => 'تم تعطيل الفتح بالبصمة';
 
   @override
   String get biometricUnlockFailed =>
@@ -1383,10 +1213,6 @@ class SAr extends S {
   String get biometricNotEnrolled => 'لا توجد بصمة مسجلة على هذا الجهاز.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'يرجى تعيين كلمة مرور رئيسية أولاً لتمكين الفتح بالبصمة.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'لا يحتوي هذا الجهاز على مستشعر بصمة.';
 
@@ -1395,23 +1221,10 @@ class SAr extends S {
       'خدمة بصمة الإصبع (fprintd) غير مثبتة. راجع README ← التثبيت.';
 
   @override
-  String get biometricBackingHardware => 'مدعوم بالعتاد (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'مدعوم بالبرنامج';
-
-  @override
   String get currentPasswordIncorrect => 'كلمة المرور الحالية غير صحيحة';
 
   @override
   String get wrongPassword => 'كلمة مرور خاطئة';
-
-  @override
-  String get useKeychain => 'التشفير باستخدام سلسلة مفاتيح النظام';
-
-  @override
-  String get useKeychainSubtitle =>
-      'تخزين مفتاح قاعدة البيانات في مخزن بيانات الاعتماد بالنظام. إيقاف = قاعدة بيانات بنص صريح.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh مُقفل';
@@ -1529,9 +1342,6 @@ class SAr extends S {
   String get progressWritingArchive => 'كتابة الأرشيف…';
 
   @override
-  String get progressReencrypting => 'إعادة تشفير المخازن…';
-
-  @override
   String get progressWorking => 'قيد المعالجة…';
 
   @override
@@ -1592,10 +1402,6 @@ class SAr extends S {
 
   @override
   String get subitems => 'العناصر';
-
-  @override
-  String get storagePermissionRequired =>
-      'يلزم إذن التخزين لتصفح الملفات المحلية';
 
   @override
   String get grantPermission => 'منح الإذن';
@@ -1743,21 +1549,6 @@ class SAr extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'اتصال SSH';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'يحافظ على اتصالات SSH نشطة في الخلفية.';
-
-  @override
-  String get sshActive => 'SSH نشط';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count اتصال(ات) نشطة';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count عناصر، $size';
   }
@@ -1810,9 +1601,6 @@ class SAr extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'إزالة جميع المضيفين المعروفين؟ سيحتاج كل مفتاح خادم إلى إعادة التحقق.';
-
-  @override
-  String get importKnownHostsSubtitle => 'استيراد من ملف OpenSSH known_hosts';
 
   @override
   String get clearedAllHosts => 'تم مسح جميع المضيفين المعروفين';
@@ -1900,9 +1688,6 @@ class SAr extends S {
   String get selectFromKeyStore => 'اختر من مخزن المفاتيح';
 
   @override
-  String get noKeySelected => 'لم يتم اختيار مفتاح';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1935,27 +1720,6 @@ class SAr extends S {
   String get rememberPassphrase => 'تذكر لهذه الجلسة';
 
   @override
-  String get masterPasswordSubtitle =>
-      'حماية بيانات الاعتماد المحفوظة بكلمة مرور';
-
-  @override
-  String get setMasterPassword => 'تعيين كلمة المرور الرئيسية';
-
-  @override
-  String get changeMasterPassword => 'تغيير كلمة المرور الرئيسية';
-
-  @override
-  String get removeMasterPassword => 'إزالة كلمة المرور الرئيسية';
-
-  @override
-  String get masterPasswordEnabled =>
-      'بيانات الاعتماد محمية بكلمة المرور الرئيسية';
-
-  @override
-  String get masterPasswordDisabled =>
-      'بيانات الاعتماد تستخدم مفتاحاً مولداً تلقائياً (بدون كلمة مرور)';
-
-  @override
   String get enterMasterPassword =>
       'أدخل كلمة المرور الرئيسية للوصول إلى بيانات الاعتماد المحفوظة.';
 
@@ -1969,27 +1733,7 @@ class SAr extends S {
   String get currentPassword => 'كلمة المرور الحالية';
 
   @override
-  String get masterPasswordSet => 'تم تفعيل كلمة المرور الرئيسية';
-
-  @override
-  String get masterPasswordChanged => 'تم تغيير كلمة المرور الرئيسية';
-
-  @override
-  String get masterPasswordRemoved => 'تمت إزالة كلمة المرور الرئيسية';
-
-  @override
-  String get masterPasswordWarning =>
-      'إذا نسيت هذه الكلمة، ستفقد جميع كلمات المرور ومفاتيح SSH المحفوظة. لا يمكن الاسترداد.';
-
-  @override
   String get forgotPassword => 'نسيت كلمة المرور؟';
-
-  @override
-  String get forgotPasswordWarning =>
-      'سيؤدي هذا إلى حذف جميع كلمات المرور ومفاتيح SSH وعبارات المرور المحفوظة. سيتم الاحتفاظ بالجلسات والإعدادات. لا يمكن التراجع عن هذا الإجراء.';
-
-  @override
-  String get resetAndDeleteCredentials => 'إعادة تعيين وحذف البيانات';
 
   @override
   String get credentialsReset => 'تم حذف جميع بيانات الاعتماد المحفوظة';
@@ -2038,86 +1782,10 @@ class SAr extends S {
   String get derivingKey => 'جارٍ اشتقاق مفتاح التشفير...';
 
   @override
-  String get reEncrypting => 'جارٍ إعادة التشفير...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'أدخل كلمة المرور الحالية لإزالة حماية كلمة المرور الرئيسية. سيتم إعادة تشفير البيانات بمفتاح مولد تلقائياً.';
-
-  @override
   String get securitySetupTitle => 'إعداد الأمان';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'تم اكتشاف سلسلة مفاتيح النظام ($keychainName). سيتم تشفير بياناتك تلقائياً باستخدام سلسلة مفاتيح النظام.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'يمكنك أيضاً تعيين كلمة مرور رئيسية لحماية إضافية.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'لم يتم اكتشاف سلسلة مفاتيح النظام. بدونها، سيتم تخزين بيانات الجلسة (المضيفون، كلمات المرور، المفاتيح) كنص عادي.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'هذا طبيعي في WSL أو Linux بدون واجهة رسومية أو التثبيتات المحدودة. لتفعيل سلسلة المفاتيح في Linux: ثبّت libsecret وخفي سلسلة المفاتيح (مثل gnome-keyring).';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'نوصي بتعيين كلمة مرور رئيسية لحماية بياناتك.';
-
-  @override
-  String get continueWithKeychain => 'المتابعة مع سلسلة المفاتيح';
-
-  @override
-  String get continueWithoutEncryption => 'المتابعة بدون تشفير';
-
-  @override
-  String get securityLevel => 'مستوى الأمان';
-
-  @override
-  String get securityLevelPlaintext => 'بدون';
-
-  @override
-  String get securityLevelKeychain => 'سلسلة مفاتيح النظام';
-
-  @override
-  String get securityLevelMasterPassword => 'كلمة المرور الرئيسية';
-
-  @override
-  String get keychainStatus => 'سلسلة المفاتيح';
-
-  @override
   String get keychainAvailable => 'متاحة';
-
-  @override
-  String get keychainNotAvailable => 'غير متاحة';
-
-  @override
-  String get enableKeychain => 'تفعيل تشفير سلسلة المفاتيح';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'إعادة تشفير البيانات المخزنة باستخدام سلسلة مفاتيح النظام';
-
-  @override
-  String get keychainEnabled => 'تم تفعيل تشفير سلسلة المفاتيح';
-
-  @override
-  String get manageMasterPassword => 'إدارة كلمة المرور الرئيسية';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'تعيين أو تغيير أو إزالة كلمة المرور الرئيسية';
-
-  @override
-  String get changeSecurityTier => 'تغيير مستوى الأمان';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'افتح سلم المستويات وانتقل إلى مستوى أمان مختلف';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2141,22 +1809,6 @@ class SAr extends S {
       'يتوفر على هذا الجهاز تخزين مدعوم بالعتاد. قم بالترقية من الإعدادات ← الأمان لربط TPM / Secure Enclave.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'التخزين المدعوم بالعتاد غير متاح — لم يتم اكتشاف TPM 2.0 على هذا الجهاز.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'التخزين المدعوم بالعتاد غير متاح — لا يُبلّغ هذا الجهاز عن وجود Secure Enclave.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'التخزين المدعوم بالعتاد غير متاح — ثبّت tpm2-tools وجهاز TPM 2.0 لتفعيله.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'التخزين المدعوم بالعتاد غير متاح — لا يُبلّغ هذا الجهاز عن StrongBox أو TEE.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'التخزين المدعوم بالعتاد غير متاح على هذا الجهاز.';
 
@@ -2164,31 +1816,8 @@ class SAr extends S {
   String get firstLaunchSecurityOpenSettings => 'فتح الإعدادات';
 
   @override
-  String get firstLaunchSecurityDismiss => 'حسنًا';
-
-  @override
-  String get securityHardwareUpgradeTitle => 'التخزين المدعوم بالعتاد متاح';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'قم بالترقية لربط الأسرار بـ TPM / Secure Enclave.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'ترقية';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'التخزين المدعوم بالعتاد غير متاح';
-
-  @override
   String get wizardReducedBanner =>
       'سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.';
-
-  @override
-  String get tierBlockProtectsHeader => 'يحمي من';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'لا يحمي من';
 
   @override
   String get tierBlockProtectsEmpty => 'لا شيء في هذا المستوى.';
@@ -2204,29 +1833,6 @@ class SAr extends S {
 
   @override
   String get securitySetupApply => 'تطبيق';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'المستوى بدون تشفير لا يحفظ سرًا يمكن لكلمة مرور حمايته.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'يشتق Paranoid مفتاح قاعدة البيانات من كلمة المرور — مفعّلة دائمًا.';
-
-  @override
-  String get passwordSubtitleOn => 'مفعّلة — مطلوبة عند فك القفل';
-
-  @override
-  String get passwordSubtitleOff =>
-      'معطّلة — المس لإضافة كلمة مرور في هذا المستوى';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'مطلوبة — كلمة المرور الرئيسية هي سر المستوى';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'غير متاحة — لا يوجد تشفير في هذا المستوى';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2424,9 +2030,6 @@ class SAr extends S {
   }
 
   @override
-  String get runSnippet => 'تشغيل';
-
-  @override
   String get pinToSession => 'تثبيت في هذه الجلسة';
 
   @override
@@ -2437,9 +2040,6 @@ class SAr extends S {
 
   @override
   String get allSnippets => 'الكل';
-
-  @override
-  String get sendToTerminal => 'إرسال إلى الطرفية';
 
   @override
   String get commandCopied => 'تم نسخ الأمر';
@@ -2509,36 +2109,6 @@ class SAr extends S {
   String get sessionsOnly => 'الجلسات';
 
   @override
-  String get sessionKeysFromManager => 'مفاتيح الجلسات من المدير';
-
-  @override
-  String get allKeysFromManager => 'جميع المفاتيح من المدير';
-
-  @override
-  String exportTags(int count) {
-    return 'الوسوم ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'القصاصات ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'تعطيل تشفير سلسلة المفاتيح';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'التبديل إلى التخزين بنص عادي (غير موصى به)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'ستتم إعادة تشفير قاعدة البيانات بدون مفتاح. سيتم تخزين الجلسات والمفاتيح بنص عادي على القرص. هل تريد المتابعة؟';
-
-  @override
-  String get keychainDisabled => 'تم تعطيل تشفير سلسلة المفاتيح';
-
-  @override
   String get presetFullImport => 'استيراد كامل';
 
   @override
@@ -2548,7 +2118,7 @@ class SAr extends S {
   String get presetCustom => 'مخصص';
 
   @override
-  String get sessionSshKeys => 'مفاتيح SSH للجلسة';
+  String get sessionSshKeys => 'مفاتيح الجلسة (المدير)';
 
   @override
   String get allManagerKeys => 'جميع المفاتيح في المدير';
@@ -2665,18 +2235,6 @@ class SAr extends S {
   String get legendDoesNotProtect => 'غير محمي';
 
   @override
-  String get legendNotApplicable =>
-      'غير قابل للتطبيق — لا يوجد سر مستخدم لهذا المستوى';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'كلمة المرور الضعيفة مقبولة — تتكفّل طبقة أخرى (rate limiter عتادي أو ربط wrapped key) بالأمان';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'يُوصى بشدة بعبارة مرور طويلة — يعتمد أمان هذا المستوى عليها';
-
-  @override
   String get colT0 => 'T0 نص صريح';
 
   @override
@@ -2699,10 +2257,6 @@ class SAr extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'مستويات الأمان — مقارنة جنباً إلى جنب';
 
   @override
   String get securityComparisonTableThreatColumn => 'التهديد';
@@ -2737,21 +2291,11 @@ class SAr extends S {
   String get resetAllDataFailed => 'فشلت إعادة التعيين';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'شاهد جنبًا إلى جنب ما يحمي منه كل مستوى.';
-
-  @override
   String get autoLockRequiresPassword =>
       'يتطلب القفل التلقائي كلمة مرور على المستوى الحالي.';
 
   @override
   String get recommendedBadge => 'موصى به';
-
-  @override
-  String get continueWithRecommended => 'المتابعة مع الإعداد الموصى به';
-
-  @override
-  String get customizeSecurity => 'تخصيص الأمان';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2764,9 +2308,6 @@ class SAr extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'تهديدات runtime (malware من المستخدم نفسه، تفريغ ذاكرة عملية نشطة) تظهر على شكل ✗ في جميع المستويات. تتم معالجتها عبر ميزات تخفيف منفصلة تُطبَّق بصرف النظر عن المستوى المختار.';
-
-  @override
-  String get securitySetupContinue => 'متابعة';
 
   @override
   String get currentTierBadge => 'الحالي';

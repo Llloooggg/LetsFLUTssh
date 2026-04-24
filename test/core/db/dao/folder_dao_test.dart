@@ -58,6 +58,16 @@ void main() {
       expect(children.first.name, 'child');
     });
 
+    test('watchAll emits the current folder set on subscribe', () async {
+      // Stream API is used by the folder-tree UI to react to drift
+      // writes outside the direct call site. Subscribe, insert, and
+      // assert the stream delivers the post-insert snapshot.
+      await db.folderDao.insert(makeFolder(id: 'f1', name: 'root'));
+      final rows = await db.folderDao.watchAll().first;
+      expect(rows, hasLength(1));
+      expect(rows.first.id, 'f1');
+    });
+
     test('update changes name', () async {
       await db.folderDao.insert(makeFolder(id: 'f1', name: 'old'));
       await db.folderDao.update(

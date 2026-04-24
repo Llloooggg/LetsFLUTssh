@@ -14,6 +14,7 @@ import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/macos/code_signing/resign_service.dart';
+import '../utils/logger.dart';
 import 'config_provider.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
@@ -436,6 +437,14 @@ class SecurityStateNotifier extends Notifier<SecurityState> {
     _owned = buffer;
     state = SecurityState(level: level, buffer: buffer);
     previous?.dispose();
+    // Security level transitions are load-bearing for support traces
+    // — a "why did my DB open in plaintext" ticket is answered by
+    // matching the tier on the last `set` call against the persisted
+    // config tier. No key bytes in the log, just the enum name.
+    AppLogger.instance.log(
+      'SecurityState: tier=${level.name} hasKey=${key != null}',
+      name: 'SecurityState',
+    );
   }
 
   /// Clear encryption (revert to plaintext). Zeroes and releases the
@@ -445,5 +454,9 @@ class SecurityStateNotifier extends Notifier<SecurityState> {
     _owned = null;
     state = SecurityState();
     previous?.dispose();
+    AppLogger.instance.log(
+      'SecurityState: cleared encryption (plaintext)',
+      name: 'SecurityState',
+    );
   }
 }

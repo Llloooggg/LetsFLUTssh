@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/main.dart';
+import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
 void main() {

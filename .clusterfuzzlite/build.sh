@@ -125,19 +125,84 @@ cat > "$OUT/fuzz_uri_parser_seed_corpus/valid_import.txt" << 'SEED'
 letsflutssh://import?d=eyJ2IjoxLCJzIjpbeyJsIjoidGVzdCIsImgiOiJob3N0IiwidSI6InVzZXIifV19
 SEED
 
-# KdfParams binary header — 10-byte blob: algo + memory (u32) +
-# iterations (u32) + parallelism (u8). Seed with production
-# defaults so libFuzzer has a well-formed anchor to mutate.
+# KdfParams binary header — 10-byte blob: algo + memory (u32 BE) +
+# iterations (u32 BE) + parallelism (u8). Seeds bracket every
+# branch in _decode: accept path (defaults), zero-field rejection,
+# and each cap-exceeded rejection. libFuzzer mutates from these
+# anchors, so one seed per branch keeps the corpus tight against
+# the real decision boundaries.
+#   m = 46 MiB (0xb800 KiB), t = 2, p = 1 — production defaults.
 printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01' > \
   "$OUT/fuzz_kdf_params_seed_corpus/default.bin"
+#   Unknown algo id — trips the first rejection branch.
+printf '\xff\x00\x00\xb8\x00\x00\x00\x00\x02\x01' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/algo_unknown.bin"
+#   memory = 0 — trips the "params must be > 0" branch.
+printf '\x01\x00\x00\x00\x00\x00\x00\x00\x02\x01' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/mem_zero.bin"
+#   iterations = 0.
+printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x00\x01' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/iter_zero.bin"
+#   parallelism = 0.
+printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x00' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/par_zero.bin"
+#   memory = 1 GiB + 1 KiB (0x00100001) — one past the 1 GiB cap.
+printf '\x01\x00\x10\x00\x01\x00\x00\x00\x02\x01' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/mem_over_cap.bin"
+#   iterations = 17 (0x11) — one past the 16-iter cap.
+printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x11\x01' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/iter_over_cap.bin"
+#   parallelism = 9 — one past the 8-lane cap.
+printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x09' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/par_over_cap.bin"
+#   9-byte truncated header — trips the length check after algo.
+printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02' > \
+  "$OUT/fuzz_kdf_params_seed_corpus/truncated.bin"
 
 # LFS archive header — LFSE magic + version 0x02 + KDF blob +
-# 32-byte salt + 12-byte IV. Seed covers the minimal parseable
-# header without a ciphertext body (body is header's concern is
-# length-bounds, not content).
+# 32-byte salt + 12-byte IV. Seeds bracket every branch in
+# _parseHeader: accept path, bad magic, bad version, each KDF cap
+# rejection, and truncated-payload rejection. Salt/IV are zero
+# bytes on purpose — seeds must be deterministic so the corpus
+# reproduces across CI runs.
 {
   printf 'LFSE\x02'
   printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01'
-  head -c 32 /dev/urandom
-  head -c 12 /dev/urandom
+  printf '%.0s\x00' {1..44}
 } > "$OUT/fuzz_lfs_archive_header_seed_corpus/default.bin"
+# Bad magic — trips the magic-byte loop.
+{
+  printf 'AAAA\x02'
+  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01'
+  printf '%.0s\x00' {1..44}
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/bad_magic.bin"
+# Unsupported version — trips the version gate.
+{
+  printf 'LFSE\x03'
+  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01'
+  printf '%.0s\x00' {1..44}
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/bad_version.bin"
+# KDF memory > 1 GiB cap.
+{
+  printf 'LFSE\x02'
+  printf '\x01\x00\x10\x00\x01\x00\x00\x00\x02\x01'
+  printf '%.0s\x00' {1..44}
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/kdf_mem_over.bin"
+# KDF iterations = 21 (one past the 20-iter cap).
+{
+  printf 'LFSE\x02'
+  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x15\x01'
+  printf '%.0s\x00' {1..44}
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/kdf_iter_over.bin"
+# KDF parallelism = 17 (one past the 16-lane cap).
+{
+  printf 'LFSE\x02'
+  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x11'
+  printf '%.0s\x00' {1..44}
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/kdf_par_over.bin"
+# Truncated — magic + version + KDF blob only, no salt/IV room.
+# Trips the final length check for salt + iv.
+{
+  printf 'LFSE\x02'
+  printf '\x01\x00\x00\xb8\x00\x00\x00\x00\x02\x01'
+} > "$OUT/fuzz_lfs_archive_header_seed_corpus/truncated.bin"

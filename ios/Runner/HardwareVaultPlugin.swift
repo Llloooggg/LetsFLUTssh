@@ -6,22 +6,32 @@ import Security
 /// Hardware-backed L3 vault for iOS / iPadOS.
 ///
 /// Design:
-///  - Per-install P-256 EC keypair lives in the Secure Enclave
-///    (`kSecAttrTokenIDSecureEnclave`) under the tag
-///    `com.letsflutssh.hw_vault.l3`.
-///  - Access control stacks `.privateKeyUsage` with
-///    `.biometryCurrentSet` so any change to enrolled biometrics
-///    invalidates the key — the iOS equivalent of Android's
-///    `setInvalidatedByBiometricEnrollment(true)`.
+///  - Two Secure Enclave P-256 EC keypairs per install, each living
+///    under `kSecAttrTokenIDSecureEnclave`:
+///      • **Primary** (tag `com.letsflutssh.hw_vault.l3`) wraps the
+///        DB key. Access control is `.privateKeyUsage` *only* — no
+///        `.biometryCurrentSet`. Primary unwrap is silent and runs
+///        on every read so the data path never fires a biometric
+///        prompt for users who did not opt into biometric gating.
+///      • **Biometric overlay** (tag
+///        `com.letsflutssh.hw_password_overlay`) wraps the user's
+///        typed password bytes. Access control stacks
+///        `.privateKeyUsage` with `.biometryCurrentSet` — the iOS
+///        equivalent of Android's
+///        `setInvalidatedByBiometricEnrollment(true)`, so any
+///        change to enrolled biometrics invalidates the overlay
+///        without touching the primary DB key. Overlay is optional;
+///        enabling it is a separate tier upgrade from enabling T2.
 ///  - DB key is wrapped by `SecKeyCreateEncryptedData` under the
 ///    SE-bound public half (`eciesEncryptionCofactorVariableIVX963SHA256AESGCM`).
 ///  - PIN is an external HMAC gate. The SE does not accept arbitrary
 ///    PINs as auth values; the gate is checked with constant-time
 ///    compare *before* the SE is asked to unwrap the DB key. Wrong
-///    PIN fails without ever triggering a biometric prompt.
+///    PIN fails without ever touching either SE key.
 ///  - Wrapped blob + PIN-HMAC are written to
-///    `hardware_vault_apple.bin` under the app's Documents dir, file
-///    protection `complete`.
+///    `hardware_vault_apple.bin` under the app's Application Support
+///    dir, file protection `complete`. The overlay wrap lives in a
+///    separate file so clearing one never truncates the other.
 ///
 /// Untested on real devices — shipped for the device-testing pass
 /// per plan note. Requires the target entitlement

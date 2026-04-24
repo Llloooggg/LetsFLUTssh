@@ -99,9 +99,6 @@ class SKo extends S {
   String get nextStep => '다음';
 
   @override
-  String get includeCredentials => '비밀번호 및 SSH 키 포함';
-
-  @override
   String get includePasswords => '세션 비밀번호';
 
   @override
@@ -123,12 +120,6 @@ class SKo extends S {
   String exportTotalSize(String size) {
     return '총 크기: $size';
   }
-
-  @override
-  String get qrCredentialsWarning => '비밀번호와 SSH 키가 QR 코드에 표시됩니다';
-
-  @override
-  String get qrCredentialsTooLarge => '인증 정보로 QR 코드가 너무 큽니다';
 
   @override
   String get terminal => '터미널';
@@ -244,11 +235,6 @@ class SKo extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'QR을 통해 $count개 세션 가져옴';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count개 세션 가져옴';
   }
@@ -304,9 +290,6 @@ class SKo extends S {
 
   @override
   String get noSessions => '세션 없음';
-
-  @override
-  String get noSessionsToExport => '내보낼 세션이 없습니다';
 
   @override
   String nSelectedCount(int count) {
@@ -435,9 +418,6 @@ class SKo extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => '추가 옵션이 아직 없습니다';
 
   @override
   String get saveAndConnect => '저장 및 연결';
@@ -596,9 +576,6 @@ class SKo extends S {
   String get controllersNotInitialized => '컨트롤러가 초기화되지 않았습니다';
 
   @override
-  String get initializingSftp => 'SFTP 초기화 중...';
-
-  @override
   String get clearHistory => '기록 지우기';
 
   @override
@@ -609,9 +586,6 @@ class SKo extends S {
 
   @override
   String get duplicateTabShortcut => '탭 복제 (Ctrl+\\)';
-
-  @override
-  String get copyDown => '아래에 복사';
 
   @override
   String get previous => '이전';
@@ -719,12 +693,6 @@ class SKo extends S {
   String get exportData => '데이터 내보내기';
 
   @override
-  String get exportDataSubtitle => '세션, 설정 및 키를 암호화된 .lfs 파일로 저장';
-
-  @override
-  String get importDataSubtitle => '.lfs 파일에서 데이터 불러오기';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '호스트 $count개를 찾았습니다';
   }
@@ -735,11 +703,6 @@ class SKo extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return '다음 호스트의 키 파일을 읽을 수 없습니다: $hosts. 이 호스트는 자격 증명 없이 가져옵니다.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return '폴더로 가져옴: $folder';
   }
 
   @override
@@ -807,35 +770,10 @@ class SKo extends S {
   String get passwordStrengthVeryStrong => '매우 강함';
 
   @override
-  String get tierRecommendedBadge => '권장';
-
-  @override
-  String get tierCurrentBadge => '현재';
-
-  @override
-  String get tierAlternativeBranchLabel => '대안 — OS를 신뢰하지 마세요';
-
-  @override
-  String get tierUpcomingTooltip => '향후 버전에서 제공됩니다.';
-
-  @override
-  String get tierUpcomingNotes =>
-      '이 계층의 기본 인프라가 아직 제공되지 않았습니다. 옵션이 존재함을 알 수 있도록 행이 표시됩니다.';
-
-  @override
   String get tierPlaintextLabel => '일반 텍스트';
 
   @override
   String get tierPlaintextSubtitle => '암호화 없음 — 파일 권한만';
-
-  @override
-  String get tierPlaintextThreat1 => '파일 시스템에 접근할 수 있는 누구나 데이터를 읽음';
-
-  @override
-  String get tierPlaintextThreat2 => '우발적인 동기화 또는 백업이 모든 것을 드러냄';
-
-  @override
-  String get tierPlaintextNotes => '신뢰할 수 있는 격리된 환경에서만 사용하세요.';
 
   @override
   String get tierKeychainLabel => '키체인';
@@ -846,70 +784,13 @@ class SKo extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => '동일한 기기의 다른 사용자';
-
-  @override
-  String get tierKeychainProtect2 => 'OS 로그인 없이 도난당한 디스크';
-
-  @override
-  String get tierKeychainThreat1 => 'OS 계정으로 실행되는 멀웨어';
-
-  @override
-  String get tierKeychainThreat2 => 'OS 로그인을 탈취하는 공격자';
-
-  @override
   String get tierKeychainUnavailable => '이 설치에서 OS 키체인을 사용할 수 없습니다.';
-
-  @override
-  String get tierKeychainPassProtect1 => '당신의 책상에 앉은 동료';
-
-  @override
-  String get tierKeychainPassProtect2 => '잠금이 풀린 접근을 가진 행인';
-
-  @override
-  String get tierKeychainPassThreat1 => '디스크의 파일을 가진 오프라인 공격자';
-
-  @override
-  String get tierKeychainPassThreat2 => '키체인과 동일한 OS 침해 위험';
 
   @override
   String get tierHardwareLabel => '하드웨어';
 
   @override
-  String get tierHardwareSubtitle => '하드웨어 바운드 볼트 + 잠금 있는 짧은 PIN';
-
-  @override
-  String get tierHardwareProtect1 => 'PIN의 오프라인 무차별 대입(하드웨어 속도 제한)';
-
-  @override
-  String get tierHardwareProtect2 => '디스크와 키체인 블롭 탈취';
-
-  @override
-  String get tierHardwareThreat1 => '보안 모듈의 OS 또는 펌웨어 CVE';
-
-  @override
-  String get tierHardwareThreat2 => '강제 생체 인식 잠금 해제(활성화된 경우)';
-
-  @override
   String get tierParanoidLabel => '마스터 비밀번호(Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle => '긴 비밀번호 + Argon2id. 키가 OS에 들어가지 않음.';
-
-  @override
-  String get tierParanoidProtect1 => 'OS 키체인 침해';
-
-  @override
-  String get tierParanoidProtect2 => '도난당한 디스크(비밀번호가 강한 한)';
-
-  @override
-  String get tierParanoidThreat1 => '비밀번호를 캡처하는 키로거';
-
-  @override
-  String get tierParanoidThreat2 => '약한 비밀번호 + 오프라인 Argon2id 크래킹';
-
-  @override
-  String get tierParanoidNotes => '이 계층에서는 생체 인식이 설계상 비활성화되어 있습니다.';
 
   @override
   String get tierHardwareUnavailable => '이 설치본에서는 하드웨어 볼트를 사용할 수 없습니다.';
@@ -952,18 +833,6 @@ class SKo extends S {
 
   @override
   String get pathToLfsFile => '.lfs 파일 경로';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => '찾아보기';
-
-  @override
-  String get shareViaQrCode => 'QR 코드로 공유';
-
-  @override
-  String get shareViaQrSubtitle => '다른 기기에서 스캔할 수 있도록 세션을 QR로 내보내기';
 
   @override
   String get dataLocation => '데이터 위치';
@@ -1048,14 +917,6 @@ class SKo extends S {
 
   @override
   String get useSftpFromSessions => '세션에서 \"SFTP\"를 사용하세요';
-
-  @override
-  String get anotherInstanceRunning => 'LetsFLUTssh가 이미 실행 중입니다.';
-
-  @override
-  String importFailedShort(String error) {
-    return '가져오기 실패: $error';
-  }
 
   @override
   String get saveLogAs => '로그 저장';
@@ -1291,16 +1152,6 @@ class SKo extends S {
   String get errSessionClosed => '세션이 종료되었습니다';
 
   @override
-  String errShellError(String error) {
-    return '셸 오류: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return '재연결 실패: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'SFTP 초기화 실패: $error';
   }
@@ -1309,9 +1160,6 @@ class SKo extends S {
   String errDownloadFailed(String error) {
     return '다운로드 실패: $error';
   }
-
-  @override
-  String get errDecryptionFailed => '자격 증명 복호화에 실패했습니다. 키 파일이 손상되었을 수 있습니다.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1327,16 +1175,7 @@ class SKo extends S {
   String get biometricUnlockSubtitle => '비밀번호 입력 없이 기기의 생체 인식 센서로 잠금을 해제합니다.';
 
   @override
-  String get biometricNotAvailable => '이 기기에서는 생체 인식 잠금 해제를 사용할 수 없습니다.';
-
-  @override
   String get biometricEnableFailed => '생체 인식 잠금 해제를 활성화하지 못했습니다.';
-
-  @override
-  String get biometricEnabled => '생체 인식 잠금 해제가 활성화되었습니다';
-
-  @override
-  String get biometricDisabled => '생체 인식 잠금 해제가 비활성화되었습니다';
 
   @override
   String get biometricUnlockFailed => '생체 인증 잠금 해제에 실패했습니다. 마스터 비밀번호를 입력하세요.';
@@ -1348,10 +1187,6 @@ class SKo extends S {
   String get biometricNotEnrolled => '이 기기에 등록된 생체 정보가 없습니다.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      '생체 인증 잠금 해제를 사용하려면 먼저 마스터 비밀번호를 설정하세요.';
-
-  @override
   String get biometricSensorNotAvailable => '이 기기에는 생체 인식 센서가 없습니다.';
 
   @override
@@ -1359,23 +1194,10 @@ class SKo extends S {
       '지문 서비스(fprintd)가 설치되어 있지 않습니다. README → Installation을 참조하세요.';
 
   @override
-  String get biometricBackingHardware => '하드웨어 기반 (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => '소프트웨어 기반';
-
-  @override
   String get currentPasswordIncorrect => '현재 비밀번호가 올바르지 않습니다';
 
   @override
   String get wrongPassword => '잘못된 비밀번호';
-
-  @override
-  String get useKeychain => 'OS 키체인으로 암호화';
-
-  @override
-  String get useKeychainSubtitle =>
-      '데이터베이스 키를 시스템 자격 증명 저장소에 보관합니다. 끄기 = 평문 데이터베이스.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh이(가) 잠겨 있습니다';
@@ -1486,9 +1308,6 @@ class SKo extends S {
   String get progressWritingArchive => '아카이브 쓰는 중…';
 
   @override
-  String get progressReencrypting => '저장소 재암호화 중…';
-
-  @override
   String get progressWorking => '처리 중…';
 
   @override
@@ -1548,9 +1367,6 @@ class SKo extends S {
 
   @override
   String get subitems => '항목';
-
-  @override
-  String get storagePermissionRequired => '로컬 파일을 탐색하려면 저장소 권한이 필요합니다';
 
   @override
   String get grantPermission => '권한 부여';
@@ -1696,20 +1512,6 @@ class SKo extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH 연결';
-
-  @override
-  String get sshConnectionChannelDesc => 'SSH 연결을 백그라운드에서 유지합니다.';
-
-  @override
-  String get sshActive => 'SSH 활성';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count개 활성 연결';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count개 항목, $size';
   }
@@ -1760,9 +1562,6 @@ class SKo extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       '모든 알려진 호스트를 제거하시겠습니까? 각 서버 키를 다시 확인해야 합니다.';
-
-  @override
-  String get importKnownHostsSubtitle => 'OpenSSH known_hosts 파일에서 가져오기';
 
   @override
   String get clearedAllHosts => '모든 알려진 호스트를 삭제했습니다';
@@ -1850,9 +1649,6 @@ class SKo extends S {
   String get selectFromKeyStore => '키 저장소에서 선택';
 
   @override
-  String get noKeySelected => '선택된 키 없음';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1884,24 +1680,6 @@ class SKo extends S {
   String get rememberPassphrase => '이 세션 동안 기억';
 
   @override
-  String get masterPasswordSubtitle => '저장된 인증 정보를 비밀번호로 보호';
-
-  @override
-  String get setMasterPassword => '마스터 비밀번호 설정';
-
-  @override
-  String get changeMasterPassword => '마스터 비밀번호 변경';
-
-  @override
-  String get removeMasterPassword => '마스터 비밀번호 제거';
-
-  @override
-  String get masterPasswordEnabled => '인증 정보가 마스터 비밀번호로 보호됩니다';
-
-  @override
-  String get masterPasswordDisabled => '인증 정보가 자동 생성 키 사용 (비밀번호 없음)';
-
-  @override
   String get enterMasterPassword => '저장된 인증 정보에 접근하려면 마스터 비밀번호를 입력하세요.';
 
   @override
@@ -1914,27 +1692,7 @@ class SKo extends S {
   String get currentPassword => '현재 비밀번호';
 
   @override
-  String get masterPasswordSet => '마스터 비밀번호가 활성화되었습니다';
-
-  @override
-  String get masterPasswordChanged => '마스터 비밀번호가 변경되었습니다';
-
-  @override
-  String get masterPasswordRemoved => '마스터 비밀번호가 제거되었습니다';
-
-  @override
-  String get masterPasswordWarning =>
-      '이 비밀번호를 잊으면 저장된 모든 비밀번호와 SSH 키가 손실됩니다. 복구할 수 없습니다.';
-
-  @override
   String get forgotPassword => '비밀번호를 잊으셨나요?';
-
-  @override
-  String get forgotPasswordWarning =>
-      '저장된 모든 비밀번호, SSH 키, 패스프레이즈가 삭제됩니다. 세션과 설정은 유지됩니다. 이 작업은 되돌릴 수 없습니다.';
-
-  @override
-  String get resetAndDeleteCredentials => '재설정 및 데이터 삭제';
 
   @override
   String get credentialsReset => '저장된 모든 인증 정보가 삭제되었습니다';
@@ -1983,83 +1741,10 @@ class SKo extends S {
   String get derivingKey => '암호화 키 생성 중...';
 
   @override
-  String get reEncrypting => '데이터 재암호화 중...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      '마스터 비밀번호 보호를 해제하려면 현재 비밀번호를 입력하세요. 인증 정보는 자동 생성 키로 재암호화됩니다.';
-
-  @override
   String get securitySetupTitle => '보안 설정';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'OS 키체인이 감지되었습니다 ($keychainName). 데이터가 시스템 키체인을 사용하여 자동으로 암호화됩니다.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      '추가 보호를 위해 마스터 비밀번호를 설정할 수도 있습니다.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'OS 키체인이 감지되지 않았습니다. 키체인 없이는 세션 데이터(호스트, 비밀번호, 키)가 평문으로 저장됩니다.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'WSL, 헤드리스 Linux 또는 최소 설치에서는 정상입니다. Linux에서 키체인을 활성화하려면: libsecret과 키링 데몬(예: gnome-keyring)을 설치하세요.';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      '데이터를 보호하기 위해 마스터 비밀번호 설정을 권장합니다.';
-
-  @override
-  String get continueWithKeychain => '키체인으로 계속';
-
-  @override
-  String get continueWithoutEncryption => '암호화 없이 계속';
-
-  @override
-  String get securityLevel => '보안 수준';
-
-  @override
-  String get securityLevelPlaintext => '없음';
-
-  @override
-  String get securityLevelKeychain => 'OS 키체인';
-
-  @override
-  String get securityLevelMasterPassword => '마스터 비밀번호';
-
-  @override
-  String get keychainStatus => '키체인';
-
-  @override
   String get keychainAvailable => '사용 가능';
-
-  @override
-  String get keychainNotAvailable => '사용 불가';
-
-  @override
-  String get enableKeychain => '키체인 암호화 활성화';
-
-  @override
-  String get enableKeychainSubtitle => 'OS 키체인을 사용하여 저장된 데이터 재암호화';
-
-  @override
-  String get keychainEnabled => '키체인 암호화 활성화됨';
-
-  @override
-  String get manageMasterPassword => '마스터 비밀번호 관리';
-
-  @override
-  String get manageMasterPasswordSubtitle => '마스터 비밀번호 설정, 변경 또는 제거';
-
-  @override
-  String get changeSecurityTier => '보안 등급 변경';
-
-  @override
-  String get changeSecurityTierSubtitle => '등급 사다리를 열고 다른 보안 등급으로 전환';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2083,22 +1768,6 @@ class SKo extends S {
       '이 기기에서는 하드웨어 기반 저장소를 사용할 수 있습니다. TPM / Secure Enclave 바인딩을 위해 설정 → 보안에서 업그레이드하세요.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      '하드웨어 기반 저장소를 사용할 수 없습니다 — 이 기기에서 TPM 2.0이 감지되지 않았습니다.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      '하드웨어 기반 저장소를 사용할 수 없습니다 — 이 기기는 Secure Enclave를 보고하지 않습니다.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      '하드웨어 기반 저장소를 사용할 수 없습니다 — 활성화하려면 tpm2-tools와 TPM 2.0 기기를 설치하세요.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      '하드웨어 기반 저장소를 사용할 수 없습니다 — 이 기기는 StrongBox 또는 TEE를 보고하지 않습니다.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       '이 기기에서는 하드웨어 기반 저장소를 사용할 수 없습니다.';
 
@@ -2106,30 +1775,8 @@ class SKo extends S {
   String get firstLaunchSecurityOpenSettings => '설정 열기';
 
   @override
-  String get firstLaunchSecurityDismiss => '확인';
-
-  @override
-  String get securityHardwareUpgradeTitle => '하드웨어 기반 저장소 사용 가능';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      '업그레이드하여 비밀을 TPM / Secure Enclave에 바인딩하세요.';
-
-  @override
-  String get securityHardwareUpgradeAction => '업그레이드';
-
-  @override
-  String get securityHardwareUnavailableTitle => '하드웨어 기반 저장소를 사용할 수 없습니다';
-
-  @override
   String get wizardReducedBanner =>
       '이 설치본에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 비밀번호(Paranoid) 중에서 선택하세요. 키체인 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
-
-  @override
-  String get tierBlockProtectsHeader => '보호하는 위협';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => '보호하지 않는 위협';
 
   @override
   String get tierBlockProtectsEmpty => '이 등급에서 보호되는 항목이 없습니다.';
@@ -2145,25 +1792,6 @@ class SKo extends S {
 
   @override
   String get securitySetupApply => '적용';
-
-  @override
-  String get passwordDisabledPlaintext => '암호화 없음 등급은 암호로 보호할 비밀이 없습니다.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid는 데이터베이스 키를 비밀번호에서 파생합니다 — 항상 켜짐.';
-
-  @override
-  String get passwordSubtitleOn => '켜짐 — 잠금 해제 시 비밀번호 필요';
-
-  @override
-  String get passwordSubtitleOff => '꺼짐 — 이 등급에 비밀번호를 추가하려면 탭';
-
-  @override
-  String get passwordSubtitleParanoid => '필수 — 마스터 비밀번호가 등급의 비밀';
-
-  @override
-  String get passwordSubtitlePlaintext => '해당 없음 — 이 등급에는 암호화가 없습니다';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2353,9 +1981,6 @@ class SKo extends S {
   }
 
   @override
-  String get runSnippet => '실행';
-
-  @override
   String get pinToSession => '이 세션에 고정';
 
   @override
@@ -2366,9 +1991,6 @@ class SKo extends S {
 
   @override
   String get allSnippets => '전체';
-
-  @override
-  String get sendToTerminal => '터미널로 전송';
 
   @override
   String get commandCopied => '명령이 클립보드에 복사되었습니다';
@@ -2434,35 +2056,6 @@ class SKo extends S {
   String get sessionsOnly => '세션';
 
   @override
-  String get sessionKeysFromManager => '키 관리자의 세션 키';
-
-  @override
-  String get allKeysFromManager => '키 관리자의 모든 키';
-
-  @override
-  String exportTags(int count) {
-    return '태그 ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return '스니펫 ($count)';
-  }
-
-  @override
-  String get disableKeychain => '키체인 암호화 비활성화';
-
-  @override
-  String get disableKeychainSubtitle => '일반 텍스트 저장으로 전환 (권장하지 않음)';
-
-  @override
-  String get disableKeychainConfirm =>
-      '데이터베이스가 키 없이 다시 암호화됩니다. 세션과 키가 디스크에 일반 텍스트로 저장됩니다. 계속하시겠습니까?';
-
-  @override
-  String get keychainDisabled => '키체인 암호화가 비활성화되었습니다';
-
-  @override
   String get presetFullImport => '전체 가져오기';
 
   @override
@@ -2472,7 +2065,7 @@ class SKo extends S {
   String get presetCustom => '사용자 지정';
 
   @override
-  String get sessionSshKeys => '세션 SSH 키';
+  String get sessionSshKeys => '세션 키 (매니저)';
 
   @override
   String get allManagerKeys => '모든 관리자 키';
@@ -2584,17 +2177,6 @@ class SKo extends S {
   String get legendDoesNotProtect => '보호되지 않음';
 
   @override
-  String get legendNotApplicable => '해당 없음 — 이 티어에는 사용자 비밀이 없습니다';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      '약한 비밀번호 허용 — 다른 계층(하드웨어 속도 제한 또는 래핑된 키 바인딩)이 보안을 담당합니다';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      '긴 암호 문구 사용을 강력히 권장합니다 — 이 티어의 보안은 여기에 달려 있습니다';
-
-  @override
   String get colT0 => 'T0 평문';
 
   @override
@@ -2617,9 +2199,6 @@ class SKo extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle => '보안 티어 — 나란히 비교';
 
   @override
   String get securityComparisonTableThreatColumn => '위협';
@@ -2654,19 +2233,10 @@ class SKo extends S {
   String get resetAllDataFailed => '재설정 실패';
 
   @override
-  String get compareAllTiersSubtitle => '각 티어가 무엇을 방어하는지 나란히 비교하세요.';
-
-  @override
   String get autoLockRequiresPassword => '자동 잠금을 사용하려면 현재 티어에 비밀번호가 필요합니다.';
 
   @override
   String get recommendedBadge => '권장';
-
-  @override
-  String get continueWithRecommended => '권장 설정으로 계속';
-
-  @override
-  String get customizeSecurity => '보안 사용자 지정';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2679,9 +2249,6 @@ class SKo extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'runtime 위협(동일 사용자 malware, 실행 중 프로세스 메모리 덤프)은 모든 티어에서 ✗로 표시됩니다. 이는 티어 선택과 무관하게 적용되는 별도의 완화 기능으로 대응됩니다.';
-
-  @override
-  String get securitySetupContinue => '계속';
 
   @override
   String get currentTierBadge => '현재';

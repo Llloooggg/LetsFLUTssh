@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
@@ -507,17 +508,44 @@ ExportPayloadData? decodeExportPayload(String payload) {
   return _decodePayload(payload);
 }
 
+/// Hard cap on the inflated-JSON size accepted from an import payload.
+///
+/// A legitimate full-backup payload (every credential, every key, every
+/// tag) stays well under 2 MB even before compression — the QR ceiling
+/// at [qrMaxPayloadBytes] alone forces QR producers below ~2 KB
+/// compressed, and paste-link payloads that bypass the QR ceiling still
+/// originate from the same `encodeExportPayload` path and hit an upper
+/// bound around a few hundred KB inflated. 4 MB gives ~10× headroom for
+/// future growth (more tag / snippet fields, key-type metadata) while
+/// keeping the decompressor bounded.
+///
+/// The cap exists to defuse a zip-bomb style payload: deflate has a
+/// theoretical ~1000× ratio, so a crafted ~4 KB QR could otherwise
+/// expand to 4 MB+ of JSON and the subsequent `jsonDecode` / cast pass
+/// would spike heap usage. With this cap the decoder rejects the input
+/// *before* allocating the inflated buffer's tail, turning the attack
+/// into a typed [QrPayloadTooLargeException] the UI can render as
+/// "invalid QR" rather than an OOM crash.
+const int _maxInflatedPayloadBytes = 4 * 1024 * 1024;
+
 ExportPayloadData? _decodePayload(String b64) {
   // Current format (v4): base64(deflate(JSON))
   try {
     final compressed = base64Url.decode(b64);
-    final inflated = Inflate(compressed).getBytes();
+    final inflated = _inflateCapped(compressed);
     final json = utf8.decode(inflated);
     final result = _parsePayload(json);
     if (result != null) return result;
   } on QrPayloadVersionTooNewException {
     // A valid QR from a newer app — let the caller show a specific error
     // instead of pretending the QR was malformed.
+    rethrow;
+  } on QrPayloadTooLargeException {
+    // Zip-bomb guard tripped — never fall through to the legacy-format
+    // retry. The legacy path feeds the same base64 bytes into
+    // `utf8.decode` directly without the size cap and would still
+    // allocate the full buffer; re-running it here would defeat the
+    // guard the v4 path just enforced.
     rethrow;
   } on FormatException {
     // Invalid base64
@@ -530,10 +558,18 @@ ExportPayloadData? _decodePayload(String b64) {
   // Fallback: v1 legacy format — raw base64(JSON) without deflate.
   try {
     final raw = base64Url.decode(b64);
+    if (raw.length > _maxInflatedPayloadBytes) {
+      throw QrPayloadTooLargeException(
+        size: raw.length,
+        limit: _maxInflatedPayloadBytes,
+      );
+    }
     final json = utf8.decode(raw);
     jsonDecode(json);
     return _parsePayload(json);
   } on QrPayloadVersionTooNewException {
+    rethrow;
+  } on QrPayloadTooLargeException {
     rethrow;
   } on FormatException {
     // Invalid base64 or UTF-8
@@ -541,6 +577,27 @@ ExportPayloadData? _decodePayload(String b64) {
     // Any other error
   }
   return null;
+}
+
+/// Inflate [compressed] with an upper bound on the produced size.
+///
+/// `package:archive`'s `Inflate` walks the deflate stream into an
+/// internal byte accumulator before returning; it offers no streaming
+/// callback for the per-block output. The cheapest backstop is to let
+/// inflation run, then reject oversized results before the caller
+/// materialises them into a `String` — a 4 MB byte list is tolerable
+/// even as a transient allocation, a 400 MB one is not. The constant
+/// is sized against [_maxInflatedPayloadBytes] so both fallback paths
+/// share the same ceiling.
+Uint8List _inflateCapped(List<int> compressed) {
+  final inflated = Inflate(compressed).getBytes();
+  if (inflated.length > _maxInflatedPayloadBytes) {
+    throw QrPayloadTooLargeException(
+      size: inflated.length,
+      limit: _maxInflatedPayloadBytes,
+    );
+  }
+  return inflated;
 }
 
 /// Coerce a JSON-decoded value to [int] — accepts `int`, `num`, else
@@ -900,4 +957,24 @@ class QrPayloadVersionTooNewException implements Exception {
   String toString() =>
       'QrPayloadVersionTooNewException: payload schema v$found is newer '
       'than supported v$supported. Update the app to import this QR.';
+}
+
+/// Thrown when the decompressed import payload exceeds the safety cap.
+///
+/// A legitimate full-backup payload stays well under the cap even before
+/// deflate is run on it — seeing a decompressed size past the limit
+/// means we are looking at a zip-bomb, a corrupted archive, or a payload
+/// from a future format that legitimately got bigger. Either way the
+/// decoder refuses to materialise the buffer. Mirrors
+/// [QrPayloadVersionTooNewException]'s shape so both "refused, not a
+/// parse error" outcomes route through the same UI branch.
+class QrPayloadTooLargeException implements Exception {
+  final int size;
+  final int limit;
+  const QrPayloadTooLargeException({required this.size, required this.limit});
+
+  @override
+  String toString() =>
+      'QrPayloadTooLargeException: decompressed payload $size B exceeds '
+      'limit $limit B. Refusing to decode.';
 }

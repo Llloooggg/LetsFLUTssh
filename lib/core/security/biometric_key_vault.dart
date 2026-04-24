@@ -106,7 +106,15 @@ class BiometricKeyVault {
       try {
         final file = await _linuxSealFileFactory();
         if (await file.exists()) return true;
-      } catch (_) {}
+      } catch (e) {
+        // Linux file probe failure falls through to the native-
+        // keychain path; logging the miss surfaces an FS permission
+        // regression on the support dir.
+        AppLogger.instance.log(
+          'BiometricKeyVault.isStored: Linux seal-file probe failed: $e',
+          name: 'BiometricKeyVault',
+        );
+      }
     }
     try {
       return await _storage.containsKey(key: _keyName);
@@ -194,13 +202,14 @@ class BiometricKeyVault {
       final sealed = await _tpm.seal(key, authValue: authHash);
       if (sealed == null) return false;
       final file = await _linuxSealFileFactory();
-      await file.parent.create(recursive: true);
-      await file.writeAsBytes(sealed, flush: true);
-      // TPM-sealed blob encodes the wrapping key needed to decrypt the
-      // DB. A same-UID reader with world-readable default perms could
-      // still not unseal it without the TPM, but we treat it like
-      // every other secret file — 0600 across the board.
-      await hardenFilePerms(file.path);
+      // Atomic rename: a crash mid-flush otherwise truncates the sealed
+      // blob, `isStored()` still returns true on next launch, unseal
+      // reads garbage, and the app silently drops biometric unlock —
+      // on L3+biometric the user has to type the PIN every launch with
+      // no "vault broken" hint. `writeBytesAtomic` applies 0600 perms
+      // on the tmp file before the rename, matching the old
+      // `hardenFilePerms` call.
+      await writeBytesAtomic(file.path, sealed);
       return true;
     } catch (e) {
       AppLogger.instance.log(

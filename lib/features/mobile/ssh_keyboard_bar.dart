@@ -100,14 +100,23 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
   ///
   /// Used by [MobileTerminalView] to transform system keyboard input before
   /// sending it to the SSH shell.
+  ///
+  /// When both modifiers are active the Ctrl transform runs first (collapsing
+  /// the letter to the 0x00-0x1F control-code band) and Alt prepends the ESC
+  /// byte on top — yielding the standard `ESC <Ctrl-X>` two-byte sequence
+  /// that emacs/readline read as `C-M-x`. Order matters: prefixing ESC first
+  /// and then trying to Ctrl-fold the ESC would produce neither a valid
+  /// meta-sequence nor a control code.
   String applyModifiers(String data) {
     if (_ctrl == _ModifierState.off && _alt == _ModifierState.off) return data;
     String result = data;
-    if (_alt != _ModifierState.off && data.length == 1) {
-      result = SshKeySequences.altKey(data);
-    }
-    if (_ctrl != _ModifierState.off && data.length == 1) {
-      result = SshKeySequences.ctrlKey(data);
+    if (data.length == 1) {
+      if (_ctrl != _ModifierState.off) {
+        result = SshKeySequences.ctrlKey(result);
+      }
+      if (_alt != _ModifierState.off) {
+        result = SshKeySequences.altKey(result);
+      }
     }
     if (_ctrl == _ModifierState.once) {
       setState(() => _ctrl = _ModifierState.off);

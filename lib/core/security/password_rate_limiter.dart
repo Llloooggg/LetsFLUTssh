@@ -324,7 +324,16 @@ class PersistedRateLimiter extends PasswordRateLimiter {
             ? null
             : DateTime.fromMillisecondsSinceEpoch(retryMillis),
       );
-    } catch (_) {
+    } catch (e) {
+      // Tamper or corruption — return null so the caller starts
+      // from a clean state. Log the reason because a "rate limit
+      // reset itself" complaint needs to distinguish expected
+      // fresh-install (no file) from "bytes on disk were malformed"
+      // (should not happen unless something wrote into the state file).
+      AppLogger.instance.log(
+        'PasswordRateLimiter: state decode failed (starting fresh): $e',
+        name: 'RateLimiter',
+      );
       return null;
     }
   }

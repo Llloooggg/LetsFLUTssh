@@ -11,40 +11,39 @@ void main() {
   });
 
   group('resolveMaxImportArgon2idMemoryKiB', () {
-    test('desktop always returns the static 1 GiB ceiling', () {
+    test('desktop returns the static 1 GiB ceiling', () {
       plat.debugMobilePlatformOverride = false;
-      ExportImport.debugMemoryProbeOverride = 2 * 1024 * 1024 * 1024; // 2 GiB
       expect(
         ExportImport.resolveMaxImportArgon2idMemoryKiB(),
         ExportImport.maxImportArgon2idMemoryKiB,
       );
     });
 
-    test('mobile with plenty of RAM clamps at the 1 GiB ceiling', () {
+    test('mobile returns the 512 MiB mobile ceiling', () {
+      // The mobile floor is a flat 512 MiB (see
+      // [mobileImportArgon2idMemoryKiB] docstring): high enough to
+      // accept every legitimate `.lfs` export, low enough to stay
+      // under the Android low-memory killer on the 2 GiB baseline.
+      // Previous builds used `ProcessInfo.maxRss * 4 / 4` which
+      // under-capped on cold-start (tiny process peak → spurious
+      // "malformed header" rejections of valid archives) and
+      // over-capped on warm sessions — neither branch tracked real
+      // physical RAM. Flat floor matches the actual DoS threat.
       plat.debugMobilePlatformOverride = true;
-      // 8 GiB physical → 25 % = 2 GiB → capped to 1 GiB.
-      ExportImport.debugMemoryProbeOverride = 8 * 1024 * 1024 * 1024;
       expect(
         ExportImport.resolveMaxImportArgon2idMemoryKiB(),
-        ExportImport.maxImportArgon2idMemoryKiB,
+        ExportImport.mobileImportArgon2idMemoryKiB,
       );
+      expect(ExportImport.mobileImportArgon2idMemoryKiB, 512 * 1024);
     });
 
-    test('mobile on a 2 GiB device caps the Argon2id memory at ~512 MiB', () {
+    test('debugMemoryProbeOverride bypasses the platform branch entirely', () {
+      // The override is a direct KiB value so tests can pin a
+      // deterministic cap regardless of which branch the runner
+      // would normally take.
       plat.debugMobilePlatformOverride = true;
-      // 2 GiB physical → 25 % = 512 MiB, below the static cap.
-      ExportImport.debugMemoryProbeOverride = 2 * 1024 * 1024 * 1024;
-      final cap = ExportImport.resolveMaxImportArgon2idMemoryKiB();
-      expect(cap, 512 * 1024);
-    });
-
-    test('non-positive probe falls back to the static ceiling', () {
-      plat.debugMobilePlatformOverride = true;
-      ExportImport.debugMemoryProbeOverride = 0;
-      expect(
-        ExportImport.resolveMaxImportArgon2idMemoryKiB(),
-        ExportImport.maxImportArgon2idMemoryKiB,
-      );
+      ExportImport.debugMemoryProbeOverride = 42;
+      expect(ExportImport.resolveMaxImportArgon2idMemoryKiB(), 42);
     });
   });
 }

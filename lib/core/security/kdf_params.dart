@@ -37,8 +37,14 @@ class KdfParams {
   final int iterations;
   final int parallelism;
 
+  /// OWASP 2024 Argon2id memory floor: 46 MiB = 46 * 1024 KiB.
+  /// Kept as a named constant so the unit (KiB vs MiB vs bytes) is
+  /// obvious at the call site instead of looking up whether `47104`
+  /// is bytes, KiB, or MiB.
+  static const int _defaultMemoryKiB = 46 * 1024;
+
   const KdfParams.argon2id({
-    this.memoryKiB = 47104,
+    this.memoryKiB = _defaultMemoryKiB,
     this.iterations = 2,
     this.parallelism = 1,
   }) : algorithm = KdfAlgorithm.argon2id;
@@ -68,8 +74,22 @@ class KdfParams {
     }
   }
 
+  /// Sanity ceilings for Argon2id params. A legitimate header writes
+  /// production defaults (46 MiB, 2 iters, 1 lane); future profile
+  /// bumps would at most double those. The upper bounds exist to
+  /// defuse a crafted `credentials.kdf` that asks for absurd costs —
+  /// 4 GiB of memory, a million iterations — which would wedge the
+  /// unlock isolate rather than fail cleanly. 1 GiB / 16 iters / 8
+  /// lanes gives ~20× headroom over today's production profile, well
+  /// past any plausible security bump, while keeping a single
+  /// malicious header from turning into an OOM on unlock.
+  static const int _argon2idMaxMemoryKiB = 1024 * 1024; // 1 GiB
+  static const int _argon2idMaxIterations = 16;
+  static const int _argon2idMaxParallelism = 8;
+
   /// Deserialize algorithm + params starting at [bytes]. Throws
-  /// [FormatException] on unknown algorithm ID or truncated buffer.
+  /// [FormatException] on unknown algorithm ID, truncated buffer, or
+  /// params outside the sanity ceilings documented above.
   ///
   /// Returns the parsed params; callers pass [bytes.sublist(0,
   /// encodedLength)] back to `encode()` for round-trip.
@@ -95,6 +115,24 @@ class KdfParams {
         final par = b.getUint8(9);
         if (mem == 0 || iters == 0 || par == 0) {
           throw const FormatException('KdfParams: Argon2id params must be > 0');
+        }
+        if (mem > _argon2idMaxMemoryKiB) {
+          throw FormatException(
+            'KdfParams: Argon2id memory $mem KiB exceeds sanity cap '
+            '$_argon2idMaxMemoryKiB KiB',
+          );
+        }
+        if (iters > _argon2idMaxIterations) {
+          throw FormatException(
+            'KdfParams: Argon2id iterations $iters exceeds sanity cap '
+            '$_argon2idMaxIterations',
+          );
+        }
+        if (par > _argon2idMaxParallelism) {
+          throw FormatException(
+            'KdfParams: Argon2id parallelism $par exceeds sanity cap '
+            '$_argon2idMaxParallelism',
+          );
         }
         return KdfParams._(
           algorithm: algo,

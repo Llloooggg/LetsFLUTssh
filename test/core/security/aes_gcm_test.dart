@@ -102,5 +102,13 @@ void main() {
       encrypted[0] ^= 0xFF;
       expect(() => AesGcm.decrypt(encrypted, key), throwsA(anything));
     });
+
+    test('AesGcmException.toString embeds the message', () {
+      // Pin the toString contract — used by error-surface formatters
+      // and log lines; changing the prefix would break grep tools
+      // and user-visible copy in one go.
+      const e = AesGcmException('bad bytes');
+      expect(e.toString(), 'AesGcmException: bad bytes');
+    });
   });
 }

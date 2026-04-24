@@ -25,9 +25,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 // DoS caps mirror lib/features/settings/export_import.dart so the
-// fuzz enforcement tracks the production gate.
-const int _maxMemoryKiB = 512 * 1024; // 512 MiB
-const int _maxIterations = 16;
+// fuzz enforcement tracks the production gate. Values track the
+// widest caps production allows in any build (desktop memory floor
+// is 1 GiB, iterations is a flat 20, parallelism 16) — a fuzz
+// target with tighter caps would reject inputs that the real
+// decoder accepts, hiding coverage in the "large but valid"
+// neighborhood around the boundary.
+const int _maxMemoryKiB = 1024 * 1024; // 1 GiB (desktop floor)
+const int _maxIterations = 20;
 const int _maxParallelism = 16;
 
 const List<int> _magic = [0x4C, 0x46, 0x53, 0x45]; // 'LFSE'

@@ -90,12 +90,36 @@ class AppShortcutRegistry {
   ///   child: …,
   /// )
   /// ```
+  ///
+  /// Throws [StateError] when two requested shortcuts resolve to the
+  /// same [SingleActivator]. Several [AppShortcut] values intentionally
+  /// share activators (e.g. `sessionCopy` + `fileCopy` both bind Ctrl+C;
+  /// `sessionEdit` + `fileRename` both bind F2) because each is meant
+  /// for a different widget subtree — the caller mounts each
+  /// `CallbackShortcuts` under the scope that should receive it, never
+  /// both together. If a caller ever did collide them into one map the
+  /// output would silently coalesce to the last-written entry, turning
+  /// one of the shortcuts into a no-op with no error message. Failing
+  /// loud here keeps that regression visible.
   Map<ShortcutActivator, VoidCallback> buildCallbackMap(
     Map<AppShortcut, VoidCallback> actions,
   ) {
-    return {
-      for (final entry in actions.entries) _bindings[entry.key]!: entry.value,
-    };
+    final out = <ShortcutActivator, VoidCallback>{};
+    final origins = <SingleActivator, AppShortcut>{};
+    for (final entry in actions.entries) {
+      final activator = _bindings[entry.key]!;
+      final prior = origins[activator];
+      if (prior != null) {
+        throw StateError(
+          'Duplicate shortcut activator ${formatShortcut(activator)}: '
+          '${prior.name} and ${entry.key.name} both resolve to the same '
+          'binding. Mount them under separate CallbackShortcuts scopes.',
+        );
+      }
+      origins[activator] = entry.key;
+      out[activator] = entry.value;
+    }
+    return out;
   }
 
   /// Returns `true` when [event] matches the current binding for [shortcut].

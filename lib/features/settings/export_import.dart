@@ -65,36 +65,55 @@ class ExportImport {
   static KdfParams defaultKdfParams = KdfParams.productionDefaults;
 
   /// Absolute ceiling on the Argon2id memory cost we are willing to
-  /// honour from an untrusted archive header — 1 GiB on any platform
-  /// with enough RAM. [resolveMaxImportArgon2idMemoryKiB] caps this
-  /// further against physical RAM on the host at import time (25 % of
-  /// total on mobile, a hard 1 GiB floor on desktop). Higher values
-  /// fail the import as malformed, so a hostile header can't pin the
-  /// isolate into swap — and on a 2 GiB Android device, can't drive
-  /// the OS out-of-memory killer either.
+  /// honour from an untrusted archive header on desktop — 1 GiB. On
+  /// desktop the OS accounts for memory generously (swap, working-set
+  /// trimming, plenty of RAM on a 2025-era workstation) so Argon2id at
+  /// 1 GiB decodes without OOM-killer risk; higher values fail the
+  /// import as malformed so a hostile header still cannot pin the
+  /// isolate into swap indefinitely. See [resolveMaxImportArgon2idMemoryKiB]
+  /// for the mobile branch which uses a lower static floor.
   @visibleForTesting
   static const int maxImportArgon2idMemoryKiB = 1 * 1024 * 1024;
 
-  /// Resolve the effective memory cap at import time based on the
-  /// running platform and physical RAM. Mobile devices cap at
-  /// `min(maxImportArgon2idMemoryKiB, 25 % of active RAM)`; desktop
-  /// falls back to the static cap because OS-level memory accounting
-  /// is more flexible and Argon2id at 1 GiB is viable in practice.
-  /// Exposed for tests via [debugMemoryProbeOverride].
+  /// Hard import-time memory ceiling on iOS / Android — 512 MiB.
+  ///
+  /// Rationale. `ProcessInfo.maxRss` is the current process peak,
+  /// not total physical RAM, so the previous `maxRss * 4` proxy
+  /// underestimated RAM on cold-start (tiny peak → tight cap →
+  /// legitimate 30 MB `.lfs` imports rejected as malformed on a 6 GB
+  /// phone) and overestimated it on long-running warm sessions with
+  /// live SSH + open SFTP panels. Neither branch was tracking the
+  /// real "can Argon2id decode this without tripping Android's
+  /// low-memory killer" question.
+  ///
+  /// Dart does not expose a total-physical-RAM API, and pulling in a
+  /// new method-channel plugin across 5 platforms solely for this
+  /// single DoS bound is disproportionate. A flat 512 MiB floor
+  /// meets the real constraint: it sits comfortably below the OOM
+  /// threshold on every Android device the app supports (Android 8+
+  /// baseline ≥ 2 GB RAM; 512 MiB is 25 %) and is still well inside
+  /// the 1 GiB desktop ceiling so `resolveMax…` picks the correct
+  /// branch by platform. Tests can still override via
+  /// [debugMemoryProbeOverride].
+  @visibleForTesting
+  static const int mobileImportArgon2idMemoryKiB = 512 * 1024;
+
+  /// Resolve the effective memory cap at import time by platform.
+  /// Mobile → [mobileImportArgon2idMemoryKiB] (512 MiB). Desktop →
+  /// [maxImportArgon2idMemoryKiB] (1 GiB). The injection point
+  /// [debugMemoryProbeOverride] bypasses the platform branch entirely
+  /// — set it to the KiB value the test wants honoured.
   static int resolveMaxImportArgon2idMemoryKiB() {
-    if (!plat.isMobilePlatform) return maxImportArgon2idMemoryKiB;
-    final physicalBytes =
-        debugMemoryProbeOverride ?? ProcessInfo.maxRss * 4; // rough proxy
-    if (physicalBytes <= 0) return maxImportArgon2idMemoryKiB;
-    final quarterKiB = (physicalBytes ~/ 4) ~/ 1024;
-    return quarterKiB < maxImportArgon2idMemoryKiB
-        ? quarterKiB
+    final override = debugMemoryProbeOverride;
+    if (override != null) return override;
+    return plat.isMobilePlatform
+        ? mobileImportArgon2idMemoryKiB
         : maxImportArgon2idMemoryKiB;
   }
 
-  /// Injection point for tests — set to a non-null value (bytes of
-  /// total physical RAM) to bypass the `ProcessInfo.maxRss` proxy and
-  /// exercise the cap logic deterministically.
+  /// Injection point for tests — set to the KiB value the resolver
+  /// should return so the mobile / desktop branch can be exercised
+  /// deterministically without the platform gate.
   @visibleForTesting
   static int? debugMemoryProbeOverride;
 
@@ -259,7 +278,16 @@ class ExportImport {
       final Archive archive;
       try {
         archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
-      } catch (_) {
+      } catch (e) {
+        // Best-effort probe — malformed ZIP / APK / random bytes all
+        // land here. Logging the reason saves a "why did import reject
+        // my file?" round-trip with the user — a corrupted .lfs and an
+        // .apk picked by mistake both surface as "notLfs" but have
+        // different root causes.
+        AppLogger.instance.log(
+          'probeArchive: ZIP decode failed (file classified as notLfs): $e',
+          name: 'ExportImport',
+        );
         return LfsArchiveKind.notLfs;
       }
       // Probe is best-effort — a zip bomb here just means the file is not
@@ -866,7 +894,17 @@ class ExportImport {
       );
     } on UnsupportedLfsVersionException {
       rethrow;
-    } catch (_) {
+    } catch (e) {
+      // Wrap every other manifest parse failure (malformed JSON,
+      // unexpected type, truncated header) into the same
+      // user-facing "unsupported version" path so the message stays
+      // consistent. Log the original reason so a support trace can
+      // distinguish "user has a newer build's archive" from "bytes
+      // are corrupt".
+      AppLogger.instance.log(
+        'Manifest parse failed → reporting UnsupportedLfsVersionException: $e',
+        name: 'ExportImport',
+      );
       throw const UnsupportedLfsVersionException(
         found: 0,
         supported: currentSchemaVersion,

@@ -196,6 +196,15 @@ class UpdateService {
     }
 
     if (releaseList.isEmpty) {
+      // GitHub API answered but returned no releases — either the
+      // repo has literally no published releases (first-ever build
+      // in CI, fork without releases) or the API shape changed.
+      // Log the miss so the difference between "actually up to
+      // date" and "release list came back empty" is greppable.
+      AppLogger.instance.log(
+        'Update check: release list empty — treating current build as latest',
+        name: 'UpdateService',
+      );
       return UpdateInfo(
         latestVersion: currentVersion,
         currentVersion: currentVersion,

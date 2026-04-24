@@ -20,6 +20,7 @@ import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
+import '../../utils/secret_controller.dart';
 import '../tags/tag_assign_dialog.dart';
 
 /// Result of the session edit dialog.
@@ -130,6 +131,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   @override
   void dispose() {
+    // Secret-bearing controllers — overwrite with null bytes and
+    // clear before disposing so the Dart-heap residency window for
+    // the typed password / PEM body / passphrase ends at dialog
+    // close, not whenever the next GC cycle reclaims the immutable
+    // String. Matches the wipe discipline ExpandableTierCard +
+    // SecurityPasswordField already follow.
+    _passwordCtrl.wipeAndClear();
+    _keyDataCtrl.wipeAndClear();
+    _passphraseCtrl.wipeAndClear();
     _labelCtrl.dispose();
     _folderCtrl.dispose();
     _hostCtrl.dispose();
@@ -619,6 +629,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       allowMultiple: false,
       type: FileType.any,
     );
+    if (!mounted) return;
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
     final pemContent = KeyFileHelper.tryReadPemKey(path);
@@ -742,6 +753,17 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         ),
       ),
       maxLines: 5,
+      // PEM body is a private key — force every IME "learn what
+      // the user typed" knob off so pasted / typed key material
+      // does not end up in the OS autocorrect / predictive-text /
+      // spellcheck personalised-learning dictionary. Multi-line,
+      // so `obscureText` is not an option; the hardening flags are.
+      autocorrect: false,
+      enableSuggestions: false,
+      enableIMEPersonalizedLearning: false,
+      smartDashesType: SmartDashesType.disabled,
+      smartQuotesType: SmartQuotesType.disabled,
+      textCapitalization: TextCapitalization.none,
       style: AppFonts.mono(fontSize: AppFonts.xs),
     );
   }

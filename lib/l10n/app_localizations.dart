@@ -303,12 +303,6 @@ abstract class S {
   /// **'Next'**
   String get nextStep;
 
-  /// No description provided for @includeCredentials.
-  ///
-  /// In en, this message translates to:
-  /// **'Include passwords and SSH keys'**
-  String get includeCredentials;
-
   /// No description provided for @includePasswords.
   ///
   /// In en, this message translates to:
@@ -350,18 +344,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Total size: {size}'**
   String exportTotalSize(String size);
-
-  /// No description provided for @qrCredentialsWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.'**
-  String get qrCredentialsWarning;
-
-  /// No description provided for @qrCredentialsTooLarge.
-  ///
-  /// In en, this message translates to:
-  /// **'Credentials make the QR code too large. Remove some sessions or disable credentials.'**
-  String get qrCredentialsTooLarge;
 
   /// No description provided for @terminal.
   ///
@@ -567,12 +549,6 @@ abstract class S {
   /// **'SSH key received: {filename}'**
   String sshKeyReceived(String filename);
 
-  /// No description provided for @importedSessionsViaQr.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported {count} session(s) via QR'**
-  String importedSessionsViaQr(int count);
-
   /// No description provided for @importedSessions.
   ///
   /// In en, this message translates to:
@@ -650,12 +626,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'No sessions'**
   String get noSessions;
-
-  /// No description provided for @noSessionsToExport.
-  ///
-  /// In en, this message translates to:
-  /// **'No sessions to export'**
-  String get noSessionsToExport;
 
   /// No description provided for @nSelectedCount.
   ///
@@ -884,12 +854,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'-----BEGIN OPENSSH PRIVATE KEY-----'**
   String get hintPemKey;
-
-  /// No description provided for @noAdditionalOptionsYet.
-  ///
-  /// In en, this message translates to:
-  /// **'No additional options yet'**
-  String get noAdditionalOptionsYet;
 
   /// No description provided for @saveAndConnect.
   ///
@@ -1167,12 +1131,6 @@ abstract class S {
   /// **'Controllers not initialized'**
   String get controllersNotInitialized;
 
-  /// No description provided for @initializingSftp.
-  ///
-  /// In en, this message translates to:
-  /// **'Initializing SFTP...'**
-  String get initializingSftp;
-
   /// No description provided for @clearHistory.
   ///
   /// In en, this message translates to:
@@ -1196,12 +1154,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Duplicate Tab (Ctrl+\\)'**
   String get duplicateTabShortcut;
-
-  /// No description provided for @copyDown.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Down'**
-  String get copyDown;
 
   /// No description provided for @previous.
   ///
@@ -1413,18 +1365,6 @@ abstract class S {
   /// **'Export Data'**
   String get exportData;
 
-  /// No description provided for @exportDataSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Save sessions, config, and keys to encrypted .lfs file'**
-  String get exportDataSubtitle;
-
-  /// No description provided for @importDataSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Load data from .lfs file'**
-  String get importDataSubtitle;
-
   /// No description provided for @sshConfigPreviewHostsFound.
   ///
   /// In en, this message translates to:
@@ -1442,12 +1382,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Could not read key files for: {hosts}. These hosts will be imported without credentials.'**
   String sshConfigPreviewMissingKeys(String hosts);
-
-  /// No description provided for @sshConfigPreviewFolderLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Imported to folder: {folder}'**
-  String sshConfigPreviewFolderLabel(String folder);
 
   /// No description provided for @sshConfigImportFolderName.
   ///
@@ -1569,36 +1503,6 @@ abstract class S {
   /// **'Very strong'**
   String get passwordStrengthVeryStrong;
 
-  /// No description provided for @tierRecommendedBadge.
-  ///
-  /// In en, this message translates to:
-  /// **'Recommended'**
-  String get tierRecommendedBadge;
-
-  /// No description provided for @tierCurrentBadge.
-  ///
-  /// In en, this message translates to:
-  /// **'Current'**
-  String get tierCurrentBadge;
-
-  /// No description provided for @tierAlternativeBranchLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Alternative — don\'t trust the OS'**
-  String get tierAlternativeBranchLabel;
-
-  /// No description provided for @tierUpcomingTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Ships in an upcoming version.'**
-  String get tierUpcomingTooltip;
-
-  /// No description provided for @tierUpcomingNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'This tier\'s underlying plumbing is not shipped yet. The row is visible so you know the option exists.'**
-  String get tierUpcomingNotes;
-
   /// No description provided for @tierPlaintextLabel.
   ///
   /// In en, this message translates to:
@@ -1610,24 +1514,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'No encryption — file permissions only'**
   String get tierPlaintextSubtitle;
-
-  /// No description provided for @tierPlaintextThreat1.
-  ///
-  /// In en, this message translates to:
-  /// **'Anyone with filesystem access reads your data'**
-  String get tierPlaintextThreat1;
-
-  /// No description provided for @tierPlaintextThreat2.
-  ///
-  /// In en, this message translates to:
-  /// **'Accidental sync or backup reveals everything'**
-  String get tierPlaintextThreat2;
-
-  /// No description provided for @tierPlaintextNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Use only in trusted, isolated environments.'**
-  String get tierPlaintextNotes;
 
   /// No description provided for @tierKeychainLabel.
   ///
@@ -1641,59 +1527,11 @@ abstract class S {
   /// **'Key lives in {keychain} — auto-unlock on launch'**
   String tierKeychainSubtitle(String keychain);
 
-  /// No description provided for @tierKeychainProtect1.
-  ///
-  /// In en, this message translates to:
-  /// **'Other users on the same machine'**
-  String get tierKeychainProtect1;
-
-  /// No description provided for @tierKeychainProtect2.
-  ///
-  /// In en, this message translates to:
-  /// **'Stolen disk without the OS login'**
-  String get tierKeychainProtect2;
-
-  /// No description provided for @tierKeychainThreat1.
-  ///
-  /// In en, this message translates to:
-  /// **'Malware running under your OS account'**
-  String get tierKeychainThreat1;
-
-  /// No description provided for @tierKeychainThreat2.
-  ///
-  /// In en, this message translates to:
-  /// **'An attacker who takes over your OS login'**
-  String get tierKeychainThreat2;
-
   /// No description provided for @tierKeychainUnavailable.
   ///
   /// In en, this message translates to:
   /// **'OS keychain not available on this install.'**
   String get tierKeychainUnavailable;
-
-  /// No description provided for @tierKeychainPassProtect1.
-  ///
-  /// In en, this message translates to:
-  /// **'Coworker sitting at your desk'**
-  String get tierKeychainPassProtect1;
-
-  /// No description provided for @tierKeychainPassProtect2.
-  ///
-  /// In en, this message translates to:
-  /// **'A passerby with unlocked access'**
-  String get tierKeychainPassProtect2;
-
-  /// No description provided for @tierKeychainPassThreat1.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline attacker with the file on disk'**
-  String get tierKeychainPassThreat1;
-
-  /// No description provided for @tierKeychainPassThreat2.
-  ///
-  /// In en, this message translates to:
-  /// **'Same OS-compromise risks as Keychain'**
-  String get tierKeychainPassThreat2;
 
   /// No description provided for @tierHardwareLabel.
   ///
@@ -1701,77 +1539,11 @@ abstract class S {
   /// **'Hardware'**
   String get tierHardwareLabel;
 
-  /// No description provided for @tierHardwareSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-bound vault + short PIN with lockout'**
-  String get tierHardwareSubtitle;
-
-  /// No description provided for @tierHardwareProtect1.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline brute force of the PIN (hardware rate-limit)'**
-  String get tierHardwareProtect1;
-
-  /// No description provided for @tierHardwareProtect2.
-  ///
-  /// In en, this message translates to:
-  /// **'Stealing the disk and the keychain blob'**
-  String get tierHardwareProtect2;
-
-  /// No description provided for @tierHardwareThreat1.
-  ///
-  /// In en, this message translates to:
-  /// **'OS or firmware CVE on the secure module'**
-  String get tierHardwareThreat1;
-
-  /// No description provided for @tierHardwareThreat2.
-  ///
-  /// In en, this message translates to:
-  /// **'Forced biometric unlock (if enabled)'**
-  String get tierHardwareThreat2;
-
   /// No description provided for @tierParanoidLabel.
   ///
   /// In en, this message translates to:
   /// **'Master password (Paranoid)'**
   String get tierParanoidLabel;
-
-  /// No description provided for @tierParanoidSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Long password + Argon2id. Key never enters the OS.'**
-  String get tierParanoidSubtitle;
-
-  /// No description provided for @tierParanoidProtect1.
-  ///
-  /// In en, this message translates to:
-  /// **'OS keychain compromise'**
-  String get tierParanoidProtect1;
-
-  /// No description provided for @tierParanoidProtect2.
-  ///
-  /// In en, this message translates to:
-  /// **'Stolen disk (as long as your password is strong)'**
-  String get tierParanoidProtect2;
-
-  /// No description provided for @tierParanoidThreat1.
-  ///
-  /// In en, this message translates to:
-  /// **'Keylogger capturing your password'**
-  String get tierParanoidThreat1;
-
-  /// No description provided for @tierParanoidThreat2.
-  ///
-  /// In en, this message translates to:
-  /// **'Weak password + offline Argon2id cracking'**
-  String get tierParanoidThreat2;
-
-  /// No description provided for @tierParanoidNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Biometric is disabled by design on this tier.'**
-  String get tierParanoidNotes;
 
   /// No description provided for @tierHardwareUnavailable.
   ///
@@ -1844,30 +1616,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Path to .lfs file'**
   String get pathToLfsFile;
-
-  /// No description provided for @hintLfsPath.
-  ///
-  /// In en, this message translates to:
-  /// **'/path/to/export.lfs'**
-  String get hintLfsPath;
-
-  /// No description provided for @browse.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse'**
-  String get browse;
-
-  /// No description provided for @shareViaQrCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Share via QR Code'**
-  String get shareViaQrCode;
-
-  /// No description provided for @shareViaQrSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Export sessions to QR for scanning by another device'**
-  String get shareViaQrSubtitle;
 
   /// No description provided for @dataLocation.
   ///
@@ -2024,18 +1772,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Use \"SFTP\" from Sessions'**
   String get useSftpFromSessions;
-
-  /// No description provided for @anotherInstanceRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Another instance of LetsFLUTssh is already running.'**
-  String get anotherInstanceRunning;
-
-  /// No description provided for @importFailedShort.
-  ///
-  /// In en, this message translates to:
-  /// **'Import failed: {error}'**
-  String importFailedShort(String error);
 
   /// No description provided for @saveLogAs.
   ///
@@ -2475,18 +2211,6 @@ abstract class S {
   /// **'Session closed'**
   String get errSessionClosed;
 
-  /// No description provided for @errShellError.
-  ///
-  /// In en, this message translates to:
-  /// **'Shell error: {error}'**
-  String errShellError(String error);
-
-  /// No description provided for @errReconnectFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Reconnect failed: {error}'**
-  String errReconnectFailed(String error);
-
   /// No description provided for @errSftpInitFailed.
   ///
   /// In en, this message translates to:
@@ -2498,12 +2222,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Download failed: {error}'**
   String errDownloadFailed(String error);
-
-  /// No description provided for @errDecryptionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to decrypt credentials. Key file may be corrupted.'**
-  String get errDecryptionFailed;
 
   /// No description provided for @errExportPickerUnavailable.
   ///
@@ -2529,29 +2247,11 @@ abstract class S {
   /// **'Skip typing the password — unlock with the device biometric sensor.'**
   String get biometricUnlockSubtitle;
 
-  /// No description provided for @biometricNotAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Biometric unlock is not available on this device.'**
-  String get biometricNotAvailable;
-
   /// No description provided for @biometricEnableFailed.
   ///
   /// In en, this message translates to:
   /// **'Could not enable biometric unlock.'**
   String get biometricEnableFailed;
-
-  /// No description provided for @biometricEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Biometric unlock enabled'**
-  String get biometricEnabled;
-
-  /// No description provided for @biometricDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Biometric unlock disabled'**
-  String get biometricDisabled;
 
   /// No description provided for @biometricUnlockFailed.
   ///
@@ -2571,12 +2271,6 @@ abstract class S {
   /// **'No biometric credentials enrolled on this device.'**
   String get biometricNotEnrolled;
 
-  /// No description provided for @biometricRequiresMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Set a master password first to enable biometric unlock.'**
-  String get biometricRequiresMasterPassword;
-
   /// No description provided for @biometricSensorNotAvailable.
   ///
   /// In en, this message translates to:
@@ -2589,18 +2283,6 @@ abstract class S {
   /// **'Fingerprint service (fprintd) is not installed. See README → Installation.'**
   String get biometricSystemServiceMissing;
 
-  /// No description provided for @biometricBackingHardware.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed (Secure Enclave / TPM)'**
-  String get biometricBackingHardware;
-
-  /// No description provided for @biometricBackingSoftware.
-  ///
-  /// In en, this message translates to:
-  /// **'Software-backed'**
-  String get biometricBackingSoftware;
-
   /// No description provided for @currentPasswordIncorrect.
   ///
   /// In en, this message translates to:
@@ -2612,18 +2294,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Wrong password'**
   String get wrongPassword;
-
-  /// No description provided for @useKeychain.
-  ///
-  /// In en, this message translates to:
-  /// **'Encrypt with OS keychain'**
-  String get useKeychain;
-
-  /// No description provided for @useKeychainSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Store the database key in the system credential store. Off = plaintext database.'**
-  String get useKeychainSubtitle;
 
   /// No description provided for @lockScreenTitle.
   ///
@@ -2805,12 +2475,6 @@ abstract class S {
   /// **'Writing archive…'**
   String get progressWritingArchive;
 
-  /// No description provided for @progressReencrypting.
-  ///
-  /// In en, this message translates to:
-  /// **'Re-encrypting stores…'**
-  String get progressReencrypting;
-
   /// No description provided for @progressWorking.
   ///
   /// In en, this message translates to:
@@ -2918,12 +2582,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Items'**
   String get subitems;
-
-  /// No description provided for @storagePermissionRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Storage permission required to browse local files'**
-  String get storagePermissionRequired;
 
   /// No description provided for @grantPermission.
   ///
@@ -3147,30 +2805,6 @@ abstract class S {
   /// **'File not found: {path}'**
   String fileNotFound(String path);
 
-  /// No description provided for @sshConnectionChannel.
-  ///
-  /// In en, this message translates to:
-  /// **'SSH Connection'**
-  String get sshConnectionChannel;
-
-  /// No description provided for @sshConnectionChannelDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Keeps SSH connections alive in the background.'**
-  String get sshConnectionChannelDesc;
-
-  /// No description provided for @sshActive.
-  ///
-  /// In en, this message translates to:
-  /// **'SSH active'**
-  String get sshActive;
-
-  /// No description provided for @activeConnectionCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} active connection(s)'**
-  String activeConnectionCount(int count);
-
   /// No description provided for @itemCountWithSize.
   ///
   /// In en, this message translates to:
@@ -3248,12 +2882,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Remove all known hosts? You will be prompted to verify each server key again.'**
   String get clearAllKnownHostsConfirm;
-
-  /// No description provided for @importKnownHostsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Import from OpenSSH known_hosts file'**
-  String get importKnownHostsSubtitle;
 
   /// No description provided for @clearedAllHosts.
   ///
@@ -3405,12 +3033,6 @@ abstract class S {
   /// **'Select from Key Store'**
   String get selectFromKeyStore;
 
-  /// No description provided for @noKeySelected.
-  ///
-  /// In en, this message translates to:
-  /// **'No key selected'**
-  String get noKeySelected;
-
   /// No description provided for @keyCount.
   ///
   /// In en, this message translates to:
@@ -3453,42 +3075,6 @@ abstract class S {
   /// **'Remember for this session'**
   String get rememberPassphrase;
 
-  /// No description provided for @masterPasswordSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Protect saved credentials with a password'**
-  String get masterPasswordSubtitle;
-
-  /// No description provided for @setMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Set Master Password'**
-  String get setMasterPassword;
-
-  /// No description provided for @changeMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Change Master Password'**
-  String get changeMasterPassword;
-
-  /// No description provided for @removeMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Master Password'**
-  String get removeMasterPassword;
-
-  /// No description provided for @masterPasswordEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Credentials are protected by master password'**
-  String get masterPasswordEnabled;
-
-  /// No description provided for @masterPasswordDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Credentials use auto-generated key (no password)'**
-  String get masterPasswordDisabled;
-
   /// No description provided for @enterMasterPassword.
   ///
   /// In en, this message translates to:
@@ -3513,47 +3099,11 @@ abstract class S {
   /// **'Current Password'**
   String get currentPassword;
 
-  /// No description provided for @masterPasswordSet.
-  ///
-  /// In en, this message translates to:
-  /// **'Master password enabled'**
-  String get masterPasswordSet;
-
-  /// No description provided for @masterPasswordChanged.
-  ///
-  /// In en, this message translates to:
-  /// **'Master password changed'**
-  String get masterPasswordChanged;
-
-  /// No description provided for @masterPasswordRemoved.
-  ///
-  /// In en, this message translates to:
-  /// **'Master password removed'**
-  String get masterPasswordRemoved;
-
-  /// No description provided for @masterPasswordWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.'**
-  String get masterPasswordWarning;
-
   /// No description provided for @forgotPassword.
   ///
   /// In en, this message translates to:
   /// **'Forgot Password?'**
   String get forgotPassword;
-
-  /// No description provided for @forgotPasswordWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.'**
-  String get forgotPasswordWarning;
-
-  /// No description provided for @resetAndDeleteCredentials.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset & Delete Credentials'**
-  String get resetAndDeleteCredentials;
 
   /// No description provided for @credentialsReset.
   ///
@@ -3639,149 +3189,17 @@ abstract class S {
   /// **'Deriving encryption key...'**
   String get derivingKey;
 
-  /// No description provided for @reEncrypting.
-  ///
-  /// In en, this message translates to:
-  /// **'Re-encrypting data...'**
-  String get reEncrypting;
-
-  /// No description provided for @confirmRemoveMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.'**
-  String get confirmRemoveMasterPassword;
-
   /// No description provided for @securitySetupTitle.
   ///
   /// In en, this message translates to:
   /// **'Security Setup'**
   String get securitySetupTitle;
 
-  /// No description provided for @securitySetupKeychainFound.
-  ///
-  /// In en, this message translates to:
-  /// **'OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.'**
-  String securitySetupKeychainFound(String keychainName);
-
-  /// No description provided for @securitySetupKeychainOptional.
-  ///
-  /// In en, this message translates to:
-  /// **'You can also set a master password for additional protection.'**
-  String get securitySetupKeychainOptional;
-
-  /// No description provided for @securitySetupNoKeychain.
-  ///
-  /// In en, this message translates to:
-  /// **'No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.'**
-  String get securitySetupNoKeychain;
-
-  /// No description provided for @securitySetupNoKeychainHint.
-  ///
-  /// In en, this message translates to:
-  /// **'This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).'**
-  String get securitySetupNoKeychainHint;
-
-  /// No description provided for @securitySetupRecommendMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'We recommend setting a master password to protect your data.'**
-  String get securitySetupRecommendMasterPassword;
-
-  /// No description provided for @continueWithKeychain.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue with Keychain'**
-  String get continueWithKeychain;
-
-  /// No description provided for @continueWithoutEncryption.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue without Encryption'**
-  String get continueWithoutEncryption;
-
-  /// No description provided for @securityLevel.
-  ///
-  /// In en, this message translates to:
-  /// **'Security Level'**
-  String get securityLevel;
-
-  /// No description provided for @securityLevelPlaintext.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get securityLevelPlaintext;
-
-  /// No description provided for @securityLevelKeychain.
-  ///
-  /// In en, this message translates to:
-  /// **'OS Keychain'**
-  String get securityLevelKeychain;
-
-  /// No description provided for @securityLevelMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Master Password'**
-  String get securityLevelMasterPassword;
-
-  /// No description provided for @keychainStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Keychain'**
-  String get keychainStatus;
-
   /// No description provided for @keychainAvailable.
   ///
   /// In en, this message translates to:
   /// **'Available'**
   String get keychainAvailable;
-
-  /// No description provided for @keychainNotAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Not available'**
-  String get keychainNotAvailable;
-
-  /// No description provided for @enableKeychain.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Keychain Encryption'**
-  String get enableKeychain;
-
-  /// No description provided for @enableKeychainSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Re-encrypt stored data using OS keychain'**
-  String get enableKeychainSubtitle;
-
-  /// No description provided for @keychainEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Keychain encryption enabled'**
-  String get keychainEnabled;
-
-  /// No description provided for @manageMasterPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage Master Password'**
-  String get manageMasterPassword;
-
-  /// No description provided for @manageMasterPasswordSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Set, change, or remove master password'**
-  String get manageMasterPasswordSubtitle;
-
-  /// No description provided for @changeSecurityTier.
-  ///
-  /// In en, this message translates to:
-  /// **'Change Security Tier'**
-  String get changeSecurityTier;
-
-  /// No description provided for @changeSecurityTierSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Open the tier ladder and switch to a different security level'**
-  String get changeSecurityTierSubtitle;
 
   /// No description provided for @changeSecurityTierConfirm.
   ///
@@ -3819,30 +3237,6 @@ abstract class S {
   /// **'Hardware-backed storage is available on this device. Upgrade in Settings → Security for TPM / Secure Enclave binding.'**
   String get firstLaunchSecurityUpgradeAvailable;
 
-  /// No description provided for @firstLaunchSecurityHardwareUnavailableWindows.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed storage is unavailable — no TPM 2.0 detected on this device.'**
-  String get firstLaunchSecurityHardwareUnavailableWindows;
-
-  /// No description provided for @firstLaunchSecurityHardwareUnavailableApple.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed storage is unavailable — this device does not report a Secure Enclave.'**
-  String get firstLaunchSecurityHardwareUnavailableApple;
-
-  /// No description provided for @firstLaunchSecurityHardwareUnavailableLinux.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed storage is unavailable — install tpm2-tools and a TPM 2.0 device to enable it.'**
-  String get firstLaunchSecurityHardwareUnavailableLinux;
-
-  /// No description provided for @firstLaunchSecurityHardwareUnavailableAndroid.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed storage is unavailable — this device does not report a StrongBox or TEE.'**
-  String get firstLaunchSecurityHardwareUnavailableAndroid;
-
   /// No description provided for @firstLaunchSecurityHardwareUnavailableGeneric.
   ///
   /// In en, this message translates to:
@@ -3855,53 +3249,11 @@ abstract class S {
   /// **'Open Settings'**
   String get firstLaunchSecurityOpenSettings;
 
-  /// No description provided for @firstLaunchSecurityDismiss.
-  ///
-  /// In en, this message translates to:
-  /// **'Got it'**
-  String get firstLaunchSecurityDismiss;
-
-  /// No description provided for @securityHardwareUpgradeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed storage available'**
-  String get securityHardwareUpgradeTitle;
-
-  /// No description provided for @securityHardwareUpgradeBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Upgrade to bind secrets to TPM / Secure Enclave.'**
-  String get securityHardwareUpgradeBody;
-
-  /// No description provided for @securityHardwareUpgradeAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Upgrade'**
-  String get securityHardwareUpgradeAction;
-
-  /// No description provided for @securityHardwareUnavailableTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware-backed storage unavailable'**
-  String get securityHardwareUnavailableTitle;
-
   /// No description provided for @wizardReducedBanner.
   ///
   /// In en, this message translates to:
   /// **'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.'**
   String get wizardReducedBanner;
-
-  /// No description provided for @tierBlockProtectsHeader.
-  ///
-  /// In en, this message translates to:
-  /// **'PROTECTS AGAINST'**
-  String get tierBlockProtectsHeader;
-
-  /// No description provided for @tierBlockDoesNotProtectHeader.
-  ///
-  /// In en, this message translates to:
-  /// **'DOES NOT PROTECT'**
-  String get tierBlockDoesNotProtectHeader;
 
   /// No description provided for @tierBlockProtectsEmpty.
   ///
@@ -3932,42 +3284,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Apply'**
   String get securitySetupApply;
-
-  /// No description provided for @passwordDisabledPlaintext.
-  ///
-  /// In en, this message translates to:
-  /// **'Plaintext tier stores no secret to protect with a password.'**
-  String get passwordDisabledPlaintext;
-
-  /// No description provided for @passwordDisabledParanoid.
-  ///
-  /// In en, this message translates to:
-  /// **'Paranoid derives the database key from the password — it is always on.'**
-  String get passwordDisabledParanoid;
-
-  /// No description provided for @passwordSubtitleOn.
-  ///
-  /// In en, this message translates to:
-  /// **'On — password required on unlock'**
-  String get passwordSubtitleOn;
-
-  /// No description provided for @passwordSubtitleOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Off — tap to add a password on this tier'**
-  String get passwordSubtitleOff;
-
-  /// No description provided for @passwordSubtitleParanoid.
-  ///
-  /// In en, this message translates to:
-  /// **'Required — the master password is the tier\'s secret'**
-  String get passwordSubtitleParanoid;
-
-  /// No description provided for @passwordSubtitlePlaintext.
-  ///
-  /// In en, this message translates to:
-  /// **'Not applicable — no encryption on this tier'**
-  String get passwordSubtitlePlaintext;
 
   /// No description provided for @hwProbeLinuxDeviceMissing.
   ///
@@ -4275,12 +3591,6 @@ abstract class S {
   /// **'{count, plural, =0{No snippets} =1{1 snippet} other{{count} snippets}}'**
   String snippetCount(int count);
 
-  /// No description provided for @runSnippet.
-  ///
-  /// In en, this message translates to:
-  /// **'Run'**
-  String get runSnippet;
-
   /// No description provided for @pinToSession.
   ///
   /// In en, this message translates to:
@@ -4304,12 +3614,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'All'**
   String get allSnippets;
-
-  /// No description provided for @sendToTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Send to terminal'**
-  String get sendToTerminal;
 
   /// No description provided for @commandCopied.
   ///
@@ -4413,54 +3717,6 @@ abstract class S {
   /// **'Sessions'**
   String get sessionsOnly;
 
-  /// No description provided for @sessionKeysFromManager.
-  ///
-  /// In en, this message translates to:
-  /// **'Session keys from manager'**
-  String get sessionKeysFromManager;
-
-  /// No description provided for @allKeysFromManager.
-  ///
-  /// In en, this message translates to:
-  /// **'All keys from manager'**
-  String get allKeysFromManager;
-
-  /// No description provided for @exportTags.
-  ///
-  /// In en, this message translates to:
-  /// **'Tags ({count})'**
-  String exportTags(int count);
-
-  /// No description provided for @exportSnippets.
-  ///
-  /// In en, this message translates to:
-  /// **'Snippets ({count})'**
-  String exportSnippets(int count);
-
-  /// No description provided for @disableKeychain.
-  ///
-  /// In en, this message translates to:
-  /// **'Disable keychain encryption'**
-  String get disableKeychain;
-
-  /// No description provided for @disableKeychainSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Switch to plaintext storage (not recommended)'**
-  String get disableKeychainSubtitle;
-
-  /// No description provided for @disableKeychainConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'The database will be re-encrypted without a key. Sessions and keys will be stored in plaintext on disk. Continue?'**
-  String get disableKeychainConfirm;
-
-  /// No description provided for @keychainDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Keychain encryption disabled'**
-  String get keychainDisabled;
-
   /// No description provided for @presetFullImport.
   ///
   /// In en, this message translates to:
@@ -4482,7 +3738,7 @@ abstract class S {
   /// No description provided for @sessionSshKeys.
   ///
   /// In en, this message translates to:
-  /// **'Session SSH keys'**
+  /// **'Session keys (manager)'**
   String get sessionSshKeys;
 
   /// No description provided for @allManagerKeys.
@@ -4689,24 +3945,6 @@ abstract class S {
   /// **'Not protected'**
   String get legendDoesNotProtect;
 
-  /// No description provided for @legendNotApplicable.
-  ///
-  /// In en, this message translates to:
-  /// **'Not applicable — no user secret for this tier'**
-  String get legendNotApplicable;
-
-  /// No description provided for @legendWeakPasswordWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security'**
-  String get legendWeakPasswordWarning;
-
-  /// No description provided for @legendStrongPasswordRecommended.
-  ///
-  /// In en, this message translates to:
-  /// **'A long passphrase is strongly recommended — this tier\'s security depends on it'**
-  String get legendStrongPasswordRecommended;
-
   /// No description provided for @colT0.
   ///
   /// In en, this message translates to:
@@ -4754,12 +3992,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Paranoid'**
   String get colParanoid;
-
-  /// No description provided for @securityComparisonTableTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Security tiers — side-by-side comparison'**
-  String get securityComparisonTableTitle;
 
   /// No description provided for @securityComparisonTableThreatColumn.
   ///
@@ -4821,12 +4053,6 @@ abstract class S {
   /// **'Reset failed'**
   String get resetAllDataFailed;
 
-  /// No description provided for @compareAllTiersSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'See what each tier protects against, side-by-side.'**
-  String get compareAllTiersSubtitle;
-
   /// No description provided for @autoLockRequiresPassword.
   ///
   /// In en, this message translates to:
@@ -4838,18 +4064,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'RECOMMENDED'**
   String get recommendedBadge;
-
-  /// No description provided for @continueWithRecommended.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue with recommended'**
-  String get continueWithRecommended;
-
-  /// No description provided for @customizeSecurity.
-  ///
-  /// In en, this message translates to:
-  /// **'Customize security'**
-  String get customizeSecurity;
 
   /// No description provided for @tierHardwareSubtitleHonest.
   ///
@@ -4868,12 +4082,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.'**
   String get mitigationsNoteRuntimeThreats;
-
-  /// No description provided for @securitySetupContinue.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue'**
-  String get securitySetupContinue;
 
   /// No description provided for @currentTierBadge.
   ///

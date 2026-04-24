@@ -176,9 +176,12 @@ void main() {
     });
 
     test(
-      'applyFullBackupPreset flips every flag and re-selects every session',
+      'applyFullBackupPreset (file mode) flips every flag and re-selects every session',
       () {
-        final c = _ctrl(sessions: [_s('1', 'A'), _s('2', 'B')], isQrMode: true);
+        final c = _ctrl(
+          sessions: [_s('1', 'A'), _s('2', 'B')],
+          isQrMode: false,
+        );
         c.toggleAll(false);
         c.applyFullBackupPreset();
 
@@ -187,6 +190,27 @@ void main() {
         expect(c.options.includeConfig, isTrue);
         expect(c.options.includeKnownHosts, isTrue);
         expect(c.options.includeAllManagerKeys, isTrue);
+        expect(c.options.includeEmbeddedKeys, isTrue);
+        expect(c.activePreset, ExportPreset.fullBackup);
+      },
+    );
+
+    test(
+      'applyFullBackupPreset (QR mode) turns key toggles off by default',
+      () {
+        // QR payloads are sharply size-limited — a 4096-bit RSA key
+        // alone exceeds the ceiling. The "Full backup" chip in QR mode
+        // therefore ships with embedded + manager keys unchecked; the
+        // user opts in manually if they want to pay the size cost.
+        final c = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+        c.applyFullBackupPreset();
+
+        expect(c.options.includeSessions, isTrue);
+        expect(c.options.includeConfig, isTrue);
+        expect(c.options.includeKnownHosts, isTrue);
+        expect(c.options.includePasswords, isTrue);
+        expect(c.options.includeEmbeddedKeys, isFalse);
+        expect(c.options.includeAllManagerKeys, isFalse);
         expect(c.activePreset, ExportPreset.fullBackup);
       },
     );
@@ -502,6 +526,60 @@ void main() {
       c.setIncludeSnippets(true);
       expect(c.hasSelection, isFalse);
     });
+  });
+
+  group('UnifiedExportController — tags/snippets count toward QR size', () {
+    test('enabling tags raises QR payloadSize by their compressed cost', () {
+      // Regression guard: a prior implementation set
+      // `options.includeTags = true` on the size-calc call but passed
+      // `tags: const []` (the default), so the encoder skipped the
+      // `tg` section entirely and the UI under-counted the QR payload.
+      // The real export path *does* pass the tags list in, so
+      // `fitsInQr` must agree with what the user will actually emit.
+      final tag = Tag(
+        id: 't',
+        name: 'production-web-servers-with-a-deliberately-long-name',
+        color: '#ff0000',
+        createdAt: DateTime(2025),
+      );
+      final base = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+      final withTags = _ctrl(
+        sessions: [_s('1', 'A')],
+        tags: [tag],
+        isQrMode: true,
+      );
+      expect(
+        withTags.payloadSize,
+        greaterThan(base.payloadSize),
+        reason:
+            'tag bytes must land in the compressed payload when '
+            'includeTags is on — otherwise fitsInQr lies',
+      );
+    });
+
+    test(
+      'enabling snippets raises QR payloadSize by their compressed cost',
+      () {
+        final snippet = Snippet(
+          id: 'sn',
+          title: 'restart-nginx-with-verification',
+          command: 'sudo systemctl restart nginx && systemctl status nginx',
+          createdAt: DateTime(2025),
+          updatedAt: DateTime(2025),
+        );
+        final base = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+        final withSnippets = _ctrl(
+          sessions: [_s('1', 'A')],
+          snippets: [snippet],
+          isQrMode: true,
+        );
+        expect(
+          withSnippets.payloadSize,
+          greaterThan(base.payloadSize),
+          reason: 'snippet bytes must land in the compressed QR payload',
+        );
+      },
+    );
   });
 
   group('UnifiedExportController — fitsInQr', () {

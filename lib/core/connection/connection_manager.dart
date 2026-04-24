@@ -119,7 +119,16 @@ class ConnectionManager {
   ) async {
     final effectiveConfig = _withCredentialOverlay(conn, config);
     final sshConn = _connectionFactory(effectiveConfig, knownHosts);
+    // Identity-guarded callback. A stale generation path (timeout,
+    // superseded reconnect, mid-connect error) still calls
+    // `sshConn.disconnect()` on the old transport to release the
+    // socket, which fires this callback. Without the guard the old
+    // callback would clobber `conn.sshConnection`/`conn.state` even
+    // after a newer generation had already assigned its own transport
+    // into the shared Connection — flipping the UI to "disconnected"
+    // while the new connection was in fact live.
     sshConn.onDisconnect = () {
+      if (conn.sshConnection != sshConn) return;
       conn.state = SSHConnectionState.disconnected;
       conn.sshConnection = null;
       _notify();

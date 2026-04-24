@@ -73,12 +73,18 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       // path and should slow down a passerby the same way the
       // first-launch UnlockDialog does.
       final key = await manager.verifyAndDerive(password, useRateLimit: true);
+      if (!mounted) return;
       if (key == null) {
         setState(() {
           _busy = false;
           _wrong = true;
         });
-        _pwCtrl.clear();
+        // Zero the prior string instead of a bare `clear()` — the
+        // wrong-password buffer is a secret the user just typed and
+        // we have no reason to let the interim `String` on the Dart
+        // heap wait for GC any longer than the accepted-password
+        // path does.
+        _pwCtrl.wipeAndClear();
         _focusNode.requestFocus();
         return;
       }

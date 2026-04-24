@@ -526,7 +526,18 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               _terminal,
               controller: _terminalController,
               scrollController: _terminalScrollController,
-              autofocus: true,
+              // `autofocus: false` on mobile. xterm's `TerminalView`
+              // couples focus with the system keyboard — the previous
+              // `true` value auto-opened Gboard / iOS keyboard the
+              // instant the user navigated into the terminal tab,
+              // eating half the viewport before they'd even decided
+              // whether they wanted to type. One explicit tap on the
+              // terminal is the industry-standard way to summon the
+              // keyboard on mobile (Termux, Blink, Termius all do
+              // this), and the tap target is the whole terminal area
+              // so the extra step costs nothing. Desktop still calls
+              // into a separate `TerminalPane`, untouched.
+              autofocus: false,
               backgroundOpacity: 1.0,
               padding: const EdgeInsets.all(4),
               theme: AppTheme.terminalTheme,

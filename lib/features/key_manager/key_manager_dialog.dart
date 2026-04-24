@@ -19,6 +19,7 @@ import '../../widgets/app_data_row.dart';
 import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../utils/secret_controller.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
 
@@ -507,6 +508,10 @@ class _AddKeyDialogState extends State<_AddKeyDialog> {
 
   @override
   void dispose() {
+    // PEM body is a private key — zero the buffer before dropping
+    // the controller so the typed/pasted key material does not sit
+    // on the Dart heap waiting for GC.
+    _pemCtrl.wipeAndClear();
     _labelCtrl.dispose();
     _pemCtrl.dispose();
     super.dispose();
@@ -536,6 +541,17 @@ class _AddKeyDialogState extends State<_AddKeyDialog> {
           TextField(
             controller: _pemCtrl,
             maxLines: 5,
+            // Private-key PEM — force every IME "learn what the
+            // user typed" knob off so pasted / typed key material
+            // does not end up in the OS autocorrect / predictive-
+            // text / spellcheck personalised-learning dictionary.
+            // Multi-line field, so `obscureText` is not an option.
+            autocorrect: false,
+            enableSuggestions: false,
+            enableIMEPersonalizedLearning: false,
+            smartDashesType: SmartDashesType.disabled,
+            smartQuotesType: SmartQuotesType.disabled,
+            textCapitalization: TextCapitalization.none,
             style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
             decoration: InputDecoration(
               labelText: s.pastePrivateKey,

@@ -248,6 +248,34 @@ void main() {
       );
       expect(await vault.read(), isNull);
     });
+
+    test('linuxSeal writes atomically — no .tmp sibling survives', () async {
+      // A crash between `openWrite` and `flush` used to leave a
+      // truncated seal blob. On next launch `isStored()` returns
+      // true (file exists), unseal reads garbage, and the whole
+      // biometric-unlock path silently drops back to the PIN
+      // dialog with no "vault broken" hint. `writeBytesAtomic`
+      // renames a fully-written tmp file into place; this test
+      // asserts no leftover tmp file after a successful seal.
+      if (!Platform.isLinux) return;
+      final tpm = _FakeTpm(available: true);
+      final fprintd = _FakeFprintd(hash: Uint8List.fromList([1, 2, 3]));
+      final vault = newVault(tpm: tpm, fprintd: fprintd);
+
+      expect(await vault.store(Uint8List.fromList(List.filled(32, 7))), isTrue);
+      final siblings = tempDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.contains('.tmp'))
+          .toList();
+      expect(
+        siblings,
+        isEmpty,
+        reason:
+            'writeBytesAtomic must rename the tmp file into place; '
+            'no .tmp* sibling should remain.',
+      );
+    });
   });
 }
 

@@ -52,6 +52,28 @@ void main() {
       expect(map, isEmpty);
     });
 
+    test('buildCallbackMap throws on duplicate activator', () {
+      // sessionCopy (Ctrl+C) and fileCopy (Ctrl+C) share an activator
+      // by design — each is mounted under its own subtree. Mounting
+      // both in one callback map silently dropped one of them to a
+      // no-op (last-write-wins on the raw SingleActivator key). Fail
+      // loud instead so future widget-tree refactors surface the
+      // collision at build time.
+      expect(
+        () => registry.buildCallbackMap({
+          AppShortcut.sessionCopy: () {},
+          AppShortcut.fileCopy: () {},
+        }),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('Duplicate shortcut activator'), contains('Ctrl+C')),
+          ),
+        ),
+      );
+    });
+
     group('matches', () {
       testWidgets('matches Ctrl+N for newSession', (tester) async {
         await tester.pumpWidget(

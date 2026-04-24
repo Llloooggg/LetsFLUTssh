@@ -8,6 +8,14 @@ final lockStateProvider = NotifierProvider<LockStateNotifier, bool>(
   LockStateNotifier.new,
 );
 
+/// Riverpod notifier backing [lockStateProvider].
+///
+/// Two transitions, both idempotent:
+/// - [lock] — idle-timer fires, auto-lock trigger, or manual Settings
+///   toggle. Flips the flag on; the root widget tree reacts by
+///   swapping to [LockScreen].
+/// - [unlock] — user re-authenticated. Caller has already re-pushed
+///   the DB key into `securityStateProvider` before flipping this.
 class LockStateNotifier extends Notifier<bool> {
   @override
   bool build() => false;

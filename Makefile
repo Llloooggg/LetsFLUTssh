@@ -56,6 +56,13 @@ endif
 
 test: $(SQLITE3MC_STAMP) ## Run all tests with coverage
 	$(FLUTTER) test --coverage --timeout 30s
+	@# Post-process lcov.info to drop generated + localisation files
+	@# from the coverage denominator. Must mirror
+	@# `sonar.coverage.exclusions` in sonar-project.properties so the
+	@# local and CI coverage numbers agree. Dart-native filter so no
+	@# host dependency is added beyond the Flutter toolchain we
+	@# already need.
+	@dart run scripts/filter_lcov.dart coverage/lcov.info
 
 analyze: $(SQLITE3MC_STAMP) ## Run Dart analyzer (fatal on infos, same as CI)
 	$(FLUTTER) analyze --fatal-infos

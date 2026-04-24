@@ -868,6 +868,34 @@ void main() {
     });
   });
 
+  group('decodeExportPayload — inflated-size bomb guard', () {
+    test('rejects crafted payload whose inflated size exceeds the cap', () {
+      // A compressed blob that inflates to 16 MiB — past the 4 MiB cap.
+      // A real attacker would aim for GBs; this test uses the smallest
+      // payload that still trips the guard while staying fast to build.
+      final bomb = List<int>.filled(16 * 1024 * 1024, 0x20); // 16 MiB of ' '
+      final compressed = Deflate(bomb).getBytes();
+      final b64 = base64Url.encode(compressed);
+      expect(
+        () => decodeExportPayload(b64),
+        throwsA(isA<QrPayloadTooLargeException>()),
+        reason:
+            'oversized decompression must surface a typed exception, '
+            'not silently allocate the whole buffer or fall through to '
+            'the legacy-format path',
+      );
+    });
+
+    test('accepts payloads comfortably under the cap', () {
+      // Sanity: a normal 1-session payload decodes fine. The guard only
+      // fires on oversized inputs, not on every decode.
+      final encoded = encodeExportPayload([
+        makeSession(label: 'ok'),
+      ], input: const ExportPayloadInput());
+      expect(() => decodeExportPayload(encoded), returnsNormally);
+    });
+  });
+
   group('_relevantEmptyFolders matching logic', () {
     // Tests the exact-match / prefix-match logic via encode/decode roundtrip
     // with nested folder names that would be caught by the old startsWith bug.

@@ -42,6 +42,18 @@ void main() {
 /// Mirror of `KdfParams.decode` in lib/core/security/kdf_params.dart.
 /// Logic is isolated here so the fuzz binary stays dependency-free
 /// (dart compile exe with Flutter/pub packages is fat).
+///
+/// Must stay in lock-step with the production caps — the whole
+/// point of fuzzing this decoder is to exercise the rejection
+/// branches for untrusted `.lfs` headers (malicious memory=∞ would
+/// OOM the importer before the KDF even runs). If the production
+/// caps change, update the constants below AND the seed corpus in
+/// `.clusterfuzzlite/build.sh` so libFuzzer has anchors that sit
+/// on each branch boundary.
+const int _argon2idMaxMemoryKiB = 1024 * 1024; // 1 GiB
+const int _argon2idMaxIterations = 16;
+const int _argon2idMaxParallelism = 8;
+
 void _decode(Uint8List bytes) {
   if (bytes.isEmpty) {
     throw const FormatException('KdfParams: empty input');
@@ -57,12 +69,29 @@ void _decode(Uint8List bytes) {
   final memoryKiB = bd.getUint32(1);
   final iterations = bd.getUint32(5);
   final parallelism = bd.getUint8(9);
-  // Sanity: exercise the integer paths without side effects.
-  if (memoryKiB < 0 || iterations < 0 || parallelism < 0) {
-    throw const FormatException('KdfParams: negative field');
+  if (memoryKiB == 0 || iterations == 0 || parallelism == 0) {
+    throw const FormatException('KdfParams: Argon2id params must be > 0');
+  }
+  if (memoryKiB > _argon2idMaxMemoryKiB) {
+    throw FormatException(
+      'KdfParams: Argon2id memory $memoryKiB KiB exceeds sanity cap '
+      '$_argon2idMaxMemoryKiB KiB',
+    );
+  }
+  if (iterations > _argon2idMaxIterations) {
+    throw FormatException(
+      'KdfParams: Argon2id iterations $iterations exceeds sanity cap '
+      '$_argon2idMaxIterations',
+    );
+  }
+  if (parallelism > _argon2idMaxParallelism) {
+    throw FormatException(
+      'KdfParams: Argon2id parallelism $parallelism exceeds sanity cap '
+      '$_argon2idMaxParallelism',
+    );
   }
   // Touch the values so the decoder work is observable — the
-  // libFuzzer coverage map attributes this to the decode branch.
+  // libFuzzer coverage map attributes this to the accept branch.
   memoryKiB.hashCode;
   iterations.hashCode;
   parallelism.hashCode;

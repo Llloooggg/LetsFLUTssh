@@ -64,6 +64,7 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
     try {
       final dir = Directory(path);
       if (!await dir.exists()) {
+        if (!mounted) return;
         setState(() {
           _loading = false;
           _error = S.of(context).errNoSuchFileOrDirectory;

@@ -1,7 +1,7 @@
 name: letsflutssh
 description: Lightweight cross-platform SSH/SFTP client with GUI
 publish_to: 'none'
-version: 7.1.2+416
+version: 7.2.0+416
 homepage: https://github.com/Llloooggg/LetsFLUTssh
 repository: https://github.com/Llloooggg/LetsFLUTssh
 issue_tracker: https://github.com/Llloooggg/LetsFLUTssh/issues
@@ -36,6 +36,12 @@ dependencies:
 
   # SHA-256 digest helper (used for SPKI pinning in update channel)
   crypto: ^3.0.5
+
+  # X.509 ASN.1 parsing for SPKI extraction in cert_pinning.dart.
+  # Pulled in as a transitive already (via pointycastle); promoted to a
+  # direct dependency so the import is explicit rather than relying on
+  # a sibling's dep graph.
+  asn1lib: ^1.6.5
 
   # Archive (pure Dart ZIP)
   archive: ^4.0.4

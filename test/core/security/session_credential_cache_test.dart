@@ -39,6 +39,21 @@ void main() {
       expect(cache.size, 0);
     });
 
+    test('explicitly-empty keyPassphrase is the final empty-guard branch', () {
+      // Store() short-circuits on the first non-empty field. The
+      // third branch (keyPassphrase null-or-empty) only runs when
+      // password AND keyData are both empty too — pin it explicitly
+      // so a refactor that flipped the branch order would get caught.
+      cache.store(
+        sessionId: 'all-empty',
+        password: '',
+        keyData: null,
+        keyPassphrase: '',
+      );
+      expect(cache.read('all-empty'), isNull);
+      expect(cache.size, 0);
+    });
+
     test('store with existing id disposes the old entry first', () {
       cache.store(sessionId: 'delta', password: 'first');
       final first = cache.read('delta')!;

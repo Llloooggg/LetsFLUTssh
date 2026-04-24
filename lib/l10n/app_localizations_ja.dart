@@ -99,9 +99,6 @@ class SJa extends S {
   String get nextStep => '次へ';
 
   @override
-  String get includeCredentials => 'パスワードとSSH鍵を含む';
-
-  @override
   String get includePasswords => 'セッションパスワード';
 
   @override
@@ -123,12 +120,6 @@ class SJa extends S {
   String exportTotalSize(String size) {
     return '合計サイズ: $size';
   }
-
-  @override
-  String get qrCredentialsWarning => 'パスワードとSSH鍵はQRコードに表示されます';
-
-  @override
-  String get qrCredentialsTooLarge => '認証情報でQRコードが大きすぎます';
 
   @override
   String get terminal => 'ターミナル';
@@ -244,11 +235,6 @@ class SJa extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return 'QR経由で $count 件のセッションをインポートしました';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count 件のセッションをインポートしました';
   }
@@ -304,9 +290,6 @@ class SJa extends S {
 
   @override
   String get noSessions => 'セッションなし';
-
-  @override
-  String get noSessionsToExport => 'エクスポートするセッションがありません';
 
   @override
   String nSelectedCount(int count) {
@@ -435,9 +418,6 @@ class SJa extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => '追加オプションはまだありません';
 
   @override
   String get saveAndConnect => '保存して接続';
@@ -597,9 +577,6 @@ class SJa extends S {
   String get controllersNotInitialized => 'コントローラーが初期化されていません';
 
   @override
-  String get initializingSftp => 'SFTPを初期化中...';
-
-  @override
   String get clearHistory => '履歴をクリア';
 
   @override
@@ -610,9 +587,6 @@ class SJa extends S {
 
   @override
   String get duplicateTabShortcut => 'タブを複製 (Ctrl+\\)';
-
-  @override
-  String get copyDown => '下にコピー';
 
   @override
   String get previous => '前へ';
@@ -720,12 +694,6 @@ class SJa extends S {
   String get exportData => 'データをエクスポート';
 
   @override
-  String get exportDataSubtitle => 'セッション、設定、鍵を暗号化された .lfs ファイルに保存';
-
-  @override
-  String get importDataSubtitle => '.lfs ファイルからデータを読み込み';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count 件のホストが見つかりました';
   }
@@ -736,11 +704,6 @@ class SJa extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return '次のホストの鍵ファイルを読み込めませんでした: $hosts。これらのホストは認証情報なしでインポートされます。';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'フォルダにインポート: $folder';
   }
 
   @override
@@ -808,35 +771,10 @@ class SJa extends S {
   String get passwordStrengthVeryStrong => '非常に強い';
 
   @override
-  String get tierRecommendedBadge => '推奨';
-
-  @override
-  String get tierCurrentBadge => '現在';
-
-  @override
-  String get tierAlternativeBranchLabel => '代替 — OSを信頼しない';
-
-  @override
-  String get tierUpcomingTooltip => '今後のバージョンで提供されます。';
-
-  @override
-  String get tierUpcomingNotes =>
-      'この層の基盤はまだ出荷されていません。オプションが存在することを知らせるために行は表示されています。';
-
-  @override
   String get tierPlaintextLabel => 'プレーンテキスト';
 
   @override
   String get tierPlaintextSubtitle => '暗号化なし — ファイル権限のみ';
-
-  @override
-  String get tierPlaintextThreat1 => 'ファイルシステムにアクセスできる者が誰でもデータを読める';
-
-  @override
-  String get tierPlaintextThreat2 => '偶発的な同期またはバックアップがすべてを明らかにする';
-
-  @override
-  String get tierPlaintextNotes => '信頼された隔離環境でのみ使用してください。';
 
   @override
   String get tierKeychainLabel => 'キーチェーン';
@@ -847,70 +785,13 @@ class SJa extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => '同じマシン上の他のユーザー';
-
-  @override
-  String get tierKeychainProtect2 => 'OS にログインせずディスクだけ盗まれたケース';
-
-  @override
-  String get tierKeychainThreat1 => 'あなたのOSアカウントで動作するマルウェア';
-
-  @override
-  String get tierKeychainThreat2 => 'あなたのOSログインを乗っ取る攻撃者';
-
-  @override
   String get tierKeychainUnavailable => 'このインストールではOSキーチェーンが利用できません。';
-
-  @override
-  String get tierKeychainPassProtect1 => 'あなたの席に居座る同僚';
-
-  @override
-  String get tierKeychainPassProtect2 => 'ロック解除された画面にアクセスできる通りすがりの人';
-
-  @override
-  String get tierKeychainPassThreat1 => 'ディスク上のファイルを持つオフライン攻撃者';
-
-  @override
-  String get tierKeychainPassThreat2 => 'キーチェーン階層と同じく OS 侵害のリスクあり';
 
   @override
   String get tierHardwareLabel => 'ハードウェア';
 
   @override
-  String get tierHardwareSubtitle => 'ハードウェアに紐付いたボールト + 試行回数制限付きの短い PIN';
-
-  @override
-  String get tierHardwareProtect1 => 'PIN のオフライン総当たり攻撃（ハードウェアによるレート制限）';
-
-  @override
-  String get tierHardwareProtect2 => 'ディスクおよびキーチェーン blob の盗難';
-
-  @override
-  String get tierHardwareThreat1 => 'セキュアモジュールの OS / ファームウェアの CVE';
-
-  @override
-  String get tierHardwareThreat2 => '生体認証の強制的なロック解除（有効にしている場合）';
-
-  @override
   String get tierParanoidLabel => 'マスターパスワード（Paranoid）';
-
-  @override
-  String get tierParanoidSubtitle => '長いパスワード + Argon2id。鍵は OS に渡りません。';
-
-  @override
-  String get tierParanoidProtect1 => 'OSキーチェーン侵害';
-
-  @override
-  String get tierParanoidProtect2 => '盗まれたディスク（パスワードが強い限り）';
-
-  @override
-  String get tierParanoidThreat1 => 'パスワードを盗み取るキーロガー';
-
-  @override
-  String get tierParanoidThreat2 => '弱いパスワード + オフラインArgon2idクラッキング';
-
-  @override
-  String get tierParanoidNotes => 'この層では生体認証は設計上無効化されています。';
 
   @override
   String get tierHardwareUnavailable => 'このインストールではハードウェアボールトを利用できません。';
@@ -953,18 +834,6 @@ class SJa extends S {
 
   @override
   String get pathToLfsFile => '.lfs ファイルのパス';
-
-  @override
-  String get hintLfsPath => '/path/to/export.lfs';
-
-  @override
-  String get browse => '参照';
-
-  @override
-  String get shareViaQrCode => 'QRコードで共有';
-
-  @override
-  String get shareViaQrSubtitle => 'セッションをQRコードにエクスポートして別のデバイスでスキャン';
 
   @override
   String get dataLocation => 'データの保存場所';
@@ -1049,14 +918,6 @@ class SJa extends S {
 
   @override
   String get useSftpFromSessions => 'セッションから「SFTP」を使用してください';
-
-  @override
-  String get anotherInstanceRunning => 'LetsFLUTsshの別のインスタンスが既に実行中です。';
-
-  @override
-  String importFailedShort(String error) {
-    return 'インポート失敗: $error';
-  }
 
   @override
   String get saveLogAs => 'ログを名前を付けて保存';
@@ -1292,16 +1153,6 @@ class SJa extends S {
   String get errSessionClosed => 'セッションが閉じられました';
 
   @override
-  String errShellError(String error) {
-    return 'シェルエラー: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return '再接続に失敗しました: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'SFTPの初期化に失敗しました: $error';
   }
@@ -1310,9 +1161,6 @@ class SJa extends S {
   String errDownloadFailed(String error) {
     return 'ダウンロードに失敗しました: $error';
   }
-
-  @override
-  String get errDecryptionFailed => '認証情報の復号に失敗しました。鍵ファイルが破損している可能性があります。';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1328,16 +1176,7 @@ class SJa extends S {
   String get biometricUnlockSubtitle => 'パスワードを入力せず、デバイスの生体認証でロック解除できます。';
 
   @override
-  String get biometricNotAvailable => 'このデバイスでは生体認証によるロック解除を利用できません。';
-
-  @override
   String get biometricEnableFailed => '生体認証によるロック解除を有効にできませんでした。';
-
-  @override
-  String get biometricEnabled => '生体認証によるロック解除を有効にしました';
-
-  @override
-  String get biometricDisabled => '生体認証によるロック解除を無効にしました';
 
   @override
   String get biometricUnlockFailed => '生体認証によるロック解除に失敗しました。マスターパスワードを入力してください。';
@@ -1349,10 +1188,6 @@ class SJa extends S {
   String get biometricNotEnrolled => 'このデバイスには生体情報が登録されていません。';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      '生体認証によるロック解除を有効にするには、まずマスターパスワードを設定してください。';
-
-  @override
   String get biometricSensorNotAvailable => 'このデバイスには生体センサーがありません。';
 
   @override
@@ -1360,23 +1195,10 @@ class SJa extends S {
       '指紋サービス (fprintd) がインストールされていません。README → Installation を参照してください。';
 
   @override
-  String get biometricBackingHardware => 'ハードウェア保護 (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'ソフトウェア保護';
-
-  @override
   String get currentPasswordIncorrect => '現在のパスワードが正しくありません';
 
   @override
   String get wrongPassword => 'パスワードが間違っています';
-
-  @override
-  String get useKeychain => 'OS のキーチェーンで暗号化';
-
-  @override
-  String get useKeychainSubtitle =>
-      'データベースキーをシステムの認証情報ストアに保存します。オフ = 平文のデータベース。';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh はロックされています';
@@ -1487,9 +1309,6 @@ class SJa extends S {
   String get progressWritingArchive => 'アーカイブを書き込み中…';
 
   @override
-  String get progressReencrypting => 'ストアを再暗号化中…';
-
-  @override
   String get progressWorking => '処理中…';
 
   @override
@@ -1550,9 +1369,6 @@ class SJa extends S {
 
   @override
   String get subitems => 'アイテム';
-
-  @override
-  String get storagePermissionRequired => 'ローカルファイルを閲覧するにはストレージ権限が必要です';
 
   @override
   String get grantPermission => '権限を付与';
@@ -1700,20 +1516,6 @@ class SJa extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'SSH 接続';
-
-  @override
-  String get sshConnectionChannelDesc => 'SSH 接続をバックグラウンドで維持します。';
-
-  @override
-  String get sshActive => 'SSH アクティブ';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count 件のアクティブな接続';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count 個の項目、$size';
   }
@@ -1764,9 +1566,6 @@ class SJa extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'すべての既知のホストを削除しますか？各サーバーキーの再確認が必要になります。';
-
-  @override
-  String get importKnownHostsSubtitle => 'OpenSSH known_hosts ファイルからインポート';
 
   @override
   String get clearedAllHosts => 'すべての既知のホストを削除しました';
@@ -1854,9 +1653,6 @@ class SJa extends S {
   String get selectFromKeyStore => 'キーストアから選択';
 
   @override
-  String get noKeySelected => 'キーが選択されていません';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1888,24 +1684,6 @@ class SJa extends S {
   String get rememberPassphrase => 'このセッションで記憶';
 
   @override
-  String get masterPasswordSubtitle => '保存された認証情報をパスワードで保護';
-
-  @override
-  String get setMasterPassword => 'マスターパスワードを設定';
-
-  @override
-  String get changeMasterPassword => 'マスターパスワードを変更';
-
-  @override
-  String get removeMasterPassword => 'マスターパスワードを削除';
-
-  @override
-  String get masterPasswordEnabled => '認証情報はマスターパスワードで保護されています';
-
-  @override
-  String get masterPasswordDisabled => '認証情報は自動生成キーを使用（パスワードなし）';
-
-  @override
   String get enterMasterPassword => '保存された認証情報にアクセスするにはマスターパスワードを入力してください。';
 
   @override
@@ -1918,27 +1696,7 @@ class SJa extends S {
   String get currentPassword => '現在のパスワード';
 
   @override
-  String get masterPasswordSet => 'マスターパスワードを有効にしました';
-
-  @override
-  String get masterPasswordChanged => 'マスターパスワードを変更しました';
-
-  @override
-  String get masterPasswordRemoved => 'マスターパスワードを削除しました';
-
-  @override
-  String get masterPasswordWarning =>
-      'このパスワードを忘れると、保存されたすべてのパスワードと SSH キーが失われます。復旧はできません。';
-
-  @override
   String get forgotPassword => 'パスワードを忘れましたか？';
-
-  @override
-  String get forgotPasswordWarning =>
-      '保存されたすべてのパスワード、SSH キー、パスフレーズが削除されます。セッションと設定は保持されます。この操作は元に戻せません。';
-
-  @override
-  String get resetAndDeleteCredentials => 'リセットしてデータを削除';
 
   @override
   String get credentialsReset => '保存された認証情報がすべて削除されました';
@@ -1986,82 +1744,10 @@ class SJa extends S {
   String get derivingKey => '暗号化キーを生成中...';
 
   @override
-  String get reEncrypting => 'データを再暗号化中...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'マスターパスワード保護を解除するには現在のパスワードを入力してください。認証情報は自動生成キーで再暗号化されます。';
-
-  @override
   String get securitySetupTitle => 'セキュリティ設定';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'OS キーチェーンを検出しました ($keychainName)。データはシステムキーチェーンを使用して自動的に暗号化されます。';
-  }
-
-  @override
-  String get securitySetupKeychainOptional => '追加の保護としてマスターパスワードを設定することもできます。';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'OS キーチェーンが検出されませんでした。キーチェーンがない場合、セッションデータ（ホスト、パスワード、キー）は平文で保存されます。';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'WSL、ヘッドレス Linux、最小インストールでは正常です。Linux でキーチェーンを有効にするには：libsecret とキーリングデーモン（gnome-keyring など）をインストールしてください。';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'データを保護するためにマスターパスワードの設定を推奨します。';
-
-  @override
-  String get continueWithKeychain => 'キーチェーンで続行';
-
-  @override
-  String get continueWithoutEncryption => '暗号化なしで続行';
-
-  @override
-  String get securityLevel => 'セキュリティレベル';
-
-  @override
-  String get securityLevelPlaintext => 'なし';
-
-  @override
-  String get securityLevelKeychain => 'OS キーチェーン';
-
-  @override
-  String get securityLevelMasterPassword => 'マスターパスワード';
-
-  @override
-  String get keychainStatus => 'キーチェーン';
-
-  @override
   String get keychainAvailable => '利用可能';
-
-  @override
-  String get keychainNotAvailable => '利用不可';
-
-  @override
-  String get enableKeychain => 'キーチェーン暗号化を有効にする';
-
-  @override
-  String get enableKeychainSubtitle => 'OS キーチェーンを使用して保存データを再暗号化';
-
-  @override
-  String get keychainEnabled => 'キーチェーン暗号化が有効になりました';
-
-  @override
-  String get manageMasterPassword => 'マスターパスワード管理';
-
-  @override
-  String get manageMasterPasswordSubtitle => 'マスターパスワードの設定、変更、削除';
-
-  @override
-  String get changeSecurityTier => 'セキュリティ階層を変更';
-
-  @override
-  String get changeSecurityTierSubtitle => '階層ラダーを開き、別のセキュリティ階層に切り替え';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2085,22 +1771,6 @@ class SJa extends S {
       'このデバイスではハードウェア保護ストレージが利用できます。TPM / Secure Enclave 連携を使うには、設定 → セキュリティからアップグレードしてください。';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'ハードウェア保護ストレージは利用できません — このデバイスで TPM 2.0 が検出されませんでした。';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'ハードウェア保護ストレージは利用できません — このデバイスは Secure Enclave を報告していません。';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'ハードウェア保護ストレージは利用できません — 有効にするには tpm2-tools と TPM 2.0 デバイスをインストールしてください。';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'ハードウェア保護ストレージは利用できません — このデバイスは StrongBox または TEE を報告していません。';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'このデバイスではハードウェア保護ストレージを利用できません。';
 
@@ -2108,30 +1778,8 @@ class SJa extends S {
   String get firstLaunchSecurityOpenSettings => '設定を開く';
 
   @override
-  String get firstLaunchSecurityDismiss => '了解';
-
-  @override
-  String get securityHardwareUpgradeTitle => 'ハードウェア保護ストレージが利用可能';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'アップグレードして秘密情報を TPM / Secure Enclave に紐付けます。';
-
-  @override
-  String get securityHardwareUpgradeAction => 'アップグレード';
-
-  @override
-  String get securityHardwareUnavailableTitle => 'ハードウェア保護ストレージは利用できません';
-
-  @override
   String get wizardReducedBanner =>
       'このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。';
-
-  @override
-  String get tierBlockProtectsHeader => '保護する脅威';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => '保護しない脅威';
 
   @override
   String get tierBlockProtectsEmpty => 'この階層では何も保護しません。';
@@ -2147,25 +1795,6 @@ class SJa extends S {
 
   @override
   String get securitySetupApply => '適用';
-
-  @override
-  String get passwordDisabledPlaintext => '暗号化なしの階層ではパスワードで保護する秘密がありません。';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid はパスワードから DB 鍵を導出します — 常に有効です。';
-
-  @override
-  String get passwordSubtitleOn => 'オン — ロック解除時にパスワードが必要';
-
-  @override
-  String get passwordSubtitleOff => 'オフ — この階層にパスワードを追加するにはタップ';
-
-  @override
-  String get passwordSubtitleParanoid => '必須 — マスターパスワードが階層の秘密';
-
-  @override
-  String get passwordSubtitlePlaintext => '適用外 — この階層には暗号化がありません';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2355,9 +1984,6 @@ class SJa extends S {
   }
 
   @override
-  String get runSnippet => '実行';
-
-  @override
   String get pinToSession => 'このセッションに固定';
 
   @override
@@ -2368,9 +1994,6 @@ class SJa extends S {
 
   @override
   String get allSnippets => 'すべて';
-
-  @override
-  String get sendToTerminal => 'ターミナルへ送信';
 
   @override
   String get commandCopied => 'コマンドをコピーしました';
@@ -2436,35 +2059,6 @@ class SJa extends S {
   String get sessionsOnly => 'セッション';
 
   @override
-  String get sessionKeysFromManager => 'マネージャーのセッション鍵';
-
-  @override
-  String get allKeysFromManager => 'マネージャーの全ての鍵';
-
-  @override
-  String exportTags(int count) {
-    return 'タグ ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'スニペット ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'キーチェーン暗号化を無効にする';
-
-  @override
-  String get disableKeychainSubtitle => '平文保存に切り替える（非推奨）';
-
-  @override
-  String get disableKeychainConfirm =>
-      'データベースは鍵なしで再暗号化されます。セッションと鍵はディスクに平文で保存されます。続行しますか？';
-
-  @override
-  String get keychainDisabled => 'キーチェーン暗号化が無効になりました';
-
-  @override
   String get presetFullImport => '完全インポート';
 
   @override
@@ -2474,7 +2068,7 @@ class SJa extends S {
   String get presetCustom => 'カスタム';
 
   @override
-  String get sessionSshKeys => 'セッションの SSH 鍵';
+  String get sessionSshKeys => 'セッション鍵 (マネージャー)';
 
   @override
   String get allManagerKeys => 'マネージャーのすべての鍵';
@@ -2586,17 +2180,6 @@ class SJa extends S {
   String get legendDoesNotProtect => '保護なし';
 
   @override
-  String get legendNotApplicable => '該当なし — この階層にはユーザー秘密がありません';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      '弱いパスワードでも可 — 別の層（ハードウェアのレート制限、またはラップされた鍵のバインディング）が安全性を担います';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      '長いパスフレーズの使用を強く推奨 — この階層の安全性はそれに依存します';
-
-  @override
   String get colT0 => 'T0 平文';
 
   @override
@@ -2619,9 +2202,6 @@ class SJa extends S {
 
   @override
   String get colParanoid => 'パラノイド';
-
-  @override
-  String get securityComparisonTableTitle => 'セキュリティ階層 — 横並び比較';
 
   @override
   String get securityComparisonTableThreatColumn => '脅威';
@@ -2656,19 +2236,10 @@ class SJa extends S {
   String get resetAllDataFailed => 'リセットに失敗しました';
 
   @override
-  String get compareAllTiersSubtitle => '各階層の防御範囲を並べて比較できます。';
-
-  @override
   String get autoLockRequiresPassword => '自動ロックにはアクティブな階層にパスワードが必要です。';
 
   @override
   String get recommendedBadge => '推奨';
-
-  @override
-  String get continueWithRecommended => '推奨設定で続行';
-
-  @override
-  String get customizeSecurity => 'セキュリティをカスタマイズ';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2681,9 +2252,6 @@ class SJa extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'runtime の脅威（同一ユーザーの malware、稼働中プロセスのメモリダンプ）は、すべての階層で ✗ と表示されます。これらは階層選択に関係なく適用される別途の緩和機能によって対処されます。';
-
-  @override
-  String get securitySetupContinue => '続行';
 
   @override
   String get currentTierBadge => '現在';

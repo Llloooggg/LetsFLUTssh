@@ -61,6 +61,29 @@ void main() {
       encoded[4] = 0;
       expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
     });
+
+    test('rejects crafted memory value past sanity cap (OOM defuse)', () {
+      // A malicious `credentials.kdf` could request gigabytes-of-RAM
+      // via an oversized uint32 in the memory slot. Decoder must
+      // reject before the derivation isolate allocates the buffer.
+      final encoded = const KdfParams.argon2id().encode();
+      final view = ByteData.sublistView(encoded);
+      view.setUint32(1, 0xFFFFFFFF); // ~4 GiB requested
+      expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
+    });
+
+    test('rejects crafted iteration count past sanity cap', () {
+      final encoded = const KdfParams.argon2id().encode();
+      final view = ByteData.sublistView(encoded);
+      view.setUint32(5, 1000000); // a million iterations
+      expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
+    });
+
+    test('rejects crafted parallelism past sanity cap', () {
+      final encoded = const KdfParams.argon2id().encode();
+      encoded[9] = 0xFF;
+      expect(() => KdfParams.decode(encoded), throwsA(isA<FormatException>()));
+    });
   });
 
   group('KdfAlgorithm.fromId', () {

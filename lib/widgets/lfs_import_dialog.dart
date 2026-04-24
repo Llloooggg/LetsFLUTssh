@@ -5,9 +5,10 @@ import 'package:flutter/material.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
 import 'mode_button.dart';
-import 'styled_form_field.dart';
+import 'secure_password_field.dart';
 
 /// Result from the LFS import password dialog.
 typedef LfsImportDialogResult = ({String password, ImportMode mode});
@@ -51,6 +52,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
 
   @override
   void dispose() {
+    _passwordCtrl.wipeAndClear();
     _passwordCtrl.dispose();
     super.dispose();
   }
@@ -77,14 +79,30 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           ),
           const SizedBox(height: 12),
           if (widget.isEncrypted)
-            StyledInput(
+            SecurePasswordField(
               controller: _passwordCtrl,
-              obscure: true,
               autofocus: true,
-              labelText: l10n.masterPassword,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 10,
+              decoration: InputDecoration(
+                labelText: l10n.masterPassword,
+                filled: true,
+                fillColor: AppTheme.bg3,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: AppTheme.radiusSm,
+                  borderSide: BorderSide(color: AppTheme.borderLight),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: AppTheme.radiusSm,
+                  borderSide: BorderSide(color: AppTheme.borderLight),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: AppTheme.radiusSm,
+                  borderSide: BorderSide(color: AppTheme.accent),
+                ),
               ),
               onSubmitted: (v) {
                 if (v.isNotEmpty) {

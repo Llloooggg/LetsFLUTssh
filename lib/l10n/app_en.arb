@@ -30,7 +30,6 @@
   "exportWhatToExport": "What to export:",
   "enterMasterPasswordPrompt": "Enter master password:",
   "nextStep": "Next",
-  "includeCredentials": "Include passwords and SSH keys",
   "includePasswords": "Session passwords",
   "embeddedKeys": "Session keys",
   "managerKeys": "Keys from manager",
@@ -45,8 +44,6 @@
       }
     }
   },
-  "qrCredentialsWarning": "Passwords and SSH keys WILL be visible in the QR code. Only share in trusted environments.",
-  "qrCredentialsTooLarge": "Credentials make the QR code too large. Remove some sessions or disable credentials.",
   "terminal": "Terminal",
   "files": "Files",
   "transfer": "Transfer",
@@ -119,14 +116,6 @@
       }
     }
   },
-  "importedSessionsViaQr": "Imported {count} session(s) via QR",
-  "@importedSessionsViaQr": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "importedSessions": "Imported {count} session(s)",
   "@importedSessions": {
     "placeholders": {
@@ -170,7 +159,6 @@
   "noSavedSessions": "No saved sessions",
   "addSession": "Add Session",
   "noSessions": "No sessions",
-  "noSessionsToExport": "No sessions to export",
   "nSelectedCount": "{count} selected",
   "@nSelectedCount": {
     "placeholders": {
@@ -258,7 +246,6 @@
   "hidePemText": "Hide PEM text",
   "pastePemKeyText": "Paste PEM key text",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
-  "noAdditionalOptionsYet": "No additional options yet",
   "saveAndConnect": "Save & Connect",
   "portRange": "1-65535",
   "provideKeyFirst": "Provide a key file or PEM text first",
@@ -364,12 +351,10 @@
   "editPath": "Edit Path",
   "root": "Root",
   "controllersNotInitialized": "Controllers not initialized",
-  "initializingSftp": "Initializing SFTP...",
   "clearHistory": "Clear history",
   "noTransfersYet": "No transfers yet",
   "duplicateTab": "Duplicate Tab",
   "duplicateTabShortcut": "Duplicate Tab (Ctrl+\\)",
-  "copyDown": "Copy Down",
   "previous": "Previous",
   "next": "Next",
   "closeEsc": "Close (Esc)",
@@ -405,8 +390,6 @@
   "maxHistory": "Max History",
   "calculateFolderSizes": "Calculate Folder Sizes",
   "exportData": "Export Data",
-  "exportDataSubtitle": "Save sessions, config, and keys to encrypted .lfs file",
-  "importDataSubtitle": "Load data from .lfs file",
   "sshConfigPreviewHostsFound": "{count} host(s) found",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -420,14 +403,6 @@
   "@sshConfigPreviewMissingKeys": {
     "placeholders": {
       "hosts": {
-        "type": "String"
-      }
-    }
-  },
-  "sshConfigPreviewFolderLabel": "Imported to folder: {folder}",
-  "@sshConfigPreviewFolderLabel": {
-    "placeholders": {
-      "folder": {
         "type": "String"
       }
     }
@@ -466,45 +441,20 @@
   "passwordStrengthModerate": "Moderate",
   "passwordStrengthStrong": "Strong",
   "passwordStrengthVeryStrong": "Very strong",
-  "tierRecommendedBadge": "Recommended",
-  "tierCurrentBadge": "Current",
-  "tierAlternativeBranchLabel": "Alternative — don't trust the OS",
-  "tierUpcomingTooltip": "Ships in an upcoming version.",
-  "tierUpcomingNotes": "This tier's underlying plumbing is not shipped yet. The row is visible so you know the option exists.",
   "tierPlaintextLabel": "Plaintext",
   "tierPlaintextSubtitle": "No encryption — file permissions only",
-  "tierPlaintextThreat1": "Anyone with filesystem access reads your data",
-  "tierPlaintextThreat2": "Accidental sync or backup reveals everything",
-  "tierPlaintextNotes": "Use only in trusted, isolated environments.",
   "tierKeychainLabel": "Keychain",
   "tierKeychainSubtitle": "Key lives in {keychain} — auto-unlock on launch",
   "@tierKeychainSubtitle": {
     "placeholders": {
-      "keychain": { "type": "String" }
+      "keychain": {
+        "type": "String"
+      }
     }
   },
-  "tierKeychainProtect1": "Other users on the same machine",
-  "tierKeychainProtect2": "Stolen disk without the OS login",
-  "tierKeychainThreat1": "Malware running under your OS account",
-  "tierKeychainThreat2": "An attacker who takes over your OS login",
   "tierKeychainUnavailable": "OS keychain not available on this install.",
-  "tierKeychainPassProtect1": "Coworker sitting at your desk",
-  "tierKeychainPassProtect2": "A passerby with unlocked access",
-  "tierKeychainPassThreat1": "Offline attacker with the file on disk",
-  "tierKeychainPassThreat2": "Same OS-compromise risks as Keychain",
   "tierHardwareLabel": "Hardware",
-  "tierHardwareSubtitle": "Hardware-bound vault + short PIN with lockout",
-  "tierHardwareProtect1": "Offline brute force of the PIN (hardware rate-limit)",
-  "tierHardwareProtect2": "Stealing the disk and the keychain blob",
-  "tierHardwareThreat1": "OS or firmware CVE on the secure module",
-  "tierHardwareThreat2": "Forced biometric unlock (if enabled)",
   "tierParanoidLabel": "Master password (Paranoid)",
-  "tierParanoidSubtitle": "Long password + Argon2id. Key never enters the OS.",
-  "tierParanoidProtect1": "OS keychain compromise",
-  "tierParanoidProtect2": "Stolen disk (as long as your password is strong)",
-  "tierParanoidThreat1": "Keylogger capturing your password",
-  "tierParanoidThreat2": "Weak password + offline Argon2id cracking",
-  "tierParanoidNotes": "Biometric is disabled by design on this tier.",
   "tierHardwareUnavailable": "Hardware vault not available on this install.",
   "pinLabel": "Password",
   "l2UnlockTitle": "Password required",
@@ -516,7 +466,9 @@
   "tierCooldownHint": "Try again in {seconds}s",
   "@tierCooldownHint": {
     "placeholders": {
-      "seconds": { "type": "int" }
+      "seconds": {
+        "type": "int"
+      }
     }
   },
   "exportedTo": "Exported to: {path}",
@@ -536,10 +488,6 @@
     }
   },
   "pathToLfsFile": "Path to .lfs file",
-  "hintLfsPath": "/path/to/export.lfs",
-  "browse": "Browse",
-  "shareViaQrCode": "Share via QR Code",
-  "shareViaQrSubtitle": "Export sessions to QR for scanning by another device",
   "dataLocation": "Data Location",
   "dataStorageSection": "Storage",
   "pathCopied": "Path copied to clipboard",
@@ -587,15 +535,6 @@
   "openSshTerminal": "Open SSH Terminal",
   "noActiveFileBrowsers": "No active file browsers",
   "useSftpFromSessions": "Use \"SFTP\" from Sessions",
-  "anotherInstanceRunning": "Another instance of LetsFLUTssh is already running.",
-  "importFailedShort": "Import failed: {error}",
-  "@importFailedShort": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "saveLogAs": "Save log as",
   "chooseSaveLocation": "Choose save location",
   "forward": "Forward",
@@ -723,22 +662,6 @@
     }
   },
   "errSessionClosed": "Session closed",
-  "errShellError": "Shell error: {error}",
-  "@errShellError": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "errReconnectFailed": "Reconnect failed: {error}",
-  "@errReconnectFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "errSftpInitFailed": "Failed to initialize SFTP: {error}",
   "@errSftpInitFailed": {
     "placeholders": {
@@ -755,27 +678,18 @@
       }
     }
   },
-  "errDecryptionFailed": "Failed to decrypt credentials. Key file may be corrupted.",
   "errExportPickerUnavailable": "The system folder picker is unavailable. Try another location or check app storage permissions.",
   "biometricUnlockPrompt": "Unlock LetsFLUTssh",
   "biometricUnlockTitle": "Unlock with biometrics",
   "biometricUnlockSubtitle": "Skip typing the password — unlock with the device biometric sensor.",
-  "biometricNotAvailable": "Biometric unlock is not available on this device.",
   "biometricEnableFailed": "Could not enable biometric unlock.",
-  "biometricEnabled": "Biometric unlock enabled",
-  "biometricDisabled": "Biometric unlock disabled",
   "biometricUnlockFailed": "Biometric unlock failed. Enter your master password.",
   "biometricUnlockCancelled": "Biometric unlock cancelled.",
   "biometricNotEnrolled": "No biometric credentials enrolled on this device.",
-  "biometricRequiresMasterPassword": "Set a master password first to enable biometric unlock.",
   "biometricSensorNotAvailable": "This device has no biometric sensor.",
   "biometricSystemServiceMissing": "Fingerprint service (fprintd) is not installed. See README → Installation.",
-  "biometricBackingHardware": "Hardware-backed (Secure Enclave / TPM)",
-  "biometricBackingSoftware": "Software-backed",
   "currentPasswordIncorrect": "Current password is incorrect",
   "wrongPassword": "Wrong password",
-  "useKeychain": "Encrypt with OS keychain",
-  "useKeychainSubtitle": "Store the database key in the system credential store. Off = plaintext database.",
   "lockScreenTitle": "LetsFLUTssh is locked",
   "lockScreenSubtitle": "Enter the master password or use biometrics to continue.",
   "unlock": "Unlock",
@@ -852,7 +766,6 @@
   "progressCollectingData": "Collecting data…",
   "progressEncrypting": "Encrypting…",
   "progressWritingArchive": "Writing archive…",
-  "progressReencrypting": "Re-encrypting stores…",
   "progressWorking": "Working…",
   "importFromLink": "Import from QR link",
   "importFromLinkSubtitle": "Paste a letsflutssh:// deep link copied from another device",
@@ -898,7 +811,6 @@
     }
   },
   "subitems": "Items",
-  "storagePermissionRequired": "Storage permission required to browse local files",
   "grantPermission": "Grant Permission",
   "storagePermissionLimited": "Limited access — grant full storage permission for all files",
   "progressConnecting": "Connecting to {host}:{port}",
@@ -1063,17 +975,6 @@
       }
     }
   },
-  "sshConnectionChannel": "SSH Connection",
-  "sshConnectionChannelDesc": "Keeps SSH connections alive in the background.",
-  "sshActive": "SSH active",
-  "activeConnectionCount": "{count} active connection(s)",
-  "@activeConnectionCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "itemCountWithSize": "{count} items, {size}",
   "@itemCountWithSize": {
     "placeholders": {
@@ -1111,7 +1012,6 @@
   },
   "clearAllKnownHosts": "Clear All Known Hosts",
   "clearAllKnownHostsConfirm": "Remove all known hosts? You will be prompted to verify each server key again.",
-  "importKnownHostsSubtitle": "Import from OpenSSH known_hosts file",
   "clearedAllHosts": "Cleared all known hosts",
   "removedHost": "Removed {host}",
   "@removedHost": {
@@ -1172,7 +1072,6 @@
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Invalid PEM key data",
   "selectFromKeyStore": "Select from Key Store",
-  "noKeySelected": "No key selected",
   "keyCount": "{count, plural, =0{No keys} =1{1 key} other{{count} keys}}",
   "@keyCount": {
     "placeholders": {
@@ -1194,23 +1093,11 @@
   "passphraseWrong": "Wrong passphrase. Please try again.",
   "passphrase": "Passphrase",
   "rememberPassphrase": "Remember for this session",
-  "masterPasswordSubtitle": "Protect saved credentials with a password",
-  "setMasterPassword": "Set Master Password",
-  "changeMasterPassword": "Change Master Password",
-  "removeMasterPassword": "Remove Master Password",
-  "masterPasswordEnabled": "Credentials are protected by master password",
-  "masterPasswordDisabled": "Credentials use auto-generated key (no password)",
   "enterMasterPassword": "Enter master password to unlock your saved credentials.",
   "wrongMasterPassword": "Wrong password. Please try again.",
   "newPassword": "New Password",
   "currentPassword": "Current Password",
-  "masterPasswordSet": "Master password enabled",
-  "masterPasswordChanged": "Master password changed",
-  "masterPasswordRemoved": "Master password removed",
-  "masterPasswordWarning": "If you forget this password, all saved passwords and SSH keys will be lost. There is no recovery.",
   "forgotPassword": "Forgot Password?",
-  "forgotPasswordWarning": "This will delete ALL saved passwords, SSH keys, and passphrases. Sessions and settings will be kept. This cannot be undone.",
-  "resetAndDeleteCredentials": "Reset & Delete Credentials",
   "credentialsReset": "All saved credentials have been deleted",
   "migrationToast": "Storage upgraded to the latest format",
   "dbCorruptTitle": "Database cannot be opened",
@@ -1225,68 +1112,22 @@
   "tierResetResetContinue": "Reset & Setup Fresh",
   "tierResetExit": "Quit LetsFLUTssh",
   "derivingKey": "Deriving encryption key...",
-  "reEncrypting": "Re-encrypting data...",
-  "confirmRemoveMasterPassword": "Enter your current password to remove master password protection. Credentials will be re-encrypted with an auto-generated key.",
   "securitySetupTitle": "Security Setup",
-  "securitySetupKeychainFound": "OS Keychain detected ({keychainName}). Your data will be automatically encrypted using your system keychain.",
-  "@securitySetupKeychainFound": {
-    "placeholders": {
-      "keychainName": {
-        "type": "String"
-      }
-    }
-  },
-  "securitySetupKeychainOptional": "You can also set a master password for additional protection.",
-  "securitySetupNoKeychain": "No OS Keychain detected. Without a keychain, your session data (hosts, passwords, keys) will be stored in plaintext.",
-  "securitySetupNoKeychainHint": "This is normal on WSL, headless Linux, or minimal installations. To enable keychain on Linux: install libsecret and a keyring daemon (e.g. gnome-keyring).",
-  "securitySetupRecommendMasterPassword": "We recommend setting a master password to protect your data.",
-  "continueWithKeychain": "Continue with Keychain",
-  "continueWithoutEncryption": "Continue without Encryption",
-  "securityLevel": "Security Level",
-  "securityLevelPlaintext": "None",
-  "securityLevelKeychain": "OS Keychain",
-  "securityLevelMasterPassword": "Master Password",
-  "keychainStatus": "Keychain",
   "keychainAvailable": "Available",
-  "keychainNotAvailable": "Not available",
-  "enableKeychain": "Enable Keychain Encryption",
-  "enableKeychainSubtitle": "Re-encrypt stored data using OS keychain",
-  "keychainEnabled": "Keychain encryption enabled",
-  "manageMasterPassword": "Manage Master Password",
-  "manageMasterPasswordSubtitle": "Set, change, or remove master password",
-  "changeSecurityTier": "Change Security Tier",
-  "changeSecurityTierSubtitle": "Open the tier ladder and switch to a different security level",
   "changeSecurityTierConfirm": "Re-encrypting the database with the new tier. This cannot be interrupted — keep the app open until it finishes.",
   "changeSecurityTierDone": "Security tier changed",
   "changeSecurityTierFailed": "Could not change security tier",
   "firstLaunchSecurityTitle": "Secure storage enabled",
   "firstLaunchSecurityBody": "Your data is encrypted with a key held in the OS keychain. Unlock is automatic on this device.",
   "firstLaunchSecurityUpgradeAvailable": "Hardware-backed storage is available on this device. Upgrade in Settings → Security for TPM / Secure Enclave binding.",
-  "firstLaunchSecurityHardwareUnavailableWindows": "Hardware-backed storage is unavailable — no TPM 2.0 detected on this device.",
-  "firstLaunchSecurityHardwareUnavailableApple": "Hardware-backed storage is unavailable — this device does not report a Secure Enclave.",
-  "firstLaunchSecurityHardwareUnavailableLinux": "Hardware-backed storage is unavailable — install tpm2-tools and a TPM 2.0 device to enable it.",
-  "firstLaunchSecurityHardwareUnavailableAndroid": "Hardware-backed storage is unavailable — this device does not report a StrongBox or TEE.",
   "firstLaunchSecurityHardwareUnavailableGeneric": "Hardware-backed storage is unavailable on this device.",
   "firstLaunchSecurityOpenSettings": "Open Settings",
-  "firstLaunchSecurityDismiss": "Got it",
-  "securityHardwareUpgradeTitle": "Hardware-backed storage available",
-  "securityHardwareUpgradeBody": "Upgrade to bind secrets to TPM / Secure Enclave.",
-  "securityHardwareUpgradeAction": "Upgrade",
-  "securityHardwareUnavailableTitle": "Hardware-backed storage unavailable",
   "wizardReducedBanner": "OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.",
-  "tierBlockProtectsHeader": "PROTECTS AGAINST",
-  "tierBlockDoesNotProtectHeader": "DOES NOT PROTECT",
   "tierBlockProtectsEmpty": "Nothing on this tier.",
   "tierBlockDoesNotProtectEmpty": "Nothing left uncovered.",
   "tierBadgeCurrent": "Current",
   "securitySetupEnable": "Enable",
   "securitySetupApply": "Apply",
-  "passwordDisabledPlaintext": "Plaintext tier stores no secret to protect with a password.",
-  "passwordDisabledParanoid": "Paranoid derives the database key from the password — it is always on.",
-  "passwordSubtitleOn": "On — password required on unlock",
-  "passwordSubtitleOff": "Off — tap to add a password on this tier",
-  "passwordSubtitleParanoid": "Required — the master password is the tier's secret",
-  "passwordSubtitlePlaintext": "Not applicable — no encryption on this tier",
   "hwProbeLinuxDeviceMissing": "No TPM detected at /dev/tpmrm0. Enable fTPM / PTT in BIOS if the machine supports it, otherwise the hardware tier is unavailable on this device.",
   "hwProbeLinuxBinaryMissing": "tpm2-tools is not installed. Run `sudo apt install tpm2-tools` (or your distro equivalent) to enable the hardware tier.",
   "hwProbeLinuxProbeFailed": "Hardware-tier probe failed. Check /dev/tpmrm0 permissions / udev rules — see logs for the tpm2-tools error.",
@@ -1359,12 +1200,10 @@
       }
     }
   },
-  "runSnippet": "Run",
   "pinToSession": "Pin to this session",
   "unpinFromSession": "Unpin from this session",
   "pinnedSnippets": "Pinned",
   "allSnippets": "All",
-  "sendToTerminal": "Send to terminal",
   "commandCopied": "Command copied to clipboard",
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
@@ -1403,32 +1242,10 @@
   "editTags": "Edit Tags",
   "fullBackup": "Full backup",
   "sessionsOnly": "Sessions",
-  "sessionKeysFromManager": "Session keys from manager",
-  "allKeysFromManager": "All keys from manager",
-  "exportTags": "Tags ({count})",
-  "@exportTags": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "exportSnippets": "Snippets ({count})",
-  "@exportSnippets": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "disableKeychain": "Disable keychain encryption",
-  "disableKeychainSubtitle": "Switch to plaintext storage (not recommended)",
-  "disableKeychainConfirm": "The database will be re-encrypted without a key. Sessions and keys will be stored in plaintext on disk. Continue?",
-  "keychainDisabled": "Keychain encryption disabled",
   "presetFullImport": "Full import",
   "presetSelective": "Selective",
   "presetCustom": "Custom",
-  "sessionSshKeys": "Session SSH keys",
+  "sessionSshKeys": "Session keys (manager)",
   "allManagerKeys": "All manager keys",
   "browseFiles": "Browse files…",
   "sshDirSessionAlreadyImported": "already in sessions",
@@ -1448,7 +1265,6 @@
   "exportWithoutPassword": "Export Without Password?",
   "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
   "continueWithoutPassword": "Continue Without Password",
-
   "threatColdDiskTheft": "Cold-disk theft",
   "threatColdDiskTheftDescription": "Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.",
   "threatKeyringFileTheft": "Keyring / keychain file exfiltration",
@@ -1462,13 +1278,8 @@
   "threatOsKernelOrKeychainBreachDescription": "Kernel vulnerability, keychain exfiltration, or a backdoor in the hardware security chip. The operating system becomes the attacker rather than a trusted resource.",
   "threatOfflineBruteForce": "Offline brute force on weak password",
   "threatOfflineBruteForceDescription": "An attacker who has a copy of the wrapped key or sealed blob tries every password at their own pace without any rate limiter.",
-
   "legendProtects": "Protected",
   "legendDoesNotProtect": "Not protected",
-  "legendNotApplicable": "Not applicable — no user secret for this tier",
-  "legendWeakPasswordWarning": "Weak password acceptable — another layer (hardware rate limiter or wrapped-key binding) carries the security",
-  "legendStrongPasswordRecommended": "A long passphrase is strongly recommended — this tier's security depends on it",
-
   "colT0": "T0 Plaintext",
   "colT1": "T1 Keychain",
   "colT1Password": "T1 + password",
@@ -1477,11 +1288,8 @@
   "colT2Password": "T2 + password",
   "colT2PasswordBiometric": "T2 + password + biometric",
   "colParanoid": "Paranoid",
-
-  "securityComparisonTableTitle": "Security tiers — side-by-side comparison",
   "securityComparisonTableThreatColumn": "Threat",
   "compareAllTiers": "Compare all tiers",
-
   "resetAllDataTitle": "Reset all data",
   "resetAllDataSubtitle": "Delete every session, key, config and security artefact. Clears keychain entries and hardware-vault slots too.",
   "resetAllDataConfirmTitle": "Reset all data?",
@@ -1490,19 +1298,13 @@
   "resetAllDataInProgress": "Resetting…",
   "resetAllDataDone": "All data reset",
   "resetAllDataFailed": "Reset failed",
-  "compareAllTiersSubtitle": "See what each tier protects against, side-by-side.",
   "autoLockRequiresPassword": "Auto-lock requires a password on the active tier.",
   "recommendedBadge": "RECOMMENDED",
-  "continueWithRecommended": "Continue with recommended",
-  "customizeSecurity": "Customize security",
   "tierHardwareSubtitleHonest": "Advanced: hardware-bound key. Data is irrecoverable if this device's chip is lost or replaced.",
   "tierParanoidSubtitleHonest": "Alternative: master password, no OS trust. Protects against OS compromise. Does not improve runtime protection over T1/T2.",
   "mitigationsNoteRuntimeThreats": "Runtime threats (same-user malware, live process memory dump) are shown as ✗ across every tier. They are addressed by separate mitigation features applied regardless of tier choice.",
-
-  "securitySetupContinue": "Continue",
   "currentTierBadge": "CURRENT",
   "paranoidAlternativeHeader": "ALTERNATIVE",
-
   "modifierPasswordLabel": "Password",
   "modifierPasswordSubtitle": "Typed secret gate before the vault unlocks.",
   "modifierBiometricLabel": "Biometric shortcut",
@@ -1512,15 +1314,12 @@
   "autoLockRequiresActiveTier": "Select this tier first to configure auto-lock",
   "biometricForbiddenParanoid": "Paranoid does not allow biometric by design.",
   "fprintdNotAvailable": "fprintd not installed or no enrolled finger.",
-
   "linuxTpmWithoutPasswordNote": "TPM without a password provides isolation, not authentication. Anyone who can run this app can unlock the data.",
   "paranoidMasterPasswordNote": "A long passphrase is strongly recommended — Argon2id only slows brute force, it does not block it.",
-
   "plaintextWarningTitle": "Plaintext: no encryption",
   "plaintextWarningBody": "Sessions, keys, and known hosts will be stored without encryption. Anyone with access to this computer's filesystem can read them.",
   "plaintextAcknowledge": "I understand my data will not be encrypted",
   "plaintextAcknowledgeRequired": "Confirm you understand before continuing.",
-
   "passwordLabel": "Password",
   "masterPasswordLabel": "Master password"
 }

@@ -99,9 +99,6 @@ class SPt extends S {
   String get nextStep => 'Próximo';
 
   @override
-  String get includeCredentials => 'Incluir senhas e chaves SSH';
-
-  @override
   String get includePasswords => 'Senhas de sessões';
 
   @override
@@ -125,14 +122,6 @@ class SPt extends S {
   String exportTotalSize(String size) {
     return 'Tamanho total: $size';
   }
-
-  @override
-  String get qrCredentialsWarning =>
-      'Senhas e chaves SSH FICARÃO visíveis no código QR';
-
-  @override
-  String get qrCredentialsTooLarge =>
-      'As credenciais tornam o código QR muito grande';
 
   @override
   String get terminal => 'Terminal';
@@ -249,11 +238,6 @@ class SPt extends S {
   }
 
   @override
-  String importedSessionsViaQr(int count) {
-    return '$count sessão(ões) importada(s) via QR';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count sessão(ões) importada(s)';
   }
@@ -311,9 +295,6 @@ class SPt extends S {
 
   @override
   String get noSessions => 'Nenhuma sessão';
-
-  @override
-  String get noSessionsToExport => 'Nenhuma sessão para exportar';
 
   @override
   String nSelectedCount(int count) {
@@ -442,9 +423,6 @@ class SPt extends S {
 
   @override
   String get hintPemKey => '-----BEGIN OPENSSH PRIVATE KEY-----';
-
-  @override
-  String get noAdditionalOptionsYet => 'Nenhuma opção adicional ainda';
 
   @override
   String get saveAndConnect => 'Salvar e Conectar';
@@ -608,9 +586,6 @@ class SPt extends S {
   String get controllersNotInitialized => 'Controladores não inicializados';
 
   @override
-  String get initializingSftp => 'Inicializando SFTP...';
-
-  @override
   String get clearHistory => 'Limpar histórico';
 
   @override
@@ -621,9 +596,6 @@ class SPt extends S {
 
   @override
   String get duplicateTabShortcut => 'Duplicar Aba (Ctrl+\\)';
-
-  @override
-  String get copyDown => 'Copiar Abaixo';
 
   @override
   String get previous => 'Anterior';
@@ -732,13 +704,6 @@ class SPt extends S {
   String get exportData => 'Exportar Dados';
 
   @override
-  String get exportDataSubtitle =>
-      'Salvar sessões, configurações e chaves em arquivo .lfs criptografado';
-
-  @override
-  String get importDataSubtitle => 'Carregar dados de arquivo .lfs';
-
-  @override
   String sshConfigPreviewHostsFound(int count) {
     return '$count host(s) encontrado(s)';
   }
@@ -750,11 +715,6 @@ class SPt extends S {
   @override
   String sshConfigPreviewMissingKeys(String hosts) {
     return 'Não foi possível ler os arquivos de chave para: $hosts. Esses hosts serão importados sem credenciais.';
-  }
-
-  @override
-  String sshConfigPreviewFolderLabel(String folder) {
-    return 'Importado para a pasta: $folder';
   }
 
   @override
@@ -827,39 +787,11 @@ class SPt extends S {
   String get passwordStrengthVeryStrong => 'Muito forte';
 
   @override
-  String get tierRecommendedBadge => 'Recomendado';
-
-  @override
-  String get tierCurrentBadge => 'Atual';
-
-  @override
-  String get tierAlternativeBranchLabel => 'Alternativa — não confie no SO';
-
-  @override
-  String get tierUpcomingTooltip => 'Chega em uma versão futura.';
-
-  @override
-  String get tierUpcomingNotes =>
-      'A infraestrutura subjacente deste nível ainda não foi lançada. A linha está visível para que você saiba que a opção existe.';
-
-  @override
   String get tierPlaintextLabel => 'Plaintext';
 
   @override
   String get tierPlaintextSubtitle =>
       'Sem criptografia — apenas permissões de arquivo';
-
-  @override
-  String get tierPlaintextThreat1 =>
-      'Qualquer um com acesso ao sistema de arquivos lê seus dados';
-
-  @override
-  String get tierPlaintextThreat2 =>
-      'Sincronização ou backup acidental revela tudo';
-
-  @override
-  String get tierPlaintextNotes =>
-      'Use apenas em ambientes confiáveis e isolados.';
 
   @override
   String get tierKeychainLabel => 'Keychain';
@@ -870,81 +802,14 @@ class SPt extends S {
   }
 
   @override
-  String get tierKeychainProtect1 => 'Outros usuários na mesma máquina';
-
-  @override
-  String get tierKeychainProtect2 => 'Disco roubado sem o login do SO';
-
-  @override
-  String get tierKeychainThreat1 => 'Malware rodando sob sua conta do SO';
-
-  @override
-  String get tierKeychainThreat2 =>
-      'Um atacante que toma o controle do seu login do SO';
-
-  @override
   String get tierKeychainUnavailable =>
       'Keychain do SO indisponível nesta instalação.';
-
-  @override
-  String get tierKeychainPassProtect1 => 'Colega sentado em sua mesa';
-
-  @override
-  String get tierKeychainPassProtect2 =>
-      'Um transeunte com acesso desbloqueado';
-
-  @override
-  String get tierKeychainPassThreat1 =>
-      'Atacante offline com o arquivo no disco';
-
-  @override
-  String get tierKeychainPassThreat2 =>
-      'Mesmos riscos de comprometimento do SO que o keychain';
 
   @override
   String get tierHardwareLabel => 'Hardware';
 
   @override
-  String get tierHardwareSubtitle =>
-      'Cofre vinculado ao hardware + PIN curto com bloqueio';
-
-  @override
-  String get tierHardwareProtect1 =>
-      'Força bruta offline do PIN (rate limit em hardware)';
-
-  @override
-  String get tierHardwareProtect2 => 'Roubo do disco e do blob do chaveiro';
-
-  @override
-  String get tierHardwareThreat1 => 'CVE de SO ou firmware no módulo seguro';
-
-  @override
-  String get tierHardwareThreat2 =>
-      'Desbloqueio biométrico forçado (se habilitado)';
-
-  @override
   String get tierParanoidLabel => 'Senha mestra (Paranoid)';
-
-  @override
-  String get tierParanoidSubtitle =>
-      'Senha longa + Argon2id. A chave nunca entra no SO.';
-
-  @override
-  String get tierParanoidProtect1 => 'Comprometimento do chaveiro do SO';
-
-  @override
-  String get tierParanoidProtect2 =>
-      'Disco roubado (desde que sua senha seja forte)';
-
-  @override
-  String get tierParanoidThreat1 => 'Keylogger capturando sua senha';
-
-  @override
-  String get tierParanoidThreat2 => 'Senha fraca + quebra Argon2id offline';
-
-  @override
-  String get tierParanoidNotes =>
-      'A biometria está desativada por design neste nível.';
 
   @override
   String get tierHardwareUnavailable =>
@@ -989,19 +854,6 @@ class SPt extends S {
 
   @override
   String get pathToLfsFile => 'Caminho do arquivo .lfs';
-
-  @override
-  String get hintLfsPath => '/caminho/para/exportacao.lfs';
-
-  @override
-  String get browse => 'Procurar';
-
-  @override
-  String get shareViaQrCode => 'Compartilhar via Código QR';
-
-  @override
-  String get shareViaQrSubtitle =>
-      'Exportar sessões para QR para escaneamento por outro dispositivo';
 
   @override
   String get dataLocation => 'Local dos Dados';
@@ -1086,15 +938,6 @@ class SPt extends S {
 
   @override
   String get useSftpFromSessions => 'Use \"SFTP\" nas Sessões';
-
-  @override
-  String get anotherInstanceRunning =>
-      'Outra instância do LetsFLUTssh já está em execução.';
-
-  @override
-  String importFailedShort(String error) {
-    return 'Falha na importação: $error';
-  }
 
   @override
   String get saveLogAs => 'Salvar log como';
@@ -1335,16 +1178,6 @@ class SPt extends S {
   String get errSessionClosed => 'Sessão encerrada';
 
   @override
-  String errShellError(String error) {
-    return 'Erro do shell: $error';
-  }
-
-  @override
-  String errReconnectFailed(String error) {
-    return 'Reconexão falhou: $error';
-  }
-
-  @override
   String errSftpInitFailed(String error) {
     return 'Falha ao inicializar SFTP: $error';
   }
@@ -1353,10 +1186,6 @@ class SPt extends S {
   String errDownloadFailed(String error) {
     return 'Download falhou: $error';
   }
-
-  @override
-  String get errDecryptionFailed =>
-      'Falha ao descriptografar as credenciais. O arquivo de chave pode estar corrompido.';
 
   @override
   String get errExportPickerUnavailable =>
@@ -1373,18 +1202,8 @@ class SPt extends S {
       'Evite digitar a senha — desbloqueie com o sensor biométrico do dispositivo.';
 
   @override
-  String get biometricNotAvailable =>
-      'O desbloqueio biométrico não está disponível neste dispositivo.';
-
-  @override
   String get biometricEnableFailed =>
       'Não foi possível ativar o desbloqueio biométrico.';
-
-  @override
-  String get biometricEnabled => 'Desbloqueio biométrico ativado';
-
-  @override
-  String get biometricDisabled => 'Desbloqueio biométrico desativado';
 
   @override
   String get biometricUnlockFailed =>
@@ -1398,10 +1217,6 @@ class SPt extends S {
       'Nenhuma credencial biométrica registrada neste dispositivo.';
 
   @override
-  String get biometricRequiresMasterPassword =>
-      'Defina uma senha mestra primeiro para habilitar o desbloqueio biométrico.';
-
-  @override
   String get biometricSensorNotAvailable =>
       'Este dispositivo não tem sensor biométrico.';
 
@@ -1410,24 +1225,10 @@ class SPt extends S {
       'O serviço de impressão digital (fprintd) não está instalado. Ver README → Installation.';
 
   @override
-  String get biometricBackingHardware =>
-      'Suporte em hardware (Secure Enclave / TPM)';
-
-  @override
-  String get biometricBackingSoftware => 'Suporte em software';
-
-  @override
   String get currentPasswordIncorrect => 'A senha atual está incorreta';
 
   @override
   String get wrongPassword => 'Senha incorreta';
-
-  @override
-  String get useKeychain => 'Criptografar com keychain do sistema';
-
-  @override
-  String get useKeychainSubtitle =>
-      'Armazenar a chave do banco no keychain do sistema. Desativado = banco em texto simples.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh está bloqueado';
@@ -1543,9 +1344,6 @@ class SPt extends S {
   String get progressWritingArchive => 'Gravando arquivo…';
 
   @override
-  String get progressReencrypting => 'Recriptografando armazenamentos…';
-
-  @override
   String get progressWorking => 'Processando…';
 
   @override
@@ -1608,10 +1406,6 @@ class SPt extends S {
 
   @override
   String get subitems => 'Itens';
-
-  @override
-  String get storagePermissionRequired =>
-      'Permissão de armazenamento necessária para navegar arquivos locais';
 
   @override
   String get grantPermission => 'Conceder permissão';
@@ -1759,21 +1553,6 @@ class SPt extends S {
   }
 
   @override
-  String get sshConnectionChannel => 'Conexão SSH';
-
-  @override
-  String get sshConnectionChannelDesc =>
-      'Mantém as conexões SSH ativas em segundo plano.';
-
-  @override
-  String get sshActive => 'SSH ativo';
-
-  @override
-  String activeConnectionCount(int count) {
-    return '$count conexão(ões) ativa(s)';
-  }
-
-  @override
   String itemCountWithSize(int count, String size) {
     return '$count itens, $size';
   }
@@ -1827,10 +1606,6 @@ class SPt extends S {
   @override
   String get clearAllKnownHostsConfirm =>
       'Remover todos os hosts conhecidos? Cada chave de servidor precisará ser verificada novamente.';
-
-  @override
-  String get importKnownHostsSubtitle =>
-      'Importar de arquivo OpenSSH known_hosts';
 
   @override
   String get clearedAllHosts => 'Todos os hosts conhecidos foram limpos';
@@ -1921,9 +1696,6 @@ class SPt extends S {
   String get selectFromKeyStore => 'Selecionar do armazenamento de chaves';
 
   @override
-  String get noKeySelected => 'Nenhuma chave selecionada';
-
-  @override
   String keyCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1956,25 +1728,6 @@ class SPt extends S {
   String get rememberPassphrase => 'Lembrar nesta sessão';
 
   @override
-  String get masterPasswordSubtitle => 'Proteger credenciais salvas com senha';
-
-  @override
-  String get setMasterPassword => 'Definir senha mestra';
-
-  @override
-  String get changeMasterPassword => 'Alterar senha mestra';
-
-  @override
-  String get removeMasterPassword => 'Remover senha mestra';
-
-  @override
-  String get masterPasswordEnabled => 'Credenciais protegidas por senha mestra';
-
-  @override
-  String get masterPasswordDisabled =>
-      'Credenciais usam chave autogerada (sem senha)';
-
-  @override
   String get enterMasterPassword =>
       'Digite a senha mestra para acessar suas credenciais salvas.';
 
@@ -1988,27 +1741,7 @@ class SPt extends S {
   String get currentPassword => 'Senha atual';
 
   @override
-  String get masterPasswordSet => 'Senha mestra ativada';
-
-  @override
-  String get masterPasswordChanged => 'Senha mestra alterada';
-
-  @override
-  String get masterPasswordRemoved => 'Senha mestra removida';
-
-  @override
-  String get masterPasswordWarning =>
-      'Se você esquecer esta senha, todas as senhas e chaves SSH salvas serão perdidas. Não há recuperação.';
-
-  @override
   String get forgotPassword => 'Esqueceu a senha?';
-
-  @override
-  String get forgotPasswordWarning =>
-      'Isso excluirá TODAS as senhas, chaves SSH e frases secretas salvas. Sessões e configurações serão mantidas. Esta ação é irreversível.';
-
-  @override
-  String get resetAndDeleteCredentials => 'Redefinir e excluir dados';
 
   @override
   String get credentialsReset => 'Todas as credenciais salvas foram excluídas';
@@ -2057,86 +1790,10 @@ class SPt extends S {
   String get derivingKey => 'Derivando chave de criptografia...';
 
   @override
-  String get reEncrypting => 'Recriptografando dados...';
-
-  @override
-  String get confirmRemoveMasterPassword =>
-      'Digite sua senha atual para remover a proteção de senha mestra. As credenciais serão recriptografadas com uma chave autogerada.';
-
-  @override
   String get securitySetupTitle => 'Configuração de segurança';
 
   @override
-  String securitySetupKeychainFound(String keychainName) {
-    return 'Chaveiro do sistema detectado ($keychainName). Seus dados serão criptografados automaticamente usando o chaveiro do sistema.';
-  }
-
-  @override
-  String get securitySetupKeychainOptional =>
-      'Você também pode definir uma senha mestra para proteção adicional.';
-
-  @override
-  String get securitySetupNoKeychain =>
-      'Nenhum chaveiro do sistema detectado. Sem chaveiro, os dados de sessão (hosts, senhas, chaves) serão armazenados em texto simples.';
-
-  @override
-  String get securitySetupNoKeychainHint =>
-      'Isso é normal no WSL, Linux sem interface gráfica ou instalações mínimas. Para habilitar o chaveiro no Linux: instale libsecret e um daemon de chaveiro (ex. gnome-keyring).';
-
-  @override
-  String get securitySetupRecommendMasterPassword =>
-      'Recomendamos definir uma senha mestra para proteger seus dados.';
-
-  @override
-  String get continueWithKeychain => 'Continuar com keychain';
-
-  @override
-  String get continueWithoutEncryption => 'Continuar sem criptografia';
-
-  @override
-  String get securityLevel => 'Nível de segurança';
-
-  @override
-  String get securityLevelPlaintext => 'Nenhum';
-
-  @override
-  String get securityLevelKeychain => 'Keychain do sistema';
-
-  @override
-  String get securityLevelMasterPassword => 'Senha mestra';
-
-  @override
-  String get keychainStatus => 'Keychain';
-
-  @override
   String get keychainAvailable => 'Disponível';
-
-  @override
-  String get keychainNotAvailable => 'Não disponível';
-
-  @override
-  String get enableKeychain => 'Ativar criptografia com keychain';
-
-  @override
-  String get enableKeychainSubtitle =>
-      'Recriptografar dados armazenados usando keychain do sistema';
-
-  @override
-  String get keychainEnabled => 'Criptografia com keychain ativada';
-
-  @override
-  String get manageMasterPassword => 'Gerenciar senha mestra';
-
-  @override
-  String get manageMasterPasswordSubtitle =>
-      'Definir, alterar ou remover senha mestra';
-
-  @override
-  String get changeSecurityTier => 'Alterar nível de segurança';
-
-  @override
-  String get changeSecurityTierSubtitle =>
-      'Abrir a escala de níveis e mudar para outro nível de segurança';
 
   @override
   String get changeSecurityTierConfirm =>
@@ -2161,22 +1818,6 @@ class SPt extends S {
       'Armazenamento baseado em hardware está disponível neste dispositivo. Atualize em Configurações → Segurança para vincular ao TPM / Secure Enclave.';
 
   @override
-  String get firstLaunchSecurityHardwareUnavailableWindows =>
-      'Armazenamento em hardware indisponível — TPM 2.0 não detectado neste dispositivo.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableApple =>
-      'Armazenamento em hardware indisponível — este dispositivo não reporta um Secure Enclave.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableLinux =>
-      'Armazenamento em hardware indisponível — instale tpm2-tools e um dispositivo TPM 2.0 para ativá-lo.';
-
-  @override
-  String get firstLaunchSecurityHardwareUnavailableAndroid =>
-      'Armazenamento em hardware indisponível — este dispositivo não reporta StrongBox nem TEE.';
-
-  @override
   String get firstLaunchSecurityHardwareUnavailableGeneric =>
       'Armazenamento em hardware indisponível neste dispositivo.';
 
@@ -2184,32 +1825,8 @@ class SPt extends S {
   String get firstLaunchSecurityOpenSettings => 'Abrir configurações';
 
   @override
-  String get firstLaunchSecurityDismiss => 'Entendi';
-
-  @override
-  String get securityHardwareUpgradeTitle =>
-      'Armazenamento em hardware disponível';
-
-  @override
-  String get securityHardwareUpgradeBody =>
-      'Atualize para vincular os segredos ao TPM / Secure Enclave.';
-
-  @override
-  String get securityHardwareUpgradeAction => 'Atualizar';
-
-  @override
-  String get securityHardwareUnavailableTitle =>
-      'Armazenamento em hardware indisponível';
-
-  @override
   String get wizardReducedBanner =>
       'O keychain do sistema não está acessível nesta instalação. Escolha entre sem criptografia (T0) e uma senha mestra (Paranoid). Instale gnome-keyring, kwallet ou outro provedor libsecret para habilitar o nível Keychain.';
-
-  @override
-  String get tierBlockProtectsHeader => 'PROTEGE CONTRA';
-
-  @override
-  String get tierBlockDoesNotProtectHeader => 'NÃO PROTEGE';
 
   @override
   String get tierBlockProtectsEmpty => 'Nada neste nível.';
@@ -2225,29 +1842,6 @@ class SPt extends S {
 
   @override
   String get securitySetupApply => 'Aplicar';
-
-  @override
-  String get passwordDisabledPlaintext =>
-      'O nível sem criptografia não guarda nada que uma senha possa proteger.';
-
-  @override
-  String get passwordDisabledParanoid =>
-      'Paranoid deriva a chave do banco a partir da senha — sempre ativada.';
-
-  @override
-  String get passwordSubtitleOn => 'Ativada — senha exigida ao desbloquear';
-
-  @override
-  String get passwordSubtitleOff =>
-      'Desativada — toque para adicionar senha neste nível';
-
-  @override
-  String get passwordSubtitleParanoid =>
-      'Obrigatória — a senha mestra é o segredo do nível';
-
-  @override
-  String get passwordSubtitlePlaintext =>
-      'Não aplicável — este nível não tem criptografia';
 
   @override
   String get hwProbeLinuxDeviceMissing =>
@@ -2445,9 +2039,6 @@ class SPt extends S {
   }
 
   @override
-  String get runSnippet => 'Executar';
-
-  @override
   String get pinToSession => 'Fixar nesta sessão';
 
   @override
@@ -2458,9 +2049,6 @@ class SPt extends S {
 
   @override
   String get allSnippets => 'Todos';
-
-  @override
-  String get sendToTerminal => 'Enviar ao terminal';
 
   @override
   String get commandCopied => 'Comando copiado';
@@ -2527,36 +2115,6 @@ class SPt extends S {
   String get sessionsOnly => 'Sessões';
 
   @override
-  String get sessionKeysFromManager => 'Chaves de sessão do gerenciador';
-
-  @override
-  String get allKeysFromManager => 'Todas as chaves do gerenciador';
-
-  @override
-  String exportTags(int count) {
-    return 'Etiquetas ($count)';
-  }
-
-  @override
-  String exportSnippets(int count) {
-    return 'Trechos ($count)';
-  }
-
-  @override
-  String get disableKeychain => 'Desativar criptografia com keychain';
-
-  @override
-  String get disableKeychainSubtitle =>
-      'Mudar para armazenamento em texto simples (não recomendado)';
-
-  @override
-  String get disableKeychainConfirm =>
-      'O banco de dados será recriptografado sem chave. Sessões e chaves serão armazenadas em texto simples no disco. Continuar?';
-
-  @override
-  String get keychainDisabled => 'Criptografia com keychain desativada';
-
-  @override
   String get presetFullImport => 'Importação completa';
 
   @override
@@ -2566,7 +2124,7 @@ class SPt extends S {
   String get presetCustom => 'Personalizado';
 
   @override
-  String get sessionSshKeys => 'Chaves SSH da sessão';
+  String get sessionSshKeys => 'Chaves de sessão (gerenciador)';
 
   @override
   String get allManagerKeys => 'Todas as chaves do gerenciador';
@@ -2688,18 +2246,6 @@ class SPt extends S {
   String get legendDoesNotProtect => 'Não protegido';
 
   @override
-  String get legendNotApplicable =>
-      'Não se aplica — este nível não tem segredo do usuário';
-
-  @override
-  String get legendWeakPasswordWarning =>
-      'Senha fraca aceitável — outra camada (limitador de taxa por hardware ou vínculo de chave encapsulada) garante a segurança';
-
-  @override
-  String get legendStrongPasswordRecommended =>
-      'Uma frase-senha longa é altamente recomendada — a segurança deste nível depende dela';
-
-  @override
   String get colT0 => 'T0 Plaintext';
 
   @override
@@ -2722,10 +2268,6 @@ class SPt extends S {
 
   @override
   String get colParanoid => 'Paranoid';
-
-  @override
-  String get securityComparisonTableTitle =>
-      'Níveis de segurança — comparação lado a lado';
 
   @override
   String get securityComparisonTableThreatColumn => 'Ameaça';
@@ -2760,21 +2302,11 @@ class SPt extends S {
   String get resetAllDataFailed => 'Falha ao redefinir';
 
   @override
-  String get compareAllTiersSubtitle =>
-      'Veja lado a lado contra o que cada nível protege.';
-
-  @override
   String get autoLockRequiresPassword =>
       'O bloqueio automático exige uma senha no nível ativo.';
 
   @override
   String get recommendedBadge => 'RECOMENDADO';
-
-  @override
-  String get continueWithRecommended => 'Continuar com o recomendado';
-
-  @override
-  String get customizeSecurity => 'Personalizar segurança';
 
   @override
   String get tierHardwareSubtitleHonest =>
@@ -2787,9 +2319,6 @@ class SPt extends S {
   @override
   String get mitigationsNoteRuntimeThreats =>
       'Ameaças em runtime (malware do mesmo usuário, dump de memória de processo em execução) aparecem como ✗ em todos os níveis. Elas são tratadas por funcionalidades de mitigação separadas, aplicadas independentemente do nível escolhido.';
-
-  @override
-  String get securitySetupContinue => 'Continuar';
 
   @override
   String get currentTierBadge => 'ATUAL';

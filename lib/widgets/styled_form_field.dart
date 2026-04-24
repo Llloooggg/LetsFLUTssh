@@ -115,13 +115,37 @@ class StyledInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // When the field is obscured it is a secret — force the IME
+    // hardening knobs off so keystrokes never land in the OS's
+    // predictive-text dictionary, spellcheck personalised-learning
+    // set, smart-quote substitution history, or autocorrect cache.
+    // Each of those knobs defaults to ON for a stock TextField /
+    // TextFormField and every one of them routes characters
+    // through a service that must not be trusted with an SSH
+    // password, key passphrase, or master password.
+    //
+    // The non-secret path leaves the knobs at their Flutter
+    // defaults — session labels / hostnames / usernames benefit
+    // from normal autocorrect.
     return TextFormField(
       controller: controller,
       obscureText: obscure,
-      keyboardType: keyboardType,
+      keyboardType:
+          keyboardType ?? (obscure ? TextInputType.visiblePassword : null),
       validator: validator,
       autofocus: autofocus,
       onFieldSubmitted: onSubmitted,
+      autocorrect: !obscure,
+      enableSuggestions: !obscure,
+      enableIMEPersonalizedLearning: !obscure,
+      smartDashesType: obscure
+          ? SmartDashesType.disabled
+          : SmartDashesType.enabled,
+      smartQuotesType: obscure
+          ? SmartQuotesType.disabled
+          : SmartQuotesType.enabled,
+      textCapitalization: TextCapitalization.none,
+      autofillHints: obscure ? const [AutofillHints.password] : null,
       style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
       decoration: InputDecoration(
         hintText: hint,

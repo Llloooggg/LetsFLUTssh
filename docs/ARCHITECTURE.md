@@ -100,7 +100,8 @@ The practical upshot: before adding a widget, helper, style constant, or store, 
 
 ```
 lib/
-├── main.dart                         # Entry point
+├── main.dart                         # Entry point — mounts `_LetsFLUTsshAppState` and its `SecurityInitController`
+├── app/                              # App-shell helpers pulled out of main.dart: global error dialog, already-running blocker, toolbar, deep-link wiring, import flow, navigator key, update dialog flow, `SecurityInitController` (migration → unlock → first-launch orchestrator) + `SecurityDialogPrompter` (seam around blocking dialogs — see §14 → Testing the controller), `security_dialogs.dart` (unmounted-fallback wrappers)
 ├── core/                             # Business logic (no Flutter imports)
 │   ├── db/                           # Drift database (SQLite + SQLite3MultipleCiphers)
 │   │   ├── database.dart             # AppDatabase definition + lazy DAO getters
@@ -300,8 +301,8 @@ class KnownHostsManager {
   Future<void> removeHost(String hostPort);
   Future<void> removeMultiple(Set<String> hostPorts);
   Future<void> clearAll();
-  Future<int> importFromFile(String path);  // merge from OpenSSH file, returns added count
-  String exportToString();                  // serialize to OpenSSH format
+  Future<int> importFromFile(String path);  // merge entries, returns added count
+  String exportToString();                  // serialize to LetsFLUTssh wire format
 
   // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
   // Write lock: _withWriteLock() serializes file writes via chained futures.
@@ -309,6 +310,8 @@ class KnownHostsManager {
 ```
 
 **Why global `navigatorKey`:** dartssh2 callback arrives from async context without BuildContext. Global key allows showing a dialog from anywhere.
+
+**Concurrency invariant — `verify` serialised with mutators.** `verify` runs through the same `_serializeWrite` chain as `clearAll` / `removeMultiple` / `importFromString`. Reason: the reader path can call `onUnknownHost` (interactive TOFU prompt) and block on user input, which opens an arbitrarily long window during which a Settings → "Clear Known Hosts" click could interleave. Before the fix, the sequence `verify(host) → await prompt → user accepts → clearAll() fires in parallel → _hosts/DB wiped → verify resumes → _addHost re-inserts the row the user just asked to forget` was reachable, leaving the user staring at a row they thought they deleted. Full serialisation is cheap (TOFU events are sparse, user-driven) and the invariant is trivial to reason about. Regression guard: `test/core/ssh/known_hosts_test.dart` "verify is serialised against clearAll — accepted TOFU survives".
 
 ---
 
@@ -453,7 +456,7 @@ JSON → deflate → base64url. Top-level keys:
 | `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId |
 | `eg` | `List<String>` | Empty folder paths |
 | `c` | `Map` | App config JSON |
-| `kh` | `String` | Known hosts (OpenSSH format) |
+| `kh` | `String` | Known hosts, LetsFLUTssh wire format (`host:port keytype base64key`, one per line — round-trips through `KnownHostsManager.importFromString/exportToString`; NOT OpenSSH `~/.ssh/known_hosts`) |
 | `tg` | `List<{i, n, cl?}>` | Tags (id, name, optional color) |
 | `st` | `List<{si, ti}>` | Session→tag links |
 | `ft` | `List<{fi, ti}>` | Folder→tag links (folderPath, tagId) |
@@ -461,6 +464,10 @@ JSON → deflate → base64url. Top-level keys:
 | `ss` | `List<{si, ni}>` | Session→snippet links |
 
 `ExportOptions` controls which keys are emitted: `includeSessions`, `includePasswords`, `includeEmbeddedKeys`, `includeManagerKeys` (session-bound only), `includeAllManagerKeys` (entire key store), `includeConfig`, `includeKnownHosts`, `includeTags`, `includeSnippets`.
+
+**Decoder size guard.** The QR-side decoder (`_decodePayload` in `core/session/qr_codec.dart`) caps the **inflated** JSON size at `_maxInflatedPayloadBytes` (4 MiB) and throws `QrPayloadTooLargeException` on overflow. The cap defuses a zip-bomb-style payload: deflate's theoretical compression ratio lets a ~4 KB QR expand to 4 MB+ of JSON, and the downstream `jsonDecode` + cast pass would spike heap usage before any schema check could fire. The same cap applies to the v1 legacy-format fallback (raw base64 without deflate). Legitimate full-backup payloads stay far below this ceiling — the QR producer's own 2 KB compressed limit (`qrMaxPayloadBytes`) would never produce that much JSON, and paste-link payloads coming from the same encoder hit a few hundred KB at most.
+
+**Size estimator ↔ emitter parity.** `UnifiedExportController._qrPayloadSize` must feed `calculateExportPayloadSize` the **same** inputs the real `encodeExportPayload` call at `settings_sections_data._generateQrExport` will pass: when `includeTags` / `includeSnippets` are on, the `tags` / `snippets` lists themselves must be passed, not just the flags. A previous implementation set the flags but passed empty lists (the ExportPayloadInput defaults); the encoder skips the `tg` / `sn` sections on empty input, so the reported "payload size" under-counted and `fitsInQr` falsely claimed the export would fit when the real emitter then pushed past the 2 KB ceiling. Session↔tag / folder↔tag / session↔snippet link tables are NOT required for parity — the dialog data carrier does not hold them (they're collected lazily via DAO calls after the dialog closes) and their compressed contribution is small relative to the tag / snippet bodies themselves.
 
 #### Session model
 
@@ -614,6 +621,8 @@ class ConnectionManager {
   // Rapid reconnects increment the counter, making in-flight results stale.
 }
 ```
+
+**onDisconnect identity guard.** The per-transport `onDisconnect` callback fires when the underlying `SSHConnection` observes a socket close — including the "stale cleanup" path where a superseded generation calls `disconnect()` on its own transport. Because all generations of a single reconnect cycle share one `Connection` object, a naive callback that unconditionally writes `conn.sshConnection = null` + `conn.state = disconnected` can clobber a *newer* generation's already-live transport once the late OS close of the stale one fires. The callback therefore starts with an identity guard (`if (conn.sshConnection != sshConn) return;`) so only the currently-active transport can flip the shared Connection into disconnected state. The guard is load-bearing together with the generation counter: the counter stops stale *success* paths from writing `conn.sshConnection`, the guard stops stale *disconnect* paths from wiping it. Removing either opens the same UI symptom ("connection flashes disconnected after reconnect while actually live").
 
 #### ForegroundServiceManager (Android only)
 
@@ -794,9 +803,13 @@ flowchart LR
 
 The algorithm id + params block is defined in [`KdfParams`](../lib/core/security/kdf_params.dart) — new algorithms can be added without changing the file-layout header. Production defaults are [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart) (Argon2id m=46 MiB t=2 p=1, chosen as the OWASP 2024 recommended floor that balances mid-tier mobile wall-clock against GPU/ASIC resistance).
 
+**Sanity ceilings on decode.** `KdfParams.decode` validates each Argon2id field against an upper bound (1 GiB memory, 16 iterations, 8 lanes) before constructing the record — decode of a crafted `credentials.kdf` with absurd costs (4 GiB of RAM, a million iterations) throws `FormatException` rather than spinning up the derivation isolate and wedging unlock on an OOM. The ceilings give ~20× headroom over today's production profile, well past any plausible future tuning, while ruling out denial-of-service by file tamper.
+
 #### In-memory DB key (page-locked)
 
 The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, static-linked libc, missing `mlock` symbol) are logged once and swallowed — the buffer still works, just isn't pinned. The resolution result (real bindings or an unavailable-sentinel) is cached at the class level, so every subsequent allocation skips the dlopen cost and the noisy "Memory lock unavailable" log fires at most once per process. The libc handle itself is resolved through the shared [`openLibc()`](../lib/core/security/libc_loader.dart) helper, which tries `libc.so.6` (glibc, versioned) and falls back to `libc.so` (Android bionic, musl, ChromeOS/WSL edge cases) — without the fallback, Android builds would log the lock as unavailable on every allocation and the bionic `mlock` would never be called despite being a valid symbol. The same pattern is used for the Argon2id-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
+
+**Finalizer safety-net (deterministic dispose still required).** Every `SecretBuffer` attaches a `NativeFinalizer(calloc.nativeFree)` on construction so that a dropped reference without an explicit `dispose()` still releases the native page on the next GC. The finalizer does NOT zero the bytes or `munlock` the page (it cannot run Dart code), so between the last reference drop and GC the plaintext still sits in a pinned page — forgot-to-dispose is a leak-then-GC, not a cleanup. `dispose()` detaches the finalizer *before* calling `calloc.free` to rule out a double-free on the next GC pass. The `Finalizable` marker that the class also implements is orthogonal: it tells the Dart compiler to keep `this` alive across FFI calls that take the raw pointer, so the GC cannot relocate / collect the buffer while a native routine is mid-read. Both mechanisms work together — `Finalizable` for call-time liveness, `NativeFinalizer` for leaked-object cleanup — but neither replaces explicit `dispose`.
 
 #### Unlock-path single KDF
 
@@ -833,6 +846,8 @@ State layout:
 
 `setPassword` rotates both salt and pepper atomically; a stale pepper without a fresh disk write (or vice versa) fails `verify` — the split storage is the tamper surface. `verify` uses constant-time compare. A persistent rate limiter (see below) is keyed by the stored HMAC, so any offline attempt to reset the limiter to zero-failures requires forging a HMAC whose key the attacker already has the pieces of.
 
+**Write order + atomicity.** `setPassword` writes the disk hash through [`writeBytesAtomic`](../lib/utils/file_utils.dart) **before** touching the keychain, and rolls back the disk hash if the keychain write fails. Two invariants hang off that ordering. First, a torn disk write would leave `security_pass_hash.bin` with truncated JSON; on the next launch `verify()` throws inside `jsonDecode`, `isConfigured()` reports false (the `containsKey(pepper)` still returns true, but the torn disk blob routes the unlock path to the plaintext-tier fallback), and the user silently lands on T0 when they thought they were on T2. Second, keychain-first ordering would allow a crash between the two writes to leave the keychain holding the NEW pepper while disk still held the OLD `{salt, HMAC}` — the correct password would stop verifying (HMAC keyed under NEW pepper while disk HMAC was built under OLD pepper), locking the user out until a full reset. Disk-first + atomic-rename keeps the recoverable state either "both old" (crash before keychain write) or "both new" (crash after keychain write); the rollback branch on keychain failure returns to "neither" and routes the next launch through the first-launch wizard cleanly. Regression guards: `test/core/security/keychain_password_gate_test.dart` "setPassword writes atomically" + "setPassword writes disk hash before keychain pepper".
+
 #### L3 hardware vault (`HardwareTierVault`)
 
 L3 seals the DB key inside a hardware module under an auth value derived as `HMAC-SHA256(pin, salt)`. The hardware module enforces rate-limiting and lockout after N failed attempts — that is what makes a 4–6 digit PIN cryptographically meaningful; dictionary attack against such a short secret is infeasible only because the hardware refuses retries.
@@ -841,7 +856,7 @@ Per-platform dispatch:
 
 | Platform | Binding | File | PIN channel |
 |---|---|---|---|
-| **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p hex:<digest>` as the unseal auth value — TPM lockout is the rate limiter |
+| **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p file:<path>` as the unseal auth value — TPM lockout is the rate limiter |
 | **iOS / macOS** | P-256 in Secure Enclave (`kSecAttrTokenIDSecureEnclave`) with `.biometryCurrentSet` via [`HardwareVaultPlugin.swift`](../ios/Runner/HardwareVaultPlugin.swift) / [`macos/Runner/HardwareVaultPlugin.swift`](../macos/Runner/HardwareVaultPlugin.swift) | `hardware_vault_apple.bin` (native side) + `hardware_vault_salt.bin` (Dart side) | PIN HMAC is an external gate — SE accepts only biometrics for release |
 | **Android** | AES-256-GCM in Keystore with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` + StrongBox preferred, via [`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) | `hardware_vault_android.bin` + salt file | PIN HMAC is an external gate — Keystore requires `BiometricPrompt.CryptoObject` for release |
 | **Windows** | CNG / `NCrypt` on the Microsoft Platform Crypto Provider (TPM 2.0) via [`hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp). Falls back to Microsoft Software KSP when no TPM. Primary wrap is silent (no Hello); biometric overlay is a second NCrypt key with `NCRYPT_UI_PROTECT_KEY` that Hello gates | `hardware_vault_windows.bin` + overlay file + salt file | PIN HMAC is an external gate — wrong PIN fails without waking the TPM |
@@ -851,6 +866,20 @@ The PIN is the user-facing secret on every platform, but the binding path diverg
 Native plugin code is shipped but has not been validated on real hardware — the plan's "manual device-testing pass" acceptance is still outstanding. CI compiles each plugin on its own runner (macos-latest / windows-latest / ubuntu-latest + Android SDK) but cannot exercise biometric / Hello / StrongBox prompts. iOS is not in the release matrix; the project file carries the entries so `flutter build ios` works when invoked on a developer's Mac.
 
 Per-install salt is generated on `store()` and written alongside the sealed blob in `hardware_vault.bin`. Two devices with the same PIN never end up with the same sealed blob.
+
+**Atomic writes.** Both `hardware_vault.bin` (Linux sealed blob + salt JSON) and `hardware_vault_salt.bin` (method-channel platforms, salt only) are written through [`writeBytesAtomic`](../lib/utils/file_utils.dart) — tmp-file + `hardenFilePerms` + rename. A crash mid-flush therefore leaves either the previous record or the new record on disk, never a torn file. Matters on the Linux path because the sealed blob + salt live in the same file (a torn JSON unseals into nothing); matters on method-channel platforms because the salt is half of the unseal contract (the other half being the wrapped key the native plugin holds), and a half-written salt bricks the vault permanently.
+
+**Native-side atomicity — every platform.** The invariant extends into the native plugins that own the wrapped-key half of the vault:
+
+| Platform | File | Mechanism |
+|---|---|---|
+| **iOS / macOS** | `hardware_vault_apple.bin`, `hardware_vault_password_overlay_apple.bin` | `Data.write(to:options:[.atomic, .completeFileProtection])` — Swift's own tmp-file + rename. |
+| **Android** | `hardware_vault_android.bin`, `hardware_vault_password_overlay_android.bin` | Custom `atomicWrite` helper in `HardwareVaultPlugin.kt`: write tmp sibling, `setReadable(false, false) + (true, true)` for 0600, `File.renameTo` atomic inode swap on ext4 / f2fs. |
+| **Windows** | `hardware_vault_windows.bin`, `hardware_vault_password_overlay_windows.bin` | `WriteAll` in `hardware_vault_plugin.cpp`: `std::ofstream` into `<target>.tmp`, `ReplaceFileW` with `REPLACEFILE_WRITE_THROUGH` when the target already exists, `MoveFileExW(MOVEFILE_REPLACE_EXISTING \| MOVEFILE_WRITE_THROUGH)` fallback. |
+
+A torn blob on any platform otherwise yields `readVault` → null → `isStored` → true-but-garbage → next unseal returns nothing → Dart side silently drops biometric / hardware unlock without a "vault corrupted" hint. The invariant matches the Dart-side hardware-vault atomic write and the biometric-vault atomic write already enforced by `writeBytesAtomic`.
+
+**Windows private-key export policy.** Keys created by `HardwareVaultPlugin.OpenOrCreateKey` (both primary data-wrap and biometric overlay) pin `NCRYPT_EXPORT_POLICY_PROPERTY = 0` (`NCRYPT_ALLOW_EXPORT_NONE`) via `NCryptSetProperty` before `NCryptFinalizeKey`. On the Platform Crypto Provider (TPM 2.0) path keys are non-exportable by design; the Microsoft Software KSP fallback, which the provider ladder selects when no TPM is reachable, defaults to `NCRYPT_ALLOW_EXPORT_FLAG | NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG` — any local-user process could otherwise call `NCryptExportKey` to lift the DB-wrap RSA private key in plaintext, defeating the separation between the ciphertext file and the wrapping key. Setting the policy to 0 covers both providers uniformly and has to happen *before* `Finalize` because CNG rejects policy changes on finalized keys. Mirror of Android's `setInvalidatedByBiometricEnrollment` invariant: both pin the private key to the hardware-backed storage so the blob on disk is only useful in combination with the live CNG / Keystore handle.
 
 #### Rate limiters — per-tier matrix
 
@@ -881,7 +910,11 @@ Optional on **T1+password and T2+password only**. Paranoid is intentionally excl
 
 **Linux — `fprintd` D-Bus binding.** On Linux `BiometricAuth.availability()` delegates to [`FprintdClient`](../lib/core/security/linux/fprintd_client.dart), a thin wrapper over the `net.reactivated.Fprint` system bus. The ladder is strict: if the daemon is not registered (`GetDefaultDevice` fails or the bus name is unknown) → `systemServiceMissing`; if the default device reports an empty `ListEnrolledFingers("")` → `notEnrolled`; otherwise biometrics are ready. `authenticate()` on Linux issues a `Claim` → subscribes to `VerifyStatus` → calls `VerifyStart("any")` → awaits the terminal signal with a 30 s timeout, and always `Release`s the device in `finally` so a failed verify does not leave the reader stuck. The `dbus` pub.dev package is used over a native Kotlin/Rust plugin per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install) — an fprintd call is once-per-unlock IPC through the same system-bus socket either way; a native wrapper would offer no measurable performance or functionality win.
 
-**Linux — TPM2 seal layer (`tpm2-tools`).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which shells out to `tpm2 createprimary` + `tpm2 create -p hex:<digest>`; the resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`tpm2 createprimary` + `tpm2 load` + `tpm2 unseal -p hex:<digest>`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. TPM2 policy via shell-out was chosen over FFI to `libtss2-esys` per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install): the seal/unseal flow runs once per unlock, ESAPI is a thick C API, and `tpm2-tools` already ships a battle-tested wrapper the user installs via README. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
+**Atomic writes — biometric vault.** `BiometricKeyVault._linuxSeal` writes the TPM-sealed `biometric_vault.tpm` through [`writeBytesAtomic`](../lib/utils/file_utils.dart) — matching the same invariant the L3 hardware vault already enforces (`hardware_vault.bin`, `hardware_vault_salt.bin`). A torn write would leave `isStored()` returning true against a truncated blob; next launch the unseal returns garbage, and `_tryBiometricUnlock` silently falls back to the password dialog with no "vault broken" hint, forcing the user to type the PIN on every launch even though they enabled biometric specifically to avoid that. Regression guard: `test/core/security/biometric_key_vault_test.dart` "linuxSeal writes atomically — no .tmp sibling survives".
+
+**TPM auth value never crosses argv.** On every `tpm2 create -p …` / `tpm2 unseal -p …` call, [`TpmClient`](../lib/core/security/linux/tpm_client.dart) writes the HMAC auth value to a sibling `auth.bin` inside the per-call temp directory and passes `-p file:<path>` to the CLI. The earlier `-p hex:<hex>` form embedded the exact bytes an attacker needs to unseal the blob in the process command line; `/proc/<pid>/cmdline` is readable cross-UID on distros that default to `hidepid=0`, so the leak bypassed the Dart-side cooldown entirely (TPM lockout still applied, but the Dart backoff did not). The temp file lives under `workDir` which `_wipeDir` zero-overwrites and unlinks on every exit path, so the auth file is self-cleaning. Per `docs/AGENT_RULES.md` § Self-Contained Binary the tpm2-tools dependency is a rung-3 opt-in, but the threat-model invariant applies regardless of whether the install is bundled.
+
+**Linux — TPM2 seal layer (`tpm2-tools`).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which shells out to `tpm2 createprimary` + `tpm2 create -p file:<path>`; the resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`tpm2 createprimary` + `tpm2 load` + `tpm2 unseal -p file:<path>`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. TPM2 policy via shell-out was chosen over FFI to `libtss2-esys` per [§ Native Over Dart](AGENT_RULES.md#native-over-dart-when-better-and-zero-install): the seal/unseal flow runs once per unlock, ESAPI is a thick C API, and `tpm2-tools` already ships a battle-tested wrapper the user installs via README. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
 
 `BiometricAuth.backingLevel()` reports how the active biometric vault is protecting the cached DB key — `hardware` on iOS/macOS (Secure Enclave via `biometryCurrentSet`), `software` on Android/Windows/Linux until the respective hardware-binding path lands (dedicated Keystore + `BiometricPrompt.CryptoObject` on Android; CNG Platform Crypto Provider on Windows; TPM2 seal bound to the fprintd enrolment hash on Linux). The Settings biometric toggle concatenates the localised backing-level label into its subtitle when the toggle is on, so the user can tell hardware binding apart from software fallback without opening the source.
 
@@ -998,7 +1031,11 @@ Why the cache survives the lock while the DB key does not: the cache plaintext i
 
 Neither class is wired yet — `AppLogger` still writes to the file sink. The wiring commit will (a) add an `app_logs` table + schema bump in drift, (b) swap `AppLogger._sink` for a `LogBatchQueue` once `_injectDatabase` is called, (c) rewrite the Settings → Logging live-log viewer to stream via the DAO, and (d) drop the file target except during bootstrap. Landing the queue + buffer now keeps the scaffolding commit small and the schema-bump commit focused on migration mechanics.
 
-**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 500 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
+**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 5000 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
+
+**Cap sizing.** Original cap was 500 entries, adequate for a buffer whose only consumer was per-session telemetry. The intended follow-on consumer is an encrypted log sink, which can burst past 500 entries/second on verbose SSH handshakes or stack traces; at 500 the FIFO eviction would silently eat most log lines under a flood, which is exactly the audit-trail outcome the sink exists to preserve. 5000 × ~100 bytes per captured closure ≈ 500 KB headroom — small next to the xterm ring buffers + SFTP queues that already live in the auto-lock RAM budget.
+
+**Drain invariant: pull-then-clear, not snapshot-then-clear.** `drain(db)` copies the pending list into a local variable *and* empties `_queue` **before** opening the drift transaction. Any `append` that fires at an `await` boundary inside a queued op (single-isolate Dart still interleaves microtasks between each `await op(db)`) therefore lands in the now-empty `_queue` and is picked up by the follow-on drain. An earlier version snapshotted the queue and called `_queue.clear()` *after* the commit, which silently dropped every mid-drain append. The snapshot-then-clear shape also mis-handled the cap-eviction path: a flood filling the queue past `_maxEntries` during the drain would have `clear()`-wiped the post-eviction survivors. On transaction failure the pulled batch is prepended back onto the queue so FIFO order is preserved for the retry.
 
 #### Process hardening
 
@@ -1057,6 +1094,8 @@ Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security
 *Why two layers:* the opt-out flags are a compliance hint to well-behaved consumers. They do not stop a malicious process on the same user session from reading the clipboard — that is what the 30-second wipe addresses. Together they cover the typical attacker shapes: clipboard history / cloud sync (Layer 1) and live paste-sniffers (Layer 2).
 
 *Fallback:* if the native channel returns `MissingPluginException` (test harness, platform not yet wired), `SecureClipboard` falls through to Flutter's stock `Clipboard.setData` rather than refusing to copy. The wipe timer still runs, so the payload never sits on the clipboard longer than the window.
+
+*Terminal-copy integration.* [`TerminalClipboard.copy`](../lib/utils/terminal_clipboard.dart) runs the sensitivity heuristic on the selected text and routes through `SecureClipboard` when the selection matches (PEM private-key markers or a ≥ 200-char base64-alphabet run); non-sensitive selections take the stock `Clipboard.setData` path so routine copies (filenames, command fragments) still benefit from Win+V / Handoff. Without this branch, a terminal user running `cat ~/.ssh/id_ed25519` or `vault kv get secret/api-token` would land the secret in Windows clipboard-history / iCloud-synced pasteboard / Android 13+ preview toast — the 30-second auto-wipe protects the live slot but cannot retract what the sync layers already ingested. Regression guard: `test/utils/terminal_clipboard_test.dart` "sensitive payload goes through SecureClipboard".
 
 #### Password entry widget
 
@@ -1612,7 +1651,7 @@ payload = ZIP archive:
   empty_folders.json      ← list of empty folder paths
   keys.json               ← manager SSH keys (label, type, public/private key)
   config.json             ← app configuration
-  known_hosts             ← TOFU host key database (OpenSSH format)
+  known_hosts             ← TOFU host key database (LetsFLUTssh wire format, not real OpenSSH)
   tags.json               ← tag definitions (id, name, color)
   session_tags.json       ← session→tag assignments
   folder_tags.json        ← folder→tag assignments
@@ -1652,6 +1691,20 @@ Import caps bound Argon2id params from an untrusted header
 20`, `maxImportArgon2idParallelism = 16`) so a hostile archive cannot
 pin the isolate into swap. Unencrypted ZIP archives keep their
 `PK\x03\x04` magic and are handled separately.
+
+On iOS and Android the effective ceiling drops to 512 MiB
+(`mobileImportArgon2idMemoryKiB`) — the Android OOM killer on a 2 GB
+baseline device will terminate the process well before the 1 GiB
+ceiling is reached, and legitimate exports never need more than the
+production default (46 MiB) anyway. An earlier revision tried to
+derive the cap at runtime from `ProcessInfo.maxRss * 4`, but `maxRss`
+is the current process peak, not total physical RAM — cold-start
+under-estimated (tiny peak → spurious "malformed header" rejections
+of valid archives) and long-running warm sessions over-estimated. A
+flat floor matches the real DoS threat; probing true total RAM would
+require a new per-platform method channel purely for this check,
+which is disproportionate to the bug. `debugMemoryProbeOverride`
+stays as the test injection point.
 
 Unencrypted variant: export dialog accepts an empty master password after
 a confirmation step. ExportImport.export() then writes the raw ZIP
@@ -1747,10 +1800,17 @@ Supporting classes in the same directory:
   rotation playbook.
 - **`CertPinning`** (`cert_pinning.dart`) — installs a
   `badCertificateCallback` on the update-download HTTP client that
-  checks the leaf cert's SPKI against a per-host pin set. Pin map is
-  empty by default (falls back to system CA); populating it flips the
-  updater into strict-pinning mode. Defence against DNS / CA
-  compromise of `api.github.com` / `objects.githubusercontent.com`.
+  hashes the presented cert's `SubjectPublicKeyInfo` subtree (ASN.1-
+  parsed out of `cert.der` via `asn1lib`) and compares against a
+  per-host pin set. Pin map is empty by default (falls back to system
+  CA); populating it flips the updater into strict-pinning mode.
+  Defence against DNS / CA compromise of `api.github.com` /
+  `objects.githubusercontent.com`. SPKI (not full-cert) pinning is
+  load-bearing: a routine leaf rotation that re-signs the same
+  keypair — the normal renewal path — keeps the SPKI bytes unchanged,
+  so the pin survives without a release. Only a genuine key rotation
+  (rare, explicit) forces a new pin, which is the behaviour the
+  backup-pin mechanism is designed for.
 - **`InvalidReleaseSignatureException`** — thrown from
   `UpdateService.downloadAsset` when the signature check fails. Distinct
   from network errors so the UI can surface a "security-coloured" toast
@@ -1803,6 +1863,10 @@ String formatShortcut(SingleActivator a);
   StandardMenuAction](#standardmenuaction--shared-action-catalogue))
 
 **Note:** `matches()` only checks ctrl/shift modifiers (not alt/meta) to tolerate phantom modifier flags on some platforms (e.g. WSLg).
+
+**Collision invariant — `buildCallbackMap` fails loud on duplicate activators.** Several `AppShortcut` values intentionally share a `SingleActivator`: `sessionCopy` / `fileCopy` both bind `Ctrl+C`, `sessionPaste` / `filePaste` both bind `Ctrl+V`, `sessionDelete` / `fileDelete` both bind `Delete`, `sessionEdit` / `fileRename` both bind `F2`. The context-sensitive dispatch is enforced by *where* each `CallbackShortcuts` is mounted — `SessionPanel` ships the session variants, `FilePane` / terminal subtree ship their own. The enum has no "scope" dimension because Flutter's `CallbackShortcuts` takes a raw `Map<ShortcutActivator, VoidCallback>` with no scope key.
+
+If a caller ever collides two of these shortcuts into one `buildCallbackMap` (unified command palette, shell-level shortcut handler, test harness that wraps both, future refactor), the output used to silently coalesce to the last-written entry — one of the two shortcuts becoming a no-op with no error message at compile or runtime. `buildCallbackMap` now throws `StateError('Duplicate shortcut activator …')` on collision so the regression trips at build time, before any keyboard input reaches the broken state. Regression guard: `test/core/shortcut_registry_test.dart` "buildCallbackMap throws on duplicate activator".
 
 ---
 
@@ -2279,7 +2343,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `mobile_terminal_view.dart` | `MobileTerminalView` | Full-screen terminal + keyboard bar + copy-mode overlay |
 | `terminal_copy_overlay.dart` | `TerminalCopyOverlay` | Trackpad-style virtual cursor + live selection + Copy/Cancel toolbar |
 | `mobile_file_browser.dart` | `MobileFileBrowser` | Single-pane SFTP (toggle local/remote) |
-| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Copy. Main row is horizontally scrollable (`ListView`); Paste + Copy + Fn buttons are fixed at right edge |
+| `ssh_keyboard_bar.dart` | `SshKeyboardBar` | Quick access panel: Ctrl, Alt, arrows, Fn, Paste, Copy. Main row is horizontally scrollable (`ListView`); Paste + Copy + Fn buttons are fixed at right edge. `applyModifiers` cascades Ctrl then Alt — Alt wraps the Ctrl result rather than replacing it, so Alt+Ctrl+X produces the standard `ESC + Ctrl-X` two-byte sequence emacs / readline reads as `C-M-x`. An earlier implementation wrote both transforms to the same `result` slot while reading the original `data`, silently collapsing the combo to bare Ctrl+X |
 | `ssh_key_sequences.dart` | — | Escape sequences for keys |
 
 **Gesture routing.** `MobileTerminalView` wraps the terminal area in a bare [`Listener`](https://api.flutter.dev/flutter/widgets/Listener-class.html) and tracks every active pointer in a `Map<int, Offset>`. One-finger events are *not* consumed by the Listener — they continue to xterm's internal gesture recognizers for scrolling + tap-to-focus; copy-mode routes single-finger drags through `_copyOverlayKey` to pan the virtual cursor instead. Multi-touch is intentionally unused: an earlier revision implemented pinch-to-zoom by tracking two-pointer distance and driving `_fontSize` live, but every pinch frame propagated through `TerminalView` into `Terminal.buffer.resize` (cell width changes ↔ columns change), which reflowed the scrollback dozens of times per gesture and produced visible garbage. Font size is now driven **only** by the Settings slider — one commit per release, one reflow, manageable. The stock `ScaleGestureRecognizer` is still not used: it treats a single-pointer drag as a 1× scale and wins the gesture arena, which would silently kill xterm's own recognizers sharing the same subtree even though we no longer care about pinch.
@@ -3936,13 +4000,21 @@ Already-installed builds keep verifying via the (now-active) backup
 pin. Full playbook in [`SECURITY.md`](SECURITY.md).
 
 **SPKI pinning (optional, off by default):** `CertPinning` adds a
-`badCertificateCallback` on the update HTTP client that checks the
-presented leaf cert's SPKI against a per-host pin set. Pin map is
-empty until the maintainer captures the current GitHub SPKI hashes
-via the `openssl s_client | x509 -pubkey | sha256 | base64` pipeline
-documented in the class. Shipping empty pins keeps behaviour at
-system-CA validation (same as before); populated pins strengthen the
-transport layer on top of the release signature.
+`badCertificateCallback` on the update HTTP client that parses the
+presented X.509 certificate's ASN.1, extracts the
+`SubjectPublicKeyInfo` subtree (via `asn1lib`), SHA-256's the DER
+bytes of that subtree, and compares against a per-host pin set. Pin
+map is empty until the maintainer captures the current GitHub SPKI
+hashes via the `openssl s_client | x509 -pubkey | sha256 | base64`
+pipeline documented in the class. Shipping empty pins keeps behaviour
+at system-CA validation (same as before); populated pins strengthen
+the transport layer on top of the release signature. Hashing the SPKI
+(not the full cert DER) means the pin survives routine leaf rotations
+that re-sign the same keypair — only a genuine key rotation breaks
+the pin, which is the behaviour the backup-pin mechanism is designed
+to handle. Regression guard: `test/core/update/cert_pinning_test.dart`
+"extractSpki returns identical bytes for two certs sharing a keypair"
+and "extractSpki returns different bytes for different keypairs".
 
 ### .lfs export
 
@@ -4029,12 +4101,49 @@ Usage: `sanitizeErrorMessage(message)` before logging any error that may contain
 
 ```dart
 void log(String message, {String? name, Object? error, StackTrace? stackTrace});
+Future<void> logCritical(String message, {String? name, Object? error, StackTrace? stackTrace});
 ```
 
-- File logging is **disabled by default** — user enables via Settings → Enable Logging
-- Auto-rotation at 5 MB, keeps 3 rotated files
-- **Never** log sensitive data — use `sanitizeErrorMessage()` for error messages
-- `stackTrace` parameter writes full stack trace to log file for debugging
+- File logging is **disabled by default** — user enables via Settings → Enable Logging. The default-off stance is load-bearing: it protects users who never touch Settings from carrying a forensic trail around.
+- Auto-rotation at 5 MB, keeps 3 rotated files, file chmod-0600 on POSIX.
+- **Every message is auto-sanitized** before it leaves the process — both the `dart:developer` forward and the disk append run through `AppLogger.sanitize` which chains `redactSecrets` → `sanitizeErrorMessage` (the table [above](#sensitive-data-sanitization-utilssanitizedart)). Callers do not pre-sanitize by hand; `'Connect failed: $e'` is fine, the sanitizer picks the user@host / IP / PEM out of `$e`'s string form.
+- `logCritical` is the crash-path variant — writes straight to disk even when `enabled` is false so the three global error boundaries in `main.dart` (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded`), the `MigrationRunner` fatal branch and `verifyDatabaseReadable` always leave a forensic breadcrumb. Routine lines stay on the opt-out gate.
+- `stackTrace` parameter writes full stack trace to the log file for debugging; the trace also passes through `sanitize` so paths and IPs in frames are redacted.
+
+##### Logging conventions (when to log, what to write)
+
+The default-off sink means **there is no "log spam" cost** — only users who opted in pay the write, and they opted in because they want the detail. The rule is **err on more not fewer**, not the other way around.
+
+*Required log points — add a line at every one:*
+
+- Entry / exit of any operation that touches disk, the DB, the network, a subprocess, or a native plugin (success or failure).
+- Every branch of a user-consequential `try/catch`, including the "caught and continued" path. A silent fallback with no log line is invisible in a support trace.
+- Every decision on ambiguous input: archive kind detected, migration applied, TOFU branch chosen, tier transition fired, fallback path taken.
+- Every guard a past bugfix added — if the guard fires in the future, the log line is what points the investigator at the original bug.
+
+*Tag naming — module-scoped, not file-scoped.* `'KnownHosts'`, `'FilePane'`, `'KdfParams'`, `'MigrationRunner'`, `'Session'`, `'SecureClipboard'`. Grep existing `name: '...'` usage before inventing a new tag so one module stays under one tag.
+
+*Free-form user-chosen strings are the sanitizer's blind spot.* Session labels, key labels, tag names, snippet titles, folder names have no regex shape — a sanitizer pattern strict enough to catch them would false-positive everywhere. For those, log the marker `<label>` or `<name>` instead of the value, e.g.:
+
+```dart
+// session_connect.dart — keyId IS safe (opaque UUID), label is NOT.
+AppLogger.instance.log(
+  'Resolved keyId ${session.keyId} → <label>',
+  name: 'Session',
+);
+```
+
+*Never compose a message that embeds a raw secret.* The sanitizer catches PEM blocks and long base64 runs, but a short passphrase / master password falls through. Keep the secret in the code path, not the string:
+
+```dart
+// OK — the sanitizer redacts user@host and host:port from dartssh2 error.
+AppLogger.instance.log('SSH auth failed: $e', name: 'Connect', error: e);
+
+// NOT OK — `$typedPassword` falls through every sanitizer rule.
+AppLogger.instance.log('Login failed with $typedPassword', name: 'Connect');
+```
+
+*Never call `print` or `dart:developer` log directly.* `print` survives into release builds and bypasses both the sanitizer and the file sink; `dev.log` bypasses the sanitizer. Both leak the raw message into whatever host is capturing stdout (`adb logcat`, Xcode Console, `flutter run` terminal, CI runner logs).
 
 #### Local Error Handling
 
@@ -4068,6 +4177,9 @@ This provides:
 | `FileBrowserTab` | `sftpInitFactory` | Mock SFTP initialization |
 | `MobileFileBrowser` | `sftpInitFactory` | Mock SFTP initialization (mobile) |
 | `ForegroundServiceManager` | `create()` factory | Platform-specific impl |
+| `SecurityInitController` | `dbOpener`, `dbFileExists`, `verifyReadable`, `dialogPrompter`, `migrationRunner` | Bootstrap / unlock / first-launch / corruption / migration paths driven end-to-end in tests without touching real SQLite cipher or blocking on user-driven dialogs — see [Testing the controller](#testing-the-controller) below |
+
+All seams are optional ctor params defaulting to the production function (`openDatabase`, `databaseFileExists`, `verifyDatabaseReadable`, `ProductionSecurityDialogPrompter()`, `MigrationRunner(buildAppMigrationRegistry()).runOnStartup`). Prod call sites construct `SecurityInitController` without passing any of them — no behavioural drift from pre-seam code.
 
 ### Platform overrides
 
@@ -4082,6 +4194,13 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 |------|----------|
 | `test_notifiers.dart` | `TestConfigNotifier`, `PrePopulatedConfigNotifier`, `PrePopulatedSessionNotifier`, `PrePopulatedWorkspaceNotifier`, `PrePopulatedUpdateNotifier`, `FixedVersionNotifier` |
 | `fake_session_store.dart` | `FakeSessionStore` (in-memory), `ThrowingSessionStore` |
+| `fake_security.dart` | `FakeMasterPasswordManager`, `FakeSecureKeyStorage` (`writeKeySucceeds` flag), `FakeHardwareTierVault` (`storeSucceeds` flag), `FakeKeychainPasswordGate`, `FakeBiometricAuth` (`skipFirstNAvailableCalls` counter), `FakeBiometricKeyVault` (`isStoredThrows` + `throwAfterNCalls`), `FakeAutoLockStore` — all subclasses with no-op async defaults; flags let tests drive write-failure / throw / availability-change branches without swapping fakes mid-test |
+| `fake_dialog_prompter.dart` | `FakeSecurityDialogPrompter` — scripted answers for `showFirstLaunchWizard`, `showDbCorrupt`, `showTierReset`, `showMasterPasswordUnlock`, `showTierSecretUnlock`; `tierSecretSimulatedInput` delegates to the real `verify` closure so the DB-inject side effect fires; `fireOnReset` + `fireBiometricUnlock` trigger the dialog's reset / biometric callbacks for coverage |
+| `fake_path_provider.dart` | `installFakePathProvider()` + `uninstallFakePathProvider(tmp)` — redirects the `path_provider` channel to a per-test tmp dir; returns the `Directory` so tests can pre-seed / inspect state files |
+| `fake_secure_storage.dart` | `installFakeSecureStorage()` — in-memory backing for `flutter_secure_storage`; returns the map so tests can pre-seed entries |
+| `fake_native_plugins.dart` | `installFakeNativePlugins({config})` / `uninstallFakeNativePlugins()` — one-call mock for every app MethodChannel (hardware_vault, clipboard_secure, session_lock, backup_exclusion, permissions, secure_screen, qrscanner) + file_picker; returns a `NativeCallLog` so tests assert on the exact invocation shape |
+| `test_providers.dart` | `makeTestProviderContainer({...})` and `securityProviderOverrides({...})` — shared baseline of Riverpod overrides (session / master-password / keychain / hardware-vault / keychain-gate / biometric-auth / biometric-vault / auto-lock stores). Widget tests that need their own `ProviderScope` spread the override list; unit tests call the factory |
+| `test_stores.dart` | `makeTestStores()` → `TestStores` bundle of real drift-backed stores wired to an in-memory `openTestDatabase()`; for round-trip tests that need real persistence |
 
 ### Test file mapping
 
@@ -4090,6 +4209,23 @@ Rule: **one test file per source file** (`lib/core/ssh/ssh_client.dart` → `tes
 ### Mock generation
 
 Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
+
+### Testing the controller
+
+`SecurityInitController` orchestrates migrations → security init → DB open → readability probe across every tier (plaintext / keychain / keychain+password / hardware / paranoid). Unit tests drive the full chain under `tester.runAsync` through the five DI seams above:
+
+- `dbOpener` — swap `openDatabase` for `openTestDatabase`, so no MC-linked SQLite is required in `flutter test` (host sqlite has no cipher extension).
+- `dbFileExists` — script "existing install" vs "first launch" without touching the fake tmp dir.
+- `verifyReadable` — flip integrity-probe results per call, letting tests drive corruption → retry → wipe paths deterministically.
+- `dialogPrompter` — return canned `SecuritySetupResult` / `DbCorruptChoice` / `TierResetChoice` / tier-secret keys without rendering real dialogs, which would block on user interaction.
+- `migrationRunner` — throw, return a `MigrationReport` with fatal errors, or return one with `migratedCount > 0` — covers every branch of `_runMigrations` + `_handleMigrationFailure`.
+
+Two paths remain out of reach at this layer and are deferred to higher-level harnesses:
+
+- `exit(0)` branches inside `DbCorruptChoice.exitApp` / `TierResetChoice.exitApp` — would terminate the test isolate. A spawned-process integration test could cover them.
+- macOS self-sign (`_offerMacosSelfSign`) — gated on `Platform.isMacOS`. Runs on a macOS CI lane only.
+
+`tester.runAsync` is required around `bootstrap()` / `reinitFromReset()` / `reopenAfterUnlock()` — `configProvider.update` awaits a 300 ms debounce `Timer` that FakeAsync (the default under `testWidgets`) never advances.
 
 ### Fuzz testing
 
@@ -4312,6 +4448,7 @@ flowchart TD
 | `pointycastle` | AES-256-GCM (`.lfs` archive encryption) + Argon2id (KEK derivation) |
 | `pinenacl` | Ed25519 verify for release-signature check |
 | `crypto` | SHA-256 over DER for SPKI pinning |
+| `asn1lib` | X.509 ASN.1 parse for SPKI extraction in `CertPinning.extractSpki` — promoted from transitive to direct dep; was already pulled in via `pointycastle`, made explicit so the import is load-bearing rather than relying on a sibling's graph |
 | `path_provider` | App data directories |
 | `archive` | ZIP for .lfs export/import |
 | `desktop_drop` | OS drag & drop |
