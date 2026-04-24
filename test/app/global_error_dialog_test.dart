@@ -78,7 +78,7 @@ void main() {
   testWidgets('hides the Enable Logging button when logging is already on', (
     tester,
   ) async {
-    AppLogger.instance.setThreshold(LogLevel.debug);
+    AppLogger.instance.setThreshold(LogLevel.info);
     final ctx = await pumpAndCapture(tester);
     showGlobalErrorDialog(ctx, Exception('x'));
     await tester.pumpAndSettle();
@@ -118,7 +118,7 @@ void main() {
   testWidgets('OK tap dismisses without touching the logging flag', (
     tester,
   ) async {
-    AppLogger.instance.setThreshold(LogLevel.debug);
+    AppLogger.instance.setThreshold(LogLevel.info);
     final ctx = await pumpAndCapture(tester);
     showGlobalErrorDialog(ctx, Exception('x'));
     await tester.pumpAndSettle();

@@ -1140,7 +1140,7 @@ class SecureKeyStorage {
 
 OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsecret (Linux), EncryptedSharedPreferences (Android). All are **optional** — the app works without them.
 
-**Linux gating:** libsecret emits a non-recoverable `g_warning` to stderr on any call that tries to unlock a locked keyring, and Dart cannot intercept the warning. To keep the console quiet for users who never opt into keychain storage, `SecureKeyStorage` tracks opt-in with a marker file (`keychain_enabled`) inside the app-support dir: `writeKey` creates it on success, `deleteKey` clears it, and `readKey` / the `isAvailable` probe refuse to touch libsecret on Linux until the marker is present. First `writeKey` after opt-in still talks to libsecret so any real failure surfaces through the normal error path.
+**Linux gating:** libsecret emits a non-recoverable `g_warning` to stderr on any call that tries to unlock a locked keyring, and Dart cannot intercept the warning. To keep the console quiet for users who never opt into keychain storage, a shared [`LinuxKeychainMarker`](../lib/core/security/linux_keychain_marker.dart) tracks opt-in with a marker file (`keychain_enabled`) inside the app-support dir. `SecureKeyStorage.writeKey` creates it on success, `deleteKey` clears it, and `readKey` / the `isAvailable` probe refuse to touch libsecret on Linux until the marker is present. `BiometricKeyVault` uses the same marker for its libsecret fallback path so a fresh install on a no-keyring host (WSL, headless container, minimal desktop) never probes libsecret until the user has successfully written at least one secret through either class. The marker is instance-based (injectable `pathFactory`) so tests can point it at a temp dir without binding the `path_provider` channel; `LinuxKeychainMarker.defaultInstance` is the production singleton both callers default to. First write on opt-in still talks to libsecret so any real failure surfaces through the normal error path.
 
 #### KeyStore
 
@@ -1563,7 +1563,7 @@ class AppConfig {
 
   final int transferWorkers;      // 1+ (default 2)
   final int maxHistory;           // ≥0 (default 500)
-  final LogLevel? logLevel;       // null = off; debug/info/warn/error = threshold
+  final LogLevel? logLevel;       // null = off; info/warn/error = threshold
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
   final String? locale;             // null = OS auto-detect, or any of 15 supported locale codes
@@ -3211,7 +3211,7 @@ Master-password unlock dialog used at startup before any DB read. Returns true o
 ### AppLogger
 
 ```dart
-enum LogLevel { debug, info, warn, error }
+enum LogLevel { info, warn, error }
 
 class AppLogger {
   static AppLogger get instance;
@@ -3241,7 +3241,7 @@ class AppLogger {
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 `dispose()` sets `_threshold = null` so no writes occur after disposal.
 
-Line format: `HH:MM:SS X [Tag] message` where X is `D` / `I` / `W` / `E`. Continuation lines for error / stack traces are indented two spaces so the viewer can fold them under the parent row without reparsing the tag. Header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) are written verbatim on sink open and render as a dim divider in the viewer.
+Line format: `HH:MM:SS X [Tag] message` where X is `I` / `W` / `E`. Continuation lines for error / stack traces are indented two spaces so the viewer can fold them under the parent row without reparsing the tag. Header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) are written verbatim on sink open and render as a dim divider in the viewer.
 
 **Routine logs are opt-in — off by default.** `init()` resolves the log path but does not open the routine sink; that happens the first time `setThreshold(...)` is called with a non-null `LogLevel`, wired up via `ConfigProvider.load` reading `config.behavior.logLevel`. Entries already on disk stay until the user hits "Clear" in the Settings → Logging section. All writes pass through [sanitize](#sanitize) and the file is chmod-0600 on POSIX (same hardening as `credentials.*` and `config.json`).
 
@@ -3251,7 +3251,7 @@ Line format: `HH:MM:SS X [Tag] message` where X is `D` / `I` / `W` / `E`. Contin
 
 **Rule:** `AppLogger.instance.log(message, name: 'Tag')` for routine events; `AppLogger.instance.logCritical(...)` only for crash / fatal / integrity-probe-failure paths. Never `print()` / `debugPrint()` / `dart:developer.log()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
 
-**Severity levels + threshold.** The `level` parameter drives the Settings → Logging viewer's per-row tint + filter chips, and also gates whether the line lands on disk at all — a `log(..., level: LogLevel.debug)` call writes only when the user picked `Debug` as their threshold, an `info` line writes at `Info` or `Debug`, and so on. Auto-promote + explicit-pick rules live in [AGENT_RULES § Logging](AGENT_RULES.md#logging--applogger-auto-sanitized-err-on-more-not-less). `logCritical` is always `E` and bypasses the threshold.
+**Severity levels + threshold.** The `level` parameter drives the Settings → Logging viewer's per-row tint + filter chips, and also gates whether the line lands on disk at all — a `log(..., level: LogLevel.warn)` call writes only when the user picked `Warn` (or `Info`) as their threshold, an `error` line writes at any non-null threshold, and so on. Auto-promote + explicit-pick rules live in [AGENT_RULES § Logging](AGENT_RULES.md#logging--applogger-auto-sanitized-err-on-more-not-less). `logCritical` is always `E` and bypasses the threshold.
 
 ### Sanitize
 
@@ -3744,7 +3744,7 @@ AppConfig {
   }
   transferWorkers: int    // 1+, default 2
   maxHistory: int         // ≥0, default 500
-  logLevel: LogLevel?     // null = off (default); debug / info / warn / error = threshold
+  logLevel: LogLevel?     // null = off (default); info / warn / error = threshold
   checkUpdatesOnStart: bool
   skippedVersion: String?
   locale: String?           // null = OS auto-detect, or supported locale code

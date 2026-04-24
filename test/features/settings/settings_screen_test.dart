@@ -1672,7 +1672,7 @@ void main() {
   group('SettingsScreen — Logging section', () {
     setUp(() async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setThreshold(LogLevel.debug);
+      await AppLogger.instance.setThreshold(LogLevel.info);
     });
 
     tearDown(() async {
@@ -1970,7 +1970,7 @@ void main() {
             await logFile.delete();
           }
         }
-        await AppLogger.instance.setThreshold(LogLevel.debug);
+        await AppLogger.instance.setThreshold(LogLevel.info);
       });
 
       final config = AppConfig.defaults.copyWith(

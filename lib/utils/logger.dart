@@ -8,13 +8,12 @@ import 'sanitize.dart';
 /// timestamp so the live viewer can tint each row without reparsing the
 /// message text. Matches the Logcat / journald convention.
 ///
-/// * [debug] — deep trace the user only wants when they are actively
-///   chasing a bug. Per-packet SSH flow, per-frame render state,
-///   memory-pool churn, cache-hit counters, raw state dumps. Users opt
-///   in by picking "Debug" in Settings → Logging level; default is
-///   off and even "Info" threshold skips D writes. Filter chip in the
-///   viewer starts off so info/warn/error rows stay readable even
-///   after the user enabled debug writes.
+/// Three levels only — [info], [warn], [error]. No "verbose" / "debug"
+/// rung: every call site that wants a trace writes `info`, degraded
+/// paths use `warn`, failures use `error`. Adding a fourth level is
+/// easy when a real need appears; keeping the taxonomy compact stops
+/// dropdown bloat and "what counts as debug?" call-site bikeshedding.
+///
 /// * [info] — routine operational state transition. "Session loaded",
 ///   "tier switched to L2", "DB open". The default level for every
 ///   `log(...)` call that does not pass `error:` or an explicit
@@ -29,10 +28,9 @@ import 'sanitize.dart';
 ///   unrecoverable connection drop. `logCritical` forces this level
 ///   and bypasses the threshold so crash forensics are always on
 ///   disk. Red tint + left border.
-enum LogLevel { debug, info, warn, error }
+enum LogLevel { info, warn, error }
 
 String _levelChar(LogLevel l) => switch (l) {
-  LogLevel.debug => 'D',
   LogLevel.info => 'I',
   LogLevel.warn => 'W',
   LogLevel.error => 'E',
@@ -42,14 +40,12 @@ String _levelChar(LogLevel l) => switch (l) {
 /// stays stable if the enum order ever changes. `null` = logging off.
 String? logLevelToJson(LogLevel? level) => switch (level) {
   null => null,
-  LogLevel.debug => 'debug',
   LogLevel.info => 'info',
   LogLevel.warn => 'warn',
   LogLevel.error => 'error',
 };
 
 LogLevel? logLevelFromJson(String? raw) => switch (raw) {
-  'debug' => LogLevel.debug,
   'info' => LogLevel.info,
   'warn' => LogLevel.warn,
   'error' => LogLevel.error,
@@ -59,11 +55,12 @@ LogLevel? logLevelFromJson(String? raw) => switch (raw) {
 /// Compile-time override for the logging threshold, set via
 /// `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` at build time.
 ///
-/// When non-empty + a recognised level, `main.dart` applies it right
-/// after `AppLogger.init()` — before `ConfigProvider.load` gets a
-/// chance to read `config.json`. This lets `make run` (debug build)
-/// ship with verbose logs without each developer / beta-tester having
-/// to toggle the Settings dropdown on every fresh install.
+/// When non-empty + a recognised level (`info`/`warn`/`error`),
+/// `main.dart` applies it right after `AppLogger.init()` — before
+/// `ConfigProvider.load` gets a chance to read `config.json`. This
+/// lets `make run` (debug build) ship with logging already on without
+/// each developer / beta-tester having to toggle the Settings
+/// dropdown on every fresh install.
 ///
 /// Production builds leave the flag empty → the getter returns null
 /// → the configProvider load path runs unchanged, so release users
@@ -83,7 +80,7 @@ LogLevel? get buildTimeLogLevelOverride {
 /// **Threshold-based opt-in.** The user picks a minimum severity in
 /// Settings → Logging. `null` = off (default); any `LogLevel` value
 /// opens the file sink and admits lines at or above that level. So
-/// picking `warn` writes W + E, picking `debug` writes everything.
+/// picking `warn` writes W + E, picking `info` writes everything.
 /// Privacy-first: no routine logs leave the user's device until they
 /// explicitly opt in, and they choose how verbose.
 ///

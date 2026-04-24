@@ -64,10 +64,9 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
               AppButton.secondary(
                 label: 'Enable Logging',
                 onTap: () {
-                  // "Enable Logging" defaults to info — the user hit a
-                  // crash and wants detail, not flooded with debug.
-                  // They can raise to debug in Settings if the repro
-                  // needs more.
+                  // "Enable Logging" defaults to info — the most
+                  // verbose level we have, which writes every routine
+                  // entry + warnings + errors.
                   // ignore: unawaited_futures
                   AppLogger.instance.setThreshold(LogLevel.info);
                   AppLogger.instance.log(

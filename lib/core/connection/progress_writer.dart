@@ -60,7 +60,7 @@ class ProgressWriter {
   /// arrive before the terminal widget has performed its first layout
   /// pass. The exception bubbles up as an unhandled async error in
   /// AppLogger / ErrorBoundary even though the visible UI recovers
-  /// fine on the next frame. Swallow it here and log at debug level
+  /// fine on the next frame. Swallow it here and log via `AppLogger`
   /// so the user's log file stays readable.
   void writeStep(ConnectionStep step) {
     final label = _phaseLabel(step.phase);
