@@ -7,14 +7,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
 import 'package:letsflutssh/core/security/linux/tpm_client.dart';
+import 'package:letsflutssh/core/security/linux_keychain_marker.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Map<String, String> fakeStore;
+  late Directory markerDir;
+  late LinuxKeychainMarker marker;
 
   setUp(() {
     fakeStore = {};
+    markerDir = Directory.systemTemp.createTempSync('bio_vault_marker_');
+    // Marker is instance-based so tests avoid binding the path_provider
+    // channel and keep each case isolated (every setUp gets a fresh temp
+    // dir, so no marker bleeds between tests).
+    marker = LinuxKeychainMarker(
+      pathFactory: () async => p.join(markerDir.path, 'keychain_enabled'),
+    );
     // FlutterSecureStorage talks to the host via a MethodChannel — replace
     // it with an in-memory fake so the test doesn't need a keychain.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -51,11 +62,12 @@ void main() {
           const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
           null,
         );
+    if (markerDir.existsSync()) markerDir.deleteSync(recursive: true);
   });
 
   group('BiometricKeyVault', () {
     test('store → read round-trips the key bytes', () async {
-      final vault = BiometricKeyVault();
+      final vault = BiometricKeyVault(marker: marker);
       final key = Uint8List.fromList(List<int>.generate(32, (i) => i));
 
       expect(await vault.store(key), isTrue);
@@ -65,7 +77,7 @@ void main() {
     });
 
     test('encodes key as base64 for transport', () async {
-      final vault = BiometricKeyVault();
+      final vault = BiometricKeyVault(marker: marker);
       final key = Uint8List.fromList([1, 2, 3, 4, 5]);
       await vault.store(key);
       // Verify the stored blob is base64 — we don't want plaintext bytes
@@ -75,7 +87,7 @@ void main() {
     });
 
     test('clear wipes the stored key', () async {
-      final vault = BiometricKeyVault();
+      final vault = BiometricKeyVault(marker: marker);
       await vault.store(Uint8List.fromList([1, 2, 3]));
       await vault.clear();
       expect(await vault.isStored(), isFalse);
@@ -83,7 +95,7 @@ void main() {
     });
 
     test('read returns null when nothing stored', () async {
-      final vault = BiometricKeyVault();
+      final vault = BiometricKeyVault(marker: marker);
       expect(await vault.read(), isNull);
       expect(await vault.isStored(), isFalse);
     });
@@ -134,6 +146,7 @@ void main() {
     }) => BiometricKeyVault(
       tpmClient: tpm,
       fprintdClient: fprintd,
+      marker: marker,
       linuxSealFileFactory: () async =>
           File('${tempDir.path}/biometric_vault.tpm'),
     );

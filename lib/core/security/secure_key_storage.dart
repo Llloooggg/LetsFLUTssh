@@ -1,13 +1,11 @@
 import 'dart:convert';
-import 'dart:io' show File, Platform, Process, ProcessException;
+import 'dart:io' show Platform, Process, ProcessException;
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import 'linux_keychain_marker.dart';
 
 /// Thin wrapper around OS keychain for storing the AES-256 encryption key.
 ///
@@ -20,16 +18,16 @@ import '../../utils/logger.dart';
 /// Linux-specific: libsecret emits a non-recoverable g_warning to stderr the
 /// moment it cannot talk to a running/unlocked keyring daemon. That makes a
 /// cold `read` on a system where the keyring was never touched spam stderr
-/// on every launch. We sidestep it with a local marker file (see
-/// [_markerPath]): on Linux the storage APIs refuse to talk to libsecret
-/// unless the marker says the user has previously opted into keychain
-/// storage. The marker is written on a successful [writeKey] and cleared by
-/// [deleteKey]. Other platforms keep the original behaviour.
+/// on every launch. We sidestep it with a shared [LinuxKeychainMarker]: on
+/// Linux the storage APIs refuse to talk to libsecret unless the marker
+/// says the user has previously opted into keychain storage. The marker is
+/// written on a successful [writeKey] and cleared by [deleteKey]; a parallel
+/// write from [BiometricKeyVault] flips the same flag. Other platforms keep
+/// the original behaviour.
 class SecureKeyStorage {
   static const _keyName = 'letsflutssh_encryption_key';
   static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
   static const _probeName = 'letsflutssh_keychain_probe';
-  static const _markerFile = 'keychain_enabled';
 
   /// Production flag flipped by [main.dart] at app startup. Widget
   /// tests running under `FakeAsync` do not set this, so the Linux-
@@ -49,68 +47,23 @@ class SecureKeyStorage {
 
   final FlutterSecureStorage _storage;
   final bool _skipPlatformCheck;
+  final LinuxKeychainMarker _marker;
 
   /// When [storage] is provided (tests), platform pre-checks are skipped.
-  SecureKeyStorage({FlutterSecureStorage? storage})
+  /// [marker] overrides the shared [LinuxKeychainMarker.defaultInstance] so
+  /// tests that run on a Linux host without a real app-support dir can point
+  /// the gate at a temp path.
+  SecureKeyStorage({FlutterSecureStorage? storage, LinuxKeychainMarker? marker})
     : _storage = storage ?? const FlutterSecureStorage(),
-      _skipPlatformCheck = storage != null;
-
-  String? _cachedMarkerPath;
-
-  Future<String> _markerPath() async {
-    final cached = _cachedMarkerPath;
-    if (cached != null) return cached;
-    final dir = await getApplicationSupportDirectory();
-    final path = p.join(dir.path, _markerFile);
-    _cachedMarkerPath = path;
-    return path;
-  }
-
-  Future<bool> _markerExists() async {
-    try {
-      return File(await _markerPath()).exists();
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _writeMarker() async {
-    try {
-      final file = File(await _markerPath());
-      await file.parent.create(recursive: true);
-      await file.writeAsString('1');
-      // Marker itself holds nothing sensitive (`'1'`) but lives next
-      // to `credentials.kdf` and every other secret file in the app
-      // support dir. Keeping it at 0600 is a consistency win — the
-      // whole directory shouldn't have one file with a weaker mode
-      // than the rest.
-      await hardenFilePerms(file.path);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to write keychain marker: $e',
-        name: 'SecureKeyStorage',
-      );
-    }
-  }
-
-  Future<void> _clearMarker() async {
-    try {
-      final file = File(await _markerPath());
-      if (await file.exists()) await file.delete();
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to clear keychain marker: $e',
-        name: 'SecureKeyStorage',
-      );
-    }
-  }
+      _skipPlatformCheck = storage != null,
+      _marker = marker ?? LinuxKeychainMarker.defaultInstance;
 
   /// Gate that prevents libsecret calls on Linux until the user has at least
   /// once successfully written to the keychain. On non-Linux platforms (and
   /// in tests with an injected storage) this always lets the call through.
   Future<bool> _linuxGatePass() async {
     if (_skipPlatformCheck || !Platform.isLinux) return true;
-    return _markerExists();
+    return _marker.exists();
   }
 
   /// Probe whether OS keychain is available at runtime.
@@ -272,7 +225,7 @@ class SecureKeyStorage {
     if (!_hasKeychainSupport()) return false;
     try {
       await _storage.write(key: _keyName, value: base64Encode(key));
-      if (Platform.isLinux && !_skipPlatformCheck) await _writeMarker();
+      if (Platform.isLinux && !_skipPlatformCheck) await _marker.set();
       return true;
     } catch (e) {
       AppLogger.instance.log(
@@ -320,7 +273,7 @@ class SecureKeyStorage {
           accessControlFlags: [AccessControlFlag.biometryCurrentSet],
         ),
       );
-      if (Platform.isLinux && !_skipPlatformCheck) await _writeMarker();
+      if (Platform.isLinux && !_skipPlatformCheck) await _marker.set();
       return true;
     } catch (e) {
       AppLogger.instance.log(
@@ -394,7 +347,7 @@ class SecureKeyStorage {
         name: 'SecureKeyStorage',
       );
     }
-    if (Platform.isLinux && !_skipPlatformCheck) await _clearMarker();
+    if (Platform.isLinux && !_skipPlatformCheck) await _marker.clear();
   }
 }
 
