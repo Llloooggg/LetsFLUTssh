@@ -44,6 +44,7 @@ import '../widgets/tier_reset_dialog.dart';
 import '../widgets/tier_secret_unlock_dialog.dart';
 import '../widgets/toast.dart';
 import 'navigator_key.dart';
+import 'security_dialog_prompter.dart';
 import 'security_dialogs.dart';
 
 /// Owns the startup / security / tier / DB lifecycle that
@@ -94,15 +95,17 @@ class SecurityInitController {
   final bool Function() isMounted;
 
   /// Test seams — production leaves every field at the default so the
-  /// byte-for-byte unlock path stays identical. The three hooks
-  /// mirror `database_opener.dart`'s top-level functions; tests swap
-  /// in an in-memory `openTestDatabase`, a canned "file exists" flag,
-  /// and a deterministic readability probe. Same indirection-through-
-  /// field pattern already used by `SecurityTierSwitcher._rekey` and
+  /// byte-for-byte unlock path stays identical. The four hooks mirror
+  /// `database_opener.dart`'s top-level functions plus the security-
+  /// dialog factories; tests swap in an in-memory `openTestDatabase`,
+  /// a canned "file exists" flag, a deterministic readability probe,
+  /// and a scripted dialog prompter. Same indirection-through-field
+  /// pattern already used by `SecurityTierSwitcher._rekey` and
   /// `HardwareTierVault._stateFile` — no new vocabulary.
   final DbOpener _dbOpener;
   final DbFileExistsProbe _dbFileExists;
   final DbReadableProbe _verifyReadable;
+  final SecurityDialogPrompter _dialogs;
 
   SecurityInitController({
     required this.ref,
@@ -110,9 +113,11 @@ class SecurityInitController {
     DbOpener? dbOpener,
     DbFileExistsProbe? dbFileExists,
     DbReadableProbe? verifyReadable,
+    SecurityDialogPrompter? dialogPrompter,
   }) : _dbOpener = dbOpener ?? openDatabase,
        _dbFileExists = dbFileExists ?? databaseFileExists,
-       _verifyReadable = verifyReadable ?? verifyDatabaseReadable;
+       _verifyReadable = verifyReadable ?? verifyDatabaseReadable,
+       _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter();
 
   // ── State fields ────────────────────────────────────────────
 
@@ -293,7 +298,7 @@ class SecurityInitController {
       'Database readability probe failed — offering reset dialog',
       name: 'App',
     );
-    final choice = await showDbCorruptDialog();
+    final choice = await _dialogs.showDbCorrupt();
     switch (choice) {
       case DbCorruptChoice.exitApp:
         AppLogger.instance.log(
@@ -362,7 +367,7 @@ class SecurityInitController {
   }
 
   Future<void> _handleMigrationFailure() async {
-    final choice = await showDbCorruptDialog();
+    final choice = await _dialogs.showDbCorrupt();
     switch (choice) {
       case DbCorruptChoice.exitApp:
       case DbCorruptChoice.tryOtherTier:
@@ -435,7 +440,7 @@ class SecurityInitController {
         currentSecurity == null && await wiper.hasAnyState();
     if (!legacyConfig && !orphanArtefacts) return false;
     if (!isMounted()) return true;
-    final choice = await showTierResetDialog();
+    final choice = await _dialogs.showTierReset();
     if (choice == TierResetChoice.exitApp) {
       AppLogger.instance.log(
         'Legacy state detected (configVersion=$configVersion, '
@@ -506,7 +511,7 @@ class SecurityInitController {
 
   Future<void> _unlockParanoid(MasterPasswordManager manager) async {
     if (!isMounted()) return;
-    final derivedKey = await showUnlockDialog(manager);
+    final derivedKey = await _dialogs.showMasterPasswordUnlock(manager);
     if (derivedKey != null) {
       await _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
       AppLogger.instance.log('Master password unlocked', name: 'App');
@@ -810,7 +815,7 @@ class SecurityInitController {
 
     final fallbackCtx = navigatorKey.currentContext;
     if (fallbackCtx == null || !fallbackCtx.mounted) return;
-    final result = await SecuritySetupDialog.show(
+    final result = await _dialogs.showFirstLaunchWizard(
       fallbackCtx,
       keyStorage: keyStorage,
     );

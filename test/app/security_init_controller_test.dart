@@ -8,10 +8,13 @@ import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/app/security_init_controller.dart';
 import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/core/db/database_opener.dart';
+import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
+import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
+import '../helpers/fake_dialog_prompter.dart';
 import '../helpers/fake_native_plugins.dart';
 import '../helpers/fake_path_provider.dart';
 import '../helpers/fake_secure_storage.dart';
@@ -1124,5 +1127,275 @@ void main() {
         ctrl!.dispose();
       },
     );
+  });
+
+  group('SecurityInitController — first-launch wizard via DialogPrompter', () {
+    // With the DialogPrompter seam, the wizard's return value becomes
+    // scriptable — each case drives a different `_applyFirstLaunchWizard
+    // Result` branch end-to-end without the widget tree ever having to
+    // paint the real `SecuritySetupDialog`. The keychain is faked
+    // unavailable so `_firstLaunchSetup` skips the auto-setup branch
+    // and falls through to the prompter path.
+    //
+    // The global `navigatorKey` is bound to the MaterialApp so the
+    // helper's null-context guard passes; without it `_firstLaunchSetup`
+    // returns before ever reading caps or calling the prompter.
+
+    late Directory tmpDir;
+    late AppDatabase testDb;
+    setUp(() {
+      tmpDir = installFakePathProvider();
+      installFakeSecureStorage();
+      installFakeNativePlugins();
+      testDb = openTestDatabase();
+    });
+
+    tearDown(() async {
+      await testDb.close();
+      uninstallFakeNativePlugins();
+      uninstallFakeSecureStorage();
+      uninstallFakePathProvider(tmpDir);
+    });
+
+    Future<void> pumpWizardTest(
+      WidgetTester tester, {
+      required SecuritySetupResult wizardResult,
+      required void Function(SecurityInitController ctrl, Uint8List? key) check,
+      FakeMasterPasswordManager? masterPassword,
+      FakeHardwareTierVault? hardwareVault,
+      FakeKeychainPasswordGate? keychainGate,
+      FakeSecureKeyStorage? secureKeyStorage,
+    }) async {
+      final prompter = FakeSecurityDialogPrompter(wizardResult: wizardResult);
+      SecurityInitController? ctrl;
+      Uint8List? capturedKey;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(
+            // Keychain probe must report unavailable so
+            // `_firstLaunchSetup` skips auto-setup and goes through
+            // the wizard branch where the prompter fires.
+            secureKeyStorage:
+                secureKeyStorage ??
+                FakeSecureKeyStorage(
+                  available: false,
+                  probeResult: KeyringProbeResult.probeFailed,
+                ),
+            masterPassword: masterPassword,
+            hardwareVault: hardwareVault,
+            keychainGate: keychainGate,
+          ),
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            home: Consumer(
+              builder: (ctx, ref, _) {
+                ctrl = SecurityInitController(
+                  ref: ref,
+                  isMounted: () => true,
+                  dbOpener: ({encryptionKey}) {
+                    capturedKey = encryptionKey == null
+                        ? null
+                        : Uint8List.fromList(encryptionKey);
+                    return testDb;
+                  },
+                  dbFileExists: () async => false,
+                  verifyReadable: (db) async => true,
+                  dialogPrompter: prompter,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.runAsync(() => ctrl!.bootstrap());
+
+      // Prompter fired exactly once — any refactor that bypassed the
+      // wizard (e.g. silently picking plaintext on a first-launch
+      // that should have prompted) or double-fired it would surface
+      // here.
+      expect(prompter.wizardCalls, 1);
+      check(ctrl!, capturedKey);
+      ctrl!.dispose();
+    }
+
+    testWidgets(
+      'wizard picks plaintext — `_firstLaunchPlaintext` opens no-key DB',
+      (tester) async {
+        await pumpWizardTest(
+          tester,
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+          check: (ctrl, key) {
+            expect(key, isNull);
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
+    testWidgets('wizard picks keychain — fresh AES key written + injected', (
+      tester,
+    ) async {
+      // The keychain first-launch branch needs the injected key-
+      // storage to accept writes. FakeSecureKeyStorage.writeKey
+      // always returns true and caches the key.
+      final storage = FakeSecureKeyStorage(
+        available: false,
+        probeResult: KeyringProbeResult.probeFailed,
+      );
+      await pumpWizardTest(
+        tester,
+        secureKeyStorage: storage,
+        wizardResult: const SecuritySetupResult(
+          tier: SecurityTier.keychain,
+          keychainAvailable: true,
+        ),
+        check: (ctrl, key) {
+          expect(key, isNotNull);
+          expect(key!.length, 32);
+          // Key ended up in the fake keystore — a regression that
+          // dropped the writeKey call would leave it null here.
+          expect(storage.storedKey, equals(key));
+          expect(ctrl.isReady, isTrue);
+        },
+      );
+    });
+
+    testWidgets(
+      'wizard picks keychain with keychainAvailable=false falls to plaintext',
+      (tester) async {
+        await pumpWizardTest(
+          tester,
+          wizardResult: const SecuritySetupResult(
+            tier: SecurityTier.keychain,
+            keychainAvailable: false,
+          ),
+          check: (ctrl, key) {
+            // `_firstLaunchKeychain` bails when the wizard itself
+            // reports the keychain unavailable — a DI invariant: the
+            // wizard should never return a tier its own capability
+            // probe said is off, but the controller guards against
+            // that mismatch by falling to plaintext.
+            expect(key, isNull);
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
+    testWidgets('wizard picks keychainWithPassword — gate set + key stored', (
+      tester,
+    ) async {
+      final storage = FakeSecureKeyStorage(
+        available: false,
+        probeResult: KeyringProbeResult.probeFailed,
+      );
+      final gate = FakeKeychainPasswordGate();
+      await pumpWizardTest(
+        tester,
+        secureKeyStorage: storage,
+        keychainGate: gate,
+        wizardResult: const SecuritySetupResult(
+          tier: SecurityTier.keychainWithPassword,
+          shortPassword: 'hunter2',
+        ),
+        check: (ctrl, key) {
+          expect(key, isNotNull);
+          expect(key!.length, 32);
+          // Gate configured with the wizard's password — the L2
+          // unlock dialog verifies against this value on next
+          // launch.
+          expect(gate.configured, isTrue);
+          expect(gate.expectedPassword, 'hunter2');
+          expect(ctrl.isReady, isTrue);
+        },
+      );
+    });
+
+    testWidgets(
+      'wizard picks keychainWithPassword empty password falls to plaintext',
+      (tester) async {
+        final gate = FakeKeychainPasswordGate();
+        await pumpWizardTest(
+          tester,
+          keychainGate: gate,
+          wizardResult: const SecuritySetupResult(
+            tier: SecurityTier.keychainWithPassword,
+            shortPassword: '',
+          ),
+          check: (ctrl, key) {
+            expect(key, isNull);
+            expect(gate.configured, isFalse);
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
+    testWidgets(
+      'wizard picks hardware — vault stores key + opener receives it',
+      (tester) async {
+        final vault = FakeHardwareTierVault(available: true);
+        await pumpWizardTest(
+          tester,
+          hardwareVault: vault,
+          wizardResult: const SecuritySetupResult(
+            tier: SecurityTier.hardware,
+            pin: '1234',
+          ),
+          check: (ctrl, key) {
+            expect(key, isNotNull);
+            expect(key!.length, 32);
+            // Vault now reports stored with the same 32-byte key.
+            expect(vault.stored, isTrue);
+            expect(vault.dbKey, equals(key));
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
+    testWidgets(
+      'wizard picks paranoid — master password manager enables + key derived',
+      (tester) async {
+        final derivedKey = Uint8List.fromList(List.filled(32, 0xF3));
+        final manager = FakeMasterPasswordManager(derivedKey: derivedKey);
+        await pumpWizardTest(
+          tester,
+          masterPassword: manager,
+          wizardResult: const SecuritySetupResult(
+            tier: SecurityTier.paranoid,
+            masterPassword: 'correct horse battery staple',
+          ),
+          check: (ctrl, key) {
+            expect(key, equals(derivedKey));
+            // Enable flipped the manager state so the next launch
+            // takes the Paranoid unlock path.
+            expect(manager.enabled, isTrue);
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
+    testWidgets('wizard picks paranoid without a password falls to plaintext', (
+      tester,
+    ) async {
+      final manager = FakeMasterPasswordManager();
+      await pumpWizardTest(
+        tester,
+        masterPassword: manager,
+        wizardResult: const SecuritySetupResult(tier: SecurityTier.paranoid),
+        check: (ctrl, key) {
+          expect(key, isNull);
+          // Manager still disabled — the wizard returned a paranoid
+          // pick with a null password, which the controller treats
+          // as "user cancelled mid-wizard".
+          expect(manager.enabled, isFalse);
+          expect(ctrl.isReady, isTrue);
+        },
+      );
+    });
   });
 }
