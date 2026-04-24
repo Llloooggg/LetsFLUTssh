@@ -705,6 +705,7 @@
     }
   },
   "errReleaseSignatureInvalid": "Update rejected: the downloaded files are not signed by the pinned release key. This can mean the download was tampered with in transit, or the current release genuinely is not for this installation. Do NOT install — reinstall manually from the official Releases page instead.",
+  "errReleaseManifestUnavailable": "Could not reach the release manifest. Likely a network issue, or the release is still being published. Try again in a few minutes.",
   "updateSecurityWarningTitle": "Update verification failed",
   "updateReinstallAction": "Open Releases page",
   "errLfsNotArchive": "Selected file is not a LetsFLUTssh archive.",

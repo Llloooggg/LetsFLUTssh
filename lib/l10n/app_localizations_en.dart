@@ -1256,6 +1256,10 @@ class SEn extends S {
       'Update rejected: the downloaded files are not signed by the pinned release key. This can mean the download was tampered with in transit, or the current release genuinely is not for this installation. Do NOT install — reinstall manually from the official Releases page instead.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Could not reach the release manifest. Likely a network issue, or the release is still being published. Try again in a few minutes.';
+
+  @override
   String get updateSecurityWarningTitle => 'Update verification failed';
 
   @override

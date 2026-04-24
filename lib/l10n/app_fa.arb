@@ -388,6 +388,7 @@
   "autoLockOff": "خاموش",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} دقیقه} other{{minutes} دقیقه}}",
   "errReleaseSignatureInvalid": "به‌روزرسانی رد شد: فایل‌های دانلود‌شده با کلید انتشار تثبیت‌شده در برنامه امضا نشده‌اند. این ممکن است به معنای دستکاری دانلود در مسیر باشد، یا انتشار فعلی برای این نصب نیست. نصب نکنید — به صورت دستی از صفحه انتشارهای رسمی دوباره نصب کنید.",
+  "errReleaseManifestUnavailable": "دسترسی به manifest انتشار ممکن نشد. احتمالاً مشکل شبکه است، یا انتشار هنوز در حال بارگذاری است. چند دقیقه بعد دوباره امتحان کنید.",
   "updateSecurityWarningTitle": "تأیید به‌روزرسانی ناموفق بود",
   "updateReinstallAction": "باز کردن صفحه انتشارها",
   "errLfsNotArchive": "فایل انتخاب‌شده یک بایگانی LetsFLUTssh نیست.",

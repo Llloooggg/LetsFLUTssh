@@ -1234,6 +1234,10 @@ class SJa extends S {
       'アップデートを拒否しました：ダウンロードしたファイルが、アプリに埋め込まれたリリース鍵で署名されていません。ダウンロード中に改ざんされたか、このリリースがこのインストールに対応していない可能性があります。インストールしないでください — 公式リリースページから手動で再インストールしてください。';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'リリースの manifest を取得できませんでした。ネットワークの問題か、リリースが公開処理中の可能性があります。数分後にもう一度お試しください。';
+
+  @override
   String get updateSecurityWarningTitle => '更新の検証に失敗しました';
 
   @override

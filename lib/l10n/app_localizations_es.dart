@@ -1267,6 +1267,10 @@ class SEs extends S {
       'Actualización rechazada: los archivos descargados no están firmados por la clave de lanzamiento fijada en la aplicación. Esto puede significar que la descarga fue manipulada en tránsito, o que el lanzamiento actual no es para esta instalación. NO instale — reinstale manualmente desde la página oficial de lanzamientos.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'No se pudo obtener el manifest del release. Probablemente un problema de red, o el release se está publicando. Inténtalo de nuevo en unos minutos.';
+
+  @override
   String get updateSecurityWarningTitle =>
       'Falló la verificación de la actualización';
 

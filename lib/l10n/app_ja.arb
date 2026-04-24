@@ -388,6 +388,7 @@
   "autoLockOff": "オフ",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} 分}}",
   "errReleaseSignatureInvalid": "アップデートを拒否しました：ダウンロードしたファイルが、アプリに埋め込まれたリリース鍵で署名されていません。ダウンロード中に改ざんされたか、このリリースがこのインストールに対応していない可能性があります。インストールしないでください — 公式リリースページから手動で再インストールしてください。",
+  "errReleaseManifestUnavailable": "リリースの manifest を取得できませんでした。ネットワークの問題か、リリースが公開処理中の可能性があります。数分後にもう一度お試しください。",
   "updateSecurityWarningTitle": "更新の検証に失敗しました",
   "updateReinstallAction": "リリースページを開く",
   "errLfsNotArchive": "選択したファイルは LetsFLUTssh のアーカイブではありません。",

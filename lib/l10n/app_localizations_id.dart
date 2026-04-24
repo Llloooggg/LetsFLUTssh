@@ -1262,6 +1262,10 @@ class SId extends S {
       'Pembaruan ditolak: file yang diunduh tidak ditandatangani dengan kunci rilis yang disematkan di aplikasi. Ini dapat berarti unduhan telah diubah saat transit, atau rilis saat ini memang bukan untuk instalasi ini. JANGAN instal — instal ulang secara manual dari halaman Rilis resmi.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Manifest release tidak bisa diambil. Kemungkinan masalah jaringan, atau release masih sedang di-publish. Coba lagi dalam beberapa menit.';
+
+  @override
   String get updateSecurityWarningTitle => 'Verifikasi pembaruan gagal';
 
   @override

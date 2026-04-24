@@ -1266,6 +1266,10 @@ class SPt extends S {
       'Atualização rejeitada: os arquivos baixados não estão assinados pela chave de release fixada no app. Pode significar que o download foi adulterado no caminho, ou que este release não é para esta instalação. NÃO instale — reinstale manualmente pela página oficial de releases.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Não foi possível obter o manifest do release. Provavelmente um problema de rede, ou o release ainda está sendo publicado. Tente novamente em alguns minutos.';
+
+  @override
   String get updateSecurityWarningTitle =>
       'Falha na verificação da atualização';
 

@@ -388,6 +388,7 @@
   "autoLockOff": "Kapalı",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} dakika}}",
   "errReleaseSignatureInvalid": "Güncelleme reddedildi: İndirilen dosyalar uygulamada sabitlenmiş sürüm anahtarıyla imzalanmamış. Bu, indirmenin aktarım sırasında değiştirildiği veya mevcut sürümün bu kurulum için olmadığı anlamına gelebilir. YÜKLEMEYİN — bunun yerine resmi Sürümler sayfasından manuel olarak yeniden yükleyin.",
+  "errReleaseManifestUnavailable": "Release manifesti alınamadı. Muhtemelen ağ sorunu, ya da release hâlâ yayınlanıyor. Birkaç dakika sonra tekrar deneyin.",
   "updateSecurityWarningTitle": "Güncelleme doğrulaması başarısız",
   "updateReinstallAction": "Sürümler sayfasını aç",
   "errLfsNotArchive": "Seçilen dosya bir LetsFLUTssh arşivi değil.",

@@ -1268,6 +1268,10 @@ class SRu extends S {
       'Обновление отклонено: скачанные файлы не подписаны закреплённым в приложении ключом. Это может означать, что загрузку подделали по пути, либо текущий релиз не предназначен для этой установки. НЕ устанавливайте — вместо этого переустановите приложение вручную с официальной страницы Releases.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Could not reach the release manifest. Likely a network issue, or the release is still being published. Try again in a few minutes.';
+
+  @override
   String get updateSecurityWarningTitle => 'Проверка обновления не пройдена';
 
   @override

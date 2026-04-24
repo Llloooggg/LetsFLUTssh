@@ -1233,6 +1233,10 @@ class SKo extends S {
       '업데이트가 거부되었습니다: 다운로드된 파일이 앱에 고정된 릴리스 키로 서명되지 않았습니다. 다운로드가 전송 중에 변조되었거나 현재 릴리스가 이 설치용이 아닐 수 있습니다. 설치하지 마세요 — 공식 릴리스 페이지에서 수동으로 다시 설치하세요.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Release manifest를 가져올 수 없습니다. 네트워크 문제이거나 release가 아직 배포 중일 수 있습니다. 잠시 후 다시 시도하세요.';
+
+  @override
   String get updateSecurityWarningTitle => '업데이트 검증 실패';
 
   @override

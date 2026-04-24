@@ -388,6 +388,7 @@
   "autoLockOff": "Tắt",
   "autoLockMinutesValue": "{minutes, plural, other{{minutes} phút}}",
   "errReleaseSignatureInvalid": "Bản cập nhật bị từ chối: các tệp đã tải xuống không được ký bởi khóa phát hành được ghim trong ứng dụng. Điều này có thể có nghĩa là quá trình tải xuống đã bị giả mạo trên đường truyền, hoặc bản phát hành hiện tại không dành cho cài đặt này. KHÔNG cài đặt — thay vào đó, hãy cài đặt lại theo cách thủ công từ trang Phát hành chính thức.",
+  "errReleaseManifestUnavailable": "Không lấy được manifest của release. Có thể do vấn đề mạng, hoặc release đang được publish. Thử lại sau vài phút.",
   "updateSecurityWarningTitle": "Xác minh cập nhật thất bại",
   "updateReinstallAction": "Mở trang phát hành",
   "errLfsNotArchive": "Tệp đã chọn không phải là tệp lưu trữ LetsFLUTssh.",

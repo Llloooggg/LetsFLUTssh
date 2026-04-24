@@ -1273,6 +1273,10 @@ class SDe extends S {
       'Aktualisierung abgelehnt: Die heruntergeladenen Dateien sind nicht mit dem in der App verankerten Release-Schlüssel signiert. Dies kann bedeuten, dass der Download unterwegs manipuliert wurde, oder die aktuelle Version ist nicht für diese Installation bestimmt. NICHT installieren — stattdessen manuell von der offiziellen Releases-Seite neu installieren.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Release-Manifest nicht erreichbar. Wahrscheinlich ein Netzwerkproblem, oder der Release wird gerade veröffentlicht. In ein paar Minuten erneut versuchen.';
+
+  @override
   String get updateSecurityWarningTitle => 'Update-Überprüfung fehlgeschlagen';
 
   @override
