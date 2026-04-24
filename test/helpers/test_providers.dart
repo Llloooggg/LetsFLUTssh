@@ -8,28 +8,40 @@
 /// test('my controller does X', () {
 ///   final container = makeTestProviderContainer();
 ///   addTearDown(container.dispose);
-///   final ctrl = SomeController(ref: Ref(container), ...);
-///   // ...
+///   // Grab the fakes back out by name when you need to assert on
+///   // them:
+///   final mpm = container.read(masterPasswordProvider)
+///       as FakeMasterPasswordManager;
+///   expect(mpm.enabled, isFalse);
 /// });
 /// ```
 ///
-/// The factory ships sensible defaults for the providers that every
-/// security / session / main-shell test needs to mock. Callers pass
-/// additional `overrides` for anything specific to the scenario.
+/// The factory ships sensible defaults for every Riverpod provider
+/// the security / session / main-shell paths touch. Defaults are
+/// no-op friendly (nothing stored, nothing available, verify
+/// returns false). Tests that need richer behaviour pass a
+/// preconfigured `FakeXxx()` into the corresponding named parameter.
 ///
-/// Design principle — default overrides are **no-ops that do not
-/// hit the filesystem or any platform channel**. Tests that need
-/// real persistence pass in a scratch [AppDatabase] via
-/// `openTestDatabase()` + the corresponding `setDatabase` store
-/// override; see `test/core/ssh/known_hosts_test.dart` for the
-/// DB-backed pattern.
+/// Design principle — default overrides never hit the filesystem or
+/// a platform channel. Tests that genuinely need real persistence
+/// pass an `openTestDatabase()` handle via the corresponding
+/// `setDatabase` store override after construction.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:letsflutssh/core/security/biometric_auth.dart';
+import 'package:letsflutssh/core/security/biometric_key_vault.dart';
+import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
+import 'package:letsflutssh/core/security/keychain_password_gate.dart';
+import 'package:letsflutssh/core/security/master_password.dart';
+import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
+import 'package:letsflutssh/providers/master_password_provider.dart';
+import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
+import 'fake_security.dart';
 import 'fake_session_store.dart';
 
 /// Construct a [ProviderContainer] with the most common overrides
@@ -40,24 +52,40 @@ import 'fake_session_store.dart';
 /// true / hardware vault isStored false / etc.) without repeating
 /// the baseline each time.
 ///
-/// Currently overrides:
-/// - [sessionStoreProvider] — swapped for a [FakeSessionStore] by
-///   default; pass `sessionStore:` to supply one pre-seeded with
-///   test sessions.
-///
-/// Add more defaults here as tests prove them repeatedly useful —
-/// the whole point of this fixture is to stop every new test from
-/// re-writing the same mocks. Keep new defaults no-op / empty so
-/// a test that didn't ask for a behaviour cannot be surprised by
-/// one.
+/// Every named param accepts a preconfigured fake; omit to get the
+/// no-op default that does not touch disk or platform channels.
 ProviderContainer makeTestProviderContainer({
   SessionStore? sessionStore,
+  MasterPasswordManager? masterPassword,
+  SecureKeyStorage? secureKeyStorage,
+  HardwareTierVault? hardwareVault,
+  KeychainPasswordGate? keychainGate,
+  BiometricAuth? biometricAuth,
+  BiometricKeyVault? biometricVault,
   List<Override> extraOverrides = const [],
 }) {
   return ProviderContainer(
     overrides: [
       sessionStoreProvider.overrideWithValue(
         sessionStore ?? FakeSessionStore(),
+      ),
+      masterPasswordProvider.overrideWithValue(
+        masterPassword ?? FakeMasterPasswordManager(),
+      ),
+      secureKeyStorageProvider.overrideWithValue(
+        secureKeyStorage ?? FakeSecureKeyStorage(),
+      ),
+      hardwareTierVaultProvider.overrideWithValue(
+        hardwareVault ?? FakeHardwareTierVault(),
+      ),
+      keychainPasswordGateProvider.overrideWithValue(
+        keychainGate ?? FakeKeychainPasswordGate(),
+      ),
+      biometricAuthProvider.overrideWithValue(
+        biometricAuth ?? FakeBiometricAuth(),
+      ),
+      biometricKeyVaultProvider.overrideWithValue(
+        biometricVault ?? FakeBiometricKeyVault(),
       ),
       ...extraOverrides,
     ],
