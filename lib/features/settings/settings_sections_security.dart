@@ -920,34 +920,38 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // [_applyPendingBiometric] replaces with the real key.
     if (current != next) return Uint8List(0);
     if (current == SecurityTier.keychainWithPassword) {
-      final entered = await _enableBiometricDialogPrompt();
-      if (entered == null) return null;
-      if (!mounted) return null;
-      final gate = ref.read(keychainPasswordGateProvider);
-      final ok = await gate.verify(entered);
-      if (!ok) {
-        if (mounted) {
-          Toast.show(
-            context,
-            message: S.of(context).currentPasswordIncorrect,
-            level: ToastLevel.error,
-          );
-        }
-        return null;
-      }
-      final key = await ref.read(secureKeyStorageProvider).readKey();
-      return key;
+      return _captureKeyFromKeychainPassword();
     }
     if (current == SecurityTier.paranoid) {
-      final entered = await _enableBiometricDialogPrompt();
-      if (entered == null) return null;
-      if (!mounted) return null;
-      return ref.read(masterPasswordProvider).verifyAndDerive(entered);
+      return _captureKeyFromMasterPassword();
     }
     // T1 / T2 without password, or plaintext: no key to cache. Return
     // empty sentinel so the post-apply step skips the enable (nothing
     // to protect anyway).
     return Uint8List(0);
+  }
+
+  Future<Uint8List?> _captureKeyFromKeychainPassword() async {
+    final entered = await _enableBiometricDialogPrompt();
+    if (entered == null || !mounted) return null;
+    final gate = ref.read(keychainPasswordGateProvider);
+    if (!await gate.verify(entered)) {
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).currentPasswordIncorrect,
+          level: ToastLevel.error,
+        );
+      }
+      return null;
+    }
+    return ref.read(secureKeyStorageProvider).readKey();
+  }
+
+  Future<Uint8List?> _captureKeyFromMasterPassword() async {
+    final entered = await _enableBiometricDialogPrompt();
+    if (entered == null || !mounted) return null;
+    return ref.read(masterPasswordProvider).verifyAndDerive(entered);
   }
 
   /// Show the reusable current-password prompt shared with the

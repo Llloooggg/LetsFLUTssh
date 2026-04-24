@@ -13,23 +13,52 @@ import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 
-/// Localised text for a [TierSecretUnlockDialog].
+/// Localised text + input shape for a [TierSecretUnlockDialog].
 ///
-/// Grouped into a separate value so [TierSecretUnlockDialog.show]
-/// keeps a reasonable parameter count — each caller (L2 / L3 unlock
-/// paths in `main.dart`) passes a single `labels` bundle instead of
-/// four `String` arguments threaded through every invocation.
+/// Bundles the four label strings with the input-mode flags
+/// (`numeric`, `maxLength`) that used to be separate `show()`
+/// parameters. Keeping them in one struct is both ergonomic at the
+/// call site (L2 / L3 paths in `main.dart` pass a single value) and
+/// keeps `show()` under the S107 parameter-count threshold.
 class TierSecretUnlockLabels {
   final String title;
   final String hint;
   final String inputLabel;
   final String wrongSecretLabel;
 
+  /// When true, show a numeric keyboard and restrict the field to
+  /// digits only. Legacy T2 PIN paths set this; free-form password
+  /// paths leave it off.
+  final bool numeric;
+
+  /// Optional hard cap on the input length. Null = unlimited.
+  final int? maxLength;
+
   const TierSecretUnlockLabels({
     required this.title,
     required this.hint,
     required this.inputLabel,
     required this.wrongSecretLabel,
+    this.numeric = false,
+    this.maxLength,
+  });
+}
+
+/// Bundles the two biometric-unlock parameters so [show] stays under
+/// the S107 parameter-count threshold. `unlock` is the callback that
+/// returns the unwrapped DB key on success / null on cancel. When
+/// [autoTrigger] is true the dialog fires `unlock` on first frame;
+/// callers that already tried biometrics before opening the dialog
+/// (e.g. the startup `_unlockKeychainWithPassword` path) pass
+/// `autoTrigger: false` and rely on the retry button inside the
+/// dialog.
+class TierSecretUnlockBiometric {
+  final Future<List<int>?> Function() unlock;
+  final bool autoTrigger;
+
+  const TierSecretUnlockBiometric({
+    required this.unlock,
+    this.autoTrigger = true,
   });
 }
 
@@ -48,17 +77,12 @@ class TierSecretUnlockDialog extends StatefulWidget {
     super.key,
     required this.labels,
     required this.verify,
-    this.numeric = false,
-    this.maxLength,
     this.onReset,
     this.rateLimiter,
-    this.biometricUnlock,
-    this.autoTriggerBiometric = true,
+    this.biometric,
   });
 
   final TierSecretUnlockLabels labels;
-  final bool numeric;
-  final int? maxLength;
 
   /// Verify the entered secret and, on success, return the key to
   /// inject. Null = wrong secret.
@@ -76,31 +100,19 @@ class TierSecretUnlockDialog extends StatefulWidget {
   /// button. The caller owns the limiter's lifecycle.
   final PasswordRateLimiter? rateLimiter;
 
-  /// Optional biometric unlock callback. When non-null, the dialog
-  /// auto-fires it on first frame (unless [autoTriggerBiometric] is
-  /// false) and renders a retry button under the Unlock action so
-  /// the user can re-invoke the system biometric prompt without
-  /// relaunching the app. Returns the unwrapped key on success, or
-  /// null on any failure / cancellation / missing prerequisite.
-  final Future<List<int>?> Function()? biometricUnlock;
-
-  /// Whether to auto-fire [biometricUnlock] on first frame. Callers
-  /// that already tried biometrics before opening the dialog (e.g.
-  /// the startup `_unlockKeychainWithPassword` path) pass `false`
-  /// to avoid a double-cancellation loop while keeping the retry
-  /// button reachable from the dialog itself.
-  final bool autoTriggerBiometric;
+  /// Optional biometric unlock spec. When non-null the dialog
+  /// auto-fires it on first frame (unless `biometric.autoTrigger` is
+  /// false) and renders a retry button so the user can re-invoke the
+  /// system biometric prompt without relaunching.
+  final TierSecretUnlockBiometric? biometric;
 
   static Future<List<int>?> show(
     BuildContext context, {
     required TierSecretUnlockLabels labels,
     required Future<List<int>?> Function(String) verify,
-    bool numeric = false,
-    int? maxLength,
     Future<void> Function()? onReset,
     PasswordRateLimiter? rateLimiter,
-    Future<List<int>?> Function()? biometricUnlock,
-    bool autoTriggerBiometric = true,
+    TierSecretUnlockBiometric? biometric,
   }) {
     return showDialog<List<int>?>(
       context: context,
@@ -108,12 +120,9 @@ class TierSecretUnlockDialog extends StatefulWidget {
       builder: (_) => TierSecretUnlockDialog(
         labels: labels,
         verify: verify,
-        numeric: numeric,
-        maxLength: maxLength,
         onReset: onReset,
         rateLimiter: rateLimiter,
-        biometricUnlock: biometricUnlock,
-        autoTriggerBiometric: autoTriggerBiometric,
+        biometric: biometric,
       ),
     );
   }
@@ -146,10 +155,11 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   void initState() {
     super.initState();
     _refreshCooldown();
-    if (widget.biometricUnlock != null) {
+    final bio = widget.biometric;
+    if (bio != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (widget.autoTriggerBiometric) {
+        if (bio.autoTrigger) {
           _tryBiometric();
         } else {
           // Probe so the retry button renders; do not fire the
@@ -161,7 +171,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
   }
 
   Future<void> _tryBiometric() async {
-    final cb = widget.biometricUnlock;
+    final cb = widget.biometric?.unlock;
     if (cb == null || _biometricInFlight || _busy) return;
     if (_cooldown.isLocked) return;
     _biometricInFlight = true;
@@ -381,13 +391,13 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     autofocus: true,
                     obscureText: _obscure,
                     enabled: !_busy,
-                    keyboardType: widget.numeric
+                    keyboardType: widget.labels.numeric
                         ? TextInputType.number
                         : TextInputType.visiblePassword,
-                    inputFormatters: widget.numeric
+                    inputFormatters: widget.labels.numeric
                         ? [FilteringTextInputFormatter.digitsOnly]
                         : null,
-                    maxLength: widget.maxLength,
+                    maxLength: widget.labels.maxLength,
                     onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: widget.labels.inputLabel,

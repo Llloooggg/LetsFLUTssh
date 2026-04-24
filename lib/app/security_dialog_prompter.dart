@@ -109,8 +109,12 @@ class ProductionSecurityDialogPrompter implements SecurityDialogPrompter {
     labels: labels,
     verify: verify,
     rateLimiter: rateLimiter,
-    biometricUnlock: biometricUnlock,
+    biometric: biometricUnlock == null
+        ? null
+        : TierSecretUnlockBiometric(
+            unlock: biometricUnlock,
+            autoTrigger: autoTriggerBiometric,
+          ),
     onReset: onReset,
-    autoTriggerBiometric: autoTriggerBiometric,
   );
 }
