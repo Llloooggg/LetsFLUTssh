@@ -90,6 +90,11 @@ typedef DbFileExistsProbe = Future<bool> Function();
 /// MC cipher mismatch on disk.
 typedef DbReadableProbe = Future<bool> Function(AppDatabase);
 
+/// Signature of `MigrationRunner.runOnStartup`. Injectable so tests can
+/// drive the error / recovery paths without having to synthesize a
+/// failing artefact on disk.
+typedef MigrationRunnerFn = Future<MigrationReport> Function();
+
 class SecurityInitController {
   final WidgetRef ref;
   final bool Function() isMounted;
@@ -106,6 +111,7 @@ class SecurityInitController {
   final DbFileExistsProbe _dbFileExists;
   final DbReadableProbe _verifyReadable;
   final SecurityDialogPrompter _dialogs;
+  final MigrationRunnerFn _migrationRunner;
 
   SecurityInitController({
     required this.ref,
@@ -114,10 +120,14 @@ class SecurityInitController {
     DbFileExistsProbe? dbFileExists,
     DbReadableProbe? verifyReadable,
     SecurityDialogPrompter? dialogPrompter,
+    MigrationRunnerFn? migrationRunner,
   }) : _dbOpener = dbOpener ?? openDatabase,
        _dbFileExists = dbFileExists ?? databaseFileExists,
        _verifyReadable = verifyReadable ?? verifyDatabaseReadable,
-       _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter();
+       _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter(),
+       _migrationRunner =
+           migrationRunner ??
+           (() => MigrationRunner(buildAppMigrationRegistry()).runOnStartup());
 
   // ── State fields ────────────────────────────────────────────
 
@@ -323,8 +333,7 @@ class SecurityInitController {
   Future<bool> _runMigrations() async {
     final MigrationReport report;
     try {
-      final registry = buildAppMigrationRegistry();
-      report = await MigrationRunner(registry).runOnStartup();
+      report = await _migrationRunner();
     } catch (e, st) {
       await AppLogger.instance.logCritical(
         'MigrationRunner threw uncaught: $e',

@@ -8,6 +8,7 @@ import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/app/security_init_controller.dart';
 import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/core/db/database_opener.dart';
+import 'package:letsflutssh/core/migration/migration_runner.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
@@ -1649,6 +1650,106 @@ void main() {
         expect(prompter.tierResetCalls, 1);
         expect(prompter.wizardCalls, 1);
         expect(File('${tmpDir.path}/credentials.kdf').existsSync(), isFalse);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'migration throws → _handleMigrationFailure routes to reset path',
+      (tester) async {
+        SecurityInitController? ctrl;
+        final prompter = FakeSecurityDialogPrompter(
+          corruptChoice: DbCorruptChoice.resetAndSetupFresh,
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                    dialogPrompter: prompter,
+                    // Simulate an artefact throwing mid-readVersion.
+                    migrationRunner: () async => throw StateError('boom'),
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Migration throw routed through `_handleMigrationFailure`,
+        // which opens the corruption dialog. User picked reset →
+        // `_wipeAndRestartFromScratch` ran the wizard once, reset
+        // flag flipped.
+        expect(prompter.corruptCalls, 1);
+        expect(prompter.wizardCalls, 1);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'migration reports failures → _handleMigrationFailure wipe path',
+      (tester) async {
+        SecurityInitController? ctrl;
+        final prompter = FakeSecurityDialogPrompter(
+          corruptChoice: DbCorruptChoice.resetAndSetupFresh,
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+        );
+        // Report with a fatal error — `hasFailures` returns true, which
+        // routes to `_handleMigrationFailure` same as a throw would.
+        const failedReport = MigrationReport(fatalError: 'bad_chain');
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                    dialogPrompter: prompter,
+                    migrationRunner: () async => failedReport,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        expect(prompter.corruptCalls, 1);
+        expect(prompter.wizardCalls, 1);
         expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
         expect(ctrl!.isReady, isTrue);
         ctrl!.dispose();
