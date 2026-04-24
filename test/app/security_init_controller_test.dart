@@ -655,6 +655,191 @@ void main() {
     );
 
     testWidgets(
+      'bootstrap under explicit tier=keychainWithPassword unconfigured gate falls to plaintext',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            // Gate reports not-configured → L2 recognises missing
+            // state as a reset and opens plaintext.
+            overrides: securityProviderOverrides(),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey;
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.keychainWithPassword,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        expect(capturedKey, isNull);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap under explicit tier=keychainWithPassword biometric-unlocks silently',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        final bioKey = Uint8List.fromList(List.filled(32, 0xB2));
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              keychainGate: FakeKeychainPasswordGate(configured: true),
+              // BiometricKeyVault holds the DB key; BiometricAuth
+              // reports available + authenticate=true so the helper
+              // reaches `vault.read()` and the opener sees the key.
+              biometricVault: FakeBiometricKeyVault(stored: true, key: bioKey),
+              biometricAuth: FakeBiometricAuth(
+                available: true,
+                authenticateResult: true,
+              ),
+            ),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.keychainWithPassword,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Biometric fast-path — no dialog, the vault's key lands
+        // directly on the opener. Reset flag stays false because
+        // this is a successful unlock.
+        expect(capturedKey, equals(bioKey));
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isFalse);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap under explicit tier=hardware with stored passwordless vault unseals',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        final vaultKey = Uint8List.fromList(List.filled(32, 0xC3));
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              // Vault reports stored + returns the seeded key on
+              // `read(null)` (passwordless branch). isAvailable
+              // result is not consulted by `_unlockHardware`, so
+              // the default false here is harmless.
+              hardwareVault: FakeHardwareTierVault(
+                stored: true,
+                dbKey: vaultKey,
+              ),
+            ),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Passwordless L3 unseals without a dialog; the vault's key
+        // lands verbatim on the opener.
+        expect(capturedKey, equals(vaultKey));
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isFalse);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
       'bootstrap under explicit tier=hardware with unconfigured vault falls to plaintext',
       (tester) async {
         SecurityInitController? ctrl;
