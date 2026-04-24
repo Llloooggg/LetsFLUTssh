@@ -208,6 +208,9 @@ class STr extends S {
   }
 
   @override
+  String get updateVerifying => 'Doğrulanıyor…';
+
+  @override
   String get downloadComplete => 'İndirme tamamlandı';
 
   @override

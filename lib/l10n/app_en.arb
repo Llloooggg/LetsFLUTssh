@@ -80,6 +80,7 @@
   "updateCheckFailed": "Update check failed",
   "unknownError": "Unknown error",
   "downloadingPercent": "Downloading... {percent}%",
+  "updateVerifying": "Verifying…",
   "@downloadingPercent": {
     "placeholders": {
       "percent": {

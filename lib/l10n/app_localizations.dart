@@ -501,6 +501,12 @@ abstract class S {
   /// **'Downloading... {percent}%'**
   String downloadingPercent(int percent);
 
+  /// No description provided for @updateVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying…'**
+  String get updateVerifying;
+
   /// No description provided for @downloadComplete.
   ///
   /// In en, this message translates to:

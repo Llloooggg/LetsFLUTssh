@@ -61,6 +61,7 @@
   "updateCheckFailed": "アップデート確認に失敗しました",
   "unknownError": "不明なエラー",
   "downloadingPercent": "ダウンロード中... {percent}%",
+  "updateVerifying": "検証中…",
   "downloadComplete": "ダウンロード完了",
   "installNow": "今すぐインストール",
   "openReleasePage": "リリースページを開く",

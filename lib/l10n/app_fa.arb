@@ -61,6 +61,7 @@
   "updateCheckFailed": "بررسی به‌روزرسانی ناموفق بود",
   "unknownError": "خطای ناشناخته",
   "downloadingPercent": "در حال دانلود... {percent}%",
+  "updateVerifying": "در حال بررسی…",
   "downloadComplete": "دانلود کامل شد",
   "installNow": "نصب اکنون",
   "openReleasePage": "باز کردن صفحه انتشار",

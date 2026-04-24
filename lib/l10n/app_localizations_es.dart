@@ -207,6 +207,9 @@ class SEs extends S {
   }
 
   @override
+  String get updateVerifying => 'Verificando…';
+
+  @override
   String get downloadComplete => 'Descarga completada';
 
   @override

@@ -206,6 +206,9 @@ class SVi extends S {
   }
 
   @override
+  String get updateVerifying => 'Đang xác thực…';
+
+  @override
   String get downloadComplete => 'Tải xuống hoàn tất';
 
   @override

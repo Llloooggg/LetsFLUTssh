@@ -116,11 +116,14 @@ class _UpdateSection extends ConsumerWidget {
         return _buildUpdateAvailable(context, ref, updateState);
 
       case UpdateStatus.downloading:
+      case UpdateStatus.verifying:
         // Linear progress gives the user a much clearer sense of how
         // far the download has gone than a 20-px spinner — pair it
         // with a percent-annotated caption for screen readers. The
         // widget is shared with the first-launch update dialog so
         // both surfaces move together when the caption copy changes.
+        // `verifying` reuses the same widget — it swaps the caption
+        // to "Verifying…" and the bar to indeterminate internally.
         return UpdateProgressIndicator(state: updateState);
 
       case UpdateStatus.downloaded:

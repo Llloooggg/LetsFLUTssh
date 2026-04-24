@@ -10,12 +10,20 @@ import 'version_provider.dart';
 import '../utils/logger.dart';
 
 /// Possible states of the update workflow.
+///
+/// [verifying] covers the window between "HTTP bytes are on disk"
+/// and "installer ready" — SHA256 hash, manifest + signature fetch
+/// and Ed25519 verification. Split out from [downloading] so the UI
+/// can swap the determinate "Downloading X%" bar for an
+/// indeterminate "Verifying…" bar instead of parking at 100% for
+/// tens of seconds.
 enum UpdateStatus {
   idle,
   checking,
   upToDate,
   updateAvailable,
   downloading,
+  verifying,
   downloaded,
   error,
 }
@@ -134,7 +142,10 @@ class UpdateNotifier extends Notifier<UpdateState> {
   Future<void> download({bool autoInstall = false}) async {
     final info = state.info;
     if (info == null || info.assetUrl == null) return;
-    if (state.status == UpdateStatus.downloading) return;
+    if (state.status == UpdateStatus.downloading ||
+        state.status == UpdateStatus.verifying) {
+      return;
+    }
 
     state = state.copyWith(status: UpdateStatus.downloading, progress: 0);
     try {
@@ -152,6 +163,11 @@ class UpdateNotifier extends Notifier<UpdateState> {
               lastReportedPercent = percent;
               state = state.copyWith(progress: received / total);
             }
+          }
+        },
+        onPhase: (phase) {
+          if (phase == UpdateDownloadPhase.verifying) {
+            state = state.copyWith(status: UpdateStatus.verifying, progress: 1);
           }
         },
       );

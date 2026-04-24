@@ -61,6 +61,7 @@
   "updateCheckFailed": "Kiểm tra cập nhật thất bại",
   "unknownError": "Lỗi không xác định",
   "downloadingPercent": "Đang tải... {percent}%",
+  "updateVerifying": "Đang xác thực…",
   "downloadComplete": "Tải xuống hoàn tất",
   "installNow": "Cài đặt ngay",
   "openReleasePage": "Mở trang phát hành",

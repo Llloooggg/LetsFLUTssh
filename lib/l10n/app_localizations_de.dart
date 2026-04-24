@@ -207,6 +207,9 @@ class SDe extends S {
   }
 
   @override
+  String get updateVerifying => 'Wird überprüft…';
+
+  @override
   String get downloadComplete => 'Download abgeschlossen';
 
   @override

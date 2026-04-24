@@ -61,6 +61,7 @@
   "updateCheckFailed": "Pemeriksaan pembaruan gagal",
   "unknownError": "Kesalahan tidak diketahui",
   "downloadingPercent": "Mengunduh... {percent}%",
+  "updateVerifying": "Memverifikasi…",
   "downloadComplete": "Unduhan selesai",
   "installNow": "Pasang Sekarang",
   "openReleasePage": "Buka Halaman Rilis",

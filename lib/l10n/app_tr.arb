@@ -61,6 +61,7 @@
   "updateCheckFailed": "Güncelleme kontrolü başarısız",
   "unknownError": "Bilinmeyen hata",
   "downloadingPercent": "İndiriliyor... {percent}%",
+  "updateVerifying": "Doğrulanıyor…",
   "downloadComplete": "İndirme tamamlandı",
   "installNow": "Şimdi Kur",
   "openReleasePage": "Yayın Sayfasını Aç",

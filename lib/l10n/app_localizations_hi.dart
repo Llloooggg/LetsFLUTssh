@@ -207,6 +207,9 @@ class SHi extends S {
   }
 
   @override
+  String get updateVerifying => 'सत्यापित किया जा रहा है…';
+
+  @override
   String get downloadComplete => 'डाउनलोड पूर्ण';
 
   @override

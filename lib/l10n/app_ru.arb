@@ -61,6 +61,7 @@
   "updateCheckFailed": "Не удалось проверить обновления",
   "unknownError": "Неизвестная ошибка",
   "downloadingPercent": "Загрузка... {percent}%",
+  "updateVerifying": "Проверка…",
   "downloadComplete": "Загрузка завершена",
   "installNow": "Установить сейчас",
   "openReleasePage": "Открыть страницу релиза",

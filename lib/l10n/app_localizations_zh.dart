@@ -204,6 +204,9 @@ class SZh extends S {
   }
 
   @override
+  String get updateVerifying => '正在校验…';
+
+  @override
   String get downloadComplete => '下载完成';
 
   @override

@@ -61,6 +61,7 @@
   "updateCheckFailed": "अपडेट जांच विफल",
   "unknownError": "अज्ञात त्रुटि",
   "downloadingPercent": "डाउनलोड हो रहा है... {percent}%",
+  "updateVerifying": "सत्यापित किया जा रहा है…",
   "downloadComplete": "डाउनलोड पूर्ण",
   "installNow": "अभी इंस्टॉल करें",
   "openReleasePage": "रिलीज़ पेज खोलें",

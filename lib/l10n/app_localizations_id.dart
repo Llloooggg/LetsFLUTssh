@@ -207,6 +207,9 @@ class SId extends S {
   }
 
   @override
+  String get updateVerifying => 'Memverifikasi…';
+
+  @override
   String get downloadComplete => 'Unduhan selesai';
 
   @override

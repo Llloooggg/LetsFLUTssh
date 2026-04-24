@@ -204,6 +204,9 @@ class SKo extends S {
   }
 
   @override
+  String get updateVerifying => '검증 중…';
+
+  @override
   String get downloadComplete => '다운로드 완료';
 
   @override

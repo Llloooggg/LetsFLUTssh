@@ -207,6 +207,9 @@ class SPt extends S {
   }
 
   @override
+  String get updateVerifying => 'A verificar…';
+
+  @override
   String get downloadComplete => 'Download concluído';
 
   @override

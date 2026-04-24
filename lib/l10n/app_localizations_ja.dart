@@ -204,6 +204,9 @@ class SJa extends S {
   }
 
   @override
+  String get updateVerifying => '検証中…';
+
+  @override
   String get downloadComplete => 'ダウンロード完了';
 
   @override
