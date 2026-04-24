@@ -207,6 +207,22 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   /// shows only warn rows whose message mentions keychain.
   String _query = '';
 
+  /// First-frame visibility gate. The list mounts with `opacity: 0`
+  /// on frame 1 so we can call `jumpTo(maxScrollExtent)` in the
+  /// post-frame callback against a laid-out viewport; the viewer
+  /// flips to `opacity: 1` on frame 2 so the user only ever sees the
+  /// already-positioned-at-bottom state. A straight
+  /// `jumpTo` after first build caused the visible "list appears at
+  /// top, then rips to bottom" rip — post-frame callbacks fire after
+  /// paint, so the pre-jump frame was painted first.
+  bool _initiallyPositioned = false;
+
+  /// Within how many pixels of the bottom we consider the user "at
+  /// the tail" and keep following new entries. Above that band we
+  /// leave the scroll alone so they can read history without each
+  /// timer tick dragging them back down.
+  static const _stickyBottomEpsilon = 24.0;
+
   @override
   void initState() {
     super.initState();
@@ -248,14 +264,38 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   Future<void> _refresh() async {
     final text = await AppLogger.instance.readLog();
     if (!mounted) return;
-    if (text == _content) return;
-    // List renders in `reverse: true`, so "newest at the bottom" is
-    // the natural initial layout — no post-frame `jumpTo` needed
-    // and no visible rip-to-bottom when the viewer first opens.
-    // Users who scroll up to read history stay pinned on what they
-    // were reading because appending to the entries list only adds
-    // items at the near-bottom (index 0) edge in reverse mode.
+    if (text == _content && _initiallyPositioned) return;
+
+    // "Was the user parked at the tail before this rebuild?" —
+    // sampled against the *current* layout. If they were, we follow
+    // the new tail; if they scrolled up we leave their pixel offset
+    // alone so a support-session history read is not dragged back
+    // down every second. The first load hits the `!hasClients`
+    // branch → wasAtBottom = true → initial jump happens under the
+    // opacity-0 gate below.
+    final wasAtBottom = _isAtBottom();
     setState(() => _content = text);
+
+    if (!wasAtBottom) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      // Once the list is pinned to the bottom on its first pass,
+      // reveal it (frame 2). Subsequent ticks stay at opacity 1
+      // because the flag is latched true.
+      if (!_initiallyPositioned) {
+        setState(() => _initiallyPositioned = true);
+      }
+    });
+  }
+
+  /// `true` on first mount (no clients yet → pretend user is at
+  /// tail so the initial jump fires) and any time the user's scroll
+  /// offset is within [_stickyBottomEpsilon] pixels of the bottom.
+  bool _isAtBottom() {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    return pos.pixels >= pos.maxScrollExtent - _stickyBottomEpsilon;
   }
 
   @override
@@ -387,10 +427,23 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
                               ),
                             ),
                           )
-                        : _LogList(
-                            entries: _filterEntries(parseLogEntries(_content)),
-                            controller: _scrollController,
-                            defaultFg: fg,
+                        : Opacity(
+                            // Hide the first frame of the list while
+                            // `_refresh` schedules its post-frame
+                            // jumpTo(maxScrollExtent). Flipping to 1
+                            // happens in the same post-frame callback
+                            // after the jump, so the user only ever
+                            // sees the already-positioned-at-bottom
+                            // state — no "appears at top, then rips
+                            // down" jank on first open.
+                            opacity: _initiallyPositioned ? 1 : 0,
+                            child: _LogList(
+                              entries: _filterEntries(
+                                parseLogEntries(_content),
+                              ),
+                              controller: _scrollController,
+                              defaultFg: fg,
+                            ),
                           ),
                   ),
                 ],
@@ -596,21 +649,17 @@ class _LogList extends StatelessWidget {
     // text, not TextSpan styles, so users pasting into a bug report
     // get clean output.
     //
-    // `reverse: true` + flipped index lays the newest entry out at
-    // the bottom on the first frame — no post-frame `jumpTo` rip.
-    // Appending a new entry becomes "insert at reverse-index 0",
-    // which Flutter handles by pushing older frames up in pixel
-    // space without moving the user's scroll offset, so a user
-    // scrolled up to read history stays pinned on the row they
-    // were reading when new entries arrive.
-    final count = entries.length;
+    // Forward (non-reverse) list: positional items, newest at the
+    // end. The parent state handles tail-follow + initial-mount
+    // positioning; this widget stays a plain projection of
+    // `entries` onto rows so tests can drive both without a mock
+    // scroll axis.
     return SelectionArea(
       child: ListView.builder(
         controller: controller,
-        reverse: true,
-        itemCount: count,
+        itemCount: entries.length,
         itemBuilder: (ctx, i) =>
-            _LogRow(entry: entries[count - 1 - i], defaultFg: defaultFg),
+            _LogRow(entry: entries[i], defaultFg: defaultFg),
       ),
     );
   }
