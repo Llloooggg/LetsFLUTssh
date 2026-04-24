@@ -37,8 +37,14 @@ class KdfParams {
   final int iterations;
   final int parallelism;
 
+  /// OWASP 2024 Argon2id memory floor: 46 MiB = 46 * 1024 KiB.
+  /// Kept as a named constant so the unit (KiB vs MiB vs bytes) is
+  /// obvious at the call site instead of looking up whether `47104`
+  /// is bytes, KiB, or MiB.
+  static const int _defaultMemoryKiB = 46 * 1024;
+
   const KdfParams.argon2id({
-    this.memoryKiB = 47104,
+    this.memoryKiB = _defaultMemoryKiB,
     this.iterations = 2,
     this.parallelism = 1,
   }) : algorithm = KdfAlgorithm.argon2id;

@@ -629,6 +629,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       allowMultiple: false,
       type: FileType.any,
     );
+    if (!mounted) return;
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
     final pemContent = KeyFileHelper.tryReadPemKey(path);

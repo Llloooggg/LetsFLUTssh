@@ -73,6 +73,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       // path and should slow down a passerby the same way the
       // first-launch UnlockDialog does.
       final key = await manager.verifyAndDerive(password, useRateLimit: true);
+      if (!mounted) return;
       if (key == null) {
         setState(() {
           _busy = false;

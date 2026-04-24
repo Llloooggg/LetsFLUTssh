@@ -388,6 +388,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     Session session,
   ) async {
     final ok = await SessionConnect.connectTerminal(ctx, ref, session);
+    if (!mounted) return;
     if (ok) setState(() => _navIndex = 1);
   }
 
@@ -397,6 +398,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     Session session,
   ) async {
     final ok = await SessionConnect.connectSftp(ctx, ref, session);
+    if (!mounted) return;
     if (ok) setState(() => _navIndex = 2);
   }
 }
