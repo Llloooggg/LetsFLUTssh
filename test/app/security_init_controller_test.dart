@@ -2468,6 +2468,96 @@ void main() {
     });
 
     testWidgets(
+      'tier=hardware biometric probe throws → _biometricUnlockForTierDialog catch arm',
+      (tester) async {
+        // Inside-dialog biometric closure reads the biometric vault;
+        // if `isStored` throws, the method's try/catch returns null
+        // and the dialog falls through to the manual-input path.
+        // Covers lines 663-664 — the catch arm + log. Pre-dialog
+        // biometric is bypassed via skipFirstNAvailableCalls so the
+        // probe fires only inside the dialog.
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        final prompter = FakeSecurityDialogPrompter(
+          fireBiometricUnlock: true,
+          // After the biometric closure throws, the fake falls back
+          // to the verify path with this simulated PIN — the vault
+          // unseals, opener sees key.
+          tierSecretSimulatedInput: '1234',
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              hardwareVault: FakeHardwareTierVault(
+                stored: true,
+                dbKey: Uint8List.fromList(List.filled(32, 0x7F)),
+              ),
+              biometricVault: FakeBiometricKeyVault(
+                stored: true,
+                // Pre-dialog isStored call returns true (stored=true);
+                // in-dialog call (2nd) throws → catch arm fires.
+                isStoredThrows: StateError('biometric probe failed'),
+                throwAfterNCalls: 1,
+              ),
+              biometricAuth: FakeBiometricAuth(
+                available: true,
+                authenticateResult: true,
+                skipFirstNAvailableCalls: 1,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: Consumer(
+                  builder: (ctx, ref, _) {
+                    capturedRef = ref;
+                    ctrl = SecurityInitController(
+                      ref: ref,
+                      isMounted: () => true,
+                      dbOpener: ({encryptionKey}) {
+                        capturedKey = encryptionKey;
+                        return testDb;
+                      },
+                      dbFileExists: () async => true,
+                      verifyReadable: (db) async => true,
+                      dialogPrompter: prompter,
+                    );
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers(password: true),
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Biometric closure caught the throw + returned null; the
+        // fake fell through to simulated input which unsealed the
+        // vault; opener received key.
+        expect(prompter.tierSecretCalls, 1);
+        expect(capturedKey, isNotNull);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
       'tryOtherTier retry exceeds max → wipeAndRestart fallback fires',
       (tester) async {
         // Always-fail probe + tryOtherTier choice drives the retry

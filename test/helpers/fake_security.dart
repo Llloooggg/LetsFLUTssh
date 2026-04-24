@@ -231,10 +231,28 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
   bool stored;
   Uint8List? key;
 
-  FakeBiometricKeyVault({this.stored = false, this.key});
+  /// When non-null, [isStored] throws with this error ONLY after the
+  /// first N successful calls. Lets tests drive the in-dialog
+  /// `_biometricUnlockForTierDialog` catch arm without breaking the
+  /// pre-dialog biometric probe that reads the same fake instance.
+  Object? isStoredThrows;
+  int throwAfterNCalls;
+  int _isStoredCalls = 0;
+
+  FakeBiometricKeyVault({
+    this.stored = false,
+    this.key,
+    this.isStoredThrows,
+    this.throwAfterNCalls = 0,
+  });
 
   @override
-  Future<bool> isStored() async => stored;
+  Future<bool> isStored() async {
+    _isStoredCalls++;
+    final e = isStoredThrows;
+    if (e != null && _isStoredCalls > throwAfterNCalls) throw e;
+    return stored;
+  }
 
   @override
   Future<bool> store(Uint8List key) async {
