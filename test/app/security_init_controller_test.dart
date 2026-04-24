@@ -1547,6 +1547,59 @@ void main() {
       },
     );
 
+    testWidgets('pending wipe marker triggers wipeAll + resets flag', (
+      tester,
+    ) async {
+      // A `.wipe-pending` marker on disk means the previous run
+      // started a wipe that did not finish. `_initSecurity` must
+      // resume the wipe before the normal unlock flow.
+      File('${tmpDir.path}/.wipe-pending').writeAsStringSync('');
+      File('${tmpDir.path}/credentials.kdf').writeAsStringSync('legacy');
+      SecurityInitController? ctrl;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(
+            secureKeyStorage: FakeSecureKeyStorage(
+              available: false,
+              probeResult: KeyringProbeResult.probeFailed,
+            ),
+          ),
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            home: Consumer(
+              builder: (ctx, ref, _) {
+                ctrl = SecurityInitController(
+                  ref: ref,
+                  isMounted: () => true,
+                  dbOpener: ({encryptionKey}) => testDb,
+                  dbFileExists: () async => false,
+                  verifyReadable: (db) async => true,
+                  dialogPrompter: FakeSecurityDialogPrompter(
+                    wizardResult: const SecuritySetupResult(
+                      tier: SecurityTier.plaintext,
+                    ),
+                  ),
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.runAsync(() => ctrl!.bootstrap());
+
+      // Both the marker and the orphan credentials file are gone —
+      // resumed wipeAll cleared them.
+      expect(File('${tmpDir.path}/.wipe-pending').existsSync(), isFalse);
+      expect(File('${tmpDir.path}/credentials.kdf').existsSync(), isFalse);
+      // Reset flag flipped because `_initSecurity` explicitly sets it
+      // after the resumed wipe.
+      expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+      expect(ctrl!.isReady, isTrue);
+      ctrl!.dispose();
+    });
+
     testWidgets('pending tier-transition marker is cleared on startup', (
       tester,
     ) async {
