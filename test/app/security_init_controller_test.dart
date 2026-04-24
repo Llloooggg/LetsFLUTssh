@@ -12,6 +12,7 @@ import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
+import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
 import '../helpers/fake_dialog_prompter.dart';
@@ -1397,5 +1398,168 @@ void main() {
         },
       );
     });
+  });
+
+  group('SecurityInitController — corruption dialog via DialogPrompter', () {
+    // With a scripted DbCorruptChoice, `handleCorruption` can be driven
+    // past the probe-failure branch without needing to paint + tap the
+    // real `DbCorruptDialog`. Two paths are testable: `resetAndSetup
+    // Fresh` (wipe + first-launch wizard again) and `tryOtherTier`
+    // (retry under legacy-infer). `exitApp` is intentionally out of
+    // reach — the production handler calls `exit(0)` which would kill
+    // the test isolate.
+
+    late Directory tmpDir;
+    late AppDatabase testDb;
+    setUp(() {
+      tmpDir = installFakePathProvider();
+      installFakeSecureStorage();
+      installFakeNativePlugins();
+      testDb = openTestDatabase();
+    });
+
+    tearDown(() async {
+      await testDb.close();
+      uninstallFakeNativePlugins();
+      uninstallFakeSecureStorage();
+      uninstallFakePathProvider(tmpDir);
+    });
+
+    testWidgets(
+      'probe failure + user picks resetAndSetupFresh re-runs wizard + isReady',
+      (tester) async {
+        SecurityInitController? ctrl;
+        late WidgetRef capturedRef;
+        var probeCalls = 0;
+        final prompter = FakeSecurityDialogPrompter(
+          corruptChoice: DbCorruptChoice.resetAndSetupFresh,
+          // After wipe + reset, `_wipeAndRestartFromScratch` re-runs
+          // `_firstLaunchSetup`, which prompts the wizard. Canning a
+          // plaintext pick keeps the follow-up branch simple — the
+          // important invariant is that the wizard fires exactly once
+          // after reset, not that it picks any particular tier.
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => false,
+                    // First probe fails (kicks dialog); any subsequent
+                    // probe after wipe succeeds so `_markSecurityReady`
+                    // can fire.
+                    verifyReadable: (db) async {
+                      probeCalls++;
+                      return probeCalls > 1;
+                    },
+                    dialogPrompter: prompter,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        // Seed `_activeDatabase` so `handleCorruption` hits the probe.
+        final key = Uint8List.fromList(List.filled(32, 9));
+        capturedRef
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychain, key);
+        await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+
+        await tester.runAsync(() => ctrl!.handleCorruption());
+
+        // Dialog fired; user picked reset; wipe path invoked the
+        // wizard exactly once. Reset flag flipped because
+        // `_wipeAndRestartFromScratch` always sets it.
+        expect(prompter.corruptCalls, 1);
+        expect(prompter.wizardCalls, 1);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'probe failure + user picks tryOtherTier retries under legacy-infer',
+      (tester) async {
+        SecurityInitController? ctrl;
+        late WidgetRef capturedRef;
+        final probeReturns = <bool>[
+          // 1st probe (reopen seed) — succeed; reopenAfterUnlock does
+          // NOT call verifyReadable, only _injectDatabase does not
+          // either. Actually handleCorruption is the only caller, so
+          // the 1st call is the corruption probe.
+          false,
+          // After `_retryUnlockUnderDifferentTier` re-runs
+          // `_initSecurity` + `handleCorruption` → true.
+          true,
+        ];
+        var probeIdx = 0;
+        final prompter = FakeSecurityDialogPrompter(
+          corruptChoice: DbCorruptChoice.tryOtherTier,
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async {
+                      final idx = probeIdx;
+                      probeIdx++;
+                      if (idx >= probeReturns.length) return true;
+                      return probeReturns[idx];
+                    },
+                    dialogPrompter: prompter,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        final key = Uint8List.fromList(List.filled(32, 13));
+        capturedRef
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychain, key);
+        await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+
+        await tester.runAsync(() => ctrl!.handleCorruption());
+
+        // One dialog fire, one retry. `_retryUnlockUnderDifferentTier`
+        // closes the old DB, invalidates provider caches, clears the
+        // persisted tier, and re-runs `_initSecurity`. The second
+        // probe returns true and `_markSecurityReady` flips isReady.
+        expect(prompter.corruptCalls, 1);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
   });
 }
