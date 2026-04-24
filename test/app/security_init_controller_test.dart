@@ -1338,6 +1338,33 @@ void main() {
       },
     );
 
+    testWidgets('wizard picks keychain + writeKey fails → plaintext fallback', (
+      tester,
+    ) async {
+      // `_firstLaunchKeychain` runs when wizard picks keychain with
+      // `keychainAvailable=true`. If the subsequent writeKey call
+      // rejects the write, the else-branch logs + injects a plaintext
+      // DB. Covers lines 968-972.
+      final storage = FakeSecureKeyStorage(
+        available: false,
+        probeResult: KeyringProbeResult.probeFailed,
+        writeKeySucceeds: false,
+      );
+      await pumpWizardTest(
+        tester,
+        secureKeyStorage: storage,
+        wizardResult: const SecuritySetupResult(
+          tier: SecurityTier.keychain,
+          keychainAvailable: true,
+        ),
+        check: (ctrl, key) {
+          expect(key, isNull);
+          expect(storage.storedKey, isNull);
+          expect(ctrl.isReady, isTrue);
+        },
+      );
+    });
+
     testWidgets('wizard picks keychainWithPassword — gate set + key stored', (
       tester,
     ) async {
@@ -2439,6 +2466,74 @@ void main() {
       expect(ctrl!.isReady, isTrue);
       ctrl!.dispose();
     });
+
+    testWidgets(
+      'tryOtherTier retry exceeds max → wipeAndRestart fallback fires',
+      (tester) async {
+        // Always-fail probe + tryOtherTier choice drives the retry
+        // counter past _maxCorruptionRetries (2). On the third retry
+        // the guard flips and `_wipeAndRestartFromScratch` takes over
+        // — wizard re-runs, final probe succeeds, isReady flips.
+        SecurityInitController? ctrl;
+        late WidgetRef capturedRef;
+        var probeCalls = 0;
+        final prompter = FakeSecurityDialogPrompter(
+          corruptChoice: DbCorruptChoice.tryOtherTier,
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => true,
+                    // Fail the first few probes so the retry chain
+                    // exhausts, then succeed on the post-wipe probe.
+                    verifyReadable: (db) async {
+                      probeCalls++;
+                      // Fail probes 1..3 (initial + two retries),
+                      // succeed on 4th (post-wipe probe inside
+                      // _wipeAndRestartFromScratch).
+                      return probeCalls >= 4;
+                    },
+                    dialogPrompter: prompter,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        final key = Uint8List.fromList(List.filled(32, 7));
+        capturedRef
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychain, key);
+        await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+
+        await tester.runAsync(() => ctrl!.handleCorruption());
+
+        // Dialog fired on each retry (3x). Wizard invoked once by
+        // `_wipeAndRestartFromScratch`. Reset flag flipped because
+        // the wipe path always sets it.
+        expect(prompter.corruptCalls, greaterThanOrEqualTo(3));
+        expect(prompter.wizardCalls, 1);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
 
     testWidgets(
       'probe failure + user picks tryOtherTier retries under legacy-infer',
