@@ -208,6 +208,9 @@ class SFr extends S {
   }
 
   @override
+  String get updateVerifying => 'Vérification…';
+
+  @override
   String get downloadComplete => 'Téléchargement terminé';
 
   @override

@@ -30,10 +30,13 @@ class _StubUpdateService extends UpdateService {
     String targetDir, {
     String? expectedDigest,
     void Function(int received, int total)? onProgress,
+    void Function(UpdateDownloadPhase phase)? onPhase,
   }) async {
     if (downloadError != null) throw downloadError!;
+    onPhase?.call(UpdateDownloadPhase.downloading);
     onProgress?.call(50, 100);
     onProgress?.call(100, 100);
+    onPhase?.call(UpdateDownloadPhase.verifying);
     return downloadedPath!;
   }
 

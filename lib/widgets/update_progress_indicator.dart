@@ -25,11 +25,18 @@ class UpdateProgressIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = S.of(context);
     final caption = _caption(l10n, state);
-    // Indeterminate (`value: null`) while progress is still zero so
-    // the bar doesn't pretend to be at 0% when nothing has streamed
-    // back yet — matches the Material guidance for "awaiting first
-    // byte".
-    final value = state.progress > 0 ? state.progress : null;
+    // The bar is indeterminate (`value: null`) in two cases:
+    //   * progress still at 0 — Material guidance for "awaiting first
+    //     byte" (don't pretend to be at 0 %);
+    //   * status == verifying — SHA256 + signature check can take
+    //     tens of seconds on a 50 MB installer with no incremental
+    //     progress to report, so a determinate bar frozen at 100 %
+    //     would read as a freeze. Switch to the indeterminate
+    //     sweep + "Verifying…" caption so the UI shows "still
+    //     working" without lying about a specific percentage.
+    final indeterminate =
+        state.progress <= 0 || state.status == UpdateStatus.verifying;
+    final value = indeterminate ? null : state.progress;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -51,12 +58,8 @@ class UpdateProgressIndicator extends StatelessWidget {
     switch (state.status) {
       case UpdateStatus.downloading:
         return l10n.downloadingPercent((state.progress * 100).toInt());
-      // The updater's public state machine does not surface a
-      // dedicated "verifying" or "installing" slot yet — the
-      // Settings section rerenders through `downloaded` / `idle`
-      // transitions. Keep the switch exhaustive so a future
-      // verifying / installing state surfaces with its own copy
-      // instead of silently falling through.
+      case UpdateStatus.verifying:
+        return l10n.updateVerifying;
       case UpdateStatus.checking:
         return l10n.checking;
       case UpdateStatus.idle:

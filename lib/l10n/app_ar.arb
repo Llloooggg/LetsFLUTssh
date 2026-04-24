@@ -61,6 +61,7 @@
   "updateCheckFailed": "فشل التحقق من التحديثات",
   "unknownError": "خطأ غير معروف",
   "downloadingPercent": "جارٍ التنزيل... {percent}%",
+  "updateVerifying": "جاري التحقق...",
   "downloadComplete": "اكتمل التنزيل",
   "installNow": "تثبيت الآن",
   "openReleasePage": "فتح صفحة الإصدار",

@@ -61,6 +61,7 @@
   "updateCheckFailed": "Update-Prüfung fehlgeschlagen",
   "unknownError": "Unbekannter Fehler",
   "downloadingPercent": "Herunterladen... {percent}%",
+  "updateVerifying": "Wird überprüft…",
   "downloadComplete": "Download abgeschlossen",
   "installNow": "Jetzt installieren",
   "openReleasePage": "Release-Seite öffnen",

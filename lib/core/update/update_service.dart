@@ -127,6 +127,24 @@ typedef FileDownloader =
       void Function(int received, int total)? onProgress,
     );
 
+/// Phases a [UpdateService.downloadAsset] call walks through after
+/// the HTTP download completes. Separating [verifying] from the HTTP
+/// phase lets the UI swap "Downloading 100%" for an indeterminate
+/// "Verifying…" caption while SHA256 hashing and the manifest +
+/// signature fetch + Ed25519 check run — those steps can take tens
+/// of seconds on a 50 MB installer and the old state reported
+/// "Downloading 100%" the whole time, reading as a freeze to users.
+enum UpdateDownloadPhase {
+  /// HTTP bytes still streaming; [UpdateService] emits `onProgress`
+  /// ticks. The UI shows a determinate progress bar.
+  downloading,
+
+  /// Bytes are on disk; SHA256 verification, manifest fetch and
+  /// Ed25519 signature checks are in flight. No progress ticks —
+  /// the UI should render an indeterminate bar.
+  verifying,
+}
+
 /// Callback type for running a process — injectable for testing.
 typedef ProcessRunner =
     Future<ProcessResult> Function(String executable, List<String> arguments);
@@ -328,6 +346,7 @@ class UpdateService {
     String targetDir, {
     String? expectedDigest,
     void Function(int received, int total)? onProgress,
+    void Function(UpdateDownloadPhase phase)? onPhase,
   }) async {
     final uri = Uri.parse(url);
     if (!isTrustedReleaseAssetUri(uri)) {
@@ -336,7 +355,13 @@ class UpdateService {
     final fileName = uri.pathSegments.last;
     final savePath = p.join(targetDir, fileName);
     AppLogger.instance.log('Downloading $fileName...', name: 'UpdateService');
+    onPhase?.call(UpdateDownloadPhase.downloading);
     await _download(uri, savePath, onProgress);
+
+    // HTTP bytes are on disk. The rest (SHA256, manifest + signature
+    // fetch, Ed25519 verification) is post-download work the UI should
+    // not represent as "Downloading 100%".
+    onPhase?.call(UpdateDownloadPhase.verifying);
 
     if (expectedDigest != null) {
       AppLogger.instance.log('Verifying SHA256...', name: 'UpdateService');

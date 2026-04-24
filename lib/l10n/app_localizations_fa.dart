@@ -206,6 +206,9 @@ class SFa extends S {
   }
 
   @override
+  String get updateVerifying => 'در حال بررسی…';
+
+  @override
   String get downloadComplete => 'دانلود کامل شد';
 
   @override

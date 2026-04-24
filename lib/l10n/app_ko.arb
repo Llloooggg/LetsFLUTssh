@@ -61,6 +61,7 @@
   "updateCheckFailed": "업데이트 확인 실패",
   "unknownError": "알 수 없는 오류",
   "downloadingPercent": "다운로드 중... {percent}%",
+  "updateVerifying": "검증 중…",
   "downloadComplete": "다운로드 완료",
   "installNow": "지금 설치",
   "openReleasePage": "릴리스 페이지 열기",

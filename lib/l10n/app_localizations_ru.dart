@@ -207,6 +207,9 @@ class SRu extends S {
   }
 
   @override
+  String get updateVerifying => 'Проверка…';
+
+  @override
   String get downloadComplete => 'Загрузка завершена';
 
   @override

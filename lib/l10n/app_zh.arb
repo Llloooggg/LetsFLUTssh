@@ -61,6 +61,7 @@
   "updateCheckFailed": "检查更新失败",
   "unknownError": "未知错误",
   "downloadingPercent": "下载中... {percent}%",
+  "updateVerifying": "正在校验…",
   "downloadComplete": "下载完成",
   "installNow": "立即安装",
   "openReleasePage": "打开发布页面",

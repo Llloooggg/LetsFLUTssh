@@ -61,6 +61,7 @@
   "updateCheckFailed": "Error al buscar actualizaciones",
   "unknownError": "Error desconocido",
   "downloadingPercent": "Descargando... {percent}%",
+  "updateVerifying": "Verificando…",
   "downloadComplete": "Descarga completada",
   "installNow": "Instalar ahora",
   "openReleasePage": "Abrir página de lanzamiento",

@@ -205,6 +205,9 @@ class SAr extends S {
   }
 
   @override
+  String get updateVerifying => 'جاري التحقق...';
+
+  @override
   String get downloadComplete => 'اكتمل التنزيل';
 
   @override

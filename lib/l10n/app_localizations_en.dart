@@ -206,6 +206,9 @@ class SEn extends S {
   }
 
   @override
+  String get updateVerifying => 'Verifying…';
+
+  @override
   String get downloadComplete => 'Download complete';
 
   @override
