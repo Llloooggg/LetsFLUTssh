@@ -56,6 +56,13 @@ endif
 
 test: $(SQLITE3MC_STAMP) ## Run all tests with coverage
 	$(FLUTTER) test --coverage --timeout 30s
+	@# Post-process lcov.info to drop generated + localisation files
+	@# from the coverage denominator. Must mirror
+	@# `sonar.coverage.exclusions` in sonar-project.properties so the
+	@# local and CI coverage numbers agree. Python is used instead of
+	@# `lcov --remove` to avoid a host dependency — every CI runner
+	@# already has Python 3.
+	@python3 scripts/filter-lcov.py coverage/lcov.info
 
 analyze: $(SQLITE3MC_STAMP) ## Run Dart analyzer (fatal on infos, same as CI)
 	$(FLUTTER) analyze --fatal-infos
