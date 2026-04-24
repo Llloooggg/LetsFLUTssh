@@ -59,10 +59,10 @@ test: $(SQLITE3MC_STAMP) ## Run all tests with coverage
 	@# Post-process lcov.info to drop generated + localisation files
 	@# from the coverage denominator. Must mirror
 	@# `sonar.coverage.exclusions` in sonar-project.properties so the
-	@# local and CI coverage numbers agree. Python is used instead of
-	@# `lcov --remove` to avoid a host dependency — every CI runner
-	@# already has Python 3.
-	@python3 scripts/filter-lcov.py coverage/lcov.info
+	@# local and CI coverage numbers agree. Dart-native filter so no
+	@# host dependency is added beyond the Flutter toolchain we
+	@# already need.
+	@dart run scripts/filter_lcov.dart coverage/lcov.info
 
 analyze: $(SQLITE3MC_STAMP) ## Run Dart analyzer (fatal on infos, same as CI)
 	$(FLUTTER) analyze --fatal-infos
