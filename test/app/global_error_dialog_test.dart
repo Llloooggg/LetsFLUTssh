@@ -18,14 +18,14 @@ void main() {
   // the next because AppLogger's enabled flag is explicitly restored in
   // tearDown.
 
-  late bool initialLoggingEnabled;
+  LogLevel? initialThreshold;
 
   setUp(() {
-    initialLoggingEnabled = AppLogger.instance.enabled;
+    initialThreshold = AppLogger.instance.threshold;
   });
 
-  tearDown(() {
-    AppLogger.instance.setEnabled(initialLoggingEnabled);
+  tearDown(() async {
+    await AppLogger.instance.setThreshold(initialThreshold);
   });
 
   Future<BuildContext> pumpAndCapture(WidgetTester tester) async {
@@ -61,7 +61,7 @@ void main() {
   testWidgets('shows the Enable Logging button only when logging is off', (
     tester,
   ) async {
-    AppLogger.instance.setEnabled(false);
+    AppLogger.instance.setThreshold(null);
     final ctx = await pumpAndCapture(tester);
     showGlobalErrorDialog(ctx, StateError('boom'));
     await tester.pumpAndSettle();
@@ -78,7 +78,7 @@ void main() {
   testWidgets('hides the Enable Logging button when logging is already on', (
     tester,
   ) async {
-    AppLogger.instance.setEnabled(true);
+    AppLogger.instance.setThreshold(LogLevel.debug);
     final ctx = await pumpAndCapture(tester);
     showGlobalErrorDialog(ctx, Exception('x'));
     await tester.pumpAndSettle();
@@ -94,7 +94,7 @@ void main() {
   testWidgets('Enable Logging tap flips the flag and dismisses the dialog', (
     tester,
   ) async {
-    AppLogger.instance.setEnabled(false);
+    AppLogger.instance.setThreshold(null);
     final ctx = await pumpAndCapture(tester);
     showGlobalErrorDialog(ctx, Exception('x'));
     await tester.pumpAndSettle();
@@ -118,7 +118,7 @@ void main() {
   testWidgets('OK tap dismisses without touching the logging flag', (
     tester,
   ) async {
-    AppLogger.instance.setEnabled(true);
+    AppLogger.instance.setThreshold(LogLevel.debug);
     final ctx = await pumpAndCapture(tester);
     showGlobalErrorDialog(ctx, Exception('x'));
     await tester.pumpAndSettle();

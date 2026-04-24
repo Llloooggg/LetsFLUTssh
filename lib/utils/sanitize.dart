@@ -99,9 +99,19 @@ String sanitizeErrorMessage(String message) {
   // principal without wrapping it in user@host form. Without this the
   // username survives every other redaction, which is exactly the leak
   // the review flagged in `Connecting to ... as burzuf`.
+  //
+  // The `as` arm requires at least one whitespace before the name —
+  // otherwise the regex eats word fragments that start with `as` (e.g.
+  // `dart:async/zone_root.dart` matched as `as` + `ync` and rewrote
+  // to `as <user>`). `user=` and `login=` keep the no-space form
+  // because they are literal key=value pairs.
   message = message.replaceAllMapped(
-    RegExp(r'\b(as|user=|login=)\s*([a-zA-Z0-9_.-]+)'),
-    (m) => '${m.group(1)} <user>',
+    RegExp(r'\bas\s+([a-zA-Z0-9_.-]+)'),
+    (m) => 'as <user>',
+  );
+  message = message.replaceAllMapped(
+    RegExp(r'\b(user|login)=([a-zA-Z0-9_.-]+)'),
+    (m) => '${m.group(1)}=<user>',
   );
 
   // Redact port numbers in host:port patterns

@@ -149,7 +149,7 @@ void main() {
       final result = sanitizeErrorMessage(
         'auth attempt user=admin method=publickey',
       );
-      expect(result, contains('user= <user>'));
+      expect(result, contains('user=<user>'));
       expect(result, isNot(contains('admin')));
     });
 

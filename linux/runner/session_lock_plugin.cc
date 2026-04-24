@@ -75,8 +75,15 @@ static gchar* resolve_session_path(GDBusConnection* bus) {
       g_variant_new("(u)", static_cast<guint32>(getpid())),
       G_VARIANT_TYPE("(o)"), G_DBUS_CALL_FLAGS_NONE, 2000, nullptr, &error);
   if (reply == nullptr) {
-    g_warning("session_lock: GetSessionByPID failed: %s",
-              error != nullptr ? error->message : "(no error detail)");
+    // Expected in several legitimate environments — WSL2/WSLg (no
+    // logind session), headless CI, containers without a session
+    // manager, or a user session that was reparented. We fall back
+    // to an unscoped subscription below, so this is not an error.
+    // Use g_debug so the log stays quiet on a normal launch without
+    // hiding the detail from G_MESSAGES_DEBUG-instrumented runs.
+    g_debug("session_lock: GetSessionByPID unavailable (%s) — using "
+            "unscoped lock subscription",
+            error != nullptr ? error->message : "(no error detail)");
     return nullptr;
   }
   const gchar* path = nullptr;

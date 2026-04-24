@@ -167,6 +167,7 @@ class BiometricAuth {
           AppLogger.instance.log(
             'WinBio reports zero biometric units; demoting Hello to noSensor',
             name: 'BiometricAuth',
+            level: LogLevel.warn,
           );
           return BiometricUnavailableReason.noSensor;
         }
@@ -213,6 +214,7 @@ class BiometricAuth {
         'Biometric authenticate timed out after '
         '${_authTimeout.inSeconds}s; falling back to password prompt',
         name: 'BiometricAuth',
+        level: LogLevel.warn,
       );
       return false;
     } catch (e) {

@@ -64,7 +64,12 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
               AppButton.secondary(
                 label: 'Enable Logging',
                 onTap: () {
-                  AppLogger.instance.setEnabled(true);
+                  // "Enable Logging" defaults to info — the user hit a
+                  // crash and wants detail, not flooded with debug.
+                  // They can raise to debug in Settings if the repro
+                  // needs more.
+                  // ignore: unawaited_futures
+                  AppLogger.instance.setThreshold(LogLevel.info);
                   AppLogger.instance.log(
                     'Logging enabled after error: $errorType',
                     name: 'ErrorBoundary',

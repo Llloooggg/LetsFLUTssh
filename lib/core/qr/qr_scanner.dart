@@ -28,6 +28,7 @@ Future<String?> scanQrCode() async {
   } on MissingPluginException catch (e) {
     AppLogger.instance.log(
       'QR scanner not available on this platform: $e',
+      level: LogLevel.warn,
       name: 'QrScanner',
     );
     return null;

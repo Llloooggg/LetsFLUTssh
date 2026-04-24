@@ -55,6 +55,7 @@ import '../../utils/secret_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
+import '../../widgets/app_popup_select.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_selection_area.dart';
 import '../../widgets/app_icon_button.dart';
@@ -74,6 +75,7 @@ import '../../widgets/security_setup_dialog.dart';
 import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 import 'export_import.dart';
+import 'settings_logging_parser.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';

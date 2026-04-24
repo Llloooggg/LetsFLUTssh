@@ -88,6 +88,7 @@ class CertPinning {
       AppLogger.instance.log(
         'No SPKI pins configured for $host — falling back to system CA',
         name: 'CertPinning',
+        level: LogLevel.warn,
       );
       return false; // let the regular CA-trust flow fail
     }

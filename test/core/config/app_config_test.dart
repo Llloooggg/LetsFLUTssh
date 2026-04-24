@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/utils/logger.dart';
 
 void main() {
   // ===== TerminalConfig =====
@@ -639,7 +640,7 @@ void main() {
         expect(config.ui, const UiConfig());
         expect(config.transferWorkers, 2);
         expect(config.maxHistory, 500);
-        expect(config.enableLogging, false);
+        expect(config.logLevel, isNull);
         expect(config.checkUpdatesOnStart, true);
         expect(config.skippedVersion, isNull);
       });
@@ -766,9 +767,11 @@ void main() {
         expect(config.sanitized().maxHistory, AppConfig.defaults.maxHistory);
       });
 
-      test('preserves enableLogging', () {
-        const config = AppConfig(behavior: BehaviorConfig(enableLogging: true));
-        expect(config.sanitized().enableLogging, true);
+      test('preserves logLevel', () {
+        const config = AppConfig(
+          behavior: BehaviorConfig(logLevel: LogLevel.info),
+        );
+        expect(config.sanitized().logLevel, LogLevel.info);
       });
 
       test('preserves checkUpdatesOnStart', () {
@@ -794,12 +797,12 @@ void main() {
         const config = AppConfig(
           transferWorkers: 4,
           maxHistory: 1000,
-          behavior: BehaviorConfig(enableLogging: true),
+          behavior: BehaviorConfig(logLevel: LogLevel.info),
         );
         final sanitized = config.sanitized();
         expect(sanitized.transferWorkers, 4);
         expect(sanitized.maxHistory, 1000);
-        expect(sanitized.enableLogging, true);
+        expect(sanitized.logLevel, LogLevel.info);
       });
     });
 
@@ -840,12 +843,12 @@ void main() {
         expect(copy.maxHistory, 100);
       });
 
-      test('replaces enableLogging', () {
+      test('replaces logLevel', () {
         const config = AppConfig();
         final copy = config.copyWith(
-          behavior: config.behavior.copyWith(enableLogging: true),
+          behavior: config.behavior.copyWith(logLevel: LogLevel.info),
         );
-        expect(copy.enableLogging, true);
+        expect(copy.logLevel, LogLevel.info);
       });
 
       test('replaces checkUpdatesOnStart', () {
@@ -879,7 +882,7 @@ void main() {
           behavior: BehaviorConfig(skippedVersion: '2.0.0'),
         );
         final copy = config.copyWith(
-          behavior: config.behavior.copyWith(enableLogging: true),
+          behavior: config.behavior.copyWith(logLevel: LogLevel.info),
         );
         expect(copy.skippedVersion, '2.0.0');
       });
@@ -899,7 +902,7 @@ void main() {
       test('preserves locale when using copyWith', () {
         const config = AppConfig(locale: 'ja');
         final copy = config.copyWith(
-          behavior: config.behavior.copyWith(enableLogging: true),
+          behavior: config.behavior.copyWith(logLevel: LogLevel.info),
         );
         expect(copy.locale, 'ja');
       });
@@ -908,21 +911,21 @@ void main() {
         const config = AppConfig(
           behavior: BehaviorConfig(
             skippedVersion: '1.0.0',
-            enableLogging: true,
+            logLevel: LogLevel.info,
           ),
           locale: 'en',
         );
         final copy = config.copyWith(locale: 'fr');
         expect(copy.locale, 'fr');
         expect(copy.skippedVersion, '1.0.0');
-        expect(copy.enableLogging, true);
+        expect(copy.logLevel, LogLevel.info);
       });
 
       test('returns equal object when no arguments given', () {
         const config = AppConfig(
           terminal: TerminalConfig(fontSize: 18),
           transferWorkers: 4,
-          behavior: BehaviorConfig(enableLogging: true),
+          behavior: BehaviorConfig(logLevel: LogLevel.info),
         );
         expect(config.copyWith(), config);
       });
@@ -933,12 +936,12 @@ void main() {
         const a = AppConfig(
           transferWorkers: 4,
           maxHistory: 100,
-          behavior: BehaviorConfig(enableLogging: true),
+          behavior: BehaviorConfig(logLevel: LogLevel.info),
         );
         const b = AppConfig(
           transferWorkers: 4,
           maxHistory: 100,
-          behavior: BehaviorConfig(enableLogging: true),
+          behavior: BehaviorConfig(logLevel: LogLevel.info),
         );
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
@@ -974,9 +977,9 @@ void main() {
         expect(a, isNot(equals(b)));
       });
 
-      test('different enableLogging makes unequal', () {
-        const a = AppConfig(behavior: BehaviorConfig(enableLogging: false));
-        const b = AppConfig(behavior: BehaviorConfig(enableLogging: true));
+      test('different logLevel makes unequal', () {
+        const a = AppConfig(behavior: BehaviorConfig(logLevel: null));
+        const b = AppConfig(behavior: BehaviorConfig(logLevel: LogLevel.info));
         expect(a, isNot(equals(b)));
       });
 
@@ -1046,7 +1049,7 @@ void main() {
           transferWorkers: 4,
           maxHistory: 1000,
           behavior: BehaviorConfig(
-            enableLogging: true,
+            logLevel: LogLevel.info,
             checkUpdatesOnStart: false,
             skippedVersion: '2.0.0',
           ),
@@ -1073,7 +1076,8 @@ void main() {
         // AppConfig-level keys
         expect(json, containsPair('transfer_workers', 2));
         expect(json, containsPair('max_history', 500));
-        expect(json, containsPair('enable_logging', false));
+        // log_level is only serialised when non-null (default is off).
+        expect(json.containsKey('log_level'), isFalse);
         expect(json, containsPair('check_updates_on_start', true));
       });
 
@@ -1094,7 +1098,7 @@ void main() {
         expect(config.ssh, SshDefaults.defaults);
         expect(config.ui, UiConfig.defaults);
         expect(config.maxHistory, AppConfig.defaults.maxHistory);
-        expect(config.enableLogging, AppConfig.defaults.enableLogging);
+        expect(config.logLevel, AppConfig.defaults.logLevel);
       });
 
       test('fromJson() sanitizes invalid values across all sub-configs', () {
@@ -1125,14 +1129,14 @@ void main() {
         expect(config.maxHistory, AppConfig.defaults.maxHistory);
       });
 
-      test('fromJson() preserves enableLogging true', () {
-        final config = AppConfig.fromJson({'enable_logging': true});
-        expect(config.enableLogging, true);
+      test('fromJson() preserves log_level string', () {
+        final config = AppConfig.fromJson({'log_level': 'info'});
+        expect(config.logLevel, LogLevel.info);
       });
 
-      test('fromJson() defaults enableLogging to false', () {
+      test('fromJson() defaults logLevel to null', () {
         final config = AppConfig.fromJson({});
-        expect(config.enableLogging, false);
+        expect(config.logLevel, isNull);
       });
 
       test('fromJson() preserves checkUpdatesOnStart false', () {

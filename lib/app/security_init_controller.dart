@@ -546,6 +546,7 @@ class SecurityInitController {
     AppLogger.instance.log(
       'L1 configured but keychain entry missing — plaintext fallback',
       name: 'App',
+      level: LogLevel.warn,
     );
   }
 
@@ -557,6 +558,7 @@ class SecurityInitController {
       AppLogger.instance.log(
         'L2 configured but gate state missing — plaintext fallback',
         name: 'App',
+        level: LogLevel.warn,
       );
       return;
     }
@@ -592,7 +594,11 @@ class SecurityInitController {
       return;
     }
     await _injectDatabase();
-    AppLogger.instance.log('L2 reset — plaintext fallback', name: 'App');
+    AppLogger.instance.log(
+      'L2 reset — plaintext fallback',
+      name: 'App',
+      level: LogLevel.warn,
+    );
   }
 
   Future<List<int>?> _showL2UnlockDialog(
@@ -677,6 +683,7 @@ class SecurityInitController {
       AppLogger.instance.log(
         'L3 configured but vault state missing — plaintext fallback',
         name: 'App',
+        level: LogLevel.warn,
       );
       return;
     }
@@ -700,6 +707,7 @@ class SecurityInitController {
       AppLogger.instance.log(
         'L3 passwordless unseal failed — plaintext fallback',
         name: 'App',
+        level: LogLevel.warn,
       );
       return;
     }
@@ -732,7 +740,11 @@ class SecurityInitController {
       return;
     }
     await _injectDatabase();
-    AppLogger.instance.log('L3 reset — plaintext fallback', name: 'App');
+    AppLogger.instance.log(
+      'L3 reset — plaintext fallback',
+      name: 'App',
+      level: LogLevel.warn,
+    );
   }
 
   Future<bool> _showL3UnlockDialog(
@@ -818,6 +830,7 @@ class SecurityInitController {
         'First launch: keychain probe said available but write failed — '
         'retrying through the manual wizard with T1 greyed out',
         name: 'App',
+        level: LogLevel.warn,
       );
       caps = caps.copyWith(keychainAvailable: false);
     }
@@ -969,6 +982,7 @@ class SecurityInitController {
       AppLogger.instance.log(
         'First launch: keychain write failed, falling back to plaintext',
         name: 'App',
+        level: LogLevel.warn,
       );
     }
   }
@@ -988,6 +1002,7 @@ class SecurityInitController {
       'First launch: auto-select T1 keychain write rejected — '
       'leaving DB uninitialised for the wizard fallback',
       name: 'App',
+      level: LogLevel.warn,
     );
     return false;
   }
@@ -1036,6 +1051,7 @@ class SecurityInitController {
     AppLogger.instance.log(
       'First launch: L2 keychain write failed — plaintext fallback',
       name: 'App',
+      level: LogLevel.warn,
     );
   }
 
@@ -1062,6 +1078,7 @@ class SecurityInitController {
     AppLogger.instance.log(
       'First launch: hardware-vault seal failed — plaintext fallback',
       name: 'App',
+      level: LogLevel.warn,
     );
   }
 

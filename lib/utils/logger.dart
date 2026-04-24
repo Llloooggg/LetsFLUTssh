@@ -1,30 +1,110 @@
-import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
 import 'sanitize.dart';
 
+/// Severity marker for a log line. Written as a single char after the
+/// timestamp so the live viewer can tint each row without reparsing the
+/// message text. Matches the Logcat / journald convention.
+///
+/// * [debug] — deep trace the user only wants when they are actively
+///   chasing a bug. Per-packet SSH flow, per-frame render state,
+///   memory-pool churn, cache-hit counters, raw state dumps. Users opt
+///   in by picking "Debug" in Settings → Logging level; default is
+///   off and even "Info" threshold skips D writes. Filter chip in the
+///   viewer starts off so info/warn/error rows stay readable even
+///   after the user enabled debug writes.
+/// * [info] — routine operational state transition. "Session loaded",
+///   "tier switched to L2", "DB open". The default level for every
+///   `log(...)` call that does not pass `error:` or an explicit
+///   `level:`.
+/// * [warn] — degraded but recoverable. Fallback paths ("fell back to
+///   plaintext", "probe failed, using default"), missing optional
+///   state, rate-limit kick-ins, skipped duplicates. The operation
+///   *continued*; the user keeps a working app with a slightly weaker
+///   guarantee. Amber tint + left border in the viewer.
+/// * [error] — failure the user likely cares about. Migration fatal,
+///   DB corruption, crash-handler breadcrumb, lost credentials,
+///   unrecoverable connection drop. `logCritical` forces this level
+///   and bypasses the threshold so crash forensics are always on
+///   disk. Red tint + left border.
+enum LogLevel { debug, info, warn, error }
+
+String _levelChar(LogLevel l) => switch (l) {
+  LogLevel.debug => 'D',
+  LogLevel.info => 'I',
+  LogLevel.warn => 'W',
+  LogLevel.error => 'E',
+};
+
+/// Serialised form of [LogLevel] used in `config.json` so the JSON
+/// stays stable if the enum order ever changes. `null` = logging off.
+String? logLevelToJson(LogLevel? level) => switch (level) {
+  null => null,
+  LogLevel.debug => 'debug',
+  LogLevel.info => 'info',
+  LogLevel.warn => 'warn',
+  LogLevel.error => 'error',
+};
+
+LogLevel? logLevelFromJson(String? raw) => switch (raw) {
+  'debug' => LogLevel.debug,
+  'info' => LogLevel.info,
+  'warn' => LogLevel.warn,
+  'error' => LogLevel.error,
+  _ => null,
+};
+
+/// Compile-time override for the logging threshold, set via
+/// `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` at build time.
+///
+/// When non-empty + a recognised level, `main.dart` applies it right
+/// after `AppLogger.init()` — before `ConfigProvider.load` gets a
+/// chance to read `config.json`. This lets `make run` (debug build)
+/// ship with verbose logs without each developer / beta-tester having
+/// to toggle the Settings dropdown on every fresh install.
+///
+/// Production builds leave the flag empty → the getter returns null
+/// → the configProvider load path runs unchanged, so release users
+/// still start with logging off unless they explicitly opt in.
+LogLevel? get buildTimeLogLevelOverride {
+  const raw = String.fromEnvironment('LETSFLUTSSH_LOG_LEVEL');
+  if (raw.isEmpty) return null;
+  return logLevelFromJson(raw);
+}
+
 /// File-based logger.
 ///
-/// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the app data.
-/// Automatically rotates when the log file exceeds [maxLogSizeBytes].
+/// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the
+/// app data. Automatically rotates when the log file exceeds
+/// [maxLogSizeBytes].
 ///
-/// **Routine logs are opt-in.** Disabled by default — user enables via
-/// Settings → Enable Logging. This preserves the privacy-by-default stance
-/// for the steady-state stream of info / debug lines.
+/// **Threshold-based opt-in.** The user picks a minimum severity in
+/// Settings → Logging. `null` = off (default); any `LogLevel` value
+/// opens the file sink and admits lines at or above that level. So
+/// picking `warn` writes W + E, picking `debug` writes everything.
+/// Privacy-first: no routine logs leave the user's device until they
+/// explicitly opt in, and they choose how verbose.
 ///
-/// **Critical paths bypass the toggle.** [logCritical] writes straight to
-/// disk regardless of [enabled] state so crash boundaries, migration
-/// fatals and DB-integrity-probe failures always leave a forensic
-/// breadcrumb — the window where a trace matters most is exactly the one
-/// where the user has not yet flipped the toggle. The write uses
-/// [FileMode.append] on [logPath] directly, never touches [_sink], so
-/// it does not leak routine entries past the opt-out gate.
+/// **Critical paths bypass the threshold.** [logCritical] writes
+/// straight to disk regardless of current threshold so crash
+/// boundaries, migration fatals and DB-integrity-probe failures
+/// always leave a forensic breadcrumb — the window where a trace
+/// matters most is exactly the one where the user has not yet flipped
+/// the toggle. The write uses [FileMode.append] on [logPath] directly,
+/// never touches [_sink], so it does not leak routine entries past
+/// the opt-out gate.
+///
+/// **No OS logging mirror.** Unlike the previous revision, routine
+/// [log] calls do NOT forward to `dart:developer` — Android Logcat /
+/// macOS Console.app / desktop stderr never see our lines. The only
+/// logging surface the user (or anyone with `adb logcat` / Console
+/// access) sees is the opt-in file under app-support.
 ///
 /// All messages pass through [sanitize] (PEM blobs, IPv4 / user@host,
-/// home-directory paths are redacted) and the file is chmod-0600 on POSIX —
-/// same hardening as `credentials.*` and `config.json`.
+/// home-directory paths are redacted) and the file is chmod-0600 on
+/// POSIX — same hardening as `credentials.*` and `config.json`.
 class AppLogger {
   static AppLogger? _instance;
   static const maxLogSizeBytes = 5 * 1024 * 1024; // 5 MB
@@ -32,10 +112,11 @@ class AppLogger {
 
   IOSink? _sink;
   String? _logPath;
-  // Routine logs default OFF — the user opts in via Settings. Critical
-  // paths ([logCritical]) bypass this gate entirely so crash breadcrumbs
+  // Current minimum severity that hits the sink. `null` = logging
+  // off; any LogLevel admits lines at or above that level. Critical
+  // paths ([logCritical]) bypass this gate so crash breadcrumbs
   // survive even when routine logging is disabled.
-  bool _enabled = false;
+  LogLevel? _threshold;
 
   AppLogger._();
 
@@ -45,28 +126,37 @@ class AppLogger {
   /// Path to the current log file, or null if not initialized.
   String? get logPath => _logPath;
 
-  /// Whether file logging is currently enabled.
-  bool get enabled => _enabled;
+  /// Whether file logging is currently enabled (threshold set).
+  bool get enabled => _threshold != null;
 
-  /// Enable or disable file logging at runtime (no restart needed).
-  Future<void> setEnabled(bool value) async {
-    if (value == _enabled) return;
-    _enabled = value;
-    if (value) {
+  /// Current severity threshold. `null` means logging is off.
+  LogLevel? get threshold => _threshold;
+
+  /// Change the minimum severity that lands in the sink. Passing
+  /// `null` closes the sink; passing any [LogLevel] opens it if not
+  /// already open. Cheap to call repeatedly — threshold updates with
+  /// the sink already open don't reopen.
+  Future<void> setThreshold(LogLevel? value) async {
+    if (value == _threshold) return;
+    final opening = _threshold == null && value != null;
+    final closing = _threshold != null && value == null;
+    _threshold = value;
+    if (opening) {
       await _openSink();
-    } else {
-      await dispose();
+    } else if (closing) {
+      await _closeSink();
     }
   }
 
   /// Initialize the logger — resolves the log path but does NOT open
   /// the routine sink. Called from `main.dart` before `runApp` so that
-  /// [logCritical] has a resolved path ready for any pre-`runZonedGuarded`
-  /// crash. The main write sink opens only when the user has routine
-  /// logging enabled (handled by `ConfigProvider.load` → [setEnabled]).
+  /// [logCritical] has a resolved path ready for any pre-
+  /// `runZonedGuarded` crash. The main write sink opens only when
+  /// [setThreshold] is called with a non-null value.
   ///
   /// Failures here (path resolution, directory create) never throw —
-  /// [logCritical] degrades to `dart:developer` when [_logPath] is null.
+  /// [logCritical] becomes a best-effort no-op when [_logPath] stays
+  /// null.
   Future<void> init() async {
     try {
       final dir = await getApplicationSupportDirectory();
@@ -75,8 +165,9 @@ class AppLogger {
         await logDir.create(recursive: true);
       }
       _logPath = '${logDir.path}/letsflutssh.log';
-    } catch (e) {
-      dev.log('AppLogger: failed to init: $e');
+    } catch (_) {
+      // Best-effort init — no OS-logging fallback anymore; a failed
+      // init just means neither routine nor critical writes will land.
     }
   }
 
@@ -96,8 +187,9 @@ class AppLogger {
       );
       _sink!.writeln('Dart: ${Platform.version.split(' ').first}');
       _sink!.writeln('');
-    } catch (e) {
-      dev.log('AppLogger: failed to open log file: $e');
+    } catch (_) {
+      // Sink open failed — leave _sink null so writes no-op; no OS-
+      // logging fallback by design.
     }
   }
 
@@ -126,49 +218,65 @@ class AppLogger {
 
   /// Strips sensitive data from a string before logging.
   ///
-  /// Applied to every log message, error, and stack trace — including those
-  /// originating from third-party libraries (dartssh2, drift, archive, etc.),
-  /// so host/user/IP data leaked through library exception messages never
-  /// reaches the log file or DevTools.
+  /// Applied to every log message, error, and stack trace — including
+  /// those originating from third-party libraries (dartssh2, drift,
+  /// archive, etc.), so host/user/IP data leaked through library
+  /// exception messages never reaches the log file.
   ///
   /// Scrubs:
   /// - PEM private keys and long base64 blobs (key material)
   /// - IPv4 addresses, `user@host`, `host:port`
   /// - Home-directory paths (`/home/<user>/`, `C:\Users\<user>\`)
   static String sanitize(String input) {
-    // Strip key material first, then scrub IPs / user@host / home paths —
-    // catches data leaking through third-party exception messages.
+    // Strip key material first, then scrub IPs / user@host / home
+    // paths — catches data leaking through third-party exception
+    // messages.
     return sanitizeErrorMessage(redactSecrets(input));
   }
 
-  /// Log a message. Also forwards to dart:developer log (DevTools).
-  /// File write only happens if logging is [enabled].
+  /// Log a message.
+  ///
+  /// The line is written to the file sink only when [level] is at or
+  /// above the current [threshold]. [level] defaults to
+  /// [LogLevel.info]; when an [error] object is passed without an
+  /// explicit level, auto-promote to [LogLevel.error] so existing
+  /// call sites that pass `error:` show up tinted red in the viewer
+  /// without having to be rewritten.
   void log(
     String message, {
     String? name,
     Object? error,
     StackTrace? stackTrace,
+    LogLevel? level,
   }) {
+    final threshold = _threshold;
+    if (threshold == null || _sink == null) return;
+    final resolvedLevel =
+        level ?? (error != null ? LogLevel.error : LogLevel.info);
+    if (resolvedLevel.index < threshold.index) return;
+
     final tag = name ?? 'App';
     final safeMsg = sanitize(message);
     final safeError = error == null ? null : sanitize(error.toString());
-    dev.log(safeMsg, name: tag, error: safeError);
-
-    if (!_enabled || _sink == null) return;
-
     try {
       final now = DateTime.now();
       final ts =
           '${now.hour.toString().padLeft(2, '0')}:'
           '${now.minute.toString().padLeft(2, '0')}:'
           '${now.second.toString().padLeft(2, '0')}';
-      _sink!.writeln('$ts [$tag] $safeMsg');
+      _sink!.writeln('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
       if (safeError != null) {
         _sink!.writeln('  Error: $safeError');
       }
       if (stackTrace != null) {
         _sink!.writeln('  Stack trace:');
-        _sink!.writeln(sanitize('$stackTrace'));
+        // Indent every stack-trace line with two spaces so the viewer
+        // parser folds them into the parent entry instead of treating
+        // each `#N …` frame as its own dim-italic header row.
+        for (final frame in sanitize('$stackTrace').split('\n')) {
+          if (frame.isEmpty) continue;
+          _sink!.writeln('  $frame');
+        }
       }
     } catch (_) {
       // Don't crash the app for logging failures.
@@ -180,14 +288,16 @@ class AppLogger {
   /// boundaries, migration fatals and DB-integrity-probe failures
   /// always leave a forensic breadcrumb. Never opens or closes the
   /// main sink [_sink] — a direct append keeps the write independent
-  /// of user-toggle state and avoids leaking subsequent routine entries.
+  /// of user-threshold state and avoids leaking subsequent routine
+  /// entries.
   ///
   /// Privacy: the file is still chmod-0600 (same hardening as routine
   /// logs), the message still passes through [sanitize], and rotation
   /// handled by [_openSink] still applies the next time the user
-  /// flips the toggle on. Bypassing the toggle on crash paths only is
-  /// the narrowest exception needed to meet the "fresh install
-  /// crashes should be debuggable without a pre-flip" requirement.
+  /// raises the threshold. Bypassing the threshold on crash paths
+  /// only is the narrowest exception needed to meet the "fresh
+  /// install crashes should be debuggable without a pre-flip"
+  /// requirement.
   ///
   /// Best-effort — any I/O error swallowed so a broken disk does not
   /// amplify into a second crash inside the crash handler.
@@ -200,8 +310,6 @@ class AppLogger {
     final tag = name ?? 'App';
     final safeMsg = sanitize(message);
     final safeError = error == null ? null : sanitize(error.toString());
-    // Always forward to dart:developer too, same contract as [log].
-    dev.log(safeMsg, name: tag, error: safeError);
     if (_logPath == null) return;
     try {
       final now = DateTime.now();
@@ -209,11 +317,19 @@ class AppLogger {
           '${now.hour.toString().padLeft(2, '0')}:'
           '${now.minute.toString().padLeft(2, '0')}:'
           '${now.second.toString().padLeft(2, '0')}';
-      final buf = StringBuffer()..writeln('$ts [$tag] $safeMsg');
+      // logCritical is always error-level by contract.
+      final buf = StringBuffer()
+        ..writeln('$ts ${_levelChar(LogLevel.error)} [$tag] $safeMsg');
       if (safeError != null) buf.writeln('  Error: $safeError');
       if (stackTrace != null) {
         buf.writeln('  Stack trace:');
-        buf.writeln(sanitize('$stackTrace'));
+        // Indent every stack-trace line with two spaces — same rule
+        // as the routine [log] path so the viewer parser folds frames
+        // into the parent entry.
+        for (final frame in sanitize('$stackTrace').split('\n')) {
+          if (frame.isEmpty) continue;
+          buf.writeln('  $frame');
+        }
       }
       final file = File(_logPath!);
       // Ensure the parent directory exists — [init] already creates
@@ -245,9 +361,11 @@ class AppLogger {
     }
   }
 
-  /// Flush and close the log file.
+  /// Flush and close the log file. Sets threshold to null so no
+  /// further routine writes land until [setThreshold] is called with
+  /// a non-null value.
   Future<void> dispose() async {
-    _enabled = false;
+    _threshold = null;
     await _closeSink();
   }
 
@@ -270,7 +388,7 @@ class AppLogger {
 
   /// Delete all log files.
   Future<void> clearLogs() async {
-    final wasEnabled = _enabled;
+    final previousThreshold = _threshold;
     await _closeSink();
     if (_logPath == null) return;
 
@@ -282,10 +400,10 @@ class AppLogger {
       }
     }
 
-    if (wasEnabled) await _openSink();
+    if (previousThreshold != null) await _openSink();
   }
 
-  /// Close the log file sink without disabling logging.
+  /// Close the log file sink without disabling the threshold.
   Future<void> _closeSink() async {
     try {
       await _sink?.flush();

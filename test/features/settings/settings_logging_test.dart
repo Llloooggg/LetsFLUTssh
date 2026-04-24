@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
+import 'package:letsflutssh/features/settings/settings_logging_parser.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
@@ -224,11 +225,11 @@ void main() {
         );
 
     await AppLogger.instance.init();
-    await AppLogger.instance.setEnabled(true);
+    await AppLogger.instance.setThreshold(LogLevel.debug);
   });
 
   tearDown(() async {
-    await AppLogger.instance.setEnabled(false);
+    await AppLogger.instance.setThreshold(null);
     await AppLogger.instance.dispose();
 
     plat.debugMobilePlatformOverride = null;
@@ -294,13 +295,17 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
+      // New UI — level selector replaced the Enable Logging toggle.
       await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
+        find.text('Logging level'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
 
-      expect(find.text('Enable Logging'), findsOneWidget);
+      expect(find.text('Logging level'), findsOneWidget);
+      // Dropdown collapses to the current value's label — fresh
+      // config defaults to null threshold → "Off" option rendered.
+      expect(find.text('Off'), findsOneWidget);
     });
 
     testWidgets('logging enabled with logPath set renders live log viewer', (
@@ -315,7 +320,7 @@ void main() {
       expect(AppLogger.instance.logPath, isNotNull);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -324,7 +329,8 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      expect(find.text('Enable Logging'), findsOneWidget);
+      // New UI — level selector replaced the Enable Logging toggle.
+      expect(find.text('Logging level'), findsOneWidget);
       expect(find.text('Live Log'), findsOneWidget);
       // Toolbar icons from _LiveLogViewer.build.
       expect(find.byIcon(Icons.copy), findsOneWidget);
@@ -339,7 +345,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       for (int i = 0; i < 10; i++) {
@@ -382,7 +388,7 @@ void main() {
       // "(no log entries yet)" placeholder. Sink must be closed first so the
       // file isn't held open.
       await tester.runAsync(() async {
-        await AppLogger.instance.setEnabled(false);
+        await AppLogger.instance.setThreshold(null);
         final logPath = AppLogger.instance.logPath;
         if (logPath != null) {
           final file = File(logPath);
@@ -393,7 +399,7 @@ void main() {
       });
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -442,7 +448,7 @@ void main() {
       );
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -478,7 +484,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -534,7 +540,7 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
 
         final config = AppConfig.defaults.copyWith(
-          behavior: const BehaviorConfig(enableLogging: true),
+          behavior: const BehaviorConfig(logLevel: LogLevel.info),
         );
         await tester.pumpWidget(buildApp(initialConfig: config));
         await tester.scrollUntilVisible(
@@ -573,5 +579,93 @@ void main() {
       },
       timeout: const Timeout(Duration(seconds: 15)),
     );
+  });
+
+  group('parseLogEntries', () {
+    // The parser drives the viewer's per-row tint + segment colouring.
+    // Regex mismatches silently demote a row to "header dim" which
+    // buries the warning / error visual cue users rely on when
+    // scanning a log — covering the happy path + each branch here
+    // guards the level → tint mapping against future format drift.
+
+    test('empty input yields empty list', () {
+      expect(parseLogEntries(''), isEmpty);
+      expect(parseLogEntries('\n\n'), isEmpty);
+    });
+
+    test(
+      'parses debug / info / warn / error primary lines with tag + timestamp',
+      () {
+        final entries = parseLogEntries(
+          [
+            '12:34:55 D [SSH] frame in',
+            '12:34:56 I [App] routine entry',
+            '12:34:57 W [KeyStore] fell back to plaintext',
+            '12:34:58 E [MigrationRunner] fatal: bad chain',
+          ].join('\n'),
+        );
+        expect(entries, hasLength(4));
+        expect(entries[0].level, LogLevel.debug);
+        expect(entries[0].tag, 'SSH');
+        expect(entries[1].level, LogLevel.info);
+        expect(entries[1].timestamp, '12:34:56');
+        expect(entries[1].tag, 'App');
+        expect(entries[1].message, 'routine entry');
+        expect(entries[1].isHeader, isFalse);
+        expect(entries[2].level, LogLevel.warn);
+        expect(entries[2].tag, 'KeyStore');
+        expect(entries[3].level, LogLevel.error);
+        expect(entries[3].tag, 'MigrationRunner');
+      },
+    );
+
+    test('header lines become dim entries', () {
+      final entries = parseLogEntries(
+        [
+          '--- Log started 2026-04-24T00:00:00Z ---',
+          'Platform: linux "Linux 6.6"',
+          'Dart: 3.4.0',
+          '12:34:56 I [App] first real line',
+        ].join('\n'),
+      );
+      expect(entries.take(3).every((e) => e.isHeader), isTrue);
+      expect(entries[0].message, startsWith('--- Log started'));
+      expect(entries[3].level, LogLevel.info);
+    });
+
+    test('indented continuations fold into the previous entry', () {
+      final entries = parseLogEntries(
+        [
+          '12:34:56 E [SFTP] connection dropped',
+          '  Error: SshException: server closed channel',
+          '  Stack trace:',
+          '  #0      SSHClient.<...>',
+          '12:34:57 I [App] reconnecting',
+        ].join('\n'),
+      );
+      expect(entries, hasLength(2));
+      expect(entries[0].level, LogLevel.error);
+      expect(entries[0].continuations, hasLength(3));
+      expect(entries[0].continuations.first, startsWith('  Error:'));
+      expect(entries[1].message, 'reconnecting');
+    });
+
+    test('unparseable lines become dim header entries without losing text', () {
+      // Old-format lines (pre-LogLevel) or a truncated entry mid-write
+      // fall here. The line must still render — buried data silently
+      // is worse than a visibly-uncoloured row.
+      final entries = parseLogEntries('12:34:56 [App] legacy format');
+      expect(entries, hasLength(1));
+      expect(entries[0].isHeader, isTrue);
+      expect(entries[0].message, '12:34:56 [App] legacy format');
+    });
+
+    test('tags with special chars are preserved verbatim', () {
+      final entries = parseLogEntries(
+        '12:34:56 I [SecurityInitController] re-open on unlock',
+      );
+      expect(entries.single.tag, 'SecurityInitController');
+      expect(entries.single.message, 're-open on unlock');
+    });
   });
 }

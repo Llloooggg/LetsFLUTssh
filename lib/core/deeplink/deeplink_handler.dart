@@ -86,6 +86,7 @@ class DeepLinkHandler {
       AppLogger.instance.log(
         'Skipping duplicate: ${_sanitizeUri(uri)}',
         name: 'DeepLink',
+        level: LogLevel.warn,
       );
       return;
     }

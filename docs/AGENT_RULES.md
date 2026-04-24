@@ -240,6 +240,14 @@ Specifically high-risk surfaces (already burned by hallucination in past session
 ### Reuse First (project-wide, not just UI)
 **Before adding any new widget, helper, mixin, style constant, or store: search `lib/widgets/`, `lib/theme/`, `lib/core/**` for an existing equivalent.** If behaviour is close but not identical, **extend** the shared primitive (add a parameter) instead of forking. A second caller is the trigger to extract a shared helper; a third caller makes it mandatory. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason must be obvious in code.
 
+**Inline implementations in another file are the same as shared components for the purposes of this rule.** When you need a new control that mirrors one already built inline inside another widget (the language picker's styled `PopupMenuButton`, the session-edit form's `DropdownSelectButton`, the tier-card's `_SegmentControl`), do **not** copy-paste the inline block into your new site. The correct order of operations is:
+
+1. Search `lib/widgets/` — if a shared primitive already exists, use it (the common case).
+2. No shared primitive, but a visually / behaviourally equivalent **inline block** exists elsewhere in `lib/` — **lift it to `lib/widgets/` first**, swap the original call site to use the new shared version, then build your new caller on top of it. This is the only acceptable shape for the second caller; shipping a second inline copy "to unblock the current task" leaves every later caller copying the wrong one and the shared primitive never lands.
+3. Neither shared nor inline precedent — build the new widget in `lib/widgets/` from day one, not inside the feature file that first needs it.
+
+The "one-off is allowed when the pattern doesn't fit" escape hatch covers shape divergence (different layout, different gesture contract), not speed. If the only cost of extraction is "another file to create" the inline shortcut is a rule violation, not a judgement call.
+
 What this rule covers (not just UI):
 - **Widgets** — `AppIconButton`, `AppDialog` (+ `AppDialogHeader`/`Footer`/`Action`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`, `AppShell`, `ModeButton`, `ConfirmDialog`, `ErrorState`.
 - **Theme constants** — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes, radii, heights, font sizes, padding scales = bug.
@@ -266,7 +274,9 @@ Reference: full project-wide formulation in [ARCHITECTURE §1 Reuse principle](A
 
 ### Logging — AppLogger, Auto-Sanitized, Err On More Not Less
 
-Every log line goes through `AppLogger.instance.log(message, name: 'Tag', error: e, stackTrace: st)`. Never call `print`, never call `dart:developer`'s `log` directly — both bypass the sanitizer and the file sink, and `print` survives into release builds. The file sink is opt-in off by default (Settings → Enable Logging); routine lines write to `dart:developer` + optional disk, crash paths use `logCritical` to bypass the opt-out.
+Every log line goes through `AppLogger.instance.log(message, name: 'Tag', error: e, stackTrace: st)`. Never call `print`, never call `dart:developer`'s `log` directly — both bypass the sanitizer and (for `print`) survive into release builds. **The logger writes to its own file sink only** — there is no OS-logging mirror (no `dart:developer` / Logcat / Console.app / stderr) by design. The only log channel the user's device exposes is the opt-in file under `<appSupportDir>/logs/letsflutssh.log`.
+
+Log output is threshold-gated at runtime (Settings → Logging level — `Off` / `Error` / `Warn` / `Info` / `Debug`). Picking any level opens the file sink and admits lines at or above that level — so `Warn` writes W + E, `Debug` writes everything, `Off` writes nothing. Default is `Off` (privacy-first). `logCritical` bypasses the threshold so crash breadcrumbs land even when routine logging is disabled.
 
 **Every log message passes through `AppLogger.sanitize` automatically** — `redactSecrets` scrubs PEM private keys and long base64 runs, then `sanitizeErrorMessage` redacts IPv4/IPv6, `user@host`, `host:port`, Windows `C:\Users\<name>` and Unix `/home/<name>` paths, plus `as <user>` / `user=<user>` / `login=<user>` shapes from dartssh2 exception text. You do **not** pre-sanitize by hand; the logger does it. The one thing the sanitizer cannot catch is **free-form user-chosen strings** (session labels, key labels, tag names, snippet titles, folder names) — those have no regex shape. For those, log the marker `<label>` or `<name>` instead of the value, the same way `session_connect.dart:resolveConfig` writes `'Resolved keyId X → <label>'`. See [ARCHITECTURE §17 Error Handling](ARCHITECTURE.md#17-error-handling--sanitization) for the full sanitizer table.
 
@@ -284,6 +294,29 @@ When you notice existing code missing a log on one of the above, add it in the s
 **Never compose a message that embeds a raw password, passphrase, or private-key byte.** The sanitizer catches PEM blocks and long base64 runs, but a short passphrase or a typed master password falls through. Put them in the code path, not the log string — log `'Password verify failed'`, never `'Password verify failed: $typedPassword'`. Same rule for error paths: `catch (e)` → `AppLogger.instance.log('X failed: $e', name: 'Tag', error: e)` is fine (dartssh2 exception text goes through the sanitizer); `AppLogger.instance.log('X failed with pass $password: $e', name: 'Tag')` is not.
 
 **Critical paths use `logCritical`**. Global crash handlers (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded`), migration fatals, and the DB integrity-probe failure write through `logCritical` so the file line lands even when the user has routine logging off — a first-launch crash has to be debuggable without a settings visit first.
+
+**Pick the severity level deliberately.** `log()` takes an optional `LogLevel` — the live viewer keys tint + row filter off this value, so a wrong level buries the signal in one place and falsely escalates in another. Four values (`D` debug / `I` info / `W` warn / `E` error) matching the Logcat / journald convention. **Auto-rules**:
+
+- `log(..., error: e)` **without** an explicit `level:` auto-promotes to `LogLevel.error`. Existing call sites that pass an error object get red tint for free — do not add `level: LogLevel.error` redundantly.
+- `logCritical` is always `error` — do not pass `level:` to it.
+- Everything else defaults to `info`.
+
+**When to pick explicitly**:
+
+| Level | Use when | Examples |
+|---|---|---|
+| `LogLevel.debug` | Deep trace you would not read on a normal support session. Per-packet SSH flow, per-frame render state, memory-pool churn, cache-hit counters, internal state dumps. Noise the user only wants when they are actively chasing one bug. Release builds strip D writes unless the user flips "Verbose logging" in Settings; debug builds always emit. | `log('SSH frame type=$t len=$n', name: 'SSH', level: LogLevel.debug)` |
+| `LogLevel.info` | (default) Routine operational state transition. "Session loaded", "tier switched to L2", "DB opened at $path", "SFTP connected". One line per meaningful event, never per-frame / per-packet. | `log('SFTP connected', name: 'SFTP')` |
+| `LogLevel.warn` | Degraded but recoverable. Fallback paths ("fell back to plaintext"), missing optional state ("biometric not enrolled — password-only"), rate-limit kick-ins, skipped duplicates, probe failures that route to a weaker default. The operation *continued*; the user keeps a working app with a slightly weaker guarantee. **Override the error-auto-promote** explicitly when a recoverable path also carries a suppressed exception object: `log('X failed, falling back', error: e, level: LogLevel.warn)` — otherwise the viewer tints it red and the user thinks the fallback itself broke. | `log('Keychain write failed, falling back to plaintext', name: 'App', level: LogLevel.warn)` |
+| `LogLevel.error` | Failure the user likely cares about. Migration fatal, DB corruption, lost credentials, unrecoverable connection drop, crash-handler breadcrumb. Operation aborted or entered a recovery flow that requires user action. | `log('Migration fatal', name: 'App', error: e)` — auto-promoted; or `logCritical(...)` on crash paths |
+
+**Picking warn vs error — the test.** "Did the user lose anything irrecoverable, or did the code route around the problem silently?" If the user can keep using the feature with a weaker-but-working fallback, `warn`. If the feature is now unavailable / data is at risk / credentials are lost, `error`.
+
+**Picking debug vs info — the test.** "Would a user pasting 20 lines from the viewer into a bug report want this line in those 20?" If yes → `info`. If the line is only interesting when you already know the bug area → `debug`. Per-packet / per-frame / per-item-in-a-hot-loop is always `debug`.
+
+**Debug writes follow the user's threshold.** `LogLevel.debug` is admitted to the file sink only when the user picked `Debug` as their threshold. There is no build-mode carve-out (no `kDebugMode` gate, no hidden "Verbose" toggle) — a stock user who never touched Settings writes nothing; a user chasing a bug flips the level once and gets the full stream. Write D lines as if they will be read: noise that "only the dev sees" is not a thing when the threshold is user-controlled. Same for I — a user at the `Info` threshold sees every I line the codebase emits, so don't treat `info` as a scratchpad either.
+
+**Dev / beta-tester builds override the threshold at compile time.** `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` (value is the same string as `config.behavior.log_level`: `debug` / `info` / `warn` / `error`) seeds the threshold before `config.json` is read, so a freshly-installed dev build already writes lines without the tester having to open Settings. `make run` wires this to `debug` by default. Release builds ship **without** the flag — `buildTimeLogLevelOverride` returns null and the on-disk config wins. Never ship a release with the flag set: that would override every user's chosen level silently.
 
 ### Theme & UI Constants
 OneDark theme: centralized in `app_theme.dart`, semantic color constants, no hardcoded `Colors` — [§8 Theme](ARCHITECTURE.md#8-theme-system)

@@ -61,7 +61,7 @@ class ConfigNotifier extends Notifier<AppConfig> {
   Future<void> load() async {
     try {
       state = await _store.load();
-      AppLogger.instance.setEnabled(state.enableLogging);
+      await AppLogger.instance.setThreshold(state.logLevel);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to load config, using defaults',
@@ -80,7 +80,12 @@ class ConfigNotifier extends Notifier<AppConfig> {
   Future<void> update(AppConfig Function(AppConfig) updater) {
     final updated = updater(state);
     state = updated;
-    AppLogger.instance.setEnabled(updated.enableLogging);
+    // Fire-and-forget — threshold change only flips an enum + maybe
+    // opens/closes the sink; the awaited load() path handles cold-
+    // start init synchronously. Callers of update() should not pay
+    // for the I/O of opening a sink file.
+    // ignore: unawaited_futures
+    AppLogger.instance.setThreshold(updated.logLevel);
     _pendingConfig = updated;
     _pendingSaveCompleter ??= Completer<void>();
     final completer = _pendingSaveCompleter!;

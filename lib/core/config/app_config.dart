@@ -1,3 +1,5 @@
+import '../../utils/logger.dart'
+    show LogLevel, logLevelFromJson, logLevelToJson;
 import '../security/security_bootstrap.dart' show SecurityCapabilities;
 import '../security/security_tier.dart';
 
@@ -236,13 +238,22 @@ class UiConfig {
 /// (`AppConfigs.auto_lock_minutes`) so an attacker with plaintext-disk
 /// access cannot weaken the security control by editing a plaintext
 /// file. See [AutoLockStore].
+// See [LogLevel] in utils/logger.dart — imported here so the
+// config-level serialisation stays the single source of truth for
+// the log-level enum encoding.
 class BehaviorConfig {
-  final bool enableLogging;
+  /// Minimum severity the routine file sink admits. `null` = logging
+  /// off (default). Picking any [LogLevel] opens the sink and writes
+  /// lines at or above that level, so picking `warn` writes W + E,
+  /// picking `debug` writes everything. Replaces the old
+  /// `enableLogging` bool — users who had that on will land on
+  /// `null` after upgrade and can re-pick a level in Settings.
+  final LogLevel? logLevel;
   final bool checkUpdatesOnStart;
   final String? skippedVersion;
 
   const BehaviorConfig({
-    this.enableLogging = false,
+    this.logLevel,
     this.checkUpdatesOnStart = true,
     this.skippedVersion,
   });
@@ -253,11 +264,13 @@ class BehaviorConfig {
   static const _unset = Object();
 
   BehaviorConfig copyWith({
-    bool? enableLogging,
+    Object? logLevel = _unset,
     bool? checkUpdatesOnStart,
     Object? skippedVersion = _unset,
   }) => BehaviorConfig(
-    enableLogging: enableLogging ?? this.enableLogging,
+    logLevel: identical(logLevel, _unset)
+        ? this.logLevel
+        : logLevel as LogLevel?,
     checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
     skippedVersion: identical(skippedVersion, _unset)
         ? this.skippedVersion
@@ -268,16 +281,16 @@ class BehaviorConfig {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is BehaviorConfig &&
-          enableLogging == other.enableLogging &&
+          logLevel == other.logLevel &&
           checkUpdatesOnStart == other.checkUpdatesOnStart &&
           skippedVersion == other.skippedVersion;
 
   @override
   int get hashCode =>
-      Object.hash(enableLogging, checkUpdatesOnStart, skippedVersion);
+      Object.hash(logLevel, checkUpdatesOnStart, skippedVersion);
 
   Map<String, dynamic> toJson() => {
-    'enable_logging': enableLogging,
+    if (logLevel != null) 'log_level': logLevelToJson(logLevel),
     'check_updates_on_start': checkUpdatesOnStart,
     if (skippedVersion != null) 'skipped_version': skippedVersion,
   };
@@ -285,7 +298,7 @@ class BehaviorConfig {
   factory BehaviorConfig.fromJson(Map<String, dynamic> json) {
     const d = BehaviorConfig.defaults;
     return BehaviorConfig(
-      enableLogging: json['enable_logging'] as bool? ?? d.enableLogging,
+      logLevel: logLevelFromJson(json['log_level'] as String?) ?? d.logLevel,
       checkUpdatesOnStart:
           json['check_updates_on_start'] as bool? ?? d.checkUpdatesOnStart,
       skippedVersion: json['skipped_version'] as String?,
@@ -373,7 +386,7 @@ class AppConfig {
   double get windowHeight => ui.windowHeight;
   double get uiScale => ui.uiScale;
   bool get showFolderSizes => ui.showFolderSizes;
-  bool get enableLogging => behavior.enableLogging;
+  LogLevel? get logLevel => behavior.logLevel;
   bool get checkUpdatesOnStart => behavior.checkUpdatesOnStart;
   String? get skippedVersion => behavior.skippedVersion;
 

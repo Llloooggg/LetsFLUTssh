@@ -528,89 +528,28 @@ class _LanguageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveValue = value ?? _systemDefault;
     final s = S.of(context);
-    final current = _localeLabels[effectiveValue];
-    final label = effectiveValue == _systemDefault
-        ? s.languageSystemDefault
-        : current?.$1 ?? effectiveValue;
+    final options = _localeLabels.entries
+        .map(
+          (e) => AppPopupSelectOption<String>(
+            value: e.key,
+            label: e.key == _systemDefault
+                ? s.languageSystemDefault
+                : e.value.$1,
+            secondary: e.value.$2.isNotEmpty ? e.value.$2 : null,
+          ),
+        )
+        .toList(growable: false);
 
     return _SettingsRow(
       label: s.language,
       subtitle: s.languageSubtitle,
       icon: Icons.language,
-      child: PopupMenuButton<String>(
-        onSelected: (v) => onChanged(v == _systemDefault ? null : v),
-        tooltip: '',
-        // `PopupMenuButton` owns its own `AnimationController` and
-        // ignores the root `MediaQuery(disableAnimations: true)` —
-        // opt out explicitly so it matches the project-wide hard-off.
-        popUpAnimationStyle: AnimationStyle.noAnimation,
-        offset: const Offset(0, AppTheme.controlHeightSm),
-        constraints: const BoxConstraints(
-          minWidth: 200,
-          maxHeight: AppTheme.popupMaxHeight,
-        ),
-        color: AppTheme.bg2,
-        shape: const RoundedRectangleBorder(borderRadius: AppTheme.radiusMd),
-        itemBuilder: (_) => _localeLabels.entries.map((e) {
-          final code = e.key;
-          final (native, secondary) = e.value;
-          final displayNative = code == _systemDefault
-              ? s.languageSystemDefault
-              : native;
-          return PopupMenuItem<String>(
-            value: code,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    displayNative,
-                    style: TextStyle(
-                      fontSize: AppFonts.sm,
-                      color: code == effectiveValue
-                          ? AppTheme.accent
-                          : AppTheme.fg,
-                    ),
-                  ),
-                ),
-                if (secondary.isNotEmpty)
-                  Text(
-                    secondary,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgDim,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-        child: Container(
-          height: AppTheme.controlHeightSm,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.bg3,
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(color: AppTheme.borderLight),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.language, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fg,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
-            ],
-          ),
-        ),
+      child: AppPopupSelect<String>(
+        value: value ?? _systemDefault,
+        options: options,
+        onChanged: (v) => onChanged(v == _systemDefault ? null : v),
+        leadingIcon: Icons.language,
       ),
     );
   }

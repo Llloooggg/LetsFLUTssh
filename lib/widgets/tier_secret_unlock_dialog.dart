@@ -352,92 +352,10 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  if (_wrong) ...[
-                    Text(
-                      widget.labels.wrongSecretLabel,
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: AppFonts.sm,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (_cooldown.isLocked) ...[
-                    Text(
-                      l10n.tierCooldownHint(
-                        _cooldown.cooldownRemaining!.inSeconds + 1,
-                      ),
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: AppFonts.sm,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (_bioError != null) ...[
-                    Text(
-                      _bioError!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: AppFonts.sm,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  SecurePasswordField(
-                    controller: _ctrl,
-                    focusNode: _focus,
-                    autofocus: true,
-                    obscureText: _obscure,
-                    enabled: !_busy,
-                    keyboardType: widget.labels.numeric
-                        ? TextInputType.number
-                        : TextInputType.visiblePassword,
-                    inputFormatters: widget.labels.numeric
-                        ? [FilteringTextInputFormatter.digitsOnly]
-                        : null,
-                    maxLength: widget.labels.maxLength,
-                    onSubmitted: (_) => _submit(),
-                    decoration: InputDecoration(
-                      labelText: widget.labels.inputLabel,
-                      border: const OutlineInputBorder(),
-                      counterText: '',
-                      suffixIcon: AppIconButton(
-                        icon: _obscure
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        dense: true,
-                        onTap: () => setState(() => _obscure = !_obscure),
-                      ),
-                    ),
-                  ),
+                  ..._buildStatusMessages(theme, l10n),
+                  _buildInputField(),
                   const SizedBox(height: 20),
-                  if (_busy || _biometricInFlight) ...[
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ] else ...[
-                    AppButton.primary(
-                      label: l10n.unlock,
-                      fullWidth: true,
-                      onTap: _cooldown.isLocked ? null : _submit,
-                    ),
-                    if (_biometricOffered == true) ...[
-                      const SizedBox(height: 8),
-                      AppButton(
-                        label: l10n.biometricUnlockTitle,
-                        icon: Icons.fingerprint,
-                        onTap: _cooldown.isLocked ? null : _tryBiometric,
-                      ),
-                    ],
-                    if (widget.onReset != null) ...[
-                      const SizedBox(height: 12),
-                      AppButton(label: l10n.forgotPassword, onTap: _reset),
-                    ],
-                  ],
+                  ..._buildActions(l10n),
                 ],
               ),
             ),
@@ -445,5 +363,97 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
         ),
       ),
     );
+  }
+
+  /// Inline status banners — wrong secret, cooldown countdown, last
+  /// biometric error. Extracted so [build] stays under the S3776
+  /// cognitive-complexity threshold; every banner is independent so
+  /// the list may be empty, one, or all three at once.
+  List<Widget> _buildStatusMessages(ThemeData theme, S l10n) {
+    final errorStyle = TextStyle(
+      color: theme.colorScheme.error,
+      fontSize: AppFonts.sm,
+    );
+    return [
+      if (_wrong) ...[
+        Text(widget.labels.wrongSecretLabel, style: errorStyle),
+        const SizedBox(height: 8),
+      ],
+      if (_cooldown.isLocked) ...[
+        Text(
+          l10n.tierCooldownHint(_cooldown.cooldownRemaining!.inSeconds + 1),
+          style: errorStyle,
+        ),
+        const SizedBox(height: 8),
+      ],
+      if (_bioError != null) ...[
+        Text(_bioError!, textAlign: TextAlign.center, style: errorStyle),
+        const SizedBox(height: 8),
+      ],
+    ];
+  }
+
+  /// Secret input row — password field + obscure toggle. Extracted so
+  /// [build] stays under the S3776 cognitive-complexity threshold.
+  Widget _buildInputField() {
+    return SecurePasswordField(
+      controller: _ctrl,
+      focusNode: _focus,
+      autofocus: true,
+      obscureText: _obscure,
+      enabled: !_busy,
+      keyboardType: widget.labels.numeric
+          ? TextInputType.number
+          : TextInputType.visiblePassword,
+      inputFormatters: widget.labels.numeric
+          ? [FilteringTextInputFormatter.digitsOnly]
+          : null,
+      maxLength: widget.labels.maxLength,
+      onSubmitted: (_) => _submit(),
+      decoration: InputDecoration(
+        labelText: widget.labels.inputLabel,
+        border: const OutlineInputBorder(),
+        counterText: '',
+        suffixIcon: AppIconButton(
+          icon: _obscure ? Icons.visibility_off : Icons.visibility,
+          dense: true,
+          onTap: () => setState(() => _obscure = !_obscure),
+        ),
+      ),
+    );
+  }
+
+  /// Action row — spinner while `_busy` / `_biometricInFlight`, or the
+  /// Unlock + optional biometric + optional reset buttons. Extracted so
+  /// [build] stays under the S3776 cognitive-complexity threshold.
+  List<Widget> _buildActions(S l10n) {
+    if (_busy || _biometricInFlight) {
+      return const [
+        SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ];
+    }
+    return [
+      AppButton.primary(
+        label: l10n.unlock,
+        fullWidth: true,
+        onTap: _cooldown.isLocked ? null : _submit,
+      ),
+      if (_biometricOffered == true) ...[
+        const SizedBox(height: 8),
+        AppButton(
+          label: l10n.biometricUnlockTitle,
+          icon: Icons.fingerprint,
+          onTap: _cooldown.isLocked ? null : _tryBiometric,
+        ),
+      ],
+      if (widget.onReset != null) ...[
+        const SizedBox(height: 12),
+        AppButton(label: l10n.forgotPassword, onTap: _reset),
+      ],
+    ];
   }
 }
