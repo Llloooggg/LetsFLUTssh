@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/deep_link_wiring.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
+import 'package:letsflutssh/core/session/qr_codec.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,4 +66,46 @@ void main() {
       expect(handler.onQrImportVersionTooNew, isNotNull);
     },
   );
+
+  testWidgets('callbacks survive a null navigator context without crashing', (
+    tester,
+  ) async {
+    // When a deep link arrives while the shell is still mounting, the
+    // `navigatorKey.currentContext` resolves to null on the post-frame
+    // tick. Every callback short-circuits in that case — pin it here
+    // so a future change that forgot the null guard does not crash
+    // the app on cold-boot deep links (the most likely window for
+    // this race, since Flutter launches with a deep-link intent before
+    // the first frame lands).
+    final handler = DeepLinkHandler();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Consumer(
+            builder: (ctx, ref, _) {
+              wireDeepLinks(handler, ref);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ),
+    );
+
+    // No navigatorKey in this test tree — every callback that reads
+    // `navigatorKey.currentContext` sees null and returns. Firing all
+    // four branches exercises the "context is null, just log and
+    // skip" path without pulling in Consumer / Overlay / Toast
+    // infrastructure.
+    handler.onLfsFileOpened!.call('/tmp/a.lfs');
+    handler.onKeyFileOpened!.call('/tmp/id_ed25519');
+    handler.onQrImport!.call(
+      const ExportPayloadData(sessions: [], emptyFolders: {}),
+    );
+    handler.onQrImportVersionTooNew!.call(99, 1);
+    // Flush post-frame callbacks scheduled inside each branch — a
+    // queued post-frame that throws would leak as "unhandled async
+    // error" and fail the test here.
+    await tester.pumpAndSettle();
+  });
 }

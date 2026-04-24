@@ -51,5 +51,19 @@ void main() {
         expect(result, isNull);
       },
     );
+
+    test(
+      'returns null when the native plugin is missing (desktop platforms)',
+      () async {
+        // No handler registered — invokeMethod throws
+        // MissingPluginException by default. Desktop hosts hit this
+        // branch on every QR scan because the scanner is mobile-only;
+        // a regression that re-throws would surface as a crash dialog
+        // on every desktop "scan QR" tap.
+        binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+        final result = await scanQrCode();
+        expect(result, isNull);
+      },
+    );
   });
 }
