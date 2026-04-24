@@ -14,6 +14,7 @@ import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
+import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
 
 import '../helpers/fake_dialog_prompter.dart';
 import '../helpers/fake_native_plugins.dart';
@@ -1492,6 +1493,99 @@ void main() {
         ctrl!.dispose();
       },
     );
+
+    testWidgets(
+      'orphan state + user picks resetAndSetupFresh wipes + reruns wizard',
+      (tester) async {
+        // Seed an orphan legacy artefact on the fake path_provider
+        // tmp dir so `WipeAllService.hasAnyState` returns true with
+        // config.security still null. That triggers
+        // `_handleLegacyStateIfPresent` → prompter.showTierReset.
+        File('${tmpDir.path}/credentials.kdf').writeAsStringSync('legacy');
+        SecurityInitController? ctrl;
+        final prompter = FakeSecurityDialogPrompter(
+          tierResetChoice: TierResetChoice.resetAndSetupFresh,
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                    dialogPrompter: prompter,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Dialog fired once; wipeAll ran and dropped the orphan;
+        // wizard re-ran once; reset flag flipped.
+        expect(prompter.tierResetCalls, 1);
+        expect(prompter.wizardCalls, 1);
+        expect(File('${tmpDir.path}/credentials.kdf').existsSync(), isFalse);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets('pending tier-transition marker is cleared on startup', (
+      tester,
+    ) async {
+      // Seed the pending-marker file so `_clearPendingTierTransition`
+      // reads + clears it on the first bootstrap tick. Production
+      // writes this marker only during a tier switch; a stale one
+      // means a crash interrupted the previous switch, and the
+      // controller's job here is just to wipe it so the unlock path
+      // falls through to the standard flow.
+      final marker = File('${tmpDir.path}/.tier-transition-pending');
+      marker.writeAsStringSync('{"target":"paranoid"}');
+      SecurityInitController? ctrl;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(),
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            home: Consumer(
+              builder: (ctx, ref, _) {
+                ctrl = SecurityInitController(
+                  ref: ref,
+                  isMounted: () => true,
+                  dbOpener: ({encryptionKey}) => testDb,
+                  dbFileExists: () async => true,
+                  verifyReadable: (db) async => true,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.runAsync(() => ctrl!.bootstrap());
+
+      expect(marker.existsSync(), isFalse);
+      expect(ctrl!.isReady, isTrue);
+      ctrl!.dispose();
+    });
 
     testWidgets(
       'probe failure + user picks tryOtherTier retries under legacy-infer',
