@@ -1547,6 +1547,71 @@ void main() {
       },
     );
 
+    testWidgets('paranoid unlock via prompter receives derivedKey + injects', (
+      tester,
+    ) async {
+      SecurityInitController? ctrl;
+      Uint8List? capturedKey;
+      late WidgetRef capturedRef;
+      final derivedKey = Uint8List.fromList(List.filled(32, 0xAB));
+      final prompter = FakeSecurityDialogPrompter(
+        masterPasswordResult: derivedKey,
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(
+            masterPassword: FakeMasterPasswordManager(enabled: true),
+          ),
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            home: Consumer(
+              builder: (ctx, ref, _) {
+                capturedRef = ref;
+                ctrl = SecurityInitController(
+                  ref: ref,
+                  isMounted: () => true,
+                  dbOpener: ({encryptionKey}) {
+                    capturedKey = encryptionKey == null
+                        ? null
+                        : Uint8List.fromList(encryptionKey);
+                    return testDb;
+                  },
+                  dbFileExists: () async => true,
+                  verifyReadable: (db) async => true,
+                  dialogPrompter: prompter,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => capturedRef
+            .read(configProvider.notifier)
+            .update(
+              (c) => c.copyWithSecurity(
+                security: const SecurityConfig(
+                  tier: SecurityTier.paranoid,
+                  modifiers: SecurityTierModifiers.defaults,
+                ),
+              ),
+            ),
+      );
+
+      await tester.runAsync(() => ctrl!.bootstrap());
+
+      // Master-password prompt fired, returned a derived key, the
+      // opener received those 32 bytes — the happy-path branch of
+      // `_unlockParanoid`. Reset flag stays false because this is
+      // a successful unlock, not a recovery.
+      expect(prompter.masterPasswordCalls, 1);
+      expect(capturedKey, equals(derivedKey));
+      expect(ctrl!.takeAndClearCredentialsResetFlag(), isFalse);
+      expect(ctrl!.isReady, isTrue);
+      ctrl!.dispose();
+    });
+
     testWidgets('pending wipe marker triggers wipeAll + resets flag', (
       tester,
     ) async {
