@@ -30,7 +30,7 @@ class LogEntry {
 /// char, (3) tag, (4) message. Tag uses `[^\]]+` so nested brackets
 /// elsewhere in the message are preserved verbatim.
 final RegExp logLinePattern = RegExp(
-  r'^(\d{2}:\d{2}:\d{2}) ([DIWE]) \[([^\]]+)\] (.*)$',
+  r'^(\d{2}:\d{2}:\d{2}) ([IWE]) \[([^\]]+)\] (.*)$',
 );
 
 /// Parse a raw log blob into a list of [LogEntry].
@@ -70,7 +70,6 @@ List<LogEntry> parseLogEntries(String content) {
     entries.add(
       LogEntry(
         level: switch (m.group(2)) {
-          'D' => LogLevel.debug,
           'W' => LogLevel.warn,
           'E' => LogLevel.error,
           _ => LogLevel.info,

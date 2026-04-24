@@ -38,8 +38,8 @@ all: build
 
 ## ─── Development ──────────────────────────────────────────────
 
-run: $(SQLITE3MC_STAMP) ## Run the app (debug, current platform, logs=debug)
-	$(FLUTTER) run --dart-define=LETSFLUTSSH_LOG_LEVEL=debug
+run: $(SQLITE3MC_STAMP) ## Run the app (debug, current platform, logs=info)
+	$(FLUTTER) run --dart-define=LETSFLUTSSH_LOG_LEVEL=info
 
 run-release: $(SQLITE3MC_STAMP) ## Run the app (release mode)
 	$(FLUTTER) run --release

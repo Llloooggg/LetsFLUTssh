@@ -1273,6 +1273,10 @@ class SFr extends S {
       'Mise à jour rejetée : les fichiers téléchargés ne sont pas signés par la clé de publication ancrée dans l\'application. Cela peut signifier que le téléchargement a été altéré en transit, ou que la version actuelle n\'est pas destinée à cette installation. N\'INSTALLEZ PAS — réinstallez manuellement depuis la page officielle des versions.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Impossible de récupérer le manifest de la release. Probablement un souci réseau, ou la release est en cours de publication. Réessayez dans quelques minutes.';
+
+  @override
   String get updateSecurityWarningTitle =>
       'Échec de la vérification de la mise à jour';
 

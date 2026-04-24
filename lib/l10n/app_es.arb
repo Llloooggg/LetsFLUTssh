@@ -388,6 +388,7 @@
   "autoLockOff": "Desactivado",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} minuto} other{{minutes} minutos}}",
   "errReleaseSignatureInvalid": "Actualización rechazada: los archivos descargados no están firmados por la clave de lanzamiento fijada en la aplicación. Esto puede significar que la descarga fue manipulada en tránsito, o que el lanzamiento actual no es para esta instalación. NO instale — reinstale manualmente desde la página oficial de lanzamientos.",
+  "errReleaseManifestUnavailable": "No se pudo obtener el manifest del release. Probablemente un problema de red, o el release se está publicando. Inténtalo de nuevo en unos minutos.",
   "updateSecurityWarningTitle": "Falló la verificación de la actualización",
   "updateReinstallAction": "Abrir página de lanzamientos",
   "errLfsNotArchive": "El archivo seleccionado no es un archivo de LetsFLUTssh.",

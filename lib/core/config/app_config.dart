@@ -245,7 +245,7 @@ class BehaviorConfig {
   /// Minimum severity the routine file sink admits. `null` = logging
   /// off (default). Picking any [LogLevel] opens the sink and writes
   /// lines at or above that level, so picking `warn` writes W + E,
-  /// picking `debug` writes everything. Replaces the old
+  /// picking `info` writes everything. Replaces the old
   /// `enableLogging` bool — users who had that on will land on
   /// `null` after upgrade and can re-pick a level in Settings.
   final LogLevel? logLevel;

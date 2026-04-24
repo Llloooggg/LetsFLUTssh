@@ -200,11 +200,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   /// Which severity levels render in the viewer. All three start on;
   /// users can hide info noise to focus on warnings + errors during a
   /// support session.
-  final Set<LogLevel> _visibleLevels = {
-    LogLevel.info,
-    LogLevel.warn,
-    LogLevel.error,
-  };
+  final Set<LogLevel> _visibleLevels = {...LogLevel.values};
 
   /// Case-insensitive substring filter on the message body. Applied
   /// after the level filter (AND) so a `search: "keychain" + level: W`
@@ -414,23 +410,20 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   /// the stack-trace body too.
   List<LogEntry> _filterEntries(List<LogEntry> raw) {
     final lower = _query.toLowerCase();
-    return raw
-        .where((e) {
-          if (e.isHeader) return true;
-          if (e.level != null && !_visibleLevels.contains(e.level)) {
-            return false;
-          }
-          if (lower.isEmpty) return true;
-          if (e.message.toLowerCase().contains(lower)) return true;
-          if (e.tag != null && e.tag!.toLowerCase().contains(lower)) {
-            return true;
-          }
-          for (final c in e.continuations) {
-            if (c.toLowerCase().contains(lower)) return true;
-          }
-          return false;
-        })
-        .toList(growable: false);
+    return raw.where((e) => _shouldShow(e, lower)).toList(growable: false);
+  }
+
+  bool _shouldShow(LogEntry e, String lower) {
+    if (e.isHeader) return true;
+    if (e.level != null && !_visibleLevels.contains(e.level)) return false;
+    if (lower.isEmpty) return true;
+    return _matchesQuery(e, lower);
+  }
+
+  bool _matchesQuery(LogEntry e, String lower) {
+    if (e.message.toLowerCase().contains(lower)) return true;
+    if (e.tag != null && e.tag!.toLowerCase().contains(lower)) return true;
+    return e.continuations.any((c) => c.toLowerCase().contains(lower));
   }
 }
 
@@ -458,14 +451,6 @@ class _LogFilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _LevelChip(
-          level: LogLevel.debug,
-          label: 'D',
-          color: AppTheme.fg.withValues(alpha: 0.5),
-          active: visibleLevels.contains(LogLevel.debug),
-          onTap: () => onLevelToggle(LogLevel.debug),
-        ),
-        const SizedBox(width: 4),
         _LevelChip(
           level: LogLevel.info,
           label: 'I',
@@ -640,7 +625,10 @@ class _LogRow extends StatelessWidget {
       // A session banner — the "--- Log started ..." line + the
       // following `Platform:` / `Dart:` lines — gets a top divider
       // and extra vertical padding so it visually breaks the stream.
-      // Other unparseable lines fall back to a compact dim row.
+      // Other unparseable lines fall back to a compact dim row. We
+      // deliberately do NOT italicise: italic monospace on Linux
+      // (DejaVu Sans Mono oblique) rendered faded + slanted in a way
+      // the user rejected. Bold + dim colour is enough separation.
       final isSessionStart = entry.message.startsWith('--- Log started');
       return Container(
         margin: EdgeInsets.only(top: isSessionStart ? 12 : 0, bottom: 0),
@@ -652,7 +640,7 @@ class _LogRow extends StatelessWidget {
             ? BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: defaultFg.withValues(alpha: 0.25),
+                    color: defaultFg.withValues(alpha: 0.35),
                     width: 1,
                   ),
                 ),
@@ -661,8 +649,7 @@ class _LogRow extends StatelessWidget {
         child: Text(
           entry.message,
           style: style.copyWith(
-            color: defaultFg.withValues(alpha: 0.55),
-            fontStyle: FontStyle.italic,
+            color: defaultFg.withValues(alpha: 0.75),
             fontWeight: isSessionStart ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -674,10 +661,6 @@ class _LogRow extends StatelessWidget {
       LogLevel.error => AppTheme.red,
       LogLevel.warn => AppTheme.yellow,
       LogLevel.info => AppTheme.blue,
-      // Debug uses the default fg dimmed — verbose trace rows should
-      // visually recede so they do not compete with the higher-
-      // severity rows above/below them.
-      LogLevel.debug => defaultFg.withValues(alpha: 0.55),
     };
     final hasTint = level == LogLevel.error || level == LogLevel.warn;
     final tintBg = hasTint ? levelColor.withValues(alpha: 0.08) : null;
@@ -686,21 +669,21 @@ class _LogRow extends StatelessWidget {
     // the tag without losing the monospace alignment. Continuations
     // attach inline after the primary message with a newline so the
     // error / stack trace sits under the tinted row.
+    // Continuations (stack frames, error lines) render at full default
+    // fg — the earlier 0.75 alpha read as "thin" next to the primary
+    // message, especially on stack-trace-heavy failures where half the
+    // row is follow-up frames.
     final spans = <InlineSpan>[
       TextSpan(
         text: '${entry.timestamp} ',
-        style: style.copyWith(color: defaultFg.withValues(alpha: 0.55)),
+        style: style.copyWith(color: defaultFg.withValues(alpha: 0.7)),
       ),
       TextSpan(
         text: '[${entry.tag}] ',
         style: style.copyWith(color: levelColor, fontWeight: FontWeight.w600),
       ),
       TextSpan(text: entry.message, style: style),
-      for (final c in entry.continuations)
-        TextSpan(
-          text: '\n$c',
-          style: style.copyWith(color: defaultFg.withValues(alpha: 0.75)),
-        ),
+      for (final c in entry.continuations) TextSpan(text: '\n$c', style: style),
     ];
 
     return Container(
@@ -730,7 +713,6 @@ class _LogRow extends StatelessWidget {
 /// (Debug) to silent (Off) so the menu matches Logcat / IDE log
 /// viewers where verbose sits at the top.
 const _logLevelOptions = <AppPopupSelectOption<LogLevel?>>[
-  AppPopupSelectOption(value: LogLevel.debug, label: 'Debug'),
   AppPopupSelectOption(value: LogLevel.info, label: 'Info'),
   AppPopupSelectOption(value: LogLevel.warn, label: 'Warn'),
   AppPopupSelectOption(value: LogLevel.error, label: 'Error'),
@@ -760,7 +742,6 @@ class _LogLevelSelector extends StatelessWidget {
   }
 
   String _subtitleFor(LogLevel? level) => switch (level) {
-    LogLevel.debug => 'Everything including verbose trace',
     LogLevel.info => 'Routine entries + warnings + errors',
     LogLevel.warn => 'Degraded paths + errors only',
     LogLevel.error => 'Failures only',

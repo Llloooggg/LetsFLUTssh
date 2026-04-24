@@ -1256,6 +1256,10 @@ class SVi extends S {
       'Bản cập nhật bị từ chối: các tệp đã tải xuống không được ký bởi khóa phát hành được ghim trong ứng dụng. Điều này có thể có nghĩa là quá trình tải xuống đã bị giả mạo trên đường truyền, hoặc bản phát hành hiện tại không dành cho cài đặt này. KHÔNG cài đặt — thay vào đó, hãy cài đặt lại theo cách thủ công từ trang Phát hành chính thức.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Không lấy được manifest của release. Có thể do vấn đề mạng, hoặc release đang được publish. Thử lại sau vài phút.';
+
+  @override
   String get updateSecurityWarningTitle => 'Xác minh cập nhật thất bại';
 
   @override

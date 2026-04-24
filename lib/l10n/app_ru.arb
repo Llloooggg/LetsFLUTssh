@@ -388,6 +388,7 @@
   "autoLockOff": "Выкл.",
   "autoLockMinutesValue": "{minutes, plural, one{{minutes} минута} few{{minutes} минуты} many{{minutes} минут} other{{minutes} минуты}}",
   "errReleaseSignatureInvalid": "Обновление отклонено: скачанные файлы не подписаны закреплённым в приложении ключом. Это может означать, что загрузку подделали по пути, либо текущий релиз не предназначен для этой установки. НЕ устанавливайте — вместо этого переустановите приложение вручную с официальной страницы Releases.",
+  "errReleaseManifestUnavailable": "Не удалось получить manifest релиза. Скорее всего, это проблема с сетью, либо релиз ещё публикуется. Попробуйте ещё раз через пару минут.",
   "updateSecurityWarningTitle": "Проверка обновления не пройдена",
   "updateReinstallAction": "Открыть страницу Releases",
   "errLfsNotArchive": "Выбранный файл не является архивом LetsFLUTssh.",

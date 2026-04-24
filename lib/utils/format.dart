@@ -7,7 +7,7 @@ import '../core/session/qr_codec.dart' show QrPayloadVersionTooNewException;
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../core/update/update_service.dart'
-    show InvalidReleaseSignatureException;
+    show InvalidReleaseSignatureException, ReleaseManifestUnavailableException;
 import '../features/settings/export_import.dart'
     show
         LfsArchiveTooLargeException,
@@ -137,6 +137,9 @@ String? _sanitizeErrnoMessage(String msg) {
 String localizeError(S l10n, Object error) {
   if (error is InvalidReleaseSignatureException) {
     return l10n.errReleaseSignatureInvalid;
+  }
+  if (error is ReleaseManifestUnavailableException) {
+    return l10n.errReleaseManifestUnavailable;
   }
 
   final lfs = _tryLocalizeLfsError(l10n, error);

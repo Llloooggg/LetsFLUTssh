@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
+import 'linux_keychain_marker.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
@@ -67,16 +68,19 @@ class BiometricKeyVault {
   final TpmClient _tpm;
   final FprintdClient _fprintd;
   final Future<File> Function() _linuxSealFileFactory;
+  final LinuxKeychainMarker _marker;
 
   BiometricKeyVault({
     FlutterSecureStorage? storage,
     TpmClient? tpmClient,
     FprintdClient? fprintdClient,
     Future<File> Function()? linuxSealFileFactory,
+    LinuxKeychainMarker? marker,
   }) : _storage = storage ?? _defaultStorage(),
        _tpm = tpmClient ?? TpmClient(),
        _fprintd = fprintdClient ?? FprintdClient(),
-       _linuxSealFileFactory = linuxSealFileFactory ?? _defaultLinuxSealFile;
+       _linuxSealFileFactory = linuxSealFileFactory ?? _defaultLinuxSealFile,
+       _marker = marker ?? LinuxKeychainMarker.defaultInstance;
 
   static FlutterSecureStorage _defaultStorage() {
     return const FlutterSecureStorage(
@@ -115,6 +119,11 @@ class BiometricKeyVault {
           name: 'BiometricKeyVault',
         );
       }
+      // Don't probe libsecret on Linux until the marker confirms the
+      // keyring daemon was reachable at least once — otherwise
+      // containsKey spams stderr with g_warning every launch on WSL
+      // / containers / minimal desktops without a keyring daemon.
+      if (!await _marker.exists()) return false;
     }
     try {
       return await _storage.containsKey(key: _keyName);
@@ -137,6 +146,9 @@ class BiometricKeyVault {
     }
     try {
       await _storage.write(key: _keyName, value: base64Encode(key));
+      // Flag libsecret as reachable so future isStored / read calls
+      // can touch it without the cold-run warning.
+      if (Platform.isLinux) await _marker.set();
       return true;
     } catch (e) {
       AppLogger.instance.log(
@@ -156,6 +168,9 @@ class BiometricKeyVault {
       if (unsealed != null) return unsealed;
       // Fall through to libsecret in case the vault was written
       // before TPM support was wired, or the TPM became unusable.
+      // Marker gates the fallthrough — no marker = no prior libsecret
+      // success = skip to avoid the cold-run g_warning spam.
+      if (!await _marker.exists()) return null;
     }
     try {
       final value = await _storage.read(key: _keyName);

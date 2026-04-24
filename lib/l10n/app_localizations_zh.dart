@@ -1228,6 +1228,10 @@ class SZh extends S {
       '更新已拒绝：下载的文件未使用应用中固定的发布密钥签名。这可能意味着下载过程中被篡改，或者当前版本并非适用于此安装。请勿安装 — 请从官方发布页面手动重新安装。';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      '无法获取 release manifest。可能是网络问题,或该 release 仍在发布中。请几分钟后重试。';
+
+  @override
   String get updateSecurityWarningTitle => '更新验证失败';
 
   @override

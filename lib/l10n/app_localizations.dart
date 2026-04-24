@@ -2343,6 +2343,12 @@ abstract class S {
   /// **'Update rejected: the downloaded files are not signed by the pinned release key. This can mean the download was tampered with in transit, or the current release genuinely is not for this installation. Do NOT install — reinstall manually from the official Releases page instead.'**
   String get errReleaseSignatureInvalid;
 
+  /// No description provided for @errReleaseManifestUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the release manifest. Likely a network issue, or the release is still being published. Try again in a few minutes.'**
+  String get errReleaseManifestUnavailable;
+
   /// No description provided for @updateSecurityWarningTitle.
   ///
   /// In en, this message translates to:

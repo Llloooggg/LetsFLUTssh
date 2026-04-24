@@ -21,16 +21,36 @@ import 'release_signing.dart';
 typedef MacosDmgInstaller = Future<bool> Function(String dmgPath);
 
 /// Thrown when a downloaded release artefact fails Ed25519 signature
-/// verification against the pinned public keys, or when the `.sig`
-/// companion fails to download / parse. Deliberately distinct from
-/// generic network errors so the UI can surface a security-coloured
-/// toast instead of a retry prompt.
+/// verification against the pinned public keys, OR when the signed
+/// manifest does not cover the downloaded asset, OR when the asset's
+/// sha256 does not match the manifest entry. Covers only real
+/// security events — the UI surfaces the "do not install, reinstall
+/// from official releases" warning for this class specifically.
+///
+/// Transient fetch failures (network drop, 404 on a release still
+/// being uploaded, file-read IO error) are reported through
+/// [ReleaseManifestUnavailableException] instead, so the UI can
+/// offer a retry rather than a tampering warning.
 class InvalidReleaseSignatureException implements Exception {
   final String reason;
   const InvalidReleaseSignatureException(this.reason);
 
   @override
   String toString() => 'InvalidReleaseSignatureException: $reason';
+}
+
+/// Thrown when the signed release manifest cannot be fetched or read
+/// for any reason that is not a security event — network timeout,
+/// HTTP 404 on a release still being uploaded, DNS failure, IO error
+/// while reading a partial download. The UI surfaces a plain "could
+/// not reach release manifest, try again later" message for this
+/// class; it is not a tampering signal.
+class ReleaseManifestUnavailableException implements Exception {
+  final String reason;
+  const ReleaseManifestUnavailableException(this.reason);
+
+  @override
+  String toString() => 'ReleaseManifestUnavailableException: $reason';
 }
 
 /// Result of a version check against GitHub releases.
@@ -411,7 +431,9 @@ class UpdateService {
     } catch (e) {
       await _deleteFileQuietly(manifestPath);
       await _deleteFileQuietly(manifestSigPath);
-      throw InvalidReleaseSignatureException(
+      // Transient — network drop, 404 on a release still uploading,
+      // DNS failure. Not a security event.
+      throw ReleaseManifestUnavailableException(
         'Failed to fetch release manifest: $e',
       );
     }
@@ -424,7 +446,8 @@ class UpdateService {
     } catch (e) {
       await _deleteFileQuietly(manifestPath);
       await _deleteFileQuietly(manifestSigPath);
-      throw InvalidReleaseSignatureException(
+      // Transient — local IO error reading what we just wrote.
+      throw ReleaseManifestUnavailableException(
         'Failed to read release manifest: $e',
       );
     }

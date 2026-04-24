@@ -1261,6 +1261,10 @@ class STr extends S {
       'Güncelleme reddedildi: İndirilen dosyalar uygulamada sabitlenmiş sürüm anahtarıyla imzalanmamış. Bu, indirmenin aktarım sırasında değiştirildiği veya mevcut sürümün bu kurulum için olmadığı anlamına gelebilir. YÜKLEMEYİN — bunun yerine resmi Sürümler sayfasından manuel olarak yeniden yükleyin.';
 
   @override
+  String get errReleaseManifestUnavailable =>
+      'Release manifesti alınamadı. Muhtemelen ağ sorunu, ya da release hâlâ yayınlanıyor. Birkaç dakika sonra tekrar deneyin.';
+
+  @override
   String get updateSecurityWarningTitle => 'Güncelleme doğrulaması başarısız';
 
   @override

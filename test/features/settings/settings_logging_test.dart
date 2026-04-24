@@ -225,7 +225,7 @@ void main() {
         );
 
     await AppLogger.instance.init();
-    await AppLogger.instance.setThreshold(LogLevel.debug);
+    await AppLogger.instance.setThreshold(LogLevel.info);
   });
 
   tearDown(() async {
@@ -593,31 +593,25 @@ void main() {
       expect(parseLogEntries('\n\n'), isEmpty);
     });
 
-    test(
-      'parses debug / info / warn / error primary lines with tag + timestamp',
-      () {
-        final entries = parseLogEntries(
-          [
-            '12:34:55 D [SSH] frame in',
-            '12:34:56 I [App] routine entry',
-            '12:34:57 W [KeyStore] fell back to plaintext',
-            '12:34:58 E [MigrationRunner] fatal: bad chain',
-          ].join('\n'),
-        );
-        expect(entries, hasLength(4));
-        expect(entries[0].level, LogLevel.debug);
-        expect(entries[0].tag, 'SSH');
-        expect(entries[1].level, LogLevel.info);
-        expect(entries[1].timestamp, '12:34:56');
-        expect(entries[1].tag, 'App');
-        expect(entries[1].message, 'routine entry');
-        expect(entries[1].isHeader, isFalse);
-        expect(entries[2].level, LogLevel.warn);
-        expect(entries[2].tag, 'KeyStore');
-        expect(entries[3].level, LogLevel.error);
-        expect(entries[3].tag, 'MigrationRunner');
-      },
-    );
+    test('parses info / warn / error primary lines with tag + timestamp', () {
+      final entries = parseLogEntries(
+        [
+          '12:34:56 I [App] routine entry',
+          '12:34:57 W [KeyStore] fell back to plaintext',
+          '12:34:58 E [MigrationRunner] fatal: bad chain',
+        ].join('\n'),
+      );
+      expect(entries, hasLength(3));
+      expect(entries[0].level, LogLevel.info);
+      expect(entries[0].timestamp, '12:34:56');
+      expect(entries[0].tag, 'App');
+      expect(entries[0].message, 'routine entry');
+      expect(entries[0].isHeader, isFalse);
+      expect(entries[1].level, LogLevel.warn);
+      expect(entries[1].tag, 'KeyStore');
+      expect(entries[2].level, LogLevel.error);
+      expect(entries[2].tag, 'MigrationRunner');
+    });
 
     test('header lines become dim entries', () {
       final entries = parseLogEntries(
