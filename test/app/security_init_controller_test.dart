@@ -13,6 +13,8 @@ import 'package:letsflutssh/providers/security_provider.dart';
 import '../helpers/fake_native_plugins.dart';
 import '../helpers/fake_path_provider.dart';
 import '../helpers/fake_secure_storage.dart';
+import '../helpers/fake_security.dart';
+import '../helpers/test_providers.dart';
 
 void main() {
   group('SecurityInitController — getter + flag surface', () {
@@ -326,16 +328,157 @@ void main() {
       },
     );
 
-    // reinitFromReset is not pinned here — the flow closes
-    // `_activeDatabase` and re-runs `_firstLaunchSetup`. On the null-
-    // navigator test tree the wizard exits silently without opening a
-    // new DB, so the follow-up `_markSecurityReady` runs against an
-    // `AutoLockStore` still holding the closed previous DB and throws
-    // `Bad state`. The production flow opens a fresh DB from the
-    // wizard's chosen tier before `_markSecurityReady` runs, so the
-    // stale reference is swapped before any probe. Covering this path
-    // needs either an autoLockStoreProvider override or a dialog
-    // harness — tracked under Proposal B.
+    testWidgets(
+      'bootstrap on a legacy-infer keychain install forwards stored key',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        final seededKey = Uint8List.fromList(List.filled(32, 9));
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              // Legacy-infer picks the keychain branch when
+              // master-password is disabled *and* a key is stored;
+              // seed the key here so the branch fires and the opener
+              // receives it unchanged.
+              secureKeyStorage: FakeSecureKeyStorage(storedKey: seededKey),
+            ),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // The opener saw the exact 32-byte sequence the fake returned
+        // — no zeroing or replacement along the way. If the legacy-
+        // infer path ever got re-ordered and plaintext won, the opener
+        // would receive null here.
+        expect(capturedKey, equals(seededKey));
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap on a legacy-infer paranoid install flips the reset flag',
+      (tester) async {
+        SecurityInitController? ctrl;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              // Paranoid legacy-infer branch fires whenever
+              // master-password is reported enabled. The dialog path
+              // is out of reach here (no navigator bound), so
+              // `showUnlockDialog` returns null and the controller
+              // treats that as "user chose reset" — the toast flag
+              // flips true and a plaintext DB opens as the recovery
+              // fallback.
+              masterPassword: FakeMasterPasswordManager(enabled: true),
+            ),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // The reset flag is a 1-shot read; a successful bootstrap via
+        // the paranoid fallback must surface it so main.dart can show
+        // the "credentials were reset" toast after session load.
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'reinitFromReset closes the DB, re-runs the wizard, flips isReady',
+      (tester) async {
+        SecurityInitController? ctrl;
+        var opens = 0;
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            // Override autoLockStoreProvider with a DB-free fake —
+            // the real store reads from AppDatabase which reinitFrom
+            // Reset closes mid-flight, triggering "Can't re-open a
+            // closed database" on the post-reset `_markSecurityReady`.
+            // Production swaps the DB inside the wizard before that
+            // probe runs; tests that skip the wizard need the override.
+            overrides: securityProviderOverrides(),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      opens++;
+                      // Fresh AppDatabase each call so the one the
+                      // reset path closes is not the one the reopen
+                      // already reads from.
+                      return openTestDatabase();
+                    },
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        // Seed `_activeDatabase` via a reopen so reinitFromReset has
+        // a DB to close; `securityStateProvider` owns the key.
+        final key = Uint8List.fromList(List.filled(32, 5));
+        capturedRef
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychain, key);
+        await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+        expect(opens, 1);
+
+        await tester.runAsync(() => ctrl!.reinitFromReset());
+
+        // Post-reset: wizard exits silently on null navigator (no
+        // extra dbOpener call), handleCorruption sees a null DB, and
+        // `_markSecurityReady` now reads the FakeAutoLockStore baseline
+        // instead of hitting the closed drift handle.
+        expect(opens, 1);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
 
     testWidgets(
       'handleCorruption on a reopened DB probes once and flips isReady',

@@ -18,6 +18,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
@@ -221,4 +222,27 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
 
   @override
   Future<Uint8List?> read() async => stored ? key : null;
+}
+
+/// In-memory AutoLockStore that never touches a DB.
+///
+/// The real store reads / writes through `AppDatabase.configDao`;
+/// tests that drive `_markSecurityReady` (which calls
+/// `autoLockMinutesProvider.load` → `AutoLockStore.load`) fail with
+/// "Can't re-open a database" when the controller closed the last
+/// DB the store was pointed at. Overriding with this fake keeps the
+/// minutes as a Dart field so `setDatabase` is a no-op and the load
+/// path is decoupled from the drift handle lifecycle.
+class FakeAutoLockStore extends AutoLockStore {
+  int minutes;
+
+  FakeAutoLockStore({this.minutes = 0});
+
+  @override
+  Future<int> load() async => minutes;
+
+  @override
+  Future<void> save(int value) async {
+    minutes = value;
+  }
 }
