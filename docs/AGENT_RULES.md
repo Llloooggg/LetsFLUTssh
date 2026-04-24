@@ -240,6 +240,14 @@ Specifically high-risk surfaces (already burned by hallucination in past session
 ### Reuse First (project-wide, not just UI)
 **Before adding any new widget, helper, mixin, style constant, or store: search `lib/widgets/`, `lib/theme/`, `lib/core/**` for an existing equivalent.** If behaviour is close but not identical, **extend** the shared primitive (add a parameter) instead of forking. A second caller is the trigger to extract a shared helper; a third caller makes it mandatory. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason must be obvious in code.
 
+**Inline implementations in another file are the same as shared components for the purposes of this rule.** When you need a new control that mirrors one already built inline inside another widget (the language picker's styled `PopupMenuButton`, the session-edit form's `DropdownSelectButton`, the tier-card's `_SegmentControl`), do **not** copy-paste the inline block into your new site. The correct order of operations is:
+
+1. Search `lib/widgets/` — if a shared primitive already exists, use it (the common case).
+2. No shared primitive, but a visually / behaviourally equivalent **inline block** exists elsewhere in `lib/` — **lift it to `lib/widgets/` first**, swap the original call site to use the new shared version, then build your new caller on top of it. This is the only acceptable shape for the second caller; shipping a second inline copy "to unblock the current task" leaves every later caller copying the wrong one and the shared primitive never lands.
+3. Neither shared nor inline precedent — build the new widget in `lib/widgets/` from day one, not inside the feature file that first needs it.
+
+The "one-off is allowed when the pattern doesn't fit" escape hatch covers shape divergence (different layout, different gesture contract), not speed. If the only cost of extraction is "another file to create" the inline shortcut is a rule violation, not a judgement call.
+
 What this rule covers (not just UI):
 - **Widgets** — `AppIconButton`, `AppDialog` (+ `AppDialogHeader`/`Footer`/`Action`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`, `AppShell`, `ModeButton`, `ConfirmDialog`, `ErrorState`.
 - **Theme constants** — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes, radii, heights, font sizes, padding scales = bug.

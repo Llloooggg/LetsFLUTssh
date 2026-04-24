@@ -60,6 +60,35 @@ import 'widgets/toast.dart';
 SingleInstance? singleInstanceLock;
 
 Future<void> main() async {
+  // `WidgetsFlutterBinding.ensureInitialized()` must be called inside
+  // the same zone as `runApp` — otherwise Flutter warns about a zone
+  // mismatch on every launch and widget-test crashes blame the wrong
+  // zone. Wrap everything below in `runZonedGuarded` from the very
+  // first statement so both the binding init and the eventual
+  // `runApp` share the custom zone.
+  runZonedGuarded(_mainBody, (error, stack) {
+    // Global error boundary — routes through AppLogger then into the
+    // in-app dialog. Kept as a top-level Zone error handler so async
+    // errors outside the widget tree (Futures, Streams, Timers) are
+    // caught.
+    unawaited(
+      AppLogger.instance.logCritical(
+        'Uncaught zone error: $error',
+        name: 'ErrorBoundary',
+        error: error,
+        stackTrace: stack,
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        showGlobalErrorDialog(ctx, error);
+      }
+    });
+  });
+}
+
+Future<void> _mainBody() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Animation hard-off is layered:
@@ -190,36 +219,19 @@ Future<void> main() async {
     buildTimeLogLevelOverride ?? config.logLevel,
   );
 
-  // Wrap the entire app in runZonedGuarded to catch all async errors.
-  // This catches errors from onPressed, Futures, streams, timers, etc.
-  runZonedGuarded(
-    () {
-      runApp(
-        ProviderScope(
-          overrides: [configStoreProvider.overrideWithValue(configStore)],
-          child: const LetsFLUTsshApp(),
-        ),
-      );
-    },
-    (error, stack) {
-      final sanitizedMsg = sanitizeErrorMessage(error.toString());
-      unawaited(
-        AppLogger.instance.logCritical(
-          'Unhandled async error: $sanitizedMsg',
-          name: 'ErrorBoundary',
-          error: error,
-          stackTrace: stack,
-        ),
-      );
-      // Show dialog after next frame — ensures Navigator is available
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null && ctx.mounted) {
-          showGlobalErrorDialog(ctx, error);
-        }
-      });
-      WidgetsBinding.instance.ensureVisualUpdate();
-    },
+  // Already running inside `runZonedGuarded` from the outer `main()` —
+  // launch the app directly; zone errors are routed through the outer
+  // handler. Previously we opened a second nested `runZonedGuarded`
+  // here, but Flutter's `WidgetsBinding.ensureInitialized` (called at
+  // the top of `_mainBody`) must execute in the same zone as the
+  // final `runApp` or the framework logs "Zone mismatch" on every
+  // startup. Collapsing the two zone-guards into the single outer
+  // one fixes that.
+  runApp(
+    ProviderScope(
+      overrides: [configStoreProvider.overrideWithValue(configStore)],
+      child: const LetsFLUTsshApp(),
+    ),
   );
 }
 

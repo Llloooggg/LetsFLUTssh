@@ -270,7 +270,13 @@ class AppLogger {
       }
       if (stackTrace != null) {
         _sink!.writeln('  Stack trace:');
-        _sink!.writeln(sanitize('$stackTrace'));
+        // Indent every stack-trace line with two spaces so the viewer
+        // parser folds them into the parent entry instead of treating
+        // each `#N …` frame as its own dim-italic header row.
+        for (final frame in sanitize('$stackTrace').split('\n')) {
+          if (frame.isEmpty) continue;
+          _sink!.writeln('  $frame');
+        }
       }
     } catch (_) {
       // Don't crash the app for logging failures.
@@ -317,7 +323,13 @@ class AppLogger {
       if (safeError != null) buf.writeln('  Error: $safeError');
       if (stackTrace != null) {
         buf.writeln('  Stack trace:');
-        buf.writeln(sanitize('$stackTrace'));
+        // Indent every stack-trace line with two spaces — same rule
+        // as the routine [log] path so the viewer parser folds frames
+        // into the parent entry.
+        for (final frame in sanitize('$stackTrace').split('\n')) {
+          if (frame.isEmpty) continue;
+          buf.writeln('  $frame');
+        }
       }
       final file = File(_logPath!);
       // Ensure the parent directory exists — [init] already creates

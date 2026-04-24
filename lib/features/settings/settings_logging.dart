@@ -726,6 +726,17 @@ class _LogRow extends StatelessWidget {
 /// severity (or "Off"). The choice maps straight to
 /// `config.behavior.logLevel`, which `ConfigNotifier` fans out to
 /// `AppLogger.setThreshold`. No intermediate bool flag.
+/// Options shown in the logging level picker. Ordered from noisiest
+/// (Debug) to silent (Off) so the menu matches Logcat / IDE log
+/// viewers where verbose sits at the top.
+const _logLevelOptions = <AppPopupSelectOption<LogLevel?>>[
+  AppPopupSelectOption(value: LogLevel.debug, label: 'Debug'),
+  AppPopupSelectOption(value: LogLevel.info, label: 'Info'),
+  AppPopupSelectOption(value: LogLevel.warn, label: 'Warn'),
+  AppPopupSelectOption(value: LogLevel.error, label: 'Error'),
+  AppPopupSelectOption(value: null, label: 'Off'),
+];
+
 class _LogLevelSelector extends StatelessWidget {
   final LogLevel? selected;
   final ValueChanged<LogLevel?> onChanged;
@@ -734,84 +745,25 @@ class _LogLevelSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Options ordered from noisiest to silent — familiar "more
-    // verbose = higher in the menu" layout from Logcat / IDE log
-    // viewers.
-    const options = <({LogLevel? level, String label, String subtitle})>[
-      (
-        level: LogLevel.debug,
-        label: 'Debug',
-        subtitle: 'Everything including verbose trace',
-      ),
-      (
-        level: LogLevel.info,
-        label: 'Info',
-        subtitle: 'Routine operational entries + warnings + errors',
-      ),
-      (
-        level: LogLevel.warn,
-        label: 'Warn',
-        subtitle: 'Degraded paths + errors only',
-      ),
-      (level: LogLevel.error, label: 'Error', subtitle: 'Failures only'),
-      (level: null, label: 'Off', subtitle: 'No routine logs written'),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-      child: Row(
-        children: [
-          Icon(
-            Icons.article_outlined,
-            size: 16,
-            color: AppTheme.fg.withValues(alpha: 0.7),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Logging level',
-                  style: TextStyle(
-                    fontSize: AppFonts.md,
-                    color: AppTheme.fg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  options.firstWhere((o) => o.level == selected).subtitle,
-                  style: TextStyle(
-                    fontSize: AppFonts.xs,
-                    color: AppTheme.fg.withValues(alpha: 0.55),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<LogLevel?>(
-              value: selected,
-              isDense: true,
-              onChanged: onChanged,
-              items: [
-                for (final opt in options)
-                  DropdownMenuItem<LogLevel?>(
-                    value: opt.level,
-                    child: Text(
-                      opt.label,
-                      style: TextStyle(
-                        fontSize: AppFonts.sm,
-                        color: AppTheme.fg,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+    return _SettingsRow(
+      label: 'Logging level',
+      subtitle: _subtitleFor(selected),
+      icon: Icons.article_outlined,
+      child: AppPopupSelect<LogLevel?>(
+        value: selected,
+        options: _logLevelOptions,
+        onChanged: onChanged,
+        leadingIcon: Icons.article_outlined,
+        menuMinWidth: 160,
       ),
     );
   }
+
+  String _subtitleFor(LogLevel? level) => switch (level) {
+    LogLevel.debug => 'Everything including verbose trace',
+    LogLevel.info => 'Routine entries + warnings + errors',
+    LogLevel.warn => 'Degraded paths + errors only',
+    LogLevel.error => 'Failures only',
+    null => 'No routine logs written',
+  };
 }
