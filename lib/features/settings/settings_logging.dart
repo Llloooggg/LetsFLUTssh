@@ -248,15 +248,14 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   Future<void> _refresh() async {
     final text = await AppLogger.instance.readLog();
     if (!mounted) return;
-    final changed = text != _content;
+    if (text == _content) return;
+    // List renders in `reverse: true`, so "newest at the bottom" is
+    // the natural initial layout — no post-frame `jumpTo` needed
+    // and no visible rip-to-bottom when the viewer first opens.
+    // Users who scroll up to read history stay pinned on what they
+    // were reading because appending to the entries list only adds
+    // items at the near-bottom (index 0) edge in reverse mode.
     setState(() => _content = text);
-    if (changed && _scrollController.hasClients) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-        }
-      });
-    }
   }
 
   @override
@@ -596,12 +595,22 @@ class _LogList extends StatelessWidget {
     // wrapper stitches the selection together. Copy captures plain
     // text, not TextSpan styles, so users pasting into a bug report
     // get clean output.
+    //
+    // `reverse: true` + flipped index lays the newest entry out at
+    // the bottom on the first frame — no post-frame `jumpTo` rip.
+    // Appending a new entry becomes "insert at reverse-index 0",
+    // which Flutter handles by pushing older frames up in pixel
+    // space without moving the user's scroll offset, so a user
+    // scrolled up to read history stays pinned on the row they
+    // were reading when new entries arrive.
+    final count = entries.length;
     return SelectionArea(
       child: ListView.builder(
         controller: controller,
-        itemCount: entries.length,
+        reverse: true,
+        itemCount: count,
         itemBuilder: (ctx, i) =>
-            _LogRow(entry: entries[i], defaultFg: defaultFg),
+            _LogRow(entry: entries[count - 1 - i], defaultFg: defaultFg),
       ),
     );
   }
