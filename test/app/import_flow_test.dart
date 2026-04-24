@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/import_flow.dart';
+import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
 import '../helpers/fake_path_provider.dart';
@@ -72,4 +73,34 @@ void main() {
     // fails the test otherwise.
     await tester.pump(const Duration(seconds: 4));
   });
+
+  testWidgets(
+    'handleQrImport returns silently when navigatorKey is unmounted',
+    (tester) async {
+      // Deep link pump can fire before the MaterialApp finishes
+      // mounting — the handler resolves `navigatorKey.currentContext`
+      // synchronously and must bail without throwing when it is
+      // null. Pin that contract: construct an empty payload + call
+      // the function without pumping any widget. No Provider
+      // container required because the early-return happens before
+      // any `ref.read` fires.
+      final payload = const ExportPayloadData(sessions: [], emptyFolders: {});
+
+      late WidgetRef capturedRef;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              capturedRef = ref;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+
+      // The MaterialApp is NOT mounted, so navigatorKey.currentContext
+      // is null. Call should complete without throw.
+      await expectLater(handleQrImport(capturedRef, payload), completes);
+    },
+  );
 }
