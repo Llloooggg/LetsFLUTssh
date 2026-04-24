@@ -1821,6 +1821,223 @@ void main() {
       },
     );
 
+    testWidgets(
+      'tier=keychainWithPassword configured gate → dialog returns key → inject',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        final storedKey = Uint8List.fromList(List.filled(32, 0x2B));
+        // Simulate user typing the right password — the fake invokes
+        // the real verify closure which checks the gate and reads the
+        // key. The closure also performs the DB inject side effect.
+        final prompter = FakeSecurityDialogPrompter(
+          tierSecretSimulatedInput: 'irrelevant',
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              keychainGate: FakeKeychainPasswordGate(
+                configured: true,
+                expectedPassword: 'irrelevant',
+              ),
+              secureKeyStorage: FakeSecureKeyStorage(
+                available: false,
+                probeResult: KeyringProbeResult.probeFailed,
+                storedKey: storedKey,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: Consumer(
+                  builder: (ctx, ref, _) {
+                    capturedRef = ref;
+                    ctrl = SecurityInitController(
+                      ref: ref,
+                      isMounted: () => true,
+                      dbOpener: ({encryptionKey}) {
+                        capturedKey = encryptionKey == null
+                            ? null
+                            : Uint8List.fromList(encryptionKey);
+                        return testDb;
+                      },
+                      dbFileExists: () async => true,
+                      verifyReadable: (db) async => true,
+                      dialogPrompter: prompter,
+                    );
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.keychainWithPassword,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // L2 dispatch reached the prompter (biometric fast-path not
+        // armed because FakeBiometricKeyVault.stored=false by default);
+        // prompter handed back the key, opener received it.
+        expect(prompter.tierSecretCalls, 1);
+        expect(capturedKey, equals(storedKey));
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'tier=keychainWithPassword configured gate → dialog reset → plaintext',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        // Null result + fireOnReset=true models "user typed wrong
+        // password N times, hit reset". The fake calls onReset which
+        // triggers WipeAllService.wipeAll + requestSecurityReinit.
+        final prompter = FakeSecurityDialogPrompter(fireOnReset: true);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              keychainGate: FakeKeychainPasswordGate(configured: true),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: Consumer(
+                  builder: (ctx, ref, _) {
+                    capturedRef = ref;
+                    ctrl = SecurityInitController(
+                      ref: ref,
+                      isMounted: () => true,
+                      dbOpener: ({encryptionKey}) {
+                        capturedKey = encryptionKey;
+                        return testDb;
+                      },
+                      dbFileExists: () async => true,
+                      verifyReadable: (db) async => true,
+                      dialogPrompter: prompter,
+                    );
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.keychainWithPassword,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Dialog returned null → L2 plaintext fallback branch.
+        expect(prompter.tierSecretCalls, 1);
+        expect(capturedKey, isNull);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'tier=hardware with password modifier → dialog returns PIN → inject',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        final vaultKey = Uint8List.fromList(List.filled(32, 0x3C));
+        // Simulate user entering any PIN — FakeHardwareTierVault.read
+        // ignores the pin when stored=true. verify does the inject.
+        final prompter = FakeSecurityDialogPrompter(
+          tierSecretSimulatedInput: '1234',
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              hardwareVault: FakeHardwareTierVault(
+                stored: true,
+                dbKey: vaultKey,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: Consumer(
+                  builder: (ctx, ref, _) {
+                    capturedRef = ref;
+                    ctrl = SecurityInitController(
+                      ref: ref,
+                      isMounted: () => true,
+                      dbOpener: ({encryptionKey}) {
+                        capturedKey = encryptionKey == null
+                            ? null
+                            : Uint8List.fromList(encryptionKey);
+                        return testDb;
+                      },
+                      dbFileExists: () async => true,
+                      verifyReadable: (db) async => true,
+                      dialogPrompter: prompter,
+                    );
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        // password modifier flipped so `_unlockHardware` goes through
+        // the dialog path rather than the passwordless read.
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers(password: true),
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // L3 with password modifier reached the tier-secret prompter;
+        // canned result lands on the opener.
+        expect(prompter.tierSecretCalls, 1);
+        expect(capturedKey, equals(vaultKey));
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
     testWidgets('paranoid unlock via prompter receives derivedKey + injects', (
       tester,
     ) async {

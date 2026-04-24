@@ -619,8 +619,8 @@ class SecurityInitController {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
     final l10n = S.of(ctx);
-    return TierSecretUnlockDialog.show(
-      ctx,
+    return _dialogs.showTierSecretUnlock(
+      ctx: ctx,
       labels: TierSecretUnlockLabels(
         title: l10n.l2UnlockTitle,
         hint: l10n.l2UnlockHint,
@@ -744,8 +744,8 @@ class SecurityInitController {
     if (ctx == null) return false;
     final l10n = S.of(ctx);
     final limiter = HardwareRateLimiter();
-    final key = await TierSecretUnlockDialog.show(
-      ctx,
+    final key = await _dialogs.showTierSecretUnlock(
+      ctx: ctx,
       labels: TierSecretUnlockLabels(
         title: l10n.l3UnlockTitle,
         hint: l10n.l3UnlockHint,
