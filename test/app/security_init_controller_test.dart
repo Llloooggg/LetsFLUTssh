@@ -1965,6 +1965,200 @@ void main() {
     );
 
     testWidgets(
+      'tier=hardware passwordless + vault.read null → plaintext fallback',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            // Vault reports stored but read returns null — the
+            // "sealed blob present but unsealed by the wrong PIN"
+            // shape. Controller treats it as a credentials reset.
+            overrides: securityProviderOverrides(
+              hardwareVault: FakeHardwareTierVault(stored: true),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey;
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // No pin to derive, vault.read returned null (dbKey unset
+        // on the fake) → plaintext fallback.
+        expect(capturedKey, isNull);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'tier=hardware with password + biometric available → bio unlock',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        final bioKey = Uint8List.fromList(List.filled(32, 0x4B));
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              // Vault is stored so the first `isStored` check passes,
+              // but the biometric-vault read supplies the key so the
+              // dialog path is skipped entirely.
+              hardwareVault: FakeHardwareTierVault(stored: true),
+              biometricVault: FakeBiometricKeyVault(stored: true, key: bioKey),
+              biometricAuth: FakeBiometricAuth(
+                available: true,
+                authenticateResult: true,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              // `_tryBiometricUnlock` reads `S.of(ctx).biometricUnlock
+              // Prompt` through the mounted navigator; the delegates
+              // must be registered or the lookup throws mid-unlock.
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        // password modifier on so `_unlockHardware` takes the
+        // biometric-first then dialog branch.
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers(password: true),
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Biometric fast-path succeeded, dialog never fired.
+        expect(capturedKey, equals(bioKey));
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isFalse);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets('tier=hardware with password → dialog reset → plaintext', (
+      tester,
+    ) async {
+      SecurityInitController? ctrl;
+      Uint8List? capturedKey;
+      late WidgetRef capturedRef;
+      // Null result + fireOnReset triggers the L3 onReset closure
+      // (wipeAll + requestSecurityReinit). Controller sees a
+      // non-unlocked return and falls to plaintext.
+      final prompter = FakeSecurityDialogPrompter(fireOnReset: true);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(
+            hardwareVault: FakeHardwareTierVault(stored: true),
+          ),
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: Scaffold(
+              body: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey;
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                    dialogPrompter: prompter,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => capturedRef
+            .read(configProvider.notifier)
+            .update(
+              (c) => c.copyWithSecurity(
+                security: const SecurityConfig(
+                  tier: SecurityTier.hardware,
+                  modifiers: SecurityTierModifiers(password: true),
+                ),
+              ),
+            ),
+      );
+
+      await tester.runAsync(() => ctrl!.bootstrap());
+
+      expect(prompter.tierSecretCalls, 1);
+      expect(capturedKey, isNull);
+      expect(ctrl!.isReady, isTrue);
+      ctrl!.dispose();
+    });
+
+    testWidgets(
       'tier=hardware with password modifier → dialog returns PIN → inject',
       (tester) async {
         SecurityInitController? ctrl;
