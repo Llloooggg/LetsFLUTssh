@@ -3,6 +3,8 @@ import 'package:letsflutssh/app/security_dialogs.dart';
 import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
 import 'package:letsflutssh/widgets/tier_reset_dialog.dart';
 
+import '../helpers/fake_security.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -33,6 +35,17 @@ void main() {
     test('localizedBiometricReason falls back to English literal when '
         'navigator is unmounted', () {
       expect(localizedBiometricReason(), 'Unlock LetsFLUTssh');
+    });
+
+    test('showUnlockDialog returns null when navigator is unmounted', () async {
+      // Returning null here is load-bearing: the paranoid unlock
+      // caller treats null as "user declined / reset" and flips the
+      // credentialsWereReset flag for the next launch's toast. If
+      // this path accidentally awaited a real dialog on a null
+      // context, cold-boot would hang on a context that never
+      // mounts.
+      final result = await showUnlockDialog(FakeMasterPasswordManager());
+      expect(result, isNull);
     });
   });
 }
