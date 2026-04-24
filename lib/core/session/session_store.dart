@@ -56,8 +56,15 @@ class SessionStore {
     if (db == null) return;
     try {
       await db.close();
-    } catch (_) {
+    } catch (e) {
       // Best-effort. Handle may have been closed elsewhere already.
+      // Log so a "close after close" race has a breadcrumb the
+      // next time the auto-lock / reset path surfaces a
+      // DatabaseClosedException.
+      AppLogger.instance.log(
+        'SessionStore.setDatabase: old handle close failed: $e',
+        name: 'SessionStore',
+      );
     }
   }
 

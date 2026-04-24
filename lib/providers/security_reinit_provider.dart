@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../utils/logger.dart';
+
 /// Event signal for "re-run the first-launch security setup flow".
 ///
 /// Consumers (currently only `_LetsFLUTsshAppState` in `main.dart`)
@@ -29,7 +31,13 @@ class SecurityReinitNotifier extends Notifier<int> {
   /// Advances the counter by one. Any listener installed via
   /// `ref.listenManual(securityReinitProvider, …)` observes a delta
   /// and re-runs its reinit handler.
-  void bump() => state = state + 1;
+  void bump() {
+    state = state + 1;
+    AppLogger.instance.log(
+      'Security reinit requested (tick=$state)',
+      name: 'SecurityReinit',
+    );
+  }
 }
 
 final securityReinitProvider = NotifierProvider<SecurityReinitNotifier, int>(
