@@ -1837,13 +1837,13 @@ void main() {
         await tester.runAsync(() => ctrl!.bootstrap());
 
         // Bootstrap returned without failure and flipped isReady. The
-        // post-frame toast callback is best-effort and owned by the
-        // state class in production; exercising the migratedCount > 0
-        // branch inside `_runMigrations` is what lifts coverage. We
-        // do not pump any further frames because the toast needs an
-        // Overlay wired through `navigatorKey` — that is a shell-
-        // level concern better covered by a widget test on the state
-        // class itself.
+        // post-frame toast callback reads `navigatorKey.currentContext`
+        // and calls `Overlay.of`; because the global key resolves to
+        // the Navigator itself (and Overlay.of looks up the ancestor
+        // chain, not descendants), firing the frame raises "No
+        // Overlay widget found". Driving that branch cleanly needs a
+        // widget test on the app shell that wraps the navigator in a
+        // ToastOverlay host — out of scope for the controller unit.
         expect(ctrl!.isReady, isTrue);
         ctrl!.dispose();
       },

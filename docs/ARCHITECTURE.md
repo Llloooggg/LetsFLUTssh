@@ -100,7 +100,8 @@ The practical upshot: before adding a widget, helper, style constant, or store, 
 
 ```
 lib/
-├── main.dart                         # Entry point
+├── main.dart                         # Entry point — mounts `_LetsFLUTsshAppState` and its `SecurityInitController`
+├── app/                              # App-shell helpers pulled out of main.dart: global error dialog, already-running blocker, toolbar, deep-link wiring, import flow, navigator key, update dialog flow, `SecurityInitController` (migration → unlock → first-launch orchestrator) + `SecurityDialogPrompter` (seam around blocking dialogs — see §14 → Testing the controller), `security_dialogs.dart` (unmounted-fallback wrappers)
 ├── core/                             # Business logic (no Flutter imports)
 │   ├── db/                           # Drift database (SQLite + SQLite3MultipleCiphers)
 │   │   ├── database.dart             # AppDatabase definition + lazy DAO getters
@@ -4176,6 +4177,9 @@ This provides:
 | `FileBrowserTab` | `sftpInitFactory` | Mock SFTP initialization |
 | `MobileFileBrowser` | `sftpInitFactory` | Mock SFTP initialization (mobile) |
 | `ForegroundServiceManager` | `create()` factory | Platform-specific impl |
+| `SecurityInitController` | `dbOpener`, `dbFileExists`, `verifyReadable`, `dialogPrompter`, `migrationRunner` | Bootstrap / unlock / first-launch / corruption / migration paths driven end-to-end in tests without touching real SQLite cipher or blocking on user-driven dialogs — see [Testing the controller](#testing-the-controller) below |
+
+All seams are optional ctor params defaulting to the production function (`openDatabase`, `databaseFileExists`, `verifyDatabaseReadable`, `ProductionSecurityDialogPrompter()`, `MigrationRunner(buildAppMigrationRegistry()).runOnStartup`). Prod call sites construct `SecurityInitController` without passing any of them — no behavioural drift from pre-seam code.
 
 ### Platform overrides
 
@@ -4190,6 +4194,13 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 |------|----------|
 | `test_notifiers.dart` | `TestConfigNotifier`, `PrePopulatedConfigNotifier`, `PrePopulatedSessionNotifier`, `PrePopulatedWorkspaceNotifier`, `PrePopulatedUpdateNotifier`, `FixedVersionNotifier` |
 | `fake_session_store.dart` | `FakeSessionStore` (in-memory), `ThrowingSessionStore` |
+| `fake_security.dart` | `FakeMasterPasswordManager`, `FakeSecureKeyStorage` (`writeKeySucceeds` flag), `FakeHardwareTierVault` (`storeSucceeds` flag), `FakeKeychainPasswordGate`, `FakeBiometricAuth` (`skipFirstNAvailableCalls` counter), `FakeBiometricKeyVault` (`isStoredThrows` + `throwAfterNCalls`), `FakeAutoLockStore` — all subclasses with no-op async defaults; flags let tests drive write-failure / throw / availability-change branches without swapping fakes mid-test |
+| `fake_dialog_prompter.dart` | `FakeSecurityDialogPrompter` — scripted answers for `showFirstLaunchWizard`, `showDbCorrupt`, `showTierReset`, `showMasterPasswordUnlock`, `showTierSecretUnlock`; `tierSecretSimulatedInput` delegates to the real `verify` closure so the DB-inject side effect fires; `fireOnReset` + `fireBiometricUnlock` trigger the dialog's reset / biometric callbacks for coverage |
+| `fake_path_provider.dart` | `installFakePathProvider()` + `uninstallFakePathProvider(tmp)` — redirects the `path_provider` channel to a per-test tmp dir; returns the `Directory` so tests can pre-seed / inspect state files |
+| `fake_secure_storage.dart` | `installFakeSecureStorage()` — in-memory backing for `flutter_secure_storage`; returns the map so tests can pre-seed entries |
+| `fake_native_plugins.dart` | `installFakeNativePlugins({config})` / `uninstallFakeNativePlugins()` — one-call mock for every app MethodChannel (hardware_vault, clipboard_secure, session_lock, backup_exclusion, permissions, secure_screen, qrscanner) + file_picker; returns a `NativeCallLog` so tests assert on the exact invocation shape |
+| `test_providers.dart` | `makeTestProviderContainer({...})` and `securityProviderOverrides({...})` — shared baseline of Riverpod overrides (session / master-password / keychain / hardware-vault / keychain-gate / biometric-auth / biometric-vault / auto-lock stores). Widget tests that need their own `ProviderScope` spread the override list; unit tests call the factory |
+| `test_stores.dart` | `makeTestStores()` → `TestStores` bundle of real drift-backed stores wired to an in-memory `openTestDatabase()`; for round-trip tests that need real persistence |
 
 ### Test file mapping
 
@@ -4198,6 +4209,23 @@ Rule: **one test file per source file** (`lib/core/ssh/ssh_client.dart` → `tes
 ### Mock generation
 
 Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
+
+### Testing the controller
+
+`SecurityInitController` orchestrates migrations → security init → DB open → readability probe across every tier (plaintext / keychain / keychain+password / hardware / paranoid). Unit tests drive the full chain under `tester.runAsync` through the five DI seams above:
+
+- `dbOpener` — swap `openDatabase` for `openTestDatabase`, so no MC-linked SQLite is required in `flutter test` (host sqlite has no cipher extension).
+- `dbFileExists` — script "existing install" vs "first launch" without touching the fake tmp dir.
+- `verifyReadable` — flip integrity-probe results per call, letting tests drive corruption → retry → wipe paths deterministically.
+- `dialogPrompter` — return canned `SecuritySetupResult` / `DbCorruptChoice` / `TierResetChoice` / tier-secret keys without rendering real dialogs, which would block on user interaction.
+- `migrationRunner` — throw, return a `MigrationReport` with fatal errors, or return one with `migratedCount > 0` — covers every branch of `_runMigrations` + `_handleMigrationFailure`.
+
+Two paths remain out of reach at this layer and are deferred to higher-level harnesses:
+
+- `exit(0)` branches inside `DbCorruptChoice.exitApp` / `TierResetChoice.exitApp` — would terminate the test isolate. A spawned-process integration test could cover them.
+- macOS self-sign (`_offerMacosSelfSign`) — gated on `Platform.isMacOS`. Runs on a macOS CI lane only.
+
+`tester.runAsync` is required around `bootstrap()` / `reinitFromReset()` / `reopenAfterUnlock()` — `configProvider.update` awaits a 300 ms debounce `Timer` that FakeAsync (the default under `testWidgets`) never advances.
 
 ### Fuzz testing
 

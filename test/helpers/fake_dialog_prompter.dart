@@ -67,6 +67,12 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
   /// can observe the wipe side effects the real dialog triggers.
   bool fireOnReset = false;
 
+  /// When true, the fake invokes the `biometricUnlock` closure
+  /// instead of / before the manual-input path. The closure's return
+  /// becomes the dialog result — matches the real dialog's autofire
+  /// behaviour when biometric hardware is available.
+  bool fireBiometricUnlock = false;
+
   int wizardCalls = 0;
   int corruptCalls = 0;
   int tierResetCalls = 0;
@@ -81,6 +87,7 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
     this.tierSecretResult,
     this.tierSecretSimulatedInput,
     this.fireOnReset = false,
+    this.fireBiometricUnlock = false,
   });
 
   @override
@@ -123,6 +130,12 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
     bool autoTriggerBiometric = true,
   }) async {
     tierSecretCalls++;
+    // Biometric autofire runs first when configured, matching the
+    // real dialog's first-frame behaviour.
+    if (fireBiometricUnlock && biometricUnlock != null) {
+      final bio = await biometricUnlock();
+      if (bio != null) return bio;
+    }
     // Explicit override wins.
     if (tierSecretResult != null) return tierSecretResult;
     // No input simulated and no explicit result → user hit Cancel /
