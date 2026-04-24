@@ -323,23 +323,130 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
                 color: bg,
                 borderRadius: AppTheme.radiusLg,
               ),
-              padding: const EdgeInsets.all(8),
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                child: SelectableText(
-                  _content.isEmpty ? '(no log entries yet)' : _content,
-                  style: TextStyle(
-                    fontSize: AppFonts.sm,
-                    fontFamily: 'monospace',
-                    color: fg,
-                    height: 1.4,
-                  ),
-                ),
-              ),
+              padding: const EdgeInsets.all(4),
+              child: _content.isEmpty
+                  ? Center(
+                      child: Text(
+                        '(no log entries yet)',
+                        style: TextStyle(
+                          fontSize: AppFonts.sm,
+                          fontFamily: 'monospace',
+                          color: fg.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    )
+                  : _LogList(
+                      entries: parseLogEntries(_content),
+                      controller: _scrollController,
+                      defaultFg: fg,
+                    ),
             );
           },
         ),
       ],
+    );
+  }
+}
+
+class _LogList extends StatelessWidget {
+  final List<LogEntry> entries;
+  final ScrollController controller;
+  final Color defaultFg;
+
+  const _LogList({
+    required this.entries,
+    required this.controller,
+    required this.defaultFg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // SelectionArea lets users drag-select across rows — individual
+    // Text widgets stay non-selectable on their own but the area
+    // wrapper stitches the selection together. Copy captures plain
+    // text, not TextSpan styles, so users pasting into a bug report
+    // get clean output.
+    return SelectionArea(
+      child: ListView.builder(
+        controller: controller,
+        itemCount: entries.length,
+        itemBuilder: (ctx, i) =>
+            _LogRow(entry: entries[i], defaultFg: defaultFg),
+      ),
+    );
+  }
+}
+
+class _LogRow extends StatelessWidget {
+  final LogEntry entry;
+  final Color defaultFg;
+
+  const _LogRow({required this.entry, required this.defaultFg});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: AppFonts.sm,
+      fontFamily: 'monospace',
+      height: 1.4,
+      color: defaultFg,
+    );
+    if (entry.isHeader) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        child: Text(
+          entry.message,
+          style: style.copyWith(
+            color: defaultFg.withValues(alpha: 0.45),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    final level = entry.level ?? LogLevel.info;
+    final levelColor = switch (level) {
+      LogLevel.error => AppTheme.red,
+      LogLevel.warn => AppTheme.yellow,
+      LogLevel.info => AppTheme.blue,
+    };
+    final hasTint = level != LogLevel.info;
+    final tintBg = hasTint ? levelColor.withValues(alpha: 0.08) : null;
+
+    // Segmented TextSpans so the viewer can dim the timestamp + accent
+    // the tag without losing the monospace alignment. Continuations
+    // attach inline after the primary message with a newline so the
+    // error / stack trace sits under the tinted row.
+    final spans = <InlineSpan>[
+      TextSpan(
+        text: '${entry.timestamp} ',
+        style: style.copyWith(color: defaultFg.withValues(alpha: 0.55)),
+      ),
+      TextSpan(
+        text: '[${entry.tag}] ',
+        style: style.copyWith(color: levelColor, fontWeight: FontWeight.w600),
+      ),
+      TextSpan(text: entry.message, style: style),
+      for (final c in entry.continuations)
+        TextSpan(
+          text: '\n$c',
+          style: style.copyWith(color: defaultFg.withValues(alpha: 0.75)),
+        ),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1),
+      decoration: BoxDecoration(
+        color: tintBg,
+        border: Border(
+          left: BorderSide(
+            color: hasTint ? levelColor : Colors.transparent,
+            width: 3,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Text.rich(TextSpan(children: spans)),
     );
   }
 }

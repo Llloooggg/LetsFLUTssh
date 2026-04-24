@@ -443,4 +443,77 @@ void main() {
       },
     );
   });
+
+  group('AppLogger level marker', () {
+    // The live viewer keys off a single char between timestamp and
+    // [tag] to pick the row tint (I = default, W = amber, E = red).
+    // These tests pin the format so a refactor that drops or renames
+    // the marker does not silently demote every row to "info tint"
+    // and bury warnings / errors in the viewer.
+
+    setUp(() async {
+      await AppLogger.instance.dispose();
+      await AppLogger.instance.clearLogs();
+    });
+
+    test('log() default level writes I marker', () async {
+      await AppLogger.instance.init();
+      await AppLogger.instance.setEnabled(true);
+      AppLogger.instance.log('routine', name: 'Lvl');
+      final content = await AppLogger.instance.readLog();
+      expect(content, matches(RegExp(r'\d{2}:\d{2}:\d{2} I \[Lvl\] routine')));
+    });
+
+    test('log() with explicit warn level writes W marker', () async {
+      await AppLogger.instance.init();
+      await AppLogger.instance.setEnabled(true);
+      AppLogger.instance.log('soft fail', name: 'Lvl', level: LogLevel.warn);
+      final content = await AppLogger.instance.readLog();
+      expect(
+        content,
+        matches(RegExp(r'\d{2}:\d{2}:\d{2} W \[Lvl\] soft fail')),
+      );
+    });
+
+    test(
+      'log() with error auto-promotes to E marker without explicit level',
+      () async {
+        // Call sites that pass `error:` without touching `level:` still
+        // render tinted red — preserves zero-touch migration for the
+        // 100+ existing `log(..., error: e)` call sites.
+        await AppLogger.instance.init();
+        await AppLogger.instance.setEnabled(true);
+        AppLogger.instance.log('boom', name: 'Lvl', error: 'StateError');
+        final content = await AppLogger.instance.readLog();
+        expect(content, matches(RegExp(r'\d{2}:\d{2}:\d{2} E \[Lvl\] boom')));
+      },
+    );
+
+    test('log() explicit level overrides the error auto-promote', () async {
+      // Edge case — a `warn` call that also carries a suppressed error
+      // object (non-fatal fallback) should still render warn, not red.
+      await AppLogger.instance.init();
+      await AppLogger.instance.setEnabled(true);
+      AppLogger.instance.log(
+        'recoverable',
+        name: 'Lvl',
+        error: 'Transient',
+        level: LogLevel.warn,
+      );
+      final content = await AppLogger.instance.readLog();
+      expect(
+        content,
+        matches(RegExp(r'\d{2}:\d{2}:\d{2} W \[Lvl\] recoverable')),
+      );
+    });
+
+    test('logCritical() always writes E marker', () async {
+      await AppLogger.instance.init();
+      // Note: setEnabled(true) NOT called — logCritical bypasses the
+      // toggle. Marker still must be E.
+      await AppLogger.instance.logCritical('fatal', name: 'Crit');
+      final content = await AppLogger.instance.readLog();
+      expect(content, matches(RegExp(r'\d{2}:\d{2}:\d{2} E \[Crit\] fatal')));
+    });
+  });
 }

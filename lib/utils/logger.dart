@@ -5,6 +5,25 @@ import 'package:path_provider/path_provider.dart';
 
 import 'sanitize.dart';
 
+/// Severity marker for a log line. Written as a single char after the
+/// timestamp so the live viewer can tint each row without reparsing the
+/// message text. Matches the Logcat / journald convention.
+///
+/// * [info] — routine operational entry. No extra visual treatment in
+///   the viewer beyond the baseline monospace colour.
+/// * [warn] — degraded but recoverable ("fell back to plaintext",
+///   "probe failed, using default"). Amber tint + left border.
+/// * [error] — failure the user likely cares about (crash, migration
+///   fatal, DB corruption). Red tint + left border. `logCritical`
+///   forces this level even when routine logging is off.
+enum LogLevel { info, warn, error }
+
+String _levelChar(LogLevel l) => switch (l) {
+  LogLevel.info => 'I',
+  LogLevel.warn => 'W',
+  LogLevel.error => 'E',
+};
+
 /// File-based logger.
 ///
 /// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the app data.
@@ -143,15 +162,23 @@ class AppLogger {
 
   /// Log a message. Also forwards to dart:developer log (DevTools).
   /// File write only happens if logging is [enabled].
+  ///
+  /// [level] defaults to [LogLevel.info]; when an [error] object is
+  /// passed without an explicit level, auto-promote to [LogLevel.error]
+  /// so existing call sites that pass `error:` show up tinted red in
+  /// the viewer without having to be rewritten.
   void log(
     String message, {
     String? name,
     Object? error,
     StackTrace? stackTrace,
+    LogLevel? level,
   }) {
     final tag = name ?? 'App';
     final safeMsg = sanitize(message);
     final safeError = error == null ? null : sanitize(error.toString());
+    final resolvedLevel =
+        level ?? (error != null ? LogLevel.error : LogLevel.info);
     dev.log(safeMsg, name: tag, error: safeError);
 
     if (!_enabled || _sink == null) return;
@@ -162,7 +189,7 @@ class AppLogger {
           '${now.hour.toString().padLeft(2, '0')}:'
           '${now.minute.toString().padLeft(2, '0')}:'
           '${now.second.toString().padLeft(2, '0')}';
-      _sink!.writeln('$ts [$tag] $safeMsg');
+      _sink!.writeln('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
       if (safeError != null) {
         _sink!.writeln('  Error: $safeError');
       }
@@ -209,7 +236,9 @@ class AppLogger {
           '${now.hour.toString().padLeft(2, '0')}:'
           '${now.minute.toString().padLeft(2, '0')}:'
           '${now.second.toString().padLeft(2, '0')}';
-      final buf = StringBuffer()..writeln('$ts [$tag] $safeMsg');
+      // logCritical is always error-level by contract.
+      final buf = StringBuffer()
+        ..writeln('$ts ${_levelChar(LogLevel.error)} [$tag] $safeMsg');
       if (safeError != null) buf.writeln('  Error: $safeError');
       if (stackTrace != null) {
         buf.writeln('  Stack trace:');

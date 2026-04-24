@@ -1738,9 +1738,12 @@ void main() {
       );
       await tester.pump();
 
-      // Inline viewer is present — no dialog
+      // Inline viewer is present — no dialog. Viewer now wraps
+      // parsed log rows in a SelectionArea + ListView rather than a
+      // single SelectableText so rows can carry per-level tinting;
+      // presence of the wrapper is the equivalent signal.
       expect(find.text('Live Log'), findsOneWidget);
-      expect(find.byType(SelectableText), findsWidgets);
+      expect(find.byType(SelectionArea), findsWidgets);
     });
 
     testWidgets('live log viewer shows placeholder when log is empty', (
