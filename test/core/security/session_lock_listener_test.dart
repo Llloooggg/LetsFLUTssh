@@ -66,7 +66,7 @@ void main() {
 
         // Simulate the native side posting a session-lock event by
         // routing a platform message into the same channel's handler.
-        final codec = const StandardMethodCodec();
+        const codec = StandardMethodCodec();
         final payload = codec.encodeMethodCall(
           const MethodCall('sessionLocked'),
         );
