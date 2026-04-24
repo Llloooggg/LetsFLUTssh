@@ -234,6 +234,54 @@ void main() {
     });
 
     testWidgets(
+      'handleCorruption on a reopened DB probes once and flips isReady',
+      (tester) async {
+        SecurityInitController? ctrl;
+        var probeCalls = 0;
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) => testDb,
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async {
+                      probeCalls++;
+                      return true;
+                    },
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        final key = Uint8List.fromList(List.filled(32, 3));
+        capturedRef
+            .read(securityStateProvider.notifier)
+            .set(SecurityTier.keychain, key);
+
+        // Seed `_activeDatabase` via reopen (the seam routes the open
+        // through `dbOpener` → `testDb`). Then handleCorruption sees a
+        // non-null DB and runs the readability probe exactly once.
+        await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+        await tester.runAsync(() => ctrl!.handleCorruption());
+
+        // One probe per handleCorruption — reopenAfterUnlock does not
+        // probe on its own. A regression that probed from _injectDatabase
+        // would double this count and slow cold start.
+        expect(probeCalls, 1);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
       'reopenAfterUnlock routes the DB open through the injected dbOpener',
       (tester) async {
         SecurityInitController? ctrl;
