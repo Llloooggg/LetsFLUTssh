@@ -4,6 +4,7 @@ import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_client.dart';
 import '../../utils/android_storage_permission.dart';
+import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
 /// Result of SFTP initialization — controllers + service.
@@ -56,6 +57,10 @@ class SFTPInitializer {
       if (Platform.isAndroid) {
         final granted = await requestAndroidStoragePermission();
         permissionDenied = !granted;
+        AppLogger.instance.log(
+          'Android storage permission: ${granted ? 'granted' : 'denied'}',
+          name: 'SFTPInit',
+        );
       }
 
       sftpService = await SFTPService.fromSSHClient(sshClient);
@@ -73,11 +78,24 @@ class SFTPInitializer {
     try {
       await Future.wait([localCtrl.init(), remoteCtrl.init()]);
     } catch (e) {
+      // Pane init threw after the SFTP handshake already succeeded —
+      // usually a permission denial on the remote initial dir, which
+      // makes "connection succeeded but file browser blank" a
+      // greppable event in support traces.
+      AppLogger.instance.log(
+        'SFTP pane init failed (disposing controllers + rethrowing): $e',
+        name: 'SFTPInit',
+        error: e,
+      );
       localCtrl.dispose();
       remoteCtrl.dispose();
       rethrow;
     }
 
+    AppLogger.instance.log(
+      'SFTP panes initialized (android perm denied=$permissionDenied)',
+      name: 'SFTPInit',
+    );
     return SFTPInitResult(
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,

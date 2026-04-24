@@ -141,7 +141,15 @@ class WipeAllService {
     try {
       final dir = await _supportDir();
       return File(p.join(dir.path, _wipePendingMarker)).exists();
-    } catch (_) {
+    } catch (e) {
+      // Swallow is deliberate — a broken support-dir probe must not
+      // block startup. Log so a support trace can tell the difference
+      // between "no marker present" (common) and "probe threw" (rare,
+      // usually means an FS permission regression on first-run).
+      AppLogger.instance.log(
+        'WipeAllService.hasPendingWipe probe failed (assuming no marker): $e',
+        name: 'WipeAllService',
+      );
       return false;
     }
   }
@@ -295,7 +303,17 @@ class WipeAllService {
     try {
       final f = File(p.join(dir.path, _wipePendingMarker));
       if (await f.exists()) await f.delete();
-    } catch (_) {}
+    } catch (e) {
+      // Marker is load-bearing for crash-recovery: a leftover marker
+      // forces a re-wipe on next launch which is the safe default.
+      // Log so a stuck marker has a breadcrumb — the file won't make
+      // it off disk, and the user will see an unexpected re-wipe
+      // flow on the next cold start.
+      AppLogger.instance.log(
+        'WipeAllService: could not clear pending-wipe marker: $e',
+        name: 'WipeAllService',
+      );
+    }
   }
 
   Future<bool> _invokeNative(String method) async {
@@ -331,9 +349,23 @@ class WipeAllService {
         await for (final entity in logs.list(followLinks: false)) {
           try {
             await entity.delete(recursive: true);
-          } catch (_) {}
+          } catch (e) {
+            // Per-entry failure is non-fatal — the next entity's
+            // delete still runs. Log so a stuck log file (open
+            // handle, permission drift) leaves a breadcrumb
+            // pointing at which entity refused to sweep.
+            AppLogger.instance.log(
+              'WipeAllService: log entry "${entity.path}" delete failed: $e',
+              name: 'WipeAllService',
+            );
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.instance.log(
+        'WipeAllService: log-dir wipe outer failure: $e',
+        name: 'WipeAllService',
+      );
+    }
   }
 }

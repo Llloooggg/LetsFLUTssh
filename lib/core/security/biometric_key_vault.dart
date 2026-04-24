@@ -106,7 +106,15 @@ class BiometricKeyVault {
       try {
         final file = await _linuxSealFileFactory();
         if (await file.exists()) return true;
-      } catch (_) {}
+      } catch (e) {
+        // Linux file probe failure falls through to the native-
+        // keychain path; logging the miss surfaces an FS permission
+        // regression on the support dir.
+        AppLogger.instance.log(
+          'BiometricKeyVault.isStored: Linux seal-file probe failed: $e',
+          name: 'BiometricKeyVault',
+        );
+      }
     }
     try {
       return await _storage.containsKey(key: _keyName);

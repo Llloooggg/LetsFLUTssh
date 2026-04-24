@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../utils/logger.dart';
 import 'key_file_helper.dart';
 import 'openssh_config_importer.dart' show PemKeyReader;
 
@@ -82,7 +83,16 @@ class SshDirKeyScanner {
           .whereType<File>()
           .map((f) => f.path)
           .toList();
-    } catch (_) {
+    } catch (e) {
+      // Permission denied (common on `~/.ssh` when the user runs a
+      // sandboxed build without the Documents scope) returns empty
+      // so the UI surfaces "no keys found" gracefully. Logging the
+      // underlying error makes "why didn't my keys show up" a
+      // greppable question instead of a silent miss.
+      AppLogger.instance.log(
+        'SshDirKeyScanner: list "$directory" failed (returning empty): $e',
+        name: 'SshDirKeyScanner',
+      );
       return const [];
     }
   }

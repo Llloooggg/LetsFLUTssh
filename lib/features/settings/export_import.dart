@@ -278,7 +278,16 @@ class ExportImport {
       final Archive archive;
       try {
         archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
-      } catch (_) {
+      } catch (e) {
+        // Best-effort probe — malformed ZIP / APK / random bytes all
+        // land here. Logging the reason saves a "why did import reject
+        // my file?" round-trip with the user — a corrupted .lfs and an
+        // .apk picked by mistake both surface as "notLfs" but have
+        // different root causes.
+        AppLogger.instance.log(
+          'probeArchive: ZIP decode failed (file classified as notLfs): $e',
+          name: 'ExportImport',
+        );
         return LfsArchiveKind.notLfs;
       }
       // Probe is best-effort — a zip bomb here just means the file is not
@@ -885,7 +894,17 @@ class ExportImport {
       );
     } on UnsupportedLfsVersionException {
       rethrow;
-    } catch (_) {
+    } catch (e) {
+      // Wrap every other manifest parse failure (malformed JSON,
+      // unexpected type, truncated header) into the same
+      // user-facing "unsupported version" path so the message stays
+      // consistent. Log the original reason so a support trace can
+      // distinguish "user has a newer build's archive" from "bytes
+      // are corrupt".
+      AppLogger.instance.log(
+        'Manifest parse failed → reporting UnsupportedLfsVersionException: $e',
+        name: 'ExportImport',
+      );
       throw const UnsupportedLfsVersionException(
         found: 0,
         supported: currentSchemaVersion,

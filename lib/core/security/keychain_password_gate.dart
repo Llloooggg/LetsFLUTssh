@@ -135,7 +135,17 @@ class KeychainPasswordGate {
       // perma-rejecting the correct password.
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (rollbackErr) {
+        // Disk rollback itself failed — the next launch will see a
+        // half-configured gate. Log both errors so a support trace
+        // captures why `isConfigured()` will report true but
+        // `verify()` can never succeed.
+        AppLogger.instance.log(
+          'KeychainPasswordGate: rollback delete failed after keychain '
+          'write failed: $rollbackErr (original error: $e)',
+          name: 'KeychainPasswordGate',
+        );
+      }
       rethrow;
     }
 
