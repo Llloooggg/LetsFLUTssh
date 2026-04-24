@@ -8,6 +8,7 @@ import 'package:letsflutssh/app/security_init_controller.dart';
 import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/core/db/database_opener.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 
 import '../helpers/fake_native_plugins.dart';
@@ -415,6 +416,292 @@ void main() {
         // The reset flag is a 1-shot read; a successful bootstrap via
         // the paranoid fallback must surface it so main.dart can show
         // the "credentials were reset" toast after session load.
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap under explicit tier=keychain opens with stored key',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        final seededKey = Uint8List.fromList(List.filled(32, 0xAA));
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              secureKeyStorage: FakeSecureKeyStorage(storedKey: seededKey),
+            ),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        // Persist an explicit tier=keychain so `_unlockByTier` takes
+        // the keychain branch rather than legacy-infer. Under
+        // runAsync because configProvider.update awaits a 300 ms
+        // debounce Timer the save path depends on.
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.keychain,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Explicit-tier dispatch reaches `_unlockKeychain`, which
+        // reads the stored key from the fake and forwards it to the
+        // opener unchanged — same invariant as legacy-infer but
+        // through the dispatcher rather than the inference chain.
+        expect(capturedKey, equals(seededKey));
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap under explicit tier=keychain without stored key falls to plaintext',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        final capturedCalls = <Uint8List?>[];
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            // No stored key — FakeSecureKeyStorage returns null on read.
+            overrides: securityProviderOverrides(),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey == null
+                          ? null
+                          : Uint8List.fromList(encryptionKey);
+                      capturedCalls.add(capturedKey);
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.keychain,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // No key in the keychain under an L1-configured install is a
+        // credentials-reset scenario — the recovery path opens a
+        // plaintext DB (null key) and flips the reset flag so the UI
+        // surfaces the "credentials were reset" toast.
+        expect(capturedKey, isNull);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets('bootstrap under explicit tier=plaintext opens with no key', (
+      tester,
+    ) async {
+      SecurityInitController? ctrl;
+      Uint8List? capturedKey;
+      late WidgetRef capturedRef;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(),
+          child: MaterialApp(
+            home: Consumer(
+              builder: (ctx, ref, _) {
+                capturedRef = ref;
+                ctrl = SecurityInitController(
+                  ref: ref,
+                  isMounted: () => true,
+                  dbOpener: ({encryptionKey}) {
+                    capturedKey = encryptionKey;
+                    return testDb;
+                  },
+                  dbFileExists: () async => true,
+                  verifyReadable: (db) async => true,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => capturedRef
+            .read(configProvider.notifier)
+            .update(
+              (c) => c.copyWithSecurity(
+                security: const SecurityConfig(
+                  tier: SecurityTier.plaintext,
+                  modifiers: SecurityTierModifiers.defaults,
+                ),
+              ),
+            ),
+      );
+
+      await tester.runAsync(() => ctrl!.bootstrap());
+
+      // Explicit L0 dispatch: `_unlockByTier(plaintext)` calls
+      // `_injectDatabase()` with no arguments — the opener must
+      // receive `encryptionKey: null`.
+      expect(capturedKey, isNull);
+      expect(ctrl!.isReady, isTrue);
+      ctrl!.dispose();
+    });
+
+    testWidgets(
+      'bootstrap under explicit tier=paranoid with null navigator flips reset flag',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              // Paranoid branch calls `manager.verifyAndDerive` via
+              // showUnlockDialog; the dialog is unreachable on a null
+              // navigator so the helper returns null and the recovery
+              // path kicks in (plaintext fallback + reset flag).
+              masterPassword: FakeMasterPasswordManager(enabled: true),
+            ),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey;
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.paranoid,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        expect(capturedKey, isNull);
+        expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'bootstrap under explicit tier=hardware with unconfigured vault falls to plaintext',
+      (tester) async {
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        await tester.pumpWidget(
+          ProviderScope(
+            // Fake hardware vault reports not-stored → `_unlockHardware`
+            // recognises the "configured tier but missing state" shape
+            // as a credentials reset and falls to plaintext.
+            overrides: securityProviderOverrides(),
+            child: MaterialApp(
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  capturedRef = ref;
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey;
+                      return testDb;
+                    },
+                    dbFileExists: () async => true,
+                    verifyReadable: (db) async => true,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers.defaults,
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        expect(capturedKey, isNull);
         expect(ctrl!.takeAndClearCredentialsResetFlag(), isTrue);
         expect(ctrl!.isReady, isTrue);
         ctrl!.dispose();
