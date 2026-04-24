@@ -201,10 +201,27 @@ class FakeBiometricAuth extends BiometricAuth {
   bool available;
   bool authenticateResult;
 
-  FakeBiometricAuth({this.available = false, this.authenticateResult = false});
+  /// When non-null, [isAvailable] returns `false` on the first N calls
+  /// and then flips to [available]. Lets tests drive the rare shape
+  /// where the pre-dialog biometric branch must be skipped but the
+  /// in-dialog biometric closure's probe should still succeed —
+  /// otherwise the two share provider state and fire identically.
+  int? skipFirstNAvailableCalls;
+  int _availableCalls = 0;
+
+  FakeBiometricAuth({
+    this.available = false,
+    this.authenticateResult = false,
+    this.skipFirstNAvailableCalls,
+  });
 
   @override
-  Future<bool> isAvailable() async => available;
+  Future<bool> isAvailable() async {
+    _availableCalls++;
+    final skip = skipFirstNAvailableCalls;
+    if (skip != null && _availableCalls <= skip) return false;
+    return available;
+  }
 
   @override
   Future<bool> authenticate(String reason) async => authenticateResult;

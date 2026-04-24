@@ -958,6 +958,56 @@ void main() {
       },
     );
 
+    testWidgets('reinitFromReset swallows a DB-close exception and continues', (
+      tester,
+    ) async {
+      // Pre-close the test DB so reinitFromReset's `db.close()`
+      // throws ("Can't re-open a closed database"). The log/
+      // continue branch must run without aborting the rest of the
+      // reset flow — otherwise a transient drift failure during
+      // reset would leave the controller stuck with a stale DB
+      // reference and a half-cleared corruption-retry counter.
+      final prematurelyClosedDb = openTestDatabase();
+      SecurityInitController? ctrl;
+      late WidgetRef capturedRef;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: securityProviderOverrides(),
+          child: MaterialApp(
+            home: Consumer(
+              builder: (ctx, ref, _) {
+                capturedRef = ref;
+                ctrl = SecurityInitController(
+                  ref: ref,
+                  isMounted: () => true,
+                  dbOpener: ({encryptionKey}) => prematurelyClosedDb,
+                  dbFileExists: () async => false,
+                  verifyReadable: (db) async => true,
+                );
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+      final key = Uint8List.fromList(List.filled(32, 5));
+      capturedRef
+          .read(securityStateProvider.notifier)
+          .set(SecurityTier.keychain, key);
+      await tester.runAsync(() => ctrl!.reopenAfterUnlock());
+      // Close the DB behind the controller's back so the next
+      // close attempt throws.
+      await prematurelyClosedDb.close();
+
+      await tester.runAsync(() => ctrl!.reinitFromReset());
+
+      // Even with the close exception, the post-reset branches
+      // still run — isReady flips because `_markSecurityReady`
+      // fires from `handleCorruption`.
+      expect(ctrl!.isReady, isTrue);
+      ctrl!.dispose();
+    });
+
     testWidgets(
       'reinitFromReset closes the DB, re-runs the wizard, flips isReady',
       (tester) async {
@@ -2454,6 +2504,92 @@ void main() {
         // persisted tier, and re-runs `_initSecurity`. The second
         // probe returns true and `_markSecurityReady` flips isReady.
         expect(prompter.corruptCalls, 1);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'tier=hardware with password → dialog biometric closure happy path',
+      (tester) async {
+        // Skip pre-dialog biometric (isAvailable returns false on the
+        // first call) so the flow enters the dialog. Inside the
+        // dialog the biometric closure calls
+        // `_biometricUnlockForTierDialog`, which re-probes
+        // `isAvailable` — this call lands AFTER the skip window and
+        // returns true, then authenticate + vault.read succeed, and
+        // the L3 wrapper injects the key. Covers the happy path of
+        // `_biometricUnlockForTierDialog` + the L3 dialog biometric
+        // wrapper lambdas.
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        late WidgetRef capturedRef;
+        final bioKey = Uint8List.fromList(List.filled(32, 0x6E));
+        final prompter = FakeSecurityDialogPrompter(fireBiometricUnlock: true);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(
+              hardwareVault: FakeHardwareTierVault(stored: true),
+              biometricVault: FakeBiometricKeyVault(stored: true, key: bioKey),
+              biometricAuth: FakeBiometricAuth(
+                available: true,
+                authenticateResult: true,
+                // Pre-dialog path calls `bio.isAvailable()` once
+                // inside `_unlockHardware`; skipping that call forces
+                // the flow past the pre-dialog branch into the
+                // dialog.
+                skipFirstNAvailableCalls: 1,
+              ),
+            ),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: Consumer(
+                  builder: (ctx, ref, _) {
+                    capturedRef = ref;
+                    ctrl = SecurityInitController(
+                      ref: ref,
+                      isMounted: () => true,
+                      dbOpener: ({encryptionKey}) {
+                        capturedKey = encryptionKey == null
+                            ? null
+                            : Uint8List.fromList(encryptionKey);
+                        return testDb;
+                      },
+                      dbFileExists: () async => true,
+                      verifyReadable: (db) async => true,
+                      dialogPrompter: prompter,
+                    );
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => capturedRef
+              .read(configProvider.notifier)
+              .update(
+                (c) => c.copyWithSecurity(
+                  security: const SecurityConfig(
+                    tier: SecurityTier.hardware,
+                    modifiers: SecurityTierModifiers(password: true),
+                  ),
+                ),
+              ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Pre-dialog biometric skipped (isAvailable=false on first
+        // call); dialog fired; `_biometricUnlockForTierDialog`'s
+        // happy path ran — vault.read returned the seeded key; the
+        // L3 wrapper did the inject; opener received the key.
+        expect(prompter.tierSecretCalls, 1);
+        expect(capturedKey, equals(bioKey));
         expect(ctrl!.isReady, isTrue);
         ctrl!.dispose();
       },
