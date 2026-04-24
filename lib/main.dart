@@ -181,7 +181,14 @@ Future<void> main() async {
   final configStore = ConfigStore();
   final config = await configStore.load();
   await loggerInit; // ensure log path resolved before enabling file logging
-  AppLogger.instance.setEnabled(config.enableLogging);
+  // `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` overrides the on-
+  // disk config on dev / beta-tester builds so fresh installs start
+  // with logs enabled without a Settings-tweak round-trip. Release
+  // builds ship without the flag → we honour whatever the user
+  // stored in config.json (default: null / off).
+  await AppLogger.instance.setThreshold(
+    buildTimeLogLevelOverride ?? config.logLevel,
+  );
 
   // Wrap the entire app in runZonedGuarded to catch all async errors.
   // This catches errors from onPressed, Futures, streams, timers, etc.

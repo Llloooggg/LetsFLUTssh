@@ -225,11 +225,11 @@ void main() {
         );
 
     await AppLogger.instance.init();
-    await AppLogger.instance.setEnabled(true);
+    await AppLogger.instance.setThreshold(LogLevel.debug);
   });
 
   tearDown(() async {
-    await AppLogger.instance.setEnabled(false);
+    await AppLogger.instance.setThreshold(null);
     await AppLogger.instance.dispose();
 
     plat.debugMobilePlatformOverride = null;
@@ -295,13 +295,17 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(buildApp());
+      // New UI — level selector replaced the Enable Logging toggle.
       await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
+        find.text('Logging level'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
 
-      expect(find.text('Enable Logging'), findsOneWidget);
+      expect(find.text('Logging level'), findsOneWidget);
+      // Dropdown collapses to the current value's label — fresh
+      // config defaults to null threshold → "Off" option rendered.
+      expect(find.text('Off'), findsOneWidget);
     });
 
     testWidgets('logging enabled with logPath set renders live log viewer', (
@@ -316,7 +320,7 @@ void main() {
       expect(AppLogger.instance.logPath, isNotNull);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -325,7 +329,8 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
 
-      expect(find.text('Enable Logging'), findsOneWidget);
+      // New UI — level selector replaced the Enable Logging toggle.
+      expect(find.text('Logging level'), findsOneWidget);
       expect(find.text('Live Log'), findsOneWidget);
       // Toolbar icons from _LiveLogViewer.build.
       expect(find.byIcon(Icons.copy), findsOneWidget);
@@ -340,7 +345,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       for (int i = 0; i < 10; i++) {
@@ -383,7 +388,7 @@ void main() {
       // "(no log entries yet)" placeholder. Sink must be closed first so the
       // file isn't held open.
       await tester.runAsync(() async {
-        await AppLogger.instance.setEnabled(false);
+        await AppLogger.instance.setThreshold(null);
         final logPath = AppLogger.instance.logPath;
         if (logPath != null) {
           final file = File(logPath);
@@ -394,7 +399,7 @@ void main() {
       });
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -443,7 +448,7 @@ void main() {
       );
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -479,7 +484,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -535,7 +540,7 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
 
         final config = AppConfig.defaults.copyWith(
-          behavior: const BehaviorConfig(enableLogging: true),
+          behavior: const BehaviorConfig(logLevel: LogLevel.info),
         );
         await tester.pumpWidget(buildApp(initialConfig: config));
         await tester.scrollUntilVisible(
@@ -588,25 +593,31 @@ void main() {
       expect(parseLogEntries('\n\n'), isEmpty);
     });
 
-    test('parses info / warn / error primary lines with tag and timestamp', () {
-      final entries = parseLogEntries(
-        [
-          '12:34:56 I [App] routine entry',
-          '12:34:57 W [KeyStore] fell back to plaintext',
-          '12:34:58 E [MigrationRunner] fatal: bad chain',
-        ].join('\n'),
-      );
-      expect(entries, hasLength(3));
-      expect(entries[0].level, LogLevel.info);
-      expect(entries[0].timestamp, '12:34:56');
-      expect(entries[0].tag, 'App');
-      expect(entries[0].message, 'routine entry');
-      expect(entries[0].isHeader, isFalse);
-      expect(entries[1].level, LogLevel.warn);
-      expect(entries[1].tag, 'KeyStore');
-      expect(entries[2].level, LogLevel.error);
-      expect(entries[2].tag, 'MigrationRunner');
-    });
+    test(
+      'parses debug / info / warn / error primary lines with tag + timestamp',
+      () {
+        final entries = parseLogEntries(
+          [
+            '12:34:55 D [SSH] frame in',
+            '12:34:56 I [App] routine entry',
+            '12:34:57 W [KeyStore] fell back to plaintext',
+            '12:34:58 E [MigrationRunner] fatal: bad chain',
+          ].join('\n'),
+        );
+        expect(entries, hasLength(4));
+        expect(entries[0].level, LogLevel.debug);
+        expect(entries[0].tag, 'SSH');
+        expect(entries[1].level, LogLevel.info);
+        expect(entries[1].timestamp, '12:34:56');
+        expect(entries[1].tag, 'App');
+        expect(entries[1].message, 'routine entry');
+        expect(entries[1].isHeader, isFalse);
+        expect(entries[2].level, LogLevel.warn);
+        expect(entries[2].tag, 'KeyStore');
+        expect(entries[3].level, LogLevel.error);
+        expect(entries[3].tag, 'MigrationRunner');
+      },
+    );
 
     test('header lines become dim entries', () {
       final entries = parseLogEntries(

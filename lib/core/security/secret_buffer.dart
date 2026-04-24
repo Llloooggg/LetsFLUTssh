@@ -186,6 +186,7 @@ class SecretBuffer implements Finalizable {
     } catch (e) {
       AppLogger.instance.log(
         'Memory lock unavailable: $e',
+        level: LogLevel.warn,
         name: 'SecretBuffer',
       );
       return _NativeBindings.unavailable();

@@ -63,6 +63,7 @@ class LocalFS implements FileSystem {
       AppLogger.instance.log(
         'No shared storage access, falling back to app dir',
         name: 'LocalFS',
+        level: LogLevel.warn,
       );
     }
     final appDir = await getExternalStorageDirectory();

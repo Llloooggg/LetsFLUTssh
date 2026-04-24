@@ -222,6 +222,7 @@ class SecureKeyStorage {
       AppLogger.instance.log(
         'gdbus binary missing — classifying as no secret-service: $e',
         name: 'SecureKeyStorage',
+        level: LogLevel.warn,
       );
       return KeyringProbeResult.linuxNoSecretService;
     }

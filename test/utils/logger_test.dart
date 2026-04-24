@@ -25,7 +25,7 @@ void main() {
   });
 
   tearDown(() async {
-    await AppLogger.instance.setEnabled(false);
+    await AppLogger.instance.setThreshold(null);
     await AppLogger.instance.dispose();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -67,10 +67,10 @@ void main() {
       );
     });
 
-    test('setEnabled(true) without init does not crash', () async {
-      await AppLogger.instance.setEnabled(true);
+    test('setThreshold(LogLevel.debug) without init does not crash', () async {
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       AppLogger.instance.log('test', name: 'Test');
-      await AppLogger.instance.setEnabled(false);
+      await AppLogger.instance.setThreshold(null);
     });
 
     test('dispose does not crash when not initialized', () async {
@@ -92,9 +92,9 @@ void main() {
       expect(AppLogger.instance.logPath!, contains('letsflutssh.log'));
     });
 
-    test('setEnabled(true) creates log file', () async {
+    test('setThreshold(LogLevel.debug) creates log file', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       final logFile = File(AppLogger.instance.logPath!);
       // Flush to ensure header is written
@@ -105,7 +105,7 @@ void main() {
 
     test('log() writes to file when enabled', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log('hello world', name: 'TestTag');
 
@@ -115,7 +115,7 @@ void main() {
 
     test('log() with error writes error line', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log(
         'something broke',
@@ -130,7 +130,7 @@ void main() {
 
     test('log() with stackTrace writes stack trace lines', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       final stack = StackTrace.fromString('TestStack:\n#0 main\n#1 helper');
       AppLogger.instance.log(
@@ -149,7 +149,7 @@ void main() {
 
     test('log() uses default tag when name is null', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log('no tag message');
 
@@ -159,7 +159,7 @@ void main() {
 
     test('readLog() returns file content', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log('line one', name: 'R');
       AppLogger.instance.log('line two', name: 'R');
@@ -176,19 +176,19 @@ void main() {
       expect(content, isEmpty);
     });
 
-    test('setEnabled(false) stops writing', () async {
+    test('setThreshold(null) stops writing', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log('before disable', name: 'SD');
       // Read content before disabling to capture the first message
       final contentBefore = await AppLogger.instance.readLog();
       expect(contentBefore, contains('before disable'));
 
-      await AppLogger.instance.setEnabled(false);
+      await AppLogger.instance.setThreshold(null);
       AppLogger.instance.log('after disable', name: 'SD');
 
-      // Re-init to read the file (setEnabled(false) calls dispose which nulls _sink)
+      // Re-init to read the file (setThreshold(null) calls dispose which nulls _sink)
       await AppLogger.instance.init();
       final contentAfter = await AppLogger.instance.readLog();
       expect(contentAfter, isNot(contains('after disable')));
@@ -197,18 +197,18 @@ void main() {
     test('setEnabled with same value is no-op', () async {
       await AppLogger.instance.init();
       // Already disabled, setting false again should be no-op
-      await AppLogger.instance.setEnabled(false);
+      await AppLogger.instance.setThreshold(null);
       expect(AppLogger.instance.enabled, isFalse);
 
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       // Setting true again should be no-op
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       expect(AppLogger.instance.enabled, isTrue);
     });
 
     test('clearLogs() deletes file and reopens', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log('to be cleared', name: 'CL');
       final before = await AppLogger.instance.readLog();
@@ -231,7 +231,7 @@ void main() {
       File('$logPath.2').writeAsStringSync('rotated 2');
       File('$logPath.3').writeAsStringSync('rotated 3');
 
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       await AppLogger.instance.clearLogs();
 
       expect(File('$logPath.1').existsSync(), isFalse);
@@ -241,7 +241,7 @@ void main() {
 
     test('dispose() closes sink', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       AppLogger.instance.log('before dispose', name: 'D');
 
@@ -265,7 +265,7 @@ void main() {
 
     test('openSink writes platform header', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       final content = await AppLogger.instance.readLog();
       expect(content, contains('Platform:'));
@@ -283,7 +283,7 @@ void main() {
       file.writeAsStringSync(bigData);
 
       // Enable logging which triggers _openSink -> _rotateIfNeeded
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       // Original file should have been rotated to .log.1
       expect(File('$logPath.1').existsSync(), isTrue);
@@ -303,7 +303,7 @@ void main() {
       final file = File(logPath);
       file.writeAsStringSync('x' * (AppLogger.maxLogSizeBytes + 1));
 
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
 
       // .1 should now be the rotated main log
       // .2 should be old .1
@@ -458,7 +458,7 @@ void main() {
 
     test('log() default level writes I marker', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       AppLogger.instance.log('routine', name: 'Lvl');
       final content = await AppLogger.instance.readLog();
       expect(content, matches(RegExp(r'\d{2}:\d{2}:\d{2} I \[Lvl\] routine')));
@@ -466,7 +466,7 @@ void main() {
 
     test('log() with explicit warn level writes W marker', () async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       AppLogger.instance.log('soft fail', name: 'Lvl', level: LogLevel.warn);
       final content = await AppLogger.instance.readLog();
       expect(
@@ -482,7 +482,7 @@ void main() {
         // render tinted red — preserves zero-touch migration for the
         // 100+ existing `log(..., error: e)` call sites.
         await AppLogger.instance.init();
-        await AppLogger.instance.setEnabled(true);
+        await AppLogger.instance.setThreshold(LogLevel.debug);
         AppLogger.instance.log('boom', name: 'Lvl', error: 'StateError');
         final content = await AppLogger.instance.readLog();
         expect(content, matches(RegExp(r'\d{2}:\d{2}:\d{2} E \[Lvl\] boom')));
@@ -493,7 +493,7 @@ void main() {
       // Edge case — a `warn` call that also carries a suppressed error
       // object (non-fatal fallback) should still render warn, not red.
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
       AppLogger.instance.log(
         'recoverable',
         name: 'Lvl',
@@ -507,9 +507,17 @@ void main() {
       );
     });
 
+    test('log() with debug level writes D marker', () async {
+      await AppLogger.instance.init();
+      await AppLogger.instance.setThreshold(LogLevel.debug);
+      AppLogger.instance.log('trace', name: 'Lvl', level: LogLevel.debug);
+      final content = await AppLogger.instance.readLog();
+      expect(content, matches(RegExp(r'\d{2}:\d{2}:\d{2} D \[Lvl\] trace')));
+    });
+
     test('logCritical() always writes E marker', () async {
       await AppLogger.instance.init();
-      // Note: setEnabled(true) NOT called — logCritical bypasses the
+      // Note: setThreshold(LogLevel.debug) NOT called — logCritical bypasses the
       // toggle. Marker still must be E.
       await AppLogger.instance.logCritical('fatal', name: 'Crit');
       final content = await AppLogger.instance.readLog();

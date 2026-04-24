@@ -1672,25 +1672,25 @@ void main() {
   group('SettingsScreen — Logging section', () {
     setUp(() async {
       await AppLogger.instance.init();
-      await AppLogger.instance.setEnabled(true);
+      await AppLogger.instance.setThreshold(LogLevel.debug);
     });
 
     tearDown(() async {
-      await AppLogger.instance.setEnabled(false);
+      await AppLogger.instance.setThreshold(null);
       await AppLogger.instance.dispose();
     });
 
     testWidgets('Enable Logging switch is visible', (tester) async {
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
+        find.text('Logging level'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Enable Logging'), findsOneWidget);
+      expect(find.text('Logging level'), findsOneWidget);
     });
 
     testWidgets('logging tiles visible when enabled', (tester) async {
@@ -1700,7 +1700,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -1724,7 +1724,7 @@ void main() {
       AppLogger.instance.log('Test log entry', name: 'Test');
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -1758,7 +1758,7 @@ void main() {
       await tester.runAsync(() => AppLogger.instance.clearLogs());
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -1808,7 +1808,7 @@ void main() {
       );
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -1848,7 +1848,7 @@ void main() {
       );
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
@@ -1874,36 +1874,23 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('toggling Enable Logging switch calls config update', (
-      tester,
-    ) async {
+    testWidgets('Logging level dropdown is mounted', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      // Start with logging disabled
+      // Start with logging off.
       await tester.pumpWidget(buildApp(initialConfig: AppConfig.defaults));
       await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
+        find.text('Logging level'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
 
-      // The toggle pill should have bg4 color (off state)
-      final toggleContainer = find.byWidgetPredicate(
-        (w) =>
-            w is Container &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).color == AppTheme.bg4 &&
-            (w.decoration as BoxDecoration).borderRadius ==
-                BorderRadius.circular(9),
-      );
-      expect(toggleContainer, findsWidgets);
-
-      // Tap the toggle to enable logging
-      await tester.tap(find.text('Enable Logging'));
-      await tester.pumpAndSettle();
+      // The dropdown's current value renders — with defaults (logLevel
+      // null) this is "Off".
+      expect(find.text('Off'), findsOneWidget);
     });
 
     testWidgets('logging toggle is present whether enabled or not', (
@@ -1916,47 +1903,31 @@ void main() {
 
       await tester.pumpWidget(buildApp(initialConfig: AppConfig.defaults));
       await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
+        find.text('Logging level'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Enable Logging'), findsOneWidget);
+      expect(find.text('Logging level'), findsOneWidget);
     });
 
-    testWidgets('toggle renders ON when config has enableLogging true', (
-      tester,
-    ) async {
+    testWidgets('dropdown reflects config.logLevel on mount', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(
-        find.text('Enable Logging'),
+        find.text('Logging level'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
 
-      // Find the toggle pill that is in the same Row as "Enable Logging"
-      final loggingRow = find
-          .ancestor(of: find.text('Enable Logging'), matching: find.byType(Row))
-          .first;
-      final toggleContainer = find.descendant(
-        of: loggingRow,
-        matching: find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).color == AppTheme.accent &&
-              (w.decoration as BoxDecoration).borderRadius ==
-                  BorderRadius.circular(9),
-        ),
-      );
-      expect(toggleContainer, findsOneWidget);
+      // Dropdown shows the currently-selected level label.
+      expect(find.text('Info'), findsWidgets);
     });
 
     testWidgets(
@@ -1968,7 +1939,7 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
 
         final config = AppConfig.defaults.copyWith(
-          behavior: const BehaviorConfig(enableLogging: true),
+          behavior: const BehaviorConfig(logLevel: LogLevel.info),
         );
         await tester.pumpWidget(buildApp(initialConfig: config));
         await tester.scrollUntilVisible(
@@ -1991,7 +1962,7 @@ void main() {
 
       // Delete the log file so readLog returns '' — all inside runAsync for real I/O
       await tester.runAsync(() async {
-        await AppLogger.instance.setEnabled(false);
+        await AppLogger.instance.setThreshold(null);
         final logPath = AppLogger.instance.logPath;
         if (logPath != null) {
           final logFile = File(logPath);
@@ -1999,11 +1970,11 @@ void main() {
             await logFile.delete();
           }
         }
-        await AppLogger.instance.setEnabled(true);
+        await AppLogger.instance.setThreshold(LogLevel.debug);
       });
 
       final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(enableLogging: true),
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
       );
       await tester.pumpWidget(buildApp(initialConfig: config));
       await tester.scrollUntilVisible(

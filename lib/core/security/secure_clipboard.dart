@@ -73,6 +73,7 @@ class SecureClipboard {
       AppLogger.instance.log(
         'SecureClipboard native write failed, falling back: $e',
         name: 'SecureClipboard',
+        level: LogLevel.warn,
       );
       return false;
     }

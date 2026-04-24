@@ -3174,6 +3174,8 @@ Master-password unlock dialog used at startup before any DB read. Returns true o
 ### AppLogger
 
 ```dart
+enum LogLevel { debug, info, warn, error }
+
 class AppLogger {
   static AppLogger get instance;
 
@@ -3181,24 +3183,38 @@ class AppLogger {
   static const _maxRotatedFiles = 3;
 
   String? get logPath;
-  bool get enabled;
+  bool get enabled;        // threshold != null
+  LogLevel? get threshold;
 
-  Future<void> setEnabled(bool value);
+  Future<void> setThreshold(LogLevel? value);  // null = off
   Future<void> init();
-  void log(String message, {String? name, Object? error, StackTrace? stackTrace});
+  void log(
+    String message, {
+    String? name,
+    Object? error,
+    StackTrace? stackTrace,
+    LogLevel? level,  // defaults to info; auto-promotes to error when `error` non-null
+  });
+  Future<void> logCritical(String message, {String? name, Object? error, StackTrace? stackTrace});  // always error level, bypasses threshold
   Future<String> readLog();
-  Future<void> dispose();   // sets enabled=false, closes sink
-  Future<void> clearLogs(); // deletes all log files, reopens if enabled
+  Future<void> dispose();   // sets threshold=null, closes sink
+  Future<void> clearLogs(); // deletes all log files, reopens if threshold non-null
 }
 ```
 File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
-`dispose()` sets `_enabled = false` so no writes occur after disposal.
+`dispose()` sets `_threshold = null` so no writes occur after disposal.
 
-**Routine logs are opt-in — disabled by default.** `init()` resolves the log path but does not open the routine sink; that happens the first time `setEnabled(true)` is called, wired up via `ConfigProvider.load` reading `config.enableLogging`. Entries already on disk stay until the user hits "Clear" in the Settings → Logging section. All writes pass through [sanitize](#sanitize) and the file is chmod-0600 on POSIX (same hardening as `credentials.*` and `config.json`).
+Line format: `HH:MM:SS X [Tag] message` where X is `D` / `I` / `W` / `E`. Continuation lines for error / stack traces are indented two spaces so the viewer can fold them under the parent row without reparsing the tag. Header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) are written verbatim on sink open and render as a dim divider in the viewer.
 
-**Critical paths bypass the toggle.** [`AppLogger.logCritical`](../lib/utils/logger.dart) appends straight to the resolved log file even when `enabled` is false, so the three global crash boundaries in `main.dart` (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded` handler), the `MigrationRunner` fatal path (uncaught throws + `report.hasFailures`) and the post-init `verifyDatabaseReadable` failure all leave a forensic breadcrumb without waiting for the user to flip the toggle. The write uses `FileMode.append` on `logPath` directly — never touches `_sink`, so routine entries cannot leak past the opt-out gate between crit writes. Rationale: the window where a crash trace matters most is exactly the first-launch window, before any user has opened Settings at all.
+**Routine logs are opt-in — off by default.** `init()` resolves the log path but does not open the routine sink; that happens the first time `setThreshold(...)` is called with a non-null `LogLevel`, wired up via `ConfigProvider.load` reading `config.behavior.logLevel`. Entries already on disk stay until the user hits "Clear" in the Settings → Logging section. All writes pass through [sanitize](#sanitize) and the file is chmod-0600 on POSIX (same hardening as `credentials.*` and `config.json`).
 
-**Rule:** `AppLogger.instance.log(message, name: 'Tag')` for routine events; `AppLogger.instance.logCritical(...)` only for crash / fatal / integrity-probe-failure paths. Never `print()` / `debugPrint()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
+**No OS-logging mirror.** Routine `log()` calls do NOT forward to `dart:developer` — Android Logcat, macOS Console.app and desktop stderr never receive our lines. This is a deliberate privacy decision: a user with `adb logcat` access (or anyone reading the device's system logs) should not be able to read our log stream just because the user opened the app. The only surface our logs can be read from is the opt-in file under app-support. `logCritical` follows the same rule — no OS-logging fallback, just a direct append to the resolved log path.
+
+**Critical paths bypass the threshold.** [`AppLogger.logCritical`](../lib/utils/logger.dart) appends straight to the resolved log file even when the threshold is null, so the three global crash boundaries in `main.dart` (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded` handler), the `MigrationRunner` fatal path (uncaught throws + `report.hasFailures`) and the post-init `verifyDatabaseReadable` failure all leave a forensic breadcrumb without waiting for the user to pick a level. The write uses `FileMode.append` on `logPath` directly — never touches `_sink`, so routine entries cannot leak past the opt-out gate between crit writes. Rationale: the window where a crash trace matters most is exactly the first-launch window, before any user has opened Settings at all.
+
+**Rule:** `AppLogger.instance.log(message, name: 'Tag')` for routine events; `AppLogger.instance.logCritical(...)` only for crash / fatal / integrity-probe-failure paths. Never `print()` / `debugPrint()` / `dart:developer.log()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
+
+**Severity levels + threshold.** The `level` parameter drives the Settings → Logging viewer's per-row tint + filter chips, and also gates whether the line lands on disk at all — a `log(..., level: LogLevel.debug)` call writes only when the user picked `Debug` as their threshold, an `info` line writes at `Info` or `Debug`, and so on. Auto-promote + explicit-pick rules live in [AGENT_RULES § Logging](AGENT_RULES.md#logging--applogger-auto-sanitized-err-on-more-not-less). `logCritical` is always `E` and bypasses the threshold.
 
 ### Sanitize
 
@@ -4096,6 +4112,22 @@ All error messages are sanitized before logging to prevent accidental exposure o
 | Unix paths | `/<user>` | `/Users/john/.ssh/id_rsa` → `/<user>/.ssh/id_rsa`; bare `/home/john` → `/<user>` |
 
 Usage: `sanitizeErrorMessage(message)` before logging any error that may contain connection details or file paths.
+
+#### Live log viewer (`features/settings/settings_logging.dart` + `settings_logging_parser.dart`)
+
+Settings → Logging section renders the on-disk log inline with per-row severity tint. The viewer polls the log file every second (paused on background / resumed on foreground) and feeds the raw text through `parseLogEntries` (pure, testable — `settings_logging_parser.dart`) which:
+
+- splits primary `HH:MM:SS X [Tag] message` lines via regex `^(\d{2}:\d{2}:\d{2}) ([DIWE]) \[([^\]]+)\] (.*)$`
+- folds indented continuation lines (`  Error: ...`, `  Stack trace:`, raw stack frames) into the parent `LogEntry.continuations`
+- tags header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) + any regex-miss line as `isHeader: true` so the viewer dims them
+
+Each non-header entry renders as a row with:
+- 3 px left border coloured per level (red / amber / blue / dim fg for D)
+- 8 % bg tint on `W` / `E` so error blocks scan at a glance without reading text
+- segment coloring inside the `Text.rich`: timestamp dim, `[Tag]` in the level accent, message in default fg
+- continuations rendered inline (newline-joined) under the parent row so the stack trace sits under the matching tint
+
+Filter toolbar above the list: four toggle chips (`D I W E`, D defaults off) + a live-substring search input that AND-combines with the level filter. `SelectionArea` wraps the `ListView.builder` so users drag-select across rows; copy captures plain text (no TextSpan styles leak into the clipboard).
 
 #### AppLogger (`utils/logger.dart`)
 

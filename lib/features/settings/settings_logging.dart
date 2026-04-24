@@ -9,27 +9,25 @@ class _LoggingSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(configProvider.select((c) => c.enableLogging));
+    final level = ref.watch(configProvider.select((c) => c.logLevel));
+    final enabled = level != null;
     final logPath = AppLogger.instance.logPath;
 
     return Column(
       children: [
-        _Toggle(
-          label: S.of(context).enableLogging,
-          subtitle: S.of(context).enableLoggingSubtitle,
-          icon: Icons.article_outlined,
-          value: enabled,
-          onChanged: (v) => ref
+        _LogLevelSelector(
+          selected: level,
+          onChanged: (next) => ref
               .read(configProvider.notifier)
               .update(
                 (c) =>
-                    c.copyWith(behavior: c.behavior.copyWith(enableLogging: v)),
+                    c.copyWith(behavior: c.behavior.copyWith(logLevel: next)),
               ),
         ),
         // Show the viewer when logging is active OR when a previous session
-        // left log content on disk — disabling the toggle stops new writes
-        // but captured entries need to stay reachable (read / export / clear).
-        // If the toggle is off AND the file is empty, hide the viewer to
+        // left log content on disk — disabling stops new writes but
+        // captured entries need to stay reachable (read / export / clear).
+        // If the level is off AND the file is empty, hide the viewer to
         // keep the settings screen short.
         if (logPath != null)
           _LogViewerHost(
@@ -155,7 +153,11 @@ class _LogViewerHost extends StatelessWidget {
     if (!enabled && !_logFileHasContent()) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: _LiveLogViewer(onExport: onExport, onClear: onClear),
+      child: _LiveLogViewer(
+        onExport: onExport,
+        onClear: onClear,
+        active: enabled,
+      ),
     );
   }
 }
@@ -171,7 +173,18 @@ class _LiveLogViewer extends StatefulWidget {
   final VoidCallback onExport;
   final VoidCallback onClear;
 
-  const _LiveLogViewer({required this.onExport, required this.onClear});
+  /// Whether the user currently has a logging threshold set — drives
+  /// the viewer's toolbar label + indicator colour. When `false` the
+  /// viewer still renders (so archived entries stay reachable) but
+  /// reads as "Archived log" / dim dot rather than "Live Log" / green
+  /// dot, to avoid suggesting writes are still happening.
+  final bool active;
+
+  const _LiveLogViewer({
+    required this.onExport,
+    required this.onClear,
+    required this.active,
+  });
 
   @override
   State<_LiveLogViewer> createState() => _LiveLogViewerState();
@@ -180,8 +193,23 @@ class _LiveLogViewer extends StatefulWidget {
 class _LiveLogViewerState extends State<_LiveLogViewer>
     with WidgetsBindingObserver {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
   String _content = '';
   Timer? _timer;
+
+  /// Which severity levels render in the viewer. All three start on;
+  /// users can hide info noise to focus on warnings + errors during a
+  /// support session.
+  final Set<LogLevel> _visibleLevels = {
+    LogLevel.info,
+    LogLevel.warn,
+    LogLevel.error,
+  };
+
+  /// Case-insensitive substring filter on the message body. Applied
+  /// after the level filter (AND) so a `search: "keychain" + level: W`
+  /// shows only warn rows whose message mentions keychain.
+  String _query = '';
 
   @override
   void initState() {
@@ -196,6 +224,7 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
     WidgetsBinding.instance.removeObserver(this);
     _stopTimer();
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -246,16 +275,26 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
     final mobile = plat.isMobilePlatform;
     final buttonBg = mobile ? AppTheme.bg3 : null;
 
+    // Toolbar title + status dot reflect whether writes are currently
+    // happening. When the user set logging level to Off we still show
+    // the viewer (archived entries stay reachable), but the "Live"
+    // wording + green dot would misrepresent state — swap in a dim
+    // "Archived log" + grey dot.
+    final indicatorColor = widget.active
+        ? fg
+        : theme.colorScheme.onSurface.withValues(alpha: 0.35);
+    final titleText = widget.active ? S.of(context).liveLog : 'Archived log';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Toolbar
         Row(
           children: [
-            Icon(Icons.circle, size: 8, color: fg),
+            Icon(Icons.circle, size: 8, color: indicatorColor),
             const SizedBox(width: 6),
             Text(
-              S.of(context).liveLog,
+              titleText,
               style: TextStyle(
                 fontSize: AppFonts.md,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -324,26 +363,232 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
                 borderRadius: AppTheme.radiusLg,
               ),
               padding: const EdgeInsets.all(4),
-              child: _content.isEmpty
-                  ? Center(
-                      child: Text(
-                        '(no log entries yet)',
-                        style: TextStyle(
-                          fontSize: AppFonts.sm,
-                          fontFamily: 'monospace',
-                          color: fg.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    )
-                  : _LogList(
-                      entries: parseLogEntries(_content),
-                      controller: _scrollController,
-                      defaultFg: fg,
-                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _LogFilterBar(
+                    visibleLevels: _visibleLevels,
+                    query: _query,
+                    searchController: _searchController,
+                    onLevelToggle: (level) => setState(() {
+                      if (_visibleLevels.contains(level)) {
+                        _visibleLevels.remove(level);
+                      } else {
+                        _visibleLevels.add(level);
+                      }
+                    }),
+                    onQueryChanged: (q) => setState(() => _query = q),
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: _content.isEmpty
+                        ? Center(
+                            child: Text(
+                              '(no log entries yet)',
+                              style: TextStyle(
+                                fontSize: AppFonts.sm,
+                                fontFamily: 'monospace',
+                                color: fg.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          )
+                        : _LogList(
+                            entries: _filterEntries(parseLogEntries(_content)),
+                            controller: _scrollController,
+                            defaultFg: fg,
+                          ),
+                  ),
+                ],
+              ),
             );
           },
         ),
       ],
+    );
+  }
+
+  /// Apply the level + search filters to a parsed entry list. Headers
+  /// always render so the session banner stays visible even when
+  /// every level filter is off. Search matches against the message,
+  /// tag, or any continuation line so a query like "keychain" hits
+  /// the stack-trace body too.
+  List<LogEntry> _filterEntries(List<LogEntry> raw) {
+    final lower = _query.toLowerCase();
+    return raw
+        .where((e) {
+          if (e.isHeader) return true;
+          if (e.level != null && !_visibleLevels.contains(e.level)) {
+            return false;
+          }
+          if (lower.isEmpty) return true;
+          if (e.message.toLowerCase().contains(lower)) return true;
+          if (e.tag != null && e.tag!.toLowerCase().contains(lower)) {
+            return true;
+          }
+          for (final c in e.continuations) {
+            if (c.toLowerCase().contains(lower)) return true;
+          }
+          return false;
+        })
+        .toList(growable: false);
+  }
+}
+
+/// Filter toolbar mounted above the log list.
+///
+/// Four severity toggle chips + a monospace search input. All chips
+/// default to on except `D`, which users opt into explicitly when
+/// chasing a trace.
+class _LogFilterBar extends StatelessWidget {
+  final Set<LogLevel> visibleLevels;
+  final String query;
+  final TextEditingController searchController;
+  final ValueChanged<LogLevel> onLevelToggle;
+  final ValueChanged<String> onQueryChanged;
+
+  const _LogFilterBar({
+    required this.visibleLevels,
+    required this.query,
+    required this.searchController,
+    required this.onLevelToggle,
+    required this.onQueryChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _LevelChip(
+          level: LogLevel.debug,
+          label: 'D',
+          color: AppTheme.fg.withValues(alpha: 0.5),
+          active: visibleLevels.contains(LogLevel.debug),
+          onTap: () => onLevelToggle(LogLevel.debug),
+        ),
+        const SizedBox(width: 4),
+        _LevelChip(
+          level: LogLevel.info,
+          label: 'I',
+          color: AppTheme.blue,
+          active: visibleLevels.contains(LogLevel.info),
+          onTap: () => onLevelToggle(LogLevel.info),
+        ),
+        const SizedBox(width: 4),
+        _LevelChip(
+          level: LogLevel.warn,
+          label: 'W',
+          color: AppTheme.yellow,
+          active: visibleLevels.contains(LogLevel.warn),
+          onTap: () => onLevelToggle(LogLevel.warn),
+        ),
+        const SizedBox(width: 4),
+        _LevelChip(
+          level: LogLevel.error,
+          label: 'E',
+          color: AppTheme.red,
+          active: visibleLevels.contains(LogLevel.error),
+          onTap: () => onLevelToggle(LogLevel.error),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: SizedBox(
+            height: 28,
+            child: TextField(
+              controller: searchController,
+              onChanged: onQueryChanged,
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                fontFamily: 'monospace',
+                color: AppTheme.fg,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Filter…',
+                hintStyle: TextStyle(
+                  fontSize: AppFonts.sm,
+                  color: AppTheme.fg.withValues(alpha: 0.4),
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 16,
+                  color: AppTheme.fg.withValues(alpha: 0.5),
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 4,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(
+                    color: AppTheme.fg.withValues(alpha: 0.15),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(
+                    color: AppTheme.fg.withValues(alpha: 0.15),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(color: AppTheme.blue, width: 1.2),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LevelChip extends StatelessWidget {
+  final LogLevel level;
+  final String label;
+  final Color color;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _LevelChip({
+    required this.level,
+    required this.label,
+    required this.color,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: active ? color.withValues(alpha: 0.18) : null,
+          border: Border.all(
+            color: active ? color : AppTheme.fg.withValues(alpha: 0.2),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: AppFonts.sm,
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w700,
+            color: active ? color : AppTheme.fg.withValues(alpha: 0.4),
+            decoration: active ? null : TextDecoration.lineThrough,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -392,13 +637,33 @@ class _LogRow extends StatelessWidget {
       color: defaultFg,
     );
     if (entry.isHeader) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      // A session banner — the "--- Log started ..." line + the
+      // following `Platform:` / `Dart:` lines — gets a top divider
+      // and extra vertical padding so it visually breaks the stream.
+      // Other unparseable lines fall back to a compact dim row.
+      final isSessionStart = entry.message.startsWith('--- Log started');
+      return Container(
+        margin: EdgeInsets.only(top: isSessionStart ? 12 : 0, bottom: 0),
+        padding: EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: isSessionStart ? 6 : 2,
+        ),
+        decoration: isSessionStart
+            ? BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: defaultFg.withValues(alpha: 0.25),
+                    width: 1,
+                  ),
+                ),
+              )
+            : null,
         child: Text(
           entry.message,
           style: style.copyWith(
-            color: defaultFg.withValues(alpha: 0.45),
+            color: defaultFg.withValues(alpha: 0.55),
             fontStyle: FontStyle.italic,
+            fontWeight: isSessionStart ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
       );
@@ -409,8 +674,12 @@ class _LogRow extends StatelessWidget {
       LogLevel.error => AppTheme.red,
       LogLevel.warn => AppTheme.yellow,
       LogLevel.info => AppTheme.blue,
+      // Debug uses the default fg dimmed — verbose trace rows should
+      // visually recede so they do not compete with the higher-
+      // severity rows above/below them.
+      LogLevel.debug => defaultFg.withValues(alpha: 0.55),
     };
-    final hasTint = level != LogLevel.info;
+    final hasTint = level == LogLevel.error || level == LogLevel.warn;
     final tintBg = hasTint ? levelColor.withValues(alpha: 0.08) : null;
 
     // Segmented TextSpans so the viewer can dim the timestamp + accent
@@ -447,6 +716,102 @@ class _LogRow extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Text.rich(TextSpan(children: spans)),
+    );
+  }
+}
+
+/// Level-threshold picker for the logging section.
+///
+/// Replaces the old enable/disable toggle — user picks a minimum
+/// severity (or "Off"). The choice maps straight to
+/// `config.behavior.logLevel`, which `ConfigNotifier` fans out to
+/// `AppLogger.setThreshold`. No intermediate bool flag.
+class _LogLevelSelector extends StatelessWidget {
+  final LogLevel? selected;
+  final ValueChanged<LogLevel?> onChanged;
+
+  const _LogLevelSelector({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    // Options ordered from noisiest to silent — familiar "more
+    // verbose = higher in the menu" layout from Logcat / IDE log
+    // viewers.
+    const options = <({LogLevel? level, String label, String subtitle})>[
+      (
+        level: LogLevel.debug,
+        label: 'Debug',
+        subtitle: 'Everything including verbose trace',
+      ),
+      (
+        level: LogLevel.info,
+        label: 'Info',
+        subtitle: 'Routine operational entries + warnings + errors',
+      ),
+      (
+        level: LogLevel.warn,
+        label: 'Warn',
+        subtitle: 'Degraded paths + errors only',
+      ),
+      (level: LogLevel.error, label: 'Error', subtitle: 'Failures only'),
+      (level: null, label: 'Off', subtitle: 'No routine logs written'),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.article_outlined,
+            size: 16,
+            color: AppTheme.fg.withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Logging level',
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    color: AppTheme.fg,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  options.firstWhere((o) => o.level == selected).subtitle,
+                  style: TextStyle(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fg.withValues(alpha: 0.55),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<LogLevel?>(
+              value: selected,
+              isDense: true,
+              onChanged: onChanged,
+              items: [
+                for (final opt in options)
+                  DropdownMenuItem<LogLevel?>(
+                    value: opt.level,
+                    child: Text(
+                      opt.label,
+                      style: TextStyle(
+                        fontSize: AppFonts.sm,
+                        color: AppTheme.fg,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
