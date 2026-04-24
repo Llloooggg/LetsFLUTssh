@@ -1269,7 +1269,7 @@ class SRu extends S {
 
   @override
   String get errReleaseManifestUnavailable =>
-      'Could not reach the release manifest. Likely a network issue, or the release is still being published. Try again in a few minutes.';
+      'Не удалось получить manifest релиза. Скорее всего, это проблема с сетью, либо релиз ещё публикуется. Попробуйте ещё раз через пару минут.';
 
   @override
   String get updateSecurityWarningTitle => 'Проверка обновления не пройдена';
