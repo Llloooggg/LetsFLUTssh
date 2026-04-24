@@ -80,12 +80,14 @@ class FakeSecureKeyStorage extends SecureKeyStorage {
   Uint8List? biometricKey;
   KeyringProbeResult probeResult;
   bool available;
+  bool writeKeySucceeds;
 
   FakeSecureKeyStorage({
     this.storedKey,
     this.biometricKey,
     this.probeResult = KeyringProbeResult.available,
     this.available = true,
+    this.writeKeySucceeds = true,
   });
 
   @override
@@ -99,6 +101,7 @@ class FakeSecureKeyStorage extends SecureKeyStorage {
 
   @override
   Future<bool> writeKey(Uint8List key) async {
+    if (!writeKeySucceeds) return false;
     storedKey = key;
     return true;
   }
@@ -128,12 +131,14 @@ class FakeHardwareTierVault extends HardwareTierVault {
   Uint8List? dbKey;
   bool available;
   String probeCode;
+  bool storeSucceeds;
 
   FakeHardwareTierVault({
     this.stored = false,
     this.dbKey,
     this.available = false,
     this.probeCode = 'unknown',
+    this.storeSucceeds = true,
   });
 
   @override
@@ -147,6 +152,7 @@ class FakeHardwareTierVault extends HardwareTierVault {
 
   @override
   Future<bool> store({required Uint8List dbKey, String? pin}) async {
+    if (!storeSucceeds) return false;
     stored = true;
     this.dbKey = dbKey;
     return true;

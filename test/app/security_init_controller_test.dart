@@ -1381,6 +1381,114 @@ void main() {
       },
     );
 
+    testWidgets(
+      'first-launch auto-setup keychain write fails → wizard takes over',
+      (tester) async {
+        // writeKey returns false so `_autoSetupKeychain` logs the miss
+        // and returns false. `_firstLaunchSetup` then clears the
+        // `caps.keychainAvailable` flag and falls through to the
+        // wizard prompter — the "degraded-keychain" fallback path.
+        final storage = FakeSecureKeyStorage(
+          available: true,
+          writeKeySucceeds: false,
+        );
+        final prompter = FakeSecurityDialogPrompter(
+          wizardResult: const SecuritySetupResult(tier: SecurityTier.plaintext),
+        );
+        SecurityInitController? ctrl;
+        Uint8List? capturedKey;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: securityProviderOverrides(secureKeyStorage: storage),
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              home: Consumer(
+                builder: (ctx, ref, _) {
+                  ctrl = SecurityInitController(
+                    ref: ref,
+                    isMounted: () => true,
+                    dbOpener: ({encryptionKey}) {
+                      capturedKey = encryptionKey;
+                      return testDb;
+                    },
+                    dbFileExists: () async => false,
+                    verifyReadable: (db) async => true,
+                    dialogPrompter: prompter,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        await tester.runAsync(() => ctrl!.bootstrap());
+
+        // Wizard invoked once after the auto-setup rejected the write.
+        // Wizard returned plaintext → no key on the opener.
+        expect(prompter.wizardCalls, 1);
+        expect(capturedKey, isNull);
+        expect(ctrl!.isReady, isTrue);
+        ctrl!.dispose();
+      },
+    );
+
+    testWidgets(
+      'wizard picks keychainWithPassword but keychain write fails → plaintext',
+      (tester) async {
+        final storage = FakeSecureKeyStorage(
+          available: false,
+          probeResult: KeyringProbeResult.probeFailed,
+          writeKeySucceeds: false,
+        );
+        final gate = FakeKeychainPasswordGate();
+        await pumpWizardTest(
+          tester,
+          secureKeyStorage: storage,
+          keychainGate: gate,
+          wizardResult: const SecuritySetupResult(
+            tier: SecurityTier.keychainWithPassword,
+            shortPassword: 'hunter2',
+          ),
+          check: (ctrl, key) {
+            // `_firstLaunchKeychainWithPassword` sets the gate first
+            // and then tries to write. On failure it clears the gate
+            // so the legacy-infer path cannot pick up a half-configured
+            // state on the next launch, and falls back to plaintext.
+            expect(key, isNull);
+            expect(gate.configured, isFalse);
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
+    testWidgets(
+      'wizard picks hardware but vault.store fails → plaintext fallback',
+      (tester) async {
+        final vault = FakeHardwareTierVault(
+          available: true,
+          storeSucceeds: false,
+        );
+        await pumpWizardTest(
+          tester,
+          hardwareVault: vault,
+          wizardResult: const SecuritySetupResult(
+            tier: SecurityTier.hardware,
+            pin: '0000',
+          ),
+          check: (ctrl, key) {
+            // `_firstLaunchHardware` falls to plaintext when the seal
+            // itself rejects the write — sealed blob never persisted,
+            // vault.stored stays false.
+            expect(key, isNull);
+            expect(vault.stored, isFalse);
+            expect(ctrl.isReady, isTrue);
+          },
+        );
+      },
+    );
+
     testWidgets('wizard picks paranoid without a password falls to plaintext', (
       tester,
     ) async {
