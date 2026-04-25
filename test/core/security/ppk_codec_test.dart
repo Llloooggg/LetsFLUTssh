@@ -7,6 +7,9 @@ import 'package:pointycastle/api.dart';
 import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/cbc.dart';
 import 'package:pointycastle/digests/sha1.dart';
+import 'package:pointycastle/digests/sha256.dart';
+import 'package:pointycastle/key_derivators/argon2.dart';
+import 'package:pointycastle/key_derivators/api.dart';
 import 'package:pointycastle/macs/hmac.dart';
 
 /// Build a hand-crafted PPK v2 ssh-ed25519 unencrypted file with a
@@ -226,6 +229,114 @@ String _buildPpkV2Rsa({
     'Comment: $comment',
     'Public-Lines: ${pubText.split('\n').length}',
     pubText,
+    'Private-Lines: ${privText.split('\n').length}',
+    privText,
+    'Private-MAC: $macHex',
+  ].join('\n');
+}
+
+/// Build a PPK v3 ssh-ed25519 file. Encrypted variants pass a
+/// non-null [passphrase]; unencrypted variants pass null. Argon2
+/// parameters are kept tiny (memory=128 KiB, passes=1) so the
+/// fixture runs fast in CI.
+String _buildPpkV3Ed25519({
+  required Uint8List pub32,
+  required Uint8List priv32,
+  String? passphrase,
+  String comment = 'v3-fixture',
+}) {
+  final pubBlob = BytesBuilder(copy: false);
+  _putString(pubBlob, utf8.encode('ssh-ed25519'));
+  _putString(pubBlob, pub32);
+
+  final priv = Uint8List.fromList(priv32);
+  priv[0] &= 0x7f;
+  final privPlain = BytesBuilder(copy: false);
+  _putString(privPlain, priv);
+
+  Uint8List privateBlob;
+  Uint8List macKey;
+  String encryption;
+  String? kdfBlock;
+  if (passphrase == null) {
+    encryption = 'none';
+    privateBlob = privPlain.toBytes();
+    macKey = Uint8List(0);
+  } else {
+    encryption = 'aes256-cbc';
+    final salt = Uint8List.fromList(List.generate(16, (i) => 0x40 + i));
+    const memory = 128;
+    const passes = 1;
+    const lanes = 1;
+    final params = Argon2Parameters(
+      Argon2Parameters.ARGON2_id,
+      Uint8List.fromList(salt),
+      desiredKeyLength: 80,
+      iterations: passes,
+      memory: memory,
+      lanes: lanes,
+    );
+    final gen = Argon2BytesGenerator()..init(params);
+    final pp = Uint8List.fromList(utf8.encode(passphrase));
+    final derived = Uint8List(80);
+    gen.deriveKey(pp, 0, derived, 0);
+    final aesKey = Uint8List.sublistView(derived, 0, 32);
+    final aesIv = Uint8List.sublistView(derived, 32, 48);
+    macKey = Uint8List.sublistView(derived, 48, 80);
+    final padded = privPlain.toBytes();
+    final blockCount = ((padded.length + 15) ~/ 16);
+    final padTo = blockCount * 16;
+    final padding = Uint8List(padTo - padded.length);
+    final plain = Uint8List.fromList([...padded, ...padding]);
+    final cbc = CBCBlockCipher(AESEngine())
+      ..init(true, ParametersWithIV(KeyParameter(aesKey), aesIv));
+    final cipher = Uint8List(plain.length);
+    var off = 0;
+    while (off < plain.length) {
+      off += cbc.processBlock(plain, off, cipher, off);
+    }
+    privateBlob = cipher;
+    final saltHex = salt.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    kdfBlock = [
+      'Key-Derivation: Argon2id',
+      'Argon2-Memory: $memory',
+      'Argon2-Passes: $passes',
+      'Argon2-Parallelism: $lanes',
+      'Argon2-Salt: $saltHex',
+    ].join('\n');
+  }
+
+  final payload = BytesBuilder(copy: false);
+  _putString(payload, utf8.encode('ssh-ed25519'));
+  _putString(payload, utf8.encode(encryption));
+  _putString(payload, utf8.encode(comment));
+  _putString(payload, pubBlob.toBytes());
+  _putString(payload, privateBlob);
+  final hmac = HMac(SHA256Digest(), 64)
+    ..init(KeyParameter(macKey))
+    ..update(payload.toBytes(), 0, payload.length);
+  final mac = Uint8List(32);
+  hmac.doFinal(mac, 0);
+  final macHex = mac.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+  String wrap(Uint8List bytes) {
+    final b64 = base64.encode(bytes);
+    final lines = <String>[];
+    for (var i = 0; i < b64.length; i += 64) {
+      lines.add(b64.substring(i, b64.length - i < 64 ? b64.length : i + 64));
+    }
+    return lines.join('\n');
+  }
+
+  final pubText = wrap(pubBlob.toBytes());
+  final privText = wrap(privateBlob);
+  return [
+    'PuTTY-User-Key-File-3: ssh-ed25519',
+    'Encryption: $encryption',
+    'Comment: $comment',
+    'Public-Lines: ${pubText.split('\n').length}',
+    pubText,
+    if (kdfBlock != null) kdfBlock,
     'Private-Lines: ${privText.split('\n').length}',
     privText,
     'Private-MAC: $macHex',
@@ -509,6 +620,82 @@ void main() {
         () => PpkCodec.parseV2Ed25519(ppk),
         throwsA(isA<PpkUnsupportedException>()),
       );
+    });
+  });
+
+  group('PpkCodec.parseV3 — ssh-ed25519', () {
+    test('parses an unencrypted v3 fixture', () {
+      final ppk = _buildPpkV3Ed25519(
+        pub32: _bytes(32, 0xB0),
+        priv32: _bytes(32, 0xD0),
+      );
+      final parsed = PpkCodec.parseV3(ppk);
+      expect(parsed.version, 3);
+      expect(parsed.algorithm, 'ssh-ed25519');
+      expect(parsed.encrypted, isFalse);
+    });
+
+    test('decrypts v3 fixture with correct passphrase', () {
+      final ppk = _buildPpkV3Ed25519(
+        pub32: _bytes(32, 0xB1),
+        priv32: _bytes(32, 0xD1),
+        passphrase: 'pass',
+      );
+      final parsed = PpkCodec.parseV3(ppk, passphrase: 'pass');
+      expect(parsed.version, 3);
+      expect(parsed.encrypted, isTrue);
+    });
+
+    test('throws PpkPassphraseRequiredException when omitted', () {
+      final ppk = _buildPpkV3Ed25519(
+        pub32: _bytes(32, 0xB2),
+        priv32: _bytes(32, 0xD2),
+        passphrase: 'p',
+      );
+      expect(
+        () => PpkCodec.parseV3(ppk),
+        throwsA(isA<PpkPassphraseRequiredException>()),
+      );
+    });
+
+    test('throws PpkMacMismatchException on wrong passphrase', () {
+      final ppk = _buildPpkV3Ed25519(
+        pub32: _bytes(32, 0xB3),
+        priv32: _bytes(32, 0xD3),
+        passphrase: 'right',
+      );
+      expect(
+        () => PpkCodec.parseV3(ppk, passphrase: 'wrong'),
+        throwsA(isA<PpkMacMismatchException>()),
+      );
+    });
+
+    test('top-level parse() routes v3 by header', () {
+      final ppk = _buildPpkV3Ed25519(
+        pub32: _bytes(32, 0xB4),
+        priv32: _bytes(32, 0xD4),
+      );
+      final parsed = PpkCodec.parse(ppk);
+      expect(parsed.version, 3);
+    });
+
+    test('top-level parse() routes v2 by header', () {
+      final ppk = _buildPpkV2Ed25519(
+        pub32: _bytes(32, 0xB5),
+        priv32: _bytes(32, 0xD5),
+      );
+      final parsed = PpkCodec.parse(ppk);
+      expect(parsed.version, 2);
+    });
+
+    test('v3 toOpenSshPem produces a valid PEM', () {
+      final ppk = _buildPpkV3Ed25519(
+        pub32: _bytes(32, 0xB6),
+        priv32: _bytes(32, 0xD6),
+      );
+      final parsed = PpkCodec.parseV3(ppk);
+      final pem = PpkCodec.toOpenSshPem(parsed);
+      expect(pem, contains('OPENSSH PRIVATE KEY'));
     });
   });
 

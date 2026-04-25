@@ -6,6 +6,9 @@ import 'package:pointycastle/api.dart';
 import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/cbc.dart';
 import 'package:pointycastle/digests/sha1.dart';
+import 'package:pointycastle/digests/sha256.dart';
+import 'package:pointycastle/key_derivators/argon2.dart';
+import 'package:pointycastle/key_derivators/api.dart';
 import 'package:pointycastle/macs/hmac.dart';
 
 /// Parsed PuTTY Private Key file.
@@ -64,6 +67,40 @@ class PpkCodec {
 
   /// Algorithms supported in this build.
   static const _supportedAlgorithms = {'ssh-ed25519', 'ssh-rsa'};
+
+  /// Hard ceiling on Argon2 memory cost — 1 GiB. A pathologically
+  /// crafted PPK file could otherwise drive Dart out of memory
+  /// before the parser even started looking at the body. Real
+  /// puttygen v3 defaults to 8 MiB; 1 GiB is generous headroom.
+  static const int _argon2MaxMemoryKiB = 1024 * 1024;
+
+  /// Top-level dispatcher — chooses v2 vs v3 by header. Surface
+  /// passes through to either [parseV2] or [parseV3] depending on
+  /// the file's first line. The importer dialog calls this single
+  /// entry point so it does not have to peek the version itself.
+  static PpkKey parse(String text, {String? passphrase}) {
+    if (text.startsWith('PuTTY-User-Key-File-3:')) {
+      return parseV3(text, passphrase: passphrase);
+    }
+    return parseV2(text, passphrase: passphrase);
+  }
+
+  /// Parse + MAC-verify a PPK v3 file with an optional passphrase.
+  ///
+  /// v3 differs from v2 in three important places:
+  ///
+  /// 1. **KDF.** Encrypted v3 derives the AES-256 key, IV, and
+  ///    HMAC key together via Argon2id (params from the
+  ///    `Argon2-Memory` / `Argon2-Passes` / `Argon2-Parallelism`
+  ///    / `Argon2-Salt` headers). v3 unencrypted does NOT KDF —
+  ///    the MAC key is the empty string.
+  /// 2. **MAC.** HMAC-SHA-256 instead of HMAC-SHA-1.
+  /// 3. **MAC payload.** Same ssh-string-prefixed concatenation
+  ///    of `algorithm`, `encryption`, `comment`, `publicBlob`,
+  ///    `privateBlob` (encrypted bytes for encrypted files).
+  static PpkKey parseV3(String text, {String? passphrase}) {
+    return _parseV3(text, passphrase: passphrase);
+  }
 
   /// Parse + MAC-verify a PPK v2 file with an optional passphrase.
   ///
@@ -284,6 +321,254 @@ class PpkCodec {
       out.add(hash);
     }
     return Uint8List.sublistView(out.toBytes(), 0, 32);
+  }
+
+  static PpkKey _parseV3(String text, {String? passphrase}) {
+    final headers = <String, String>{};
+    final lines = const LineSplitter().convert(text);
+    var idx = 0;
+    String? readHeader(String name) {
+      if (idx >= lines.length) return null;
+      final line = lines[idx];
+      final colon = line.indexOf(':');
+      if (colon < 0) return null;
+      final key = line.substring(0, colon).trim();
+      final value = line.substring(colon + 1).trim();
+      if (key != name) return null;
+      headers[key] = value;
+      idx++;
+      return value;
+    }
+
+    final algorithm = readHeader('PuTTY-User-Key-File-3');
+    if (algorithm == null) {
+      throw const PpkParseException('Not a PPK v3 file');
+    }
+    if (!_supportedAlgorithms.contains(algorithm)) {
+      throw PpkUnsupportedException(
+        algorithm,
+        'PPK algorithm "$algorithm" not supported in this build',
+      );
+    }
+    final encryption = readHeader('Encryption');
+    if (encryption == null) {
+      throw const PpkParseException('Missing Encryption header');
+    }
+    if (encryption != 'none' && encryption != 'aes256-cbc') {
+      throw PpkUnsupportedException(
+        encryption,
+        'PPK encryption "$encryption" not supported in this build',
+      );
+    }
+    final comment = readHeader('Comment') ?? '';
+    final publicLines = readHeader('Public-Lines');
+    if (publicLines == null) {
+      throw const PpkParseException('Missing Public-Lines header');
+    }
+    final publicLineCount = int.tryParse(publicLines);
+    if (publicLineCount == null || publicLineCount < 1) {
+      throw const PpkParseException('Bad Public-Lines value');
+    }
+    final publicB64 = StringBuffer();
+    for (var i = 0; i < publicLineCount; i++) {
+      if (idx >= lines.length) {
+        throw const PpkParseException('Truncated public block');
+      }
+      publicB64.write(lines[idx++]);
+    }
+
+    // Argon2 KDF block — only present on encrypted files.
+    String? kdfName;
+    int argonMemoryKiB = 0;
+    int argonPasses = 0;
+    int argonParallelism = 0;
+    Uint8List? argonSalt;
+    if (encryption == 'aes256-cbc') {
+      kdfName = readHeader('Key-Derivation');
+      if (kdfName == null) {
+        throw const PpkParseException('Missing Key-Derivation header');
+      }
+      if (kdfName != 'Argon2id' &&
+          kdfName != 'Argon2i' &&
+          kdfName != 'Argon2d') {
+        throw PpkUnsupportedException(kdfName, 'Unsupported KDF "$kdfName"');
+      }
+      argonMemoryKiB = int.tryParse(readHeader('Argon2-Memory') ?? '') ?? 0;
+      argonPasses = int.tryParse(readHeader('Argon2-Passes') ?? '') ?? 0;
+      argonParallelism =
+          int.tryParse(readHeader('Argon2-Parallelism') ?? '') ?? 0;
+      final saltHex = readHeader('Argon2-Salt');
+      if (saltHex == null) {
+        throw const PpkParseException('Missing Argon2-Salt header');
+      }
+      if (argonMemoryKiB <= 0 || argonPasses <= 0 || argonParallelism <= 0) {
+        throw const PpkParseException('Bad Argon2 parameters');
+      }
+      if (argonMemoryKiB > _argon2MaxMemoryKiB) {
+        // Reject crafted files that would force the parser to
+        // allocate gigabytes of working memory before any auth
+        // check runs. 1 GiB is far above any legitimate puttygen
+        // default (~8 MiB) so a real key is never rejected here.
+        throw const PpkUnsupportedException(
+          'argon2-memory',
+          'Argon2 memory cost too high (max 1024 MiB)',
+        );
+      }
+      argonSalt = _hexToBytes(saltHex);
+      if (passphrase == null || passphrase.isEmpty) {
+        throw const PpkPassphraseRequiredException();
+      }
+    }
+    final privateLines = readHeader('Private-Lines');
+    if (privateLines == null) {
+      throw const PpkParseException('Missing Private-Lines header');
+    }
+    final privateLineCount = int.tryParse(privateLines);
+    if (privateLineCount == null || privateLineCount < 1) {
+      throw const PpkParseException('Bad Private-Lines value');
+    }
+    final privateB64 = StringBuffer();
+    for (var i = 0; i < privateLineCount; i++) {
+      if (idx >= lines.length) {
+        throw const PpkParseException('Truncated private block');
+      }
+      privateB64.write(lines[idx++]);
+    }
+    final macHeader = readHeader('Private-MAC');
+    if (macHeader == null) {
+      throw const PpkParseException('Missing Private-MAC header');
+    }
+
+    final publicBlob = base64.decode(publicB64.toString());
+    final encryptedPrivate = base64.decode(privateB64.toString());
+
+    Uint8List macKey;
+    Uint8List? aesKey;
+    Uint8List? aesIv;
+    if (encryption == 'aes256-cbc') {
+      // Argon2 outputs 80 bytes: 32 AES key + 16 IV + 32 MAC key.
+      final derived = _argon2Derive(
+        type: kdfName!,
+        passphrase: passphrase!,
+        salt: argonSalt!,
+        memoryKiB: argonMemoryKiB,
+        passes: argonPasses,
+        parallelism: argonParallelism,
+      );
+      aesKey = Uint8List.sublistView(derived, 0, 32);
+      aesIv = Uint8List.sublistView(derived, 32, 48);
+      macKey = Uint8List.sublistView(derived, 48, 80);
+    } else {
+      // Unencrypted v3: MAC key is the empty string. v3 still
+      // verifies the MAC for tamper detection — the key is just
+      // not derived from anything secret.
+      macKey = Uint8List(0);
+    }
+
+    _verifyV3Mac(
+      algorithm: algorithm,
+      encryption: encryption,
+      comment: comment,
+      publicBlob: publicBlob,
+      privateBlob: encryptedPrivate,
+      macHex: macHeader,
+      macKey: macKey,
+    );
+
+    final privateBlob = encryption == 'aes256-cbc'
+        ? _decryptCbcWithIv(encryptedPrivate, aesKey!, aesIv!)
+        : encryptedPrivate;
+
+    return PpkKey(
+      version: 3,
+      algorithm: algorithm,
+      encryption: encryption,
+      comment: comment,
+      publicBlob: publicBlob,
+      privateBlob: privateBlob,
+    );
+  }
+
+  /// Argon2 derivation with the type fixed at the value parsed out
+  /// of the `Key-Derivation` header. Output length is 80 bytes
+  /// (32 AES + 16 IV + 32 MAC) — what PPK v3's encrypted layout
+  /// requires.
+  static Uint8List _argon2Derive({
+    required String type,
+    required String passphrase,
+    required Uint8List salt,
+    required int memoryKiB,
+    required int passes,
+    required int parallelism,
+  }) {
+    final argonType = switch (type) {
+      'Argon2i' => Argon2Parameters.ARGON2_i,
+      'Argon2d' => Argon2Parameters.ARGON2_d,
+      _ => Argon2Parameters.ARGON2_id,
+    };
+    final params = Argon2Parameters(
+      argonType,
+      Uint8List.fromList(salt),
+      desiredKeyLength: 80,
+      iterations: passes,
+      memory: memoryKiB,
+      lanes: parallelism,
+    );
+    final gen = Argon2BytesGenerator()..init(params);
+    final pp = Uint8List.fromList(utf8.encode(passphrase));
+    final out = Uint8List(80);
+    gen.deriveKey(pp, 0, out, 0);
+    return out;
+  }
+
+  /// AES-256-CBC decrypt with an explicit IV — used by PPK v3
+  /// where the IV comes from the KDF rather than being all-zero.
+  static Uint8List _decryptCbcWithIv(
+    Uint8List ciphertext,
+    Uint8List key,
+    Uint8List iv,
+  ) {
+    if (ciphertext.length % 16 != 0 || ciphertext.isEmpty) {
+      throw const PpkParseException(
+        'Encrypted blob length not a multiple of 16',
+      );
+    }
+    final cbc = CBCBlockCipher(AESEngine())
+      ..init(false, ParametersWithIV(KeyParameter(key), iv));
+    final out = Uint8List(ciphertext.length);
+    var offset = 0;
+    while (offset < ciphertext.length) {
+      offset += cbc.processBlock(ciphertext, offset, out, offset);
+    }
+    return out;
+  }
+
+  static void _verifyV3Mac({
+    required String algorithm,
+    required String encryption,
+    required String comment,
+    required Uint8List publicBlob,
+    required Uint8List privateBlob,
+    required String macHex,
+    required Uint8List macKey,
+  }) {
+    final payload = BytesBuilder(copy: false);
+    _writeSshString(payload, utf8.encode(algorithm));
+    _writeSshString(payload, utf8.encode(encryption));
+    _writeSshString(payload, utf8.encode(comment));
+    _writeSshString(payload, publicBlob);
+    _writeSshString(payload, privateBlob);
+
+    final hmac = HMac(SHA256Digest(), 64)
+      ..init(KeyParameter(macKey))
+      ..update(payload.toBytes(), 0, payload.length);
+    final actual = Uint8List(32);
+    hmac.doFinal(actual, 0);
+
+    final expected = _hexToBytes(macHex);
+    if (!_constantTimeEquals(actual, expected)) {
+      throw const PpkMacMismatchException();
+    }
   }
 
   /// Dispatch a parsed PPK key to the right algorithm-specific

@@ -32,8 +32,10 @@ class KeyFileHelper {
       if (PpkCodec.looksLikePpk(content)) {
         // Unencrypted only at this entry point — encrypted PPK files
         // need the passphrase-aware import flow which lives in the
-        // key-manager UI, not the silent file-picker path.
-        final parsed = PpkCodec.parseV2(content);
+        // key-manager UI, not the silent file-picker path. The
+        // top-level `parse` dispatches v2 vs v3 by header so both
+        // versions Just Work here.
+        final parsed = PpkCodec.parse(content);
         return PpkCodec.toOpenSshPem(parsed);
       }
       if (content.contains('PRIVATE KEY')) return content;
