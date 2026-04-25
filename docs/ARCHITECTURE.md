@@ -593,8 +593,37 @@ class Connection {
   void completeReady();            // called by ConnectionManager — also closes progressStream
   void addProgressStep(step);      // buffers + broadcasts a progress step
   void resetForReconnect();        // closes old progress controller, then fresh completer + stream, clears history/error
+
+  // Lifecycle add-ons — see "ConnectionExtension" below.
+  void addExtension(ConnectionExtension ext);    // idempotent on the same instance
+  void removeExtension(ConnectionExtension ext);
+  List<ConnectionExtension> get extensions;
+  void notifyExtensionsConnected();      // called by ConnectionManager after handshake
+  void notifyExtensionsDisconnecting();  // called before transport tear-down
+  void notifyExtensionsReconnecting();   // called between disconnect and re-connect
 }
 ```
+
+##### ConnectionExtension — lifecycle add-ons
+
+Port forwards, ProxyJump bastion keepalives, session recording sinks, agent forwarding all need the same three moments: just after the SSH transport became live, just before it tears down, and again on every reconnect. The interface keeps that contract in one place so [`Connection`](#connection-1) does not grow a fan of feature-specific fields and so each feature does not have to re-implement reconnect-survival logic.
+
+```dart
+abstract class ConnectionExtension {
+  String get id;  // stable, used in log lines
+  void onConnected(Connection connection);     // transport is live; open channels here
+  void onDisconnecting(Connection connection); // transport is about to close; idempotent
+  void onReconnecting(Connection connection) {} // optional: reset transient state
+}
+```
+
+**Hook order on a successful connect.** `_doConnect` fires `notifyExtensionsConnected()` only after `conn.sshConnection` has been assigned and `state == connected`, so an extension that reaches into `connection.sshConnection!.client` cannot race the assignment.
+
+**Hook order on reconnect.** `reconnect()` fires the disconnecting hook *before* it tears down the transport (extensions need the live `SSHClient` to close their channels cleanly), then `notifyExtensionsReconnecting()` after `resetForReconnect()` has reset progress state, then `_doConnect` runs and fires `notifyExtensionsConnected()` again on success. The same disconnecting hook covers the explicit `disconnect()` and `disconnectAll()` paths, so extensions only see one teardown contract regardless of how the transport ended.
+
+**Failure isolation.** `Connection._fanOut` wraps each hook in a `try/catch` and logs through `AppLogger` — one extension throwing never aborts the connection lifecycle or starves later extensions. Extensions are allowed to mutate the registration list during a hook (deregister themselves, register dependent extensions); fan-out iterates over a snapshot so the loop stays safe.
+
+**Idempotence requirement.** `onDisconnecting` is fired even on connections that never reached `onConnected` (a connect that timed out before handshake) so cleanup paths stay symmetric. Extensions must tolerate a teardown that has nothing to clean up.
 
 **Deferred Init pattern:** Connection is created instantly in state=`connecting`. The actual SSH handshake runs in the background. UI immediately opens a tab and shows a connecting indicator.
 

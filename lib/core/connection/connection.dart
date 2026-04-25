@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import '../../utils/logger.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
+import 'connection_extension.dart';
 import 'connection_step.dart';
 
 /// SSH connection lifecycle state.
@@ -59,6 +61,13 @@ class Connection {
   /// Buffered progress steps — replayed to late subscribers.
   final _progressHistory = <ConnectionStep>[];
 
+  /// Lifecycle add-ons (port forwards, recording sinks, future agent
+  /// forwarding). See [ConnectionExtension] for the contract. The list
+  /// is owned by this Connection — features register at construction
+  /// time and stay attached for the connection's full lifetime, which
+  /// is what lets them survive reconnect transparently.
+  final _extensions = <ConnectionExtension>[];
+
   Connection({
     required this.id,
     required this.label,
@@ -103,6 +112,56 @@ class Connection {
   void addProgressStep(ConnectionStep step) {
     _progressHistory.add(step);
     if (!_progressController.isClosed) _progressController.add(step);
+  }
+
+  /// Register a lifecycle add-on. Idempotent on the same instance —
+  /// re-registering is silently dropped so listener wiring at multiple
+  /// layers (provider + manager) never double-attaches.
+  void addExtension(ConnectionExtension extension) {
+    if (_extensions.contains(extension)) return;
+    _extensions.add(extension);
+  }
+
+  /// Remove a previously-registered extension. Safe to call when the
+  /// extension was never added.
+  void removeExtension(ConnectionExtension extension) {
+    _extensions.remove(extension);
+  }
+
+  /// Snapshot view for diagnostics / tests — never mutate the live
+  /// list directly. The Connection owns hook ordering.
+  List<ConnectionExtension> get extensions => List.unmodifiable(_extensions);
+
+  /// Fire [ConnectionExtension.onConnected] on every registered hook.
+  /// Failures inside one extension never block the others or the
+  /// surrounding connection lifecycle — log and continue.
+  void notifyExtensionsConnected() =>
+      _fanOut('onConnected', (e) => e.onConnected(this));
+
+  /// Fire [ConnectionExtension.onDisconnecting] on every hook.
+  void notifyExtensionsDisconnecting() =>
+      _fanOut('onDisconnecting', (e) => e.onDisconnecting(this));
+
+  /// Fire [ConnectionExtension.onReconnecting] on every hook.
+  void notifyExtensionsReconnecting() =>
+      _fanOut('onReconnecting', (e) => e.onReconnecting(this));
+
+  void _fanOut(String hook, void Function(ConnectionExtension) fire) {
+    // Iterate over a snapshot — extensions are allowed to mutate the
+    // list (deregister themselves on failure, register dependent
+    // extensions) without invalidating the iteration.
+    for (final ext in List<ConnectionExtension>.from(_extensions)) {
+      try {
+        fire(ext);
+      } catch (e, st) {
+        AppLogger.instance.log(
+          'ConnectionExtension $hook failed for <${ext.id}>',
+          name: 'Connection',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
   }
 
   /// Reset internal state for a reconnect attempt.

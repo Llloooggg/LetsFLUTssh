@@ -149,6 +149,11 @@ class ConnectionManager {
       conn.sshConnection = sshConn;
       conn.state = SSHConnectionState.connected;
       _cachePostAuthCredentials(conn, effectiveConfig);
+      // Fire after the transport is fully wired so extensions can dial
+      // into `conn.sshConnection!.client` without a null-guard race
+      // window. Hook failures are caught inside the fan-out — one
+      // broken extension never blocks the connect or the others.
+      conn.notifyExtensionsConnected();
       AppLogger.instance.log(
         'Connected: <label> (id=${conn.id})',
         name: 'Connection',
@@ -281,7 +286,10 @@ class ConnectionManager {
     final conn = _connections[id];
     if (conn == null) return;
 
-    // Tear down old SSH connection
+    // Tear down old SSH connection. Notify extensions BEFORE we drop
+    // the transport — port forwards / recording sinks need the live
+    // SSHClient to close their channels cleanly.
+    conn.notifyExtensionsDisconnecting();
     conn.sshConnection?.disconnect();
     conn.sshConnection = null;
 
@@ -290,6 +298,10 @@ class ConnectionManager {
 
     // Reset for fresh progress
     conn.resetForReconnect();
+    // Extensions reset transient state (channel handles, in-flight
+    // futures) but keep persistent config — a forward rule list
+    // survives, the live channels do not.
+    conn.notifyExtensionsReconnecting();
     conn.state = SSHConnectionState.connecting;
     _notify();
 
@@ -312,6 +324,7 @@ class ConnectionManager {
       'Disconnected: <label> (id=${conn.id})',
       name: 'Connection',
     );
+    conn.notifyExtensionsDisconnecting();
     conn.sshConnection?.disconnect();
     conn.state = SSHConnectionState.disconnected;
     conn.sshConnection = null;
@@ -339,6 +352,7 @@ class ConnectionManager {
   /// hanging, then clears the connection map.
   void disconnectAll() {
     for (final conn in _connections.values) {
+      conn.notifyExtensionsDisconnecting();
       conn.sshConnection?.disconnect();
       conn.completeReady();
       conn.clearCachedCredentials();
