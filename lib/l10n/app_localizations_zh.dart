@@ -1989,6 +1989,15 @@ class SZh extends S {
   String get commandCopied => '命令已复制到剪贴板';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => '标签';
 
   @override

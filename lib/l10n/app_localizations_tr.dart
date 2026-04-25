@@ -2050,6 +2050,15 @@ class STr extends S {
   String get commandCopied => 'Komut panoya kopyalandı';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'Etiketler';
 
   @override

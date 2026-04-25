@@ -2075,6 +2075,15 @@ class SFr extends S {
   String get commandCopied => 'Commande copiée dans le presse-papiers';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'Étiquettes';
 
   @override

@@ -3633,6 +3633,24 @@ abstract class S {
   /// **'Command copied to clipboard'**
   String get commandCopied;
 
+  /// No description provided for @snippetFillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in snippet parameters'**
+  String get snippetFillTitle;
+
+  /// No description provided for @snippetFillSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get snippetFillSubmit;
+
+  /// No description provided for @snippetPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get snippetPreview;
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

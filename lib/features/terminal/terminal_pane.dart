@@ -423,9 +423,17 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
 
   Future<void> _showSnippetPicker(BuildContext context) async {
+    final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
       context,
       sessionId: widget.connection.sessionId,
+      templateContext: {
+        'host': cfg.host,
+        'user': cfg.user,
+        'port': cfg.port.toString(),
+        'label': widget.connection.label,
+        'now': DateTime.now().toIso8601String(),
+      },
     );
     if (command != null) {
       sendCommand(command);

@@ -282,9 +282,17 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   Future<void> _showSnippets() async {
     final shell = _shellConn?.shell;
     if (shell == null) return;
+    final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
       context,
       sessionId: widget.connection.sessionId,
+      templateContext: {
+        'host': cfg.host,
+        'user': cfg.user,
+        'port': cfg.port.toString(),
+        'label': widget.connection.label,
+        'now': DateTime.now().toIso8601String(),
+      },
     );
     if (command == null) return;
     final payload = command.endsWith('\n') ? command : '$command\n';

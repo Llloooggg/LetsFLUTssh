@@ -2052,6 +2052,15 @@ class SAr extends S {
   String get commandCopied => 'تم نسخ الأمر';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'العلامات';
 
   @override

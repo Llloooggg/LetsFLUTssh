@@ -2050,6 +2050,15 @@ class SHi extends S {
   String get commandCopied => 'कमांड कॉपी की गई';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'टैग';
 
   @override

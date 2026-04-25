@@ -16,6 +16,7 @@
   - [3.9 Import (`core/import/`)](#39-import-coreimport)
   - [3.10 Update (`core/update/`)](#310-update-coreupdate)
   - [3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)](#311-keyboard-shortcuts-coreshortcut_registrydart)
+  - [3.12 Snippets (`core/snippets/`)](#312-snippets-coresnippets)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -1914,6 +1915,37 @@ String formatShortcut(SingleActivator a);
 **Collision invariant — `buildCallbackMap` fails loud on duplicate activators.** Several `AppShortcut` values intentionally share a `SingleActivator`: `sessionCopy` / `fileCopy` both bind `Ctrl+C`, `sessionPaste` / `filePaste` both bind `Ctrl+V`, `sessionDelete` / `fileDelete` both bind `Delete`, `sessionEdit` / `fileRename` both bind `F2`. The context-sensitive dispatch is enforced by *where* each `CallbackShortcuts` is mounted — `SessionPanel` ships the session variants, `FilePane` / terminal subtree ship their own. The enum has no "scope" dimension because Flutter's `CallbackShortcuts` takes a raw `Map<ShortcutActivator, VoidCallback>` with no scope key.
 
 If a caller ever collides two of these shortcuts into one `buildCallbackMap` (unified command palette, shell-level shortcut handler, test harness that wraps both, future refactor), the output used to silently coalesce to the last-written entry — one of the two shortcuts becoming a no-op with no error message at compile or runtime. `buildCallbackMap` now throws `StateError('Duplicate shortcut activator …')` on collision so the regression trips at build time, before any keyboard input reaches the broken state. Regression guard: `test/core/shortcut_registry_test.dart` "buildCallbackMap throws on duplicate activator".
+
+---
+
+### 3.12 Snippets (`core/snippets/`)
+
+Reusable shell command templates with optional placeholder substitution. Persisted in the drift `Snippets` table; pinned per-session via `SessionSnippets`. The model is a flat `Snippet { id, title, command, description }`; rendering happens at execution time via `snippet_template.dart`.
+
+#### Template grammar
+
+`renderSnippet(Snippet snippet, Map<String, String> context)` returns a `SnippetRender { rendered, unresolved }`. `{{name}}` is the only placeholder syntax. Whitespace inside the curly braces is trimmed (`{{  host  }}` ≡ `{{host}}`). Tokens that don't resolve against `context` are left in the output as-is and listed in `unresolved` (in first-seen order, deduplicated) so the picker can prompt for them.
+
+| Built-in key | Source at the picker |
+|---|---|
+| `host` | `Session.host` |
+| `user` | `Session.user` |
+| `port` | `Session.port` (stringified) |
+| `label` | `Session.label` |
+| `now` | ISO-8601 timestamp at render time |
+
+User-defined names are anything else; the picker collects them via [`_SnippetFillDialog`](features/snippets/snippet_picker.dart) which renders one `StyledInput` per unresolved token, fills with `fillSnippetUnresolved`, and pops with the final command.
+
+**Why this grammar.** Same shape as `~/.ssh/config` `%h`/`%p`/`%u` and as IDE live-templates — predictable for a power user, no surprises around shell escaping. Tradeoffs frozen explicitly:
+
+- **No recursion.** A substituted value containing `{{x}}` is taken literally; the rendered output is never re-scanned. Prevents user-defined values from accidentally referencing other tokens (and prevents accidental infinite expansion).
+- **No shell escaping.** The substituted value is the raw context string. If the user wants quoting, that's their problem at the snippet authoring site — same as OpenSSH config tokens.
+- **`{{{{` is a literal `{{`.** The escape is consumed before token detection so `{{{{not-a-token}}}}` renders as `{{not-a-token}}`. Empty `{{}}` is left literal (typo, not a "drop-everything" sentinel).
+- **Unterminated `{{` is copied verbatim.** Avoids data loss when a malformed snippet is rendered against a context that would otherwise consume the tail.
+
+#### Picker integration
+
+`SnippetPicker.show(context, sessionId, templateContext)` in `features/snippets/snippet_picker.dart` is the single entry point used from the desktop terminal pane and the mobile terminal view. The caller assembles the built-in context from `widget.connection.sshConfig` (host, user, port, label, now) and hands it to the picker; the picker handles the render → prompt → fill flow internally and returns the final command (or `null` on cancel). The terminal pane never sees the unrendered command — by the time it calls `sendCommand` every placeholder has either resolved against the session or been filled by the user.
 
 ---
 

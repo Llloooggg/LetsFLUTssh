@@ -2041,6 +2041,15 @@ class SEn extends S {
   String get commandCopied => 'Command copied to clipboard';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'Tags';
 
   @override

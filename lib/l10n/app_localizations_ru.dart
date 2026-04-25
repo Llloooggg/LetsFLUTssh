@@ -2068,6 +2068,15 @@ class SRu extends S {
   String get commandCopied => 'Команда скопирована';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'Теги';
 
   @override

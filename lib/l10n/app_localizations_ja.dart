@@ -2006,6 +2006,15 @@ class SJa extends S {
   String get commandCopied => 'コマンドをコピーしました';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'タグ';
 
   @override

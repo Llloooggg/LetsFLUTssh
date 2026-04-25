@@ -2003,6 +2003,15 @@ class SKo extends S {
   String get commandCopied => '명령이 클립보드에 복사되었습니다';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => '태그';
 
   @override

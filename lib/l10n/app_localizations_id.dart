@@ -2052,6 +2052,15 @@ class SId extends S {
   String get commandCopied => 'Perintah disalin';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'Tag';
 
   @override

@@ -2039,6 +2039,15 @@ class SFa extends S {
   String get commandCopied => 'دستور کپی شد';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'برچسب‌ها';
 
   @override

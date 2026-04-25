@@ -2072,6 +2072,15 @@ class SDe extends S {
   String get commandCopied => 'Befehl in die Zwischenablage kopiert';
 
   @override
+  String get snippetFillTitle => 'Fill in snippet parameters';
+
+  @override
+  String get snippetFillSubmit => 'Run';
+
+  @override
+  String get snippetPreview => 'Preview';
+
+  @override
   String get tags => 'Tags';
 
   @override
