@@ -3801,6 +3801,48 @@ abstract class S {
   /// **'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.'**
   String get forwardOnlyLocalSupported;
 
+  /// No description provided for @forwardKindLocalHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.'**
+  String get forwardKindLocalHelp;
+
+  /// No description provided for @forwardKindRemoteHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).'**
+  String get forwardKindRemoteHelp;
+
+  /// No description provided for @forwardKindDynamicHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.'**
+  String get forwardKindDynamicHelp;
+
+  /// No description provided for @forwardExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Example'**
+  String get forwardExample;
+
+  /// No description provided for @forwardLocalExample.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080'**
+  String get forwardLocalExample;
+
+  /// No description provided for @forwardRemoteExample.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000'**
+  String get forwardRemoteExample;
+
+  /// No description provided for @forwardDynamicExample.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh -D 1080 → set browser SOCKS5 to localhost:1080'**
+  String get forwardDynamicExample;
+
   /// No description provided for @proxyJump.
   ///
   /// In en, this message translates to:

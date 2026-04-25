@@ -17,6 +17,7 @@ import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_picker_chip.dart';
 import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
@@ -617,36 +618,10 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   }
 
   Widget _proxyModeChip(_ProxyMode mode, String label) {
-    final active = _proxyMode == mode;
-    return Expanded(
-      child: HoverRegion(
-        onTap: () => setState(() => _proxyMode = mode),
-        builder: (hovered) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: active
-                ? AppTheme.accent.withValues(alpha: 0.15)
-                : (hovered ? AppTheme.hover : AppTheme.bg3),
-            borderRadius: AppTheme.radiusSm,
-            border: Border.all(
-              color: active ? AppTheme.accent : AppTheme.borderLight,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: active ? AppTheme.fg : AppTheme.fgFaint,
-                fontFamily: 'Inter',
-                fontSize: AppFonts.xs,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-      ),
+    return AppPickerChip(
+      active: _proxyMode == mode,
+      label: label,
+      onTap: () => setState(() => _proxyMode = mode),
     );
   }
 

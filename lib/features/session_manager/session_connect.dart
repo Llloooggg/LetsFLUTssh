@@ -100,16 +100,23 @@ class SessionConnect {
         return null;
       }
       socketProvider = () async {
-        final client = bastion!.sshConnection?.client;
-        if (client == null) {
-          throw ProxyJumpBastionError(bastion.label, 'bastion not connected');
-        }
-        // Wait for the bastion's own auth to finish before opening
-        // the forward channel — handles the reconnect path where
-        // the bastion is mid-handshake when the parent re-attempts.
-        await bastion.waitUntilReady();
+        // Wait for the bastion's own auth to finish FIRST — at the
+        // moment the parent's _doConnect calls socketProvider, the
+        // bastion is in `connecting` state and `sshConnection` is
+        // still null. Checking `client` before the await would
+        // always trip the "bastion not connected" guard. Only after
+        // `waitUntilReady` returns is the SSHClient guaranteed to
+        // be wired (or the connect to have failed cleanly).
+        await bastion!.waitUntilReady();
         if (!bastion.isConnected) {
           throw ProxyJumpBastionError(bastion.label, bastion.connectionError);
+        }
+        final client = bastion.sshConnection?.client;
+        if (client == null) {
+          throw ProxyJumpBastionError(
+            bastion.label,
+            'bastion handshake completed but client is null',
+          );
         }
         return client.forwardLocal(fresh.host, fresh.port);
       };
@@ -185,11 +192,19 @@ class SessionConnect {
         bastionSession.id,
       });
       upstreamProvider = () async {
-        final client = upstream!.sshConnection?.client;
-        if (client == null) {
-          throw ProxyJumpBastionError(upstream.label, 'upstream not connected');
+        // Same race-fix as the parent socketProvider: await the
+        // upstream's handshake before reaching for `client`.
+        await upstream!.waitUntilReady();
+        if (!upstream.isConnected) {
+          throw ProxyJumpBastionError(upstream.label, upstream.connectionError);
         }
-        await upstream.waitUntilReady();
+        final client = upstream.sshConnection?.client;
+        if (client == null) {
+          throw ProxyJumpBastionError(
+            upstream.label,
+            'upstream handshake completed but client is null',
+          );
+        }
         return client.forwardLocal(
           bastionConfig.host,
           bastionConfig.effectivePort,

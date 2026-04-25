@@ -7,6 +7,7 @@ import '../../widgets/app_data_row.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_picker_chip.dart';
 import '../../widgets/styled_form_field.dart';
 
 /// Editor surface for the per-session port-forward rule list.
@@ -70,15 +71,6 @@ class SessionForwardsTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          l10n.forwardOnlyLocalSupported,
-          style: TextStyle(
-            color: AppTheme.fgFaint,
-            fontSize: AppFonts.xs,
-            fontFamily: 'Inter',
-          ),
-        ),
-        const SizedBox(height: 12),
         if (rules.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -141,18 +133,26 @@ class _ForwardRuleRow extends StatelessWidget {
       secondaryMono: true,
       onTap: onTap,
       trailing: [
-        AppIconButton(
-          icon: rule.enabled ? Icons.toggle_on : Icons.toggle_off_outlined,
-          tooltip: l10n.forwardEnabled,
-          dense: true,
-          color: rule.enabled ? AppTheme.accent : AppTheme.fgFaint,
-          onTap: onToggle,
+        // Full Material Switch instead of a 12 px AppIconButton —
+        // the previous control was too tiny to land a touch target
+        // on mobile and visually shouted "icon" rather than "toggle".
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Tooltip(
+            message: l10n.forwardEnabled,
+            child: Switch(
+              value: rule.enabled,
+              onChanged: (_) => onToggle(),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
         ),
+        // Delete button: full-size icon in destructive accent so the
+        // affordance reads as "destructive" not "minor metadata".
         AppIconButton(
           icon: Icons.delete_outline,
           tooltip: l10n.deleteForwardRule,
-          dense: true,
-          color: AppTheme.fgFaint,
+          color: AppTheme.red,
           onTap: onDelete,
         ),
       ],
@@ -280,6 +280,22 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                 _kindChip(PortForwardKind.dynamic_, l10n.dynamicForward),
               ],
             ),
+            const SizedBox(height: 6),
+            // Per-kind explanation: each forward semantics is distinct
+            // enough that a one-liner under the chips beats a help
+            // button hidden somewhere.
+            Text(
+              switch (_kind) {
+                PortForwardKind.local => l10n.forwardKindLocalHelp,
+                PortForwardKind.remote => l10n.forwardKindRemoteHelp,
+                PortForwardKind.dynamic_ => l10n.forwardKindDynamicHelp,
+              },
+              style: TextStyle(
+                color: AppTheme.fgFaint,
+                fontFamily: 'Inter',
+                fontSize: AppFonts.xs,
+              ),
+            ),
             const SizedBox(height: 12),
             StyledFormField(
               label: l10n.bindAddress,
@@ -357,30 +373,10 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
   }
 
   Widget _kindChip(PortForwardKind kind, String label) {
-    final active = _kind == kind;
-    return GestureDetector(
+    return AppPickerChip(
+      active: _kind == kind,
+      label: label,
       onTap: () => setState(() => _kind = kind),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: active
-              ? AppTheme.accent.withValues(alpha: 0.15)
-              : AppTheme.bg3,
-          borderRadius: AppTheme.radiusSm,
-          border: Border.all(
-            color: active ? AppTheme.accent : AppTheme.borderLight,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: active ? AppTheme.fg : AppTheme.fgFaint,
-            fontFamily: 'Inter',
-            fontSize: AppFonts.xs,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 }

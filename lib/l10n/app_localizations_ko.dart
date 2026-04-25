@@ -2091,6 +2091,33 @@ class SKo extends S {
       '로컬 (-L), 원격 (-R), 동적 SOCKS5 (-D) 포워딩이 모두 활성화되어 있습니다.';
 
   @override
+  String get forwardKindLocalHelp =>
+      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+
+  @override
+  String get forwardExample => 'Example';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+
+  @override
   String get proxyJump => '경유 연결';
 
   @override
@@ -2121,7 +2148,7 @@ class SKo extends S {
 
   @override
   String viaSessionLabel(String label) {
-    return 'via $label';
+    return '$label 경유';
   }
 
   @override
