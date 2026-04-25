@@ -2024,57 +2024,85 @@ class SZh extends S {
   String get broadcastPasteSend => '发送';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => '转发';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => '还没有规则';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => '添加规则';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => '编辑规则';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => '删除规则';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => '本地 (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => '远程 (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => '动态 (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => '类型';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => '绑定地址';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => '绑定端口';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => '目标主机';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => '目标端口';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => '描述（可选）';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => '启用';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      '绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+  String get forwardOnlyLocalSupported => '当前仅本地 (-L) 生效；-R / -D 会保存但不激活。';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => '标签';

@@ -98,7 +98,17 @@ class SSHConnection {
   /// Connect to SSH server with auth chain.
   ///
   /// [onProgress] is called at each connection phase to report progress.
-  Future<void> connect({ConnectionProgressCallback? onProgress}) async {
+  ///
+  /// [socketProvider] is the ProxyJump escape hatch. When non-null,
+  /// `_connectSocket` is skipped and the socket comes from the
+  /// provider — which is expected to be `bastion.client.forwardLocal(
+  /// host, port)` wrapping an [SSHForwardChannel] (which implements
+  /// [SSHSocket]). The provider is awaited fresh on every reconnect
+  /// so the channel handle never outlives its bastion's transport.
+  Future<void> connect({
+    ConnectionProgressCallback? onProgress,
+    Future<SSHSocket> Function()? socketProvider,
+  }) async {
     if (_disposed) {
       throw ConnectError(
         'Connection disposed',
@@ -108,7 +118,9 @@ class SSHConnection {
       );
     }
 
-    final socket = await _connectSocket(onProgress);
+    final socket = socketProvider != null
+        ? await socketProvider()
+        : await _connectSocket(onProgress);
     await _authenticateClient(socket, onProgress);
 
     // Listen for disconnect — handle both normal close and errors.

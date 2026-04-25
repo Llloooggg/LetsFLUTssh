@@ -1,8 +1,10 @@
+import 'package:dartssh2/dartssh2.dart' show SSHSocket;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
+import '../../core/ssh/errors.dart';
 import '../../core/ssh/port_forward_runtime.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
@@ -46,6 +48,12 @@ class SessionConnect {
     return true;
   }
 
+  /// Hard cap on ProxyJump chain depth. Catches typo loops before
+  /// they spend real bandwidth dialing 50 hops, while still leaving
+  /// room for realistic enterprise stacks (corp gateway → region →
+  /// cluster → service ≈ 4, doubled for safety).
+  static const int maxProxyJumpDepth = 8;
+
   /// Validate session and create a background connection, or return null on failure.
   ///
   /// The [session] passed in comes from the in-memory cache and carries no
@@ -70,12 +78,133 @@ class SessionConnect {
     );
     final config = await _resolveConfig(ref, fresh);
     final manager = ref.read(connectionManagerProvider);
+
+    // ProxyJump chain — must be set up BEFORE the final connectAsync
+    // so the connection enters _doConnect with `socketProvider`
+    // already populated. A late-bound provider would race against
+    // the synchronous prefix of _doConnect (see ConnectionManager
+    // doc).
+    Connection? bastion;
+    Future<SSHSocket> Function()? socketProvider;
+    if (fresh.hasProxyJump) {
+      try {
+        bastion = await _ensureBastion(ref, fresh, <String>{fresh.id});
+      } on SSHError catch (e) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: e.userMessage,
+            level: ToastLevel.warning,
+          );
+        }
+        return null;
+      }
+      socketProvider = () async {
+        final client = bastion!.sshConnection?.client;
+        if (client == null) {
+          throw ProxyJumpBastionError(bastion.label, 'bastion not connected');
+        }
+        // Wait for the bastion's own auth to finish before opening
+        // the forward channel — handles the reconnect path where
+        // the bastion is mid-handshake when the parent re-attempts.
+        await bastion.waitUntilReady();
+        if (!bastion.isConnected) {
+          throw ProxyJumpBastionError(bastion.label, bastion.connectionError);
+        }
+        return client.forwardLocal(fresh.host, fresh.port);
+      };
+    }
+
     final conn = manager.connectAsync(
       config,
       label: fresh.label.isNotEmpty ? fresh.label : fresh.displayName,
       sessionId: fresh.id,
+      socketProvider: socketProvider,
+      bastion: bastion,
     );
     await _attachPortForwards(ref, fresh.id, conn);
+    return conn;
+  }
+
+  /// Recursively connect every bastion in the chain bottom-up,
+  /// returning the immediate hop the final session connects through.
+  /// Each hop's socket transport rides through the hop below it via
+  /// `forwardLocal`; the bottom hop talks to its server directly.
+  ///
+  /// [visited] tracks session ids already in the chain (cycle guard).
+  /// Depth ceiling is [maxProxyJumpDepth] to bound runaway loops
+  /// even when no cycle exists.
+  static Future<Connection> _ensureBastion(
+    WidgetRef ref,
+    Session current,
+    Set<String> visited,
+  ) async {
+    if (visited.length >= maxProxyJumpDepth) {
+      throw ProxyJumpDepthError(visited.length);
+    }
+    // Resolve the bastion: saved-session id wins over override.
+    Session? bastionSession;
+    SSHConfig bastionConfig;
+    String bastionLabel;
+    if (current.viaSessionId != null) {
+      final store = ref.read(sessionStoreProvider);
+      bastionSession = await store.loadWithCredentials(current.viaSessionId!);
+      if (bastionSession == null) {
+        throw ProxyJumpBastionError(
+          current.viaSessionId!,
+          'bastion session missing',
+        );
+      }
+      if (visited.contains(bastionSession.id)) {
+        throw ProxyJumpCycleError(bastionSession.id);
+      }
+      bastionConfig = await _resolveConfig(ref, bastionSession);
+      bastionLabel = bastionSession.label.isNotEmpty
+          ? bastionSession.label
+          : bastionSession.displayName;
+    } else {
+      // Override bastion — reuses the final session's credentials.
+      // Documented limitation: for distinct bastion auth, save the
+      // bastion as its own session and link via viaSessionId.
+      final ov = current.viaOverride!;
+      bastionConfig = SSHConfig(
+        server: ServerAddress(host: ov.host, port: ov.port, user: ov.user),
+        auth: current.toSSHConfig().auth,
+      );
+      bastionLabel = '${ov.user}@${ov.host}:${ov.port}';
+    }
+
+    final manager = ref.read(connectionManagerProvider);
+
+    // Recursively materialise this bastion's own bastion chain.
+    Connection? upstream;
+    Future<SSHSocket> Function()? upstreamProvider;
+    if (bastionSession != null && bastionSession.hasProxyJump) {
+      upstream = await _ensureBastion(ref, bastionSession, {
+        ...visited,
+        bastionSession.id,
+      });
+      upstreamProvider = () async {
+        final client = upstream!.sshConnection?.client;
+        if (client == null) {
+          throw ProxyJumpBastionError(upstream.label, 'upstream not connected');
+        }
+        await upstream.waitUntilReady();
+        return client.forwardLocal(
+          bastionConfig.host,
+          bastionConfig.effectivePort,
+        );
+      };
+    }
+
+    final conn = manager.connectAsync(
+      bastionConfig,
+      label: bastionLabel,
+      sessionId: bastionSession?.id,
+      socketProvider: upstreamProvider,
+      bastion: upstream,
+      internal: true,
+    );
     return conn;
   }
 

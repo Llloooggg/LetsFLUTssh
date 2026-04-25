@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dartssh2/dartssh2.dart' show SSHSocket;
 import 'package:uuid/uuid.dart';
 
 import '../../utils/logger.dart';
@@ -66,7 +67,18 @@ class ConnectionManager {
            connectionFactory ??
            ((config, kh) => SSHConnection(config: config, knownHosts: kh));
 
-  List<Connection> get connections => _connections.values.toList();
+  /// User-visible connections. Excludes internal bastion hops the
+  /// manager opens to back ProxyJump chains; those rides are owned
+  /// by their parent connection and surface through it instead.
+  List<Connection> get connections => [
+    for (final c in _connections.values)
+      if (!c.internal) c,
+  ];
+
+  /// Every connection including internal bastion hops — used by the
+  /// foreground-service active-count callback so a long-running
+  /// bastion still keeps the Android service alive.
+  List<Connection> get allConnections => _connections.values.toList();
 
   Connection? get(String id) => _connections[id];
 
@@ -77,6 +89,9 @@ class ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Future<SSHSocket> Function()? socketProvider,
+    Connection? bastion,
+    bool internal = false,
   }) {
     final id = _uuid.v4();
     final conn = Connection(
@@ -86,6 +101,9 @@ class ConnectionManager {
       sessionId: sessionId,
       knownHosts: knownHosts,
       state: SSHConnectionState.connecting,
+      socketProvider: socketProvider,
+      bastion: bastion,
+      internal: internal,
     );
     _connections[id] = conn;
     _notify();
@@ -137,7 +155,10 @@ class ConnectionManager {
 
     try {
       await sshConn
-          .connect(onProgress: (step) => conn.addProgressStep(step))
+          .connect(
+            onProgress: (step) => conn.addProgressStep(step),
+            socketProvider: conn.socketProvider,
+          )
           .timeout(connectionTimeout);
 
       // Check if a newer reconnect has started while we were connecting.
@@ -343,6 +364,16 @@ class ConnectionManager {
     }
     _connections.remove(id);
     _connectGeneration.remove(id);
+    // Cascade-disconnect the bastion this connection rode on. The
+    // bastion was created internally and is unreachable from any
+    // other UI surface, so leaving it behind would leak both the
+    // socket and the keepalive timer. Done after the parent's
+    // cleanup so the parent doesn't try to forwardLocal a dying
+    // channel during its final flush.
+    final bastion = conn.bastion;
+    if (bastion != null) {
+      disconnect(bastion.id);
+    }
     _notify();
   }
 

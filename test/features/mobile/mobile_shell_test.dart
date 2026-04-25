@@ -1,3 +1,4 @@
+import 'package:dartssh2/dartssh2.dart' show SSHSocket;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,6 +77,9 @@ class _FailingConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Future<SSHSocket> Function()? socketProvider,
+    Connection? bastion,
+    bool internal = false,
   }) {
     final conn = Connection(
       id: 'conn-fail',
@@ -98,6 +102,9 @@ class _SuccessConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Future<SSHSocket> Function()? socketProvider,
+    Connection? bastion,
+    bool internal = false,
   }) {
     return Connection(
       id: 'conn-success',

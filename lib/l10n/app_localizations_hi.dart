@@ -2085,57 +2085,86 @@ class SHi extends S {
   String get broadcastPasteSend => 'भेजें';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => 'फ़ॉरवर्डिंग';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => 'अभी कोई नियम नहीं';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => 'नियम जोड़ें';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => 'नियम संपादित करें';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => 'नियम हटाएँ';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => 'स्थानीय (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => 'दूरस्थ (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => 'गतिशील (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => 'प्रकार';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => 'बाइंड पता';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => 'बाइंड पोर्ट';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => 'लक्ष्य होस्ट';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => 'लक्ष्य पोर्ट';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => 'विवरण (वैकल्पिक)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => 'सक्षम';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      '0.0.0.0 से बाइंड करने पर फ़ॉरवर्ड हर इंटरफ़ेस पर प्रकाशित होता है — आमतौर पर 127.0.0.1 चाहिए।';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'अभी केवल स्थानीय (-L) चल रहा है; -R / -D सहेजे जाते हैं पर निष्क्रिय हैं।';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => 'टैग';

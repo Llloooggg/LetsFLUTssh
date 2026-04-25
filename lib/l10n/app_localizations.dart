@@ -3801,6 +3801,54 @@ abstract class S {
   /// **'Only local (-L) forwards run today; -R / -D are saved but inactive.'**
   String get forwardOnlyLocalSupported;
 
+  /// No description provided for @proxyJump.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect via'**
+  String get proxyJump;
+
+  /// No description provided for @proxyJumpNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct connection'**
+  String get proxyJumpNone;
+
+  /// No description provided for @proxyJumpSavedSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved session'**
+  String get proxyJumpSavedSession;
+
+  /// No description provided for @proxyJumpCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom (user@host:port)'**
+  String get proxyJumpCustom;
+
+  /// No description provided for @proxyJumpCustomNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.'**
+  String get proxyJumpCustomNote;
+
+  /// No description provided for @errProxyJumpCycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy chain loops back on itself.'**
+  String get errProxyJumpCycle;
+
+  /// No description provided for @errProxyJumpDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy chain is too deep (max {max} hops).'**
+  String errProxyJumpDepth(int max);
+
+  /// No description provided for @errProxyJumpBastionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Bastion {label} failed to connect.'**
+  String errProxyJumpBastionFailed(String label);
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

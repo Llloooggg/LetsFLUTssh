@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dartssh2/dartssh2.dart' show SSHSocket;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_manager.dart';
@@ -22,7 +23,10 @@ class FakeSSHConnection extends SSHConnection {
   });
 
   @override
-  Future<void> connect({void Function(ConnectionStep)? onProgress}) async {
+  Future<void> connect({
+    void Function(ConnectionStep)? onProgress,
+    Future<SSHSocket> Function()? socketProvider,
+  }) async {
     connectCalled = true;
     if (shouldFail) throw Exception('fake connection failure');
     // Simulate successful connection (don't call super — no real SSH)
@@ -1015,7 +1019,10 @@ class _DelayedFakeSSHConnection extends SSHConnection {
   });
 
   @override
-  Future<void> connect({void Function(ConnectionStep)? onProgress}) async {
+  Future<void> connect({
+    void Function(ConnectionStep)? onProgress,
+    Future<SSHSocket> Function()? socketProvider,
+  }) async {
     await connectCompleter.future;
     _connected = true;
   }

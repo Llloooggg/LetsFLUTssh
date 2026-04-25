@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dartssh2/dartssh2.dart' show SSHSocket;
+
 import '../../utils/logger.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_client.dart';
@@ -68,6 +70,24 @@ class Connection {
   /// is what lets them survive reconnect transparently.
   final _extensions = <ConnectionExtension>[];
 
+  /// ProxyJump transport injection — see [SSHConnection.connect].
+  /// Stored on Connection so reconnect re-invokes it and gets a
+  /// fresh `SSHForwardChannel` (the previous one died with the
+  /// previous transport). Null = direct connect.
+  Future<SSHSocket> Function()? socketProvider;
+
+  /// Bastion connection that this connection's [socketProvider] depends
+  /// on. Owned by the manager's connection map; its lifecycle is
+  /// pinned to this connection's lifecycle (disconnect cascades).
+  /// Null = direct connect.
+  Connection? bastion;
+
+  /// True for connections the manager creates internally (e.g. the
+  /// bastion hop of a ProxyJump chain). The workspace UI hides
+  /// internal connections so the user never sees a phantom tab for
+  /// the bastion that they never explicitly opened.
+  bool internal;
+
   Connection({
     required this.id,
     required this.label,
@@ -77,6 +97,9 @@ class Connection {
     this.sshConnection,
     this.state = SSHConnectionState.disconnected,
     this.connectionError,
+    this.socketProvider,
+    this.bastion,
+    this.internal = false,
   }) : knownHosts = knownHosts ?? KnownHostsManager();
 
   bool get isConnected => state == SSHConnectionState.connected;

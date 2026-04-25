@@ -2129,6 +2129,35 @@ class SEn extends S {
       'Only local (-L) forwards run today; -R / -D are saved but inactive.';
 
   @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
+
+  @override
   String get tags => 'Tags';
 
   @override

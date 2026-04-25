@@ -46,8 +46,11 @@ class AppDatabase extends _$AppDatabase {
   /// - v3: `PortForwardRules` table — one row per SSH port-forward
   ///   attached to a session, opened by `PortForwardRuntime` on
   ///   connect via the `ConnectionExtension` hook.
+  /// - v4: ProxyJump columns on `Sessions` — `via_session_id` (FK
+  ///   into Sessions, ON DELETE SET NULL) plus `via_host` /
+  ///   `via_port` / `via_user` for one-off override bastions.
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -65,6 +68,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.createTable(portForwardRules);
+      }
+      if (from < 4) {
+        await m.addColumn(sessions, sessions.viaSessionId);
+        await m.addColumn(sessions, sessions.viaHost);
+        await m.addColumn(sessions, sessions.viaPort);
+        await m.addColumn(sessions, sessions.viaUser);
       }
     },
     beforeOpen: (details) async {

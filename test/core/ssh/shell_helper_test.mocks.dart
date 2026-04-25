@@ -102,9 +102,15 @@ class MockSSHConnection extends _i1.Mock implements _i6.SSHConnection {
   );
 
   @override
-  _i5.Future<void> connect({_i6.ConnectionProgressCallback? onProgress}) =>
+  _i5.Future<void> connect({
+    _i6.ConnectionProgressCallback? onProgress,
+    _i5.Future<_i4.SSHSocket> Function()? socketProvider,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#connect, [], {#onProgress: onProgress}),
+            Invocation.method(#connect, [], {
+              #onProgress: onProgress,
+              #socketProvider: socketProvider,
+            }),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )

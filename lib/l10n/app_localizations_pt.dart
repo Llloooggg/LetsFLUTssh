@@ -2096,57 +2096,86 @@ class SPt extends S {
   String get broadcastPasteSend => 'Enviar';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => 'Encaminhamento';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => 'Sem regras ainda';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => 'Adicionar regra';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => 'Editar regra';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => 'Remover regra';
 
   @override
   String get localForward => 'Local (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => 'Remoto (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => 'Dinâmico (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => 'Tipo';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => 'Endereço de bind';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => 'Porta de bind';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => 'Host destino';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => 'Porta destino';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => 'Descrição (opcional)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => 'Ativada';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      'Bind em 0.0.0.0 publica o encaminhamento em todas as interfaces — normalmente queres 127.0.0.1.';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'Apenas local (-L) está ativo hoje; -R / -D são guardadas mas inativas.';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => 'Tags';

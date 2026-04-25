@@ -1245,6 +1245,28 @@
   "forwardEnabled": "Enabled",
   "forwardBindWildcardWarning": "Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.",
   "forwardOnlyLocalSupported": "Only local (-L) forwards run today; -R / -D are saved but inactive.",
+  "proxyJump": "Connect via",
+  "proxyJumpNone": "Direct connection",
+  "proxyJumpSavedSession": "Saved session",
+  "proxyJumpCustom": "Custom (user@host:port)",
+  "proxyJumpCustomNote": "Override hops use this session's credentials. For different bastion auth, save the bastion as its own session.",
+  "errProxyJumpCycle": "Proxy chain loops back on itself.",
+  "errProxyJumpDepth": "Proxy chain is too deep (max {max} hops).",
+  "@errProxyJumpDepth": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "errProxyJumpBastionFailed": "Bastion {label} failed to connect.",
+  "@errProxyJumpBastionFailed": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",

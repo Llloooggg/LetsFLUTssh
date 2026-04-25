@@ -2075,57 +2075,86 @@ class SVi extends S {
   String get broadcastPasteSend => 'Gửi';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => 'Chuyển tiếp';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => 'Chưa có quy tắc nào';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => 'Thêm quy tắc';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => 'Sửa quy tắc';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => 'Xoá quy tắc';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => 'Cục bộ (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => 'Từ xa (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => 'Động (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => 'Loại';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => 'Địa chỉ bind';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => 'Cổng bind';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => 'Máy đích';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => 'Cổng đích';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => 'Mô tả (tuỳ chọn)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => 'Bật';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      'Bind tới 0.0.0.0 phát chuyển tiếp trên mọi giao diện — thường bạn muốn 127.0.0.1.';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'Hiện chỉ -L hoạt động; -R / -D được lưu nhưng không kích hoạt.';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => 'Thẻ';

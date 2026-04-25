@@ -2085,57 +2085,86 @@ class STr extends S {
   String get broadcastPasteSend => 'Gönder';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => 'Yönlendirme';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => 'Henüz kural yok';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => 'Kural ekle';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => 'Kuralı düzenle';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => 'Kuralı sil';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => 'Yerel (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => 'Uzak (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => 'Dinamik (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => 'Tür';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => 'Bağlama adresi';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => 'Bağlama portu';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => 'Hedef sunucu';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => 'Hedef port';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => 'Açıklama (isteğe bağlı)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => 'Etkin';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      '0.0.0.0 bağlaması yönlendirmeyi tüm arabirimlerde açar — genelde 127.0.0.1 istersin.';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'Şu anda yalnızca yerel (-L) çalışıyor; -R / -D kaydediliyor ancak etkin değil.';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => 'Etiketler';

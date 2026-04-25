@@ -2110,57 +2110,86 @@ class SFr extends S {
   String get broadcastPasteSend => 'Envoyer';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => 'Redirection';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => 'Aucune règle pour l\'instant';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => 'Ajouter une règle';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => 'Modifier la règle';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => 'Supprimer la règle';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => 'Locale (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => 'Distante (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => 'Dynamique (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => 'Type';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => 'Adresse d\'écoute';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => 'Port d\'écoute';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => 'Hôte cible';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => 'Port cible';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => 'Description (facultatif)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => 'Activée';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      'Lier à 0.0.0.0 expose la redirection sur toutes les interfaces — en général, choisissez 127.0.0.1.';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'Seules les règles locales (-L) sont actives ; -R / -D sont enregistrées mais inactives.';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => 'Étiquettes';

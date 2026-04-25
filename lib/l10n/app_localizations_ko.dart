@@ -2038,57 +2038,86 @@ class SKo extends S {
   String get broadcastPasteSend => '보내기';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => '포워딩';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => '아직 규칙이 없습니다';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => '규칙 추가';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => '규칙 편집';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => '규칙 삭제';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => '로컬 (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => '원격 (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => '동적 (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => '유형';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => '바인드 주소';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => '바인드 포트';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => '대상 호스트';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => '대상 포트';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => '설명(선택)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => '사용';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      '0.0.0.0에 바인드하면 모든 인터페이스에 노출됩니다 — 보통 127.0.0.1을 사용하세요.';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      '현재 로컬 (-L)만 작동합니다. -R / -D는 저장되지만 비활성 상태입니다.';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => '태그';

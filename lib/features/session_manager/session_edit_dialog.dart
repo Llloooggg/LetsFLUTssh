@@ -99,6 +99,21 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// itself (the dialog never writes to the store directly).
   List<PortForwardRule> _forwards = const [];
 
+  /// ProxyJump editor state.
+  ///
+  /// Three exclusive modes:
+  /// - `none` — direct connection, both selectors empty.
+  /// - `saved` — reference an existing saved session by id.
+  /// - `custom` — type a one-off `user@host:port` override.
+  ///
+  /// All three controllers persist independently so flipping the
+  /// mode dropdown does not destroy partially typed values.
+  _ProxyMode _proxyMode = _ProxyMode.none;
+  String? _proxyViaSessionId;
+  late final TextEditingController _proxyHostCtrl;
+  late final TextEditingController _proxyPortCtrl;
+  late final TextEditingController _proxyUserCtrl;
+
   bool get _isEditing => widget.session != null;
 
   /// Whether a key from the store is selected.
@@ -135,6 +150,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _selectedKeyId = s?.keyId ?? '';
     if (_selectedKeyId.isNotEmpty) {
       _resolveKeyLabel();
+    }
+    // ProxyJump editor state — initialise mode + controllers from the
+    // session being edited, falling back to "none" / empty for new
+    // sessions.
+    _proxyHostCtrl = TextEditingController(text: s?.viaOverride?.host ?? '');
+    _proxyPortCtrl = TextEditingController(
+      text: s?.viaOverride != null ? '${s!.viaOverride!.port}' : '22',
+    );
+    _proxyUserCtrl = TextEditingController(text: s?.viaOverride?.user ?? '');
+    if (s?.viaSessionId != null) {
+      _proxyMode = _ProxyMode.saved;
+      _proxyViaSessionId = s!.viaSessionId;
+    } else if (s?.viaOverride != null) {
+      _proxyMode = _ProxyMode.custom;
     }
     if (s != null) {
       _loadForwards(s.id);
@@ -180,11 +209,24 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _keyPathCtrl.dispose();
     _keyDataCtrl.dispose();
     _passphraseCtrl.dispose();
+    _proxyHostCtrl.dispose();
+    _proxyPortCtrl.dispose();
+    _proxyUserCtrl.dispose();
     super.dispose();
   }
 
   Session _buildSession() {
     final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
+    final viaSessionId = _proxyMode == _ProxyMode.saved
+        ? _proxyViaSessionId
+        : null;
+    final viaOverride = _proxyMode == _ProxyMode.custom
+        ? ProxyJumpOverride(
+            host: _proxyHostCtrl.text.trim(),
+            port: int.tryParse(_proxyPortCtrl.text.trim()) ?? 22,
+            user: _proxyUserCtrl.text.trim(),
+          )
+        : null;
     if (_isEditing) {
       return widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
@@ -202,6 +244,8 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           keyData: _keyDataCtrl.text.trim(),
           passphrase: _passphraseCtrl.text,
         ),
+        viaSessionId: viaSessionId,
+        viaOverride: viaOverride,
       );
     }
     return Session(
@@ -220,6 +264,8 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         keyData: _keyDataCtrl.text.trim(),
         passphrase: _passphraseCtrl.text,
       ),
+      viaSessionId: viaSessionId,
+      viaOverride: viaOverride,
     );
   }
 
@@ -445,7 +491,147 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           hint: S.of(context).hintUsername,
           validator: _requiredValidator,
         ),
+        const SizedBox(height: 16),
+        _buildProxyJumpSection(),
       ],
+    );
+  }
+
+  Widget _buildProxyJumpSection() {
+    final l10n = S.of(context);
+    final allSessions = ref.watch(sessionProvider);
+    // Exclude the session being edited so it can't reference itself —
+    // cycle detection at runtime would catch it but inline UI is the
+    // friendlier guard.
+    final myId = widget.session?.id;
+    final candidates = [
+      for (final s in allSessions)
+        if (s.id != myId) s,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FieldLabel(l10n.proxyJump),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            _proxyModeChip(_ProxyMode.none, l10n.proxyJumpNone),
+            const SizedBox(width: 6),
+            _proxyModeChip(_ProxyMode.saved, l10n.proxyJumpSavedSession),
+            const SizedBox(width: 6),
+            _proxyModeChip(_ProxyMode.custom, l10n.proxyJumpCustom),
+          ],
+        ),
+        if (_proxyMode == _ProxyMode.saved) ...[
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: candidates.any((s) => s.id == _proxyViaSessionId)
+                ? _proxyViaSessionId
+                : null,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: AppTheme.bg3,
+              border: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            items: [
+              for (final s in candidates)
+                DropdownMenuItem(
+                  value: s.id,
+                  child: Text(
+                    s.label.isNotEmpty ? s.label : s.displayName,
+                    style: TextStyle(
+                      color: AppTheme.fg,
+                      fontFamily: 'Inter',
+                      fontSize: AppFonts.sm,
+                    ),
+                  ),
+                ),
+            ],
+            onChanged: (v) => setState(() => _proxyViaSessionId = v),
+          ),
+        ],
+        if (_proxyMode == _ProxyMode.custom) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: StyledFormField(
+                  label: l10n.hostRequired,
+                  controller: _proxyHostCtrl,
+                  hint: 'bastion.example.com',
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 80,
+                child: StyledFormField(
+                  label: l10n.port,
+                  controller: _proxyPortCtrl,
+                  hint: '22',
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          StyledFormField(
+            label: l10n.usernameRequired,
+            controller: _proxyUserCtrl,
+            hint: l10n.hintUsername,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.proxyJumpCustomNote,
+            style: TextStyle(
+              color: AppTheme.fgFaint,
+              fontFamily: 'Inter',
+              fontSize: AppFonts.xs,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _proxyModeChip(_ProxyMode mode, String label) {
+    final active = _proxyMode == mode;
+    return Expanded(
+      child: HoverRegion(
+        onTap: () => setState(() => _proxyMode = mode),
+        builder: (hovered) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: active
+                ? AppTheme.accent.withValues(alpha: 0.15)
+                : (hovered ? AppTheme.hover : AppTheme.bg3),
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(
+              color: active ? AppTheme.accent : AppTheme.borderLight,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: active ? AppTheme.fg : AppTheme.fgFaint,
+                fontFamily: 'Inter',
+                fontSize: AppFonts.xs,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1031,3 +1217,8 @@ class _EditingSessionTagsChips extends ConsumerWidget {
     );
   }
 }
+
+/// ProxyJump editor mode for the Connection tab. Stored on the
+/// dialog state so the user can flip between modes without losing
+/// partially typed values in the others.
+enum _ProxyMode { none, saved, custom }

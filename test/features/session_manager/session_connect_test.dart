@@ -1,3 +1,4 @@
+import 'package:dartssh2/dartssh2.dart' show SSHSocket;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +31,9 @@ class _FailingConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Future<SSHSocket> Function()? socketProvider,
+    Connection? bastion,
+    bool internal = false,
   }) {
     return Connection(
       id: 'conn-fail',
@@ -56,6 +60,9 @@ class _FakeConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Future<SSHSocket> Function()? socketProvider,
+    Connection? bastion,
+    bool internal = false,
   }) {
     lastLabel = label;
     lastSessionId = sessionId;

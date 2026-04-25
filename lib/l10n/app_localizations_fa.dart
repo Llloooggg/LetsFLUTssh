@@ -2074,57 +2074,86 @@ class SFa extends S {
   String get broadcastPasteSend => 'ارسال';
 
   @override
-  String get portForwarding => 'Forwarding';
+  String get portForwarding => 'فوروارد';
 
   @override
-  String get portForwardingEmpty => 'No forward rules yet';
+  String get portForwardingEmpty => 'هنوز قاعده‌ای نیست';
 
   @override
-  String get addForwardRule => 'Add rule';
+  String get addForwardRule => 'افزودن قاعده';
 
   @override
-  String get editForwardRule => 'Edit rule';
+  String get editForwardRule => 'ویرایش قاعده';
 
   @override
-  String get deleteForwardRule => 'Delete rule';
+  String get deleteForwardRule => 'حذف قاعده';
 
   @override
-  String get localForward => 'Local (-L)';
+  String get localForward => 'محلی (-L)';
 
   @override
-  String get remoteForward => 'Remote (-R)';
+  String get remoteForward => 'راه دور (-R)';
 
   @override
-  String get dynamicForward => 'Dynamic (-D)';
+  String get dynamicForward => 'پویا (-D)';
 
   @override
-  String get forwardKind => 'Kind';
+  String get forwardKind => 'نوع';
 
   @override
-  String get bindAddress => 'Bind address';
+  String get bindAddress => 'آدرس باند';
 
   @override
-  String get bindPort => 'Bind port';
+  String get bindPort => 'پورت باند';
 
   @override
-  String get targetHost => 'Target host';
+  String get targetHost => 'میزبان هدف';
 
   @override
-  String get targetPort => 'Target port';
+  String get targetPort => 'پورت هدف';
 
   @override
-  String get forwardDescription => 'Description (optional)';
+  String get forwardDescription => 'توضیح (اختیاری)';
 
   @override
-  String get forwardEnabled => 'Enabled';
+  String get forwardEnabled => 'فعال';
 
   @override
   String get forwardBindWildcardWarning =>
-      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+      'باند به 0.0.0.0 فوروارد را روی همه واسط‌ها منتشر می‌کند — معمولاً 127.0.0.1 می‌خواهید.';
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'فقط محلی (-L) اکنون اجرا می‌شود؛ -R / -D ذخیره می‌شوند ولی فعال نیستند.';
+
+  @override
+  String get proxyJump => 'Connect via';
+
+  @override
+  String get proxyJumpNone => 'Direct connection';
+
+  @override
+  String get proxyJumpSavedSession => 'Saved session';
+
+  @override
+  String get proxyJumpCustom => 'Custom (user@host:port)';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy chain is too deep (max $max hops).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label failed to connect.';
+  }
 
   @override
   String get tags => 'برچسب‌ها';

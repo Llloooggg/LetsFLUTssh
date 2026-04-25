@@ -55,7 +55,19 @@ Session dbSessionToSession(
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,
     extras: _decodeExtras(db.extras),
+    viaSessionId: db.viaSessionId,
+    viaOverride: _decodeOverride(db.viaHost, db.viaPort, db.viaUser),
   );
+}
+
+/// Reassemble a [ProxyJumpOverride] from the three nullable columns,
+/// requiring all three to be set. A partial row (e.g. user wiped the
+/// host but left port behind via direct DB edit) maps to `null` so
+/// the runtime never tries to dial half a bastion.
+ProxyJumpOverride? _decodeOverride(String? host, int? port, String? user) {
+  if (host == null || host.trim().isEmpty) return null;
+  if (user == null || user.trim().isEmpty) return null;
+  return ProxyJumpOverride(host: host, port: port ?? 22, user: user);
 }
 
 /// Decode the `Sessions.extras` JSON column. Tolerates malformed
@@ -80,6 +92,10 @@ Map<String, Object?> _decodeExtras(String raw) {
 
 /// Convert domain [Session] to [SessionsCompanion] for DB insert/update.
 SessionsCompanion sessionToCompanion(Session s, {required String? folderId}) {
+  // viaSessionId wins over viaOverride — see Session class doc.
+  // Persist the loser as null so a stray override left over from a
+  // prior edit cannot resurrect after viaSessionId is cleared.
+  final usingSavedBastion = s.viaSessionId != null;
   return SessionsCompanion(
     id: Value(s.id),
     label: Value(s.label),
@@ -94,6 +110,10 @@ SessionsCompanion sessionToCompanion(Session s, {required String? folderId}) {
     keyId: Value(s.keyId.isEmpty ? null : s.keyId),
     passphrase: Value(s.passphrase),
     extras: Value(jsonEncode(s.extras)),
+    viaSessionId: Value(s.viaSessionId),
+    viaHost: Value(usingSavedBastion ? null : s.viaOverride?.host),
+    viaPort: Value(usingSavedBastion ? null : s.viaOverride?.port),
+    viaUser: Value(usingSavedBastion ? null : s.viaOverride?.user),
     createdAt: Value(s.createdAt),
     updatedAt: Value(s.updatedAt),
   );

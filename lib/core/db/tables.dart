@@ -56,6 +56,26 @@ class Sessions extends Table {
   /// jump) keep their own columns; this is the escape hatch.
   TextColumn get extras => text().withDefault(const Constant('{}'))();
 
+  /// ProxyJump bastion: id of another saved session whose SSH client
+  /// opens a forwardLocal channel that the final hop uses as its
+  /// transport. Null = no bastion. `ON DELETE SET NULL` so deleting a
+  /// bastion does not cascade-delete every session that referenced
+  /// it; the UI surfaces the now-orphaned session as "lost jump host".
+  TextColumn get viaSessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// One-off bastion override: when the user does not have the
+  /// bastion as a saved session, they can type `host` / `port` /
+  /// `user` directly. All three columns are nullable; either all
+  /// three are set or none are. When `viaSessionId` is set the
+  /// override fields are ignored.
+  TextColumn get viaHost => text().nullable()();
+  IntColumn get viaPort => integer().nullable()();
+  TextColumn get viaUser => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
