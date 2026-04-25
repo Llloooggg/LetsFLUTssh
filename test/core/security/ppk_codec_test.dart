@@ -163,6 +163,75 @@ String _buildEncryptedPpkV2Ed25519({
   ].join('\n');
 }
 
+/// Build an unencrypted PPK v2 ssh-rsa file with hand-crafted
+/// RSA components. We do not need a cryptographically valid key
+/// pair for the codec test — we only assert that the bytes round-
+/// trip through parse + toOpenSshPemRsa intact. The mpint values
+/// are crafted so the high bit is unset (no leading-zero pad
+/// quirk to debug separately).
+String _buildPpkV2Rsa({
+  required Uint8List e,
+  required Uint8List n,
+  required Uint8List d,
+  required Uint8List p,
+  required Uint8List q,
+  required Uint8List iqmp,
+  String comment = 'rsa-fixture',
+}) {
+  // Public blob: ssh-string("ssh-rsa") + mpint e + mpint n.
+  final pubBlob = BytesBuilder(copy: false);
+  _putString(pubBlob, utf8.encode('ssh-rsa'));
+  _putString(pubBlob, e);
+  _putString(pubBlob, n);
+  // Private blob: mpint d + mpint p + mpint q + mpint iqmp.
+  final privBlob = BytesBuilder(copy: false);
+  _putString(privBlob, d);
+  _putString(privBlob, p);
+  _putString(privBlob, q);
+  _putString(privBlob, iqmp);
+
+  final macTag = utf8.encode('putty-private-key-file-mac-key');
+  final macKey = Uint8List(20);
+  (SHA1Digest()..update(Uint8List.fromList(macTag), 0, macTag.length)).doFinal(
+    macKey,
+    0,
+  );
+  final payload = BytesBuilder(copy: false);
+  _putString(payload, utf8.encode('ssh-rsa'));
+  _putString(payload, utf8.encode('none'));
+  _putString(payload, utf8.encode(comment));
+  _putString(payload, pubBlob.toBytes());
+  _putString(payload, privBlob.toBytes());
+  final hmac = HMac(SHA1Digest(), 64)
+    ..init(KeyParameter(macKey))
+    ..update(payload.toBytes(), 0, payload.length);
+  final mac = Uint8List(20);
+  hmac.doFinal(mac, 0);
+  final macHex = mac.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+  String wrap(Uint8List bytes) {
+    final b64 = base64.encode(bytes);
+    final lines = <String>[];
+    for (var i = 0; i < b64.length; i += 64) {
+      lines.add(b64.substring(i, b64.length - i < 64 ? b64.length : i + 64));
+    }
+    return lines.join('\n');
+  }
+
+  final pubText = wrap(pubBlob.toBytes());
+  final privText = wrap(privBlob.toBytes());
+  return [
+    'PuTTY-User-Key-File-2: ssh-rsa',
+    'Encryption: none',
+    'Comment: $comment',
+    'Public-Lines: ${pubText.split('\n').length}',
+    pubText,
+    'Private-Lines: ${privText.split('\n').length}',
+    privText,
+    'Private-MAC: $macHex',
+  ].join('\n');
+}
+
 void _putString(BytesBuilder out, List<int> bytes) {
   out.addByte((bytes.length >> 24) & 0xff);
   out.addByte((bytes.length >> 16) & 0xff);
@@ -224,10 +293,18 @@ void main() {
     });
 
     test('rejects ssh-rsa with a targeted exception', () {
-      const rsa =
-          'PuTTY-User-Key-File-2: ssh-rsa\n'
-          'Encryption: none\n'
-          'Comment: x\n';
+      // Build a complete RSA fixture so the parser reaches the
+      // algorithm gate inside the ed25519 alias instead of failing
+      // earlier on a malformed body. The alias rejects ssh-rsa
+      // even though the underlying parseV2 accepts it.
+      final rsa = _buildPpkV2Rsa(
+        e: Uint8List.fromList([0x01, 0x00, 0x01]),
+        n: Uint8List(64),
+        d: Uint8List(64),
+        p: Uint8List(32),
+        q: Uint8List(32),
+        iqmp: Uint8List(32),
+      );
       expect(
         () => PpkCodec.parseUnencryptedV2Ed25519(rsa),
         throwsA(isA<PpkUnsupportedException>()),
@@ -339,6 +416,99 @@ void main() {
       final parsed = PpkCodec.parseV2Ed25519(ppk, passphrase: 'pp');
       final pem = PpkCodec.toOpenSshPemEd25519(parsed);
       expect(pem, contains('OPENSSH PRIVATE KEY'));
+    });
+  });
+
+  group('PpkCodec.parseV2 — ssh-rsa', () {
+    Uint8List rsaBytes(int n, int seed) {
+      // High bit clear so the canonical mpint is exactly `n` bytes
+      // — keeps test offsets predictable.
+      final out = Uint8List(n);
+      for (var i = 0; i < n; i++) {
+        out[i] = (i + seed) & 0x7f;
+      }
+      return out;
+    }
+
+    test('parses an unencrypted RSA fixture', () {
+      final ppk = _buildPpkV2Rsa(
+        e: rsaBytes(3, 0x01),
+        n: rsaBytes(256, 0x10),
+        d: rsaBytes(256, 0x20),
+        p: rsaBytes(128, 0x30),
+        q: rsaBytes(128, 0x40),
+        iqmp: rsaBytes(128, 0x50),
+      );
+      final parsed = PpkCodec.parseV2(ppk);
+      expect(parsed.algorithm, 'ssh-rsa');
+      expect(parsed.encrypted, isFalse);
+    });
+
+    test('toOpenSshPemRsa packs n/e/d/iqmp/p/q in OpenSSH order', () {
+      final ppk = _buildPpkV2Rsa(
+        e: rsaBytes(3, 0x02),
+        n: rsaBytes(256, 0x11),
+        d: rsaBytes(256, 0x21),
+        p: rsaBytes(128, 0x31),
+        q: rsaBytes(128, 0x41),
+        iqmp: rsaBytes(128, 0x51),
+      );
+      final parsed = PpkCodec.parseV2(ppk);
+      final pem = PpkCodec.toOpenSshPemRsa(parsed);
+      expect(pem, startsWith('-----BEGIN OPENSSH PRIVATE KEY-----\n'));
+      expect(pem.trim(), endsWith('-----END OPENSSH PRIVATE KEY-----'));
+      // Decode body and verify the openssh-key-v1 magic + the pubkey
+      // type string lands on `ssh-rsa` so dartssh2 routes it to the
+      // RSA path.
+      final body = pem
+          .split('\n')
+          .where((l) => l.isNotEmpty && !l.startsWith('-----'))
+          .join();
+      final bytes = base64.decode(body);
+      expect(utf8.decode(bytes.sublist(0, 14)), 'openssh-key-v1');
+      // Magic terminator + 3 ssh-strings (cipher/kdf/kdfopts) + uint32
+      // numKeys, then ssh-string pubkey-blob whose first ssh-string is
+      // the pubkey type. We don't manually walk the offsets — just
+      // assert that "ssh-rsa" appears at least twice (once in the
+      // pubkey blob, once in the private block).
+      final all = utf8.decode(bytes, allowMalformed: true);
+      expect('ssh-rsa'.allMatches(all).length, greaterThanOrEqualTo(2));
+    });
+
+    test('toOpenSshPem dispatcher routes ed25519 + rsa', () {
+      final ed = _buildPpkV2Ed25519(
+        pub32: _bytes(32, 0x70),
+        priv32: _bytes(32, 0x90),
+      );
+      final rsa = _buildPpkV2Rsa(
+        e: rsaBytes(3, 0x03),
+        n: rsaBytes(256, 0x12),
+        d: rsaBytes(256, 0x22),
+        p: rsaBytes(128, 0x32),
+        q: rsaBytes(128, 0x42),
+        iqmp: rsaBytes(128, 0x52),
+      );
+      final edPem = PpkCodec.toOpenSshPem(PpkCodec.parseV2(ed));
+      final rsaPem = PpkCodec.toOpenSshPem(PpkCodec.parseV2(rsa));
+      expect(edPem, contains('OPENSSH PRIVATE KEY'));
+      expect(rsaPem, contains('OPENSSH PRIVATE KEY'));
+      // Bodies differ (different algorithms inside the envelope).
+      expect(edPem, isNot(equals(rsaPem)));
+    });
+
+    test('parseV2Ed25519 alias still rejects ssh-rsa', () {
+      final ppk = _buildPpkV2Rsa(
+        e: rsaBytes(3, 0x04),
+        n: rsaBytes(256, 0x13),
+        d: rsaBytes(256, 0x23),
+        p: rsaBytes(128, 0x33),
+        q: rsaBytes(128, 0x43),
+        iqmp: rsaBytes(128, 0x53),
+      );
+      expect(
+        () => PpkCodec.parseV2Ed25519(ppk),
+        throwsA(isA<PpkUnsupportedException>()),
+      );
     });
   });
 

@@ -62,24 +62,40 @@ class PpkCodec {
         text.startsWith('PuTTY-User-Key-File-3:');
   }
 
-  /// Parse + MAC-verify a PPK v2 ssh-ed25519 file with an optional
-  /// passphrase for the encrypted variant.
+  /// Algorithms supported in this build.
+  static const _supportedAlgorithms = {'ssh-ed25519', 'ssh-rsa'};
+
+  /// Parse + MAC-verify a PPK v2 file with an optional passphrase.
   ///
-  /// When the file's `Encryption: aes256-cbc` header is present, the
-  /// caller must supply a non-empty [passphrase]; the codec derives
-  /// the AES-256 key via PuTTY's SHA-1 chain (no PBKDF2 — the v2
-  /// format is what it is, v3 fixes this with Argon2id) and decrypts
-  /// the private blob in place before the standard MAC and parse
-  /// path runs.
+  /// Supports ssh-ed25519 and ssh-rsa today. When the file's
+  /// `Encryption: aes256-cbc` header is present, the caller must
+  /// supply a non-empty [passphrase]; the codec derives the AES-256
+  /// key via PuTTY's SHA-1 chain (no PBKDF2 — the v2 format is what
+  /// it is, v3 fixes this with Argon2id) and decrypts the private
+  /// blob before the standard MAC + parse path runs.
   ///
   /// [passphrase] is required when the file is encrypted and ignored
   /// when it isn't. Wrong passphrase surfaces as
-  /// [PpkMacMismatchException] — the encryption is malleable
-  /// (PuTTY uses a zero IV) so the only honest "wrong passphrase"
-  /// signal is the MAC failing on the gibberish that decryption
-  /// produced.
+  /// [PpkMacMismatchException] — the encryption is malleable (PuTTY
+  /// uses a zero IV) so the only honest "wrong passphrase" signal
+  /// is the MAC failing on the gibberish that decryption produced.
+  static PpkKey parseV2(String text, {String? passphrase}) {
+    return _parseV2(text, passphrase: passphrase);
+  }
+
+  /// Convenience alias targeting ed25519 keys specifically. Throws
+  /// [PpkUnsupportedException] for other algorithms even when the
+  /// codec otherwise supports them — useful for callers that only
+  /// have an ed25519 path wired downstream.
   static PpkKey parseV2Ed25519(String text, {String? passphrase}) {
-    return _parseV2Ed25519(text, passphrase: passphrase);
+    final key = _parseV2(text, passphrase: passphrase);
+    if (key.algorithm != 'ssh-ed25519') {
+      throw PpkUnsupportedException(
+        key.algorithm,
+        'parseV2Ed25519 only accepts ssh-ed25519',
+      );
+    }
+    return key;
   }
 
   /// Backwards-compatible entry point — equivalent to
@@ -87,10 +103,17 @@ class PpkCodec {
   /// callers that explicitly only want the unencrypted path keep a
   /// short signature.
   static PpkKey parseUnencryptedV2Ed25519(String text) {
-    return _parseV2Ed25519(text, passphrase: null, allowEncrypted: false);
+    final key = _parseV2(text, passphrase: null, allowEncrypted: false);
+    if (key.algorithm != 'ssh-ed25519') {
+      throw PpkUnsupportedException(
+        key.algorithm,
+        'parseUnencryptedV2Ed25519 only accepts ssh-ed25519',
+      );
+    }
+    return key;
   }
 
-  static PpkKey _parseV2Ed25519(
+  static PpkKey _parseV2(
     String text, {
     String? passphrase,
     bool allowEncrypted = true,
@@ -124,7 +147,7 @@ class PpkCodec {
       }
       throw const PpkParseException('Not a PPK file');
     }
-    if (algorithm != 'ssh-ed25519') {
+    if (!_supportedAlgorithms.contains(algorithm)) {
       throw PpkUnsupportedException(
         algorithm,
         'PPK algorithm "$algorithm" not supported in this build',
@@ -263,6 +286,23 @@ class PpkCodec {
     return Uint8List.sublistView(out.toBytes(), 0, 32);
   }
 
+  /// Dispatch a parsed PPK key to the right algorithm-specific
+  /// OpenSSH converter. The result is a PEM string that
+  /// `dartssh2.SSHKeyPair.fromPem` accepts.
+  static String toOpenSshPem(PpkKey ppk) {
+    switch (ppk.algorithm) {
+      case 'ssh-ed25519':
+        return toOpenSshPemEd25519(ppk);
+      case 'ssh-rsa':
+        return toOpenSshPemRsa(ppk);
+      default:
+        throw PpkUnsupportedException(
+          ppk.algorithm,
+          'No OpenSSH conversion for ${ppk.algorithm}',
+        );
+    }
+  }
+
   /// Convert a parsed PPK ssh-ed25519 key into an OpenSSH-format PEM
   /// string that dartssh2's `SSHKeyPair.fromPem` accepts.
   ///
@@ -335,6 +375,97 @@ class PpkCodec {
     }
     wrapped.writeln('-----END OPENSSH PRIVATE KEY-----');
     return wrapped.toString();
+  }
+
+  /// Convert a parsed PPK ssh-rsa key into an OpenSSH-format PEM
+  /// string. Reconstructs the full RSA tuple from PPK's split:
+  ///
+  /// - public blob carries `(e, n)` after the algorithm string
+  /// - private blob carries `(d, p, q, iqmp)` as four mpints
+  ///
+  /// OpenSSH ssh-rsa packs `(n, e, d, iqmp, p, q)` in that exact
+  /// order — note the `iqmp` ordering quirk which differs from the
+  /// PPK private-blob layout.
+  static String toOpenSshPemRsa(PpkKey ppk) {
+    if (ppk.algorithm != 'ssh-rsa') {
+      throw PpkUnsupportedException(
+        ppk.algorithm,
+        'OpenSSH RSA conversion called on a non-RSA key',
+      );
+    }
+    // Public blob: ssh-string("ssh-rsa") + mpint e + mpint n.
+    final algo = _readSshString(ppk.publicBlob, 0);
+    final eRead = _readMpint(ppk.publicBlob, algo.nextOffset);
+    final nRead = _readMpint(ppk.publicBlob, eRead.nextOffset);
+    // Private blob: mpint d + mpint p + mpint q + mpint iqmp.
+    final dRead = _readMpint(ppk.privateBlob, 0);
+    final pRead = _readMpint(ppk.privateBlob, dRead.nextOffset);
+    final qRead = _readMpint(ppk.privateBlob, pRead.nextOffset);
+    final iqmpRead = _readMpint(ppk.privateBlob, qRead.nextOffset);
+
+    final eBytes = eRead.value;
+    final nBytes = nRead.value;
+    final dBytes = dRead.value;
+    final pBytes = pRead.value;
+    final qBytes = qRead.value;
+    final iqmpBytes = iqmpRead.value;
+
+    final out = BytesBuilder(copy: false);
+    out.add(utf8.encode('openssh-key-v1'));
+    out.addByte(0);
+    _writeSshString(out, utf8.encode('none')); // ciphername
+    _writeSshString(out, utf8.encode('none')); // kdfname
+    _writeSshString(out, <int>[]); // kdf-options
+    _writeUint32(out, 1); // num keys
+
+    // Pubkey blob: ssh-rsa + e + n.
+    final pubBlob = BytesBuilder(copy: false);
+    _writeSshString(pubBlob, utf8.encode('ssh-rsa'));
+    _writeMpint(pubBlob, eBytes);
+    _writeMpint(pubBlob, nBytes);
+    _writeSshString(out, pubBlob.toBytes());
+
+    // Private block: matched checks + n + e + d + iqmp + p + q +
+    // comment, padded to 8-byte align.
+    final rand = Random.secure();
+    final check = rand.nextInt(0x7fffffff);
+    final priv = BytesBuilder(copy: false);
+    _writeUint32(priv, check);
+    _writeUint32(priv, check);
+    _writeSshString(priv, utf8.encode('ssh-rsa'));
+    _writeMpint(priv, nBytes);
+    _writeMpint(priv, eBytes);
+    _writeMpint(priv, dBytes);
+    _writeMpint(priv, iqmpBytes);
+    _writeMpint(priv, pBytes);
+    _writeMpint(priv, qBytes);
+    _writeSshString(priv, utf8.encode(ppk.comment));
+    var pad = 1;
+    while (priv.length % 8 != 0) {
+      priv.addByte(pad++);
+    }
+    _writeSshString(out, priv.toBytes());
+
+    final body = base64.encode(out.toBytes());
+    final wrapped = StringBuffer();
+    wrapped.writeln('-----BEGIN OPENSSH PRIVATE KEY-----');
+    for (var i = 0; i < body.length; i += 70) {
+      wrapped.writeln(
+        body.substring(i, body.length - i < 70 ? body.length : i + 70),
+      );
+    }
+    wrapped.writeln('-----END OPENSSH PRIVATE KEY-----');
+    return wrapped.toString();
+  }
+
+  /// Write an mpint per RFC 4251: ssh-string of the two's-complement
+  /// big-endian integer with a leading zero byte when the high bit
+  /// is set. The PPK reader returns mpints already in canonical
+  /// shape, so passing the read bytes through unchanged is correct
+  /// — but we keep the helper for symmetry with future encoders
+  /// that build the bytes from a `BigInt`.
+  static void _writeMpint(BytesBuilder out, Uint8List bytes) {
+    _writeSshString(out, bytes);
   }
 
   static void _verifyV2Mac({

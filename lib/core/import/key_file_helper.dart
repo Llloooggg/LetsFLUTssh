@@ -30,13 +30,24 @@ class KeyFileHelper {
       if (file.lengthSync() > maxKeyFileSize) return null;
       final content = file.readAsStringSync();
       if (PpkCodec.looksLikePpk(content)) {
-        final parsed = PpkCodec.parseUnencryptedV2Ed25519(content);
-        return PpkCodec.toOpenSshPemEd25519(parsed);
+        // Unencrypted only at this entry point — encrypted PPK files
+        // need the passphrase-aware import flow which lives in the
+        // key-manager UI, not the silent file-picker path.
+        final parsed = PpkCodec.parseV2(content);
+        return PpkCodec.toOpenSshPem(parsed);
       }
       if (content.contains('PRIVATE KEY')) return content;
       return null;
     } on PpkUnsupportedException {
       // Bubble up so the importer can show a targeted error.
+      rethrow;
+    } on PpkPassphraseRequiredException {
+      // Encrypted PPK at the silent path — the caller can route the
+      // user to the passphrase-aware key-manager flow on retry.
+      rethrow;
+    } on PpkMacMismatchException {
+      // Wrong passphrase / corrupt MAC also bubbles so the importer
+      // can distinguish "broken file" from "not a key".
       rethrow;
     } on PpkParseException {
       // Malformed PPK — treat the same as "not a key".
