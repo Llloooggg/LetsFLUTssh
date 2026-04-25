@@ -76,6 +76,8 @@ class _FailingConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     final conn = Connection(
       id: 'conn-fail',
@@ -98,13 +100,14 @@ class _SuccessConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     return Connection(
       id: 'conn-success',
       label: label ?? config.displayName,
       sshConfig: config,
       sessionId: sessionId,
-      sshConnection: null,
       state: SSHConnectionState.connected,
     );
   }
@@ -191,7 +194,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'example.com', user: 'root'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -238,7 +240,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'sftp.example.com', user: 'admin'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -285,7 +286,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -404,7 +404,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -462,7 +461,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'a.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
@@ -471,7 +469,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'b.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -526,7 +523,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'a.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
@@ -535,7 +531,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'b.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -592,7 +587,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final sftpConn = Connection(
@@ -601,7 +595,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -653,7 +646,6 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'h', user: 'u'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.disconnected,
         );
         final sftpConn = Connection(
@@ -662,7 +654,6 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'h', user: 'u'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.disconnected,
         );
 
@@ -897,7 +888,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
@@ -946,7 +936,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -993,7 +982,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
@@ -1042,7 +1030,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1091,7 +1078,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
@@ -1249,7 +1235,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1377,7 +1362,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
@@ -1424,7 +1408,6 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'h', user: 'u'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.connecting,
         );
 
@@ -1469,7 +1452,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1519,7 +1501,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1574,7 +1555,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'a.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
       final conn2 = Connection(
@@ -1583,7 +1563,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'b.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn3 = Connection(
@@ -1592,7 +1571,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'c.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
@@ -1647,7 +1625,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'x.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
       final conn2 = Connection(
@@ -1656,7 +1633,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'y.com', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1748,7 +1724,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1839,7 +1814,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.connected,
       );
 
@@ -1900,7 +1874,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -1961,7 +1934,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
@@ -2018,7 +1990,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 

@@ -2,6 +2,40 @@
 
 Concrete per-feature execution plan for the next agent/developer. Each feature section lists **what exists today**, **what needs to be added**, and **every file that has to change with approximate line anchors**, so a contributor can open the listed paths and start typing.
 
+## Progress log
+
+Tracks features that have already shipped end-to-end (data + tests + docs). The table below should be the first thing a new contributor reads — sections marked **DONE** are reference material only; sections without it are still open.
+
+| Status | Section | Commit | What landed |
+|---|---|---|---|
+| **DONE** | §2.1 Session extras column | `feat(session): add Sessions.extras JSON column` | Drift v1→v2 schema bump + Session model `Map<String, Object?> extras` + typed accessors. Unblocks every later wave-1+ feature without a migration per flag. |
+| **DONE** | §2.2 ConnectionExtension hooks | `feat(connection): add ConnectionExtension lifecycle hooks` | Generic `onConnected` / `onDisconnecting` / `onReconnecting` interface + Connection fan-out. Failure-isolated; idempotent on never-connected transports. |
+| **DONE (scoped down)** | §2.3 RemoteFs abstraction | `docs(backlog): scope down §2.3 RemoteFs prerequisite` | Existing `FileSystem` interface in `core/sftp/file_system.dart` already covers list/mkdir/remove/rename/dirSize and is implemented by both `LocalFS` and `RemoteFS`; the section above documents the additional surface (`stat` / `getStream`/`putStream` / `close`) to add later when S3 / WebDAV need it. |
+| **DONE (full -L/-R/-D)** | §3.1 Port forwarding | 4 commits: backend (-L) + Forwarding-tab UI + `-R` (`forwardRemote`) + hand-rolled SOCKS5 (`-D`). | DB v2→v3 with `PortForwardRules` table, `PortForwardRuntime` implementing `ConnectionExtension`. Local listeners on `ServerSocket`; remote listeners via `client.forwardRemote` with targeted error on server refusal (GatewayPorts hint); dynamic listeners run a hand-rolled SOCKS5 CONNECT-only server (RFC 1928, NO_AUTH only, IPv4 / domain / IPv6 address types) — zero new dep. UI: 4th tab with three-chip kind picker, add/edit/toggle/delete, `0.0.0.0` warning. |
+| **DONE (full)** | §3.2 ProxyJump bastion chains | `feat(ssh): add ProxyJump bastion chains` + `feat(session): add via-X badge to session tree row` | DB v3→v4 with `Sessions.via_session_id` (FK SET NULL) + `via_host`/`via_port`/`via_user` override columns. `SSHConnection.connect` accepts a `socketProvider` so reconnect re-runs `bastion.client.forwardLocal`; `_ensureBastion` walks chains bottom-up with `visited`-based cycle guard and depth ≤ 8. Bastion connections are flagged `internal` so the UI hides them; manager `disconnect` cascades. UI: three-chip selector (None / Saved / Custom) in the Connection tab + compact "via X" badge in the session tree row that resolves saved-bastion ids against the live session list. |
+| **DONE (full v2+v3, ed25519+rsa)** | §3.3 PuTTY `.ppk` import | 4 commits covering the full {v2, v3} × {ssh-ed25519, ssh-rsa} × {unencrypted, encrypted} matrix. | Pure-Dart `PpkCodec` with `parse(text, passphrase)` top-level dispatcher. v2 uses SHA-1 key schedule + zero IV + HMAC-SHA-1; v3 uses Argon2id (1 GiB memory cap) + KDF-derived IV + HMAC-SHA-256. Algorithm-specific OpenSSH packers (`toOpenSshPemEd25519` / `toOpenSshPemRsa`) handle the openssh-key-v1 envelope construction including the ssh-rsa component reordering (PPK ships `(d, p, q, iqmp)`, OpenSSH wants `(n, e, d, iqmp, p, q)`). MAC verified before decryption so wrong passphrase surfaces as `PpkMacMismatchException`. |
+| **DONE** | §3.4 Snippet parameters | `feat(snippets): add {{name}} parameter substitution` | `renderSnippet` template engine + picker integration + fill dialog. Built-in `{{host}}` / `{{user}}` / `{{port}}` / `{{label}}` / `{{now}}`; user tokens prompt at execution. |
+| **DONE** | §5.1 Broadcast input | `feat(terminal): add per-tab broadcast input` | Per-tab `BroadcastController` + driver/receiver context-menu actions + yellow border indicator + paste-confirmation dialog. Mobile / quick-connect inert via `supportsBroadcast` guard. |
+| **DONE (recorder + playback)** | §6.1 Session recording | `feat(session): add per-shell encrypted recording` + `feat(recordings): add playback browser + xterm replay dialog` | `SessionRecorder` hooks at the shell-helper level, asciinema v2 frames inside per-event AES-256-GCM (HKDF-derived key with `info="letsflutssh-recording-v1"` for cryptographic separation from DB key). Plaintext-tier sessions get raw `.cast` JSON-Lines with `chmod 600`. Per-recording rotation at 100 MB. Opt-in via session edit dialog Options tab. **Tools → Recordings** lists every file under `<appSupport>/recordings/`, resolves session label against the live session list (orphan rows show `<deleted>` + truncated id), tap to play in an embedded xterm at user-chosen speed (1× / 2× / 4× / instant); per-event GCM frames decoded sequentially. **Still open:** global storage cap + LRU eviction, settings storage-used row, scrub bar (would need a per-frame index file for random access). |
+| **DONE** | UX polish round | `fix: ProxyJump race + forwarding UX polish`, `feat(snippets): inline token hints in manager dialog`, `fix: chip labels, control sizes, recordings location, fprintd spam` | Race fix on bastion socketProvider (await `waitUntilReady` before reading `client`); via-X badge constrained to 140 px + Flexible(loose); shared `AppPickerChip` widget extracted (used by ProxyJump + Forwarding) with `SelectionContainer.disabled` so chip labels don't behave like body text; chip labels dropped `(-L)` / `(-R)` / `(-D)` / `(user@host:port)` parenthetical hints to fit cramped translations; per-kind explanation text under the kind picker; rule-row toggle + delete unified to AppIconButton; rule-editor "Save" → "OK"; recordings entry moved from Settings → Data into Tools (desktop sidebar + mobile list); BiometricAuth.availability + backingLevel cache one probe per process to stop the fprintd ServiceUnknown spam. |
+| **DONE** | Known hosts: OpenSSH `~/.ssh/known_hosts` import | `feat(known-hosts): accept OpenSSH ~/.ssh/known_hosts on import` | Importer accepts both the LetsFLUTssh internal wire format and OpenSSH on the same parser pass — bare hostnames default to port 22, `[host]:port` brackets (incl. IPv6) resolve cleanly, comma-separated multi-host fans out into one entry per host, `@cert-authority` / `@revoked` markers strip cleanly, hashed `\|1\|salt\|hash` rows skip with a counter that surfaces in the log (HMAC-SHA1 hostname hashes are one-way, nothing to TOFU-match against). |
+| **DONE** | User-facing documentation | `docs(user-guide): add USER_GUIDE.md + bind agents to keep it current` | `docs/USER_GUIDE.md` (~700 lines, 18 sections) — end-user reference for every shipped feature with worked examples + platform notes. AGENT_RULES doc-maintenance checklist binds future user-visible changes to the guide; CLAUDE.md Action → Read mapping points new-feature commits at the new entries. |
+
+### Open features
+
+Sections in the rest of this doc still apply as-written for the unfinished work — the same per-file action tables, schema bumps, and l10n key lists are accurate. **Read the `Status` of each above before starting**: a feature already marked DONE is reference, not work.
+
+The remaining backlog (high to low priority, with concrete next-step pointers):
+
+1. **§4.1 WebDAV sync** — biggest feature in the open list. Best-practice path: hand-roll WebDAV over `dart:io` HttpClient (PROPFIND/PUT/GET/DELETE/MKCOL — ~300 lines, zero new dep), Sessions+Keys+Snippets+Tags+Bookmarks soft-delete with `deletedAt DATETIME NULL` (DB v4→v5; **not** known_hosts — TOFU stays per-device), separate sync passphrase from master, manual push/pull buttons in v1 with auto-interval deferred. Plan in §4.1.
+2. **§4.2 S3 bucket browser** — depends on the `RemoteFs` widening (`stat` / `getStream` / `putStream` / `close`). Best-practice path: hand-roll Sigv4 against AWS's published test suite (~600 lines including bucket ops + multipart), in-process fake test backend + integration suite under `--tags integration` for MinIO. STS / SSO / IAM out of scope v1.
+3. **§4.3 WebDAV file browser** — reuses §4.1's transport. ~1 week of additional surface for `WebDavRemoteFs` + a `webdav` `SessionKind`. Browses Nextcloud / ownCloud / mod_dav / generic NAS WebDAV endpoints in the same file-browser UI as SFTP and (eventually) S3.
+3. **§6.2 SSH certificates** — **upstream blocker:** dartssh2 2.17.1 has no client-side cert userauth API. Best-practice path: submit upstream PR adding cert support to `userauth_publickey.dart` + ship via local `pubspec_overrides.yaml` until it merges. Cert parser + display in key manager can ship before the upstream PR lands.
+4. **§6.3 FIDO2-SSH** — desktop-first (Linux + Windows v1, macOS deferred for entitlements). Best-practice path: native HID platform channels per OS (not `package:hidapi` FFI — would break the zero-install rule on Linux distros without the package). Sequential PIN → touch dialogs.
+5. **§6.1 polish** (smaller follow-ups): global storage cap + LRU eviction for recordings, settings tile showing recordings disk-used, scrub bar in playback (would need a per-frame index file written alongside the recording for random access).
+
+---
+
 Style contract — the doc stays useful only if it matches the codebase:
 
 - File paths are live, line numbers are a hint (refresh before acting).
@@ -327,6 +361,48 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ---
 
+### 4.3 WebDAV file browser (connection type #3)
+
+**Goal.** Reuse the WebDAV transport landed for §4.1 sync to expose a generic WebDAV server as a first-class connection type alongside SSH/SFTP and S3 — browse remote folders, upload/download with progress, manage credentials. Unlocks Nextcloud / ownCloud / Apache mod_dav / generic NAS WebDAV endpoints in the same file-browser UI users already know.
+
+**Why now.** §4.1 hand-rolls the WebDAV verbs (PROPFIND / GET / PUT / DELETE / MKCOL / MOVE) for the encrypted-archive sync use case. Same code, different surface — a `WebDavRemoteFs` adapter implementing §2.3's `RemoteFs` interface costs ~200 LOC on top of the §4.1 transport. Skipping it would mean we ship WebDAV-as-sync but force users to a different app for WebDAV-as-files, even though the protocol is identical.
+
+**Pre-requisites.**
+- §4.1 WebDAV sync ships first → reuses transport + auth (basic / digest / bearer) + path utilities.
+- §2.3 `RemoteFs` widening (`stat` / `getStream` / `putStream` / `close`) — same widening §4.2 needs.
+
+**Files to change.**
+
+| # | Path | Action |
+|---|---|---|
+| 1 | `lib/core/session/session.dart` | `SessionKind` gains `webdav`. WebDAV sessions carry `baseUrl`, `username`, `passwordRef` (SecureKeyStorage ref or token), optional `selfSignedFingerprint` for cert pinning, `authMethod: AuthMethod { basic, digest, bearer }`. |
+| 2 | `lib/core/db/tables.dart` (or a `WebDavSessions` join table mirroring §4.2 S3Sessions) | New columns / table for WebDAV-specific fields. |
+| 3 | `lib/core/webdav/webdav_client.dart` (extracted from §4.1's hand-rolled transport) | `WebDavClient` with verb methods. Used by both sync (§4.1) and the file browser (§4.3). |
+| 4 | `lib/core/webdav/webdav_remote_fs.dart` (new) | Implements `RemoteFs` over `WebDavClient`. `list` → PROPFIND depth=1 + parse multistatus, `get`/`put` → GET/PUT with byte-range support for resume, `mkdir` → MKCOL, `rename`/`move` → MOVE, `stat` → PROPFIND depth=0. |
+| 5 | `lib/features/file_browser/*` | Already consumes `RemoteFs` post-§2.3. Add WebDAV-specific affordances: "Copy WebDAV URL", "Open in browser" (basic auth in URL stripped). |
+| 6 | `lib/features/session_manager/session_edit_dialog.dart` | Kind dropdown gains `webdav`. WebDAV mode shows base URL + auth method + creds, hides SSH/S3 tabs. |
+| 7 | `lib/features/settings/export_import.dart` | WebDAV sessions in `sessions.json`. |
+| 8 | `lib/core/migration/schema_versions.dart` + `archive_vN_to_vN+1.dart` | `kind` migration covers WebDAV. |
+| 9 | `docs/ARCHITECTURE.md` §3.12 "Storage providers" | Add WebDAV. |
+
+**L10n keys.** `sessionKindWebDav`, `webDavBaseUrl`, `webDavAuthMethod`, `webDavBasic`, `webDavDigest`, `webDavBearer`, `webDavSelfSignedFingerprint`, `errWebDavAuthFailed`, `errWebDavNotFound`, `errWebDavConflict`, `errWebDavLockOwnedByOther`.
+
+**Tests.**
+- `test/core/webdav/webdav_client_test.dart` — fake HTTP fixture, exercises every verb + error-path mapping.
+- `test/core/webdav/webdav_remote_fs_test.dart` — adapter conforms to `RemoteFs` semantics.
+- Integration suite under `--tags integration`: spin up a containerised Apache mod_dav and a Nextcloud, run the same matrix.
+
+**Scope.** ~1 week riding on §4.1's transport. Front-loaded by §4.1 + §2.3 — no standalone work until those land.
+
+**Gotchas.**
+- PROPFIND depth=infinity is rejected by many servers (Nextcloud, ownCloud); always depth=1 for browsing.
+- LOCK / UNLOCK semantics are server-specific. Skip in v1; uploads use `If-None-Match: *` to avoid clobbering only.
+- Apache mod_dav reports MIME types from filename; Nextcloud uses its own DB. Don't trust `getcontenttype` for syntax highlighting — sniff like SFTP does.
+- Self-signed certs: same trust path as SSH host keys — TOFU on first connect, fingerprint stored per session.
+- Large files: PUT supports chunked transfer encoding; resumable upload is server-specific (Nextcloud has a chunked-upload extension, generic WebDAV doesn't). Document the limitation.
+
+---
+
 ## 5. Wave 3 — Terminal broadcast input
 
 ### 5.1 Broadcast input across split panes
@@ -410,11 +486,14 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ### 6.2 SSH certificates (OpenSSH signed keys)
 
+**Status: protocol layer DONE on `feat/rust-core` (commit `04831ac9`).** UI / cert-renewal layers below still pending — they ride on the Rust transport unified-swap (RUST_CORE_MIGRATION_PLAN.md §13 1.5+).
+
 **Goal.** Support user certs issued by internal CAs — step-ca, HashiCorp Vault SSH, Teleport-style short-lived certs. Auto-renew via external command hook.
 
 **What exists.**
-- `SSHKeyPair` in dartssh2 + our `KeyStore` handle plain key pairs.
-- No cert support anywhere.
+- **Rust transport** — `lfs_core::ssh::Session::connect_pubkey_cert(host, port, user, key, passphrase, cert)` parses the cert via `russh-keys::Certificate::from_openssh` and authenticates via `Handle::authenticate_openssh_cert`. FRB binding: `ssh_connect_pubkey_cert(host, port, user, private_key: Vec<u8>, passphrase: Option<String>, cert: Vec<u8>)`. Earlier "blocked / fork russh" assessment was wrong — russh 0.59 has cert algorithm tables natively.
+- **Dart-side UI** still does not have a cert import flow; rides on the unified SshTransport swap.
+- `SSHKeyPair` in dartssh2 + our `KeyStore` handle plain key pairs only — dartssh2 has no cert support and never will (the gap that motivated the Rust core in the first place).
 
 **Files to change.**
 
@@ -441,9 +520,21 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ### 6.3 Hardware tokens / FIDO2-SSH
 
+**Status: agent-mediated path DONE on `feat/rust-core` (commit `6dc622ac`).** Direct CTAP2 (no agent) deferred to RUST_CORE_MIGRATION_PLAN.md §13 1.13b.
+
 **Goal.** Support `sk-ecdsa-sha2-nistp256@openssh.com` + `sk-ssh-ed25519@openssh.com` (OpenSSH 8.2+ FIDO2 keys) on YubiKey / SoloKey / OnlyKey.
 
-**Caveat.** This is the **highest-risk** feature in the backlog. Requires CTAP2 bridge per platform (PC/SC on desktop, native plugins on mobile, no Web target). Budget it as v1 = desktop only, v2 = mobile later.
+**What works today (after rust-core merge).**
+- User runs `ssh-add -K /path/to/sk_ed25519` once on their machine to register the FIDO2 key with the system ssh-agent.
+- App calls `ssh_connect_agent(host, port, user)` (FRB binding from sub-phase 1.11b). Agent enumerates identities including sk-* keys, advertises them to the server during userauth, drives the FIDO2 user-presence prompt itself, returns the signature; russh just relays bytes.
+- Covers macOS, mainstream Linux, Windows (OpenSSH-Agent service or Pageant). No CTAP2 stack on our side — the agent owns it.
+
+**What direct CTAP2 (no agent) would add.**
+- Windows < 10 with no agent service.
+- Locked-down enterprise where ssh-agent is forbidden.
+- Mobile (Android USB FIDO; iOS still restricted by Apple).
+
+**Caveat.** Direct CTAP2 is the **highest-risk** part of this backlog. Requires CTAP2 bridge per platform (PC/SC or hidraw on desktop, native plugins on mobile, no Web target). Budget it as v1 = desktop only, v2 = mobile later. Defer until a real user need surfaces — the agent path covers the common case.
 
 **Files to change.**
 

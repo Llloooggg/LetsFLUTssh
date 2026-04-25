@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/transfer/conflict_resolver.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
@@ -16,9 +16,9 @@ class _FakeLoc implements S {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Fake SFTPService — never called because TransferManager has parallelism: 0,
+/// Fake RemoteSftpFs — never called because TransferManager has parallelism: 0,
 /// so tasks stay queued and their run() closures are never invoked.
-class _FakeSFTPService extends Fake implements SFTPService {
+class _FakeSftpFs extends Fake implements RemoteSftpFs {
   final Set<String> existingRemote = {};
 
   @override
@@ -41,12 +41,12 @@ class _CapturingTransferManager extends TransferManager {
 
 void main() {
   late _CapturingTransferManager manager;
-  late _FakeSFTPService fakeSftp;
+  late _FakeSftpFs fakeSftp;
   late _FakeLoc fakeLoc;
 
   setUp(() {
     manager = _CapturingTransferManager();
-    fakeSftp = _FakeSFTPService();
+    fakeSftp = _FakeSftpFs();
     fakeLoc = _FakeLoc();
   });
 

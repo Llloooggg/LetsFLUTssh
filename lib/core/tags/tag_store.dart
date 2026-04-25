@@ -1,89 +1,106 @@
-import 'package:drift/drift.dart';
-
-import '../db/database.dart';
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import 'tag.dart';
 
-/// Manages tag persistence via drift DAO.
+/// Manages tag persistence through `lfs_core.db`. Engine behind
+/// the DAO is Rust + rusqlite; on-disk row layout matches the
+/// schema drift used to own.
+///
+/// Pre-unlock and in-the-unit-test-runner the FRB wrappers raise
+/// synchronously (no native lib). Each entry point wraps its single
+/// FRB call in try/catch and degrades to empty / no-op — same
+/// contract drift's `_db == null` branch used to honour.
 class TagStore {
-  AppDatabase? _db;
-
-  void setDatabase(AppDatabase db) {
-    _db = db;
-  }
+  Tag _toTag(rust_db.DbTag r) => Tag(
+    id: r.id,
+    name: r.name,
+    color: r.color,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+  );
 
   /// Load all tags, sorted by name.
   Future<List<Tag>> loadAll() async {
-    final db = _db;
-    if (db == null) return [];
-    final rows = await db.tagDao.getAll();
-    return rows
-        .map(
-          (r) => Tag(
-            id: r.id,
-            name: r.name,
-            color: r.color,
-            createdAt: r.createdAt,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    try {
+      final rows = await rust_db.dbTagsListAll();
+      return rows.map(_toTag).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+    } catch (e) {
+      AppLogger.instance.log(
+        'TagStore.loadAll failed: $e',
+        name: 'TagStore',
+        level: LogLevel.warn,
+      );
+      return const [];
+    }
   }
 
-  /// Create a new tag.
+  /// Create a new tag (or update an existing one — Rust uses
+  /// ON CONFLICT(id) so repeat inserts upsert).
   Future<void> add(Tag tag) async {
-    final db = _db;
-    if (db == null) return;
-    await db.tagDao.insert(
-      TagsCompanion.insert(
-        id: tag.id,
-        name: tag.name,
-        color: Value(tag.color),
-        createdAt: tag.createdAt,
-      ),
-    );
+    try {
+      await rust_db.dbTagsUpsert(
+        row: rust_db.DbTag(
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          createdAtMs: tag.createdAt.millisecondsSinceEpoch,
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tag upsert failed: $e',
+        name: 'TagStore',
+        level: LogLevel.warn,
+      );
+    }
   }
 
-  /// Delete a tag. Cascades to all session/folder links.
+  /// Delete a tag. Cascades to all session/folder links via FK.
   Future<void> delete(String id) async {
-    final db = _db;
-    if (db == null) return;
-    await db.tagDao.deleteById(id);
+    try {
+      await rust_db.dbTagsDelete(id: id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tag delete failed: $e',
+        name: 'TagStore',
+        level: LogLevel.warn,
+      );
+    }
   }
 
-  /// Delete every tag. Cascades to all session/folder link tables.
+  /// Drop every tag. Cascades through `session_tags` / `folder_tags`.
   Future<void> deleteAll() async {
-    final db = _db;
-    if (db == null) return;
-    await db.tagDao.deleteAll();
+    try {
+      await rust_db.dbTagsDeleteAll();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tag deleteAll failed: $e',
+        name: 'TagStore',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   // --- Session tagging ---
 
-  /// Get tags for a session.
   Future<List<Tag>> getForSession(String sessionId) async {
-    final db = _db;
-    if (db == null) return [];
-    final rows = await db.tagDao.getForSession(sessionId);
-    return rows
-        .map(
-          (r) => Tag(
-            id: r.id,
-            name: r.name,
-            color: r.color,
-            createdAt: r.createdAt,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    try {
+      final rows = await rust_db.dbTagsListForSession(sessionId: sessionId);
+      return rows.map(_toTag).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+    } catch (e) {
+      AppLogger.instance.log(
+        'TagStore.getForSession failed: $e',
+        name: 'TagStore',
+        level: LogLevel.warn,
+      );
+      return const [];
+    }
   }
 
-  /// Tag a session.
   Future<void> tagSession(String sessionId, String tagId) async {
-    final db = _db;
-    if (db == null) return;
     try {
-      await db.tagDao.tagSession(sessionId, tagId);
+      await rust_db.dbSessionTagsLink(sessionId: sessionId, tagId: tagId);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to tag session $sessionId with $tagId: $e',
@@ -92,39 +109,37 @@ class TagStore {
     }
   }
 
-  /// Untag a session.
   Future<void> untagSession(String sessionId, String tagId) async {
-    final db = _db;
-    if (db == null) return;
-    await db.tagDao.untagSession(sessionId, tagId);
+    try {
+      await rust_db.dbSessionTagsUnlink(sessionId: sessionId, tagId: tagId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to untag session $sessionId with $tagId: $e',
+        name: 'TagStore',
+      );
+    }
   }
 
   // --- Folder tagging ---
 
-  /// Get tags for a folder by folder ID.
   Future<List<Tag>> getForFolder(String folderId) async {
-    final db = _db;
-    if (db == null) return [];
-    final rows = await db.tagDao.getForFolder(folderId);
-    return rows
-        .map(
-          (r) => Tag(
-            id: r.id,
-            name: r.name,
-            color: r.color,
-            createdAt: r.createdAt,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    try {
+      final rows = await rust_db.dbTagsListForFolder(folderId: folderId);
+      return rows.map(_toTag).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+    } catch (e) {
+      AppLogger.instance.log(
+        'TagStore.getForFolder failed: $e',
+        name: 'TagStore',
+        level: LogLevel.warn,
+      );
+      return const [];
+    }
   }
 
-  /// Tag a folder.
   Future<void> tagFolder(String folderId, String tagId) async {
-    final db = _db;
-    if (db == null) return;
     try {
-      await db.tagDao.tagFolder(folderId, tagId);
+      await rust_db.dbFolderTagsLink(folderId: folderId, tagId: tagId);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to tag folder $folderId with $tagId: $e',
@@ -133,10 +148,14 @@ class TagStore {
     }
   }
 
-  /// Untag a folder.
   Future<void> untagFolder(String folderId, String tagId) async {
-    final db = _db;
-    if (db == null) return;
-    await db.tagDao.untagFolder(folderId, tagId);
+    try {
+      await rust_db.dbFolderTagsUnlink(folderId: folderId, tagId: tagId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to untag folder $folderId with $tagId: $e',
+        name: 'TagStore',
+      );
+    }
   }
 }

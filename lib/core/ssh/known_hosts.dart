@@ -1,21 +1,33 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart';
-import 'package:pointycastle/digests/sha256.dart';
+import 'package:crypto/crypto.dart';
 
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
-import '../db/database.dart';
 
-/// TOFU (Trust On First Use) host key verification backed by drift database.
+/// TOFU (Trust On First Use) host key verification backed by
+/// `lfs_core.db`. Engine behind the DAO is Rust + rusqlite; the
+/// on-disk row layout matches the `KnownHosts` schema drift used
+/// to own.
 ///
-/// Keeps the same public API as the old file-based manager. Call [setDatabase]
-/// before [load] — without a database, all reads return empty data and writes
-/// are no-ops.
+/// In-memory cache + serialisation invariants are preserved verbatim
+/// from the drift era. Pre-unlock and inside the unit-test runner
+/// the FRB calls raise synchronously; every entry point catches and
+/// degrades to "no DB attached" semantics so a race between unlock
+/// and the first verify cannot crash the connect path.
 class KnownHostsManager {
-  AppDatabase? _db;
-
   final Map<String, String> _hosts = {};
+
+  /// Drop the in-memory cache so the next [load] re-reads. Called
+  /// from the unlock handshake — replaces the drift-era
+  /// `setDatabase` injection now that the FRB DAO resolves the live
+  /// connection off `AppState`.
+  void invalidateCache() {
+    _hosts.clear();
+    _loaded = false;
+    _loadFuture = null;
+  }
 
   /// Read-only view of all known host entries.
   ///
@@ -24,11 +36,6 @@ class KnownHostsManager {
 
   /// Number of known hosts.
   int get count => _hosts.length;
-
-  /// Inject the opened database. Replaces the old `setEncryptionKey()`.
-  void setDatabase(AppDatabase db) {
-    _db = db;
-  }
 
   /// Cached load future — ensures concurrent calls to [load] don't race.
   Future<void>? _loadFuture;
@@ -102,11 +109,8 @@ class KnownHostsManager {
   }
 
   Future<void> _doLoad() async {
-    final db = _db;
-    if (db == null) return;
-
     try {
-      final entries = await db.knownHostDao.getAll();
+      final entries = await rust_db.dbKnownHostsListAll();
       _hosts.clear();
       for (final e in entries) {
         _hosts['${e.host}:${e.port}'] = '${e.keyType} ${e.keyBase64}';
@@ -225,16 +229,19 @@ class KnownHostsManager {
     String keyBase64,
   ) async {
     _hosts['$host:$port'] = '$keyType $keyBase64';
-    final db = _db;
-    if (db != null) {
-      await db.knownHostDao.insert(
-        KnownHostsCompanion.insert(
-          host: host,
-          port: Value(port),
-          keyType: keyType,
-          keyBase64: keyBase64,
-          addedAt: DateTime.now(),
-        ),
+    try {
+      await rust_db.dbKnownHostsUpsertByHostPort(
+        host: host,
+        port: port,
+        keyType: keyType,
+        keyBase64: keyBase64,
+        addedAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        '_addHost FRB write failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
       );
     }
   }
@@ -246,17 +253,21 @@ class KnownHostsManager {
     String keyBase64,
   ) async {
     _hosts['$host:$port'] = '$keyType $keyBase64';
-    final db = _db;
-    if (db != null) {
-      await db.knownHostDao.deleteByHostPort(host, port);
-      await db.knownHostDao.insert(
-        KnownHostsCompanion.insert(
-          host: host,
-          port: Value(port),
-          keyType: keyType,
-          keyBase64: keyBase64,
-          addedAt: DateTime.now(),
-        ),
+    try {
+      // Rust's upsert handles ON CONFLICT(host, port) — no separate
+      // delete-then-insert dance needed.
+      await rust_db.dbKnownHostsUpsertByHostPort(
+        host: host,
+        port: port,
+        keyType: keyType,
+        keyBase64: keyBase64,
+        addedAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        '_updateHost FRB write failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
       );
     }
   }
@@ -265,12 +276,17 @@ class KnownHostsManager {
   Future<void> removeHost(String hostPort) => _serializeWrite(() async {
     await load();
     if (_hosts.remove(hostPort) != null) {
-      final db = _db;
-      if (db != null) {
-        final parts = hostPort.split(':');
-        final host = parts[0];
-        final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
-        await db.knownHostDao.deleteByHostPort(host, port);
+      final parts = hostPort.split(':');
+      final host = parts[0];
+      final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+      try {
+        await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
+      } catch (e) {
+        AppLogger.instance.log(
+          'removeHost FRB delete failed: $e',
+          name: 'KnownHosts',
+          level: LogLevel.warn,
+        );
       }
       AppLogger.instance.log(
         'Removed known host: $hostPort',
@@ -286,13 +302,18 @@ class KnownHostsManager {
         for (final hp in hostPorts) {
           _hosts.remove(hp);
         }
-        final db = _db;
-        if (db != null) {
-          for (final hp in hostPorts) {
-            final parts = hp.split(':');
-            final host = parts[0];
-            final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
-            await db.knownHostDao.deleteByHostPort(host, port);
+        for (final hp in hostPorts) {
+          final parts = hp.split(':');
+          final host = parts[0];
+          final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+          try {
+            await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
+          } catch (e) {
+            AppLogger.instance.log(
+              'removeMultiple FRB delete failed for $hp: $e',
+              name: 'KnownHosts',
+              level: LogLevel.warn,
+            );
           }
         }
       });
@@ -302,7 +323,15 @@ class KnownHostsManager {
     await load();
     if (_hosts.isEmpty) return;
     _hosts.clear();
-    await _db?.knownHostDao.clearAll();
+    try {
+      await rust_db.dbKnownHostsClearAll();
+    } catch (e) {
+      AppLogger.instance.log(
+        'clearAll FRB write failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+    }
     AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
   });
 
@@ -331,15 +360,20 @@ class KnownHostsManager {
   /// Returns the number of new entries added (existing hosts are skipped).
   Future<int> importFromString(String content) => _serializeWrite(() async {
     await load();
-    final db = _db;
     var added = 0;
+    var skippedHashed = 0;
     for (final line in content.split('\n')) {
-      final entry = _parseLine(line);
-      if (entry == null || _hosts.containsKey(entry.hostPort)) continue;
-
-      _hosts[entry.hostPort] = entry.keyString;
-      if (db != null) await _persistEntry(db, entry);
-      added++;
+      final entries = _parseLine(line);
+      if (entries.isEmpty) {
+        if (_isHashedHostsLine(line)) skippedHashed++;
+        continue;
+      }
+      for (final entry in entries) {
+        if (_hosts.containsKey(entry.hostPort)) continue;
+        _hosts[entry.hostPort] = entry.keyString;
+        await _persistEntry(entry);
+        added++;
+      }
     }
     if (added > 0) {
       AppLogger.instance.log(
@@ -347,22 +381,44 @@ class KnownHostsManager {
         name: 'KnownHosts',
       );
     }
+    if (skippedHashed > 0) {
+      AppLogger.instance.log(
+        'Skipped $skippedHashed hashed known-hosts entries (HashKnownHosts) — '
+        'we cannot reverse the HMAC-SHA1 hash back to a hostname for storage',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+    }
     return added;
   });
 
-  Future<void> _persistEntry(AppDatabase db, _ParsedHostEntry entry) async {
+  static bool _isHashedHostsLine(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('#')) return false;
+    final firstSpace = trimmed.indexOf(RegExp(r'\s'));
+    if (firstSpace < 0) return false;
+    return trimmed.substring(0, firstSpace).startsWith('|1|');
+  }
+
+  Future<void> _persistEntry(_ParsedHostEntry entry) async {
     final hpParts = entry.hostPort.split(':');
     final host = hpParts[0];
     final port = hpParts.length > 1 ? int.tryParse(hpParts[1]) ?? 22 : 22;
-    await db.knownHostDao.insert(
-      KnownHostsCompanion.insert(
+    try {
+      await rust_db.dbKnownHostsUpsertByHostPort(
         host: host,
-        port: Value(port),
+        port: port,
         keyType: entry.keyType,
         keyBase64: entry.keyBase64,
-        addedAt: DateTime.now(),
-      ),
-    );
+        addedAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        '_persistEntry FRB write failed for ${entry.hostPort}: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   /// Export all entries to the LetsFLUTssh known_hosts wire format.
@@ -391,24 +447,114 @@ class KnownHostsManager {
 
   /// Compute SHA256 fingerprint of host key bytes.
   static String fingerprint(List<int> keyBytes) {
-    final digest = SHA256Digest();
-    final hash = digest.process(Uint8List.fromList(keyBytes));
+    final hash = sha256.convert(keyBytes).bytes;
     return 'SHA256:${base64Encode(hash)}';
   }
 
   String _fingerprint(List<int> keyBytes) => fingerprint(keyBytes);
 
-  static _ParsedHostEntry? _parseLine(String line) {
+  /// Parse a single line into zero or more host entries.
+  ///
+  /// Accepts both formats:
+  ///
+  /// - **LetsFLUTssh internal** (`host:port keytype base64key`) —
+  ///   what `exportToString` emits for `.lfs` archive round-trips.
+  /// - **OpenSSH `~/.ssh/known_hosts`** — the file the user has
+  ///   built up over years of `ssh` use. Supports:
+  ///   - bare hostname (`example.com keytype base64`) → port 22
+  ///   - bracketed `[host]:port` for non-default ports
+  ///   - comma-separated multi-host (`example.com,1.2.3.4,...`)
+  ///   - bracketed IPv6 (`[::1]:22`, `[::1]`)
+  ///   - leading `@cert-authority` / `@revoked` markers — skipped
+  ///     (we don't ship a cert-authority chain today)
+  ///   - hashed hostnames (`|1|salt|hash`) — skipped, the HMAC-SHA1
+  ///     hash can't be reversed back to a real hostname so we have
+  ///     nothing to match against on subsequent connects. Counted
+  ///     and surfaced via the importer's "skipped N hashed entries"
+  ///     warning so the user knows their `HashKnownHosts yes` rows
+  ///     were not silently swallowed.
+  ///
+  /// Returns one entry per resolved host:port pair. A single
+  /// OpenSSH multi-host line can yield several entries.
+  static List<_ParsedHostEntry> _parseLine(String line) {
     final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) return null;
-    final parts = trimmed.split(' ');
-    if (parts.length < 3) return null;
-    return _ParsedHostEntry(
-      hostPort: parts[0],
-      keyType: parts[1],
-      keyBase64: parts[2],
-      keyString: '${parts[1]} ${parts[2]}',
-    );
+    if (trimmed.isEmpty || trimmed.startsWith('#')) return const [];
+    // OpenSSH @-markers (cert-authority, revoked) — drop the marker
+    // and re-parse the rest. We don't currently honour
+    // cert-authority semantics (no cert chain on connect) so the
+    // safest read is "treat it like a normal entry"; @revoked
+    // entries are still imported because the user clearly wanted
+    // them on the file but won't have any effect on TOFU here.
+    final parts = trimmed.split(RegExp(r'\s+'));
+    var idx = 0;
+    while (idx < parts.length && parts[idx].startsWith('@')) {
+      idx++;
+    }
+    if (parts.length - idx < 3) return const [];
+    final hostSpec = parts[idx];
+    final keyType = parts[idx + 1];
+    final keyBase64 = parts[idx + 2];
+
+    if (hostSpec.startsWith('|1|')) {
+      // Hashed entry — caller's _isHashedHostsLine surfaces a
+      // separate "skipped N hashed entries" warning. Returning an
+      // empty list here means the import loop counts it as skipped.
+      return const [];
+    }
+    final keyString = '$keyType $keyBase64';
+    final out = <_ParsedHostEntry>[];
+    for (final spec in hostSpec.split(',')) {
+      final hostPort = _normaliseHostSpec(spec);
+      if (hostPort == null) continue;
+      out.add(
+        _ParsedHostEntry(
+          hostPort: hostPort,
+          keyType: keyType,
+          keyBase64: keyBase64,
+          keyString: keyString,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Convert a single OpenSSH host-spec or LetsFLUTssh internal
+  /// `host:port` into the canonical `host:port` shape the rest of
+  /// the manager keys on. Returns null on malformed input.
+  static String? _normaliseHostSpec(String spec) {
+    final s = spec.trim();
+    if (s.isEmpty) return null;
+    // OpenSSH bracketed form: `[host]:port` or `[ipv6]` (no port)
+    if (s.startsWith('[')) {
+      final close = s.indexOf(']');
+      if (close < 0) return null;
+      final host = s.substring(1, close);
+      if (host.isEmpty) return null;
+      // Tail after `]` is either empty (port 22) or `:port`.
+      final tail = s.substring(close + 1);
+      if (tail.isEmpty) return '$host:22';
+      if (!tail.startsWith(':')) return null;
+      final port = int.tryParse(tail.substring(1));
+      if (port == null || port < 1 || port > 65535) return null;
+      return '$host:$port';
+    }
+    // Bare IPv6 without brackets is illegal in OpenSSH — assume
+    // anything with multiple `:` is unbracketed IPv6 and drop it.
+    final colonCount = s.split(':').length - 1;
+    if (colonCount > 1) return null;
+    if (colonCount == 1) {
+      // `host:port` — internal format (or OpenSSH IPv4-with-explicit
+      // port which OpenSSH itself does not emit but we accept).
+      final parts = s.split(':');
+      final host = parts[0];
+      final port = int.tryParse(parts[1]);
+      if (host.isEmpty || port == null || port < 1 || port > 65535) {
+        return null;
+      }
+      return '$host:$port';
+    }
+    // Bare hostname — OpenSSH default port 22.
+    return '$s:22';
   }
 }
 

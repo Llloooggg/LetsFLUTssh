@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/db/database.dart';
 import '../../core/db/database_opener.dart';
+import '../../src/rust/api/app.dart' as rust_app;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
@@ -132,6 +133,21 @@ class SecurityTierSwitcher {
         name: 'SecurityTierSwitcher',
       );
       rethrow;
+    }
+    // 3b. Rekey lfs_core's parallel sqlite handle so its file does
+    //     not stay locked under the previous key on next boot.
+    //     Drift uses MC ChaCha20; lfs_core uses SQLCipher AES-256-CBC
+    //     (cipher_compatibility=4). Both pages get re-encrypted under
+    //     the same `newKey` even though the cipher families differ —
+    //     each PRAGMA rekey is engine-local.
+    try {
+      await rust_app.dbRekey(newKey: List<int>.from(newKey));
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tier switch lfs_core rekey failed (continuing — drift already rekeyed): $e',
+        name: 'SecurityTierSwitcher',
+        level: LogLevel.warn,
+      );
     }
 
     // 4. Wrap the new key in the target tier's vault.

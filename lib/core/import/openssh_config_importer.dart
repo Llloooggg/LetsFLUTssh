@@ -11,7 +11,7 @@ import 'key_file_helper.dart';
 
 /// Reader that returns PEM contents for a path, or null if unreadable /
 /// not a private key. Injected for testability (file system isolation).
-typedef PemKeyReader = String? Function(String path);
+typedef PemKeyReader = Future<String?> Function(String path);
 
 /// Classifier for PEM encryption state. Matches [KeyFileHelper.isEncryptedPem]
 /// in production; stubbed out in tests so they don't have to craft real
@@ -85,12 +85,12 @@ class OpenSshConfigImporter {
   ///
   /// [folderLabel] is where imported sessions land — recommended to include
   /// the date so users can tell where hosts came from after the fact.
-  OpenSshConfigImportPreview buildPreview({
+  Future<OpenSshConfigImportPreview> buildPreview({
     required String configContent,
     required String folderLabel,
     String keyLabelSuffix = '',
     ImportMode mode = ImportMode.merge,
-  }) {
+  }) async {
     final entries = parseOpenSshConfig(configContent);
     final sessions = <Session>[];
     final keys = <SshKeyEntry>[];
@@ -99,7 +99,7 @@ class OpenSshConfigImporter {
     final encryptedKeys = <String>[];
 
     for (final entry in entries) {
-      final resolution = _resolveIdentityKey(
+      final resolution = await _resolveIdentityKey(
         entry,
         keys,
         keyIdByFingerprint,
@@ -174,12 +174,12 @@ class OpenSshConfigImporter {
   ///   because it's passphrase-protected — `keyId` empty, `encrypted=true`.
   /// * missing: the entry *declared* an IdentityFile but none were readable
   ///   — `keyId` empty, `missing=true`.
-  _KeyResolution _resolveIdentityKey(
+  Future<_KeyResolution> _resolveIdentityKey(
     OpenSshConfigEntry entry,
     List<SshKeyEntry> keys,
     Map<String, String> keyIdByFingerprint,
     String keyLabelSuffix,
-  ) {
+  ) async {
     if (entry.identityFiles.isEmpty) return const _KeyResolution('');
     var sawEncrypted = false;
     for (final rawPath in entry.identityFiles) {
@@ -191,7 +191,7 @@ class OpenSshConfigImporter {
         continue;
       }
       final path = expandHome(rawPath);
-      final pem = readPem(path);
+      final pem = await readPem(path);
       if (pem == null) continue;
       if (isEncryptedPem(pem)) {
         sawEncrypted = true;
@@ -205,7 +205,7 @@ class OpenSshConfigImporter {
       final existingId = keyIdByFingerprint[fp];
       if (existingId != null) return _KeyResolution(existingId);
       try {
-        final keyEntry = _keyParser.importKey(
+        final keyEntry = await _keyParser.importKey(
           pem,
           _keyLabel(rawPath, keyLabelSuffix),
         );

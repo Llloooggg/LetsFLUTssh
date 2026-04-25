@@ -2064,6 +2064,195 @@ class SEs extends S {
   String get commandCopied => 'Comando copiado al portapapeles';
 
   @override
+  String get snippetTokensHint =>
+      'Toca para insertar un marcador. Se reemplazan en tiempo de ejecución con valores de la sesión activa:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Cualquier otro con llaves dobles te pide un valor al ejecutar el snippet.';
+
+  @override
+  String get snippetFillTitle => 'Rellenar parámetros del snippet';
+
+  @override
+  String get snippetFillSubmit => 'Ejecutar';
+
+  @override
+  String get snippetPreview => 'Vista previa';
+
+  @override
+  String get broadcastSetDriver => 'Transmitir desde este panel';
+
+  @override
+  String get broadcastClearDriver => 'Dejar de transmitir desde este panel';
+
+  @override
+  String get broadcastAddReceiver => 'Recibir transmisión aquí';
+
+  @override
+  String get broadcastRemoveReceiver => 'Dejar de recibir transmisión';
+
+  @override
+  String get broadcastClearAll => 'Detener todas las transmisiones';
+
+  @override
+  String get broadcastPasteTitle => '¿Enviar pegado a todos los paneles?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return 'Se enviarán $chars caracteres a $count paneles más.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Enviar';
+
+  @override
+  String get portForwarding => 'Reenvío';
+
+  @override
+  String get portForwardingEmpty => 'Aún no hay reglas';
+
+  @override
+  String get addForwardRule => 'Añadir regla';
+
+  @override
+  String get editForwardRule => 'Editar regla';
+
+  @override
+  String get deleteForwardRule => 'Eliminar regla';
+
+  @override
+  String get localForward => 'Local';
+
+  @override
+  String get remoteForward => 'Remoto';
+
+  @override
+  String get dynamicForward => 'Dinámico';
+
+  @override
+  String get forwardKind => 'Tipo';
+
+  @override
+  String get bindAddress => 'Dirección de enlace';
+
+  @override
+  String get bindPort => 'Puerto de enlace';
+
+  @override
+  String get targetHost => 'Host destino';
+
+  @override
+  String get targetPort => 'Puerto destino';
+
+  @override
+  String get forwardDescription => 'Descripción (opcional)';
+
+  @override
+  String get forwardEnabled => 'Activado';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Enlazar a 0.0.0.0 publica el reenvío en todas las interfaces — normalmente querrás 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Los reenvíos locales (-L), remotos (-R) y SOCKS5 dinámicos (-D) están todos activos.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Local: abre un puerto en este equipo que tuneliza a un destino accesible desde el servidor SSH. Útil para acceder a bases de datos remotas o paneles admin en localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Remoto: pide al servidor SSH abrir un puerto que tuneliza a un destino accesible desde este equipo. Útil para compartir un dev server local con un host remoto (el servidor puede requerir GatewayPorts yes para binds no-loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Dinámico: un proxy SOCKS5 en este equipo que enruta cada conexión por el servidor SSH. Apunta tu navegador o curl a localhost:bindPort para enviar todo el tráfico por SSH.';
+
+  @override
+  String get forwardExample => 'Ejemplo';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → BD remota vía localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → expone tu dev server en puerto 9000 del servidor';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → SOCKS5 del navegador a localhost:1080';
+
+  @override
+  String get proxyJump => 'Conectar mediante';
+
+  @override
+  String get proxyJumpNone => 'Conexión directa';
+
+  @override
+  String get proxyJumpSavedSession => 'Sesión guardada';
+
+  @override
+  String get proxyJumpCustom => 'Personalizado';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Los saltos personalizados usan las credenciales de esta sesión. Para auth de bastión distinta, guarda el bastión como sesión propia.';
+
+  @override
+  String get errProxyJumpCycle => 'La cadena de proxy forma un bucle.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'La cadena de proxy es demasiado profunda (máx $max saltos).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'El bastión $label no pudo conectar.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'vía $label';
+  }
+
+  @override
+  String get recordSession => 'Grabar sesión';
+
+  @override
+  String get recordSessionHelp =>
+      'Guardar la salida del terminal en disco para esta sesión. Cifrada en reposo si hay contraseña maestra o clave de hardware.';
+
+  @override
+  String get recordingsBrowserTitle => 'Grabaciones';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Examinar, reproducir y eliminar sesiones grabadas';
+
+  @override
+  String get recordingsEmpty => 'Sin grabaciones aún';
+
+  @override
+  String get playRecording => 'Reproducir';
+
+  @override
+  String get deleteRecording => 'Eliminar';
+
+  @override
+  String get recordingPlaybackTitle => 'Reproducir grabación';
+
+  @override
+  String get recordingSpeed => 'Velocidad';
+
+  @override
+  String get recordingSpeedInstant => 'Instantáneo';
+
+  @override
   String get tags => 'Etiquetas';
 
   @override

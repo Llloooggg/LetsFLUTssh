@@ -1,0 +1,48 @@
+[package]
+name = "lfs_core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+# Pure-Rust headless library — consumed by frontend adapters
+# (`lfs_frb`, future `lfs_tauri`, `lfs_cli`). No cdylib here: only the
+# adapter crate produces the native blob loaded by the host runtime.
+crate-type = ["rlib"]
+
+[dependencies]
+russh = { workspace = true }
+# Direct dep solely to enable the `ppk` feature on the forked
+# ssh-key crate that russh pulls transitively. See workspace
+# Cargo.toml note for the version-pin rationale.
+internal-russh-forked-ssh-key = { workspace = true }
+russh-sftp = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+# Used by `keys::generate_*` for keypair RNG. Kept on rand 0.8 to
+# match the trait bound on russh-keys 0.6.16's `PrivateKey::random`.
+rand = "0.8"
+# Phase 2 crypto envelopes — HKDF-SHA-256 + Ed25519 verify in
+# `lfs_core::crypto`. Replaces pointycastle / pinenacl on the Dart
+# side once the call sites flip.
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+aes-gcm = { workspace = true }
+argon2 = { workspace = true }
+rusqlite = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+# Hardening: deny `unsafe` blocks at the lfs_core level. Transitive
+# crates (russh, tokio, ring, ...) still use `unsafe` internally —
+# that's their audit perimeter, not ours. This pins the rule on
+# anything WE write here.
+[lints.rust]
+unsafe_code = "forbid"

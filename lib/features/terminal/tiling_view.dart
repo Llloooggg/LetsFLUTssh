@@ -62,6 +62,8 @@ class _TilingViewState extends State<TilingView> {
 
     return TerminalPane(
       key: ValueKey(node.id),
+      paneId: node.id,
+      tabId: widget.tabId,
       connection: connection,
       isFocused: widget.focusedPaneId == node.id,
       hasMultiplePanes: hasMultiplePanes,

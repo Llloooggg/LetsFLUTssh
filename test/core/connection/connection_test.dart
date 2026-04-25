@@ -33,7 +33,7 @@ void main() {
 
     test('defaults to disconnected state', () {
       expect(conn.state, SSHConnectionState.disconnected);
-      expect(conn.sshConnection, isNull);
+      expect(conn.transport, isNull);
     });
 
     test('isConnected returns true only when connected', () {

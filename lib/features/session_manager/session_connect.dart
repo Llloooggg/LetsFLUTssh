@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
+import '../../core/ssh/errors.dart';
+import '../../core/ssh/port_forward_runtime.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
@@ -45,6 +47,12 @@ class SessionConnect {
     return true;
   }
 
+  /// Hard cap on ProxyJump chain depth. Catches typo loops before
+  /// they spend real bandwidth dialing 50 hops, while still leaving
+  /// room for realistic enterprise stacks (corp gateway → region →
+  /// cluster → service ≈ 4, doubled for safety).
+  static const int maxProxyJumpDepth = 8;
+
   /// Validate session and create a background connection, or return null on failure.
   ///
   /// The [session] passed in comes from the in-memory cache and carries no
@@ -69,11 +77,120 @@ class SessionConnect {
     );
     final config = await _resolveConfig(ref, fresh);
     final manager = ref.read(connectionManagerProvider);
-    return manager.connectAsync(
+
+    // ProxyJump chain — connect every bastion bottom-up before the
+    // final session. ConnectionManager._doConnect reads the bastion's
+    // transport off `conn.bastion?.transport` and tunnels via
+    // `connectViaProxy`.
+    Connection? bastion;
+    if (fresh.hasProxyJump) {
+      try {
+        bastion = await _ensureBastion(ref, fresh, <String>{fresh.id});
+      } on SSHError catch (e) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: e.userMessage,
+            level: ToastLevel.warning,
+          );
+        }
+        return null;
+      }
+    }
+
+    final conn = manager.connectAsync(
       config,
       label: fresh.label.isNotEmpty ? fresh.label : fresh.displayName,
       sessionId: fresh.id,
+      bastion: bastion,
     );
+    await _attachPortForwards(ref, fresh.id, conn);
+    return conn;
+  }
+
+  /// Recursively connect every bastion in the chain bottom-up,
+  /// returning the immediate hop the final session connects through.
+  /// Each hop tunnels through its parent's `RustTransport` via
+  /// `connectViaProxy`; the bottom hop talks to its server directly.
+  ///
+  /// [visited] tracks session ids already in the chain (cycle guard).
+  /// Depth ceiling is [maxProxyJumpDepth] to bound runaway loops
+  /// even when no cycle exists.
+  static Future<Connection> _ensureBastion(
+    WidgetRef ref,
+    Session current,
+    Set<String> visited,
+  ) async {
+    if (visited.length >= maxProxyJumpDepth) {
+      throw ProxyJumpDepthError(visited.length);
+    }
+    // Resolve the bastion: saved-session id wins over override.
+    Session? bastionSession;
+    SSHConfig bastionConfig;
+    String bastionLabel;
+    if (current.viaSessionId != null) {
+      final store = ref.read(sessionStoreProvider);
+      bastionSession = await store.loadWithCredentials(current.viaSessionId!);
+      if (bastionSession == null) {
+        throw ProxyJumpBastionError(
+          current.viaSessionId!,
+          'bastion session missing',
+        );
+      }
+      if (visited.contains(bastionSession.id)) {
+        throw ProxyJumpCycleError(bastionSession.id);
+      }
+      bastionConfig = await _resolveConfig(ref, bastionSession);
+      bastionLabel = bastionSession.label.isNotEmpty
+          ? bastionSession.label
+          : bastionSession.displayName;
+    } else {
+      // Override bastion — reuses the final session's credentials.
+      // Documented limitation: for distinct bastion auth, save the
+      // bastion as its own session and link via viaSessionId.
+      final ov = current.viaOverride!;
+      bastionConfig = SSHConfig(
+        server: ServerAddress(host: ov.host, port: ov.port, user: ov.user),
+        auth: current.toSSHConfig().auth,
+      );
+      bastionLabel = '${ov.user}@${ov.host}:${ov.port}';
+    }
+
+    final manager = ref.read(connectionManagerProvider);
+
+    // Recursively materialise this bastion's own bastion chain.
+    Connection? upstream;
+    if (bastionSession != null && bastionSession.hasProxyJump) {
+      upstream = await _ensureBastion(ref, bastionSession, {
+        ...visited,
+        bastionSession.id,
+      });
+    }
+
+    final conn = manager.connectAsync(
+      bastionConfig,
+      label: bastionLabel,
+      sessionId: bastionSession?.id,
+      bastion: upstream,
+      internal: true,
+    );
+    return conn;
+  }
+
+  /// Read the saved port-forward rules for [sessionId] and attach a
+  /// runtime that opens listeners on connect / closes them on
+  /// disconnect. Cheap when the rule list is empty — the runtime is
+  /// only constructed when the user has configured at least one rule.
+  static Future<void> _attachPortForwards(
+    WidgetRef ref,
+    String sessionId,
+    Connection conn,
+  ) async {
+    final store = ref.read(sessionStoreProvider);
+    final rules = await store.loadPortForwards(sessionId);
+    if (rules.isEmpty) return;
+    final runtime = PortForwardRuntime(rules: rules);
+    conn.addExtension(runtime);
   }
 
   /// Build SSHConfig, resolving keyId from the key store if set.

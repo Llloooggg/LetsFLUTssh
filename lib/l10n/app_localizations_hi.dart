@@ -2050,6 +2050,195 @@ class SHi extends S {
   String get commandCopied => 'कमांड कॉपी की गई';
 
   @override
+  String get snippetTokensHint =>
+      'प्लेसहोल्डर डालने के लिए टैप करें। ये रनटाइम पर सक्रिय सत्र के मानों से बदले जाते हैं:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'डबल ब्रेसेस वाला कुछ भी और स्निपेट चलाने पर मान मांगता है।';
+
+  @override
+  String get snippetFillTitle => 'स्निपेट पैरामीटर भरें';
+
+  @override
+  String get snippetFillSubmit => 'चलाएँ';
+
+  @override
+  String get snippetPreview => 'पूर्वावलोकन';
+
+  @override
+  String get broadcastSetDriver => 'इस पैन से प्रसारण';
+
+  @override
+  String get broadcastClearDriver => 'इस पैन से प्रसारण बंद करें';
+
+  @override
+  String get broadcastAddReceiver => 'यहाँ प्रसारण प्राप्त करें';
+
+  @override
+  String get broadcastRemoveReceiver => 'प्रसारण प्राप्त करना बंद करें';
+
+  @override
+  String get broadcastClearAll => 'सभी प्रसारण बंद करें';
+
+  @override
+  String get broadcastPasteTitle => 'पेस्ट सभी पैनों पर भेजें?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars वर्ण $count अन्य पैनों पर भेजे जाएँगे।';
+  }
+
+  @override
+  String get broadcastPasteSend => 'भेजें';
+
+  @override
+  String get portForwarding => 'फ़ॉरवर्डिंग';
+
+  @override
+  String get portForwardingEmpty => 'अभी कोई नियम नहीं';
+
+  @override
+  String get addForwardRule => 'नियम जोड़ें';
+
+  @override
+  String get editForwardRule => 'नियम संपादित करें';
+
+  @override
+  String get deleteForwardRule => 'नियम हटाएँ';
+
+  @override
+  String get localForward => 'स्थानीय';
+
+  @override
+  String get remoteForward => 'दूरस्थ';
+
+  @override
+  String get dynamicForward => 'गतिशील';
+
+  @override
+  String get forwardKind => 'प्रकार';
+
+  @override
+  String get bindAddress => 'बाइंड पता';
+
+  @override
+  String get bindPort => 'बाइंड पोर्ट';
+
+  @override
+  String get targetHost => 'लक्ष्य होस्ट';
+
+  @override
+  String get targetPort => 'लक्ष्य पोर्ट';
+
+  @override
+  String get forwardDescription => 'विवरण (वैकल्पिक)';
+
+  @override
+  String get forwardEnabled => 'सक्षम';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '0.0.0.0 से बाइंड करने पर फ़ॉरवर्ड हर इंटरफ़ेस पर प्रकाशित होता है — आमतौर पर 127.0.0.1 चाहिए।';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'स्थानीय (-L), दूरस्थ (-R) और गतिशील SOCKS5 (-D) फ़ॉरवर्ड सभी सक्रिय हैं।';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'स्थानीय: इस डिवाइस पर एक पोर्ट खोलता है जो SSH सर्वर से पहुँच योग्य लक्ष्य तक टनल करता है। localhost:bindPort के माध्यम से दूरस्थ डेटाबेस या एडमिन UI तक पहुँच के लिए उपयोगी।';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'दूरस्थ: SSH सर्वर से एक पोर्ट खोलने को कहता है जो इस डिवाइस से पहुँच योग्य लक्ष्य तक वापस टनल करता है। दूरस्थ होस्ट के साथ स्थानीय dev server साझा करने के लिए उपयोगी (सर्वर को non-loopback binds के लिए GatewayPorts yes चाहिए हो सकता है)।';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'गतिशील: इस डिवाइस पर एक SOCKS5 प्रॉक्सी जो हर कनेक्शन को SSH सर्वर के माध्यम से रूट करता है। सभी ट्रैफ़िक SSH के माध्यम से भेजने के लिए ब्राउज़र या curl को localhost:bindPort पर पॉइंट करें।';
+
+  @override
+  String get forwardExample => 'उदाहरण';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → localhost:8080 के माध्यम से दूरस्थ DB तक पहुँच';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → सर्वर पोर्ट 9000 पर dev server को उजागर करें';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → ब्राउज़र SOCKS5 को localhost:1080 पर सेट करें';
+
+  @override
+  String get proxyJump => 'इसके माध्यम से जुड़ें';
+
+  @override
+  String get proxyJumpNone => 'सीधा कनेक्शन';
+
+  @override
+  String get proxyJumpSavedSession => 'सहेजा गया सत्र';
+
+  @override
+  String get proxyJumpCustom => 'कस्टम';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'कस्टम हॉप्स इसी सत्र के क्रेडेंशियल उपयोग करते हैं। अलग बेस्टियन ऑथ के लिए बेस्टियन को अलग सत्र के रूप में सहेजें।';
+
+  @override
+  String get errProxyJumpCycle => 'प्रॉक्सी श्रृंखला स्वयं को लूप करती है।';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'प्रॉक्सी श्रृंखला बहुत गहरी है (अधिकतम $max हॉप्स)।';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'बेस्टियन $label कनेक्ट नहीं हो सका।';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return '$label के माध्यम से';
+  }
+
+  @override
+  String get recordSession => 'सत्र रिकॉर्ड करें';
+
+  @override
+  String get recordSessionHelp =>
+      'इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या हार्डवेयर कुंजी सक्षम होने पर रेस्ट में एन्क्रिप्टेड।';
+
+  @override
+  String get recordingsBrowserTitle => 'रिकॉर्डिंग';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'रिकॉर्ड किए गए सत्र ब्राउज़, चलाएँ और हटाएँ';
+
+  @override
+  String get recordingsEmpty => 'अभी कोई रिकॉर्डिंग नहीं';
+
+  @override
+  String get playRecording => 'चलाएँ';
+
+  @override
+  String get deleteRecording => 'हटाएँ';
+
+  @override
+  String get recordingPlaybackTitle => 'रिकॉर्डिंग रीप्ले करें';
+
+  @override
+  String get recordingSpeed => 'गति';
+
+  @override
+  String get recordingSpeedInstant => 'तुरंत';
+
+  @override
   String get tags => 'टैग';
 
   @override

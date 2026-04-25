@@ -23,8 +23,15 @@ jobs:
       - name: Run OSV-Scanner
         uses: google/osv-scanner-action/osv-scanner-action@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
         with:
+          # Both lockfiles scanned: Dart deps (pubspec.lock) and the
+          # Rust security/transport core (rust/Cargo.lock — see
+          # ARCHITECTURE.md §3.14). cargo-deny in `ci.yml::rust-ci`
+          # also runs the RustSec advisory DB; OSV here cross-checks
+          # against the broader OSV DB which aggregates GitHub
+          # Advisories + RustSec + others.
           scan-args: |-
             --lockfile=pubspec.lock
+            --lockfile=rust/Cargo.lock
             --format=sarif
             --output=results.sarif
 

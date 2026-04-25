@@ -56,6 +56,26 @@ class Sessions extends Table {
   /// jump) keep their own columns; this is the escape hatch.
   TextColumn get extras => text().withDefault(const Constant('{}'))();
 
+  /// ProxyJump bastion: id of another saved session whose SSH client
+  /// opens a forwardLocal channel that the final hop uses as its
+  /// transport. Null = no bastion. `ON DELETE SET NULL` so deleting a
+  /// bastion does not cascade-delete every session that referenced
+  /// it; the UI surfaces the now-orphaned session as "lost jump host".
+  TextColumn get viaSessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// One-off bastion override: when the user does not have the
+  /// bastion as a saved session, they can type `host` / `port` /
+  /// `user` directly. All three columns are nullable; either all
+  /// three are set or none are. When `viaSessionId` is set the
+  /// override fields are ignored.
+  TextColumn get viaHost => text().nullable()();
+  IntColumn get viaPort => integer().nullable()();
+  TextColumn get viaUser => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -178,6 +198,28 @@ class SessionSnippets extends Table {
 
   @override
   Set<Column> get primaryKey => {sessionId, snippetId};
+}
+
+/// SSH port-forward rules — one row per local/remote/dynamic forward
+/// attached to a session. Loaded into [PortForwardRuntime] on connect,
+/// torn down on disconnect via the [ConnectionExtension] hook chain.
+@DataClassName('DbPortForwardRule')
+class PortForwardRules extends Table {
+  TextColumn get id => text()();
+  TextColumn get sessionId =>
+      text().references(Sessions, #id, onDelete: KeyAction.cascade)();
+  TextColumn get kind => text().withDefault(const Constant('local'))();
+  TextColumn get bindHost => text().withDefault(const Constant('127.0.0.1'))();
+  IntColumn get bindPort => integer()();
+  TextColumn get remoteHost => text().withDefault(const Constant(''))();
+  IntColumn get remotePort => integer().withDefault(const Constant(0))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
 /// SFTP path bookmarks — saved remote paths per session.

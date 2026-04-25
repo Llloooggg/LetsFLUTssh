@@ -238,7 +238,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _terminal.onOutput = (data) {
         final transformed =
             _keyboardKey.currentState?.applyModifiers(data) ?? data;
-        _shellConn?.shell.write(Uint8List.fromList(utf8.encode(transformed)));
+        _shellConn?.write(Uint8List.fromList(utf8.encode(transformed)));
       };
 
       if (mounted) setState(() {});
@@ -269,7 +269,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   void _onKeyboardInput(String data) {
-    _shellConn?.shell.write(Uint8List.fromList(utf8.encode(data)));
+    _shellConn?.write(Uint8List.fromList(utf8.encode(data)));
   }
 
   void _paste() {
@@ -280,11 +280,19 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   /// command to the shell with a trailing newline — matching the desktop
   /// terminal pane behaviour.
   Future<void> _showSnippets() async {
-    final shell = _shellConn?.shell;
+    final shell = _shellConn;
     if (shell == null) return;
+    final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
       context,
       sessionId: widget.connection.sessionId,
+      templateContext: {
+        'host': cfg.host,
+        'user': cfg.user,
+        'port': cfg.port.toString(),
+        'label': widget.connection.label,
+        'now': DateTime.now().toIso8601String(),
+      },
     );
     if (command == null) return;
     final payload = command.endsWith('\n') ? command : '$command\n';

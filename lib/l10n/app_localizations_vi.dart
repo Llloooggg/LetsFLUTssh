@@ -2040,6 +2040,195 @@ class SVi extends S {
   String get commandCopied => 'Đã sao chép lệnh';
 
   @override
+  String get snippetTokensHint =>
+      'Chạm để chèn placeholder. Chúng được thay thế khi chạy bằng giá trị từ phiên hoạt động:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Bất kỳ thứ gì khác với dấu ngoặc nhọn kép sẽ hỏi bạn giá trị khi chạy snippet.';
+
+  @override
+  String get snippetFillTitle => 'Điền tham số snippet';
+
+  @override
+  String get snippetFillSubmit => 'Chạy';
+
+  @override
+  String get snippetPreview => 'Xem trước';
+
+  @override
+  String get broadcastSetDriver => 'Phát từ ngăn này';
+
+  @override
+  String get broadcastClearDriver => 'Dừng phát từ ngăn này';
+
+  @override
+  String get broadcastAddReceiver => 'Nhận phát ở đây';
+
+  @override
+  String get broadcastRemoveReceiver => 'Ngừng nhận phát';
+
+  @override
+  String get broadcastClearAll => 'Dừng tất cả phát';
+
+  @override
+  String get broadcastPasteTitle => 'Gửi dán đến tất cả các ngăn?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars ký tự sẽ được gửi đến $count ngăn khác.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Gửi';
+
+  @override
+  String get portForwarding => 'Chuyển tiếp';
+
+  @override
+  String get portForwardingEmpty => 'Chưa có quy tắc nào';
+
+  @override
+  String get addForwardRule => 'Thêm quy tắc';
+
+  @override
+  String get editForwardRule => 'Sửa quy tắc';
+
+  @override
+  String get deleteForwardRule => 'Xoá quy tắc';
+
+  @override
+  String get localForward => 'Cục bộ';
+
+  @override
+  String get remoteForward => 'Từ xa';
+
+  @override
+  String get dynamicForward => 'Động';
+
+  @override
+  String get forwardKind => 'Loại';
+
+  @override
+  String get bindAddress => 'Địa chỉ bind';
+
+  @override
+  String get bindPort => 'Cổng bind';
+
+  @override
+  String get targetHost => 'Máy đích';
+
+  @override
+  String get targetPort => 'Cổng đích';
+
+  @override
+  String get forwardDescription => 'Mô tả (tuỳ chọn)';
+
+  @override
+  String get forwardEnabled => 'Bật';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Bind tới 0.0.0.0 phát chuyển tiếp trên mọi giao diện — thường bạn muốn 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Chuyển tiếp cục bộ (-L), từ xa (-R) và SOCKS5 động (-D) đều đang hoạt động.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Cục bộ: mở một cổng trên thiết bị này, tạo đường hầm đến mục tiêu mà máy chủ SSH có thể tới. Hữu ích để truy cập cơ sở dữ liệu hoặc giao diện admin từ xa qua localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Từ xa: yêu cầu máy chủ SSH mở một cổng, tạo đường hầm trở về mục tiêu mà thiết bị này có thể tới. Hữu ích để chia sẻ máy chủ dev cục bộ với host từ xa (máy chủ có thể cần GatewayPorts yes cho bind không phải loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Động: một proxy SOCKS5 trên thiết bị này định tuyến mọi kết nối qua máy chủ SSH. Trỏ trình duyệt hoặc curl đến localhost:bindPort để gửi mọi lưu lượng qua SSH.';
+
+  @override
+  String get forwardExample => 'Ví dụ';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → truy cập DB từ xa qua localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → mở dev server ở cổng 9000 của máy chủ';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → đặt SOCKS5 trình duyệt là localhost:1080';
+
+  @override
+  String get proxyJump => 'Kết nối qua';
+
+  @override
+  String get proxyJumpNone => 'Kết nối trực tiếp';
+
+  @override
+  String get proxyJumpSavedSession => 'Phiên đã lưu';
+
+  @override
+  String get proxyJumpCustom => 'Tuỳ chỉnh';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Hop tuỳ chỉnh dùng thông tin xác thực của phiên này. Để xác thực bastion khác, hãy lưu bastion như một phiên riêng.';
+
+  @override
+  String get errProxyJumpCycle => 'Chuỗi proxy lặp lại chính nó.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Chuỗi proxy quá sâu (tối đa $max hop).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label kết nối thất bại.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'qua $label';
+  }
+
+  @override
+  String get recordSession => 'Ghi phiên';
+
+  @override
+  String get recordSessionHelp =>
+      'Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ nếu bật master password hoặc khóa phần cứng.';
+
+  @override
+  String get recordingsBrowserTitle => 'Bản ghi';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Duyệt, phát lại và xóa các phiên đã ghi';
+
+  @override
+  String get recordingsEmpty => 'Chưa có bản ghi nào';
+
+  @override
+  String get playRecording => 'Phát';
+
+  @override
+  String get deleteRecording => 'Xóa';
+
+  @override
+  String get recordingPlaybackTitle => 'Phát lại bản ghi';
+
+  @override
+  String get recordingSpeed => 'Tốc độ';
+
+  @override
+  String get recordingSpeedInstant => 'Tức thì';
+
+  @override
   String get tags => 'Thẻ';
 
   @override

@@ -1,20 +1,18 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../session/session.dart';
 import '../ssh/ssh_config.dart';
-import 'dao/folder_dao.dart';
-import 'database.dart';
 
 // ---------------------------------------------------------------------------
 // Session ↔ DB mapping
 // ---------------------------------------------------------------------------
 
-/// Convert [DbSession] to domain [Session] using a folder map for path
-/// resolution.
+/// Convert FRB [rust_db.DbSession] to domain [Session] using a folder
+/// map for path resolution.
 ///
 /// When [withCredentials] is false (default), the returned `SessionAuth`
 /// carries empty `password`/`keyData`/`passphrase` strings — the DB row's
@@ -23,8 +21,8 @@ import 'database.dart';
 /// `withCredentials: true` at the moment of use, so secrets spend as
 /// little time on the Dart heap as possible.
 Session dbSessionToSession(
-  DbSession db,
-  Map<String, DbFolder> folderMap, {
+  rust_db.DbSession db,
+  Map<String, rust_db.DbFolder> folderMap, {
   bool withCredentials = false,
 }) {
   // Record whether the row actually carries a secret even when we strip
@@ -52,10 +50,22 @@ Session dbSessionToSession(
       keyData: withCredentials ? db.keyData : '',
       passphrase: withCredentials ? db.passphrase : '',
     ),
-    createdAt: db.createdAt,
-    updatedAt: db.updatedAt,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(db.createdAtMs),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(db.updatedAtMs),
     extras: _decodeExtras(db.extras),
+    viaSessionId: db.viaSessionId,
+    viaOverride: _decodeOverride(db.viaHost, db.viaPort, db.viaUser),
   );
+}
+
+/// Reassemble a [ProxyJumpOverride] from the three nullable columns,
+/// requiring all three to be set. A partial row (e.g. user wiped the
+/// host but left port behind via direct DB edit) maps to `null` so
+/// the runtime never tries to dial half a bastion.
+ProxyJumpOverride? _decodeOverride(String? host, int? port, String? user) {
+  if (host == null || host.trim().isEmpty) return null;
+  if (user == null || user.trim().isEmpty) return null;
+  return ProxyJumpOverride(host: host, port: port ?? 22, user: user);
 }
 
 /// Decode the `Sessions.extras` JSON column. Tolerates malformed
@@ -78,24 +88,35 @@ Map<String, Object?> _decodeExtras(String raw) {
   return const <String, Object?>{};
 }
 
-/// Convert domain [Session] to [SessionsCompanion] for DB insert/update.
-SessionsCompanion sessionToCompanion(Session s, {required String? folderId}) {
-  return SessionsCompanion(
-    id: Value(s.id),
-    label: Value(s.label),
-    folderId: Value(folderId),
-    host: Value(s.host),
-    port: Value(s.port),
-    user: Value(s.user),
-    authType: Value(s.authType.name),
-    password: Value(s.password),
-    keyPath: Value(s.keyPath),
-    keyData: Value(s.keyData),
-    keyId: Value(s.keyId.isEmpty ? null : s.keyId),
-    passphrase: Value(s.passphrase),
-    extras: Value(jsonEncode(s.extras)),
-    createdAt: Value(s.createdAt),
-    updatedAt: Value(s.updatedAt),
+/// Convert domain [Session] to FRB [rust_db.DbSession] for upsert.
+rust_db.DbSession sessionToRustRow(Session s, {required String? folderId}) {
+  // viaSessionId wins over viaOverride — see Session class doc.
+  // Persist the loser as null so a stray override left over from a
+  // prior edit cannot resurrect after viaSessionId is cleared.
+  final usingSavedBastion = s.viaSessionId != null;
+  return rust_db.DbSession(
+    id: s.id,
+    label: s.label,
+    folderId: folderId,
+    host: s.host,
+    port: s.port,
+    user: s.user,
+    authType: s.authType.name,
+    password: s.password,
+    keyPath: s.keyPath,
+    keyData: s.keyData,
+    keyId: s.keyId.isEmpty ? null : s.keyId,
+    passphrase: s.passphrase,
+    sortOrder: 0,
+    notes: '',
+    lastConnectedAtMs: null,
+    extras: jsonEncode(s.extras),
+    viaSessionId: s.viaSessionId,
+    viaHost: usingSavedBastion ? null : s.viaOverride?.host,
+    viaPort: usingSavedBastion ? null : s.viaOverride?.port,
+    viaUser: usingSavedBastion ? null : s.viaOverride?.user,
+    createdAtMs: s.createdAt.millisecondsSinceEpoch,
+    updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
   );
 }
 
@@ -111,7 +132,10 @@ SessionsCompanion sessionToCompanion(Session s, {required String? folderId}) {
 /// is prefixed with `(orphaned)/` so the inconsistency is surfaced in the UI
 /// instead of being silently truncated, and a warning is logged with both ids
 /// so it can be diagnosed offline.
-String _buildFolderPath(String? folderId, Map<String, DbFolder> folderMap) {
+String _buildFolderPath(
+  String? folderId,
+  Map<String, rust_db.DbFolder> folderMap,
+) {
   if (folderId == null) return '';
   final parts = <String>[];
   String? current = folderId;
@@ -138,13 +162,12 @@ String _buildFolderPath(String? folderId, Map<String, DbFolder> folderMap) {
 /// [cache] is treated as the authoritative view of the folder tree —
 /// the caller (`SessionStore`) keeps it in sync with the DB on load and
 /// on every mutation. Lookups walk the cache in memory instead of
-/// issuing a `dao.getChildren` round-trip per path segment, so a 50-
-/// session import across deep folders no longer fans out into hundreds
-/// of awaited reads. Only folder **inserts** still hit the DB.
+/// issuing a folder-list round-trip per path segment, so a 50-session
+/// import across deep folders no longer fans out into hundreds of
+/// awaited reads. Only folder **inserts** still hit the DB.
 Future<String?> resolveFolderPath(
   String path,
-  FolderDao dao,
-  Map<String, DbFolder> cache,
+  Map<String, rust_db.DbFolder> cache,
 ) async {
   if (path.isEmpty) return null;
   final parts = path.split('/');
@@ -157,22 +180,16 @@ Future<String?> resolveFolderPath(
     }
     final id = const Uuid().v4();
     final now = DateTime.now();
-    await dao.insert(
-      FoldersCompanion.insert(
-        id: id,
-        name: name,
-        parentId: Value(parentId),
-        createdAt: now,
-      ),
-    );
-    cache[id] = DbFolder(
+    final row = rust_db.DbFolder(
       id: id,
       name: name,
       parentId: parentId,
       sortOrder: 0,
       collapsed: false,
-      createdAt: now,
+      createdAtMs: now.millisecondsSinceEpoch,
     );
+    await rust_db.dbFoldersUpsert(row: row);
+    cache[id] = row;
     parentId = id;
   }
   return parentId;
@@ -183,8 +200,8 @@ Future<String?> resolveFolderPath(
 /// is ~1000× faster than the DB round-trip it replaces. If that ever
 /// stops being true, switch to a `(parentId, name) → DbFolder`
 /// secondary index maintained alongside [cache].
-DbFolder? _findChildByName(
-  Map<String, DbFolder> cache,
+rust_db.DbFolder? _findChildByName(
+  Map<String, rust_db.DbFolder> cache,
   String? parentId,
   String name,
 ) {
@@ -195,12 +212,12 @@ DbFolder? _findChildByName(
 }
 
 /// Build a complete folder map (id → DbFolder) from a flat list.
-Map<String, DbFolder> buildFolderMap(List<DbFolder> folders) {
+Map<String, rust_db.DbFolder> buildFolderMap(List<rust_db.DbFolder> folders) {
   return {for (final f in folders) f.id: f};
 }
 
 /// Collect all folder path strings from the folder tree.
-Set<String> allFolderPaths(Map<String, DbFolder> folderMap) {
+Set<String> allFolderPaths(Map<String, rust_db.DbFolder> folderMap) {
   final paths = <String>{};
   for (final folder in folderMap.values) {
     paths.add(_buildFolderPath(folder.id, folderMap));
@@ -209,7 +226,10 @@ Set<String> allFolderPaths(Map<String, DbFolder> folderMap) {
 }
 
 /// Find folderId by exact path string (returns null if not found).
-String? findFolderIdByPath(String path, Map<String, DbFolder> folderMap) {
+String? findFolderIdByPath(
+  String path,
+  Map<String, rust_db.DbFolder> folderMap,
+) {
   if (path.isEmpty) return null;
   for (final entry in folderMap.entries) {
     if (_buildFolderPath(entry.key, folderMap) == path) {

@@ -2052,6 +2052,195 @@ class SAr extends S {
   String get commandCopied => 'تم نسخ الأمر';
 
   @override
+  String get snippetTokensHint =>
+      'انقر لإدراج عنصر نائب. تُستبدل هذه القيم وقت التشغيل بقيم من الجلسة النشطة:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'أي شيء آخر بأقواس مزدوجة يطلب منك قيمة عند تشغيل المقتطف.';
+
+  @override
+  String get snippetFillTitle => 'املأ معلمات المقتطف';
+
+  @override
+  String get snippetFillSubmit => 'تشغيل';
+
+  @override
+  String get snippetPreview => 'معاينة';
+
+  @override
+  String get broadcastSetDriver => 'بث من هذا الجزء';
+
+  @override
+  String get broadcastClearDriver => 'إيقاف البث من هذا الجزء';
+
+  @override
+  String get broadcastAddReceiver => 'استقبال البث هنا';
+
+  @override
+  String get broadcastRemoveReceiver => 'إيقاف استقبال البث';
+
+  @override
+  String get broadcastClearAll => 'إيقاف كل البث';
+
+  @override
+  String get broadcastPasteTitle => 'إرسال اللصق إلى كل الأجزاء؟';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return 'سيتم إرسال $chars حرفًا إلى $count أجزاء أخرى.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'إرسال';
+
+  @override
+  String get portForwarding => 'إعادة التوجيه';
+
+  @override
+  String get portForwardingEmpty => 'لا توجد قواعد بعد';
+
+  @override
+  String get addForwardRule => 'إضافة قاعدة';
+
+  @override
+  String get editForwardRule => 'تعديل القاعدة';
+
+  @override
+  String get deleteForwardRule => 'حذف القاعدة';
+
+  @override
+  String get localForward => 'محلي';
+
+  @override
+  String get remoteForward => 'بعيد';
+
+  @override
+  String get dynamicForward => 'ديناميكي';
+
+  @override
+  String get forwardKind => 'النوع';
+
+  @override
+  String get bindAddress => 'عنوان الربط';
+
+  @override
+  String get bindPort => 'منفذ الربط';
+
+  @override
+  String get targetHost => 'الخادم الهدف';
+
+  @override
+  String get targetPort => 'المنفذ الهدف';
+
+  @override
+  String get forwardDescription => 'الوصف (اختياري)';
+
+  @override
+  String get forwardEnabled => 'مفعّل';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'الربط بـ 0.0.0.0 ينشر التحويل على جميع الواجهات — غالبًا تريد 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'التوجيه المحلي (-L) والبعيد (-R) و SOCKS5 الديناميكي (-D) جميعها مفعّلة.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'محلي: فتح منفذ على هذا الجهاز يمر عبر النفق إلى هدف يمكن الوصول إليه من خادم SSH. مفيد للوصول إلى قواعد بيانات بعيدة أو واجهات إدارة عبر localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'بعيد: اطلب من خادم SSH فتح منفذ يمر إلى هدف يمكن الوصول إليه من هذا الجهاز. مفيد لمشاركة خادم تطوير محلي مع مضيف بعيد (قد يحتاج الخادم إلى GatewayPorts yes لربط غير loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'ديناميكي: وكيل SOCKS5 على هذا الجهاز يوجه كل اتصال عبر خادم SSH. وجّه المتصفح أو curl إلى localhost:bindPort لإرسال كل الحركة عبر SSH.';
+
+  @override
+  String get forwardExample => 'مثال';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 ← الوصول إلى قاعدة بيانات بعيدة عبر localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 ← فضح خادم التطوير على منفذ الخادم 9000';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 ← اضبط SOCKS5 المتصفح على localhost:1080';
+
+  @override
+  String get proxyJump => 'الاتصال عبر';
+
+  @override
+  String get proxyJumpNone => 'اتصال مباشر';
+
+  @override
+  String get proxyJumpSavedSession => 'جلسة محفوظة';
+
+  @override
+  String get proxyJumpCustom => 'مخصص';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'القفزات المخصصة تستخدم بيانات اعتماد هذه الجلسة. لمصادقة بستيون مختلفة، احفظ البستيون كجلسة خاصة.';
+
+  @override
+  String get errProxyJumpCycle => 'سلسلة البروكسي تشكّل دائرة مغلقة.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'سلسلة البروكسي عميقة جدًا (الحد الأقصى $max قفزات).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'فشل اتصال البستيون $label.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'عبر $label';
+  }
+
+  @override
+  String get recordSession => 'تسجيل الجلسة';
+
+  @override
+  String get recordSessionHelp =>
+      'حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر عند توفر كلمة مرور رئيسية أو مفتاح أجهزة.';
+
+  @override
+  String get recordingsBrowserTitle => 'التسجيلات';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'تصفح وإعادة تشغيل وحذف الجلسات المسجلة';
+
+  @override
+  String get recordingsEmpty => 'لا توجد تسجيلات بعد';
+
+  @override
+  String get playRecording => 'تشغيل';
+
+  @override
+  String get deleteRecording => 'حذف';
+
+  @override
+  String get recordingPlaybackTitle => 'إعادة تشغيل التسجيل';
+
+  @override
+  String get recordingSpeed => 'السرعة';
+
+  @override
+  String get recordingSpeedInstant => 'فوري';
+
+  @override
   String get tags => 'العلامات';
 
   @override

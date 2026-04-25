@@ -95,7 +95,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
     if (!mounted) return;
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
-    final pemContent = KeyFileHelper.tryReadPemKey(path);
+    final pemContent = await KeyFileHelper.tryReadPemKey(path);
     if (pemContent != null) {
       setState(() {
         _keyDataCtrl.text = pemContent;

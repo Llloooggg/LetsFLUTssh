@@ -37,52 +37,52 @@ void main() {
       tmpDir.deleteSync(recursive: true);
     });
 
-    test('returns PEM content for valid private key file', () {
+    test('returns PEM content for valid private key file', () async {
       final keyFile = File('${tmpDir.path}/id_rsa');
       const pemContent =
           '-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----';
       keyFile.writeAsStringSync(pemContent);
 
-      final result = KeyFileHelper.tryReadPemKey(keyFile.path);
+      final result = await KeyFileHelper.tryReadPemKey(keyFile.path);
 
       expect(result, pemContent);
     });
 
-    test('returns null for non-PEM file', () {
+    test('returns null for non-PEM file', () async {
       final textFile = File('${tmpDir.path}/readme.txt');
       textFile.writeAsStringSync('This is just a text file.');
 
-      final result = KeyFileHelper.tryReadPemKey(textFile.path);
+      final result = await KeyFileHelper.tryReadPemKey(textFile.path);
 
       expect(result, isNull);
     });
 
-    test('returns null for nonexistent file', () {
-      final result = KeyFileHelper.tryReadPemKey(
+    test('returns null for nonexistent file', () async {
+      final result = await KeyFileHelper.tryReadPemKey(
         '${tmpDir.path}/does_not_exist',
       );
 
       expect(result, isNull);
     });
 
-    test('returns null for file exceeding max size', () {
+    test('returns null for file exceeding max size', () async {
       final largeFile = File('${tmpDir.path}/large_key');
       // Write content larger than maxKeyFileSize (32768 bytes)
       final content = 'BEGIN PRIVATE KEY\n${'A' * 40000}\nEND PRIVATE KEY';
       largeFile.writeAsStringSync(content);
 
-      final result = KeyFileHelper.tryReadPemKey(largeFile.path);
+      final result = await KeyFileHelper.tryReadPemKey(largeFile.path);
 
       expect(result, isNull);
     });
 
-    test('returns content for OpenSSH format key', () {
+    test('returns content for OpenSSH format key', () async {
       final keyFile = File('${tmpDir.path}/id_ed25519');
       const pemContent =
           '-----BEGIN OPENSSH PRIVATE KEY-----\nb3Blb...\n-----END OPENSSH PRIVATE KEY-----';
       keyFile.writeAsStringSync(pemContent);
 
-      final result = KeyFileHelper.tryReadPemKey(keyFile.path);
+      final result = await KeyFileHelper.tryReadPemKey(keyFile.path);
 
       expect(result, pemContent);
     });

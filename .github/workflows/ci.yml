@@ -171,3 +171,60 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
+
+  rust-ci:
+    # Rust security/transport core (rust/) — see ARCHITECTURE.md §3.14.
+    # Runs alongside the Dart `ci` job; the cache + light test surface
+    # at sub-phase 1.x makes this cheap. Once mobile cross-compile
+    # pipelines land at 1.6 we'll add a matrix here.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+
+      - name: Cache cargo registry + workspace target
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: cargo fmt --check
+        working-directory: rust
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy --workspace -- -D warnings
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: cargo test --workspace
+        working-directory: rust
+        run: cargo test --workspace --locked
+
+      - name: Install cargo-deny
+        # `--locked` so the install resolves against cargo-deny's own
+        # Cargo.lock — reproducible across CI runs. Pin the version
+        # so a CVE in a future cargo-deny release does not silently
+        # rotate into our security-gating binary.
+        run: cargo install --locked --version 0.19.4 cargo-deny
+
+      - name: cargo deny check
+        # Three gates from `rust/deny.toml`:
+        #   advisories — RustSec database CVE check
+        #   licenses   — every transitive license is on the allow-list
+        #   bans       — duplicate-version warnings, wildcard requirements denied
+        working-directory: rust
+        run: cargo deny --all-features check

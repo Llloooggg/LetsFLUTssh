@@ -2006,6 +2006,192 @@ class SJa extends S {
   String get commandCopied => 'コマンドをコピーしました';
 
   @override
+  String get snippetTokensHint => 'タップしてプレースホルダーを挿入。実行時にアクティブセッションの値で置換されます:';
+
+  @override
+  String get snippetCustomTokensHint => '二重波括弧のその他の項目は、実行時に値を尋ねます。';
+
+  @override
+  String get snippetFillTitle => 'スニペットのパラメーターを入力';
+
+  @override
+  String get snippetFillSubmit => '実行';
+
+  @override
+  String get snippetPreview => 'プレビュー';
+
+  @override
+  String get broadcastSetDriver => 'このペインから配信';
+
+  @override
+  String get broadcastClearDriver => 'このペインからの配信を停止';
+
+  @override
+  String get broadcastAddReceiver => 'ここで受信';
+
+  @override
+  String get broadcastRemoveReceiver => '受信を停止';
+
+  @override
+  String get broadcastClearAll => 'すべての配信を停止';
+
+  @override
+  String get broadcastPasteTitle => '貼り付けをすべてのペインに送信?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars 文字を他の $count ペインに送信します。';
+  }
+
+  @override
+  String get broadcastPasteSend => '送信';
+
+  @override
+  String get portForwarding => '転送';
+
+  @override
+  String get portForwardingEmpty => 'ルールはまだありません';
+
+  @override
+  String get addForwardRule => 'ルールを追加';
+
+  @override
+  String get editForwardRule => 'ルールを編集';
+
+  @override
+  String get deleteForwardRule => 'ルールを削除';
+
+  @override
+  String get localForward => 'ローカル';
+
+  @override
+  String get remoteForward => 'リモート';
+
+  @override
+  String get dynamicForward => '動的';
+
+  @override
+  String get forwardKind => '種類';
+
+  @override
+  String get bindAddress => 'バインドアドレス';
+
+  @override
+  String get bindPort => 'バインドポート';
+
+  @override
+  String get targetHost => 'ターゲットホスト';
+
+  @override
+  String get targetPort => 'ターゲットポート';
+
+  @override
+  String get forwardDescription => '説明（任意）';
+
+  @override
+  String get forwardEnabled => '有効';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '0.0.0.0 にバインドすると全インターフェースに公開されます — 通常は 127.0.0.1 を使用してください。';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'ローカル (-L)、リモート (-R)、動的 SOCKS5 (-D) 転送すべて動作します。';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'ローカル: このデバイスでポートを開き、SSH サーバーから到達可能なターゲットへトンネルします。リモート DB や管理 UI に localhost:bindPort 経由でアクセスするのに便利。';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'リモート: SSH サーバーにポートを開いてもらい、このデバイスから到達可能なターゲットへ戻すトンネルです。ローカル開発サーバーをリモートホストと共有するのに便利 (サーバーは非ループバックバインドに GatewayPorts yes が必要な場合あり)。';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      '動的: このデバイス上の SOCKS5 プロキシで、すべての接続を SSH サーバー経由でルーティングします。ブラウザや curl を localhost:bindPort に向けると、すべてのトラフィックが SSH 経由で送信されます。';
+
+  @override
+  String get forwardExample => '例';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → localhost:8080 経由でリモート DB にアクセス';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → 開発サーバーをサーバーのポート 9000 で公開';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → ブラウザの SOCKS5 を localhost:1080 に設定';
+
+  @override
+  String get proxyJump => '経由先';
+
+  @override
+  String get proxyJumpNone => '直接接続';
+
+  @override
+  String get proxyJumpSavedSession => '保存済みセッション';
+
+  @override
+  String get proxyJumpCustom => 'カスタム';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'カスタム経由はこのセッションの認証情報を使用します。別の踏み台認証が必要な場合は、踏み台を独立したセッションとして保存してください。';
+
+  @override
+  String get errProxyJumpCycle => 'プロキシチェーンがループしています。';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'プロキシチェーンが深すぎます (最大 $max ホップ)。';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return '踏み台 $label に接続できませんでした。';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return '$label 経由';
+  }
+
+  @override
+  String get recordSession => 'セッションを記録';
+
+  @override
+  String get recordSessionHelp =>
+      'このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキー有効時は保存時に暗号化されます。';
+
+  @override
+  String get recordingsBrowserTitle => '録画';
+
+  @override
+  String get recordingsBrowserSubtitle => '録画したセッションの閲覧、再生、削除';
+
+  @override
+  String get recordingsEmpty => '録画はまだありません';
+
+  @override
+  String get playRecording => '再生';
+
+  @override
+  String get deleteRecording => '削除';
+
+  @override
+  String get recordingPlaybackTitle => '録画を再生';
+
+  @override
+  String get recordingSpeed => '速度';
+
+  @override
+  String get recordingSpeedInstant => '即時';
+
+  @override
   String get tags => 'タグ';
 
   @override

@@ -8,6 +8,47 @@ import '../ssh/ssh_config.dart';
 /// Authentication type for a session.
 enum AuthType { password, key, keyWithPassword }
 
+/// One-off ProxyJump override — used when the user wants to bounce
+/// through a host that is **not** a saved session. All three fields
+/// are required as a unit; the loader treats a partial override as
+/// absent.
+///
+/// Saved-session bastions take precedence: when [Session.viaSessionId]
+/// is non-null, this override is ignored. Document this so the
+/// session-edit dialog can surface a warning when the user fills both
+/// at once.
+class ProxyJumpOverride {
+  final String host;
+  final int port;
+  final String user;
+
+  const ProxyJumpOverride({
+    required this.host,
+    this.port = 22,
+    required this.user,
+  });
+
+  Map<String, dynamic> toJson() => {'host': host, 'port': port, 'user': user};
+
+  factory ProxyJumpOverride.fromJson(Map<String, dynamic> json) =>
+      ProxyJumpOverride(
+        host: json['host'] as String,
+        port: json['port'] as int? ?? 22,
+        user: json['user'] as String,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProxyJumpOverride &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user;
+
+  @override
+  int get hashCode => Object.hash(host, port, user);
+}
+
 /// Session authentication — extends [SshAuth] with UI-facing [authType].
 class SessionAuth extends SshAuth {
   final AuthType authType;
@@ -96,6 +137,20 @@ class Session {
   /// hints, etc.).
   final Map<String, Object?> extras;
 
+  /// ProxyJump bastion — id of another saved session whose SSH client
+  /// opens a `forwardLocal` channel that this session uses as its
+  /// transport. Null = direct connect.
+  ///
+  /// Takes precedence over [viaOverride]. Set together they imply
+  /// the user is migrating away from a one-off override; the loader
+  /// honours [viaSessionId] and ignores the override.
+  final String? viaSessionId;
+
+  /// One-off ProxyJump override — used when the user does not have
+  /// the bastion as a saved session. Ignored when [viaSessionId] is
+  /// non-null. See [ProxyJumpOverride] for the unit-set rule.
+  final ProxyJumpOverride? viaOverride;
+
   Session({
     String? id,
     required this.label,
@@ -105,10 +160,16 @@ class Session {
     DateTime? createdAt,
     DateTime? updatedAt,
     Map<String, Object?>? extras,
+    this.viaSessionId,
+    this.viaOverride,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
        extras = Map.unmodifiable(extras ?? const <String, Object?>{});
+
+  /// True when this session bounces through a bastion before reaching
+  /// [host]:[port]. UI uses this to surface a "via X" subtitle.
+  bool get hasProxyJump => viaSessionId != null || viaOverride != null;
 
   // --- Convenience accessors (keep call sites short) ---
   String get host => server.host;
@@ -222,6 +283,8 @@ class Session {
     ServerAddress? server,
     SessionAuth? auth,
     Map<String, Object?>? extras,
+    Object? viaSessionId = _unsetVia,
+    Object? viaOverride = _unsetVia,
   }) {
     return Session(
       id: id,
@@ -232,8 +295,20 @@ class Session {
       createdAt: createdAt,
       updatedAt: DateTime.now(),
       extras: extras ?? this.extras,
+      viaSessionId: identical(viaSessionId, _unsetVia)
+          ? this.viaSessionId
+          : viaSessionId as String?,
+      viaOverride: identical(viaOverride, _unsetVia)
+          ? this.viaOverride
+          : viaOverride as ProxyJumpOverride?,
     );
   }
+
+  // Sentinel that lets `copyWith` distinguish "caller did not pass
+  // this argument" from "caller passed null to clear it" — both
+  // viaSessionId and viaOverride need to be clearable independently
+  // from "leave unchanged".
+  static const Object _unsetVia = Object();
 
   /// Create a duplicate with new ID and "(copy)" suffix.
   Session duplicate() {
@@ -266,6 +341,8 @@ class Session {
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
     if (extras.isNotEmpty) 'extras': extras,
+    if (viaSessionId != null) 'via_session_id': viaSessionId,
+    if (viaOverride != null) 'via_override': viaOverride!.toJson(),
   };
 
   /// Serialize with secrets — for encrypted export only.
@@ -285,6 +362,8 @@ class Session {
           folder == other.folder &&
           server == other.server &&
           auth == other.auth &&
+          viaSessionId == other.viaSessionId &&
+          viaOverride == other.viaOverride &&
           _extrasEqual(extras, other.extras);
 
   @override
@@ -294,6 +373,8 @@ class Session {
     folder,
     server,
     auth,
+    viaSessionId,
+    viaOverride,
     // Map.hashCode is identity-based — fold the entries instead so
     // two sessions with logically equal `extras` hash equal too.
     Object.hashAllUnordered(
@@ -339,6 +420,12 @@ class Session {
           DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
       extras: _decodeExtras(json['extras']),
+      viaSessionId: json['via_session_id'] as String?,
+      viaOverride: json['via_override'] is Map<String, dynamic>
+          ? ProxyJumpOverride.fromJson(
+              json['via_override'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 

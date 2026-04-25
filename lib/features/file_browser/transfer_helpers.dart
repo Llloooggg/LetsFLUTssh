@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../../core/sftp/sftp_client.dart';
+import '../../core/sftp/sftp_fs.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/conflict_resolver.dart';
 import '../../core/transfer/transfer_manager.dart';
@@ -23,7 +23,7 @@ class TransferHelpers {
   /// Dir entries bypass the conflict check — see class docs.
   static Future<bool> enqueueUpload({
     required TransferManager manager,
-    required SFTPService sftp,
+    required RemoteSftpFs sftp,
     required FileEntry entry,
     required String remoteDirPath,
     required FilePaneController? remoteCtrl,
@@ -87,7 +87,7 @@ class TransferHelpers {
   /// Returns `true` if a task was enqueued, `false` if skipped/cancelled.
   static Future<bool> enqueueDownload({
     required TransferManager manager,
-    required SFTPService sftp,
+    required RemoteSftpFs sftp,
     required FileEntry entry,
     required String localDirPath,
     required FilePaneController? localCtrl,
@@ -149,7 +149,7 @@ class TransferHelpers {
   /// the user chose to skip or cancel. When the user picks "keep
   /// both", the returned path is a renamed sibling.
   static Future<String?> _resolveUploadConflict({
-    required SFTPService sftp,
+    required RemoteSftpFs sftp,
     required String targetPath,
     required BatchConflictResolver resolver,
   }) async {

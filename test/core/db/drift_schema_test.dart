@@ -41,12 +41,37 @@ void main() {
     await db.close();
   });
 
-  test('v1 → v2 migration adds Sessions.extras column', () async {
-    // Build a fresh v1 DB, walk the registered onUpgrade, and ask
-    // drift's schema diff to confirm the result matches v2 byte-for-byte.
+  // drift's `migrateAndValidate` walks `onUpgrade` to the latest
+  // `schemaVersion` regardless of the requested target — it then
+  // validates the resulting schema against the snapshot for that
+  // target. Once `schemaVersion` moves past the requested target,
+  // the test compares against a stale snapshot and trips with
+  // "Schema does not match". We therefore keep one validation per
+  // historical start point that walks through to the **current**
+  // version, plus the matching schemaVersion-on-fresh-DB check
+  // above. Each entry below is "starting at vN, the rolled-up
+  // migration chain reaches the latest snapshot intact" — a
+  // regression in any intermediate step that produces a different
+  // shape than `m.createAll()` on a fresh DB will trip it.
+
+  test('v1 → latest migration produces the current schema', () async {
     final connection = await verifier.startAt(1);
     final db = AppDatabase(connection);
-    await verifier.migrateAndValidate(db, 2);
+    await verifier.migrateAndValidate(db, GeneratedHelper.versions.last);
+    await db.close();
+  });
+
+  test('v2 → latest migration produces the current schema', () async {
+    final connection = await verifier.startAt(2);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, GeneratedHelper.versions.last);
+    await db.close();
+  });
+
+  test('v3 → latest migration produces the current schema', () async {
+    final connection = await verifier.startAt(3);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, GeneratedHelper.versions.last);
     await db.close();
   });
 }

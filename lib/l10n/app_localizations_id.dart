@@ -2052,6 +2052,195 @@ class SId extends S {
   String get commandCopied => 'Perintah disalin';
 
   @override
+  String get snippetTokensHint =>
+      'Ketuk untuk menyisipkan placeholder. Ini diganti saat dijalankan dengan nilai dari sesi aktif:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Apa pun lainnya dengan tanda kurung kurawal ganda akan meminta nilai saat snippet dijalankan.';
+
+  @override
+  String get snippetFillTitle => 'Isi parameter snippet';
+
+  @override
+  String get snippetFillSubmit => 'Jalankan';
+
+  @override
+  String get snippetPreview => 'Pratinjau';
+
+  @override
+  String get broadcastSetDriver => 'Siarkan dari panel ini';
+
+  @override
+  String get broadcastClearDriver => 'Hentikan siaran dari panel ini';
+
+  @override
+  String get broadcastAddReceiver => 'Terima siaran di sini';
+
+  @override
+  String get broadcastRemoveReceiver => 'Berhenti menerima siaran';
+
+  @override
+  String get broadcastClearAll => 'Hentikan semua siaran';
+
+  @override
+  String get broadcastPasteTitle => 'Kirim tempel ke semua panel?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars karakter akan dikirim ke $count panel lain.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Kirim';
+
+  @override
+  String get portForwarding => 'Penerusan';
+
+  @override
+  String get portForwardingEmpty => 'Belum ada aturan';
+
+  @override
+  String get addForwardRule => 'Tambah aturan';
+
+  @override
+  String get editForwardRule => 'Edit aturan';
+
+  @override
+  String get deleteForwardRule => 'Hapus aturan';
+
+  @override
+  String get localForward => 'Lokal';
+
+  @override
+  String get remoteForward => 'Jarak jauh';
+
+  @override
+  String get dynamicForward => 'Dinamis';
+
+  @override
+  String get forwardKind => 'Jenis';
+
+  @override
+  String get bindAddress => 'Alamat bind';
+
+  @override
+  String get bindPort => 'Port bind';
+
+  @override
+  String get targetHost => 'Host target';
+
+  @override
+  String get targetPort => 'Port target';
+
+  @override
+  String get forwardDescription => 'Deskripsi (opsional)';
+
+  @override
+  String get forwardEnabled => 'Aktif';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Bind ke 0.0.0.0 mempublikasikan penerusan ke semua antarmuka — biasanya 127.0.0.1 yang Anda inginkan.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Penerusan lokal (-L), jarak jauh (-R), dan SOCKS5 dinamis (-D) semuanya aktif.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Lokal: membuka port di perangkat ini yang menerowong ke target yang dapat dijangkau dari server SSH. Berguna untuk mengakses database jarak jauh atau UI admin di localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Jarak jauh: meminta server SSH membuka port yang menerowong kembali ke target yang dapat dijangkau dari perangkat ini. Berguna untuk berbagi dev server lokal dengan host jarak jauh (server mungkin perlu GatewayPorts yes untuk bind non-loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Dinamis: proxy SOCKS5 di perangkat ini yang merutekan setiap koneksi melalui server SSH. Arahkan browser atau curl ke localhost:bindPort untuk mengirim semua lalu lintas melalui SSH.';
+
+  @override
+  String get forwardExample => 'Contoh';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → akses DB jarak jauh via localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → mengekspos dev server Anda di port 9000 server';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → atur SOCKS5 browser ke localhost:1080';
+
+  @override
+  String get proxyJump => 'Hubungkan melalui';
+
+  @override
+  String get proxyJumpNone => 'Koneksi langsung';
+
+  @override
+  String get proxyJumpSavedSession => 'Sesi tersimpan';
+
+  @override
+  String get proxyJumpCustom => 'Kustom';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Hop kustom memakai kredensial sesi ini. Untuk auth bastion berbeda, simpan bastion sebagai sesi tersendiri.';
+
+  @override
+  String get errProxyJumpCycle => 'Rantai proxy membentuk loop.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Rantai proxy terlalu dalam (maks $max hop).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label gagal terhubung.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
+  }
+
+  @override
+  String get recordSession => 'Rekam sesi';
+
+  @override
+  String get recordSessionHelp =>
+      'Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password / kunci hardware aktif.';
+
+  @override
+  String get recordingsBrowserTitle => 'Rekaman';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Telusuri, putar ulang, dan hapus sesi yang direkam';
+
+  @override
+  String get recordingsEmpty => 'Belum ada rekaman';
+
+  @override
+  String get playRecording => 'Putar';
+
+  @override
+  String get deleteRecording => 'Hapus';
+
+  @override
+  String get recordingPlaybackTitle => 'Putar ulang rekaman';
+
+  @override
+  String get recordingSpeed => 'Kecepatan';
+
+  @override
+  String get recordingSpeedInstant => 'Langsung';
+
+  @override
   String get tags => 'Tag';
 
   @override

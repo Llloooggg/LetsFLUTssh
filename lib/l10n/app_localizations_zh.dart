@@ -1989,6 +1989,190 @@ class SZh extends S {
   String get commandCopied => '命令已复制到剪贴板';
 
   @override
+  String get snippetTokensHint => '点击插入占位符。运行时将以当前会话的值替换:';
+
+  @override
+  String get snippetCustomTokensHint => '其他双花括号项会在 snippet 执行时询问值。';
+
+  @override
+  String get snippetFillTitle => '填写代码片段参数';
+
+  @override
+  String get snippetFillSubmit => '运行';
+
+  @override
+  String get snippetPreview => '预览';
+
+  @override
+  String get broadcastSetDriver => '从此窗格广播';
+
+  @override
+  String get broadcastClearDriver => '停止从此窗格广播';
+
+  @override
+  String get broadcastAddReceiver => '在此接收广播';
+
+  @override
+  String get broadcastRemoveReceiver => '停止接收广播';
+
+  @override
+  String get broadcastClearAll => '停止所有广播';
+
+  @override
+  String get broadcastPasteTitle => '将粘贴发送到所有窗格?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '将向其他 $count 个窗格发送 $chars 个字符。';
+  }
+
+  @override
+  String get broadcastPasteSend => '发送';
+
+  @override
+  String get portForwarding => '转发';
+
+  @override
+  String get portForwardingEmpty => '还没有规则';
+
+  @override
+  String get addForwardRule => '添加规则';
+
+  @override
+  String get editForwardRule => '编辑规则';
+
+  @override
+  String get deleteForwardRule => '删除规则';
+
+  @override
+  String get localForward => '本地';
+
+  @override
+  String get remoteForward => '远程';
+
+  @override
+  String get dynamicForward => '动态';
+
+  @override
+  String get forwardKind => '类型';
+
+  @override
+  String get bindAddress => '绑定地址';
+
+  @override
+  String get bindPort => '绑定端口';
+
+  @override
+  String get targetHost => '目标主机';
+
+  @override
+  String get targetPort => '目标端口';
+
+  @override
+  String get forwardDescription => '描述（可选）';
+
+  @override
+  String get forwardEnabled => '启用';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      '本地 (-L)、远程 (-R) 和动态 SOCKS5 (-D) 转发均已启用。';
+
+  @override
+  String get forwardKindLocalHelp =>
+      '本地：在此设备上打开一个端口，隧道到 SSH 服务器可访问的目标。便于通过 localhost:bindPort 访问远程数据库或管理界面。';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      '远程：请 SSH 服务器打开一个端口，隧道回此设备可访问的目标。便于将本地开发服务器分享给远程主机 (服务器可能需要 GatewayPorts yes 才能绑定非 loopback)。';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      '动态：此设备上的 SOCKS5 代理，将每个连接通过 SSH 服务器路由。把浏览器或 curl 指向 localhost:bindPort，所有流量经 SSH 发送。';
+
+  @override
+  String get forwardExample => '示例';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → 通过 localhost:8080 访问远程数据库';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → 在服务器 9000 端口暴露开发服务器';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → 把浏览器 SOCKS5 设为 localhost:1080';
+
+  @override
+  String get proxyJump => '通过连接';
+
+  @override
+  String get proxyJumpNone => '直连';
+
+  @override
+  String get proxyJumpSavedSession => '已保存会话';
+
+  @override
+  String get proxyJumpCustom => '自定义';
+
+  @override
+  String get proxyJumpCustomNote => '自定义跳转使用此会话的凭据。如需不同的堡垒机认证，请将堡垒机保存为独立会话。';
+
+  @override
+  String get errProxyJumpCycle => '代理链路自我闭合。';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return '代理链太深（最多 $max 跳）。';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return '堡垒机 $label 连接失败。';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return '通过 $label';
+  }
+
+  @override
+  String get recordSession => '录制会话';
+
+  @override
+  String get recordSessionHelp => '将此会话的终端输出保存到磁盘。启用主密码或硬件密钥时静态加密。';
+
+  @override
+  String get recordingsBrowserTitle => '录制';
+
+  @override
+  String get recordingsBrowserSubtitle => '浏览、回放和删除已录制的会话';
+
+  @override
+  String get recordingsEmpty => '还没有录制';
+
+  @override
+  String get playRecording => '播放';
+
+  @override
+  String get deleteRecording => '删除';
+
+  @override
+  String get recordingPlaybackTitle => '回放录制';
+
+  @override
+  String get recordingSpeed => '速度';
+
+  @override
+  String get recordingSpeedInstant => '立即';
+
+  @override
   String get tags => '标签';
 
   @override

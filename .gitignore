@@ -52,6 +52,11 @@ windows/flutter/ephemeral/
 # Generated
 *.g.dart
 *.freezed.dart
+# Exception: FRB ships sealed-class bindings as committed Freezed
+# files alongside the Dart bindings. Without this exception, every
+# fresh checkout would have to install the FRB codegen CLI + run
+# `make rust-codegen` before the app could even compile.
+!lib/src/rust/**/*.freezed.dart
 
 # Fuzz (compiled native targets)
 fuzz/out/
@@ -83,3 +88,6 @@ docs/REVIEW_*.md
 
 # Local planning doc — kept untracked intentionally.
 SECURITY_BACKLOG.md
+
+# Rust core — build artefacts (security/transport core, see rust/)
+rust/target/

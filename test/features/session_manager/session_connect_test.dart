@@ -30,6 +30,8 @@ class _FailingConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     return Connection(
       id: 'conn-fail',
@@ -56,6 +58,8 @@ class _FakeConnectionManager extends ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     lastLabel = label;
     lastSessionId = sessionId;

@@ -1,0 +1,13 @@
+# flutter_rust_bridge codegen config.
+#
+# See docs/RUST_CORE_MIGRATION_PLAN.md for the migration scope. This
+# config is consumed by `flutter_rust_bridge_codegen generate` (run via
+# `make rust-codegen`).
+#
+# `rust_input` walks the named Rust module and exposes every `pub`
+# item annotated for FRB. Sub-phases register additional submodules
+# under `crate::api` as they ship.
+
+rust_input: crate::api
+rust_root: rust/crates/lfs_frb/
+dart_output: lib/src/rust/

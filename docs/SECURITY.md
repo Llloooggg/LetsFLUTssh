@@ -67,10 +67,10 @@ or above its own privilege level:
   app-level code sees it. Use the system keyboard for password
   fields; this is a user-side discipline the app does not try to
   enforce with a non-actionable warning.
-- **Upstream dependency vulnerabilities** — `dartssh2`,
-  `pointycastle`, `xterm`, Flutter itself. Report those to the
-  respective maintainers. Scope for this repository is strictly the
-  code we wrote.
+- **Upstream dependency vulnerabilities** — `russh` and the broader
+  RustCrypto stack vendored at `rust/`, `pointycastle`, `xterm`,
+  Flutter itself. Report those to the respective maintainers. Scope
+  for this repository is strictly the code we wrote.
 
 ## Threat boundary
 
@@ -577,9 +577,9 @@ for the current version.
 
 ## Out of scope
 
-- Vulnerabilities in upstream dependencies (`dartssh2`,
-  `pointycastle`, `xterm`) — please report those to their maintainers
-  directly.
+- Vulnerabilities in upstream dependencies (`russh` + the
+  RustCrypto stack vendored under `rust/`, `pointycastle`, `xterm`) —
+  please report those to their maintainers directly.
 - Denial of service via local access.
 - Issues requiring physical device access (cold-RAM attacks, chip
   probes, boot-media swaps).

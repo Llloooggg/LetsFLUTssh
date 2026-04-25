@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/snippets/snippet.dart';
+import '../../core/snippets/snippet_template.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
@@ -11,22 +12,36 @@ import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/styled_form_field.dart';
 import '../../widgets/toast.dart';
 
 /// Snippet picker dialog — select a snippet to execute in terminal.
 ///
 /// Shows pinned snippets for the session first, then all snippets.
 /// Returns the command string to send, or null if cancelled.
+///
+/// **Template substitution.** When [templateContext] is non-null,
+/// `{{name}}` tokens in the selected snippet's command are substituted
+/// against the map before the command is returned. Unknown tokens
+/// raise an inline "Fill in snippet parameters" dialog so the user
+/// fills the values once at the moment of execution. See
+/// `lib/core/snippets/snippet_template.dart` for the grammar.
 class SnippetPicker extends ConsumerStatefulWidget {
   final String? sessionId;
+  final Map<String, String>? templateContext;
 
-  const SnippetPicker({super.key, this.sessionId});
+  const SnippetPicker({super.key, this.sessionId, this.templateContext});
 
   /// Show the picker and return the selected command, or null.
-  static Future<String?> show(BuildContext context, {String? sessionId}) {
+  static Future<String?> show(
+    BuildContext context, {
+    String? sessionId,
+    Map<String, String>? templateContext,
+  }) {
     return AppDialog.show<String>(
       context,
-      builder: (_) => SnippetPicker(sessionId: sessionId),
+      builder: (_) =>
+          SnippetPicker(sessionId: sessionId, templateContext: templateContext),
     );
   }
 
@@ -158,7 +173,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
       title: snippet.title,
       secondary: snippet.command,
       secondaryMono: true,
-      onTap: () => Navigator.pop(context, snippet.command),
+      onTap: () => _selectSnippet(snippet),
       trailing: [
         if (widget.sessionId != null)
           AppIconButton(
@@ -185,6 +200,31 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
     );
   }
 
+  /// Resolve template tokens and pop with the final command. The
+  /// picker stays open during the fill prompt so a cancel returns the
+  /// user to the snippet list, not all the way out — matches the
+  /// natural "I picked the wrong one" recovery.
+  Future<void> _selectSnippet(Snippet snippet) async {
+    final ctx = widget.templateContext ?? const <String, String>{};
+    final render = renderSnippet(snippet, ctx);
+    if (render.unresolved.isEmpty) {
+      Navigator.pop(context, render.rendered);
+      return;
+    }
+    final values = await _promptForTokens(render.unresolved);
+    if (values == null) return; // cancelled — stay on the list
+    if (!mounted) return;
+    final filled = fillSnippetUnresolved(render.rendered, values);
+    Navigator.pop(context, filled);
+  }
+
+  Future<Map<String, String>?> _promptForTokens(List<String> tokens) async {
+    return showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _SnippetFillDialog(tokens: tokens),
+    );
+  }
+
   Future<void> _togglePin(Snippet snippet, bool currentlyPinned) async {
     final store = ref.read(snippetStoreProvider);
     final sid = widget.sessionId!;
@@ -195,5 +235,69 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
     }
     ref.invalidate(sessionSnippetsProvider(sid));
     await _load();
+  }
+}
+
+/// Modal that asks the user to fill one value per unresolved token.
+/// All fields are shown at once (no per-token wizard) — for the
+/// typical 1–3 placeholders this is fewer clicks than a step flow,
+/// and the preview pane in the manager dialog is where users get
+/// time-to-think before they ever land here.
+class _SnippetFillDialog extends StatefulWidget {
+  final List<String> tokens;
+  const _SnippetFillDialog({required this.tokens});
+
+  @override
+  State<_SnippetFillDialog> createState() => _SnippetFillDialogState();
+}
+
+class _SnippetFillDialogState extends State<_SnippetFillDialog> {
+  late final Map<String, TextEditingController> _controllers;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = {for (final t in widget.tokens) t: TextEditingController()};
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.pop(context, _controllers.map((k, c) => MapEntry(k, c.text)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return AppDialog(
+      title: s.snippetFillTitle,
+      maxWidth: 420,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final token in widget.tokens) ...[
+            FieldLabel('{{$token}}'),
+            const SizedBox(height: 4),
+            StyledInput(
+              controller: _controllers[token]!,
+              autofocus: token == widget.tokens.first,
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+      actions: [
+        AppButton.cancel(onTap: () => Navigator.pop(context)),
+        AppButton.primary(label: s.snippetFillSubmit, onTap: _submit),
+      ],
+    );
   }
 }

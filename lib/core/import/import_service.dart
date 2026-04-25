@@ -219,7 +219,7 @@ class ImportService {
     );
   }
 
-  /// Phase 1 — import manager keys, remap session keyIds, resolve session id
+  /// Step 1 — import manager keys, remap session keyIds, resolve session id
   /// collisions, write sessions and empty folders. Returns the per-entity
   /// counters and the id remap for downstream link-rewriting.
   Future<_SessionsPhase> _phaseSessions(
@@ -269,7 +269,7 @@ class ImportService {
     );
   }
 
-  /// Phase 2 — import tags + apply session/folder→tag links.
+  /// Step 2 — import tags + apply session/folder→tag links.
   Future<_TagsPhase> _phaseTagsAndLinks(
     ImportResult result,
     Map<String, String> sessionIdMap,
@@ -291,7 +291,7 @@ class ImportService {
     return _TagsPhase(tagIdMap: tagIdMap, skippedLinks: skipped);
   }
 
-  /// Phase 3 — import snippets + apply session→snippet links.
+  /// Step 3 — import snippets + apply session→snippet links.
   Future<_SnippetsPhase> _phaseSnippetsAndLinks(
     ImportResult result,
     Map<String, String> sessionIdMap,
@@ -312,7 +312,7 @@ class ImportService {
     return _SnippetsPhase(snippetIdMap: snippetIdMap, skippedLinks: skipped);
   }
 
-  /// Phase 4 — apply imported config and append known_hosts content.
+  /// Step 4 — apply imported config and append known_hosts content.
   Future<void> _phaseConfigAndKnownHosts(
     ImportResult result,
     ProgressReporter? progress,

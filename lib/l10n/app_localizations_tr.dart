@@ -2050,6 +2050,195 @@ class STr extends S {
   String get commandCopied => 'Komut panoya kopyalandı';
 
   @override
+  String get snippetTokensHint =>
+      'Yer tutucu eklemek için dokunun. Çalışma zamanında aktif oturumun değerleriyle değiştirilir:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Çift süslü parantezli başka herhangi bir şey snippet çalıştırıldığında size bir değer sorar.';
+
+  @override
+  String get snippetFillTitle => 'Snippet parametrelerini doldur';
+
+  @override
+  String get snippetFillSubmit => 'Çalıştır';
+
+  @override
+  String get snippetPreview => 'Önizleme';
+
+  @override
+  String get broadcastSetDriver => 'Bu panelden yayınla';
+
+  @override
+  String get broadcastClearDriver => 'Bu panelden yayını durdur';
+
+  @override
+  String get broadcastAddReceiver => 'Yayını burada al';
+
+  @override
+  String get broadcastRemoveReceiver => 'Yayını almayı durdur';
+
+  @override
+  String get broadcastClearAll => 'Tüm yayınları durdur';
+
+  @override
+  String get broadcastPasteTitle => 'Yapıştırmayı tüm panellere gönder?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars karakter diğer $count panele gönderilecek.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Gönder';
+
+  @override
+  String get portForwarding => 'Yönlendirme';
+
+  @override
+  String get portForwardingEmpty => 'Henüz kural yok';
+
+  @override
+  String get addForwardRule => 'Kural ekle';
+
+  @override
+  String get editForwardRule => 'Kuralı düzenle';
+
+  @override
+  String get deleteForwardRule => 'Kuralı sil';
+
+  @override
+  String get localForward => 'Yerel';
+
+  @override
+  String get remoteForward => 'Uzak';
+
+  @override
+  String get dynamicForward => 'Dinamik';
+
+  @override
+  String get forwardKind => 'Tür';
+
+  @override
+  String get bindAddress => 'Bağlama adresi';
+
+  @override
+  String get bindPort => 'Bağlama portu';
+
+  @override
+  String get targetHost => 'Hedef sunucu';
+
+  @override
+  String get targetPort => 'Hedef port';
+
+  @override
+  String get forwardDescription => 'Açıklama (isteğe bağlı)';
+
+  @override
+  String get forwardEnabled => 'Etkin';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '0.0.0.0 bağlaması yönlendirmeyi tüm arabirimlerde açar — genelde 127.0.0.1 istersin.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Yerel (-L), uzak (-R) ve dinamik SOCKS5 (-D) yönlendirmeleri hepsi etkin.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Yerel: bu cihazda bir port açar ve SSH sunucusundan erişilebilir hedefe tünel kurar. localhost:bindPort üzerinden uzak veritabanlarına veya yönetim arayüzlerine erişmek için kullanışlı.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Uzak: SSH sunucusundan bir port açmasını ister; port bu cihazdan erişilebilir hedefe tünel kurar. Yerel dev sunucuyu uzak bir host ile paylaşmak için kullanışlı (sunucu non-loopback bağlamalar için GatewayPorts yes gerektirebilir).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Dinamik: bu cihazda her bağlantıyı SSH sunucusu üzerinden yönlendiren bir SOCKS5 proxy. Tüm trafiği SSH üzerinden göndermek için tarayıcıyı veya curl\'u localhost:bindPort\'a yönlendirin.';
+
+  @override
+  String get forwardExample => 'Örnek';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → localhost:8080 üzerinden uzak DB erişimi';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → dev sunucunuzu sunucunun 9000 portunda açın';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → tarayıcı SOCKS5\'i localhost:1080 olarak ayarlayın';
+
+  @override
+  String get proxyJump => 'Üzerinden bağlan';
+
+  @override
+  String get proxyJumpNone => 'Doğrudan bağlantı';
+
+  @override
+  String get proxyJumpSavedSession => 'Kaydedilmiş oturum';
+
+  @override
+  String get proxyJumpCustom => 'Özel';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Özel hoplar bu oturumun kimlik bilgilerini kullanır. Farklı bastion auth için bastion\'u ayrı bir oturum olarak kaydet.';
+
+  @override
+  String get errProxyJumpCycle => 'Proxy zinciri kendine dolanıyor.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Proxy zinciri fazla derin (maks $max hop).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label bağlanamadı.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return '$label üzerinden';
+  }
+
+  @override
+  String get recordSession => 'Oturumu kaydet';
+
+  @override
+  String get recordSessionHelp =>
+      'Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı varsa diskte şifreli.';
+
+  @override
+  String get recordingsBrowserTitle => 'Kayıtlar';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Kaydedilmiş oturumlara göz atın, oynatın ve silin';
+
+  @override
+  String get recordingsEmpty => 'Henüz kayıt yok';
+
+  @override
+  String get playRecording => 'Oynat';
+
+  @override
+  String get deleteRecording => 'Sil';
+
+  @override
+  String get recordingPlaybackTitle => 'Kaydı oynat';
+
+  @override
+  String get recordingSpeed => 'Hız';
+
+  @override
+  String get recordingSpeedInstant => 'Anında';
+
+  @override
   String get tags => 'Etiketler';
 
   @override

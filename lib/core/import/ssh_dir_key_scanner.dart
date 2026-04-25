@@ -45,13 +45,13 @@ class SshDirKeyScanner {
   /// `authorized_keys*`) to avoid noisy dialog rows. Files that fail
   /// [readPem] (too large / not PEM / unreadable) are simply omitted.
   /// Results are deduplicated by file path and sorted alphabetically.
-  List<ScannedKey> scan(String directoryPath) {
+  Future<List<ScannedKey>> scan(String directoryPath) async {
     final paths = List<String>.of(listDir(directoryPath))..sort();
     final result = <ScannedKey>[];
     for (final path in paths) {
       final name = _basename(path);
       if (_isObviousNonKey(name)) continue;
-      final pem = readPem(path);
+      final pem = await readPem(path);
       if (pem == null) continue;
       result.add(ScannedKey(path: path, pem: pem, suggestedLabel: name));
     }

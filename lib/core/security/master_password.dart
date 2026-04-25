@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
-import 'package:pointycastle/export.dart';
 
+import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'kdf_params.dart';
@@ -96,13 +95,12 @@ class MasterPasswordManager {
 
   /// Derive a 256-bit key from password using the on-disk KDF params.
   ///
-  /// Runs in an isolate because Argon2id is CPU + memory heavy
-  /// (400-1500ms wall-clock at the production profile).
+  /// Runs on the Rust core's blocking pool — Argon2id is CPU + memory
+  /// heavy (400-1500ms wall-clock at the production profile) but the
+  /// FRB worker thread isn't pinned for the duration.
   Future<Uint8List> deriveKey(String password) async {
     final record = await _readKdfRecord();
-    return Isolate.run(
-      () => _deriveKeySync(password, record.salt, record.params),
-    );
+    return _deriveKeyAsync(password, record.salt, record.params);
   }
 
   /// Verify a password against the stored verifier.
@@ -144,11 +142,13 @@ class MasterPasswordManager {
     final params = record.params;
     final salt = record.salt;
 
-    final key = await Isolate.run(() {
-      final derived = _deriveKeySync(password, salt, params);
-      if (!_verifySync(derived, verifierData)) return null;
-      return derived;
-    });
+    // KDF runs on the Rust core's blocking pool — pinned to one
+    // pool thread for the Argon2id duration, frees the FRB worker.
+    // The GCM verify hops back to the root isolate where the FRB
+    // bindings live, then we compare against the verifier.
+    final derived = await _deriveKeyAsync(password, salt, params);
+    final ok = await _verifyAsync(derived, verifierData);
+    final key = ok ? derived : null;
     if (useRateLimit) {
       if (key == null) {
         _rateLimiter.recordFailure();
@@ -178,9 +178,9 @@ class MasterPasswordManager {
     );
 
     final params = _defaultParams;
-    final key = await Isolate.run(() => _deriveKeySync(password, salt, params));
+    final key = await _deriveKeyAsync(password, salt, params);
 
-    final verifierData = _encryptVerifier(key);
+    final verifierData = await _encryptVerifier(key);
     final kdfFileBytes = _encodeKdfRecord(params, salt);
 
     await writeBytesAtomic('$basePath/$_kdfFileName', kdfFileBytes);
@@ -215,11 +215,9 @@ class MasterPasswordManager {
     );
 
     final params = _defaultParams;
-    final newKey = await Isolate.run(
-      () => _deriveKeySync(newPassword, newSalt, params),
-    );
+    final newKey = await _deriveKeyAsync(newPassword, newSalt, params);
 
-    final verifierData = _encryptVerifier(newKey);
+    final verifierData = await _encryptVerifier(newKey);
     final kdfFileBytes = _encodeKdfRecord(params, newSalt);
 
     await writeBytesAtomic('$basePath/$_kdfFileName', kdfFileBytes);
@@ -331,62 +329,52 @@ class MasterPasswordManager {
     return _KdfRecord(params: params, salt: salt);
   }
 
-  // ── Static helpers (run in isolate) ──────────────────────────────
+  // ── KDF helper (Rust core) ───────────────────────────────────────
 
-  static Uint8List _deriveKeySync(
+  static Future<Uint8List> _deriveKeyAsync(
     String password,
     Uint8List salt,
     KdfParams params,
-  ) {
+  ) async {
     switch (params.algorithm) {
       case KdfAlgorithm.argon2id:
-        final argon2Params = Argon2Parameters(
-          Argon2Parameters.ARGON2_id,
-          salt,
-          desiredKeyLength: _keyLength,
+        final out = await rust_crypto.cryptoArgon2IdDerive(
+          password: Uint8List.fromList(utf8.encode(password)),
+          salt: salt,
+          memoryKib: params.memoryKiB,
           iterations: params.iterations,
-          memory: params.memoryKiB,
-          lanes: params.parallelism,
-          version: Argon2Parameters.ARGON2_VERSION_13,
+          parallelism: params.parallelism,
+          length: _keyLength,
         );
-        final generator = Argon2BytesGenerator()..init(argon2Params);
-        final out = Uint8List(_keyLength);
-        generator.deriveKey(
-          Uint8List.fromList(utf8.encode(password)),
-          0,
-          out,
-          0,
-        );
-        return out;
+        return Uint8List.fromList(out);
     }
   }
 
-  static bool _verifySync(Uint8List key, Uint8List verifierData) {
+  static Future<bool> _verifyAsync(
+    Uint8List key,
+    Uint8List verifierData,
+  ) async {
     if (verifierData.length < _ivLength + 1) return false;
-    final iv = verifierData.sublist(0, _ivLength);
-    final ciphertext = verifierData.sublist(_ivLength);
-
     try {
-      final cipher = GCMBlockCipher(AESEngine())
-        ..init(false, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-      final output = cipher.process(ciphertext);
-      return utf8.decode(output) == _verifierPlaintext;
+      final pt = await rust_crypto.cryptoAesGcmDecrypt(
+        key: key,
+        data: verifierData,
+      );
+      return utf8.decode(pt) == _verifierPlaintext;
     } catch (_) {
       return false;
     }
   }
 
-  /// Encrypt the known verifier plaintext with the given key.
-  static Uint8List _encryptVerifier(Uint8List key) {
-    final random = Random.secure();
-    final iv = Uint8List.fromList(
-      List.generate(_ivLength, (_) => random.nextInt(256)),
+  /// Encrypt the known verifier plaintext with the given key. Wire
+  /// shape is `[nonce 12][ciphertext + 16-byte GCM tag]`; existing
+  /// `credentials.verify` files round-trip across the migration.
+  static Future<Uint8List> _encryptVerifier(Uint8List key) async {
+    final out = await rust_crypto.cryptoAesGcmEncrypt(
+      key: key,
+      plaintext: Uint8List.fromList(utf8.encode(_verifierPlaintext)),
     );
-    final cipher = GCMBlockCipher(AESEngine())
-      ..init(true, AEADParameters(KeyParameter(key), 128, iv, Uint8List(0)));
-    final plainBytes = Uint8List.fromList(utf8.encode(_verifierPlaintext));
-    final output = cipher.process(plainBytes);
-    return Uint8List.fromList([...iv, ...output]);
+    return Uint8List.fromList(out);
   }
 }
 

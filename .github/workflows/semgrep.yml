@@ -23,7 +23,16 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run Semgrep
-        run: semgrep scan --config auto --sarif --sarif-output=semgrep.sarif lib/ test/
+        # `--config auto` pulls language-aware rule packs for every
+        # language detected under the scan paths — Dart for lib/ and
+        # test/, Rust for rust/ (security/transport core, see
+        # ARCHITECTURE.md §3.14). Cargokit is excluded because it is
+        # vendored upstream; we only want our own surface scanned.
+        run: |
+          semgrep scan --config auto \
+            --exclude=rust_builder \
+            --sarif --sarif-output=semgrep.sarif \
+            lib/ test/ rust/
 
       - name: Upload SARIF results
         if: always()

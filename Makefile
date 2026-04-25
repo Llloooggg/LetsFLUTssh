@@ -288,6 +288,40 @@ deps-windows: ## Install system build deps (Windows)
 	@echo "  winget install Microsoft.VisualStudio.2022.Community"
 	@echo "  (select 'Desktop development with C++' workload)"
 
+## ─── Rust core ────────────────────────────────────────────────
+# Security/transport core lives in rust/. See docs/RUST_CORE_MIGRATION_PLAN.md
+# for scope and sub-phases. Targets stay opt-in until sub-phase 1.1
+# wires Rust into the Flutter build; until then `make analyze` and
+# `make test` remain Dart-only.
+RUST_DIR := rust
+
+rust-fmt: ## Format Rust code (cargo fmt)
+	cd $(RUST_DIR) && cargo fmt --all
+
+rust-fmt-check: ## Verify Rust formatting (used by pre-commit / CI)
+	cd $(RUST_DIR) && cargo fmt --all -- --check
+
+rust-lint: ## Run clippy (deny warnings)
+	cd $(RUST_DIR) && cargo clippy --workspace --all-targets -- -D warnings
+
+rust-test: ## Run Rust unit + integration tests
+	cd $(RUST_DIR) && cargo test --workspace
+
+rust-build: ## Build Rust workspace (release, host)
+	cd $(RUST_DIR) && cargo build --release --workspace
+
+rust-codegen: ## Regenerate Dart bindings from Rust API surface
+	flutter_rust_bridge_codegen generate
+
+rust-clean: ## cargo clean
+	cd $(RUST_DIR) && cargo clean
+
+rust-check: rust-fmt-check rust-lint rust-test ## fmt-check + clippy + test (CI bundle)
+	@echo "rust-check: green"
+
+rust-deny: ## cargo deny check (advisories + licenses + bans). Requires `cargo install cargo-deny`.
+	cd $(RUST_DIR) && cargo deny --all-features check
+
 ## ─── Utility ──────────────────────────────────────────────────
 
 doctor: ## Run Flutter doctor

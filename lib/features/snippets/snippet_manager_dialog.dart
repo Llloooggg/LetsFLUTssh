@@ -13,6 +13,7 @@ import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable snippet manager — toolbar + list with CRUD.
@@ -302,6 +303,14 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               alignLabelWithHint: true,
             ),
           ),
+          const SizedBox(height: 8),
+          // Inline hint listing the built-in placeholder tokens —
+          // without it users have no way to discover that
+          // {{host}} / {{user}} / {{port}} / {{label}} / {{now}}
+          // (plus arbitrary user-named tokens) get substituted at
+          // execution time. Tap a chip to insert the token at the
+          // current caret position.
+          _SnippetTokenHints(controller: _commandCtrl),
           const SizedBox(height: 16),
           TextField(
             controller: _descCtrl,
@@ -336,5 +345,104 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
             description: _descCtrl.text.trim(),
           );
     Navigator.pop(context, snippet);
+  }
+}
+
+/// Inline hint surfaced under the command field — chips that
+/// document the built-in `{{name}}` tokens and insert them into the
+/// command field on tap. Without this hint users had no way to
+/// discover that snippets support template substitution at all.
+class _SnippetTokenHints extends StatelessWidget {
+  final TextEditingController controller;
+  const _SnippetTokenHints({required this.controller});
+
+  /// Built-in tokens — kept in sync with `core/snippets/snippet_template.dart`.
+  /// Custom user tokens (`{{my-name}}`) work too — those prompt at
+  /// run time. The chip row here only documents the always-resolved
+  /// set; the runtime help text below adds the prompt-on-execute
+  /// note for everything else.
+  static const _tokens = ['host', 'user', 'port', 'label', 'now'];
+
+  void _insert(String token) {
+    final inject = '{{$token}}';
+    final selection = controller.selection;
+    if (selection.isValid) {
+      final text = controller.text;
+      final start = selection.start;
+      final end = selection.end;
+      final next = text.replaceRange(start, end, inject);
+      controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: start + inject.length),
+      );
+    } else {
+      controller.text = '${controller.text}$inject';
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          s.snippetTokensHint,
+          style: TextStyle(
+            color: AppTheme.fgFaint,
+            fontSize: AppFonts.xs,
+            fontFamily: 'Inter',
+          ),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final t in _tokens)
+              // SelectionContainer.disabled — the chip is a button,
+              // its label must not behave like body text inside the
+              // surrounding SelectionArea (drag-to-copy on a button
+              // is the wrong affordance and reads as "this is text"
+              // not "this is tappable").
+              SelectionContainer.disabled(
+                child: HoverRegion(
+                  onTap: () => _insert(t),
+                  builder: (hovered) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hovered ? AppTheme.hover : AppTheme.bg3,
+                      borderRadius: AppTheme.radiusSm,
+                      border: Border.all(color: AppTheme.borderLight),
+                    ),
+                    child: Text(
+                      '{{$t}}',
+                      style: AppFonts.mono(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.accent,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          s.snippetCustomTokensHint,
+          style: TextStyle(
+            color: AppTheme.fgFaint,
+            fontSize: AppFonts.xs,
+            fontFamily: 'Inter',
+          ),
+        ),
+      ],
+    );
   }
 }

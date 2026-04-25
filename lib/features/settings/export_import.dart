@@ -1,23 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
-import 'package:pointycastle/export.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/migration/schema_versions.dart';
 import '../../core/progress/progress_reporter.dart';
 import '../../core/security/kdf_params.dart';
 import '../../core/security/key_store.dart';
-import '../../core/security/secret_buffer.dart';
 import '../../core/session/qr_codec.dart';
 import '../../core/session/session.dart';
 import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
+import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../utils/logger.dart';
 import '../../utils/platform.dart' as plat;
 
@@ -523,9 +521,9 @@ class ExportImport {
       // the mutable global default.
       progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
       final params = kdfParams ?? defaultKdfParams;
-      encrypted = await Isolate.run(
-        () => _encryptWithPassword(zipBytes, masterPassword, params),
-      );
+      // _encryptWithPassword is async itself: KDF inside Isolate.run,
+      // GCM via FRB on the root isolate. No outer Isolate.run.
+      encrypted = await _encryptWithPassword(zipBytes, masterPassword, params);
       AppLogger.instance.log(
         'Export: encrypted ${encrypted.length} bytes',
         name: 'ExportImport',
@@ -737,17 +735,15 @@ class ExportImport {
       zipBytes = encData;
     } else {
       progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
-      // Decrypt in isolate — Argon2id is CPU + memory-heavy. GCM
-      // auth-tag failure (wrong password or tampered archive) surfaces
-      // as InvalidCipherTextException from pointycastle. ZipDecoder
-      // will also throw on successfully-decrypted-but-non-ZIP bytes
-      // (truncated file). Both cases collapse to
+      // Argon2id KDF runs on the Rust core's blocking pool; GCM
+      // auth-tag failure (wrong password or tampered archive)
+      // surfaces as `Error::Crypto` from `lfs_core::crypto`.
+      // ZipDecoder also throws on successfully-decrypted-but-
+      // non-ZIP bytes (truncated file). Both cases collapse to
       // LfsDecryptionFailedException so the UI can show a single
       // localized message.
       try {
-        zipBytes = await Isolate.run(
-          () => _decryptWithPassword(encData, masterPassword),
-        );
+        zipBytes = await _decryptWithPassword(encData, masterPassword);
       } on LfsMalformedHeaderException {
         rethrow;
       } on UnsupportedLfsVersionException {
@@ -1035,11 +1031,18 @@ class ExportImport {
 
   /// Encrypt bytes with an Argon2id-derived key (AES-256-GCM).
   /// Writes the v3 header: `[LFSE 4][0x02 1][KdfParams N][salt 32][iv 12][ct+tag]`.
-  static Uint8List _encryptWithPassword(
+  ///
+  /// Argon2id KDF runs inside an [Isolate.run] (CPU + memory-heavy);
+  /// AES-GCM lives in `lfs_core::crypto` and is awaited on the root
+  /// isolate (FRB bindings are tied there). The derived key crosses
+  /// the isolate boundary as a regular [Uint8List] — the SecretBuffer
+  /// page-lock that used to wrap it does not survive an isolate hop,
+  /// and dropping the isolate already releases its heap.
+  static Future<Uint8List> _encryptWithPassword(
     Uint8List data,
     String password,
     KdfParams params,
-  ) {
+  ) async {
     final random = Random.secure();
     final salt = Uint8List.fromList(
       List.generate(_saltLen, (_) => random.nextInt(256)),
@@ -1048,23 +1051,27 @@ class ExportImport {
       List.generate(_ivLen, (_) => random.nextInt(256)),
     );
 
-    final keyBuf = _deriveKeyLocked(password, salt, params);
+    final derivedKey = await _deriveArgon2idAsync(password, salt, params);
     try {
-      final cipher = GCMBlockCipher(AESEngine())
-        ..init(
-          true,
-          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
-        );
-      final output = cipher.process(data);
+      final ct = await rust_crypto.cryptoAesGcmEncryptRaw(
+        key: derivedKey,
+        nonce: iv,
+        plaintext: data,
+        aad: Uint8List(0),
+      );
       final paramsBytes = params.encode();
       final header = <int>[
         ..._encHeaderMagic,
         _encVersionArgon2id,
         ...paramsBytes,
       ];
-      return Uint8List.fromList([...header, ...salt, ...iv, ...output]);
+      return Uint8List.fromList([...header, ...salt, ...iv, ...ct]);
     } finally {
-      keyBuf.dispose();
+      // Best-effort scrub. Dart Uint8List is mutable; overwriting the
+      // bytes drops the only reference we control before GC reclaims.
+      for (var i = 0; i < derivedKey.length; i++) {
+        derivedKey[i] = 0;
+      }
     }
   }
 
@@ -1072,7 +1079,10 @@ class ExportImport {
   /// `LFSE` magic or a header version byte other than
   /// [_encVersionArgon2id] is rejected with
   /// [UnsupportedLfsVersionException].
-  static Uint8List _decryptWithPassword(Uint8List data, String password) {
+  static Future<Uint8List> _decryptWithPassword(
+    Uint8List data,
+    String password,
+  ) async {
     final bytes = Uint8List.fromList(data);
 
     if (!_hasEncryptionHeader(bytes)) {
@@ -1095,7 +1105,10 @@ class ExportImport {
   /// Decrypt a v3 Argon2id archive. Parses params from the header and
   /// enforces [maxImportArgon2idMemoryKiB] / [maxImportArgon2idIterations]
   /// / [maxImportArgon2idParallelism] DoS bounds before running the KDF.
-  static Uint8List _decryptArgon2id(Uint8List bytes, String password) {
+  static Future<Uint8List> _decryptArgon2id(
+    Uint8List bytes,
+    String password,
+  ) async {
     final paramsStart = _encHeaderMagic.length + 1;
     if (bytes.length <= paramsStart) {
       throw const LfsMalformedHeaderException(
@@ -1130,61 +1143,39 @@ class ExportImport {
     final iv = bytes.sublist(ivStart, ivStart + _ivLen);
     final ciphertext = bytes.sublist(ivStart + _ivLen);
 
-    final keyBuf = _deriveKeyLocked(password, salt, params);
+    final derivedKey = await _deriveArgon2idAsync(password, salt, params);
     try {
-      final cipher = GCMBlockCipher(AESEngine())
-        ..init(
-          false,
-          AEADParameters(KeyParameter(keyBuf.bytes), 128, iv, Uint8List(0)),
-        );
-      return cipher.process(ciphertext);
+      return Uint8List.fromList(
+        await rust_crypto.cryptoAesGcmDecryptRaw(
+          key: derivedKey,
+          nonce: iv,
+          ciphertext: ciphertext,
+          aad: Uint8List(0),
+        ),
+      );
     } finally {
-      keyBuf.dispose();
+      for (var i = 0; i < derivedKey.length; i++) {
+        derivedKey[i] = 0;
+      }
     }
   }
 
-  /// Derive a 256-bit key, copy it into a page-locked [SecretBuffer], and
-  /// zero the Dart-heap intermediate. Dispatches to the algorithm selected
-  /// by [params]; for now only Argon2id is defined.
-  static SecretBuffer _deriveKeyLocked(
+  /// Argon2id derivation via the Rust core's blocking pool (Phase
+  /// 2.4). Returns plain bytes; caller scrubs the buffer after use.
+  static Future<Uint8List> _deriveArgon2idAsync(
     String password,
     Uint8List salt,
     KdfParams params,
-  ) {
-    switch (params.algorithm) {
-      case KdfAlgorithm.argon2id:
-        return _deriveArgon2idKeyLocked(password, salt, params);
-    }
-  }
-
-  static SecretBuffer _deriveArgon2idKeyLocked(
-    String password,
-    Uint8List salt,
-    KdfParams params,
-  ) {
-    final passwordBytes = Uint8List.fromList(utf8.encode(password));
-    final argon2Params = Argon2Parameters(
-      Argon2Parameters.ARGON2_id,
-      salt,
-      desiredKeyLength: 32,
+  ) async {
+    final out = await rust_crypto.cryptoArgon2IdDerive(
+      password: Uint8List.fromList(utf8.encode(password)),
+      salt: salt,
+      memoryKib: params.memoryKiB,
       iterations: params.iterations,
-      memory: params.memoryKiB,
-      lanes: params.parallelism,
-      version: Argon2Parameters.ARGON2_VERSION_13,
+      parallelism: params.parallelism,
+      length: 32,
     );
-    final generator = Argon2BytesGenerator()..init(argon2Params);
-    final derived = Uint8List(32);
-    generator.deriveKey(passwordBytes, 0, derived, 0);
-    try {
-      return SecretBuffer.fromBytes(derived);
-    } finally {
-      for (var i = 0; i < derived.length; i++) {
-        derived[i] = 0;
-      }
-      for (var i = 0; i < passwordBytes.length; i++) {
-        passwordBytes[i] = 0;
-      }
-    }
+    return Uint8List.fromList(out);
   }
 
   /// Build an archive with an unknown version byte. Used only by tests

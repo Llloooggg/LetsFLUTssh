@@ -119,7 +119,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// [BatchConflictResolver] is shared across the batch so the
   /// "apply to all remaining" choice sticks for this call.
   Future<void> uploadMany(List<FileEntry> entries) async {
-    final sftp = sftpResult?.sftpService;
+    final sftp = sftpResult?.filesystem;
     final remote = sftpResult?.remoteCtrl;
     if (sftp == null || remote == null || entries.isEmpty) return;
     final loc = S.of(context);
@@ -142,7 +142,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 
   /// Enqueue downloads for [entries] from remote to local.
   Future<void> downloadMany(List<FileEntry> entries) async {
-    final sftp = sftpResult?.sftpService;
+    final sftp = sftpResult?.filesystem;
     final local = sftpResult?.localCtrl;
     if (sftp == null || local == null || entries.isEmpty) return;
     final loc = S.of(context);

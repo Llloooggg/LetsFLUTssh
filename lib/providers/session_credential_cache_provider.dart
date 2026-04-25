@@ -18,6 +18,11 @@ import '../core/security/session_credential_cache.dart';
 ///     reset never leaves stale credentials for now-gone sessions.
 final sessionCredentialCacheProvider = Provider<SessionCredentialCache>((ref) {
   final cache = SessionCredentialCache();
-  ref.onDispose(cache.evictAll);
+  // evictAll is async; wrap in a void closure so onDispose accepts
+  // it. Errors are swallowed — provider teardown can't propagate
+  // failures and the FRB call is best-effort anyway.
+  ref.onDispose(() {
+    cache.evictAll().catchError((Object _) {});
+  });
   return cache;
 });

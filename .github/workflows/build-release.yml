@@ -114,6 +114,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev lld
 
+      - name: Install Rust toolchain
+        # Cargokit (rust_builder/) compiles `liblfs_frb.so` during
+        # `flutter build linux` and bundles it next to the app blob.
+        # ubuntu-latest ships with rustup preinstalled, but pin the
+        # toolchain explicitly so the release build stays reproducible
+        # across runner-image rotations.
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup show
+
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
@@ -224,6 +235,18 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Rust toolchain
+        # Cargokit (rust_builder/) compiles `lfs_frb.dll` during
+        # `flutter build windows` and bundles it next to the .exe.
+        # windows-latest ships with rustup preinstalled, but pin the
+        # toolchain explicitly so the release build stays reproducible
+        # across runner-image rotations.
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup show
+
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
@@ -309,6 +332,18 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      - name: Install Rust toolchain + universal targets
+        # Cargokit compiles `liblfs_frb.dylib` during `flutter build
+        # macos` and bundles it into the app's Frameworks dir. The
+        # macOS release ships a universal binary (x86_64 + arm64),
+        # so we add both Rust targets and let cargokit run cargo
+        # twice + lipo the outputs.
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          rustup show
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
@@ -418,6 +453,25 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      - name: Install Rust toolchain + Android targets + cargo-ndk
+        # Cargokit (`rust_builder/android/build.gradle`) invokes the
+        # cargokit gradle plugin which calls `cargo` per Android ABI
+        # to produce `liblfs_frb.so` for each. Without these targets +
+        # `cargo-ndk` (which knows where the NDK headers live) the
+        # `flutter build apk --split-per-abi` step below would fail.
+        # ANDROID_NDK_HOME is set by the runner image; cargo-ndk reads
+        # it automatically.
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add \
+            aarch64-linux-android \
+            armv7-linux-androideabi \
+            x86_64-linux-android \
+            i686-linux-android
+          cargo install --locked --version 4.1.2 cargo-ndk
+          rustup show
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs

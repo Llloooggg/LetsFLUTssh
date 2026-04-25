@@ -14,8 +14,20 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # SSH
-  dartssh2: ^2.17.1
+  # FFI bridge to the Rust security/transport core (see rust/, plan in
+  # docs/RUST_CORE_MIGRATION_PLAN.md). The Rust core (`lfs_core` +
+  # `lfs_frb`) is the only SSH/SFTP/key engine — dartssh2 was removed
+  # once the migration completed. Pin must match the codegen CLI
+  # version (`cargo install flutter_rust_bridge_codegen --version
+  # 2.12.0`) exactly — runtime/codegen drift produces incompatible
+  # bindings.
+  flutter_rust_bridge: 2.12.0
+
+  # Annotations for the Freezed sealed-class codegen used by FRB on
+  # the Dart side. Needs to be a direct (non-dev) dep because the
+  # generated `*.freezed.dart` files import these annotations and
+  # ship in the release build.
+  freezed_annotation: ^3.1.0
 
   # Terminal emulator
   xterm: ^4.0.0
@@ -30,17 +42,14 @@ dependencies:
   uuid: ^4.5.1
   path: ^1.9.1
 
-  # Crypto (pure Dart, transitive via dartssh2)
-  pointycastle: ^4.0.0
-  pinenacl: ^0.6.0
-
-  # SHA-256 digest helper (used for SPKI pinning in update channel)
+  # SHA-256 digest helper. Used for KeyStore fingerprints, known_hosts
+  # SHA256:fingerprint, update-feed checksum, and SPKI pinning. The
+  # AES-GCM / HKDF / Ed25519 / Argon2id / PPK surface that used to
+  # live in pointycastle moved to `lfs_core::crypto` + `lfs_core::keys`
+  # (Phases 2.1 / 2.2 / 2.4 / 2.6).
   crypto: ^3.0.5
 
   # X.509 ASN.1 parsing for SPKI extraction in cert_pinning.dart.
-  # Pulled in as a transitive already (via pointycastle); promoted to a
-  # direct dependency so the import is explicit rather than relying on
-  # a sibling's dep graph.
   asn1lib: ^1.6.5
 
   # Archive (pure Dart ZIP)
@@ -81,6 +90,8 @@ dependencies:
   # optional biometric unlock of master-password mode.
   local_auth: ^3.0.1
   dbus: ^0.7.12
+  lfs_frb:
+    path: rust_builder
 
 dev_dependencies:
   flutter_test:
@@ -92,6 +103,13 @@ dev_dependencies:
   build_verify: ^3.1.0
   plugin_platform_interface: ^2.1.8
   flutter_launcher_icons: ^0.14.3
+  integration_test:
+    sdk: flutter
+  # Freezed sealed-class codegen — invoked by build_runner alongside
+  # drift_dev. flutter_rust_bridge generates Dart enum bindings as
+  # Freezed sealed classes, which need the codegen run after every
+  # FRB regen (`make rust-codegen` then `make gen`).
+  freezed: ^3.2.0
 
 flutter_launcher_icons:
   android: true

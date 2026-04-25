@@ -6,8 +6,9 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../../utils/logger.dart';
 
 /// Callback required by flutter_foreground_task — runs in isolate.
-/// We don't need periodic work (dartssh2 keepalive handles pings),
-/// so the handler is a no-op that just keeps the service alive.
+/// We don't need periodic work (russh handles SSH-level keep-alive
+/// pings), so the handler is a no-op that just keeps the service
+/// alive.
 @pragma('vm:entry-point')
 void _startCallback() {
   FlutterForegroundTask.setTaskHandler(_KeepAliveHandler());

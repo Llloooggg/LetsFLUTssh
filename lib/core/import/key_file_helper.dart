@@ -1,6 +1,7 @@
 import 'dart:convert' show base64;
 import 'dart:io';
 
+import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../utils/logger.dart';
 
 /// Shared helpers for SSH key files on disk.
@@ -14,17 +15,53 @@ class KeyFileHelper {
 
   /// Try to read a file as a PEM private key.
   /// Returns the PEM content if the file looks like a private key, null otherwise.
-  static String? tryReadPemKey(String path) {
+  ///
+  /// PPK files (PuTTY's `.ppk` format) are recognised here too — when
+  /// the file looks like a PPK, the Rust core's `keys_import_ppk`
+  /// (russh-keys' `from_ppk`) decodes it and re-encodes as OpenSSH
+  /// PEM so the rest of the import path stays format-agnostic.
+  /// Encrypted PPKs throw `PassphraseRequired` so the silent
+  /// file-picker path returns null and the caller can route to the
+  /// passphrase-aware key-manager flow.
+  static Future<String?> tryReadPemKey(String path) async {
     try {
       final file = File(path);
       if (!file.existsSync()) return null;
       if (file.lengthSync() > maxKeyFileSize) return null;
       final content = file.readAsStringSync();
+      if (_looksLikePpk(content)) {
+        // Unencrypted only at this entry point — let the FRB call
+        // throw and we map "passphrase required" to "not a key" for
+        // the silent path.
+        try {
+          final km = await rust_keys.keysImportPpk(
+            ppkText: content,
+            passphrase: null,
+            comment: '',
+          );
+          return km.privatePem;
+        } catch (_) {
+          // Encrypted / malformed / wrong passphrase / unsupported
+          // algorithm — surface as "not a key" so the silent file
+          // picker just refuses; the key-manager UI offers the full
+          // passphrase-aware flow.
+          return null;
+        }
+      }
       if (content.contains('PRIVATE KEY')) return content;
       return null;
     } catch (_) {
       return null;
     }
+  }
+
+  /// Quick sniff: does [text] look like a PPK file at all? Used by
+  /// the import dispatcher to route .ppk before falling through to
+  /// PEM detection. Cheap — first-line peek only.
+  static bool _looksLikePpk(String text) {
+    final t = text.trimLeft();
+    return t.startsWith('PuTTY-User-Key-File-2:') ||
+        t.startsWith('PuTTY-User-Key-File-3:');
   }
 
   /// Whether [pem] is a password-protected private key.

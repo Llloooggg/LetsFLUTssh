@@ -1,27 +1,47 @@
-import 'package:drift/drift.dart';
-
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../db/database.dart';
 import '../db/mappers.dart';
+import '../ssh/port_forward_rule.dart';
 import 'session.dart';
 
-/// CRUD + persistence for sessions, backed by drift database.
+/// CRUD + persistence for sessions, backed by `lfs_core.db`. Data
+/// DAO is Rust + rusqlite; in-memory cache invariants match the
+/// previous drift-era implementation.
 ///
-/// Keeps the same public API as the old file-based store. Internally delegates
-/// to [SessionDao] and [FolderDao]. The folder string paths ("Production/EU")
-/// are translated to/from the DB folder tree transparently.
+/// `setDatabase(AppDatabase)` / [database] are kept as a transitional
+/// hand-off: a couple of consumers still need the drift handle for
+/// cross-DB workflows that have not been ported yet — `import_flow`
+/// opens a drift `transaction` to wrap multi-store import as one
+/// unit of work, and the security tier switcher drives
+/// `PRAGMA rekey` against drift. Both retire when drift is removed.
 ///
-/// Call [setDatabase] before [load] — without a database, all reads return
-/// empty data and writes are no-ops.
+/// Failures from FRB calls (DB locked / native lib missing in unit
+/// tests) are caught at every entry point and degrade to the same
+/// empty-result / no-op semantics drift's `_db == null` branch
+/// used to expose. Live persistence coverage moves to integration_test.
 class SessionStore {
-  AppDatabase? _db;
+  AppDatabase? _drift;
+
+  /// Inject the drift handle. Transitional only — the data calls
+  /// themselves go through FRB; this reference exists so legacy
+  /// callers (`import_flow.runInTransaction`, security-tier rekey)
+  /// keep operating until they migrate off drift.
+  void setDatabase(AppDatabase db) {
+    _drift = db;
+    invalidateCache();
+  }
+
+  /// Drift handle, or null when locked / between unlocks. Used only
+  /// by transitional consumers — see class doc.
+  AppDatabase? get database => _drift;
 
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
 
   /// Folder tree cache (id → DbFolder). Rebuilt on [load].
-  Map<String, DbFolder> _folderMap = {};
+  Map<String, rust_db.DbFolder> _folderMap = {};
 
   List<Session> get sessions => List.unmodifiable(_sessions);
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
@@ -31,38 +51,33 @@ class SessionStore {
   /// Returns null if the path is empty or not found.
   String? folderIdByPath(String path) => findFolderIdByPath(path, _folderMap);
 
-  /// Inject the opened database. Replaces the old `setEncryptionKey()`.
-  void setDatabase(AppDatabase db) {
-    _db = db;
+  /// Drop the in-memory cache so the next [load] re-reads. Called
+  /// from the unlock handshake; replaces the drift-era
+  /// `setDatabase` injection.
+  void invalidateCache() {
+    _sessions.clear();
+    _emptyFolders.clear();
+    _collapsedFolders.clear();
+    _folderMap = {};
+    _loadFuture = null;
   }
 
-  /// Current database, or null if [setDatabase] hasn't been called yet.
-  /// Exposed so `ImportService` can open a transaction spanning every store.
-  AppDatabase? get database => _db;
-
-  /// Close the held database handle and drop the reference. The
+  /// Close the held drift handle and drop the reference. The
   /// auto-lock path calls this right after zeroing the in-memory DB
-  /// key so MC's internal page cache (which retains the key
-  /// in its C-layer state for as long as the handle is open) also
-  /// gets zeroed. On unlock `main._injectDatabase` opens a fresh
-  /// handle and re-injects via [setDatabase].
-  ///
-  /// Best-effort: a failure to close (stale file descriptor, drift
-  /// internal error) is logged by the caller; losing the reference
-  /// is enough to unblock the re-open path.
+  /// key so MC's internal page cache (which retains the key in its
+  /// C-layer state for as long as the handle is open) also gets
+  /// zeroed. On unlock `_injectDatabase` opens a fresh drift handle
+  /// and re-injects via [setDatabase].
   Future<void> closeDatabase() async {
-    final db = _db;
-    _db = null;
-    if (db == null) return;
+    final drift = _drift;
+    _drift = null;
+    invalidateCache();
+    if (drift == null) return;
     try {
-      await db.close();
+      await drift.close();
     } catch (e) {
-      // Best-effort. Handle may have been closed elsewhere already.
-      // Log so a "close after close" race has a breadcrumb the
-      // next time the auto-lock / reset path surfaces a
-      // DatabaseClosedException.
       AppLogger.instance.log(
-        'SessionStore.setDatabase: old handle close failed: $e',
+        'SessionStore: drift close failed: $e',
         name: 'SessionStore',
       );
     }
@@ -83,19 +98,16 @@ class SessionStore {
   }
 
   Future<List<Session>> _doLoad() async {
-    final db = _db;
-    if (db == null) return [];
-
     try {
       // Load folder tree
-      final folders = await db.folderDao.getAll();
+      final folders = await rust_db.dbFoldersListAll();
       _folderMap = buildFolderMap(folders);
 
       // Load sessions, convert to domain model WITHOUT credentials. The
       // cached list in memory must not carry plaintext passwords / keyData /
       // passphrases — callers that need them (connect, edit dialog, export)
       // fetch on demand via [loadWithCredentials].
-      final dbSessions = await db.sessionDao.getAll();
+      final dbSessions = await rust_db.dbSessionsListAll();
       _sessions
         ..clear()
         ..addAll(dbSessions.map((s) => dbSessionToSession(s, _folderMap)));
@@ -137,19 +149,100 @@ class SessionStore {
     return List.of(_sessions);
   }
 
+  /// Read every saved port-forward rule for [sessionId], sorted by
+  /// the user-defined order. Empty when the session has no rules
+  /// (the runtime then skips attaching a `PortForwardRuntime` and
+  /// the connection pays no cost).
+  Future<List<PortForwardRule>> loadPortForwards(String sessionId) async {
+    try {
+      final rows = await rust_db.dbPortForwardsListForSession(
+        sessionId: sessionId,
+      );
+      return rows
+          .map(
+            (r) => PortForwardRule(
+              id: r.id,
+              kind: PortForwardKindExt.fromWireName(r.kind),
+              bindHost: r.bindHost,
+              bindPort: r.bindPort,
+              remoteHost: r.remoteHost,
+              remotePort: r.remotePort,
+              description: r.description,
+              enabled: r.enabled,
+              sortOrder: r.sortOrder,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+            ),
+          )
+          .toList(growable: false);
+    } catch (e) {
+      AppLogger.instance.log(
+        'loadPortForwards failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+      return const [];
+    }
+  }
+
+  /// Insert or update [rule] for [sessionId]. Idempotent on the rule
+  /// id — re-saving a rule with the same id overwrites.
+  Future<void> upsertPortForward(String sessionId, PortForwardRule rule) async {
+    try {
+      await rust_db.dbPortForwardsUpsert(
+        row: rust_db.DbPortForwardRule(
+          id: rule.id,
+          sessionId: sessionId,
+          kind: rule.kind.wireName,
+          bindHost: rule.bindHost,
+          bindPort: rule.bindPort,
+          remoteHost: rule.remoteHost,
+          remotePort: rule.remotePort,
+          description: rule.description,
+          enabled: rule.enabled,
+          sortOrder: rule.sortOrder,
+          createdAtMs: rule.createdAt.millisecondsSinceEpoch,
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'upsertPortForward failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop a single rule by id. Returns true when something was
+  /// removed (helpful for the UI confirm-toast).
+  Future<bool> deletePortForward(String ruleId) async {
+    try {
+      final n = await rust_db.dbPortForwardsDelete(id: ruleId);
+      return n > 0;
+    } catch (e) {
+      AppLogger.instance.log(
+        'deletePortForward failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+      return false;
+    }
+  }
+
   /// Fetch a single session with credentials populated (password/keyData/
   /// passphrase). Returns null if the session no longer exists in the DB.
-  ///
-  /// The in-memory cache stores credential-free copies to shrink the window
-  /// in which plaintext secrets live on the Dart heap. Connect/edit/export
-  /// flows call this right before they need the secrets and drop the
-  /// reference as soon as the consumer is done with it.
   Future<Session?> loadWithCredentials(String id) async {
-    final db = _db;
-    if (db == null) return null;
-    final row = await db.sessionDao.getById(id);
-    if (row == null) return null;
-    return dbSessionToSession(row, _folderMap, withCredentials: true);
+    try {
+      final row = await rust_db.dbSessionsGet(id: id);
+      if (row == null) return null;
+      return dbSessionToSession(row, _folderMap, withCredentials: true);
+    } catch (e) {
+      AppLogger.instance.log(
+        'loadWithCredentials failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+      return null;
+    }
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────
@@ -158,15 +251,16 @@ class SessionStore {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
     _sessions.add(session);
-    final db = _db;
-    if (db != null) {
-      final folderId = await resolveFolderPath(
-        session.folder,
-        db.folderDao,
-        _folderMap,
+    try {
+      final folderId = await resolveFolderPath(session.folder, _folderMap);
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(session, folderId: folderId),
       );
-      await db.sessionDao.insert(
-        sessionToCompanion(session, folderId: folderId),
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore.add failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
       );
     }
   }
@@ -177,43 +271,61 @@ class SessionStore {
     final idx = _sessions.indexWhere((s) => s.id == session.id);
     if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
     _sessions[idx] = session;
-    final db = _db;
-    if (db != null) {
-      final folderId = await resolveFolderPath(
-        session.folder,
-        db.folderDao,
-        _folderMap,
+    try {
+      final folderId = await resolveFolderPath(session.folder, _folderMap);
+      await rust_db.dbSessionsUpsert(
+        row: sessionToRustRow(session, folderId: folderId),
       );
-      await db.sessionDao.update(
-        sessionToCompanion(session, folderId: folderId),
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore.update failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
       );
     }
   }
 
   Future<void> delete(String id) async {
     _sessions.removeWhere((s) => s.id == id);
-    await _db?.sessionDao.deleteById(id);
+    try {
+      await rust_db.dbSessionsDelete(id: id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore.delete failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   Future<void> deleteMultiple(Set<String> ids) async {
     if (ids.isEmpty) return;
     _sessions.removeWhere((s) => ids.contains(s.id));
-    await _db?.sessionDao.deleteMultiple(ids);
+    try {
+      await rust_db.dbSessionsDeleteMultiple(ids: ids.toList());
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore.deleteMultiple failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   Future<void> deleteAll() async {
     _sessions.clear();
     _emptyFolders.clear();
     _collapsedFolders.clear();
-    final db = _db;
-    if (db != null) {
-      await db.sessionDao.deleteAll();
-      // Delete all folders (empty + non-empty)
-      final allFolders = await db.folderDao.getAll();
-      for (final f in allFolders) {
-        await db.folderDao.deleteById(f.id);
-      }
+    try {
+      await rust_db.dbSessionsDeleteAll();
+      await rust_db.dbFoldersDeleteAll();
       _folderMap.clear();
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore.deleteAll failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -231,11 +343,6 @@ class SessionStore {
     final full = await loadWithCredentials(id);
     final original = full ?? get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
-    // When [targetFolder] is supplied, land the duplicate directly in
-    // that folder so callers don't need a two-step "duplicate, then
-    // move" (with a visible intermediate state in between). Paste flows
-    // rely on this to place the copy next to the currently focused
-    // session / folder, not next to the source.
     final base = original.duplicate();
     final copy = targetFolder == null
         ? base
@@ -248,14 +355,19 @@ class SessionStore {
     final idx = _sessions.indexWhere((s) => s.id == sessionId);
     if (idx < 0) return;
     _sessions[idx] = _sessions[idx].copyWith(folder: newFolder);
-    final db = _db;
-    if (db != null) {
-      final folderId = await resolveFolderPath(
-        newFolder,
-        db.folderDao,
-        _folderMap,
+    try {
+      final folderId = await resolveFolderPath(newFolder, _folderMap);
+      await rust_db.dbSessionsMoveToFolder(
+        sessionId: sessionId,
+        folderId: folderId,
+        updatedAtMs: DateTime.now().millisecondsSinceEpoch,
       );
-      await db.sessionDao.moveToFolder(sessionId, folderId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'moveSession failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -266,14 +378,19 @@ class SessionStore {
         _sessions[i] = _sessions[i].copyWith(folder: newFolder);
       }
     }
-    final db = _db;
-    if (db != null) {
-      final folderId = await resolveFolderPath(
-        newFolder,
-        db.folderDao,
-        _folderMap,
+    try {
+      final folderId = await resolveFolderPath(newFolder, _folderMap);
+      await rust_db.dbSessionsMoveMultiple(
+        ids: ids.toList(),
+        folderId: folderId,
+        updatedAtMs: DateTime.now().millisecondsSinceEpoch,
       );
-      await db.sessionDao.moveMultiple(ids, folderId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'moveMultiple failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -286,9 +403,14 @@ class SessionStore {
       'Added empty folder: $folderPath',
       name: 'SessionStore',
     );
-    final db = _db;
-    if (db != null) {
-      await resolveFolderPath(folderPath, db.folderDao, _folderMap);
+    try {
+      await resolveFolderPath(folderPath, _folderMap);
+    } catch (e) {
+      AppLogger.instance.log(
+        'addEmptyFolder failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -310,12 +432,29 @@ class SessionStore {
       'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: $folderPath',
       name: 'SessionStore',
     );
-    final db = _db;
-    if (db != null) {
+    try {
       final folderId = findFolderIdByPath(folderPath, _folderMap);
       if (folderId != null) {
-        await db.folderDao.toggleCollapsed(folderId);
+        await rust_db.dbFoldersToggleCollapsed(id: folderId);
+        // Refresh cache row so subsequent reads see the new flag.
+        final row = _folderMap[folderId];
+        if (row != null) {
+          _folderMap[folderId] = rust_db.DbFolder(
+            id: row.id,
+            name: row.name,
+            parentId: row.parentId,
+            sortOrder: row.sortOrder,
+            collapsed: !row.collapsed,
+            createdAtMs: row.createdAtMs,
+          );
+        }
       }
+    } catch (e) {
+      AppLogger.instance.log(
+        'toggleFolderCollapsed failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -347,19 +486,26 @@ class SessionStore {
     _renamePaths(_emptyFolders, oldPath, newPath);
     _renamePaths(_collapsedFolders, oldPath, newPath);
 
-    // Update DB: rename the folder node
-    final db = _db;
-    if (db != null) {
+    try {
       final folderId = findFolderIdByPath(oldPath, _folderMap);
       if (folderId != null) {
+        final row = _folderMap[folderId];
         final newName = newPath.split('/').last;
-        await db.folderDao.update(
-          FoldersCompanion(id: Value(folderId), name: Value(newName)),
+        await rust_db.dbFoldersUpdateNameParent(
+          id: folderId,
+          name: newName,
+          parentId: row?.parentId,
         );
         // Rebuild cache
-        final folders = await db.folderDao.getAll();
+        final folders = await rust_db.dbFoldersListAll();
         _folderMap = buildFolderMap(folders);
       }
+    } catch (e) {
+      AppLogger.instance.log(
+        'renameFolder failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -391,14 +537,19 @@ class SessionStore {
     _collapsedFolders.removeWhere(
       (c) => c == folderPath || c.startsWith('$folderPath/'),
     );
-    final db = _db;
-    if (db != null) {
+    try {
       final folderId = findFolderIdByPath(folderPath, _folderMap);
       if (folderId != null) {
-        await db.folderDao.deleteRecursive(folderId);
-        final folders = await db.folderDao.getAll();
+        await rust_db.dbFoldersDeleteRecursive(id: folderId);
+        final folders = await rust_db.dbFoldersListAll();
         _folderMap = buildFolderMap(folders);
       }
+    } catch (e) {
+      AppLogger.instance.log(
+        'deleteFolder failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 
@@ -424,32 +575,30 @@ class SessionStore {
       ..clear()
       ..addAll(emptyFolders);
 
-    final db = _db;
-    if (db != null) {
+    try {
       // Clear and rebuild
-      await db.sessionDao.deleteAll();
-      final allFolders = await db.folderDao.getAll();
-      for (final f in allFolders) {
-        await db.folderDao.deleteById(f.id);
-      }
+      await rust_db.dbSessionsDeleteAll();
+      await rust_db.dbFoldersDeleteAll();
       _folderMap.clear();
 
       // Re-insert sessions with folder resolution
       for (final session in sessions) {
-        final folderId = await resolveFolderPath(
-          session.folder,
-          db.folderDao,
-          _folderMap,
-        );
-        await db.sessionDao.insert(
-          sessionToCompanion(session, folderId: folderId),
+        final folderId = await resolveFolderPath(session.folder, _folderMap);
+        await rust_db.dbSessionsUpsert(
+          row: sessionToRustRow(session, folderId: folderId),
         );
       }
 
       // Re-create empty folders
       for (final path in emptyFolders) {
-        await resolveFolderPath(path, db.folderDao, _folderMap);
+        await resolveFolderPath(path, _folderMap);
       }
+    } catch (e) {
+      AppLogger.instance.log(
+        'restoreSnapshot failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
     }
   }
 

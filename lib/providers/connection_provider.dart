@@ -49,8 +49,8 @@ final connectionsProvider = StreamProvider<List<Connection>>((ref) async* {
 ///
 /// Consumers use this instead of [connectionsProvider] to avoid rebuilding
 /// on unrelated [Connection] mutations (cached passphrase stored, live
-/// [SSHConnection] swapped, progress steps appended). Two emits produce
-/// the same [ConnectionSummary] iff the displayed state is unchanged, so
+/// transport swapped, progress steps appended). Two emits produce the
+/// same [ConnectionSummary] iff the displayed state is unchanged, so
 /// Riverpod short-circuits the rebuild via value equality.
 @immutable
 class ConnectionSummary {

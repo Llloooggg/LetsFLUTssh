@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/db/database.dart';
 import '../core/db/database_opener.dart';
+import '../core/db/migrate_drift_to_rust.dart';
+import '../core/db/rust_db_init.dart';
 import '../core/migration/artefacts/config_artefact.dart';
 import '../core/migration/migration_runner.dart';
 import '../core/migration/registry.dart';
@@ -32,8 +34,6 @@ import '../providers/security_provider.dart';
 import '../providers/security_reinit_provider.dart';
 import '../providers/session_credential_cache_provider.dart';
 import '../providers/session_provider.dart';
-import '../providers/snippet_provider.dart';
-import '../providers/tag_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/platform.dart' as plat;
@@ -1093,14 +1093,27 @@ class SecurityInitController {
     final db = _dbOpener(encryptionKey: key);
     _activeDatabase = db;
     ref.read(sessionStoreProvider).setDatabase(db);
-    ref.read(keyStoreProvider).setDatabase(db);
-    ref.read(knownHostsProvider).setDatabase(db);
-    ref.read(snippetStoreProvider).setDatabase(db);
-    ref.read(tagStoreProvider).setDatabase(db);
-    ref.read(autoLockStoreProvider).setDatabase(db);
+    // ^ transitional drift handle — see SessionStore docs. Data
+    // reads/writes go through FRB; the handle stays around for
+    // import_flow's drift transaction + tier rekey.
+    ref.read(keyStoreProvider).invalidateCache();
+    ref.read(knownHostsProvider).invalidateCache();
+    // SnippetStore reads/writes through FRB now — no setDatabase.
+    // TagStore reads/writes through FRB now — no setDatabase.
+    // AutoLockStore now reads/writes through FRB (lfs_core.db) — the
+    // unlock handshake (ensureRustDbOpen above) is what initialises
+    // it. No setDatabase call needed.
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
+    // Open the Rust-owned sqlite handle alongside drift, keyed off
+    // the same master key. Failures degrade silently — see
+    // ensureRustDbOpen.
+    await ensureRustDbOpen(key: key);
+    // Replay drift's tables into `lfs_core.db` once so the Rust DAOs
+    // observe the same data the legacy drift store holds. Idempotent;
+    // marker file gates repeats. Failures are swallowed.
+    unawaited(migrateDriftToRustOnce(db));
     await _persistSecurityTier(level, modifiers);
   }
 

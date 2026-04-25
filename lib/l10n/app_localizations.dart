@@ -3633,6 +3633,342 @@ abstract class S {
   /// **'Command copied to clipboard'**
   String get commandCopied;
 
+  /// No description provided for @snippetTokensHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to insert a placeholder. These are replaced at run time with values from the active session:'**
+  String get snippetTokensHint;
+
+  /// No description provided for @snippetCustomTokensHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything else with double braces prompts you for a value when the snippet runs.'**
+  String get snippetCustomTokensHint;
+
+  /// No description provided for @snippetFillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in snippet parameters'**
+  String get snippetFillTitle;
+
+  /// No description provided for @snippetFillSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get snippetFillSubmit;
+
+  /// No description provided for @snippetPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get snippetPreview;
+
+  /// No description provided for @broadcastSetDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast from this pane'**
+  String get broadcastSetDriver;
+
+  /// No description provided for @broadcastClearDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop broadcasting from this pane'**
+  String get broadcastClearDriver;
+
+  /// No description provided for @broadcastAddReceiver.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive broadcast here'**
+  String get broadcastAddReceiver;
+
+  /// No description provided for @broadcastRemoveReceiver.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop receiving broadcast'**
+  String get broadcastRemoveReceiver;
+
+  /// No description provided for @broadcastClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop all broadcasting'**
+  String get broadcastClearAll;
+
+  /// No description provided for @broadcastPasteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send paste to all panes?'**
+  String get broadcastPasteTitle;
+
+  /// No description provided for @broadcastPasteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{chars} characters will be sent to {count} other panes.'**
+  String broadcastPasteBody(int chars, int count);
+
+  /// No description provided for @broadcastPasteSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get broadcastPasteSend;
+
+  /// No description provided for @portForwarding.
+  ///
+  /// In en, this message translates to:
+  /// **'Forwarding'**
+  String get portForwarding;
+
+  /// No description provided for @portForwardingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No forward rules yet'**
+  String get portForwardingEmpty;
+
+  /// No description provided for @addForwardRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Add rule'**
+  String get addForwardRule;
+
+  /// No description provided for @editForwardRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit rule'**
+  String get editForwardRule;
+
+  /// No description provided for @deleteForwardRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete rule'**
+  String get deleteForwardRule;
+
+  /// No description provided for @localForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get localForward;
+
+  /// No description provided for @remoteForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote'**
+  String get remoteForward;
+
+  /// No description provided for @dynamicForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic'**
+  String get dynamicForward;
+
+  /// No description provided for @forwardKind.
+  ///
+  /// In en, this message translates to:
+  /// **'Kind'**
+  String get forwardKind;
+
+  /// No description provided for @bindAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Bind address'**
+  String get bindAddress;
+
+  /// No description provided for @bindPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Bind port'**
+  String get bindPort;
+
+  /// No description provided for @targetHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Target host'**
+  String get targetHost;
+
+  /// No description provided for @targetPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Target port'**
+  String get targetPort;
+
+  /// No description provided for @forwardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get forwardDescription;
+
+  /// No description provided for @forwardEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get forwardEnabled;
+
+  /// No description provided for @forwardBindWildcardWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.'**
+  String get forwardBindWildcardWarning;
+
+  /// No description provided for @forwardOnlyLocalSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.'**
+  String get forwardOnlyLocalSupported;
+
+  /// No description provided for @forwardKindLocalHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.'**
+  String get forwardKindLocalHelp;
+
+  /// No description provided for @forwardKindRemoteHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).'**
+  String get forwardKindRemoteHelp;
+
+  /// No description provided for @forwardKindDynamicHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.'**
+  String get forwardKindDynamicHelp;
+
+  /// No description provided for @forwardExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Example'**
+  String get forwardExample;
+
+  /// No description provided for @forwardLocalExample.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080'**
+  String get forwardLocalExample;
+
+  /// No description provided for @forwardRemoteExample.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000'**
+  String get forwardRemoteExample;
+
+  /// No description provided for @forwardDynamicExample.
+  ///
+  /// In en, this message translates to:
+  /// **'ssh -D 1080 → set browser SOCKS5 to localhost:1080'**
+  String get forwardDynamicExample;
+
+  /// No description provided for @proxyJump.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect via'**
+  String get proxyJump;
+
+  /// No description provided for @proxyJumpNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct connection'**
+  String get proxyJumpNone;
+
+  /// No description provided for @proxyJumpSavedSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved session'**
+  String get proxyJumpSavedSession;
+
+  /// No description provided for @proxyJumpCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get proxyJumpCustom;
+
+  /// No description provided for @proxyJumpCustomNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.'**
+  String get proxyJumpCustomNote;
+
+  /// No description provided for @errProxyJumpCycle.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy chain loops back on itself.'**
+  String get errProxyJumpCycle;
+
+  /// No description provided for @errProxyJumpDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy chain is too deep (max {max} hops).'**
+  String errProxyJumpDepth(int max);
+
+  /// No description provided for @errProxyJumpBastionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Bastion {label} failed to connect.'**
+  String errProxyJumpBastionFailed(String label);
+
+  /// No description provided for @viaSessionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'via {label}'**
+  String viaSessionLabel(String label);
+
+  /// No description provided for @recordSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Record session'**
+  String get recordSession;
+
+  /// No description provided for @recordSessionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.'**
+  String get recordSessionHelp;
+
+  /// No description provided for @recordingsBrowserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recordings'**
+  String get recordingsBrowserTitle;
+
+  /// No description provided for @recordingsBrowserSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse, replay, and delete recorded sessions'**
+  String get recordingsBrowserSubtitle;
+
+  /// No description provided for @recordingsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No recordings yet'**
+  String get recordingsEmpty;
+
+  /// No description provided for @playRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playRecording;
+
+  /// No description provided for @deleteRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteRecording;
+
+  /// No description provided for @recordingPlaybackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay recording'**
+  String get recordingPlaybackTitle;
+
+  /// No description provided for @recordingSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get recordingSpeed;
+
+  /// No description provided for @recordingSpeedInstant.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant'**
+  String get recordingSpeedInstant;
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

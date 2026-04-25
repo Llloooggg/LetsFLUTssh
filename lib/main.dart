@@ -43,6 +43,9 @@ import 'providers/theme_provider.dart';
 import 'providers/update_provider.dart';
 import 'providers/version_provider.dart';
 import 'theme/app_theme.dart';
+import 'src/rust/api.dart' as rust_core;
+import 'src/rust/api/app.dart' as rust_app;
+import 'src/rust/frb_generated.dart' show RustLib;
 import 'utils/logger.dart';
 import 'utils/platform.dart' as plat;
 import 'utils/sanitize.dart';
@@ -180,6 +183,32 @@ Future<void> _mainBody() async {
   };
 
   AppLogger.instance.log('App starting', name: 'App');
+
+  // Rust security/transport core — load the bundled native blob and
+  // verify the Dart bindings match. See ARCHITECTURE.md §3.14 +
+  // docs/RUST_CORE_MIGRATION_PLAN.md. Every SSH/SFTP/keypair/crypto
+  // call routes through here; failure to load is fatal in practice
+  // (the first connect attempt would crash on the missing FRB
+  // bindings). The catch arm exists so the smoke ping doesn't
+  // tank app startup if the version probe itself misbehaves.
+  try {
+    await RustLib.init();
+    // Initialise the AppState singleton in lfs_core. Subsequent
+    // commands (secrets_*, sessions/connections/forwards) attach to
+    // it. Idempotent.
+    await rust_app.appInit();
+    AppLogger.instance.log(
+      'Rust core loaded: ${rust_core.ping()}',
+      name: 'RustCore',
+    );
+  } catch (e, st) {
+    AppLogger.instance.log(
+      'Rust core failed to load: $e',
+      name: 'RustCore',
+      error: e,
+      stackTrace: st,
+    );
+  }
 
   // Disable core dumps and ptrace attach as early as possible — before any
   // secrets touch RAM. Best-effort, swallowed on failure.

@@ -2,16 +2,16 @@ import 'dart:io';
 
 import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
-import '../../core/sftp/sftp_client.dart';
+import '../../core/sftp/sftp_fs.dart';
 import '../../utils/android_storage_permission.dart';
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
-/// Result of SFTP initialization — controllers + service.
+/// Result of SFTP initialization — controllers + filesystem handle.
 class SFTPInitResult {
   final FilePaneController localCtrl;
   final FilePaneController remoteCtrl;
-  final SFTPService sftpService;
+  final RemoteSftpFs filesystem;
 
   /// True if Android storage permission was denied during init.
   final bool storagePermissionDenied;
@@ -19,14 +19,14 @@ class SFTPInitResult {
   SFTPInitResult({
     required this.localCtrl,
     required this.remoteCtrl,
-    required this.sftpService,
+    required this.filesystem,
     this.storagePermissionDenied = false,
   });
 
   void dispose() {
     localCtrl.dispose();
     remoteCtrl.dispose();
-    sftpService.close();
+    filesystem.close();
   }
 }
 
@@ -36,24 +36,25 @@ class SFTPInitializer {
 
   /// Initialize SFTP service and file pane controllers from a [Connection].
   ///
-  /// [sftpServiceFactory] can be provided for testing to avoid real SSH.
+  /// [filesystemFactory] can be provided for testing to avoid real SSH.
   /// [localFsFactory] can be provided for testing to avoid real filesystem.
   static Future<SFTPInitResult> init(
     Connection connection, {
-    Future<SFTPService> Function(Connection conn)? sftpServiceFactory,
+    Future<RemoteSftpFs> Function(Connection conn)? filesystemFactory,
     FileSystem Function()? localFsFactory,
   }) async {
-    SFTPService sftpService;
+    RemoteSftpFs filesystem;
     var permissionDenied = false;
-    if (sftpServiceFactory != null) {
-      sftpService = await sftpServiceFactory(connection);
-    } else {
-      final sshClient = connection.sshConnection?.client;
-      if (sshClient == null) {
-        throw StateError('SSH connection not available');
-      }
 
-      // On Android, request storage permission for local file browser
+    if (filesystemFactory != null) {
+      filesystem = await filesystemFactory(connection);
+    } else {
+      final transport = connection.transport;
+      if (transport == null) {
+        throw StateError('SSH transport not available');
+      }
+      filesystem = await RustSftpFs.create(transport);
+
       if (Platform.isAndroid) {
         final granted = await requestAndroidStoragePermission();
         permissionDenied = !granted;
@@ -62,8 +63,6 @@ class SFTPInitializer {
           name: 'SFTPInit',
         );
       }
-
-      sftpService = await SFTPService.fromSSHClient(sshClient);
     }
 
     final localCtrl = FilePaneController(
@@ -71,7 +70,7 @@ class SFTPInitializer {
       label: 'Local',
     );
     final remoteCtrl = FilePaneController(
-      fs: RemoteFS(sftpService),
+      fs: RemoteFS(filesystem),
       label: 'Remote',
     );
 
@@ -99,7 +98,7 @@ class SFTPInitializer {
     return SFTPInitResult(
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,
-      sftpService: sftpService,
+      filesystem: filesystem,
       storagePermissionDenied: permissionDenied,
     );
   }

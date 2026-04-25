@@ -10,6 +10,7 @@ import '../../utils/platform.dart';
 import '../../widgets/marquee_mixin.dart';
 import '../../widgets/tag_dots.dart';
 import '../../widgets/threshold_draggable.dart';
+import 'session_via_badge.dart';
 
 /// Drag data: either a session, a folder path, or a bulk selection.
 sealed class SessionDragData {}
@@ -875,6 +876,7 @@ class _SessionTreeViewState extends State<SessionTreeView> with MarqueeMixin {
               ),
             ),
             SessionTagDots(sessionId: session.id),
+            SessionViaBadge(session: session),
           ],
         ),
       ),

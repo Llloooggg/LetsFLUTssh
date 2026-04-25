@@ -216,9 +216,10 @@ class AppLogger {
   /// Strips sensitive data from a string before logging.
   ///
   /// Applied to every log message, error, and stack trace — including
-  /// those originating from third-party libraries (dartssh2, drift,
-  /// archive, etc.), so host/user/IP data leaked through library
-  /// exception messages never reaches the log file.
+  /// those originating from third-party libraries (russh, drift,
+  /// archive, etc.) and from the Rust core via FRB, so host/user/IP
+  /// data leaked through library exception messages never reaches
+  /// the log file.
   ///
   /// Scrubs:
   /// - PEM private keys and long base64 blobs (key material)

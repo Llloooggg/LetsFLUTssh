@@ -136,6 +136,40 @@ Requires Xcode on macOS.
 make build-ios
 ```
 
+### Rust core (security/transport)
+
+The SSH/crypto core is being progressively moved to a Rust workspace at `rust/`. End-users still install nothing — the native blob is bundled per platform alongside the Flutter binary. Contributors building from source need the Rust toolchain.
+
+See [`RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) for scope, sub-phases, and the migration mechanism.
+
+**Install Rust toolchain** (once per machine):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+`rust/rust-toolchain.toml` pins the channel — rustup auto-fetches the right version on first `cargo` invocation.
+
+**Install FRB codegen CLI** (once per machine, version-locked to the runtime crate):
+
+```bash
+cargo install flutter_rust_bridge_codegen --version 2.12.0
+```
+
+**Common targets:**
+
+```bash
+make rust-build          # cargo build --release --workspace
+make rust-test           # cargo test --workspace
+make rust-fmt            # cargo fmt --all
+make rust-lint           # cargo clippy -D warnings
+make rust-codegen        # regenerate Dart bindings after editing rust/crates/lfs_core/src/api.rs
+make rust-clean          # cargo clean
+```
+
+The Flutter build does not yet depend on `rust-build` — sub-phase 1.1 wires it in. Until then the Rust workspace is opt-in: editing Dart code does not require a Rust toolchain.
+
 ## Development
 
 ```bash

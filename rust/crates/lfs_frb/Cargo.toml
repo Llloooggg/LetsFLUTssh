@@ -1,0 +1,28 @@
+[package]
+name = "lfs_frb"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+# This is the native blob loaded by the Flutter runtime:
+#   cdylib    -> .so / .dylib / .dll for desktop + Android NDK
+#   staticlib -> static archive for iOS link-into-app
+#   rlib      -> usable from external integration tests in tests/
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+lfs_core = { path = "../lfs_core" }
+flutter_rust_bridge = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+
+# FRB's `cargo expand` step injects `--cfg frb_expand` to drive its
+# macro expansion. Whitelist that single cfg so `clippy -D warnings`
+# does not trip over the otherwise-unknown gate. Do not blanket-allow
+# unknown cfgs — keep other typos visible.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

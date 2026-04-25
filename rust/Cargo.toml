@@ -1,0 +1,103 @@
+[workspace]
+members = ["crates/lfs_core", "crates/lfs_frb"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/Llloooggg/LetsFLUTssh"
+rust-version = "1.85"
+
+# Shared versions for cross-crate dep pinning. Adapter crates inherit
+# these via `{ workspace = true }` so a bump only happens in one place.
+[workspace.dependencies]
+anyhow = "1"
+flutter_rust_bridge = "=2.12.0"
+# Pinned to 0.59. Latest is 0.60.1 (2026-04-20) but it transitively
+# pulls `pkcs8 0.11.0-rc.11` (RustCrypto RC, last published Feb 2026)
+# which calls `pkcs5::pbes2::Parameters::recommended(..)` — a method
+# that no longer exists. RustCrypto renamed it to `generate_recommended`
+# when graduating `pkcs5` to stable 0.8.0 on 2026-04-24, but pkcs8
+# never got a follow-up RC. Cargo resolves to the broken pair
+# (pkcs8 RC + pkcs5 stable). Re-tested 2026-04-25, build fails at
+# the `recommended` call. russh 0.59 sticks with stable pkcs8 0.10.2
+# (which uses pkcs5 ^0.7), so the resolver picks two compatible
+# stable releases.
+#
+# Bump back when either:
+#   - russh ships a release that pins pkcs8 stable
+#   - pkcs8 0.11.0-rc.12+ catches up to pkcs5 0.8 stable, OR
+#   - pkcs8 0.11 / pkcs5 0.9 graduate together to stable
+#
+# Track: https://github.com/RustCrypto/formats/pull/* (pkcs8 / pkcs5)
+russh = "0.59"
+# russh's forked ssh-key crate. russh pulls it transitively (the
+# `internal-russh-forked-` prefix is the upstream's choice — exact
+# pin `=0.6.16+upstream-0.6.7` matches what russh 0.59 resolves
+# against its own Cargo.toml). We re-declare it as a direct dep
+# only to flip on the `ppk` feature, which russh itself does not
+# re-export (russh 0.59 features list does not include `ppk`).
+# Same crate, same version — Cargo unions the feature set, no
+# duplicate compile.
+internal-russh-forked-ssh-key = { version = "=0.6.16", features = [
+    "ppk",
+    "ed25519",
+    "rsa",
+    "alloc",
+] }
+# SFTP client over a russh shell channel. Speaks SSH SFTP v3 (the
+# OpenSSH-server default). Used by `lfs_core::sftp` (sub-phase 1.5)
+# to mirror dartssh2's SFTP surface — list / read / write / stat /
+# rename / mkdir / remove. Pinned via caret so dependabot rolls
+# patches; major bumps need manual review for protocol surface
+# changes.
+russh-sftp = "2.1"
+# Typed error enum derive — used in lfs_core's `Error` to keep the
+# error-path well-shaped without manual `Display`/`From` boilerplate.
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util"] }
+# Best-effort scrub of secret buffers (passwords, key material) on
+# drop. Cannot reach copies russh / tokio hold internally — clears
+# only what we own. Dropping is best-effort, not a guarantee on every
+# allocator, but free to add and worth it for any shred we control.
+zeroize = { version = "1", features = ["zeroize_derive"] }
+# Constant-time comparisons for crypto material — always use
+# `subtle::ConstantTimeEq` for MAC/hash equality, never `==`.
+subtle = "2"
+# RustCrypto building blocks for `lfs_core::crypto`. `hkdf` + `sha2`
+# cover HKDF-SHA-256 (recorder envelope key derivation), `ed25519-dalek`
+# does pure verify on the update-feed signature path. Pinned to the
+# series russh 0.59 already pulls so the resolver doesn't double-stack
+# major versions.
+hkdf = "0.12"
+sha2 = "0.10"
+ed25519-dalek = { version = "2", default-features = false }
+# AES-256-GCM for Phase 2.1 envelopes (master-password verifier,
+# .lfs export, recorder per-frame). RustCrypto's `aes-gcm = "0.10"`
+# pairs with `aes` 0.8 already in the russh dep tree — single
+# version, no resolver split.
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+# Argon2id KDF for Phase 2.4 — master-password unlock and .lfs
+# password-encrypted archives. RustCrypto's `argon2 = "0.5"` is
+# constant-time and parameterised the same way as pointycastle's
+# Argon2BytesGenerator (memory KiB / iterations / parallelism /
+# 32-byte output) so existing on-disk salts round-trip without any
+# schema migration.
+argon2 = "0.5"
+# SQLite + SQLCipher for Phase 4.2 — drift replacement.
+# `bundled-sqlcipher` statically links SQLCipher 4.x so the encrypted
+# sqlite database the drift+sqlite3_flutter_libs side wrote stays
+# readable across the migration. Same PRAGMA key wire format.
+rusqlite = { version = "0.31", default-features = false, features = [
+    "bundled-sqlcipher",
+] }
+# No async wrapper — DB calls run on `tokio::task::spawn_blocking`
+# inside FRB adapter functions, which keeps the FRB tokio worker
+# free without an extra crate that would re-pull libsqlite3-sys at a
+# different version and trip the `links = "sqlite3"` resolver guard.
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = "symbols"

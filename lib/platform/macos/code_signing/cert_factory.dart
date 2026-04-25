@@ -32,15 +32,14 @@ class GeneratedCertMaterial {
 /// enough cert + key material for `security import` on macOS to
 /// accept as a signing identity.
 ///
-/// Why subprocess-based (not pure Dart): the project's `pubspec.yaml`
-/// carries `pointycastle` for RSA primitives, but not an X.509 v3 +
-/// PKCS#12 encoder — shipping one would add ~300 LOC of hand-rolled
-/// ASN.1 for a code path used once per install. `/usr/bin/openssl`
-/// ships by default on every macOS release we support and is already
-/// the tool the prior bash `macos-resign.sh` used. When Apple
-/// eventually drops `/usr/bin/openssl` (LibreSSL is deprecated in
-/// system) we'll port to pointycastle; the entry point below is the
-/// single seam to swap.
+/// Why subprocess-based (not pure Dart / Rust): generating an X.509
+/// v3 cert + PKCS#12 envelope is ~300 LOC of hand-rolled ASN.1 for
+/// a code path used once per install. `/usr/bin/openssl` ships by
+/// default on every macOS release we support and is already the
+/// tool the prior bash `macos-resign.sh` used. When Apple eventually
+/// drops `/usr/bin/openssl` (LibreSSL is deprecated in system) we
+/// can swap to a Rust-based generator (`rcgen` covers v3 + PKCS#12).
+/// The entry point below is the single seam.
 ///
 /// Subject CN identifies the cert as a user-level signing identity;
 /// the designated requirement derived from this cert is what the

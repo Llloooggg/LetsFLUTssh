@@ -284,7 +284,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     if (path == null) return;
     String pem;
     try {
-      final extracted = KeyFileHelper.tryReadPemKey(path);
+      final extracted = await KeyFileHelper.tryReadPemKey(path);
       pem = extracted ?? await File(path).readAsString();
     } catch (e) {
       AppLogger.instance.log('Key file read failed: $e', name: 'KeyManager');
@@ -315,7 +315,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   Future<void> _persistImportedKey(String label, String pem) async {
     try {
       final store = ref.read(keyStoreProvider);
-      final entry = store.importKey(pem, label);
+      final entry = await store.importKey(pem, label);
       await store.save(entry);
       ref.invalidate(sshKeysProvider);
       await _loadKeys();

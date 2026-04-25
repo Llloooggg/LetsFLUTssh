@@ -1,14 +1,11 @@
 import 'dart:async';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
-import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
@@ -22,19 +19,36 @@ import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/connection_progress.dart';
-@GenerateNiceMocks([MockSpec<SftpClient>()])
-import 'file_browser_tab_test.mocks.dart';
 
-/// Tracking SFTPService that records upload/download calls without real I/O.
-class _TrackingSFTPService extends SFTPService {
+/// Tracking RemoteSftpFs that records upload/download calls without real I/O.
+class _TrackingSftpFs implements RemoteSftpFs {
   final List<({String method, String src, String dst})> calls = [];
-
-  _TrackingSFTPService(super.sftp);
 
   /// Tests assume a clean destination — no conflict dialog is expected.
   /// Tests that exercise the conflict path should use a dedicated fixture.
   @override
   Future<bool> exists(String path) async => false;
+
+  @override
+  Future<String> getwd() async => '/remote';
+
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+
+  @override
+  Future<void> mkdir(String path) async {}
+
+  @override
+  Future<void> remove(String path) async {}
+
+  @override
+  Future<void> removeEmptyDir(String path) async {}
+
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+
+  @override
+  void close() {}
 
   @override
   Future<void> upload(
@@ -107,6 +121,11 @@ class _TrackingSFTPService extends SFTPService {
       ),
     );
   }
+
+  @override
+  Future<void> removeDir(String path) async {
+    // Inherit recursive default would call list+remove; simpler to no-op.
+  }
 }
 
 /// Fake FS that returns a custom initial directory.
@@ -132,18 +151,14 @@ class _FakeFSWithDir implements FileSystem {
   Future<int> dirSize(String path) async => 0;
 }
 
-/// Creates a fake SFTPInitResult using a tracking SFTPService.
+/// Creates a fake SFTPInitResult using a tracking RemoteSftpFs.
 /// Local pane starts at /local, remote pane starts at /remote.
-Future<(SFTPInitResult, _TrackingSFTPService)> _trackingInitFactory(
+Future<(SFTPInitResult, _TrackingSftpFs)> _trackingInitFactory(
   Connection conn, {
   List<FileEntry>? localFiles,
   List<FileEntry>? remoteFiles,
 }) async {
-  final mockSftp = MockSftpClient();
-  when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-  when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
-  final trackingService = _TrackingSFTPService(mockSftp);
+  final trackingService = _TrackingSftpFs();
   final localCtrl = FilePaneController(
     fs: _FakeFSWithDir(initDir: '/local', entries: localFiles ?? []),
     label: 'Local',
@@ -159,7 +174,7 @@ Future<(SFTPInitResult, _TrackingSFTPService)> _trackingInitFactory(
     SFTPInitResult(
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,
-      sftpService: trackingService,
+      filesystem: trackingService,
     ),
     trackingService,
   );
@@ -238,11 +253,7 @@ Future<SFTPInitResult> _fakeInitFactoryWithEntries(
   List<FileEntry>? localFiles,
   List<FileEntry>? remoteFiles,
 }) async {
-  final mockSftp = MockSftpClient();
-  when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-  when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
-  final sftpService = SFTPService(mockSftp);
+  final sftpFs = _TrackingSftpFs();
   final localCtrl = FilePaneController(
     fs: _FakeFS(entries: localFiles ?? []),
     label: 'Local',
@@ -257,7 +268,7 @@ Future<SFTPInitResult> _fakeInitFactoryWithEntries(
   return SFTPInitResult(
     localCtrl: localCtrl,
     remoteCtrl: remoteCtrl,
-    sftpService: sftpService,
+    filesystem: sftpFs,
   );
 }
 
@@ -282,7 +293,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'example.com', user: 'root'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'SSH connection not available',
       );
@@ -311,7 +321,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'SSH connection not available',
       );
@@ -343,7 +352,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: 'Connection failed',
       );
@@ -378,7 +386,6 @@ void main() {
           sshConfig: const SSHConfig(
             server: ServerAddress(host: 'example.com', user: 'root'),
           ),
-          sshConnection: null,
           state: SSHConnectionState.disconnected,
           connectionError: 'Connection failed',
         );
@@ -935,7 +942,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'upload-file-1',
           label: 'Test',
@@ -1009,7 +1016,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'upload-dir-1',
           label: 'Test',
@@ -1098,7 +1105,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'download-file-1',
           label: 'Test',
@@ -1171,7 +1178,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'download-dir-1',
           label: 'Test',
@@ -1255,7 +1262,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         late SFTPInitResult initResult;
         final conn = Connection(
           id: 'multi-upload-1',
@@ -1337,7 +1344,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         late SFTPInitResult initResult;
         final conn = Connection(
           id: 'multi-download-1',
@@ -1422,7 +1429,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'drop-local-to-remote',
           label: 'Test',
@@ -1514,7 +1521,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         late SFTPInitResult initResult;
         final conn = Connection(
           id: 'drop-remote-to-local',
@@ -1709,7 +1716,7 @@ void main() {
       };
       addTearDown(() => FlutterError.onError = origHandler);
 
-      late _TrackingSFTPService tracking;
+      late _TrackingSftpFs tracking;
       final conn = Connection(
         id: 'run-upload',
         label: 'Test',
@@ -1782,7 +1789,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'run-download',
           label: 'Test',
@@ -1856,7 +1863,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'run-upload-dir',
           label: 'Test',
@@ -1937,7 +1944,7 @@ void main() {
         };
         addTearDown(() => FlutterError.onError = origHandler);
 
-        late _TrackingSFTPService tracking;
+        late _TrackingSftpFs tracking;
         final conn = Connection(
           id: 'run-download-dir',
           label: 'Test',
@@ -2643,7 +2650,6 @@ void main() {
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'h', user: 'u'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
         connectionError: null,
       );

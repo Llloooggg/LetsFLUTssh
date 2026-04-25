@@ -1,17 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/app.dart' as rust_app;
 import '../../utils/logger.dart';
 import '../security/session_credential_cache.dart';
 import '../ssh/known_hosts.dart';
-import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
+import '../ssh/transport/rust_transport.dart';
+import '../ssh/transport/ssh_transport.dart';
+import '../ssh/transport/transport_factory.dart';
 import 'connection.dart';
-
-/// Factory for creating SSH connections — injectable for testing.
-typedef SSHConnectionFactory =
-    SSHConnection Function(SSHConfig config, KnownHostsManager knownHosts);
 
 /// Optional callback invoked when the number of active (connected) sessions changes.
 typedef ActiveCountCallback = void Function(int activeCount);
@@ -33,7 +34,6 @@ class ConnectionManager {
   /// Per-connection generation counter — prevents stale reconnect results.
   final _connectGeneration = <String, int>{};
   final KnownHostsManager knownHosts;
-  final SSHConnectionFactory _connectionFactory;
 
   /// Page-locked per-session credential cache. Populated on successful
   /// auth; read by the reconnect path so `auto-lock` can close the
@@ -48,7 +48,10 @@ class ConnectionManager {
   ActiveCountCallback? onActiveCountChanged;
 
   /// Called when an encrypted SSH key needs a passphrase interactively.
-  /// Set by the UI layer (main.dart) — same pattern as host key callbacks.
+  /// Reserved for the upcoming Rust-side passphrase callback hook —
+  /// today it stays unwired (the Rust transport returns
+  /// `PassphraseIncorrect` / `PassphraseRequired` errors rather than
+  /// prompting mid-handshake).
   PassphrasePromptCallback? onPassphraseRequired;
 
   final _controller = StreamController<void>.broadcast();
@@ -56,17 +59,31 @@ class ConnectionManager {
   /// Stream that fires on any connection state change.
   Stream<void> get onChange => _controller.stream;
 
+  /// Optional override of the SSH transport factory — useful in tests
+  /// to inject a mock SshTransport without touching the global factory.
+  /// In production stays null and `createSshTransport()` is used.
+  final SshTransport Function(KnownHostsManager)? _transportFactory;
+
   ConnectionManager({
     required this.knownHosts,
-    SSHConnectionFactory? connectionFactory,
     SessionCredentialCache? credentialCache,
     this.onActiveCountChanged,
+    SshTransport Function(KnownHostsManager)? transportFactory,
   }) : _credentialCache = credentialCache,
-       _connectionFactory =
-           connectionFactory ??
-           ((config, kh) => SSHConnection(config: config, knownHosts: kh));
+       _transportFactory = transportFactory;
 
-  List<Connection> get connections => _connections.values.toList();
+  /// User-visible connections. Excludes internal bastion hops the
+  /// manager opens to back ProxyJump chains; those rides are owned
+  /// by their parent connection and surface through it instead.
+  List<Connection> get connections => [
+    for (final c in _connections.values)
+      if (!c.internal) c,
+  ];
+
+  /// Every connection including internal bastion hops — used by the
+  /// foreground-service active-count callback so a long-running
+  /// bastion still keeps the Android service alive.
+  List<Connection> get allConnections => _connections.values.toList();
 
   Connection? get(String id) => _connections[id];
 
@@ -77,6 +94,8 @@ class ConnectionManager {
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     final id = _uuid.v4();
     final conn = Connection(
@@ -86,6 +105,8 @@ class ConnectionManager {
       sessionId: sessionId,
       knownHosts: knownHosts,
       state: SSHConnectionState.connecting,
+      bastion: bastion,
+      internal: internal,
     );
     _connections[id] = conn;
     _notify();
@@ -117,42 +138,39 @@ class ConnectionManager {
     SSHConfig config,
     int generation,
   ) async {
-    final effectiveConfig = _withCredentialOverlay(conn, config);
-    final sshConn = _connectionFactory(effectiveConfig, knownHosts);
-    // Identity-guarded callback. A stale generation path (timeout,
-    // superseded reconnect, mid-connect error) still calls
-    // `sshConn.disconnect()` on the old transport to release the
-    // socket, which fires this callback. Without the guard the old
-    // callback would clobber `conn.sshConnection`/`conn.state` even
-    // after a newer generation had already assigned its own transport
-    // into the shared Connection — flipping the UI to "disconnected"
-    // while the new connection was in fact live.
-    sshConn.onDisconnect = () {
-      if (conn.sshConnection != sshConn) return;
-      conn.state = SSHConnectionState.disconnected;
-      conn.sshConnection = null;
-      _notify();
-    };
-    _wirePassphrasePrompt(sshConn, conn);
-
+    final effectiveConfig = await _withCredentialOverlay(conn, config);
+    final transport =
+        _transportFactory?.call(knownHosts) ??
+        createSshTransport(knownHosts: knownHosts);
+    final auth = await _authFromConfig(effectiveConfig.auth, conn.sessionId);
+    final request = SshConnectRequest(
+      host: effectiveConfig.host,
+      port: effectiveConfig.port,
+      user: effectiveConfig.user,
+      auth: auth,
+      inactivityTimeout: Duration(seconds: effectiveConfig.timeoutSec),
+    );
     try {
-      await sshConn
-          .connect(onProgress: (step) => conn.addProgressStep(step))
-          .timeout(connectionTimeout);
-
-      // Check if a newer reconnect has started while we were connecting.
+      // ProxyJump dispatch: if `conn.bastion` carries a live Rust
+      // transport, tunnel this hop's handshake through it via
+      // `connectViaProxy`. Waiting on `bastion.waitUntilReady()`
+      // closes the race where the parent's auth must finish before
+      // the child reaches for the channel primitive.
+      final parentTransport = await _resolveParentRustTransport(conn.bastion);
+      if (parentTransport != null && transport is RustTransport) {
+        await transport
+            .connectViaProxy(parentTransport, request)
+            .timeout(connectionTimeout);
+      } else {
+        await transport.connect(request).timeout(connectionTimeout);
+      }
       if (_isStaleGeneration(conn.id, generation)) {
-        sshConn.disconnect();
+        await transport.disconnect();
         return;
       }
-
-      conn.sshConnection = sshConn;
+      conn.transport = transport;
       conn.state = SSHConnectionState.connected;
       _cachePostAuthCredentials(conn, effectiveConfig);
-      // Fire after the transport is fully wired so extensions can dial
-      // into `conn.sshConnection!.client` without a null-guard race
-      // window. Hook failures are caught inside the fan-out — one
-      // broken extension never blocks the connect or the others.
       conn.notifyExtensionsConnected();
       AppLogger.instance.log(
         'Connected: <label> (id=${conn.id})',
@@ -160,27 +178,91 @@ class ConnectionManager {
       );
     } on TimeoutException {
       if (_isStaleGeneration(conn.id, generation)) {
-        sshConn.disconnect();
+        await transport.disconnect();
         return;
       }
-      _handleConnectionFailure(
-        conn,
-        sshConn,
-        TimeoutException('Connection timed out', connectionTimeout),
-        'Connection timed out after ${connectionTimeout.inSeconds}s',
+      conn.connectionError = TimeoutException(
+        'Connection timed out',
+        connectionTimeout,
       );
+      conn.state = SSHConnectionState.disconnected;
+      AppLogger.instance.log('Connection failed: timeout', name: 'Connection');
     } catch (e) {
       if (_isStaleGeneration(conn.id, generation)) {
-        sshConn.disconnect();
+        await transport.disconnect();
         return;
       }
-      _handleConnectionFailure(conn, sshConn, e, 'Connection failed: $e');
+      conn.connectionError = e;
+      conn.state = SSHConnectionState.disconnected;
+      AppLogger.instance.log(
+        'Connection failed: $e',
+        name: 'Connection',
+        error: e,
+      );
     } finally {
       if (!_isStaleGeneration(conn.id, generation)) {
         conn.completeReady();
       }
       _notify();
     }
+  }
+
+  /// Wait for [bastion] to finish auth and pull its `RustTransport`
+  /// out, ready to use as the parent of a `connectViaProxy` call.
+  Future<RustTransport?> _resolveParentRustTransport(
+    Connection? bastion,
+  ) async {
+    if (bastion == null) return null;
+    await bastion.waitUntilReady();
+    if (!bastion.isConnected) return null;
+    final t = bastion.transport;
+    return t is RustTransport ? t : null;
+  }
+
+  /// Translate the legacy [SshAuth] config bag into the typed
+  /// [SshAuthMethod] family that [SshConnectRequest] uses.
+  /// Precedence: keyData > password.
+  ///
+  /// When the connection has a stable [sessionId] we stash plaintext
+  /// into the Rust SecretStore and emit the `*Ref` variant so the
+  /// russh handshake reads bytes from Rust-side rather than receiving
+  /// them through FRB. Quick-connect (no sessionId) keeps the
+  /// plaintext variant as a fallback — switching that path onto a
+  /// per-connection ephemeral ID is a follow-up.
+  Future<SshAuthMethod> _authFromConfig(SshAuth auth, String? sessionId) async {
+    if (sessionId != null) {
+      if (auth.keyData.isNotEmpty) {
+        final keyId = 'sess.key.$sessionId';
+        await rust_app.secretsPut(
+          id: keyId,
+          bytes: Uint8List.fromList(auth.keyData.codeUnits),
+        );
+        String? passphraseId;
+        if (auth.passphrase.isNotEmpty) {
+          passphraseId = 'sess.passphrase.$sessionId';
+          await rust_app.secretsPut(
+            id: passphraseId,
+            bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
+          );
+        }
+        return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseId);
+      }
+      if (auth.password.isNotEmpty) {
+        final id = 'sess.password.$sessionId';
+        await rust_app.secretsPut(
+          id: id,
+          bytes: Uint8List.fromList(utf8.encode(auth.password)),
+        );
+        return SshAuthPasswordRef(id);
+      }
+    }
+    if (auth.keyData.isNotEmpty) {
+      return SshAuthPubkey(
+        Uint8List.fromList(auth.keyData.codeUnits),
+        passphrase: auth.passphrase.isEmpty ? null : auth.passphrase,
+      );
+    }
+    return SshAuthPassword(auth.password);
   }
 
   /// Overlay credentials onto [config] from two defensive sources, in
@@ -196,9 +278,12 @@ class ConnectionManager {
   ///      config nor the session cache carry a passphrase. Kept so the
   ///      "remember for this session" UX still works for one-off keys
   ///      that aren't in the session store.
-  SSHConfig _withCredentialOverlay(Connection conn, SSHConfig config) {
+  Future<SSHConfig> _withCredentialOverlay(
+    Connection conn,
+    SSHConfig config,
+  ) async {
     var auth = config.auth;
-    auth = _overlaySessionCache(auth, conn.sessionId);
+    auth = await _overlaySessionCache(auth, conn.sessionId);
     if (auth.passphrase.isEmpty && conn.cachedPassphrase != null) {
       auth = auth.copyWith(passphrase: conn.cachedPassphrase);
     }
@@ -207,25 +292,35 @@ class ConnectionManager {
 
   /// Merge any password / key / passphrase entries the
   /// [SessionCredentialCache] holds for [sessionId] into [auth],
-  /// overwriting empty fields only. Pulled out of
-  /// [_withCredentialOverlay] so each nested "cache present AND
-  /// entry present AND this field empty AND cached value non-null"
-  /// guard pair stops inflating the outer method's cognitive
-  /// complexity.
-  SshAuth _overlaySessionCache(SshAuth auth, String? sessionId) {
+  /// overwriting empty fields only. The cache no longer serves
+  /// plaintext to the Dart heap — read accessors return null — so
+  /// the overlay is currently a no-op. It stays in place because the
+  /// connect path will later resolve bytes Rust-side via a
+  /// `connect_*_with_secret` variant; at that point the overlay is
+  /// the right layering point to re-introduce.
+  Future<SshAuth> _overlaySessionCache(SshAuth auth, String? sessionId) async {
     final cache = _credentialCache;
     if (sessionId == null || cache == null) return auth;
     final cached = cache.read(sessionId);
     if (cached == null) return auth;
     var merged = auth;
-    if (merged.password.isEmpty && cached.passwordString != null) {
-      merged = merged.copyWith(password: cached.passwordString);
+    if (merged.password.isEmpty) {
+      final cachedPassword = await cached.readPassword();
+      if (cachedPassword != null) {
+        merged = merged.copyWith(password: cachedPassword);
+      }
     }
-    if (merged.keyData.isEmpty && cached.keyDataString != null) {
-      merged = merged.copyWith(keyData: cached.keyDataString);
+    if (merged.keyData.isEmpty) {
+      final cachedKey = await cached.readKeyData();
+      if (cachedKey != null) {
+        merged = merged.copyWith(keyData: cachedKey);
+      }
     }
-    if (merged.passphrase.isEmpty && cached.keyPassphraseString != null) {
-      merged = merged.copyWith(passphrase: cached.keyPassphraseString);
+    if (merged.passphrase.isEmpty) {
+      final cachedPassphrase = await cached.readKeyPassphrase();
+      if (cachedPassphrase != null) {
+        merged = merged.copyWith(passphrase: cachedPassphrase);
+      }
     }
     return merged;
   }
@@ -239,68 +334,55 @@ class ConnectionManager {
     final cache = _credentialCache;
     final sessionId = conn.sessionId;
     if (cache == null || sessionId == null) return;
-    cache.store(
-      sessionId: sessionId,
-      password: config.auth.password.isEmpty ? null : config.auth.password,
-      keyData: config.auth.keyData.isEmpty ? null : config.auth.keyData,
-      keyPassphrase: config.auth.passphrase.isEmpty
-          ? null
-          : config.auth.passphrase,
+    // Fire-and-forget — store() is async (FRB call); the rest of
+    // the connect path doesn't need to wait for the cache to land.
+    unawaited(
+      cache.store(
+        sessionId: sessionId,
+        password: config.auth.password.isEmpty ? null : config.auth.password,
+        keyData: config.auth.keyData.isEmpty ? null : config.auth.keyData,
+        keyPassphrase: config.auth.passphrase.isEmpty
+            ? null
+            : config.auth.passphrase,
+      ),
     );
-  }
-
-  /// Wire interactive passphrase prompt if the UI layer provided one.
-  void _wirePassphrasePrompt(SSHConnection sshConn, Connection conn) {
-    if (onPassphraseRequired == null) return;
-    sshConn.onPassphraseRequired = (host, attempt) async {
-      final result = await onPassphraseRequired!(host, attempt);
-      if (result == null) return null;
-      if (result.remember) conn.cachedPassphrase = result.passphrase;
-      return result.passphrase;
-    };
   }
 
   /// Whether a newer reconnect generation has superseded [generation].
   bool _isStaleGeneration(String id, int generation) =>
       _connectGeneration[id] != generation;
 
-  /// Log the error, disconnect, and mark the connection as failed.
-  void _handleConnectionFailure(
-    Connection conn,
-    SSHConnection sshConn,
-    Object error,
-    String logMessage,
-  ) {
-    AppLogger.instance.log(logMessage, name: 'Connection', error: error);
-    sshConn.disconnect();
-    conn.state = SSHConnectionState.disconnected;
-    conn.connectionError = error;
-  }
-
   /// Reconnect an existing connection.
   ///
-  /// Resets progress stream, disconnects old SSH, and runs a fresh
+  /// Resets progress stream, disconnects old transport, and runs a fresh
   /// connection attempt in the background — same as [connectAsync] but
   /// reuses the existing [Connection] object so all tabs see the update.
   void reconnect(String id, {SSHConfig? updatedConfig}) {
     final conn = _connections[id];
     if (conn == null) return;
 
-    // Tear down old SSH connection. Notify extensions BEFORE we drop
-    // the transport — port forwards / recording sinks need the live
-    // SSHClient to close their channels cleanly.
+    // Tear down old transport. Notify extensions BEFORE we drop the
+    // transport — port forwards / recording sinks need the live
+    // transport to close their channels cleanly.
     conn.notifyExtensionsDisconnecting();
-    conn.sshConnection?.disconnect();
-    conn.sshConnection = null;
+    final oldTransport = conn.transport;
+    conn.transport = null;
+    if (oldTransport != null) {
+      // Best-effort — fire-and-forget so reconnect doesn't await tear-down.
+      unawaited(
+        oldTransport.disconnect().catchError((Object e) {
+          AppLogger.instance.log(
+            'Failed to disconnect old transport',
+            name: 'Connection',
+            error: e,
+          );
+        }),
+      );
+    }
 
-    // Apply updated config if provided (e.g. session was edited)
     if (updatedConfig != null) conn.sshConfig = updatedConfig;
 
-    // Reset for fresh progress
     conn.resetForReconnect();
-    // Extensions reset transient state (channel handles, in-flight
-    // futures) but keep persistent config — a forward rule list
-    // survives, the live channels do not.
     conn.notifyExtensionsReconnecting();
     conn.state = SSHConnectionState.connecting;
     _notify();
@@ -325,9 +407,20 @@ class ConnectionManager {
       name: 'Connection',
     );
     conn.notifyExtensionsDisconnecting();
-    conn.sshConnection?.disconnect();
+    final transport = conn.transport;
+    conn.transport = null;
     conn.state = SSHConnectionState.disconnected;
-    conn.sshConnection = null;
+    if (transport != null) {
+      unawaited(
+        transport.disconnect().catchError((Object e) {
+          AppLogger.instance.log(
+            'Failed to disconnect transport',
+            name: 'Connection',
+            error: e,
+          );
+        }),
+      );
+    }
     // Drop the cached passphrase BEFORE losing the Connection reference
     // so the GC can reclaim the String once our map stops pinning it.
     conn.clearCachedCredentials();
@@ -339,10 +432,19 @@ class ConnectionManager {
     // cache entries through a lock.
     final sessionId = conn.sessionId;
     if (sessionId != null) {
-      _credentialCache?.evict(sessionId);
+      // Fire-and-forget — evict() is async (FRB drop calls).
+      unawaited(
+        _credentialCache?.evict(sessionId).catchError((Object _) {}) ??
+            Future<void>.value(),
+      );
     }
     _connections.remove(id);
     _connectGeneration.remove(id);
+    // Cascade-disconnect the bastion this connection rode on.
+    final bastion = conn.bastion;
+    if (bastion != null) {
+      disconnect(bastion.id);
+    }
     _notify();
   }
 
@@ -353,12 +455,19 @@ class ConnectionManager {
   void disconnectAll() {
     for (final conn in _connections.values) {
       conn.notifyExtensionsDisconnecting();
-      conn.sshConnection?.disconnect();
+      final transport = conn.transport;
+      conn.transport = null;
+      if (transport != null) {
+        unawaited(transport.disconnect().catchError((Object _) {}));
+      }
       conn.completeReady();
       conn.clearCachedCredentials();
       final sessionId = conn.sessionId;
       if (sessionId != null) {
-        _credentialCache?.evict(sessionId);
+        unawaited(
+          _credentialCache?.evict(sessionId).catchError((Object _) {}) ??
+              Future<void>.value(),
+        );
       }
     }
     _connections.clear();

@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
-
 import '../core/import/import_service.dart';
 import '../core/session/qr_codec.dart' show QrPayloadVersionTooNewException;
 import '../core/sftp/errors.dart';
@@ -250,9 +248,9 @@ String _localizeAuthError(S l10n, AuthError error) {
   if (msg.contains('parse PEM')) {
     return l10n.errSshParseKeyFailed;
   }
-  // Unknown auth-error variant: dartssh2 has been observed to embed file
-  // paths and key fingerprints in its messages. Strip secrets before
-  // returning so we never leak them to the UI / log.
+  // Unknown auth-error variant: SSH stacks routinely embed file
+  // paths and key fingerprints in their messages. Strip secrets
+  // before returning so we never leak them to the UI / log.
   return redactSecrets(msg);
 }
 
@@ -279,20 +277,23 @@ String _localizeConnectError(S l10n, ConnectError error) {
 }
 
 String _localizeSftpError(S l10n, SFTPError error) {
-  final cause = error.cause;
-  if (cause is SftpStatusError) {
-    final localized = switch (cause.code) {
-      SftpStatusCode.noSuchFile => l10n.errNoSuchFileOrDirectory,
-      SftpStatusCode.permissionDenied => l10n.errPermissionDenied,
-      _ => error.message,
-    };
-    if (error.path != null) return l10n.errWithPath(localized, error.path!);
-    return localized;
+  // SFTP status surfaces as a free-form string through russh-sftp /
+  // FRB. Match the common cases by substring (case-insensitive) to
+  // pick a localized message, fall back to the raw message otherwise.
+  final causeMsg = error.cause?.toString().toLowerCase() ?? '';
+  String localized;
+  if (causeMsg.contains('no such file') ||
+      causeMsg.contains('does not exist') ||
+      causeMsg.contains('not found')) {
+    localized = l10n.errNoSuchFileOrDirectory;
+  } else if (causeMsg.contains('permission denied') ||
+      causeMsg.contains('access denied')) {
+    localized = l10n.errPermissionDenied;
+  } else {
+    localized = error.message;
   }
-  if (error.path != null) {
-    return l10n.errWithPath(error.message, error.path!);
-  }
-  return error.message;
+  if (error.path != null) return l10n.errWithPath(localized, error.path!);
+  return localized;
 }
 
 String _withLocalizedCause(S l10n, String localized, Object? cause) {

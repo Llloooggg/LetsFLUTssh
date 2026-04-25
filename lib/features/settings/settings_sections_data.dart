@@ -223,19 +223,23 @@ class _ExportImportTile extends ConsumerWidget {
       final configPath = p.join(sshDir, 'config');
       final keyStore = ref.read(keyStoreProvider);
 
+      // Capture localized strings BEFORE the first async hop. The
+      // PPK-aware key scanner now awaits FRB; resolving `S.of(context)`
+      // afterwards would be using a possibly-defunct context.
+      final date = DateTime.now().toIso8601String().split('T').first;
+      final folderLabel = S.of(context).sshConfigImportFolderName(date);
+
       // Scan keys regardless of config presence — user may want to import
       // just the standalone keys.
-      final scannedKeys = SshDirKeyScanner().scan(sshDir);
+      final scannedKeys = await SshDirKeyScanner().scan(sshDir);
 
       // Parse config if present. Missing file = no hosts, dialog still shows
       // the keys section.
       OpenSshConfigImportPreview? preview;
-      final date = DateTime.now().toIso8601String().split('T').first;
-      final folderLabel = S.of(context).sshConfigImportFolderName(date);
       final configFile = File(configPath);
       if (await configFile.exists()) {
         final content = await configFile.readAsString();
-        preview = OpenSshConfigImporter().buildPreview(
+        preview = await OpenSshConfigImporter().buildPreview(
           configContent: content,
           folderLabel: folderLabel,
           keyLabelSuffix: date,
@@ -318,7 +322,7 @@ class _ExportImportTile extends ConsumerWidget {
     if (path == null) return null;
     try {
       final content = await File(path).readAsString();
-      final preview = OpenSshConfigImporter().buildPreview(
+      final preview = await OpenSshConfigImporter().buildPreview(
         configContent: content,
         folderLabel: folderLabel,
         keyLabelSuffix: keyLabelSuffix,
@@ -351,7 +355,7 @@ class _ExportImportTile extends ConsumerWidget {
     for (final f in result.files) {
       final path = f.path;
       if (path == null) continue;
-      final pem = KeyFileHelper.tryReadPemKey(path);
+      final pem = await KeyFileHelper.tryReadPemKey(path);
       if (pem == null) continue;
       picked.add(
         ScannedKey(
@@ -810,7 +814,8 @@ class _ExportImportTile extends ConsumerWidget {
               // — importing on machine B should not try to unlock a
               // hardware vault that belongs to machine A's TPM. Keep
               // the local value, merge everything else.
-              (current) => importedConfig.copyWithSecurity(security: current.security),
+              (current) =>
+                  importedConfig.copyWithSecurity(security: current.security),
             ),
         saveManagerKey: (entry) => keyStore.importForMerge(entry),
         saveTag: (tag) async {

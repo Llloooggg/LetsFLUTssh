@@ -2039,6 +2039,195 @@ class SFa extends S {
   String get commandCopied => 'دستور کپی شد';
 
   @override
+  String get snippetTokensHint =>
+      'برای درج یک مکان‌نما ضربه بزنید. این‌ها در زمان اجرا با مقادیر نشست فعال جایگزین می‌شوند:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'هر چیز دیگری با دو آکولاد هنگام اجرای قطعه از شما مقدار می‌خواهد.';
+
+  @override
+  String get snippetFillTitle => 'پارامترهای قطعه را پر کنید';
+
+  @override
+  String get snippetFillSubmit => 'اجرا';
+
+  @override
+  String get snippetPreview => 'پیش‌نمایش';
+
+  @override
+  String get broadcastSetDriver => 'پخش از این پنل';
+
+  @override
+  String get broadcastClearDriver => 'توقف پخش از این پنل';
+
+  @override
+  String get broadcastAddReceiver => 'دریافت پخش در اینجا';
+
+  @override
+  String get broadcastRemoveReceiver => 'توقف دریافت پخش';
+
+  @override
+  String get broadcastClearAll => 'توقف تمام پخش‌ها';
+
+  @override
+  String get broadcastPasteTitle => 'ارسال چسباندن به همه پنل‌ها؟';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars نویسه به $count پنل دیگر ارسال می‌شود.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'ارسال';
+
+  @override
+  String get portForwarding => 'فوروارد';
+
+  @override
+  String get portForwardingEmpty => 'هنوز قاعده‌ای نیست';
+
+  @override
+  String get addForwardRule => 'افزودن قاعده';
+
+  @override
+  String get editForwardRule => 'ویرایش قاعده';
+
+  @override
+  String get deleteForwardRule => 'حذف قاعده';
+
+  @override
+  String get localForward => 'محلی';
+
+  @override
+  String get remoteForward => 'راه دور';
+
+  @override
+  String get dynamicForward => 'پویا';
+
+  @override
+  String get forwardKind => 'نوع';
+
+  @override
+  String get bindAddress => 'آدرس باند';
+
+  @override
+  String get bindPort => 'پورت باند';
+
+  @override
+  String get targetHost => 'میزبان هدف';
+
+  @override
+  String get targetPort => 'پورت هدف';
+
+  @override
+  String get forwardDescription => 'توضیح (اختیاری)';
+
+  @override
+  String get forwardEnabled => 'فعال';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'باند به 0.0.0.0 فوروارد را روی همه واسط‌ها منتشر می‌کند — معمولاً 127.0.0.1 می‌خواهید.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'فوروارد محلی (-L)، راه دور (-R) و SOCKS5 پویا (-D) همگی فعال هستند.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'محلی: یک پورت روی این دستگاه باز می‌کند که به هدف قابل دسترسی از سرور SSH تونل می‌زند. مفید برای دسترسی به پایگاه‌های داده دور یا UI ادمین در localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'راه دور: از سرور SSH می‌خواهد پورتی باز کند که به هدف قابل دسترسی از این دستگاه برمی‌گردد. مفید برای اشتراک سرور توسعه محلی با میزبان راه دور (ممکن است سرور به GatewayPorts yes برای bind غیر loopback نیاز داشته باشد).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'پویا: پروکسی SOCKS5 روی این دستگاه که هر اتصال را از طریق سرور SSH هدایت می‌کند. مرورگر یا curl را به localhost:bindPort اشاره دهید تا تمام ترافیک از طریق SSH ارسال شود.';
+
+  @override
+  String get forwardExample => 'مثال';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → دسترسی به پایگاه داده راه دور از طریق localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → نمایش سرور توسعه در پورت 9000 سرور';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → تنظیم SOCKS5 مرورگر روی localhost:1080';
+
+  @override
+  String get proxyJump => 'اتصال از طریق';
+
+  @override
+  String get proxyJumpNone => 'اتصال مستقیم';
+
+  @override
+  String get proxyJumpSavedSession => 'نشست ذخیره‌شده';
+
+  @override
+  String get proxyJumpCustom => 'سفارشی';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'پرش‌های سفارشی از اعتبارنامه‌های همین نشست استفاده می‌کنند. برای احراز هویت متفاوت بستیون، آن را به‌عنوان نشست جداگانه ذخیره کنید.';
+
+  @override
+  String get errProxyJumpCycle => 'زنجیره پروکسی به خودش بازمی‌گردد.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'زنجیره پروکسی بیش از حد عمیق است (حداکثر $max پرش).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'بستیون $label نتوانست متصل شود.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'از طریق $label';
+  }
+
+  @override
+  String get recordSession => 'ضبط نشست';
+
+  @override
+  String get recordSessionHelp =>
+      'ذخیره خروجی پایانه روی دیسک برای این نشست. هنگام فعال بودن گذرواژه اصلی یا کلید سخت‌افزاری رمزنگاری می‌شود.';
+
+  @override
+  String get recordingsBrowserTitle => 'ضبط‌ها';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'مرور، پخش مجدد و حذف نشست‌های ضبط شده';
+
+  @override
+  String get recordingsEmpty => 'هنوز ضبطی وجود ندارد';
+
+  @override
+  String get playRecording => 'پخش';
+
+  @override
+  String get deleteRecording => 'حذف';
+
+  @override
+  String get recordingPlaybackTitle => 'پخش مجدد ضبط';
+
+  @override
+  String get recordingSpeed => 'سرعت';
+
+  @override
+  String get recordingSpeedInstant => 'فوری';
+
+  @override
   String get tags => 'برچسب‌ها';
 
   @override

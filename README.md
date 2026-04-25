@@ -54,6 +54,8 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 Download the build for your platform from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases), then follow the per-platform steps below. To build from source instead, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
+> **Looking for usage docs?** See [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — step-by-step walkthroughs for every shipped feature (sessions, terminal, SFTP, port forwarding, ProxyJump, snippets, recordings, security tiers, import/export) with worked examples and platform notes.
+
 ### Linux
 
 Available formats: **AppImage**, **.deb**, **tar.gz**.

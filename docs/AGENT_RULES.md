@@ -154,7 +154,10 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | New/changed user-facing string | Add key to `lib/l10n/app_en.arb` **and translate into every other `app_*.arb` file** (ar, de, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh — 15 total). Run `flutter gen-l10n`. Use `S.of(context).key`. Missing keys in non-en locales silently fall back to English — ship broken UX |
 | New/changed shared component | Before adding a new widget/helper, search `lib/widgets/` and `lib/core/**` for an existing equivalent. Extend the shared component (add a param) instead of duplicating. Update [§6 Widgets API](ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Architecture changed | Update CLAUDE.md if navigation links affected |
-| User-visible change | Update README.md |
+| Touched any `rust/**/*.rs` file (Rust security/transport core) | Tick the matching sub-phase in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) §13 checklist; once a sub-phase ships behaviour, add/update the relevant ARCHITECTURE.md § (e.g., §3.1 SSH, §3.6 Security) and cross-link the plan. Run `make rust-fmt`, `make rust-lint`, `make rust-test`; if the FRB API surface changed, also `make rust-codegen` and stage the regenerated `lib/src/rust/` |
+| Edited Rust API surface (`rust/crates/lfs_core/src/api*`) | Run `make rust-codegen` and stage the regenerated Dart bindings in `lib/src/rust/` in the same commit. Pin in `pubspec.yaml` (`flutter_rust_bridge:` runtime) and `rust/crates/lfs_core/Cargo.toml` (`flutter_rust_bridge =` build dep) MUST match the codegen CLI version exactly |
+| User-visible change | Update README.md **and** [`USER_GUIDE.md`](USER_GUIDE.md) — the user guide is the end-user reference; every shipped feature has a section there with usage steps, examples, and platform caveats. New flow / new toggle / changed UX → update / extend the relevant § |
+| New end-user feature | Add a top-level § (or a sub-§ under an existing one) in [`USER_GUIDE.md`](USER_GUIDE.md), linked from its TOC. Walk-through style: numbered steps, at least one worked example, platform differences in the §17 mobile-differences table |
 | Security scope change | Update SECURITY.md |
 
 ## Conventions
@@ -405,17 +408,19 @@ Every diagram in `docs/**/*.md`, `README.md`, `SECURITY.md` and any other git-tr
 The raw-text trade-off is accepted: a Mermaid source block is readable as a node+edge listing in `cat`/`less`/IDE, the SVG is the GitHub-web benefit. Do not add ASCII "fallbacks" via `<details>` — that doubles the source and rots under edits.
 
 ### Plan-Item IDs Stay Internal
-Plans, session notes, backlogs, internal docs live **outside git** (`~/.claude/plans/*`, `SECURITY_BACKLOG.md`, `~/.claude/projects/*/memory/*`, etc.). Never reference their identifiers — `P1.2-*`, `A1`, `D1`, `Phase E1`, `Phase G1`, `Phase F2`, `Task 3.2`, and anything of that shape — in any file that lands in `git`:
+Plans, session notes, backlogs, internal docs live **outside git** (`~/.claude/plans/*`, `SECURITY_BACKLOG.md`, `~/.claude/projects/*/memory/*`, etc.). Never reference their identifiers — `P1.2-*`, `A1`, `D1`, `Phase E1`, `Phase G1`, `Phase F2`, `Task 3.2`, `Phase 4.2 stage 6.1`, `stage 6.6`, and anything of that shape — in any file that lands in `git`:
 
-- Commit titles and bodies
-- Code comments and docstrings
+- Commit titles and bodies (the most common leak — guard hardest here)
+- Code comments and docstrings — including class-level comments, `//` markers like `// stage 6 transitional`, and "TODO retire after stage X" notes. If the code's reason-for-being is "the migration plan asked for it", phrase it as the *behavioural* reason instead, or omit the comment entirely
 - Filenames and section headers
 - `README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `CLAUDE.md`, `AGENT_RULES.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
 - Any other tracked artefact
 
-If a commit needs to explain "why this change came with that change", describe the reason **prose-wise**: `"ships alongside the overlay methods added to the native plugins"` — not `"wraps up Phase D1"`. Plan IDs are an internal shorthand for in-session tracking only; readers of git history have no access to that context, and any ID reference ages into noise the moment the plan is superseded.
+This rule applies **even when the plan document also lives in git** (e.g. `docs/RUST_CORE_MIGRATION_PLAN.md`). Such documents are *temporary scaffolding* — they get deleted when the migration ships. Anything that outlives them (commit history, code comments) must not depend on their identifier scheme. Reference the *behaviour* the change brings, not the plan checkbox it ticks.
 
-**Review check:** before staging, grep your diff for `/P[0-9]/`, `/Phase [A-Z][0-9]/`, `/Task [0-9]/`, `/[A-Z][0-9] /` — false positives are cheap, leaked IDs are forever.
+If a commit needs to explain "why this change came with that change", describe the reason **prose-wise**: `"ships alongside the overlay methods added to the native plugins"` — not `"wraps up Phase D1"` and not `"Phase 4.2 stage 6.1 — store X on FRB"`. Plan IDs are an internal shorthand for in-session tracking only; readers of git history have no access to that context, and any ID reference ages into noise the moment the plan is superseded.
+
+**Review check:** before staging, grep your diff for `/P[0-9]/`, `/Phase [0-9A-Z]/`, `/stage [0-9]/`, `/Task [0-9]/`, `/[A-Z][0-9] /` — false positives are cheap, leaked IDs are forever.
 
 ## Code Quality — SonarCloud
 

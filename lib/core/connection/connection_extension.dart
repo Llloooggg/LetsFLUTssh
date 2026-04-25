@@ -4,7 +4,7 @@ import 'connection.dart';
 ///
 /// Port forwards, ProxyJump bastion keepalives, session recording sinks,
 /// agent forwarding, and similar add-ons all need the same three
-/// moments: just after the underlying [SSHConnection] became live, just
+/// moments: just after the underlying transport became live, just
 /// before it tears down (orderly), and again on every reconnect cycle
 /// once the new transport is up.
 ///
@@ -41,9 +41,8 @@ abstract class ConnectionExtension {
   String get id;
 
   /// SSH transport just became live. The [connection] argument carries
-  /// the active [SSHConnection] via [Connection.sshConnection]; pull
-  /// `connection.sshConnection?.client` for the underlying dartssh2
-  /// `SSHClient`. Returning a `Future` is permitted but not awaited.
+  /// the active transport via [Connection.transport]. Returning a
+  /// `Future` is permitted but not awaited.
   void onConnected(Connection connection);
 
   /// SSH transport is about to tear down (explicit disconnect or

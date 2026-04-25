@@ -23,3 +23,14 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+  # Rust security/transport core lives under rust/. Dependabot tracks
+  # the workspace Cargo.lock at /rust and opens monthly bump PRs for
+  # russh, tokio, RustCrypto, and the rest of the dep tree. Bumps that
+  # cross a russh major (e.g. 0.59 → 0.60) need manual review — the
+  # 0.60 bump is currently blocked on the upstream RustCrypto
+  # release-candidate set (see docs/RUST_CORE_MIGRATION_PLAN.md §13
+  # 1.1a / 1.2a notes).
+  - package-ecosystem: "cargo"
+    directory: "/rust"
+    schedule:
+      interval: "monthly"

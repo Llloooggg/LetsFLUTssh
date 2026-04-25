@@ -1,18 +1,12 @@
-import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
-import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
-
-@GenerateNiceMocks([MockSpec<SftpClient>()])
-import 'sftp_initializer_test.mocks.dart';
 
 /// Mock FileSystem for testing SFTPInitResult.
 class _MockFS implements FileSystem {
@@ -32,46 +26,102 @@ class _MockFS implements FileSystem {
   Future<int> dirSize(String path) async => 0;
 }
 
+/// Configurable in-memory `RemoteSftpFs` for the init tests. Each
+/// behaviour the tests exercise (default cwd, throwing on `getwd`,
+/// recording `close`) is wired through public flags so the fixtures
+/// stay tight.
+class _FakeSftpFs implements RemoteSftpFs {
+  String cwd;
+  Object? getwdError;
+  bool closed = false;
+
+  _FakeSftpFs({this.cwd = '/remote'});
+
+  @override
+  Future<String> getwd() async {
+    if (getwdError != null) throw getwdError!;
+    return cwd;
+  }
+
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<bool> exists(String path) async => false;
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeEmptyDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<void> upload(
+    String localPath,
+    String remotePath,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> download(
+    String remotePath,
+    String localPath,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> uploadDir(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> downloadDir(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  void close() {
+    closed = true;
+  }
+}
+
 void main() {
   group('SFTPInitializer.init', () {
-    test('throws StateError when sshConnection is null (no factory)', () async {
+    test('throws StateError when transport is null (no factory)', () async {
       final conn = Connection(
         id: 'test',
         label: 'Test',
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'localhost', user: 'user'),
         ),
-        sshConnection: null,
         state: SSHConnectionState.disconnected,
       );
 
       expect(() => SFTPInitializer.init(conn), throwsA(isA<StateError>()));
     });
 
-    test('succeeds with injectable sftpServiceFactory', () async {
+    test('succeeds with injectable filesystemFactory', () async {
       final conn = Connection(
         id: 'test',
         label: 'Test',
         sshConfig: const SSHConfig(
           server: ServerAddress(host: 'localhost', user: 'user'),
         ),
-        sshConnection: null, // null is OK — factory bypasses SSH
         state: SSHConnectionState.disconnected,
       );
 
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/home/remote');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
+      final fakeFs = _FakeSftpFs(cwd: '/home/remote');
       final result = await SFTPInitializer.init(
         conn,
-        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        filesystemFactory: (_) async => fakeFs,
         localFsFactory: () => _MockFS(),
       );
 
       expect(result.localCtrl.label, 'Local');
       expect(result.remoteCtrl.label, 'Remote');
-      expect(result.sftpService, isNotNull);
+      expect(result.filesystem, same(fakeFs));
 
       result.dispose();
     });
@@ -85,13 +135,9 @@ void main() {
         ),
       );
 
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
       final result = await SFTPInitializer.init(
         conn,
-        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        filesystemFactory: (_) async => _FakeSftpFs(cwd: '/remote'),
         localFsFactory: () => _MockFS(),
       );
 
@@ -111,18 +157,15 @@ void main() {
         ),
       );
 
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/r');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
+      final fakeFs = _FakeSftpFs(cwd: '/r');
       final result = await SFTPInitializer.init(
         conn,
-        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        filesystemFactory: (_) async => fakeFs,
         localFsFactory: () => _MockFS(),
       );
 
       result.dispose();
-      verify(mockSftp.close()).called(1);
+      expect(fakeFs.closed, isTrue);
     });
 
     test('controllers are disposed when init() fails', () async {
@@ -134,15 +177,13 @@ void main() {
         ),
       );
 
-      final mockSftp = MockSftpClient();
-      // Remote controller init will fail — absolute('.') throws
-      when(mockSftp.absolute('.')).thenThrow(Exception('SFTP init failure'));
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
+      // Remote controller init will fail — getwd throws.
+      final fakeFs = _FakeSftpFs()..getwdError = Exception('SFTP init failure');
 
       await expectLater(
         SFTPInitializer.init(
           conn,
-          sftpServiceFactory: (_) async => SFTPService(mockSftp),
+          filesystemFactory: (_) async => fakeFs,
           localFsFactory: () => _MockFS(),
         ),
         throwsA(isA<Exception>()),
@@ -183,13 +224,9 @@ void main() {
         ),
       );
 
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/r');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
       final result = await SFTPInitializer.init(
         conn,
-        sftpServiceFactory: (_) async => SFTPService(mockSftp),
+        filesystemFactory: (_) async => _FakeSftpFs(cwd: '/r'),
         localFsFactory: () => _MockFS(),
       );
 
@@ -200,12 +237,12 @@ void main() {
     test('storagePermissionDenied can be set to true', () {
       final localCtrl = FilePaneController(fs: _MockFS(), label: 'Local');
       final remoteCtrl = FilePaneController(fs: _MockFS(), label: 'Remote');
-      final mockSftp = MockSftpClient();
+      final fakeFs = _FakeSftpFs();
 
       final result = SFTPInitResult(
         localCtrl: localCtrl,
         remoteCtrl: remoteCtrl,
-        sftpService: SFTPService(mockSftp),
+        filesystem: fakeFs,
         storagePermissionDenied: true,
       );
 

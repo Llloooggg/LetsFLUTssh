@@ -2068,6 +2068,195 @@ class SRu extends S {
   String get commandCopied => 'Команда скопирована';
 
   @override
+  String get snippetTokensHint =>
+      'Нажми чтобы вставить плейсхолдер. Они подставляются при запуске значениями из активной сессии:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Любое другое имя в двойных фигурных скобках спросит у тебя значение при выполнении.';
+
+  @override
+  String get snippetFillTitle => 'Заполните параметры сниппета';
+
+  @override
+  String get snippetFillSubmit => 'Выполнить';
+
+  @override
+  String get snippetPreview => 'Предпросмотр';
+
+  @override
+  String get broadcastSetDriver => 'Транслировать из этой панели';
+
+  @override
+  String get broadcastClearDriver => 'Прекратить трансляцию из этой панели';
+
+  @override
+  String get broadcastAddReceiver => 'Принимать трансляцию здесь';
+
+  @override
+  String get broadcastRemoveReceiver => 'Прекратить приём трансляции';
+
+  @override
+  String get broadcastClearAll => 'Остановить всю трансляцию';
+
+  @override
+  String get broadcastPasteTitle => 'Отправить вставку во все панели?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars символов будут отправлены в $count других панелей.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Отправить';
+
+  @override
+  String get portForwarding => 'Туннели';
+
+  @override
+  String get portForwardingEmpty => 'Правил пока нет';
+
+  @override
+  String get addForwardRule => 'Добавить правило';
+
+  @override
+  String get editForwardRule => 'Изменить правило';
+
+  @override
+  String get deleteForwardRule => 'Удалить правило';
+
+  @override
+  String get localForward => 'Локальный';
+
+  @override
+  String get remoteForward => 'Удалённый';
+
+  @override
+  String get dynamicForward => 'Динамический';
+
+  @override
+  String get forwardKind => 'Тип';
+
+  @override
+  String get bindAddress => 'Адрес слушания';
+
+  @override
+  String get bindPort => 'Порт слушания';
+
+  @override
+  String get targetHost => 'Целевой хост';
+
+  @override
+  String get targetPort => 'Целевой порт';
+
+  @override
+  String get forwardDescription => 'Описание (необязательно)';
+
+  @override
+  String get forwardEnabled => 'Включено';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Привязка к 0.0.0.0 открывает туннель на всех интерфейсах — обычно нужен 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Локальные (-L), удалённые (-R) и динамические SOCKS5 (-D) туннели все активны.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Локальный: открывает порт на этом устройстве и туннелирует к цели, доступной с SSH-сервера. Удобно для доступа к удалённым БД или админкам через localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Удалённый: просит SSH-сервер открыть порт, туннелирующий обратно к цели, доступной с этого устройства. Удобно чтобы поделиться локальным dev-сервером с удалённым хостом (сервер может требовать GatewayPorts yes для не-loopback bind).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажи браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
+
+  @override
+  String get forwardExample => 'Пример';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → доступ к удалённой БД через localhost:8080';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → опубликовать локальный dev-сервер на порту 9000 сервера';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → SOCKS5 браузера на localhost:1080';
+
+  @override
+  String get proxyJump => 'Подключаться через';
+
+  @override
+  String get proxyJumpNone => 'Прямое подключение';
+
+  @override
+  String get proxyJumpSavedSession => 'Сохранённая сессия';
+
+  @override
+  String get proxyJumpCustom => 'Своё';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Свои хопы используют учётные данные этой сессии. Для другой аутентификации бастиона сохрани бастион отдельной сессией.';
+
+  @override
+  String get errProxyJumpCycle => 'Цепочка прокси замыкается на саму себя.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return 'Цепочка прокси слишком глубокая (максимум $max хопов).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Бастион $label не подключился.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'через $label';
+  }
+
+  @override
+  String get recordSession => 'Записывать сессию';
+
+  @override
+  String get recordSessionHelp =>
+      'Сохранять вывод терминала на диск для этой сессии. Шифруется на диске при включённом мастер-пароле или аппаратном ключе.';
+
+  @override
+  String get recordingsBrowserTitle => 'Записи';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Просмотр, воспроизведение и удаление записанных сессий';
+
+  @override
+  String get recordingsEmpty => 'Записей пока нет';
+
+  @override
+  String get playRecording => 'Воспроизвести';
+
+  @override
+  String get deleteRecording => 'Удалить';
+
+  @override
+  String get recordingPlaybackTitle => 'Воспроизвести запись';
+
+  @override
+  String get recordingSpeed => 'Скорость';
+
+  @override
+  String get recordingSpeedInstant => 'Мгновенно';
+
+  @override
   String get tags => 'Теги';
 
   @override

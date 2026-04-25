@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dartssh2/dartssh2.dart' show SftpStatusCode, SftpStatusError;
 import 'package:letsflutssh/core/import/import_service.dart';
 import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
@@ -492,10 +491,10 @@ void main() {
         expect(result, isNotEmpty);
       });
 
-      test('localizes SFTPError with SftpStatusCode.noSuchFile', () {
-        final error = SFTPError(
+      test('localizes SFTPError when cause mentions "no such file"', () {
+        const error = SFTPError(
           'File not found',
-          cause: SftpStatusError(SftpStatusCode.noSuchFile, 'No such file'),
+          cause: 'SftpError: no such file',
           path: '/remote/file.txt',
         );
         final result = localizeError(l10n, error);
@@ -503,23 +502,17 @@ void main() {
         expect(result, contains('/remote/file.txt'));
       });
 
-      test('localizes SFTPError with SftpStatusCode.permissionDenied', () {
-        final error = SFTPError(
+      test('localizes SFTPError when cause mentions "permission denied"', () {
+        const error = SFTPError(
           'Permission denied',
-          cause: SftpStatusError(
-            SftpStatusCode.permissionDenied,
-            'Access denied',
-          ),
+          cause: 'SftpError: permission denied',
         );
         final result = localizeError(l10n, error);
         expect(result, isNotEmpty);
       });
 
-      test('localizes SFTPError with unknown status code', () {
-        final error = SFTPError(
-          'SFTP failure',
-          cause: SftpStatusError(SftpStatusCode.failure, 'Generic failure'),
-        );
+      test('localizes SFTPError with unrecognised cause string', () {
+        const error = SFTPError('SFTP failure', cause: 'Generic failure');
         final result = localizeError(l10n, error);
         expect(result, contains('SFTP failure'));
       });

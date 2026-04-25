@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:pointycastle/digests/sha256.dart';
 
 import '../../utils/logger.dart';
 import 'cert_pinning.dart';
@@ -477,7 +477,7 @@ class UpdateService {
       );
     }
 
-    final sigOk = ReleaseSigning.verifyBytes(
+    final sigOk = await ReleaseSigning.verifyBytes(
       message: manifestBytes,
       signature: sigBytes,
     );
@@ -591,8 +591,7 @@ class UpdateService {
   /// Compute SHA256 hex digest of a file.
   static Future<String> computeFileSha256(String path) async {
     final bytes = await File(path).readAsBytes();
-    final hash = SHA256Digest().process(Uint8List.fromList(bytes));
-    return hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return sha256.convert(bytes).toString();
   }
 
   /// Pick the right asset for the current platform from the release assets.

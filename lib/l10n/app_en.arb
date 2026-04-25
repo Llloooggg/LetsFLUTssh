@@ -1207,6 +1207,93 @@
   "pinnedSnippets": "Pinned",
   "allSnippets": "All",
   "commandCopied": "Command copied to clipboard",
+  "snippetTokensHint": "Tap to insert a placeholder. These are replaced at run time with values from the active session:",
+  "snippetCustomTokensHint": "Anything else with double braces prompts you for a value when the snippet runs.",
+  "snippetFillTitle": "Fill in snippet parameters",
+  "snippetFillSubmit": "Run",
+  "snippetPreview": "Preview",
+  "broadcastSetDriver": "Broadcast from this pane",
+  "broadcastClearDriver": "Stop broadcasting from this pane",
+  "broadcastAddReceiver": "Receive broadcast here",
+  "broadcastRemoveReceiver": "Stop receiving broadcast",
+  "broadcastClearAll": "Stop all broadcasting",
+  "broadcastPasteTitle": "Send paste to all panes?",
+  "broadcastPasteBody": "{chars} characters will be sent to {count} other panes.",
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "broadcastPasteSend": "Send",
+  "portForwarding": "Forwarding",
+  "portForwardingEmpty": "No forward rules yet",
+  "addForwardRule": "Add rule",
+  "editForwardRule": "Edit rule",
+  "deleteForwardRule": "Delete rule",
+  "localForward": "Local",
+  "remoteForward": "Remote",
+  "dynamicForward": "Dynamic",
+  "forwardKind": "Kind",
+  "bindAddress": "Bind address",
+  "bindPort": "Bind port",
+  "targetHost": "Target host",
+  "targetPort": "Target port",
+  "forwardDescription": "Description (optional)",
+  "forwardEnabled": "Enabled",
+  "forwardBindWildcardWarning": "Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.",
+  "forwardOnlyLocalSupported": "Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.",
+  "forwardKindLocalHelp": "Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.",
+  "forwardKindRemoteHelp": "Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).",
+  "forwardKindDynamicHelp": "Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.",
+  "forwardExample": "Example",
+  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080",
+  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → expose your dev server at server's port 9000",
+  "forwardDynamicExample": "ssh -D 1080 → set browser SOCKS5 to localhost:1080",
+  "proxyJump": "Connect via",
+  "proxyJumpNone": "Direct connection",
+  "proxyJumpSavedSession": "Saved session",
+  "proxyJumpCustom": "Custom",
+  "proxyJumpCustomNote": "Override hops use this session's credentials. For different bastion auth, save the bastion as its own session.",
+  "errProxyJumpCycle": "Proxy chain loops back on itself.",
+  "errProxyJumpDepth": "Proxy chain is too deep (max {max} hops).",
+  "@errProxyJumpDepth": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "errProxyJumpBastionFailed": "Bastion {label} failed to connect.",
+  "viaSessionLabel": "via {label}",
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "recordSession": "Record session",
+  "recordSessionHelp": "Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.",
+  "recordingsBrowserTitle": "Recordings",
+  "recordingsBrowserSubtitle": "Browse, replay, and delete recorded sessions",
+  "recordingsEmpty": "No recordings yet",
+  "playRecording": "Play",
+  "deleteRecording": "Delete",
+  "recordingPlaybackTitle": "Replay recording",
+  "recordingSpeed": "Speed",
+  "recordingSpeedInstant": "Instant",
+  "@errProxyJumpBastionFailed": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",

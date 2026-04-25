@@ -8,13 +8,16 @@ import '../../core/import/key_file_helper.dart';
 import '../../core/security/key_store.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
+import '../../core/ssh/port_forward_rule.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../core/tags/tag.dart';
 import '../../providers/key_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_picker_chip.dart';
 import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
@@ -22,6 +25,7 @@ import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
 import '../tags/tag_assign_dialog.dart';
+import 'session_forwards_tab.dart';
 
 /// Result of the session edit dialog.
 sealed class SessionDialogResult {}
@@ -30,7 +34,15 @@ sealed class SessionDialogResult {}
 class SaveResult extends SessionDialogResult {
   final Session session;
   final bool connect;
-  SaveResult(this.session, {this.connect = false});
+
+  /// Port-forward rules entered in the Forwarding tab. The caller is
+  /// responsible for diffing against the persisted set and writing
+  /// the delta — see `session_panel._handleDialogResult`. Empty when
+  /// the dialog was for a quick-connect / new session that never
+  /// touched the tab.
+  final List<PortForwardRule> forwards;
+
+  SaveResult(this.session, {this.connect = false, this.forwards = const []});
 }
 
 /// Dialog for creating or editing a session.
@@ -81,6 +93,33 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   String _selectedKeyId = '';
   String _selectedKeyLabel = '';
 
+  /// In-memory rule list backing the Forwarding tab. Hydrated from
+  /// the store on init when editing; the new-session path starts
+  /// empty. Persisted by the caller after a successful Save via
+  /// the SaveResult.forwards field — same contract as the session
+  /// itself (the dialog never writes to the store directly).
+  List<PortForwardRule> _forwards = const [];
+
+  /// ProxyJump editor state.
+  ///
+  /// Three exclusive modes:
+  /// - `none` — direct connection, both selectors empty.
+  /// - `saved` — reference an existing saved session by id.
+  /// - `custom` — type a one-off `user@host:port` override.
+  ///
+  /// All three controllers persist independently so flipping the
+  /// mode dropdown does not destroy partially typed values.
+  _ProxyMode _proxyMode = _ProxyMode.none;
+  String? _proxyViaSessionId;
+  late final TextEditingController _proxyHostCtrl;
+  late final TextEditingController _proxyPortCtrl;
+  late final TextEditingController _proxyUserCtrl;
+
+  /// Backing state for the Options-tab Record-session toggle.
+  /// Hydrated from `Session.extras['record']` on init (default false
+  /// so a fresh session is opt-out by default — privacy-first).
+  bool _recordEnabled = false;
+
   bool get _isEditing => widget.session != null;
 
   /// Whether a key from the store is selected.
@@ -118,6 +157,34 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     if (_selectedKeyId.isNotEmpty) {
       _resolveKeyLabel();
     }
+    // ProxyJump editor state — initialise mode + controllers from the
+    // session being edited, falling back to "none" / empty for new
+    // sessions.
+    _proxyHostCtrl = TextEditingController(text: s?.viaOverride?.host ?? '');
+    _proxyPortCtrl = TextEditingController(
+      text: s?.viaOverride != null ? '${s!.viaOverride!.port}' : '22',
+    );
+    _proxyUserCtrl = TextEditingController(text: s?.viaOverride?.user ?? '');
+    if (s?.viaSessionId != null) {
+      _proxyMode = _ProxyMode.saved;
+      _proxyViaSessionId = s!.viaSessionId;
+    } else if (s?.viaOverride != null) {
+      _proxyMode = _ProxyMode.custom;
+    }
+    _recordEnabled = s?.extrasBool('record') ?? false;
+    if (s != null) {
+      _loadForwards(s.id);
+    }
+  }
+
+  /// Hydrate the in-memory rule list from the store. Only called for
+  /// edited sessions — new sessions never have rules until the user
+  /// adds one in the Forwarding tab.
+  Future<void> _loadForwards(String sessionId) async {
+    final store = ref.read(sessionStoreProvider);
+    final loaded = await store.loadPortForwards(sessionId);
+    if (!mounted) return;
+    setState(() => _forwards = loaded);
   }
 
   /// Look up the key label from the store for display.
@@ -149,13 +216,33 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _keyPathCtrl.dispose();
     _keyDataCtrl.dispose();
     _passphraseCtrl.dispose();
+    _proxyHostCtrl.dispose();
+    _proxyPortCtrl.dispose();
+    _proxyUserCtrl.dispose();
     super.dispose();
   }
 
   Session _buildSession() {
     final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
+    final viaSessionId = _proxyMode == _ProxyMode.saved
+        ? _proxyViaSessionId
+        : null;
+    final viaOverride = _proxyMode == _ProxyMode.custom
+        ? ProxyJumpOverride(
+            host: _proxyHostCtrl.text.trim(),
+            port: int.tryParse(_proxyPortCtrl.text.trim()) ?? 22,
+            user: _proxyUserCtrl.text.trim(),
+          )
+        : null;
+    // Merge the record-toggle into extras. `null` clears the key so
+    // a session that started as opt-in then went back to opt-out
+    // does not leave a `false` entry behind cluttering the bag.
+    final recordDelta = <String, Object?>{
+      'record': _recordEnabled ? true : null,
+    };
+    Session built;
     if (_isEditing) {
-      return widget.session!.copyWith(
+      built = widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
         folder: _folderCtrl.text.trim(),
         server: widget.session!.server.copyWith(
@@ -171,25 +258,31 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           keyData: _keyDataCtrl.text.trim(),
           passphrase: _passphraseCtrl.text,
         ),
+        viaSessionId: viaSessionId,
+        viaOverride: viaOverride,
+      );
+    } else {
+      built = Session(
+        label: _labelCtrl.text.trim(),
+        folder: _folderCtrl.text.trim(),
+        server: ServerAddress(
+          host: _hostCtrl.text.trim(),
+          port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+          user: _userCtrl.text.trim(),
+        ),
+        auth: SessionAuth(
+          authType: _derivedAuthType,
+          keyId: _selectedKeyId,
+          password: _passwordCtrl.text,
+          keyPath: keyPath,
+          keyData: _keyDataCtrl.text.trim(),
+          passphrase: _passphraseCtrl.text,
+        ),
+        viaSessionId: viaSessionId,
+        viaOverride: viaOverride,
       );
     }
-    return Session(
-      label: _labelCtrl.text.trim(),
-      folder: _folderCtrl.text.trim(),
-      server: ServerAddress(
-        host: _hostCtrl.text.trim(),
-        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-        user: _userCtrl.text.trim(),
-      ),
-      auth: SessionAuth(
-        authType: _derivedAuthType,
-        keyId: _selectedKeyId,
-        password: _passwordCtrl.text,
-        keyPath: keyPath,
-        keyData: _keyDataCtrl.text.trim(),
-        passphrase: _passphraseCtrl.text,
-      ),
-    );
+    return built.withExtras(recordDelta);
   }
 
   bool _validateAuth() {
@@ -228,7 +321,9 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       return;
     }
     if (!_validateAuth()) return;
-    Navigator.of(context).pop(SaveResult(_buildSession(), connect: connect));
+    Navigator.of(
+      context,
+    ).pop(SaveResult(_buildSession(), connect: connect, forwards: _forwards));
   }
 
   @override
@@ -268,6 +363,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                             offstage: _tabIndex != 2,
                             child: _buildOptionsTab(),
                           ),
+                          Offstage(
+                            offstage: _tabIndex != 3,
+                            child: SessionForwardsTab(
+                              rules: _forwards,
+                              onChanged: (next) =>
+                                  setState(() => _forwards = next),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -298,15 +401,16 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(border: AppTheme.borderBottom),
-      // Three Expanded tabs so Russian / German labels never push the
-      // third tab past the modal edge. Each tab caps its content at a
-      // third of the bar width and truncates with ellipsis if the
-      // translation still overflows that slot.
+      // Four Expanded tabs — each one caps content at a quarter of the
+      // bar width and truncates via ellipsis if the translation overflows.
       child: Row(
         children: [
           Expanded(child: _buildTab(0, Icons.dns, S.of(context).connection)),
           Expanded(child: _buildTab(1, Icons.shield, S.of(context).auth)),
           Expanded(child: _buildTab(2, Icons.folder, S.of(context).options)),
+          Expanded(
+            child: _buildTab(3, Icons.swap_horiz, S.of(context).portForwarding),
+          ),
         ],
       ),
     );
@@ -403,7 +507,121 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
           hint: S.of(context).hintUsername,
           validator: _requiredValidator,
         ),
+        const SizedBox(height: 16),
+        _buildProxyJumpSection(),
       ],
+    );
+  }
+
+  Widget _buildProxyJumpSection() {
+    final l10n = S.of(context);
+    final allSessions = ref.watch(sessionProvider);
+    // Exclude the session being edited so it can't reference itself —
+    // cycle detection at runtime would catch it but inline UI is the
+    // friendlier guard.
+    final myId = widget.session?.id;
+    final candidates = [
+      for (final s in allSessions)
+        if (s.id != myId) s,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FieldLabel(l10n.proxyJump),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            _proxyModeChip(_ProxyMode.none, l10n.proxyJumpNone),
+            const SizedBox(width: 6),
+            _proxyModeChip(_ProxyMode.saved, l10n.proxyJumpSavedSession),
+            const SizedBox(width: 6),
+            _proxyModeChip(_ProxyMode.custom, l10n.proxyJumpCustom),
+          ],
+        ),
+        if (_proxyMode == _ProxyMode.saved) ...[
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: candidates.any((s) => s.id == _proxyViaSessionId)
+                ? _proxyViaSessionId
+                : null,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: AppTheme.bg3,
+              border: OutlineInputBorder(
+                borderRadius: AppTheme.radiusSm,
+                borderSide: BorderSide(color: AppTheme.borderLight),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            items: [
+              for (final s in candidates)
+                DropdownMenuItem(
+                  value: s.id,
+                  child: Text(
+                    s.label.isNotEmpty ? s.label : s.displayName,
+                    style: TextStyle(
+                      color: AppTheme.fg,
+                      fontFamily: 'Inter',
+                      fontSize: AppFonts.sm,
+                    ),
+                  ),
+                ),
+            ],
+            onChanged: (v) => setState(() => _proxyViaSessionId = v),
+          ),
+        ],
+        if (_proxyMode == _ProxyMode.custom) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: StyledFormField(
+                  label: l10n.hostRequired,
+                  controller: _proxyHostCtrl,
+                  hint: 'bastion.example.com',
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 80,
+                child: StyledFormField(
+                  label: l10n.port,
+                  controller: _proxyPortCtrl,
+                  hint: '22',
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          StyledFormField(
+            label: l10n.usernameRequired,
+            controller: _proxyUserCtrl,
+            hint: l10n.hintUsername,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.proxyJumpCustomNote,
+            style: TextStyle(
+              color: AppTheme.fgFaint,
+              fontFamily: 'Inter',
+              fontSize: AppFonts.xs,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _proxyModeChip(_ProxyMode mode, String label) {
+    return AppPickerChip(
+      active: _proxyMode == mode,
+      label: label,
+      onTap: () => setState(() => _proxyMode = mode),
     );
   }
 
@@ -632,7 +850,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     if (!mounted) return;
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
-    final pemContent = KeyFileHelper.tryReadPemKey(path);
+    final pemContent = await KeyFileHelper.tryReadPemKey(path);
     if (pemContent != null) {
       setState(() {
         _keyDataCtrl.text = pemContent;
@@ -672,12 +890,12 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return DropTarget(
       onDragEntered: (_) => setState(() => _keyDragging = true),
       onDragExited: (_) => setState(() => _keyDragging = false),
-      onDragDone: (details) {
+      onDragDone: (details) async {
         setState(() => _keyDragging = false);
         final files = details.files;
         if (files.isNotEmpty) {
           final path = files.first.path;
-          final pemContent = KeyFileHelper.tryReadPemKey(path);
+          final pemContent = await KeyFileHelper.tryReadPemKey(path);
           if (pemContent != null) {
             setState(() {
               _keyDataCtrl.text = pemContent;
@@ -800,7 +1018,35 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [_buildTagsSection()],
+      children: [
+        _buildTagsSection(),
+        const SizedBox(height: 16),
+        _buildRecordSection(),
+      ],
+    );
+  }
+
+  /// Per-session recording toggle. Persisted into `Session.extras`
+  /// (via [Session.withExtras]) when the user saves; the runtime
+  /// reads `extras['record']` at shell-open time. Off by default to
+  /// match the privacy-first positioning — recording is opt-in.
+  Widget _buildRecordSection() {
+    final l10n = S.of(context);
+    final current = _recordEnabled;
+    return _OptionRow(
+      label: l10n.recordSession,
+      trailing: Switch(
+        value: current,
+        onChanged: (v) => setState(() => _recordEnabled = v),
+      ),
+      detail: Text(
+        l10n.recordSessionHelp,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.xs,
+          color: AppTheme.fgFaint,
+        ),
+      ),
     );
   }
 
@@ -989,3 +1235,8 @@ class _EditingSessionTagsChips extends ConsumerWidget {
     );
   }
 }
+
+/// ProxyJump editor mode for the Connection tab. Stored on the
+/// dialog state so the user can flip between modes without losing
+/// partially typed values in the others.
+enum _ProxyMode { none, saved, custom }

@@ -270,7 +270,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   bool get _hasAnySelection =>
       _selectedHostIds.isNotEmpty || _selectedKeys.any((v) => v);
 
-  ImportResult _buildResult(BuildContext context) {
+  Future<ImportResult> _buildResult(BuildContext context) async {
     final sessions = _hosts
         .where((s) => _selectedHostIds.contains(s.id))
         .toList();
@@ -291,7 +291,10 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       if (!seenFingerprints.add(fp)) continue;
       try {
         pickedEntries.add(
-          keyStore.importKey(scanned.pem, '${scanned.suggestedLabel} $date'),
+          await keyStore.importKey(
+            scanned.pem,
+            '${scanned.suggestedLabel} $date',
+          ),
         );
       } catch (_) {
         // Skip unparseable PEM — the handler above already warns about each
@@ -346,7 +349,10 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         AppButton.primary(
           label: s.importData,
           enabled: _hasAnySelection,
-          onTap: () => Navigator.pop(context, _buildResult(context)),
+          onTap: () async {
+            final result = await _buildResult(context);
+            if (context.mounted) Navigator.pop(context, result);
+          },
         ),
       ],
     );

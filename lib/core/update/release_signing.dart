@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:pinenacl/ed25519.dart';
-
+import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../utils/logger.dart';
 
 /// Ed25519 verification of release artefact signatures.
@@ -109,7 +109,7 @@ class ReleaseSigning {
       );
       return false;
     }
-    return verifyBytes(message: bytes, signature: signature);
+    return await verifyBytes(message: bytes, signature: signature);
   }
 
   /// True when [signature] is a valid Ed25519 signature over [message]
@@ -117,21 +117,18 @@ class ReleaseSigning {
   ///
   /// Pure-bytes counterpart of [verifyFile] — used by tests and by any
   /// future call site that already has the artefact in memory.
-  static bool verifyBytes({
+  static Future<bool> verifyBytes({
     required Uint8List message,
     required Uint8List signature,
-  }) {
+  }) async {
     if (signature.length != 64) return false;
-    final sig = Signature(signature);
     for (final pubBytes in _pinnedPublicKeys) {
-      try {
-        final key = VerifyKey(pubBytes);
-        if (key.verify(signature: sig, message: message)) return true;
-      } catch (_) {
-        // Try next pin — a malformed pubkey constant is a coding error,
-        // not a verify-time failure, but we don't want it to crash the
-        // entire verification path either.
-      }
+      final ok = await rust_crypto.cryptoEd25519Verify(
+        publicKey: pubBytes,
+        message: message,
+        signature: signature,
+      );
+      if (ok) return true;
     }
     return false;
   }

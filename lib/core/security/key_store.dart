@@ -1,14 +1,11 @@
 import 'dart:convert';
-import 'dart:math';
-import 'dart:typed_data';
 
-import 'package:dartssh2/dartssh2.dart';
-import 'package:pinenacl/ed25519.dart' as ed25519;
-import 'package:pointycastle/export.dart';
+import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../utils/logger.dart';
-import '../db/database.dart';
 
 /// Supported SSH key types for generation.
 enum SshKeyType {
@@ -84,41 +81,50 @@ class SshKeyEntry {
   int get hashCode => Object.hash(id, label, privateKey);
 }
 
-/// SSH key store backed by drift database.
+/// SSH key store backed by `lfs_core.db`. Row reads / writes route
+/// through the FRB DAO; the in-memory cache shape is unchanged.
 ///
-/// Keeps the same public API as the old file-based store. Call [setDatabase]
-/// before [loadAll] — without a database, reads return empty and writes are
-/// no-ops.
+/// The unit-test runner does not load the FRB native lib — every
+/// FRB call site catches its synchronous `RustLib.instance` throw
+/// and degrades to the same empty-cache / no-op surface drift's
+/// `_db == null` branch used to expose. Live coverage moves to
+/// integration_test.
 class KeyStore {
-  AppDatabase? _db;
   Map<String, SshKeyEntry>? _cache;
 
-  /// Inject the opened database. Replaces the old `setEncryptionKey()`.
-  void setDatabase(AppDatabase db) {
-    _db = db;
+  /// Drop the in-memory cache. Called from the unlock handshake so
+  /// the next read pulls fresh rows after the DB switches behind us.
+  /// (Replaces the old `setDatabase` injection.)
+  void invalidateCache() {
     _cache = null;
   }
+
+  static SshKeyEntry _fromRow(rust_db.DbSshKey r) => SshKeyEntry(
+    id: r.id,
+    label: r.label,
+    privateKey: r.privateKey,
+    publicKey: r.publicKey,
+    keyType: r.keyType,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+    isGenerated: r.isGenerated,
+  );
+
+  static rust_db.DbSshKey _toRow(SshKeyEntry e) => rust_db.DbSshKey(
+    id: e.id,
+    label: e.label,
+    privateKey: e.privateKey,
+    publicKey: e.publicKey,
+    keyType: e.keyType,
+    isGenerated: e.isGenerated,
+    createdAtMs: e.createdAt.millisecondsSinceEpoch,
+  );
 
   /// Load all stored keys.
   Future<Map<String, SshKeyEntry>> loadAll() async {
     if (_cache != null) return Map.of(_cache!);
-    final db = _db;
-    if (db == null) return {};
-
     try {
-      final dbKeys = await db.sshKeyDao.getAll();
-      final result = <String, SshKeyEntry>{};
-      for (final k in dbKeys) {
-        result[k.id] = SshKeyEntry(
-          id: k.id,
-          label: k.label,
-          privateKey: k.privateKey,
-          publicKey: k.publicKey,
-          keyType: k.keyType,
-          createdAt: k.createdAt,
-          isGenerated: k.isGenerated,
-        );
-      }
+      final rows = await rust_db.dbSshKeysListAll();
+      final result = {for (final r in rows) r.id: _fromRow(r)};
       _cache = result;
       return Map.of(result);
     } catch (e) {
@@ -142,18 +148,22 @@ class KeyStore {
 
   /// Save all keys (replaces entire store).
   Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
-    final db = _db;
-    if (db == null) return;
-
-    // Delete all existing, then re-insert
-    final existing = await db.sshKeyDao.getAll();
-    for (final k in existing) {
-      await db.sshKeyDao.deleteById(k.id);
+    try {
+      final existing = await rust_db.dbSshKeysListAll();
+      for (final r in existing) {
+        await rust_db.dbSshKeysDelete(id: r.id);
+      }
+      for (final entry in keys.values) {
+        await rust_db.dbSshKeysUpsert(row: _toRow(entry));
+      }
+      _cache = Map.of(keys);
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeyStore.saveAll failed: $e',
+        name: 'KeyStore',
+        level: LogLevel.warn,
+      );
     }
-    for (final entry in keys.values) {
-      await db.sshKeyDao.insert(_toCompanion(entry));
-    }
-    _cache = Map.of(keys);
   }
 
   /// Get a single key entry.
@@ -164,21 +174,29 @@ class KeyStore {
 
   /// Add or update a key entry.
   Future<void> save(SshKeyEntry entry) async {
-    final db = _db;
-    if (db == null) return;
-
-    final existing = await db.sshKeyDao.getById(entry.id);
-    if (existing != null) {
-      await db.sshKeyDao.update(_toCompanion(entry));
-    } else {
-      await db.sshKeyDao.insert(_toCompanion(entry));
+    try {
+      await rust_db.dbSshKeysUpsert(row: _toRow(entry));
+      _cache?[entry.id] = entry;
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeyStore.save failed: $e',
+        name: 'KeyStore',
+        level: LogLevel.warn,
+      );
     }
-    _cache?[entry.id] = entry;
   }
 
   /// Delete a key entry.
   Future<void> delete(String id) async {
-    await _db?.sshKeyDao.deleteById(id);
+    try {
+      await rust_db.dbSshKeysDelete(id: id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeyStore.delete failed: $e',
+        name: 'KeyStore',
+        level: LogLevel.warn,
+      );
+    }
     _cache?.remove(id);
   }
 
@@ -278,113 +296,59 @@ class KeyStore {
   }
 
   static String _sha256Hex(List<int> bytes) {
-    final digest = SHA256Digest();
-    final out = digest.process(Uint8List.fromList(bytes));
-    final buf = StringBuffer();
-    for (final b in out) {
-      buf.write(b.toRadixString(16).padLeft(2, '0'));
-    }
-    return buf.toString();
+    return sha256.convert(bytes).toString();
   }
 
-  /// Import a key from PEM text. Returns the created entry.
-  SshKeyEntry importKey(String pem, String label) {
-    final pairs = SSHKeyPair.fromPem(pem);
-    if (pairs.isEmpty) {
-      throw const KeyStoreException('No valid key found in PEM data');
+  /// Import an OpenSSH PEM-armored private key. Returns the created
+  /// entry. Async — the underlying parse runs on the Rust core's
+  /// blocking pool through the FRB boundary.
+  Future<SshKeyEntry> importKey(String pem, String label) async {
+    final rust_keys.KeyMaterial km;
+    try {
+      km = await rust_keys.keysImportOpenssh(
+        pem: pem,
+        passphrase: null,
+        comment: label,
+      );
+    } catch (e) {
+      throw KeyStoreException('No valid key found in PEM data', cause: e);
     }
-    final pair = pairs.first;
-    final publicKey = _publicKeyToOpenSSH(pair, label);
-
     return SshKeyEntry(
       id: const Uuid().v4(),
       label: label,
-      privateKey: pair.toPem(),
-      publicKey: publicKey,
-      keyType: pair.type,
+      privateKey: km.privatePem,
+      publicKey: km.publicOpenssh,
+      keyType: km.keyType,
       createdAt: DateTime.now(),
     );
   }
 
-  /// Generate a new SSH key pair. Runs synchronously (fast for Ed25519,
-  /// slow for RSA — caller should run in isolate for RSA).
-  static SshKeyEntry generateKeyPair(SshKeyType type, String label) {
-    final SSHKeyPair pair;
+  /// Generate a new SSH key pair. Async — keygen runs on the Rust
+  /// core's blocking pool. Ed25519 returns near-instant; RSA can take
+  /// several seconds at 4096 bits.
+  static Future<SshKeyEntry> generateKeyPair(
+    SshKeyType type,
+    String label,
+  ) async {
+    final rust_keys.KeyMaterial km;
     switch (type) {
       case SshKeyType.ed25519:
-        pair = _generateEd25519(label);
+        km = await rust_keys.keysGenerateEd25519(comment: label);
       case SshKeyType.rsa2048:
-        pair = _generateRsa(2048, label);
+        km = await rust_keys.keysGenerateRsa(bits: 2048, comment: label);
       case SshKeyType.rsa4096:
-        pair = _generateRsa(4096, label);
+        km = await rust_keys.keysGenerateRsa(bits: 4096, comment: label);
     }
 
     return SshKeyEntry(
       id: const Uuid().v4(),
       label: label,
-      privateKey: pair.toPem(),
-      publicKey: _publicKeyToOpenSSH(pair, label),
-      keyType: pair.type,
+      privateKey: km.privatePem,
+      publicKey: km.publicOpenssh,
+      keyType: km.keyType,
       createdAt: DateTime.now(),
       isGenerated: true,
     );
-  }
-
-  // ── Internals ───────────────────────────────────────────────────
-
-  static SshKeysCompanion _toCompanion(SshKeyEntry e) =>
-      SshKeysCompanion.insert(
-        id: e.id,
-        label: e.label,
-        privateKey: e.privateKey,
-        publicKey: e.publicKey,
-        keyType: e.keyType,
-        createdAt: e.createdAt,
-      );
-
-  static SSHKeyPair _generateEd25519(String comment) {
-    final signingKey = ed25519.SigningKey.generate();
-    final publicKeyBytes = Uint8List.fromList(signingKey.verifyKey.asTypedList);
-    final privateKeyBytes = Uint8List.fromList(signingKey.asTypedList);
-    return OpenSSHEd25519KeyPair(publicKeyBytes, privateKeyBytes, comment);
-  }
-
-  static SSHKeyPair _generateRsa(int bitStrength, String comment) {
-    final secureRandom = FortunaRandom();
-    final random = Random.secure();
-    final seeds = List.generate(32, (_) => random.nextInt(256));
-    secureRandom.seed(KeyParameter(Uint8List.fromList(seeds)));
-
-    final keyGen = RSAKeyGenerator()
-      ..init(
-        ParametersWithRandom(
-          RSAKeyGeneratorParameters(BigInt.from(65537), bitStrength, 64),
-          secureRandom,
-        ),
-      );
-
-    final pair = keyGen.generateKeyPair();
-    final pub = pair.publicKey;
-    final priv = pair.privateKey;
-
-    final iqmp = priv.q!.modInverse(priv.p!);
-
-    return OpenSSHRsaKeyPair(
-      pub.modulus!,
-      pub.publicExponent!,
-      priv.privateExponent!,
-      iqmp,
-      priv.p!,
-      priv.q!,
-      comment,
-    );
-  }
-
-  /// Format public key in OpenSSH authorized_keys format.
-  static String _publicKeyToOpenSSH(SSHKeyPair pair, String comment) {
-    final hostKey = pair.toPublicKey();
-    final encoded = base64Encode(hostKey.encode());
-    return '${pair.type} $encoded $comment';
   }
 }
 

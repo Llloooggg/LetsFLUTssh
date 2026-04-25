@@ -58,7 +58,7 @@ class WipeAllService {
     FlutterSecureStorage? keychain,
     MethodChannel? hardwareVaultChannel,
     bool purgeKeychain = true,
-    VoidCallback? credentialCacheEvict,
+    Future<void> Function()? credentialCacheEvict,
   }) : _supportDir = supportDirFactory ?? getApplicationSupportDirectory,
        _keychain = keychain ?? const FlutterSecureStorage(),
        _hwChannel =
@@ -132,7 +132,7 @@ class WipeAllService {
   /// `reconnect` against a now-gone session would still find
   /// credentials in memory. Nullable because tests and the
   /// startup-pending-wipe resumption path have no cache to flush.
-  final VoidCallback? _credentialCacheEvict;
+  final Future<void> Function()? _credentialCacheEvict;
 
   /// True if a `.wipe-pending` marker is on disk — the previous run
   /// started a wipe that did not finish. Call sites check this on
@@ -229,7 +229,10 @@ class WipeAllService {
     //    invariant "no cached credentials exist for sessions whose
     //    on-disk record is about to be deleted".
     try {
-      _credentialCacheEvict?.call();
+      final evict = _credentialCacheEvict;
+      if (evict != null) {
+        await evict();
+      }
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService: credential-cache evict threw: $e',

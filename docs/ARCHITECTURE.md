@@ -16,6 +16,8 @@
   - [3.9 Import (`core/import/`)](#39-import-coreimport)
   - [3.10 Update (`core/update/`)](#310-update-coreupdate)
   - [3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)](#311-keyboard-shortcuts-coreshortcut_registrydart)
+  - [3.12 Snippets (`core/snippets/`)](#312-snippets-coresnippets)
+  - [3.13 Session Recording (`core/session/session_recorder.dart`)](#313-session-recording-coresessionsession_recorderdart)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -227,6 +229,8 @@ lib/
 | `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed, CRUD management (remove/import/export/clear) |
 | `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
+| `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model + JSON codec for the per-session forwarding tabs |
+| `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); opens local listeners and bridges them to dartssh2 channels |
 
 #### SSHConnection — lifecycle
 
@@ -312,6 +316,58 @@ class KnownHostsManager {
 **Why global `navigatorKey`:** dartssh2 callback arrives from async context without BuildContext. Global key allows showing a dialog from anywhere.
 
 **Concurrency invariant — `verify` serialised with mutators.** `verify` runs through the same `_serializeWrite` chain as `clearAll` / `removeMultiple` / `importFromString`. Reason: the reader path can call `onUnknownHost` (interactive TOFU prompt) and block on user input, which opens an arbitrarily long window during which a Settings → "Clear Known Hosts" click could interleave. Before the fix, the sequence `verify(host) → await prompt → user accepts → clearAll() fires in parallel → _hosts/DB wiped → verify resumes → _addHost re-inserts the row the user just asked to forget` was reachable, leaving the user staring at a row they thought they deleted. Full serialisation is cheap (TOFU events are sparse, user-driven) and the invariant is trivial to reason about. Regression guard: `test/core/ssh/known_hosts_test.dart` "verify is serialised against clearAll — accepted TOFU survives".
+
+#### Port forwarding
+
+Per-session rules — model + persistence + lifecycle — that open `ssh -L`-style local listeners on connect and tear them down on disconnect. The model lives in `port_forward_rule.dart` (`PortForwardRule { id, kind, bindHost, bindPort, remoteHost, remotePort, description, enabled, sortOrder, createdAt }`), the runtime in `port_forward_runtime.dart`.
+
+**Persistence.** `PortForwardRules` table (DB schema v3 — see [§11 Persistence Version log](#drift-sqlite-database)) joined to `Sessions` with `ON DELETE CASCADE`. `SessionStore.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the DAO never escapes the store.
+
+**Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionManager`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime opens its listeners with no race against the new SSHClient assignment.
+
+**Listener model.** For every enabled rule, `onConnected` calls `ServerSocket.bind(bindHost, bindPort)`. Each accepted local socket triggers `client.forwardLocal(remoteHost, remotePort)` to open an `SSHForwardChannel`; the runtime then bridges the local socket and the channel byte-stream in both directions and tracks both subscriptions in `_activeTunnels` so `onDisconnecting` / `onReconnecting` can drain them without leaking handles. A `PortForwardStatus` event is emitted on the broadcast `statusStream` for every state transition (idle / listening / error) so a UI surface can colour-code rule rows.
+
+**Listener model — three kinds.** `_openListener` dispatches by [`PortForwardKind`](#3-modules):
+
+| Kind | Listener | Per-connection bridge |
+|---|---|---|
+| `local` (-L) | `ServerSocket.bind(rule.bindHost, rule.bindPort)` on the user's machine. | Open `client.forwardLocal(remoteHost, remotePort)`; bridge local socket ↔ SSH channel. |
+| `remote` (-R) | `client.forwardRemote(host: rule.bindHost, port: rule.bindPort)` registers a `tcpip-forward` request with the SSH server. A `null` reply (server refused) emits a targeted error pointing at GatewayPorts / port permissions instead of swallowing the rejection. | For each `SSHForwardChannel` the server pushes through `remote.connections`, dial out locally to `remoteHost:remotePort` and bridge channel ↔ socket. |
+| `dynamic_` (-D) | `ServerSocket.bind(rule.bindHost, rule.bindPort)` then a hand-rolled SOCKS5 server on each accepted socket. | Run RFC 1928 greeting + `CONNECT` request, parse `(host, port)` out of the request (IPv4 / domain / IPv6 address types), open `client.forwardLocal(host, port)` for the resolved target, hand the live socket subscription over to the bridge sink (Socket is single-subscription — we cannot `.listen` again, so the SOCKS reader rebinds its `onData` / `onDone` instead of cancelling and relisten). |
+
+**SOCKS5 surface — CONNECT-only, NO_AUTH-only.** RFC 1928 specifies BIND, UDP ASSOCIATE, GSSAPI, and username/password auth too — none of those are wired. The trimmed surface keeps the implementation off any pub.dev SOCKS package (zero new dependency, zero supply-chain) and matches what `ssh -D` itself supports out of the box. Address types covered: `0x01` IPv4, `0x03` domain name, `0x04` IPv6. Anything else replies with `0x08 address type not supported` and closes the socket.
+
+**Failure isolation.** Listener bind failures (port already in use, permission denied) emit an `error` event but do not affect the rest of the rules — each rule's open is wrapped in its own `try/catch`. Channel-open failures on an accepted socket destroy that socket and continue listening; the next connection attempt gets a fresh channel. A `setRules` call replaces the in-memory list but does not reopen on the spot — listeners only refresh on the next reconnect, so the user does not get surprise port-bind ripples while editing rules in a dialog.
+
+**Teardown.** `_teardown` (called from `onDisconnecting` and `onReconnecting`) drains in three passes: cancel every entry in `_activeTunnels` (per-bridge socket↔channel subscriptions plus the `remote.connections` listener for each -R rule), close every local `ServerSocket` (-L and -D), then close every `SSHRemoteForward` (-R) which cancels the server-side `tcpip-forward` registration in addition to the local stream. Order matters: cancelling the bridge subscriptions first prevents a final stdout/stdin chunk from blocking on a now-closed socket.
+
+**UI — Forwarding tab.** `features/session_manager/session_forwards_tab.dart` is a 4th tab in the session edit dialog (Connection / Auth / Options / Forwarding). The tab owns no state — the parent dialog holds `_forwards: List<PortForwardRule>` and re-renders on `onChanged`. Edits land via the in-line `_ForwardRuleEditor` modal which validates port range / required target host before returning the rule. Persistence is deferred to the parent dialog's Save: `SaveResult.forwards` carries the in-memory list out, and `session_panel._syncForwards` diffs against the store (delete missing ids, upsert the rest) after the session row commits, so the FK constraint sees a real parent. Quick-connect / new-session paths that never touch the tab pass an empty list and skip the diff entirely.
+
+#### ProxyJump — bastion chains
+
+Per-session "bounce through a bastion before reaching the final host" model. Saved-session bastions (`Session.viaSessionId`) take precedence over one-off overrides (`Session.viaOverride`); the loader / mapper enforce the rule by zeroing the override columns whenever `viaSessionId` is non-null, so a stray partial override left over from a prior edit cannot resurrect after the user clears the saved-session reference.
+
+**Persistence.** Four columns on `Sessions` (DB schema v4 — see [§11 Persistence Version log](#drift-sqlite-database)):
+
+| Column | Type | Notes |
+|---|---|---|
+| `via_session_id` | `TEXT NULL` references `Sessions(id) ON DELETE SET NULL` | Saved-session bastion. `SET NULL` so deleting a bastion does not cascade-delete every session that referenced it; the UI can surface the orphan as "lost jump host". |
+| `via_host` / `via_port` / `via_user` | nullable text/int/text | One-off override; the runtime treats the trio as a unit (if any required field is empty the loader maps to `null`). |
+
+**Runtime — recursive ensureBastion.** `features/session_manager/session_connect.dart::_ensureBastion` walks the chain bottom-up. For every hop:
+
+1. If `current.viaSessionId` is set, load the bastion's saved session (with credentials).
+2. Otherwise build an `SSHConfig` from `viaOverride` and inherit auth from the final session's credentials. Documented limitation: for a bastion with distinct auth, save it as its own session and link via `viaSessionId`.
+3. Recurse into the bastion's own bastion (if any) and chain a `socketProvider` that calls `upstream.client.forwardLocal(currentBastion.host, currentBastion.port)`.
+4. Call `manager.connectAsync(...)` with `internal: true` and `bastion: upstream` so the manager owns the lifecycle.
+
+**Cycle / depth guards.** `_ensureBastion` carries a `Set<String> visited` (session ids already in the chain). A `viaSessionId` already in the set throws [`ProxyJumpCycleError`](#3-modules) carrying the offending id. Independently, `visited.length >= maxProxyJumpDepth` (8) throws [`ProxyJumpDepthError`](#3-modules) before the recursion goes deep. The 8 cap leaves room for realistic enterprise chains (corp gateway → region gateway → cluster gateway → service ≈ 4) doubled for safety, while still tripping accidental loops fast. Both errors localise through `errProxyJumpCycle` / `errProxyJumpDepth` so the user sees a concrete message rather than a stack trace.
+
+**Transport injection — SSHConnection.connect socketProvider.** `SSHConnection.connect` accepts an optional `Future<SSHSocket> Function()? socketProvider`. When non-null, the provider runs **per-connect-attempt** (so reconnect re-invokes it and gets a fresh `SSHForwardChannel` — the previous one died with the previous bastion transport). The provider does the work of waiting for the bastion's auth and calling `bastion.client.forwardLocal(finalHost, finalPort)`; the result implements `SSHSocket` and slots into the standard `_authenticateClient` flow. `_connectSocket` is skipped entirely when a provider is supplied, so the `effectivePort` of the final hop is meaningless once the channel is in place — the SSH server on the other end of the channel is the bastion's `forwardLocal` target, not a TCP socket on `host:port`.
+
+**Hidden bastion lifecycle — Connection.internal.** Bastion connections are full `Connection` objects in [`ConnectionManager`](#connectionmanager) so the credential overlay, keepalive timer, and progress-stream machinery all "just work". They are flagged `internal: true`; the user-visible `connections` getter filters them out so the workspace UI never paints a phantom tab for a hop the user did not explicitly open. The `allConnections` getter returns the full set so the foreground-service active-count callback (Android) keeps the service alive while the bastion is running. The parent connection holds a `bastion: Connection?` reference; `disconnect(parent.id)` cascades into `disconnect(bastion.id)` so the chain is torn down as a unit. Reconnects on the parent re-run the same `socketProvider`, which awaits `bastion.waitUntilReady()` — so a bastion mid-handshake when the parent retries simply queues until auth completes instead of opening a forwardLocal channel on a half-connected client.
+
+**UI — ProxyJump section in Connection tab.** A three-chip selector (`None` / `Saved session` / `Custom`) sits below the user/host/port row in the Connection tab. The saved-session mode renders a dropdown of every **other** session (the dialog filters out the session being edited so it cannot reference itself — inline guard before the runtime cycle detector kicks in); the custom mode renders host/port/user fields with a note explaining the inherits-credentials limitation. Mode + values persist in dialog state independently so flipping between modes does not destroy partial input.
 
 ---
 
@@ -456,7 +512,7 @@ JSON → deflate → base64url. Top-level keys:
 | `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId |
 | `eg` | `List<String>` | Empty folder paths |
 | `c` | `Map` | App config JSON |
-| `kh` | `String` | Known hosts, LetsFLUTssh wire format (`host:port keytype base64key`, one per line — round-trips through `KnownHostsManager.importFromString/exportToString`; NOT OpenSSH `~/.ssh/known_hosts`) |
+| `kh` | `String` | Known hosts. **Export emits** the LetsFLUTssh internal wire format (`host:port keytype base64key`, one per line). **Import accepts both** the internal format and OpenSSH `~/.ssh/known_hosts` — `_parseLine` detects bare hostnames (port 22 default), `[host]:port` brackets (incl. IPv6), comma-separated multi-host fan-out, and `@cert-authority`/`@revoked` markers (stripped). Hashed (`|1|salt|hash`, `HashKnownHosts yes`) entries are skipped — HMAC-SHA1 hostname hashes are one-way so we have nothing to match against on a later TOFU `verify()`. The importer surfaces a "skipped N hashed entries" warning to the log when it drops them. |
 | `tg` | `List<{i, n, cl?}>` | Tags (id, name, optional color) |
 | `st` | `List<{si, ti}>` | Session→tag links |
 | `ft` | `List<{fi, ti}>` | Folder→tag links (folderPath, tagId) |
@@ -1683,7 +1739,7 @@ class DeepLinkHandler {
 | File | Purpose |
 |------|---------|
 | `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, Argon2id-derived key). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
-| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker |
+| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
 
@@ -1814,6 +1870,26 @@ Both `applyResult()` paths return an `ImportSummary` with per-type row counts an
 
 ---
 
+#### PPK codec — PuTTY's private key format
+
+`core/security/ppk_codec.dart` parses PuTTY's `.ppk` files and converts the supported variants to OpenSSH PEM in-place so the rest of the import path stays format-agnostic. The codec is stateless / pure-Dart — no FFI, no native deps.
+
+**Scope.** PPK v2 and v3, `ssh-ed25519` and `ssh-rsa`, **unencrypted + encrypted (`aes256-cbc`)**. The top-level `PpkCodec.parse(text, passphrase)` dispatches on the file's first line (`PuTTY-User-Key-File-2` vs `-3`) and the algorithm-specific [`toOpenSshPem`](#3-modules) packer routes by `algorithm` after parse. Algorithm-only aliases (`parseV2Ed25519`, `parseUnencryptedV2Ed25519`) stay around for callers that explicitly want one path.
+
+**v3 KDF — Argon2id with a 1 GiB memory ceiling.** Encrypted v3 derives 80 bytes via Argon2id over the passphrase + the salt from the `Argon2-Salt` header (the type comes from `Key-Derivation`, supports `Argon2id` / `Argon2i` / `Argon2d`; iterations / memory / lanes from `Argon2-Passes` / `Argon2-Memory` / `Argon2-Parallelism`). The first 32 bytes are the AES-256 key, next 16 the IV (no zero-IV here unlike v2), final 32 the HMAC-SHA-256 key. The parser hard-rejects files asking for more than 1 GiB of working memory (`_argon2MaxMemoryKiB`) — well above puttygen's 8 MiB default but enough below "out of memory" that a crafted file cannot DoS the importer. v3 unencrypted skips the KDF entirely; the MAC key is the empty string (the file is still MAC-verified for tamper detection, just not authenticated against a secret).
+
+**v3 MAC — HMAC-SHA-256 over the same payload as v2.** ssh-string-prefixed `algorithm` + `encryption` + `comment` + `publicBlob` + `privateBlob` (encrypted bytes for encrypted files). Verified before decryption; mismatch surfaces as [`PpkMacMismatchException`](#3-modules) which doubles as the wrong-passphrase signal — Argon2id over a wrong passphrase produces a different MAC key, so HMAC fails before the AES gibberish ever has to be parsed.
+
+**RSA component reordering.** PPK splits the private RSA tuple as `(d, p, q, iqmp)` whereas OpenSSH's openssh-key-v1 envelope expects `(n, e, d, iqmp, p, q)`. The codec reads `n` and `e` out of the public blob (PPK layout: `ssh-string("ssh-rsa") + mpint e + mpint n`) and reorders into the OpenSSH layout — note `iqmp` lands before `p` and `q` in OpenSSH but after them in PPK. The reordering is the entire content of `toOpenSshPemRsa` over the ed25519 path; the envelope, padding, and PEM armor are identical.
+
+**Encryption — `aes256-cbc`.** PPK v2 derives the AES-256 key by concatenating `SHA-1(0x00000000 || passphrase)` and `SHA-1(0x00000001 || passphrase)` and taking the first 32 bytes. The IV is **all zeros** — the format's choice, not ours; v3 fixes it via KDF-derived IV. Decryption is raw AES-CBC (no PKCS#7 strip — PuTTY pads with arbitrary trailer bytes that the inner ssh-mpint parser ignores).
+
+**MAC verification.** HMAC-SHA-1 keyed with `SHA-1("putty-private-key-file-mac-key")` for unencrypted files, or `SHA-1("putty-private-key-file-mac-key" || passphrase)` for encrypted ones. The payload is the ssh-string-prefixed concatenation of `algorithm`, `encryption`, `comment`, `publicBlob`, **encrypted** `privateBlob` — verification runs **before** decryption so a corrupted file does not waste a CBC pass, and so a wrong passphrase surfaces as the canonical [`PpkMacMismatchException`](#3-modules) (decrypted gibberish hashes uniformly; the only honest signal is the MAC failing). Compare is constant-time so a forge attempt cannot leak the expected MAC byte-by-byte. Encrypted files passed to `parseV2Ed25519` without a passphrase throw [`PpkPassphraseRequiredException`](#3-modules) so the importer can prompt and retry.
+
+**OpenSSH conversion.** `toOpenSshPemEd25519` extracts the 32-byte ed25519 public key from the public blob (skipping the algorithm ssh-string) and the 32-byte private scalar from the mpint in the private blob (stripping the optional leading-zero pad), then constructs the `openssh-key-v1\0` envelope with `cipher=none` / `kdf=none`, packs the keys into the standard private-block (matched-check pair, ssh-ed25519 algo, pub, priv-pub-concat, comment, 1..N padding), base64-armors with `-----BEGIN OPENSSH PRIVATE KEY-----`. The result feeds `dartssh2.SSHKeyPair.fromPem` directly.
+
+---
+
 ### 3.10 Update (`core/update/`)
 
 ```dart
@@ -1914,6 +1990,212 @@ String formatShortcut(SingleActivator a);
 **Collision invariant — `buildCallbackMap` fails loud on duplicate activators.** Several `AppShortcut` values intentionally share a `SingleActivator`: `sessionCopy` / `fileCopy` both bind `Ctrl+C`, `sessionPaste` / `filePaste` both bind `Ctrl+V`, `sessionDelete` / `fileDelete` both bind `Delete`, `sessionEdit` / `fileRename` both bind `F2`. The context-sensitive dispatch is enforced by *where* each `CallbackShortcuts` is mounted — `SessionPanel` ships the session variants, `FilePane` / terminal subtree ship their own. The enum has no "scope" dimension because Flutter's `CallbackShortcuts` takes a raw `Map<ShortcutActivator, VoidCallback>` with no scope key.
 
 If a caller ever collides two of these shortcuts into one `buildCallbackMap` (unified command palette, shell-level shortcut handler, test harness that wraps both, future refactor), the output used to silently coalesce to the last-written entry — one of the two shortcuts becoming a no-op with no error message at compile or runtime. `buildCallbackMap` now throws `StateError('Duplicate shortcut activator …')` on collision so the regression trips at build time, before any keyboard input reaches the broken state. Regression guard: `test/core/shortcut_registry_test.dart` "buildCallbackMap throws on duplicate activator".
+
+---
+
+### 3.12 Snippets (`core/snippets/`)
+
+Reusable shell command templates with optional placeholder substitution. Persisted in the drift `Snippets` table; pinned per-session via `SessionSnippets`. The model is a flat `Snippet { id, title, command, description }`; rendering happens at execution time via `snippet_template.dart`.
+
+#### Template grammar
+
+`renderSnippet(Snippet snippet, Map<String, String> context)` returns a `SnippetRender { rendered, unresolved }`. `{{name}}` is the only placeholder syntax. Whitespace inside the curly braces is trimmed (`{{  host  }}` ≡ `{{host}}`). Tokens that don't resolve against `context` are left in the output as-is and listed in `unresolved` (in first-seen order, deduplicated) so the picker can prompt for them.
+
+| Built-in key | Source at the picker |
+|---|---|
+| `host` | `Session.host` |
+| `user` | `Session.user` |
+| `port` | `Session.port` (stringified) |
+| `label` | `Session.label` |
+| `now` | ISO-8601 timestamp at render time |
+
+User-defined names are anything else; the picker collects them via [`_SnippetFillDialog`](features/snippets/snippet_picker.dart) which renders one `StyledInput` per unresolved token, fills with `fillSnippetUnresolved`, and pops with the final command.
+
+**Why this grammar.** Same shape as `~/.ssh/config` `%h`/`%p`/`%u` and as IDE live-templates — predictable for a power user, no surprises around shell escaping. Tradeoffs frozen explicitly:
+
+- **No recursion.** A substituted value containing `{{x}}` is taken literally; the rendered output is never re-scanned. Prevents user-defined values from accidentally referencing other tokens (and prevents accidental infinite expansion).
+- **No shell escaping.** The substituted value is the raw context string. If the user wants quoting, that's their problem at the snippet authoring site — same as OpenSSH config tokens.
+- **`{{{{` is a literal `{{`.** The escape is consumed before token detection so `{{{{not-a-token}}}}` renders as `{{not-a-token}}`. Empty `{{}}` is left literal (typo, not a "drop-everything" sentinel).
+- **Unterminated `{{` is copied verbatim.** Avoids data loss when a malformed snippet is rendered against a context that would otherwise consume the tail.
+
+#### Picker integration
+
+`SnippetPicker.show(context, sessionId, templateContext)` in `features/snippets/snippet_picker.dart` is the single entry point used from the desktop terminal pane and the mobile terminal view. The caller assembles the built-in context from `widget.connection.sshConfig` (host, user, port, label, now) and hands it to the picker; the picker handles the render → prompt → fill flow internally and returns the final command (or `null` on cancel). The terminal pane never sees the unrendered command — by the time it calls `sendCommand` every placeholder has either resolved against the session or been filled by the user.
+
+---
+
+### 3.13 Session Recording (`core/session/session_recorder.dart`)
+
+Per-shell terminal recorder that captures the user-visible output stream + input keystrokes, framed as [asciinema v2](https://docs.asciinema.org/manual/asciicast/v2/) events, persisted to disk with optional encryption-at-rest.
+
+#### Lifecycle
+
+`SessionRecorder` is opened by `TerminalPane._maybeOpenRecorder` when the session has opted in via `Session.extras['record'] == true`. The recorder is handed to `ShellHelper.openShell` as an optional parameter; the helper tees stdout/stderr bytes (output) and `terminal.onOutput` bytes (input) into the recorder before the normal write paths run. `ShellConnection.close` calls `recorder.close()` after the shell tears down so any final tail bytes (banner, "logout") still land before the file is sealed.
+
+```
+TerminalPane
+  └── reads Session.extras['record']
+       └── SessionRecorder.open(sessionId, label, w, h, dbKey)
+            └── ShellHelper.openShell(... recorder: rec)
+                 ├── stdout/stderr.listen → terminal.write + recorder.recordOutput
+                 └── terminal.onOutput   → shell.write   + recorder.recordInput
+```
+
+#### Why per-shell, not per-connection
+
+Multi-pane connections run independent shell channels — each pane has its own xterm buffer, scrollback, and dimensions. A connection-level recorder would interleave bytes from N shells into a single timeline that no playback tool could un-mix. Per-shell keeps each recording straight-line.
+
+#### Why asciinema v2 inside an encryption envelope
+
+asciinema is the de-facto interop format — `asciinema play file.cast` plays it on any platform without our app installed. Keeping the plaintext shape standard means a future "Export to .cast" action is one decrypt away: the bytes inside the envelope are already the asciinema JSON-Lines that any cast viewer accepts. A custom binary format would lock recordings inside the app forever.
+
+#### Encryption envelope
+
+When the running [security tier](#36-security--encryption-coresecurity) carries an in-memory DB encryption key, the recorder derives a recording-specific 32-byte key via `HKDF-SHA-256(prk = dbKey, info = "letsflutssh-recording-v1", salt = empty)`. The HKDF context tag keeps the recording key cryptographically separate from the DB key — a recording leak does not compromise the DB and vice versa.
+
+File layout:
+
+```
+[LFR1 magic (4)] [version (1)]
+loop:
+  [plaintext-len (4 LE)] [nonce (12)] [ciphertext (len)] [GCM tag (16)]
+```
+
+Each plaintext chunk is one asciinema JSON-Lines record (header on first chunk, then `[t_seconds, "o"|"i", "data"]` events). Per-event GCM frames mean a truncated tail (crashed app, full disk) loses only the trailing event, not the whole timeline. Random nonces per frame plus the same authenticated key give standard GCM guarantees per event.
+
+#### Plaintext mode
+
+When the security tier is `plaintext`, the recorder writes raw asciinema JSON-Lines (no envelope, no encryption) to a `.cast` file with `chmod 600`. The user already opted out of crypto at the tier level — adding a different surface for one feature would be misleading. The file extension differs (`.cast` vs `.lfsr`) so a future loader can dispatch by suffix without reading magic bytes first.
+
+#### Storage
+
+Recordings live as discrete files at `<appSupport>/recordings/<sessionId>/<isoTimestamp>.<lfsr|cast>`. Each file caps at `maxFileBytes = 100 MB`; on overflow the recorder rotates to a fresh file under the same session (with a fresh asciinema header). 100 MB is large enough for a multi-hour vim-heavy day, small enough that exporting a single file stays trivially shareable. Global cap + LRU eviction is deferred to a follow-up alongside the playback browser — the user manages disk manually for v1.
+
+#### Privacy posture
+
+- **Opt-in per-session, default off.** Privacy-first positioning. Toggle lives on the session edit dialog Options tab.
+- **Quick-connect sessions skip recording.** No stable session id = no recording directory, no opt-in surface. Recorder returns null.
+- **Recorder failure is best-effort.** A refusal to open the file (permission, disk full) logs a warning and returns null; the connect itself never fails on a recorder error.
+
+---
+
+### 3.14 Rust Security/Transport Core (`rust/`)
+
+The SSH/SFTP/keypair stack runs entirely on a Rust workspace at `rust/` (`russh = "0.59"`, `russh-sftp = "2.1"`, `russh-keys` 0.6.16 with the PPK feature). dartssh2 is no longer a dep — every connect (shell, file browser browse + transfers, port forwards including SOCKS5, ProxyJump bastion chains) and every keypair operation (generate Ed25519 / RSA, import OpenSSH PEM) goes through this core. Memory safety on the highest-risk code path (parsing untrusted server bytes, key material, KDF/AEAD envelopes) plus access to russh's full algorithm table unlock §6.2 SSH certificates and §6.3 FIDO2-SSH (sk-* keys) without forking anything.
+
+Full migration history, sub-phase order, and the remaining Phase 2 (crypto envelopes) / Phase 3 (native plugins → Rust) tracks live in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md). This § covers what is in the tree right now and how it fits the rest of the app.
+
+#### Workspace layout (hexagonal: ports + adapters)
+
+```
+rust/
+├── Cargo.toml                workspace root + shared dep pins
+├── rust-toolchain.toml       channel = stable
+└── crates/
+    ├── lfs_core/             PURE Rust headless library
+    │                         crate-type = ["rlib"]
+    │                         NO flutter_rust_bridge / tauri / dart deps
+    │
+    └── lfs_frb/              Flutter adapter (the native blob loaded by Flutter)
+                              crate-type = ["cdylib", "staticlib", "rlib"]
+                              deps: lfs_core (path) + flutter_rust_bridge
+```
+
+`lfs_core` is frontend-agnostic. `lfs_frb` is the only crate that imports `flutter_rust_bridge` and the only crate that produces a `cdylib`/`staticlib`. A future Tauri pivot adds `lfs_tauri` next to `lfs_frb` with the same `lfs_core` underneath; a future headless CLI adds `lfs_cli`. The discipline keeps every UI/transport choice replaceable without touching the security-critical core.
+
+#### Boundary contract (FRB)
+
+Defined in [`flutter_rust_bridge.yaml`](../flutter_rust_bridge.yaml) at the project root. Codegen reads `lfs_frb::api`, walks every public item, and emits typed Dart bindings into `lib/src/rust/`. Run via `make rust-codegen` after editing `rust/crates/lfs_frb/src/api.rs`.
+
+Translation rules in the adapter:
+
+| Rust shape (`lfs_core`) | Dart shape (after FRB codegen) |
+|---|---|
+| `pub fn f(x: T) -> R` | `Future<R> f(T x)` |
+| `pub async fn f(...) -> Result<R, Error>` | `Future<R>` that throws a typed Dart exception |
+| Long-lived `struct` (session, channel, sftp client) | Numeric handle ID (registered by `lfs_frb`); Dart never sees inner state |
+| `tokio::sync::mpsc::Receiver<T>` | FRB `Stream<T>` |
+
+#### Current state (sub-phase 1.1a)
+
+| Surface | Status |
+|---|---|
+| `lfs_core::ping()` → smoke test | shipped (1.0) — keeps as smoke alongside real entrypoints |
+| `lfs_core::ssh::try_connect_password` | shipped (1.1a) — one-shot validate-and-disconnect probe over `russh = "0.59"` |
+| `lfs_frb::api::ssh::ssh_try_connect_password` | shipped (1.1a) — Dart binding at `lib/src/rust/api/ssh.dart` |
+| `lfs_core::ssh::try_connect_pubkey` (OpenSSH only) | shipped (1.2a) — encrypted-key passphrase handled, typed `PassphraseIncorrect` separate from generic `KeyParse` for UI retry |
+| `lfs_frb::api::ssh::ssh_try_connect_pubkey` | shipped (1.2a) — `Vec<u8>` key bytes + `Option<String>` passphrase across the bridge |
+| `lfs_core::ssh::Session` + `Shell` | shipped (1.3a) — long-lived session, PTY-backed shell channel (`xterm-256color`), split read/write halves so stdin and event polling do not contend, `disconnect()` for explicit `SSH_MSG_DISCONNECT` |
+| `lfs_frb::api::ssh::SshSession` + `SshShell` (FRB opaque types) | shipped (1.3a) — Dart receives handle objects, `dispose()` triggers Rust `Drop`. Bindings at `lib/src/rust/api/ssh.dart` + Freezed sealed class for `SshShellEvent` |
+| Dart `SshTransport` interface | deferred to 1.5 — premature with current Rust surface; full swap arrives once SFTP + shell are in place |
+| `SshShell::events_stream` (FRB `StreamSink<SshShellEvent>`) | shipped (1.3b) — Dart side gets `Stream<SshShellEvent>`; pump exits on channel close or Dart subscription cancel; single-subscriber per shell because `next_event` serialises the read half |
+| Dart-side xterm bridge + debug entry for manual smoke | pending (1.3c) |
+| PuTTY PPK (v2 + v3 / Argon2id) import | shipped (1.4a) — `parse_private_key` dispatches by magic bytes (`PuTTY-User-Key-File-`); direct dep on `internal-russh-forked-ssh-key` with `ppk` feature flips on russh-keys' built-in parser |
+| Legacy PEM PKCS#1 / PKCS#8 import | pending (1.4b) — blocked on the same upstream RustCrypto pkcs8 0.11 RC issue as the russh 0.60 bump |
+| SFTP byte-level CRUD (`lfs_core::sftp::Sftp`) | shipped (1.5a) — russh-sftp 2.1 over a fresh channel per call, list/read/write/stat/rename/mkdir/remove/canonicalize |
+| `lfs_frb::api::sftp::SshSftp` (FRB opaque type) | shipped (1.5a) — Dart bindings at `lib/src/rust/api/sftp.dart`; SftpDirEntry / SftpFileMetadata carry size, kind, mtime, POSIX mode |
+| SFTP streaming GET/PUT (large-file support) | shipped (1.5b) — `SftpFile` opaque handle: `read_chunk` / `write_all` / `seek` / `sync_all` / `metadata`. Caller drives the chunk loop |
+| `Session::open_direct_tcpip` + `ForwardChannel` (`-L` + ProxyJump primitive) | shipped (1.7a / 1.10a) — split read/write halves; Dart drives the local listener and bridges sockets via `SshForwardChannel.write` / `read` |
+| `lfs_core::forward::LocalForward` listener helper | pending (1.7b) — owns the tokio `TcpListener` + bridge tasks |
+| `-R` remote forward (`request_remote_forward` + `next_forwarded_connection`) | shipped (1.8a) — `LfsHandler` carries an mpsc sender; inbound forwarded channels relay through it |
+| `-D` SOCKS5 | pending (1.9) — pure user-space layer over `open_direct_tcpip` |
+| ssh-agent client (`Session::connect_agent`) | shipped Rust side (1.11a) — `russh::keys::agent::client::AgentClient` does the heavy lifting; iterates over identities, server picks first acceptable. FRB exposure deferred to 1.11b on a higher-ranked-lifetime tangle. **Covers FIDO2 sk-* keys** (§6.3) when agent has them registered |
+| SSH certificates (`Session::connect_pubkey_cert`) | shipped (1.12) — russh's `authenticate_openssh_cert` plus `Certificate::from_openssh` parser; FRB exposes `ssh_connect_pubkey_cert(host, port, user, key, passphrase, cert)`; the earlier "blocked / fork" assessment came from an incomplete russh scan |
+| FIDO2 sk-keys via agent (§6.3) | covered by 1.11a / 1.11b | russh's `ALL_KEY_TYPES` already advertises `SkEd25519` + `SkEcdsaSha2NistP256`; agent drives the CTAP2 prompt |
+| Direct CTAP2 native HID stack (no agent) | pending (1.13b) — defer until an opt-in real-user need surfaces |
+| ProxyJump full Rust orchestration | pending (1.10b) — over the 1.7a primitive |
+| Shell channel + xterm wiring | pending (1.3) |
+| PPK v2 + v3 codec | pending (1.4) — moves out of `lib/core/security/ppk_codec.dart` |
+| SFTP | pending (1.5) |
+| Mobile cross-compile (cargo-ndk + xcframework) | pending (1.6) — Linux-only host build until then |
+| Port forwarding (-L / -R / -D) + ProxyJump | pending (1.7–1.10) |
+| ssh-agent client | pending (1.11) |
+| SSH certificates (§6.2) | pending (1.12) |
+| FIDO2 sk-keys (§6.3) | pending (1.13) |
+
+`russh` is pinned to **0.59** — versions 0.60+ depend on the RustCrypto release-candidate set (`pkcs8-0.11.0-rc.11`, `ed25519-3.0.0-rc.4`, `ecdsa-0.17.0-rc`, `elliptic-curve-0.14.0-rc`, `rsa-0.10.0-rc`) and `pkcs8-0.11.0-rc.11` fails to build against the latest stable `pkcs5-0.8.0`. Bump back to the latest stable `russh` once that RC set graduates and `pkcs8` 0.11 ships stable. Tracked in [docs/RUST_CORE_MIGRATION_PLAN.md §13](RUST_CORE_MIGRATION_PLAN.md#13-sub-phase-checklist-mark-as-we-go).
+
+**Migration status — complete.** Every SSH/SFTP path runs through `lfs_core` via the `SshTransport` interface in `lib/core/ssh/transport/`. The Rust core is no longer opt-in — `RustTransport` is the only `SshTransport` implementation. dartssh2 has been removed from `pubspec.yaml`. The legacy `SSHConnection` / `SFTPService` / `Dartssh2Transport` classes are gone; what survives in §3.1 / §3.2 below describes the Dart wrappers around the Rust handles, not dartssh2 internals. Refer to commit `bff78b1b` (drop dartssh2 entirely) for the surgery; sections of this doc that still reference dartssh2 by name are stale prose pending a follow-up sweep.
+
+#### Security baseline
+
+The first lines of defence beyond Rust's safe-by-default ownership / borrow rules:
+
+- **`#[lints.rust] unsafe_code = "forbid"`** on `lfs_core` — no raw FFI / pointer surgery in code we write here. Transitive dependencies (`russh`, `tokio`, `ring`, `aws-lc-rs`) still use `unsafe` internally — that's their audit perimeter.
+- **`zeroize::Zeroizing`** wraps secret buffers (passwords today, key material at 1.2/1.4, signing payloads at 1.11/1.12) so the local owned copy clears on drop. Cannot reach copies `russh` or `tokio` hold internally — best-effort hardening on the perimeter we control.
+- **`subtle::ConstantTimeEq`** for crypto-material equality (MAC compares, hash compares) — never `==` for anything an attacker could time. `subtle` lives in `[workspace.dependencies]` ahead of need; first concrete use lands at 1.4 alongside the PPK HMAC verify.
+- Workspace dep pinning in `[workspace.dependencies]` — every cross-crate version bump touches one place, so a `cargo audit` finding has one knob to twist.
+
+#### CI gates (rust-ci job)
+
+The `.github/workflows/ci.yml::rust-ci` job runs on every PR and push, alongside the existing Dart `ci` job:
+
+| Step | Gate |
+|---|---|
+| `cargo fmt --all -- --check` | Style drift |
+| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Lint, deny warnings |
+| `cargo test --workspace --locked` | Unit + integration tests (currently 5 in `lfs_core::ssh::tests`) |
+| `cargo deny --all-features check` | Three sub-gates from [`rust/deny.toml`](../rust/deny.toml): RustSec advisory database (CVE), license allow-list (no copyleft surprises), bans (wildcard requirements denied, multiple-versions warned) |
+
+Dependabot tracks `rust/Cargo.lock` (`.github/dependabot.yml` `cargo` ecosystem entry) and opens monthly bump PRs alongside the existing pub / github-actions / gitsubmodule schedules.
+
+A `make rust-check` target bundles fmt-check + clippy + test for local pre-merge runs; the pre-commit hook keeps it manual (it reuses the `make check` Dart-only path so doc-only commits stay fast). Run `make rust-deny` locally before opening a PR if you bumped a Cargo.toml entry — catches license-allow-list breakage before CI does.
+
+#### Build & distribution
+
+`make rust-build` compiles `lfs_frb` to a host-native blob (`liblfs_frb.so` on Linux, `.dylib` on macOS, `.dll` on Windows; per-ABI `.so` for Android via `cargo-ndk`; static `.a` for iOS via xcframework). Sub-phase 1.6 wires the cross-compile pipelines into the Flutter build for mobile; 1.0 + 1.1 stay host-only.
+
+The native blob ships bundled — end-users install nothing beyond the existing app bundle ([§Self-Contained Binary](AGENT_RULES.md#self-contained-binary--end-user-installs-nothing) rung 1). Expected size impact on the release artefact: +1.5–2 MB stripped per platform/arch, well under any platform cap.
+
+#### Dependency invariant
+
+`lfs_core` MUST NOT depend on `flutter_rust_bridge`, `tauri`, or any frontend-specific crate. CI enforces this with `cargo tree -p lfs_core` against a deny-list. Breaking the invariant turns the next UI pivot into a core rewrite — the whole reason the workspace is split this way.
+
+#### Cross-references
+
+- Plan: [RUST_CORE_MIGRATION_PLAN.md](RUST_CORE_MIGRATION_PLAN.md) — full sub-phase roadmap, risks, effort estimate
+- Build: [CONTRIBUTING.md § Rust core](CONTRIBUTING.md#rust-core-securitytransport) — toolchain install, common targets
+- AGENT_RULES doc-map rows — "Touched any `rust/**/*.rs` file" + "Edited Rust API surface" for the doc-update flow
 
 ---
 
@@ -2056,6 +2338,7 @@ class _FooDialogState extends State<FooDialog> {
 | `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay). Exports the canonical 1.2 line-height multiplier used by every custom painter that sits on top of `TerminalView`. |
 | `tiling_view.dart` | `TilingView` | Recursive split tree renderer |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
+| `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out) |
 
 #### Split tree (tiling)
 
@@ -2163,6 +2446,23 @@ SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane I
 | Delete | Delete focused session |
 
 Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
+
+#### Broadcast input — per-tab fan-out
+
+`BroadcastController` (`features/terminal/broadcast_controller.dart`) is a `ChangeNotifier` instantiated per tab via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`. One pane in a tab can be the **driver**; every byte its `Terminal.onOutput` produces is mirrored into every registered **receiver** pane's shell sink. The pane registers itself in `_attachBroadcast` once `_openShell` returns, and unregisters in `dispose` — `_broadcastUnsubscribe` cleans up the listener subscription, `BroadcastController.unregisterSink` clears the role assignment.
+
+**Why per-tab and not workspace-global.** A workspace-wide controller would let a driver in tab A leak keystrokes into tab B's panes after a tab switch — almost never what the user wants. Tying the lifetime of the controller to the tab matches the user's mental "I'm broadcasting in this tab" model and survives split / unsplit operations within the same tab. Trade-off: re-opening a tab from scratch gives a fresh controller; we accept that because the alternative (persisting broadcast state across tab close) is the worse default.
+
+**Driver / receiver wiring.**
+- `_attachBroadcast` wraps `Terminal.onOutput` so the original hook installed by `ShellHelper.openShell` still runs; the wrapper additionally calls `controller.broadcastFrom(paneId, bytes)` when `controller.isDriver(paneId)` is true. The driver's own shell still receives the bytes through the original hook — broadcast is a side-channel, never a replacement.
+- Receivers register a sink that calls `shell.write(bytes)` directly. The controller iterates the sink list in registration order and wraps each call in `try/catch` — a torn-down receiver shell never stalls the driver loop.
+- `isActive` requires both a driver and at least one *other* receiver. A driver alone does not broadcast; toggling the driver's id in the receiver set is filtered out.
+
+**Visual indicator.** The pane build wraps its content in a `Container` whose `Border.all` colour is `AppTheme.yellow` for both driver and receiver, with a slightly thicker stroke (2.5 px) on the driver. Active state is read from the per-tab controller via `ref.watch(broadcastControllerProvider(tabId))` so border updates land on the same `notifyListeners()` cycle that flips the role.
+
+**Paste guard.** When the focused pane is the active driver, `_pasteClipboard` shunts through a confirmation dialog (`broadcastPasteTitle` / `broadcastPasteBody` / `broadcastPasteSend`) before letting the bytes through. The body string carries character count + receiver count so the user gets a concrete picture of the blast radius before sending. Cancel returns to the pane without writing anything; confirm calls `terminal.paste(text)` so the broadcast wrapper fires (sending paste bytes through the bypass would skip every receiver — wrong by construction).
+
+**Single-pane / mobile guard.** `TerminalPane.supportsBroadcast` returns `paneId != null && tabId != null`. The mobile shell and quick-connect surfaces don't plumb either id, so every broadcast path stays inert and the context menu does not grow misleading entries on solo panes. The desktop tiling view passes both ids through `TilingView._buildLeaf`.
 
 ---
 
@@ -3819,6 +4119,7 @@ All application data is stored in a single SQLite database via the drift ORM:
 | `Snippets` | Reusable command snippets | — |
 | `SessionSnippets` | M2M: sessions ↔ snippets | cascade on delete |
 | `SftpBookmarks` | Saved remote paths per session | FK → Sessions, cascade |
+| `PortForwardRules` | Per-session SSH port-forward rules (local / remote / dynamic) | FK → Sessions, cascade |
 
 ### Files on disk
 
@@ -3860,6 +4161,8 @@ All files live in the platform's app-support directory (see **Location** below).
 **Version log:**
 - **v1** — initial schema (Folders, Sessions, SshKeys, KnownHosts, AppConfigs, Tags, SessionTags, FolderTags, Snippets, SessionSnippets, SftpBookmarks).
 - **v2** — `Sessions.extras TEXT NOT NULL DEFAULT '{}'` — JSON escape hatch for per-session feature flags. Cross-link: [§3.4 Session.extras — JSON escape hatch](#sessionextras--json-escape-hatch). Migration is additive (`m.addColumn(sessions, sessions.extras)`); the `DEFAULT '{}'` clause backfills existing rows on the first read after upgrade so no data rewrite is needed.
+- **v3** — `PortForwardRules` table — one row per SSH port-forward attached to a session. Cross-link: [§3.1 Port forwarding](#port-forwarding). Migration is additive (`m.createTable(portForwardRules)`); existing sessions enter v3 with no rules and no behaviour change.
+- **v4** — `Sessions.via_session_id` (FK with `ON DELETE SET NULL`) + `via_host` / `via_port` / `via_user` for ProxyJump bastions. Cross-link: [§3.1 ProxyJump — bastion chains](#proxyjump--bastion-chains). Migration is four additive `addColumn` calls; existing sessions land at v4 with no bastion (every column nullable with no default) and behave identically to v3.
 
 **Performance indexes live outside `schemaVersion`.** `AppDatabase` runs a `_createPerformanceIndexes` helper inside both `onCreate` and `beforeOpen`, issuing `CREATE INDEX IF NOT EXISTS` statements for hot query paths (`sessions(folder_id)` for `SessionDao.getByFolder`, `folders(parent_id)` for the recursive `FolderDao.getDescendantIds` CTE, `sftp_bookmarks(session_id)` for `SftpBookmarkDao.getForSession`). The split is deliberate: bumping `schemaVersion` would trip the "any other version = corrupt" floor guard above and wipe every existing v1 DB just to add an index. `IF NOT EXISTS` makes the statements idempotent, so running them on every open costs microseconds on a cached `sqlite_master` and the same code path covers fresh v1 databases and v1 databases that predate a given index. Adding a new index is therefore a one-line edit in `_createPerformanceIndexes`; never add one via the schema-migration machinery. Functional schema changes (columns, tables, constraints) still require a `schemaVersion` bump and the attendant wipe semantics.
 
@@ -4561,7 +4864,8 @@ flowchart TD
 |---------|---------|
 | `flutter_localizations` | Flutter i18n delegates (SDK package) |
 | `intl` | ICU message formatting for l10n |
-| `dartssh2` | SSH2 protocol (auth, shell, SFTP) |
+| `lfs_core` / `lfs_frb` (vendored Rust workspace at `rust/`) | SSH2 + SFTP + keypair stack. The only SSH engine — dartssh2 has been removed. See [§3.14](#314-rust-securitytransport-core-rust). |
+| `flutter_rust_bridge` | FFI bridge to the Rust security/transport core — Dart-side runtime that loads the bundled native blob and calls into [`lfs_frb`](#314-rust-securitytransport-core-rust). Pin must match the codegen CLI version exactly (`cargo install flutter_rust_bridge_codegen --version 2.12.0`); runtime/codegen drift produces incompatible bindings. |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
 | `drift` | Typed SQLite ORM (database, DAOs, codegen). Pulled directly without the `drift_flutter` helper — that one transitively depends on the EOL `sqlite3_flutter_libs` + `sqlcipher_flutter_libs` plugins, whose prebuilts would duplicate the libsqlite3 we already compile in-tree from the MC submodule |

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import '../../utils/logger.dart';
 import '../ssh/known_hosts.dart';
-import '../ssh/ssh_client.dart';
 import '../ssh/ssh_config.dart';
+import '../ssh/transport/ssh_transport.dart';
 import 'connection_extension.dart';
 import 'connection_step.dart';
 
@@ -25,7 +25,12 @@ class Connection {
   /// Known hosts manager — retained for reconnect after disconnect.
   final KnownHostsManager knownHosts;
 
-  SSHConnection? sshConnection;
+  /// Engine-agnostic SSH transport. Set on successful connect by
+  /// `ConnectionManager`; downstream features (shell_helper,
+  /// sftp_initializer, port_forward_runtime) read it for shell /
+  /// SFTP / port-forward channels.
+  SshTransport? transport;
+
   SSHConnectionState state;
 
   /// Passphrase entered interactively — cached for reconnect within same session.
@@ -40,10 +45,10 @@ class Connection {
   /// bytes with zeros the way [SecretBuffer] does for the DB key.
   /// The best we can do is drop every reference we own so the
   /// garbage collector can reclaim it, which is what
-  /// [clearCachedCredentials] does. The passphrase copies that
-  /// `dartssh2` holds internally during auth are also out of reach
-  /// for the same reason. Treat this field as "narrow the exposure
-  /// window" rather than "erase the secret".
+  /// [clearCachedCredentials] does. The passphrase copies that the
+  /// Rust transport holds during auth (russh / russh-keys) live
+  /// inside `Zeroizing` buffers there. Treat this field as "narrow
+  /// the exposure window" rather than "erase the secret".
   String? cachedPassphrase;
 
   /// Raw error from last connection attempt, null if no error.
@@ -68,15 +73,29 @@ class Connection {
   /// is what lets them survive reconnect transparently.
   final _extensions = <ConnectionExtension>[];
 
+  /// Bastion connection feeding this connection's ProxyJump tunnel.
+  /// Owned by the manager's connection map; its lifecycle is pinned
+  /// to this connection's lifecycle (disconnect cascades).
+  /// Null = direct connect.
+  Connection? bastion;
+
+  /// True for connections the manager creates internally (e.g. the
+  /// bastion hop of a ProxyJump chain). The workspace UI hides
+  /// internal connections so the user never sees a phantom tab for
+  /// the bastion that they never explicitly opened.
+  bool internal;
+
   Connection({
     required this.id,
     required this.label,
     required this.sshConfig,
     this.sessionId,
     KnownHostsManager? knownHosts,
-    this.sshConnection,
+    this.transport,
     this.state = SSHConnectionState.disconnected,
     this.connectionError,
+    this.bastion,
+    this.internal = false,
   }) : knownHosts = knownHosts ?? KnownHostsManager();
 
   bool get isConnected => state == SSHConnectionState.connected;

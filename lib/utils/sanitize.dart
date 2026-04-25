@@ -95,7 +95,7 @@ String sanitizeErrorMessage(String message) {
   );
 
   // Defence-in-depth: also catch "as <user>" / "user=<user>" shapes
-  // from SSH / dartssh2 error messages that name the authenticating
+  // from SSH / russh error messages that name the authenticating
   // principal without wrapping it in user@host form. Without this the
   // username survives every other redaction, which is exactly the leak
   // the review flagged in `Connecting to ... as burzuf`.

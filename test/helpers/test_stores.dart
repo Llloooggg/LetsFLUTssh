@@ -57,10 +57,20 @@ class TestStores {
 TestStores makeTestStores() {
   final db = openTestDatabase();
   final sessionStore = SessionStore()..setDatabase(db);
-  final tagStore = TagStore()..setDatabase(db);
-  final snippetStore = SnippetStore()..setDatabase(db);
-  final keyStore = KeyStore()..setDatabase(db);
-  final autoLockStore = AutoLockStore()..setDatabase(db);
+  // TagStore now backed by FRB — see SnippetStore note above.
+  final tagStore = TagStore();
+  // SnippetStore now backed by FRB; native lib not loaded in unit
+  // tests so reads return empty / writes no-op via internal try/catch.
+  // Live persistence belongs in integration_test.
+  final snippetStore = SnippetStore();
+  // KeyStore now backed by FRB; native lib not loaded in unit tests.
+  final keyStore = KeyStore();
+  // AutoLockStore now reads/writes through FRB — unit-test runner
+  // doesn't load the native lib, so persistence calls degrade to 0
+  // / no-op via the in-store try/catch. Bundle keeps the instance
+  // for the provider-override surface; tests that need live values
+  // belong in integration_test.
+  final autoLockStore = AutoLockStore();
   return TestStores._(
     db: db,
     sessionStore: sessionStore,

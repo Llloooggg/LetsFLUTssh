@@ -1,9 +1,8 @@
-import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/transfer/transfer_manager.dart';
@@ -15,11 +14,56 @@ import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/connection_progress.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
-@GenerateNiceMocks([MockSpec<SftpClient>()])
-import 'mobile_file_browser_test.mocks.dart';
+
+/// Stub `RemoteSftpFs` for the mobile-browser tests — every method
+/// is a no-op. The browser code never reaches into the SFTP layer
+/// directly in these tests; it works through the injected file-pane
+/// controllers.
+class _NoopSftpFs implements RemoteSftpFs {
+  @override
+  Future<String> getwd() async => '/remote';
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<bool> exists(String path) async => false;
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeEmptyDir(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<void> upload(
+    String localPath,
+    String remotePath,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> download(
+    String remotePath,
+    String localPath,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> uploadDir(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> downloadDir(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  void close() {}
+}
 
 /// Fake file system for testing.
 class FakeFileSystem implements FileSystem {
@@ -862,11 +906,6 @@ void main() {
     });
 
     Future<SFTPInitResult> fakeInitFactory(Connection conn) async {
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
-      final sftpService = SFTPService(mockSftp);
       final localCtrl = FilePaneController(
         fs: FakeFileSystem(fakeEntries: testEntries()),
         label: 'Local',
@@ -884,7 +923,7 @@ void main() {
       return SFTPInitResult(
         localCtrl: localCtrl,
         remoteCtrl: remoteCtrl,
-        sftpService: sftpService,
+        filesystem: _NoopSftpFs(),
       );
     }
 
@@ -918,10 +957,6 @@ void main() {
       );
 
       Future<SFTPInitResult> permDeniedFactory(Connection c) async {
-        final mockSftp = MockSftpClient();
-        when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-        when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-        final sftpService = SFTPService(mockSftp);
         final localCtrl = FilePaneController(
           fs: FakeFileSystem(fakeEntries: testEntries()),
           label: 'Local',
@@ -937,7 +972,7 @@ void main() {
         return SFTPInitResult(
           localCtrl: localCtrl,
           remoteCtrl: remoteCtrl,
-          sftpService: sftpService,
+          filesystem: _NoopSftpFs(),
           storagePermissionDenied: true,
         );
       }
@@ -1226,10 +1261,6 @@ void main() {
     });
 
     Future<SFTPInitResult> deepPathFactory(Connection conn) async {
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/srv/data/files');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-      final sftpService = SFTPService(mockSftp);
       final localCtrl = FilePaneController(
         fs: FakeFileSystem(fakeEntries: testEntries()),
         label: 'Local',
@@ -1245,7 +1276,7 @@ void main() {
       return SFTPInitResult(
         localCtrl: localCtrl,
         remoteCtrl: remoteCtrl,
-        sftpService: sftpService,
+        filesystem: _NoopSftpFs(),
       );
     }
 

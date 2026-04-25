@@ -2003,6 +2003,192 @@ class SKo extends S {
   String get commandCopied => '명령이 클립보드에 복사되었습니다';
 
   @override
+  String get snippetTokensHint => '탭하여 자리 표시자 삽입. 실행 시 활성 세션의 값으로 대체됩니다:';
+
+  @override
+  String get snippetCustomTokensHint => '이중 중괄호의 다른 것들은 스니펫 실행 시 값을 묻습니다.';
+
+  @override
+  String get snippetFillTitle => '스니펫 매개변수 입력';
+
+  @override
+  String get snippetFillSubmit => '실행';
+
+  @override
+  String get snippetPreview => '미리보기';
+
+  @override
+  String get broadcastSetDriver => '이 창에서 브로드캐스트';
+
+  @override
+  String get broadcastClearDriver => '이 창에서 브로드캐스트 중지';
+
+  @override
+  String get broadcastAddReceiver => '여기서 브로드캐스트 수신';
+
+  @override
+  String get broadcastRemoveReceiver => '브로드캐스트 수신 중지';
+
+  @override
+  String get broadcastClearAll => '모든 브로드캐스트 중지';
+
+  @override
+  String get broadcastPasteTitle => '붙여넣기를 모든 창에 보내시겠습니까?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars자가 $count개의 다른 창에 전송됩니다.';
+  }
+
+  @override
+  String get broadcastPasteSend => '보내기';
+
+  @override
+  String get portForwarding => '포워딩';
+
+  @override
+  String get portForwardingEmpty => '아직 규칙이 없습니다';
+
+  @override
+  String get addForwardRule => '규칙 추가';
+
+  @override
+  String get editForwardRule => '규칙 편집';
+
+  @override
+  String get deleteForwardRule => '규칙 삭제';
+
+  @override
+  String get localForward => '로컬';
+
+  @override
+  String get remoteForward => '원격';
+
+  @override
+  String get dynamicForward => '동적';
+
+  @override
+  String get forwardKind => '유형';
+
+  @override
+  String get bindAddress => '바인드 주소';
+
+  @override
+  String get bindPort => '바인드 포트';
+
+  @override
+  String get targetHost => '대상 호스트';
+
+  @override
+  String get targetPort => '대상 포트';
+
+  @override
+  String get forwardDescription => '설명(선택)';
+
+  @override
+  String get forwardEnabled => '사용';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '0.0.0.0에 바인드하면 모든 인터페이스에 노출됩니다 — 보통 127.0.0.1을 사용하세요.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      '로컬 (-L), 원격 (-R), 동적 SOCKS5 (-D) 포워딩이 모두 활성화되어 있습니다.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      '로컬: 이 기기에서 포트를 열어 SSH 서버에서 접근 가능한 대상으로 터널링합니다. localhost:bindPort 통해 원격 DB나 관리 UI 접근에 유용.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      '원격: SSH 서버에 포트를 열어달라고 요청하여 이 기기에서 접근 가능한 대상으로 다시 터널링합니다. 로컬 개발 서버를 원격 호스트와 공유하는 데 유용 (서버는 non-loopback 바인드에 GatewayPorts yes가 필요할 수 있음).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      '동적: 이 기기의 SOCKS5 프록시로 모든 연결을 SSH 서버를 통해 라우팅합니다. 브라우저나 curl을 localhost:bindPort로 설정하면 모든 트래픽이 SSH 통해 전송됩니다.';
+
+  @override
+  String get forwardExample => '예시';
+
+  @override
+  String get forwardLocalExample =>
+      'ssh -L 8080:db.internal:5432 → localhost:8080 통해 원격 DB 접근';
+
+  @override
+  String get forwardRemoteExample =>
+      'ssh -R 9000:localhost:3000 → 서버의 9000 포트에 개발 서버 노출';
+
+  @override
+  String get forwardDynamicExample =>
+      'ssh -D 1080 → 브라우저 SOCKS5를 localhost:1080으로 설정';
+
+  @override
+  String get proxyJump => '경유 연결';
+
+  @override
+  String get proxyJumpNone => '직접 연결';
+
+  @override
+  String get proxyJumpSavedSession => '저장된 세션';
+
+  @override
+  String get proxyJumpCustom => '사용자 지정';
+
+  @override
+  String get proxyJumpCustomNote =>
+      '사용자 지정 hop은 이 세션의 인증 정보를 사용합니다. 다른 bastion 인증이 필요하면 bastion을 별도 세션으로 저장하세요.';
+
+  @override
+  String get errProxyJumpCycle => '프록시 체인이 순환됩니다.';
+
+  @override
+  String errProxyJumpDepth(int max) {
+    return '프록시 체인이 너무 깊습니다 (최대 $max hop).';
+  }
+
+  @override
+  String errProxyJumpBastionFailed(String label) {
+    return 'Bastion $label 연결 실패.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return '$label 경유';
+  }
+
+  @override
+  String get recordSession => '세션 기록';
+
+  @override
+  String get recordSessionHelp =>
+      '이 세션의 터미널 출력을 디스크에 저장합니다. 마스터 비밀번호 또는 하드웨어 키가 활성화된 경우 저장 시 암호화됩니다.';
+
+  @override
+  String get recordingsBrowserTitle => '녹화';
+
+  @override
+  String get recordingsBrowserSubtitle => '녹화된 세션 찾아보기, 재생, 삭제';
+
+  @override
+  String get recordingsEmpty => '아직 녹화가 없습니다';
+
+  @override
+  String get playRecording => '재생';
+
+  @override
+  String get deleteRecording => '삭제';
+
+  @override
+  String get recordingPlaybackTitle => '녹화 재생';
+
+  @override
+  String get recordingSpeed => '속도';
+
+  @override
+  String get recordingSpeedInstant => '즉시';
+
+  @override
   String get tags => '태그';
 
   @override
