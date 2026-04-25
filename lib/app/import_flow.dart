@@ -246,8 +246,12 @@ ImportService _buildImportService(WidgetRef ref) {
     },
     existingManagerKeyIds: () async => (await keyStore.loadAll()).keys.toSet(),
     deleteManagerKey: keyStore.delete,
-    runInTransaction: store.database == null
-        ? null
-        : <T>(body) => store.database!.transaction(body),
+    // Stores write through FRB into `lfs_core.db`; the drift handle
+    // a `runInTransaction` callback would have wrapped no longer
+    // owns these writes, so atomicity becomes a Rust-side concern.
+    // Until lfs_core exposes a multi-statement transaction wrapper,
+    // imports proceed without a single rollback boundary; recovery
+    // is via re-import from the same source.
+    runInTransaction: null,
   );
 }

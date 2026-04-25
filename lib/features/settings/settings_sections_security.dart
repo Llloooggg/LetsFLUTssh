@@ -1207,8 +1207,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     SecurityTier level, [
     SecurityTierModifiers? modifiers,
   ]) async {
-    final store = ref.read(sessionStoreProvider);
-    final db = store.database;
     final resolvedMods = modifiers ?? SecurityTierModifiers.defaults;
     // Marker payload carries tier + modifiers so a crash-recovery
     // path can reconstruct the target config and drive the right
@@ -1218,41 +1216,32 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       'tier': _tierName(level),
       'mods': resolvedMods.toJson(),
     });
-    // Bind the constructor-time callbacks to the current key /
-    // current-db pair. A fresh switcher instance per call is fine —
-    // the marker file is the authoritative state, not the instance.
+    // Bind the constructor-time callback to the supplied key. The
+    // tier-secret unlock dialog routes the freshly-derived key here,
+    // so the override path uses the user's key (not a fresh random
+    // one). A fresh switcher instance per call is fine — the marker
+    // file is the authoritative state, not the instance.
     final switcher = SecurityTierSwitcher(
       keyFactory: () => key ?? Uint8List(0),
-      rekey: (d, _) async => rekeyDatabase(d, key),
     );
 
-    if (db == null) {
-      // No live DB (plaintext first-launch path before the first
-      // open). Nothing to rekey; just flip the provider. The marker
-      // dance is still useful so a crash between state.set and the
-      // follow-on caller work is visible next launch, but the
-      // switcher wants a non-null DB, so we inline the minimal
-      // equivalent here.
+    if (key == null) {
+      // Plaintext target — no rekey to run, no key for the vault to
+      // wrap. Just clear the marker (in case a stale one is on
+      // disk) and flip the provider so consumers stop holding the
+      // previous key.
       try {
         await switcher.clearMarker();
-        if (key != null) {
-          ref.read(securityStateProvider.notifier).set(level, key);
-        } else {
-          ref.read(securityStateProvider.notifier).clearEncryption();
-        }
+        ref.read(securityStateProvider.notifier).clearEncryption();
       } catch (_) {}
       return;
     }
 
     await switcher.switchTier(
-      db: db,
       targetMarkerPayload: markerPayload,
       applyWrapper: (_) async {
-        if (key != null) {
-          ref.read(securityStateProvider.notifier).set(level, key);
-        } else {
-          ref.read(securityStateProvider.notifier).clearEncryption();
-        }
+        // `key != null` guaranteed by the early return above.
+        ref.read(securityStateProvider.notifier).set(level, key);
       },
       persistConfig: (_) async {
         // Persist tier + modifiers atomically inside the switch so a

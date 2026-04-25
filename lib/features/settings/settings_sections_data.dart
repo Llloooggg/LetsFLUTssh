@@ -849,9 +849,11 @@ class _ExportImportTile extends ConsumerWidget {
         existingManagerKeyIds: () async =>
             (await keyStore.loadAll()).keys.toSet(),
         deleteManagerKey: keyStore.delete,
-        runInTransaction: store.database == null
-            ? null
-            : <T>(body) => store.database!.transaction(body),
+        // Stores write through FRB into `lfs_core.db`; the drift
+        // handle the wrapper used to span no longer owns these
+        // writes. Atomicity becomes a Rust-side concern; recovery
+        // for now is via re-import.
+        runInTransaction: null,
       );
       final summary = await importService.applyResult(
         importResult,

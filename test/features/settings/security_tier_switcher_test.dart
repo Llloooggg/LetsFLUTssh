@@ -1,35 +1,30 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/db/database.dart';
 import 'package:letsflutssh/features/settings/security_tier_switcher.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Directory tempDir;
-  late AppDatabase db;
   late SecurityTierSwitcher switcher;
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('tier_switcher_test_');
-    db = AppDatabase(NativeDatabase.memory());
     switcher = SecurityTierSwitcher(
       markerFileFactory: () async =>
           File('${tempDir.path}/.tier-transition-pending'),
       keyFactory: () => Uint8List.fromList(List<int>.filled(32, 7)),
-      // Stub the rekey — in-memory drift DB cannot run
-      // SQLite3MultipleCiphers' PRAGMA rekey, but the switcher's
-      // contract (write marker → rekey → apply wrapper …) is the
-      // unit under test here.
-      rekey: (_, _) async {},
+      // Stub the rekey — the FRB-backed default would call into the
+      // native bridge, which the unit-test runner does not load. The
+      // switcher's contract (write marker → rekey → apply wrapper …)
+      // is the unit under test.
+      rekey: (_) async {},
     );
   });
 
-  tearDown(() async {
-    await db.close();
+  tearDown(() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
@@ -39,7 +34,6 @@ void main() {
       () async {
         final order = <String>[];
         await switcher.switchTier(
-          db: db,
           targetMarkerPayload: '{"tier":"keychain"}',
           applyWrapper: (_) async => order.add('applyWrapper'),
           persistConfig: (_) async => order.add('persistConfig'),
@@ -53,7 +47,6 @@ void main() {
     test('marker is written before rekey and cleared after success', () async {
       String? observedMarker;
       await switcher.switchTier(
-        db: db,
         targetMarkerPayload: '{"tier":"paranoid"}',
         applyWrapper: (_) async {
           // By the time the wrapper runs, the marker has been
@@ -73,7 +66,6 @@ void main() {
       () async {
         await expectLater(
           switcher.switchTier(
-            db: db,
             targetMarkerPayload: '{"tier":"hardware"}',
             applyWrapper: (_) async => throw StateError('vault write failed'),
             persistConfig: (_) async {},
@@ -97,10 +89,9 @@ void main() {
         markerFileFactory: () async =>
             File('${tempDir.path}/.tier-transition-pending'),
         keyFactory: () => Uint8List.fromList(List<int>.filled(32, 9)),
-        rekey: (_, _) async => rekeyCalls++,
+        rekey: (_) async => rekeyCalls++,
       );
       await invariantSwitcher.switchTier(
-        db: db,
         targetMarkerPayload: '{"tier":"keychain"}',
         applyWrapper: (_) async {},
         persistConfig: (_) async {},
@@ -118,12 +109,11 @@ void main() {
         markerFileFactory: () async =>
             File('${tempDir.path}/.tier-transition-pending-rekey-fail'),
         keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
-        rekey: (_, _) async => throw StateError('PRAGMA rekey failed'),
+        rekey: (_) async => throw StateError('PRAGMA rekey failed'),
       );
       var wrapCalls = 0;
       await expectLater(
         failSwitcher.switchTier(
-          db: db,
           targetMarkerPayload: '{"tier":"rekey-victim"}',
           applyWrapper: (_) async => wrapCalls++,
           persistConfig: (_) async {},
@@ -150,7 +140,7 @@ void main() {
         final raisingSwitcher = SecurityTierSwitcher(
           markerFileFactory: () async => throw StateError('disk mount gone'),
           keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
-          rekey: (_, _) async {},
+          rekey: (_) async {},
         );
         expect(await raisingSwitcher.readPendingMarker(), isNull);
       },
@@ -162,7 +152,7 @@ void main() {
         final raisingSwitcher = SecurityTierSwitcher(
           markerFileFactory: () async => throw StateError('disk mount gone'),
           keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
-          rekey: (_, _) async {},
+          rekey: (_) async {},
         );
         // Must not throw — the dangling-marker log write is
         // best-effort; the boot path has to keep moving.
@@ -195,10 +185,9 @@ void main() {
               markerFileFactory: () async =>
                   File('${tempDir.path}/.tier-transition-pending-$src-$dst'),
               keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
-              rekey: (_, _) async => rekey++,
+              rekey: (_) async => rekey++,
             );
             await pairSwitcher.switchTier(
-              db: db,
               targetMarkerPayload: '{"src":"$src","dst":"$dst"}',
               applyWrapper: (_) async => wrap++,
               persistConfig: (_) async => persist++,

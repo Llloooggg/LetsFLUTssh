@@ -5,8 +5,6 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../core/db/database.dart';
-import '../../core/db/database_opener.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
@@ -15,9 +13,9 @@ import '../../utils/logger.dart';
 ///
 /// Enforces the always-rekey invariant — every tier transition, even
 /// a modifier-only change, generates a fresh random 32-byte DB key
-/// and runs [rekeyDatabase] under a single `PRAGMA rekey`
-/// transaction. A previously-leaked wrapper key cannot re-decrypt
-/// pages after the switch.
+/// and runs the rekey through `lfs_core`'s `PRAGMA rekey`. A
+/// previously-leaked wrapper key cannot re-decrypt pages after the
+/// switch.
 ///
 /// Crash recovery: before the rekey runs, a tiny
 /// `.tier-transition-pending` marker file lands in the app support
@@ -37,15 +35,20 @@ class SecurityTierSwitcher {
 
   final Future<File> Function() _markerFile;
   final Uint8List Function() _keyFactory;
-  final Future<void> Function(AppDatabase, Uint8List) _rekey;
+  final Future<void> Function(Uint8List) _rekey;
 
   SecurityTierSwitcher({
     Future<File> Function()? markerFileFactory,
     Uint8List Function()? keyFactory,
-    Future<void> Function(AppDatabase, Uint8List)? rekey,
+    Future<void> Function(Uint8List)? rekey,
   }) : _markerFile = markerFileFactory ?? _defaultMarkerFile,
        _keyFactory = keyFactory ?? _defaultRandomKey,
-       _rekey = rekey ?? rekeyDatabase;
+       _rekey = rekey ?? _defaultRekey;
+
+  /// Default rekey hook — re-encrypts `lfs_core.db` under `newKey`
+  /// via the FRB `db_rekey` adapter.
+  static Future<void> _defaultRekey(Uint8List newKey) =>
+      rust_app.dbRekey(newKey: List<int>.from(newKey));
 
   static Future<File> _defaultMarkerFile() async {
     final dir = await getApplicationSupportDirectory();
@@ -111,7 +114,6 @@ class SecurityTierSwitcher {
   /// If any step before 7 throws, the marker stays on disk. The next
   /// startup can either complete or roll back the pending transition.
   Future<void> switchTier({
-    required AppDatabase db,
     required String targetMarkerPayload,
     required Future<void> Function(Uint8List newKey) applyWrapper,
     required Future<void> Function(Uint8List newKey) persistConfig,
@@ -126,28 +128,13 @@ class SecurityTierSwitcher {
     //    and the marker points at the unfinished target — startup
     //    will notice and roll back.
     try {
-      await _rekey(db, newKey);
+      await _rekey(newKey);
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch rekey failed: $e',
         name: 'SecurityTierSwitcher',
       );
       rethrow;
-    }
-    // 3b. Rekey lfs_core's parallel sqlite handle so its file does
-    //     not stay locked under the previous key on next boot.
-    //     Drift uses MC ChaCha20; lfs_core uses SQLCipher AES-256-CBC
-    //     (cipher_compatibility=4). Both pages get re-encrypted under
-    //     the same `newKey` even though the cipher families differ —
-    //     each PRAGMA rekey is engine-local.
-    try {
-      await rust_app.dbRekey(newKey: List<int>.from(newKey));
-    } catch (e) {
-      AppLogger.instance.log(
-        'Tier switch lfs_core rekey failed (continuing — drift already rekeyed): $e',
-        name: 'SecurityTierSwitcher',
-        level: LogLevel.warn,
-      );
     }
 
     // 4. Wrap the new key in the target tier's vault.

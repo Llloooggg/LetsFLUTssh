@@ -16,7 +16,6 @@ import '../../core/progress/progress_reporter.dart';
 import '../../core/import/key_file_helper.dart';
 import '../../core/import/openssh_config_importer.dart';
 import '../../core/import/ssh_dir_key_scanner.dart';
-import '../../core/db/database_opener.dart';
 import 'security_tier_switcher.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/security/aes_gcm.dart';
