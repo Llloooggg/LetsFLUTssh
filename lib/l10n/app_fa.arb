@@ -578,6 +578,8 @@
   "pinnedSnippets": "سنجاق‌شده‌ها",
   "allSnippets": "همه",
   "commandCopied": "دستور کپی شد",
+  "snippetTokensHint": "برای درج یک مکان‌نما ضربه بزنید. این‌ها در زمان اجرا با مقادیر نشست فعال جایگزین می‌شوند:",
+  "snippetCustomTokensHint": "هر چیز دیگری با دو آکولاد هنگام اجرای قطعه از شما مقدار می‌خواهد.",
   "snippetFillTitle": "پارامترهای قطعه را پر کنید",
   "snippetFillSubmit": "اجرا",
   "snippetPreview": "پیش‌نمایش",

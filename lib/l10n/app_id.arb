@@ -578,6 +578,8 @@
   "pinnedSnippets": "Disematkan",
   "allSnippets": "Semua",
   "commandCopied": "Perintah disalin",
+  "snippetTokensHint": "Ketuk untuk menyisipkan placeholder. Ini diganti saat dijalankan dengan nilai dari sesi aktif:",
+  "snippetCustomTokensHint": "Apa pun lainnya dengan tanda kurung kurawal ganda akan meminta nilai saat snippet dijalankan.",
   "snippetFillTitle": "Isi parameter snippet",
   "snippetFillSubmit": "Jalankan",
   "snippetPreview": "Pratinjau",

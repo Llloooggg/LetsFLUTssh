@@ -2003,6 +2003,12 @@ class SKo extends S {
   String get commandCopied => '명령이 클립보드에 복사되었습니다';
 
   @override
+  String get snippetTokensHint => '탭하여 자리 표시자 삽입. 실행 시 활성 세션의 값으로 대체됩니다:';
+
+  @override
+  String get snippetCustomTokensHint => '이중 중괄호의 다른 것들은 스니펫 실행 시 값을 묻습니다.';
+
+  @override
   String get snippetFillTitle => '스니펫 매개변수 입력';
 
   @override
@@ -2092,30 +2098,30 @@ class SKo extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      '로컬: 이 기기에서 포트를 열어 SSH 서버에서 접근 가능한 대상으로 터널링합니다. localhost:bindPort 통해 원격 DB나 관리 UI 접근에 유용.';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      '원격: SSH 서버에 포트를 열어달라고 요청하여 이 기기에서 접근 가능한 대상으로 다시 터널링합니다. 로컬 개발 서버를 원격 호스트와 공유하는 데 유용 (서버는 non-loopback 바인드에 GatewayPorts yes가 필요할 수 있음).';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      '동적: 이 기기의 SOCKS5 프록시로 모든 연결을 SSH 서버를 통해 라우팅합니다. 브라우저나 curl을 localhost:bindPort로 설정하면 모든 트래픽이 SSH 통해 전송됩니다.';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => '예시';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → localhost:8080 통해 원격 DB 접근';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → 서버의 9000 포트에 개발 서버 노출';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → 브라우저 SOCKS5를 localhost:1080으로 설정';
 
   @override
   String get proxyJump => '경유 연결';

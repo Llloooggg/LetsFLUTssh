@@ -578,6 +578,8 @@
   "pinnedSnippets": "Sabitlenmiş",
   "allSnippets": "Tümü",
   "commandCopied": "Komut panoya kopyalandı",
+  "snippetTokensHint": "Yer tutucu eklemek için dokunun. Çalışma zamanında aktif oturumun değerleriyle değiştirilir:",
+  "snippetCustomTokensHint": "Çift süslü parantezli başka herhangi bir şey snippet çalıştırıldığında size bir değer sorar.",
   "snippetFillTitle": "Snippet parametrelerini doldur",
   "snippetFillSubmit": "Çalıştır",
   "snippetPreview": "Önizleme",

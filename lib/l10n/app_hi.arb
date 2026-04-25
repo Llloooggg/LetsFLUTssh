@@ -578,6 +578,8 @@
   "pinnedSnippets": "पिन किए गए",
   "allSnippets": "सभी",
   "commandCopied": "कमांड कॉपी की गई",
+  "snippetTokensHint": "प्लेसहोल्डर डालने के लिए टैप करें। ये रनटाइम पर सक्रिय सत्र के मानों से बदले जाते हैं:",
+  "snippetCustomTokensHint": "डबल ब्रेसेस वाला कुछ भी और स्निपेट चलाने पर मान मांगता है।",
   "snippetFillTitle": "स्निपेट पैरामीटर भरें",
   "snippetFillSubmit": "चलाएँ",
   "snippetPreview": "पूर्वावलोकन",

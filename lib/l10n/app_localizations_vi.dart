@@ -2040,6 +2040,14 @@ class SVi extends S {
   String get commandCopied => 'Đã sao chép lệnh';
 
   @override
+  String get snippetTokensHint =>
+      'Chạm để chèn placeholder. Chúng được thay thế khi chạy bằng giá trị từ phiên hoạt động:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Bất kỳ thứ gì khác với dấu ngoặc nhọn kép sẽ hỏi bạn giá trị khi chạy snippet.';
+
+  @override
   String get snippetFillTitle => 'Điền tham số snippet';
 
   @override
@@ -2129,30 +2137,30 @@ class SVi extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'Cục bộ: mở một cổng trên thiết bị này, tạo đường hầm đến mục tiêu mà máy chủ SSH có thể tới. Hữu ích để truy cập cơ sở dữ liệu hoặc giao diện admin từ xa qua localhost:bindPort.';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'Từ xa: yêu cầu máy chủ SSH mở một cổng, tạo đường hầm trở về mục tiêu mà thiết bị này có thể tới. Hữu ích để chia sẻ máy chủ dev cục bộ với host từ xa (máy chủ có thể cần GatewayPorts yes cho bind không phải loopback).';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      'Động: một proxy SOCKS5 trên thiết bị này định tuyến mọi kết nối qua máy chủ SSH. Trỏ trình duyệt hoặc curl đến localhost:bindPort để gửi mọi lưu lượng qua SSH.';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => 'Ví dụ';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → truy cập DB từ xa qua localhost:8080';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → mở dev server ở cổng 9000 của máy chủ';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → đặt SOCKS5 trình duyệt là localhost:1080';
 
   @override
   String get proxyJump => 'Kết nối qua';

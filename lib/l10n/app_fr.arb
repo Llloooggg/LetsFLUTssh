@@ -578,6 +578,8 @@
   "pinnedSnippets": "Épinglés",
   "allSnippets": "Tous",
   "commandCopied": "Commande copiée dans le presse-papiers",
+  "snippetTokensHint": "Touchez pour insérer un placeholder. Ils sont remplacés à l'exécution par les valeurs de la session active :",
+  "snippetCustomTokensHint": "Tout autre avec des doubles accolades vous demande une valeur à l'exécution.",
   "snippetFillTitle": "Compléter les paramètres du snippet",
   "snippetFillSubmit": "Exécuter",
   "snippetPreview": "Aperçu",

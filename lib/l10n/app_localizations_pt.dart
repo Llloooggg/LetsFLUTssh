@@ -2061,6 +2061,14 @@ class SPt extends S {
   String get commandCopied => 'Comando copiado';
 
   @override
+  String get snippetTokensHint =>
+      'Toca para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Qualquer outro com chavetas duplas pede-te um valor quando o snippet executa.';
+
+  @override
   String get snippetFillTitle => 'Preencher os parâmetros do snippet';
 
   @override
@@ -2150,30 +2158,30 @@ class SPt extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'Local: abre uma porta neste dispositivo que faz tunnel até um destino alcançável do servidor SSH. Útil para acessar bancos remotos ou UIs admin via localhost:bindPort.';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'Remoto: pede ao servidor SSH para abrir uma porta que faz tunnel de volta a um destino alcançável deste dispositivo. Útil para partilhar um dev server local com um host remoto (servidor pode precisar GatewayPorts yes para binds não-loopback).';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      'Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponta o teu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => 'Exemplo';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → BD remota via localhost:8080';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → expõe o teu dev server na porta 9000 do servidor';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → SOCKS5 do navegador para localhost:1080';
 
   @override
   String get proxyJump => 'Ligar através de';

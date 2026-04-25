@@ -578,6 +578,8 @@
   "pinnedSnippets": "고정됨",
   "allSnippets": "전체",
   "commandCopied": "명령이 클립보드에 복사되었습니다",
+  "snippetTokensHint": "탭하여 자리 표시자 삽입. 실행 시 활성 세션의 값으로 대체됩니다:",
+  "snippetCustomTokensHint": "이중 중괄호의 다른 것들은 스니펫 실행 시 값을 묻습니다.",
   "snippetFillTitle": "스니펫 매개변수 입력",
   "snippetFillSubmit": "실행",
   "snippetPreview": "미리보기",

@@ -2050,6 +2050,14 @@ class STr extends S {
   String get commandCopied => 'Komut panoya kopyalandı';
 
   @override
+  String get snippetTokensHint =>
+      'Yer tutucu eklemek için dokunun. Çalışma zamanında aktif oturumun değerleriyle değiştirilir:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Çift süslü parantezli başka herhangi bir şey snippet çalıştırıldığında size bir değer sorar.';
+
+  @override
   String get snippetFillTitle => 'Snippet parametrelerini doldur';
 
   @override
@@ -2139,30 +2147,30 @@ class STr extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'Yerel: bu cihazda bir port açar ve SSH sunucusundan erişilebilir hedefe tünel kurar. localhost:bindPort üzerinden uzak veritabanlarına veya yönetim arayüzlerine erişmek için kullanışlı.';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'Uzak: SSH sunucusundan bir port açmasını ister; port bu cihazdan erişilebilir hedefe tünel kurar. Yerel dev sunucuyu uzak bir host ile paylaşmak için kullanışlı (sunucu non-loopback bağlamalar için GatewayPorts yes gerektirebilir).';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      'Dinamik: bu cihazda her bağlantıyı SSH sunucusu üzerinden yönlendiren bir SOCKS5 proxy. Tüm trafiği SSH üzerinden göndermek için tarayıcıyı veya curl\'u localhost:bindPort\'a yönlendirin.';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => 'Örnek';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → localhost:8080 üzerinden uzak DB erişimi';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → dev sunucunuzu sunucunun 9000 portunda açın';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → tarayıcı SOCKS5\'i localhost:1080 olarak ayarlayın';
 
   @override
   String get proxyJump => 'Üzerinden bağlan';

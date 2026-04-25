@@ -2050,6 +2050,14 @@ class SHi extends S {
   String get commandCopied => 'कमांड कॉपी की गई';
 
   @override
+  String get snippetTokensHint =>
+      'प्लेसहोल्डर डालने के लिए टैप करें। ये रनटाइम पर सक्रिय सत्र के मानों से बदले जाते हैं:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'डबल ब्रेसेस वाला कुछ भी और स्निपेट चलाने पर मान मांगता है।';
+
+  @override
   String get snippetFillTitle => 'स्निपेट पैरामीटर भरें';
 
   @override
@@ -2139,30 +2147,30 @@ class SHi extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'स्थानीय: इस डिवाइस पर एक पोर्ट खोलता है जो SSH सर्वर से पहुँच योग्य लक्ष्य तक टनल करता है। localhost:bindPort के माध्यम से दूरस्थ डेटाबेस या एडमिन UI तक पहुँच के लिए उपयोगी।';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'दूरस्थ: SSH सर्वर से एक पोर्ट खोलने को कहता है जो इस डिवाइस से पहुँच योग्य लक्ष्य तक वापस टनल करता है। दूरस्थ होस्ट के साथ स्थानीय dev server साझा करने के लिए उपयोगी (सर्वर को non-loopback binds के लिए GatewayPorts yes चाहिए हो सकता है)।';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      'गतिशील: इस डिवाइस पर एक SOCKS5 प्रॉक्सी जो हर कनेक्शन को SSH सर्वर के माध्यम से रूट करता है। सभी ट्रैफ़िक SSH के माध्यम से भेजने के लिए ब्राउज़र या curl को localhost:bindPort पर पॉइंट करें।';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => 'उदाहरण';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → localhost:8080 के माध्यम से दूरस्थ DB तक पहुँच';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → सर्वर पोर्ट 9000 पर dev server को उजागर करें';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → ब्राउज़र SOCKS5 को localhost:1080 पर सेट करें';
 
   @override
   String get proxyJump => 'इसके माध्यम से जुड़ें';

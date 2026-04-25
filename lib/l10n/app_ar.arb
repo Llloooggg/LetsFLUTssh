@@ -578,6 +578,8 @@
   "pinnedSnippets": "المثبتة",
   "allSnippets": "الكل",
   "commandCopied": "تم نسخ الأمر",
+  "snippetTokensHint": "انقر لإدراج عنصر نائب. تُستبدل هذه القيم وقت التشغيل بقيم من الجلسة النشطة:",
+  "snippetCustomTokensHint": "أي شيء آخر بأقواس مزدوجة يطلب منك قيمة عند تشغيل المقتطف.",
   "snippetFillTitle": "املأ معلمات المقتطف",
   "snippetFillSubmit": "تشغيل",
   "snippetPreview": "معاينة",

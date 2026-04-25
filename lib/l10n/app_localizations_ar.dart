@@ -2052,6 +2052,14 @@ class SAr extends S {
   String get commandCopied => 'تم نسخ الأمر';
 
   @override
+  String get snippetTokensHint =>
+      'انقر لإدراج عنصر نائب. تُستبدل هذه القيم وقت التشغيل بقيم من الجلسة النشطة:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'أي شيء آخر بأقواس مزدوجة يطلب منك قيمة عند تشغيل المقتطف.';
+
+  @override
   String get snippetFillTitle => 'املأ معلمات المقتطف';
 
   @override
@@ -2141,30 +2149,30 @@ class SAr extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'محلي: فتح منفذ على هذا الجهاز يمر عبر النفق إلى هدف يمكن الوصول إليه من خادم SSH. مفيد للوصول إلى قواعد بيانات بعيدة أو واجهات إدارة عبر localhost:bindPort.';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'بعيد: اطلب من خادم SSH فتح منفذ يمر إلى هدف يمكن الوصول إليه من هذا الجهاز. مفيد لمشاركة خادم تطوير محلي مع مضيف بعيد (قد يحتاج الخادم إلى GatewayPorts yes لربط غير loopback).';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      'ديناميكي: وكيل SOCKS5 على هذا الجهاز يوجه كل اتصال عبر خادم SSH. وجّه المتصفح أو curl إلى localhost:bindPort لإرسال كل الحركة عبر SSH.';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => 'مثال';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 ← الوصول إلى قاعدة بيانات بعيدة عبر localhost:8080';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 ← فضح خادم التطوير على منفذ الخادم 9000';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 ← اضبط SOCKS5 المتصفح على localhost:1080';
 
   @override
   String get proxyJump => 'الاتصال عبر';

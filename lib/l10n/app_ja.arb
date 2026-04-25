@@ -578,6 +578,8 @@
   "pinnedSnippets": "固定済み",
   "allSnippets": "すべて",
   "commandCopied": "コマンドをコピーしました",
+  "snippetTokensHint": "タップしてプレースホルダーを挿入。実行時にアクティブセッションの値で置換されます:",
+  "snippetCustomTokensHint": "二重波括弧のその他の項目は、実行時に値を尋ねます。",
   "snippetFillTitle": "スニペットのパラメーターを入力",
   "snippetFillSubmit": "実行",
   "snippetPreview": "プレビュー",

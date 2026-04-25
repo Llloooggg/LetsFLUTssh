@@ -3633,6 +3633,18 @@ abstract class S {
   /// **'Command copied to clipboard'**
   String get commandCopied;
 
+  /// No description provided for @snippetTokensHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to insert a placeholder. These are replaced at run time with values from the active session:'**
+  String get snippetTokensHint;
+
+  /// No description provided for @snippetCustomTokensHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything else with double braces prompts you for a value when the snippet runs.'**
+  String get snippetCustomTokensHint;
+
   /// No description provided for @snippetFillTitle.
   ///
   /// In en, this message translates to:

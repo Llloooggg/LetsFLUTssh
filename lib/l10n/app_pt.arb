@@ -578,6 +578,8 @@
   "pinnedSnippets": "Fixados",
   "allSnippets": "Todos",
   "commandCopied": "Comando copiado",
+  "snippetTokensHint": "Toca para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:",
+  "snippetCustomTokensHint": "Qualquer outro com chavetas duplas pede-te um valor quando o snippet executa.",
   "snippetFillTitle": "Preencher os parâmetros do snippet",
   "snippetFillSubmit": "Executar",
   "snippetPreview": "Pré-visualização",

@@ -2006,6 +2006,12 @@ class SJa extends S {
   String get commandCopied => 'コマンドをコピーしました';
 
   @override
+  String get snippetTokensHint => 'タップしてプレースホルダーを挿入。実行時にアクティブセッションの値で置換されます:';
+
+  @override
+  String get snippetCustomTokensHint => '二重波括弧のその他の項目は、実行時に値を尋ねます。';
+
+  @override
   String get snippetFillTitle => 'スニペットのパラメーターを入力';
 
   @override
@@ -2095,30 +2101,30 @@ class SJa extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'ローカル: このデバイスでポートを開き、SSH サーバーから到達可能なターゲットへトンネルします。リモート DB や管理 UI に localhost:bindPort 経由でアクセスするのに便利。';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'リモート: SSH サーバーにポートを開いてもらい、このデバイスから到達可能なターゲットへ戻すトンネルです。ローカル開発サーバーをリモートホストと共有するのに便利 (サーバーは非ループバックバインドに GatewayPorts yes が必要な場合あり)。';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      '動的: このデバイス上の SOCKS5 プロキシで、すべての接続を SSH サーバー経由でルーティングします。ブラウザや curl を localhost:bindPort に向けると、すべてのトラフィックが SSH 経由で送信されます。';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => '例';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → localhost:8080 経由でリモート DB にアクセス';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → 開発サーバーをサーバーのポート 9000 で公開';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → ブラウザの SOCKS5 を localhost:1080 に設定';
 
   @override
   String get proxyJump => '経由先';

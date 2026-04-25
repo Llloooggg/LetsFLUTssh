@@ -578,6 +578,8 @@
   "pinnedSnippets": "Angeheftet",
   "allSnippets": "Alle",
   "commandCopied": "Befehl in die Zwischenablage kopiert",
+  "snippetTokensHint": "Tippen, um einen Platzhalter einzufügen. Diese werden zur Laufzeit mit Werten aus der aktiven Sitzung ersetzt:",
+  "snippetCustomTokensHint": "Alles andere mit doppelten geschweiften Klammern fragt dich beim Ausführen nach einem Wert.",
   "snippetFillTitle": "Snippet-Parameter ausfüllen",
   "snippetFillSubmit": "Ausführen",
   "snippetPreview": "Vorschau",

@@ -1989,6 +1989,12 @@ class SZh extends S {
   String get commandCopied => '命令已复制到剪贴板';
 
   @override
+  String get snippetTokensHint => '点击插入占位符。运行时将以当前会话的值替换:';
+
+  @override
+  String get snippetCustomTokensHint => '其他双花括号项会在 snippet 执行时询问值。';
+
+  @override
   String get snippetFillTitle => '填写代码片段参数';
 
   @override
@@ -2078,30 +2084,30 @@ class SZh extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      '本地：在此设备上打开一个端口，隧道到 SSH 服务器可访问的目标。便于通过 localhost:bindPort 访问远程数据库或管理界面。';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      '远程：请 SSH 服务器打开一个端口，隧道回此设备可访问的目标。便于将本地开发服务器分享给远程主机 (服务器可能需要 GatewayPorts yes 才能绑定非 loopback)。';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      '动态：此设备上的 SOCKS5 代理，将每个连接通过 SSH 服务器路由。把浏览器或 curl 指向 localhost:bindPort，所有流量经 SSH 发送。';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => '示例';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → 通过 localhost:8080 访问远程数据库';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → 在服务器 9000 端口暴露开发服务器';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → 把浏览器 SOCKS5 设为 localhost:1080';
 
   @override
   String get proxyJump => '通过连接';

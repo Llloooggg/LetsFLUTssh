@@ -578,6 +578,8 @@
   "pinnedSnippets": "已固定",
   "allSnippets": "全部",
   "commandCopied": "命令已复制到剪贴板",
+  "snippetTokensHint": "点击插入占位符。运行时将以当前会话的值替换:",
+  "snippetCustomTokensHint": "其他双花括号项会在 snippet 执行时询问值。",
   "snippetFillTitle": "填写代码片段参数",
   "snippetFillSubmit": "运行",
   "snippetPreview": "预览",

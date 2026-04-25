@@ -2041,6 +2041,14 @@ class SEn extends S {
   String get commandCopied => 'Command copied to clipboard';
 
   @override
+  String get snippetTokensHint =>
+      'Tap to insert a placeholder. These are replaced at run time with values from the active session:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Anything else with double braces prompts you for a value when the snippet runs.';
+
+  @override
   String get snippetFillTitle => 'Fill in snippet parameters';
 
   @override

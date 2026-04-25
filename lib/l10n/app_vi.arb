@@ -578,6 +578,8 @@
   "pinnedSnippets": "Đã ghim",
   "allSnippets": "Tất cả",
   "commandCopied": "Đã sao chép lệnh",
+  "snippetTokensHint": "Chạm để chèn placeholder. Chúng được thay thế khi chạy bằng giá trị từ phiên hoạt động:",
+  "snippetCustomTokensHint": "Bất kỳ thứ gì khác với dấu ngoặc nhọn kép sẽ hỏi bạn giá trị khi chạy snippet.",
   "snippetFillTitle": "Điền tham số snippet",
   "snippetFillSubmit": "Chạy",
   "snippetPreview": "Xem trước",

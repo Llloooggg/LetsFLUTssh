@@ -2039,6 +2039,14 @@ class SFa extends S {
   String get commandCopied => 'دستور کپی شد';
 
   @override
+  String get snippetTokensHint =>
+      'برای درج یک مکان‌نما ضربه بزنید. این‌ها در زمان اجرا با مقادیر نشست فعال جایگزین می‌شوند:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'هر چیز دیگری با دو آکولاد هنگام اجرای قطعه از شما مقدار می‌خواهد.';
+
+  @override
   String get snippetFillTitle => 'پارامترهای قطعه را پر کنید';
 
   @override
@@ -2128,30 +2136,30 @@ class SFa extends S {
 
   @override
   String get forwardKindLocalHelp =>
-      'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
+      'محلی: یک پورت روی این دستگاه باز می‌کند که به هدف قابل دسترسی از سرور SSH تونل می‌زند. مفید برای دسترسی به پایگاه‌های داده دور یا UI ادمین در localhost:bindPort.';
 
   @override
   String get forwardKindRemoteHelp =>
-      'Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).';
+      'راه دور: از سرور SSH می‌خواهد پورتی باز کند که به هدف قابل دسترسی از این دستگاه برمی‌گردد. مفید برای اشتراک سرور توسعه محلی با میزبان راه دور (ممکن است سرور به GatewayPorts yes برای bind غیر loopback نیاز داشته باشد).';
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
+      'پویا: پروکسی SOCKS5 روی این دستگاه که هر اتصال را از طریق سرور SSH هدایت می‌کند. مرورگر یا curl را به localhost:bindPort اشاره دهید تا تمام ترافیک از طریق SSH ارسال شود.';
 
   @override
-  String get forwardExample => 'Example';
+  String get forwardExample => 'مثال';
 
   @override
   String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
+      'ssh -L 8080:db.internal:5432 → دسترسی به پایگاه داده راه دور از طریق localhost:8080';
 
   @override
   String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
+      'ssh -R 9000:localhost:3000 → نمایش سرور توسعه در پورت 9000 سرور';
 
   @override
   String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
+      'ssh -D 1080 → تنظیم SOCKS5 مرورگر روی localhost:1080';
 
   @override
   String get proxyJump => 'اتصال از طریق';

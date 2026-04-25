@@ -578,6 +578,8 @@
   "pinnedSnippets": "Fijados",
   "allSnippets": "Todos",
   "commandCopied": "Comando copiado al portapapeles",
+  "snippetTokensHint": "Toca para insertar un marcador. Se reemplazan en tiempo de ejecución con valores de la sesión activa:",
+  "snippetCustomTokensHint": "Cualquier otro con llaves dobles te pide un valor al ejecutar el snippet.",
   "snippetFillTitle": "Rellenar parámetros del snippet",
   "snippetFillSubmit": "Ejecutar",
   "snippetPreview": "Vista previa",
