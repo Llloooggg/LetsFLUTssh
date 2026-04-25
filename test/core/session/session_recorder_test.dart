@@ -39,7 +39,7 @@ void main() {
     return Uint8List.fromList(List.generate(32, (i) => i));
   }
 
-  Future<File> _onlyFile(Directory dir) async {
+  Future<File> onlyFile(Directory dir) async {
     final files = dir.listSync(recursive: true).whereType<File>().toList();
     expect(files, hasLength(1), reason: 'expected exactly one recording');
     return files.single;
@@ -129,7 +129,7 @@ void main() {
     await rec!.close();
     rec.recordOutput(utf8.encode('ignored'));
     final dir = Directory(p.join(tempDir.path, 'recordings', 's4'));
-    final file = await _onlyFile(dir);
+    final file = await onlyFile(dir);
     final lines = file.readAsLinesSync();
     // Only the header — recordOutput after close is a no-op.
     expect(lines, hasLength(1));

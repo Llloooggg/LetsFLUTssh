@@ -2,6 +2,7 @@ import 'dart:convert' show base64;
 import 'dart:io';
 
 import '../../utils/logger.dart';
+import '../security/ppk_codec.dart';
 
 /// Shared helpers for SSH key files on disk.
 ///
@@ -14,13 +15,31 @@ class KeyFileHelper {
 
   /// Try to read a file as a PEM private key.
   /// Returns the PEM content if the file looks like a private key, null otherwise.
+  ///
+  /// PPK files (PuTTY's `.ppk` format) are recognised here too — when
+  /// the file matches the supported variant (PPK v2 ssh-ed25519
+  /// unencrypted today) the codec converts to OpenSSH PEM in-place
+  /// so the rest of the import path stays format-agnostic. Other
+  /// PPK variants throw a [PpkUnsupportedException] up the stack so
+  /// the importer dialog can surface a concrete reason instead of a
+  /// generic "not a key" error.
   static String? tryReadPemKey(String path) {
     try {
       final file = File(path);
       if (!file.existsSync()) return null;
       if (file.lengthSync() > maxKeyFileSize) return null;
       final content = file.readAsStringSync();
+      if (PpkCodec.looksLikePpk(content)) {
+        final parsed = PpkCodec.parseUnencryptedV2Ed25519(content);
+        return PpkCodec.toOpenSshPemEd25519(parsed);
+      }
       if (content.contains('PRIVATE KEY')) return content;
+      return null;
+    } on PpkUnsupportedException {
+      // Bubble up so the importer can show a targeted error.
+      rethrow;
+    } on PpkParseException {
+      // Malformed PPK — treat the same as "not a key".
       return null;
     } catch (_) {
       return null;

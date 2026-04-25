@@ -1729,7 +1729,7 @@ class DeepLinkHandler {
 | File | Purpose |
 |------|---------|
 | `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, Argon2id-derived key). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
-| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker |
+| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
 
@@ -1857,6 +1857,20 @@ Both `applyResult()` paths return an `ImportSummary` with per-type row counts an
 - Known hosts import via `KnownHostsManager.importFromString()`
 - Rollback support in replace mode via `restoreSnapshot` callback — snapshot includes sessions, empty folders, and (when `getCurrentConfig` is provided) the pre-import `AppConfig`, so a failed import restores atomically
 - Manager-key rollback — replace mode never wipes the key store (keys are deduped by fingerprint on merge), so instead the snapshot captures `existingManagerKeyIds()` before the import runs. If the import fails, the rollback path enumerates the store again and deletes any id that wasn't in the pre-import set. Pre-existing keys stay untouched. Tests without a wired `KeyStore` leave the callbacks null and this step is skipped
+
+---
+
+#### PPK codec — PuTTY's private key format
+
+`core/security/ppk_codec.dart` parses PuTTY's `.ppk` files and converts the supported variants to OpenSSH PEM in-place so the rest of the import path stays format-agnostic. The codec is stateless / pure-Dart — no FFI, no native deps.
+
+**v1 scope.** PPK v2, `ssh-ed25519`, **unencrypted**. Other variants (PPK v3, `ssh-rsa`, encrypted) are recognised at parse time and surface as a typed [`PpkUnsupportedException`](#3-modules) carrying the specific dimension we don't handle yet. The importer dialog uses that to show a concrete reason rather than a generic "not a key" error.
+
+**Why this scope first.** Modern PuTTY (0.75+, 2021) defaults to v3 + ed25519 at keygen time but legacy v2 ed25519 keys (puttygen 0.68+, 2017) are common in long-running automation. Encrypted v3 needs Argon2id KDF wiring (driven by `Argon2-Memory`/`Argon2-Passes` headers), encrypted v2 needs SHA-1-derived AES-CBC keys, and `ssh-rsa` needs full RSA mpint reconstruction (n = p·q, e from public, d from private) — each is a discrete commit. v2 ed25519 unencrypted is the smallest viable foothold that converts to a usable OpenSSH key.
+
+**MAC verification.** PPK v2 unencrypted carries an HMAC-SHA-1 keyed with `SHA-1("putty-private-key-file-mac-key")` (the literal tag, no passphrase concatenation). The MAC payload is the ssh-string-prefixed concatenation of `algorithm`, `encryption`, `comment`, `publicBlob`, `privateBlob`. Mismatch throws [`PpkMacMismatchException`](#3-modules). The compare is constant-time so a forge attempt cannot leak the expected MAC byte-by-byte.
+
+**OpenSSH conversion.** `toOpenSshPemEd25519` extracts the 32-byte ed25519 public key from the public blob (skipping the algorithm ssh-string) and the 32-byte private scalar from the mpint in the private blob (stripping the optional leading-zero pad), then constructs the `openssh-key-v1\0` envelope with `cipher=none` / `kdf=none`, packs the keys into the standard private-block (matched-check pair, ssh-ed25519 algo, pub, priv-pub-concat, comment, 1..N padding), base64-armors with `-----BEGIN OPENSSH PRIVATE KEY-----`. The result feeds `dartssh2.SSHKeyPair.fromPem` directly.
 
 ---
 
