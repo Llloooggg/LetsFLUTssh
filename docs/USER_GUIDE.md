@@ -33,7 +33,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 
 1. Install per [README → Installation](../README.md#installation).
 2. App opens to the **Sessions** sidebar (empty) and a **Welcome** placeholder in the main area.
-3. **Choose a security tier** (modal on first launch — see [§14 Security tiers](#14-security-tiers)). Default suggestion auto-detects the strongest available: hardware-bound key on platforms with a TPM/Secure Enclave/StrongBox, OS keychain otherwise, plaintext as fallback.
+3. **Security tier is set up silently on the first launch** (see [§14 Security tiers](#14-security-tiers)). When the OS keychain is reachable (the common case on every supported platform), the app auto-selects **T1 — Keychain** without prompting, and surfaces a one-shot banner saying so. Only when the keychain is unreachable (e.g. Linux without `gnome-keyring` / KWallet, ad-hoc-signed macOS without an installed signing identity) does a tier-picker wizard appear with T0 / Paranoid as alternatives. T2 hardware-bound and any of the modifiers (master password, biometric shortcut) are opt-in via **Settings → Security** at any time.
 4. **Add your first session:** sidebar → "+" or `Ctrl+N`. Fill host / port / username + auth (password or key). Save.
 5. **Connect:** double-click the session, or right-click → Terminal / Files.
 
@@ -525,9 +525,10 @@ The app verifies SSH host keys via Trust-On-First-Use, the same model OpenSSH us
 - **Tools → Known Hosts**.
 - Search by host. Per-row delete to forget a single host. Bulk delete via multi-select.
 
-### Import from OpenSSH
+### Import format
 
-- Tools → Known Hosts → Import → pick `~/.ssh/known_hosts`. Standard OpenSSH wire format.
+- Tools → Known Hosts → Import → pick a known-hosts text file in the LetsFLUTssh wire format (`host:port keytype base64key`, one per line). Symmetric with the export side; produced naturally by `.lfs` archive round-trips.
+- **Not OpenSSH `~/.ssh/known_hosts`.** OpenSSH's format brackets non-default ports (`[host]:port`) and supports hashed hostnames; we trade compatibility for a one-line emitter.
 
 ### Sync caveat
 
@@ -537,14 +538,14 @@ The app verifies SSH host keys via Trust-On-First-Use, the same model OpenSSH us
 
 ## 14. Security tiers
 
-How the app protects credentials at rest. The first-launch wizard auto-suggests the strongest tier your platform supports; you can change it any time via **Settings → Security**.
+How the app protects credentials at rest. First launch auto-selects **T1 — Keychain** silently when the OS keychain is reachable (typical on every supported platform). The tier-picker wizard only renders when the keychain is unreachable — it offers T0 / Paranoid plus T2 (hardware) when a TPM 2.0 / Secure Enclave / StrongBox is also detected. T2 and the modifiers (master password, biometric) are opt-in any time via **Settings → Security** even when first-launch auto-applied T1.
 
 ### The tiers
 
 | Tier | Where the DB-encryption key lives | Notes |
 |---|---|---|
 | **T0 — Plaintext** | Nowhere — DB itself is unencrypted | App still uses SQLite3MultipleCiphers in-process; just no key. Use only when you have full-disk encryption + accept the trade-off. |
-| **T1 — Keychain** | OS keychain (macOS Keychain, Linux libsecret/`gnome-keyring`/KWallet, Windows DPAPI/Credential Manager, Android Keystore, iOS Keychain) | Strongest "no master password to remember" option on most desktops. |
+| **T1 — Keychain** | OS keychain via `flutter_secure_storage` (macOS Keychain, iOS Keychain, Linux libsecret — `gnome-keyring` / KWallet, Windows Credential Manager, Android EncryptedSharedPreferences) | Strongest "no master password to remember" option on most desktops. |
 | **T2 — Hardware** | Hardware-bound key in TPM 2.0 (Linux/Windows), Secure Enclave (macOS/iOS), StrongBox (Android) | Needs hardware. App detects + offers when available. |
 | **Paranoid** | Argon2id-derived from a master password you type every launch | Nothing on disk except the salt + verifier. Lose the password = lose the data. |
 
