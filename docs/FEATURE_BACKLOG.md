@@ -55,23 +55,18 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ### 2.3 Remote filesystem abstraction
 
-Currently SFTP is pinned: `lib/core/sftp/file_system.dart` exposes an SFTP-specific API and the file browser imports it directly. Once S3 and WebDAV land we need a common `RemoteFs` interface:
+**Status — already present, partial.** The original premise ("SFTP is pinned") was wrong: `lib/core/sftp/file_system.dart` already defines `abstract class FileSystem` with `list/initialDir/mkdir/remove/removeDir/rename/dirSize`, and both `LocalFS` (`file_system.dart`) and `RemoteFS` (`sftp_client.dart:473`) implement it. The file browser already consumes the abstract interface, not `SftpClient` directly.
 
-```dart
-abstract class RemoteFs {
-  Future<List<RemoteEntry>> list(String path);
-  Future<void> get(String path, String local, {ProgressCb? onProgress});
-  Future<void> put(String local, String path, {ProgressCb? onProgress});
-  Future<void> rename(String from, String to);
-  Future<void> remove(String path, {bool recursive});
-  Future<RemoteStat?> stat(String path);
-  Future<void> mkdir(String path);
-  Stream<ConnectionHealth> get health;
-  Future<void> close();
-}
-```
+**What's still missing** (added at S3 implementation time, not speculatively):
 
-Action in wave 2 prep: refactor `file_system.dart` to implement `RemoteFs`, update `lib/features/file_browser/*` to take `RemoteFs` not `SftpClient`. 2-3 days. Saves a week on S3/WebDAV adds.
+| Method | Why it's needed | When to add |
+|---|---|---|
+| `Future<RemoteStat?> stat(String path)` | S3 `HeadObject` for resumable downloads + last-modified comparisons in sync. SFTP path uses `dartssh2 SftpClient.stat(...)`. | §4.2 S3, §4.1 WebDAV |
+| `Stream<List<int>> getStream(String path, {int? offset})` + `Future<void> putStream(String path, Stream<List<int>>)` | Byte-streaming with progress, currently lives in transfer queue keyed on SFTP. S3 multipart needs the same shape. | §4.2 S3 |
+| `Future<void> close()` | S3 client + WebDAV client need explicit teardown; LocalFS / SFTP no-op. | §4.2 S3 |
+| `Stream<ConnectionHealth> health` | Reflect S3 retry exhaustion / WebDAV server unreachable in the same UI surface as SSH disconnects. Consider deferring to wave 4 unless the file browser already grows a connection-state badge. | Optional — defer |
+
+**Action.** No standalone refactor. Each S3-driven addition lands on its actual feature commit (§4.1 / §4.2). The shared interface is already in place; widening it without a concrete consumer would be premature abstraction.
 
 ---
 
