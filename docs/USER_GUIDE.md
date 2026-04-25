@@ -2,7 +2,7 @@
 
 End-user reference for every feature shipped in the app. Walks through the typical flow + every option per surface, with worked examples.
 
-> Looking for build instructions? See [`CONTRIBUTING.md`](CONTRIBUTING.md). Looking for the security threat model? See [`SECURITY.md`](SECURITY.md). Looking for the codebase map? See [`ARCHITECTURE.md`](ARCHITECTURE.md). Looking for what to ship next? See [`FEATURE_BACKLOG.md`](FEATURE_BACKLOG.md).
+> Looking for build instructions? See [`CONTRIBUTING.md`](CONTRIBUTING.md). Looking for the security threat model? See [`SECURITY.md`](SECURITY.md).
 
 ---
 
