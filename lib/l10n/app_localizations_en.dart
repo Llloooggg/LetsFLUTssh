@@ -2158,6 +2158,11 @@ class SEn extends S {
   }
 
   @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
+  }
+
+  @override
   String get recordSession => 'Record session';
 
   @override

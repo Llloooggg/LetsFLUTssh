@@ -336,7 +336,7 @@ String _buildPpkV3Ed25519({
     'Comment: $comment',
     'Public-Lines: ${pubText.split('\n').length}',
     pubText,
-    if (kdfBlock != null) kdfBlock,
+    ?kdfBlock,
     'Private-Lines: ${privText.split('\n').length}',
     privText,
     'Private-MAC: $macHex',

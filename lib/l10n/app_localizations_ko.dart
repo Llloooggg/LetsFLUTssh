@@ -2088,7 +2088,7 @@ class SKo extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      '현재 로컬 (-L)만 작동합니다. -R / -D는 저장되지만 비활성 상태입니다.';
+      '로컬 (-L), 원격 (-R), 동적 SOCKS5 (-D) 포워딩이 모두 활성화되어 있습니다.';
 
   @override
   String get proxyJump => '경유 연결';
@@ -2117,6 +2117,11 @@ class SKo extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Bastion $label 연결 실패.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

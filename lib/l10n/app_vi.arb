@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "Bastion {label} kết nối thất bại.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "viaSessionLabel": "qua {label}",
+  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
   "recordSession": "Ghi phiên",
   "recordSessionHelp": "Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ nếu bật master password hoặc khóa phần cứng.",
   "tags": "Thẻ",

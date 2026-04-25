@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "Le bastion {label} n'a pas pu se connecter.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "viaSessionLabel": "via {label}",
+  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
   "recordSession": "Enregistrer la session",
   "recordSessionHelp": "Sauvegarder la sortie du terminal sur disque pour cette session. Chiffrée au repos avec mot de passe maître ou clé matérielle.",
   "tags": "Étiquettes",

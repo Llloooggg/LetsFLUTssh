@@ -2135,7 +2135,7 @@ class STr extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Şu anda yalnızca yerel (-L) çalışıyor; -R / -D kaydediliyor ancak etkin değil.';
+      'Yerel (-L), uzak (-R) ve dinamik SOCKS5 (-D) yönlendirmeleri hepsi etkin.';
 
   @override
   String get proxyJump => 'Üzerinden bağlan';
@@ -2164,6 +2164,11 @@ class STr extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Bastion $label bağlanamadı.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

@@ -2137,7 +2137,7 @@ class SAr extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'يعمل المحلي (-L) فقط الآن؛ يتم حفظ -R / -D لكنها غير نشطة.';
+      'التوجيه المحلي (-L) والبعيد (-R) و SOCKS5 الديناميكي (-D) جميعها مفعّلة.';
 
   @override
   String get proxyJump => 'الاتصال عبر';
@@ -2166,6 +2166,11 @@ class SAr extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'فشل اتصال البستيون $label.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

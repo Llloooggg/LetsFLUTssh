@@ -2125,7 +2125,7 @@ class SVi extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Hiện chỉ -L hoạt động; -R / -D được lưu nhưng không kích hoạt.';
+      'Chuyển tiếp cục bộ (-L), từ xa (-R) và SOCKS5 động (-D) đều đang hoạt động.';
 
   @override
   String get proxyJump => 'Kết nối qua';
@@ -2154,6 +2154,11 @@ class SVi extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Bastion $label kết nối thất bại.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

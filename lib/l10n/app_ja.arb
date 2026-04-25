@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "踏み台 {label} に接続できませんでした。",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "viaSessionLabel": "{label} 経由",
+  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
   "recordSession": "セッションを記録",
   "recordSessionHelp": "このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキー有効時は保存時に暗号化されます。",
   "tags": "タグ",

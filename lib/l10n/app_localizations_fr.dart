@@ -2160,7 +2160,7 @@ class SFr extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Seules les règles locales (-L) sont actives ; -R / -D sont enregistrées mais inactives.';
+      'Les redirections locales (-L), distantes (-R) et SOCKS5 dynamiques (-D) sont toutes actives.';
 
   @override
   String get proxyJump => 'Se connecter via';
@@ -2189,6 +2189,11 @@ class SFr extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Le bastion $label n\'a pas pu se connecter.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

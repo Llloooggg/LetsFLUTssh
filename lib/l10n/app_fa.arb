@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "بستیون {label} نتوانست متصل شود.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "viaSessionLabel": "از طریق {label}",
+  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
   "recordSession": "ضبط نشست",
   "recordSessionHelp": "ذخیره خروجی پایانه روی دیسک برای این نشست. هنگام فعال بودن گذرواژه اصلی یا کلید سخت‌افزاری رمزنگاری می‌شود.",
   "tags": "برچسب‌ها",

@@ -2135,7 +2135,7 @@ class SHi extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'अभी केवल स्थानीय (-L) चल रहा है; -R / -D सहेजे जाते हैं पर निष्क्रिय हैं।';
+      'स्थानीय (-L), दूरस्थ (-R) और गतिशील SOCKS5 (-D) फ़ॉरवर्ड सभी सक्रिय हैं।';
 
   @override
   String get proxyJump => 'इसके माध्यम से जुड़ें';
@@ -2164,6 +2164,11 @@ class SHi extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'बेस्टियन $label कनेक्ट नहीं हो सका।';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

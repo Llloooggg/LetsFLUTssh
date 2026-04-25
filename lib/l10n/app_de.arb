@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "Bastion {label} konnte nicht verbinden.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "viaSessionLabel": "über {label}",
+  "@viaSessionLabel": {"placeholders": {"label": {"type": "String"}}},
   "recordSession": "Sitzung aufzeichnen",
   "recordSessionHelp": "Terminal-Ausgabe für diese Sitzung auf der Festplatte speichern. Bei aktiviertem Master-Passwort / Hardware-Key verschlüsselt im Ruhezustand.",
   "tags": "Tags",

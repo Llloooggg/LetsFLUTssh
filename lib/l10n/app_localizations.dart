@@ -3849,6 +3849,12 @@ abstract class S {
   /// **'Bastion {label} failed to connect.'**
   String errProxyJumpBastionFailed(String label);
 
+  /// No description provided for @viaSessionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'via {label}'**
+  String viaSessionLabel(String label);
+
   /// No description provided for @recordSession.
   ///
   /// In en, this message translates to:

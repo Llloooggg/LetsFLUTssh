@@ -2153,7 +2153,7 @@ class SRu extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Сейчас работает только локальный (-L); -R / -D сохраняются, но не активны.';
+      'Локальные (-L), удалённые (-R) и динамические SOCKS5 (-D) туннели все активны.';
 
   @override
   String get proxyJump => 'Подключаться через';
@@ -2182,6 +2182,11 @@ class SRu extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Бастион $label не подключился.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

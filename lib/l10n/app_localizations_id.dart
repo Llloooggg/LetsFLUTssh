@@ -2137,7 +2137,7 @@ class SId extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Hanya lokal (-L) yang aktif saat ini; -R / -D disimpan tetapi tidak aktif.';
+      'Penerusan lokal (-L), jarak jauh (-R), dan SOCKS5 dinamis (-D) semuanya aktif.';
 
   @override
   String get proxyJump => 'Hubungkan melalui';
@@ -2166,6 +2166,11 @@ class SId extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Bastion $label gagal terhubung.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

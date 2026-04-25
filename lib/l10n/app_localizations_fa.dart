@@ -2124,7 +2124,7 @@ class SFa extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'فقط محلی (-L) اکنون اجرا می‌شود؛ -R / -D ذخیره می‌شوند ولی فعال نیستند.';
+      'فوروارد محلی (-L)، راه دور (-R) و SOCKS5 پویا (-D) همگی فعال هستند.';
 
   @override
   String get proxyJump => 'اتصال از طریق';
@@ -2153,6 +2153,11 @@ class SFa extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'بستیون $label نتوانست متصل شود.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

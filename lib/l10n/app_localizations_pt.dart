@@ -2146,7 +2146,7 @@ class SPt extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Apenas local (-L) está ativo hoje; -R / -D são guardadas mas inativas.';
+      'Os encaminhamentos locais (-L), remotos (-R) e SOCKS5 dinâmicos (-D) estão todos ativos.';
 
   @override
   String get proxyJump => 'Ligar através de';
@@ -2175,6 +2175,11 @@ class SPt extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'O bastião $label falhou ao conectar.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

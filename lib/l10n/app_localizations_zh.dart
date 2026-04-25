@@ -2073,7 +2073,8 @@ class SZh extends S {
       '绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。';
 
   @override
-  String get forwardOnlyLocalSupported => '当前仅本地 (-L) 生效；-R / -D 会保存但不激活。';
+  String get forwardOnlyLocalSupported =>
+      '本地 (-L)、远程 (-R) 和动态 SOCKS5 (-D) 转发均已启用。';
 
   @override
   String get proxyJump => '通过连接';
@@ -2101,6 +2102,11 @@ class SZh extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return '堡垒机 $label 连接失败。';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

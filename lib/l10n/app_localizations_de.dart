@@ -2157,7 +2157,7 @@ class SDe extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Aktuell laufen nur lokale (-L) Weiterleitungen; -R / -D werden gespeichert, aber nicht aktiv.';
+      'Lokale (-L), entfernte (-R) und dynamische SOCKS5 (-D) Weiterleitungen sind alle aktiv.';
 
   @override
   String get proxyJump => 'Verbinden über';
@@ -2186,6 +2186,11 @@ class SDe extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'Bastion $label konnte nicht verbinden.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

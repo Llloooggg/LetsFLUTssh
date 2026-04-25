@@ -2091,7 +2091,7 @@ class SJa extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      '現在はローカル (-L) のみ動作します。-R / -D は保存されますが無効です。';
+      'ローカル (-L)、リモート (-R)、動的 SOCKS5 (-D) 転送すべて動作します。';
 
   @override
   String get proxyJump => '経由先';
@@ -2120,6 +2120,11 @@ class SJa extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return '踏み台 $label に接続できませんでした。';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override

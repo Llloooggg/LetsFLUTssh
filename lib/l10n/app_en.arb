@@ -1260,6 +1260,14 @@
     }
   },
   "errProxyJumpBastionFailed": "Bastion {label} failed to connect.",
+  "viaSessionLabel": "via {label}",
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "recordSession": "Record session",
   "recordSessionHelp": "Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.",
   "@errProxyJumpBastionFailed": {

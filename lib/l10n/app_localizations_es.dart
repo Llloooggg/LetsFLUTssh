@@ -2149,7 +2149,7 @@ class SEs extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Solo se ejecuta el local (-L) por ahora; -R / -D se guardan pero no están activos.';
+      'Los reenvíos locales (-L), remotos (-R) y SOCKS5 dinámicos (-D) están todos activos.';
 
   @override
   String get proxyJump => 'Conectar mediante';
@@ -2178,6 +2178,11 @@ class SEs extends S {
   @override
   String errProxyJumpBastionFailed(String label) {
     return 'El bastión $label no pudo conectar.';
+  }
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
   }
 
   @override
