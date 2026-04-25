@@ -133,22 +133,18 @@ class _ForwardRuleRow extends StatelessWidget {
       secondaryMono: true,
       onTap: onTap,
       trailing: [
-        // Full Material Switch instead of a 12 px AppIconButton —
-        // the previous control was too tiny to land a touch target
-        // on mobile and visually shouted "icon" rather than "toggle".
-        Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Tooltip(
-            message: l10n.forwardEnabled,
-            child: Switch(
-              value: rule.enabled,
-              onChanged: (_) => onToggle(),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
+        // Both controls use AppIconButton (full size, not dense) so
+        // they line up identically with every other row in the app —
+        // tag pin, snippet pin, key actions all use the same icon
+        // size. Toggle uses a filled / outlined icon swap to read
+        // as "on/off" without a Material Switch (whose 24×40 frame
+        // dwarfs the row).
+        AppIconButton(
+          icon: rule.enabled ? Icons.toggle_on : Icons.toggle_off_outlined,
+          tooltip: l10n.forwardEnabled,
+          color: rule.enabled ? AppTheme.accent : AppTheme.fgFaint,
+          onTap: onToggle,
         ),
-        // Delete button: full-size icon in destructive accent so the
-        // affordance reads as "destructive" not "minor metadata".
         AppIconButton(
           icon: Icons.delete_outline,
           tooltip: l10n.deleteForwardRule,
@@ -367,7 +363,10 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
       ),
       actions: [
         AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(label: S.of(context).save, onTap: _save),
+        // OK (not Save) — this only commits the rule into the
+        // parent dialog's in-memory list. Persistence happens when
+        // the user hits Save on the surrounding session-edit dialog.
+        AppButton.primary(label: S.of(context).ok, onTap: _save),
       ],
     );
   }

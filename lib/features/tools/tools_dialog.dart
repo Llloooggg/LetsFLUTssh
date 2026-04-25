@@ -7,6 +7,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/app_selection_area.dart';
 import '../../widgets/hover_region.dart';
 import '../key_manager/key_manager_dialog.dart';
+import '../recordings/recordings_browser.dart';
 import '../settings/known_hosts_manager.dart';
 import '../snippets/snippet_manager_dialog.dart';
 import '../tags/tag_manager_dialog.dart';
@@ -65,6 +66,11 @@ class _ToolsDialogState extends State<ToolsDialog> {
       title: S.of(context).knownHosts,
       icon: Icons.verified_user,
       builder: KnownHostsManagerPanel.new,
+    ),
+    _ToolEntry(
+      title: S.of(context).recordingsBrowserTitle,
+      icon: Icons.play_circle_outline,
+      builder: RecordingsPanel.new,
     ),
   ];
 

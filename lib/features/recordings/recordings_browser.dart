@@ -38,31 +38,24 @@ class _RecordingEntry {
 
 /// List + delete + play recordings written by [SessionRecorder].
 ///
-/// The browser scans `<appSupport>/recordings/<sessionId>/` for
-/// `.cast` (plaintext) and `.lfsr` (encrypted) files, reads the
-/// asciinema header out of each (decrypting on the fly for `.lfsr`
-/// files when the running tier carries a DB key), and renders
-/// a sortable list. Tapping a row opens [RecordingPlaybackDialog].
+/// Mounted inside the Tools dialog (desktop) alongside SSH Keys /
+/// Snippets / Tags / Known Hosts. Mirror of `SnippetManagerPanel`
+/// in shape — toolbar + body — so the Tools sidebar treats it as
+/// just another panel.
 ///
-/// **Why a dialog and not a route.** Recordings are accessed from
-/// Settings → Data and the user expects to land back where they
-/// were, not navigate. A modal keeps the existing settings stack
-/// undisturbed and matches the snippet manager UX.
-class RecordingsBrowser extends ConsumerStatefulWidget {
-  const RecordingsBrowser({super.key});
-
-  static Future<void> show(BuildContext context) {
-    return AppDialog.show<void>(
-      context,
-      builder: (_) => const RecordingsBrowser(),
-    );
-  }
+/// **Why Tools and not Settings → Data.** Settings → Data is for
+/// destructive lifecycle operations (export / import / reset).
+/// Browsing recordings is a routine "look at my recorded sessions"
+/// flow, the same shape as browsing snippets or known hosts; it
+/// belongs with the rest of the manager surfaces.
+class RecordingsPanel extends ConsumerStatefulWidget {
+  const RecordingsPanel({super.key});
 
   @override
-  ConsumerState<RecordingsBrowser> createState() => _RecordingsBrowserState();
+  ConsumerState<RecordingsPanel> createState() => _RecordingsPanelState();
 }
 
-class _RecordingsBrowserState extends ConsumerState<RecordingsBrowser> {
+class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
   bool _loading = true;
   List<_RecordingEntry> _entries = const [];
 
@@ -172,56 +165,74 @@ class _RecordingsBrowserState extends ConsumerState<RecordingsBrowser> {
   Widget build(BuildContext context) {
     final l10n = S.of(context);
     final sessions = ref.watch(sessionProvider);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (_entries.isEmpty) {
+      return AppEmptyState(message: l10n.recordingsEmpty);
+    }
+    return ListView.builder(
+      itemCount: _entries.length,
+      itemBuilder: (context, i) {
+        final e = _entries[i];
+        final label = _resolveSessionLabel(e.sessionId, sessions);
+        final duration = e.meta != null
+            ? _formatDuration(e.meta!.durationSeconds)
+            : '?';
+        final secondary = [
+          e.fileTimestamp.toLocal().toString().split('.').first,
+          duration,
+          _formatSize(e.sizeBytes),
+          if (e.encrypted) 'encrypted',
+        ].join('  •  ');
+        return AppDataRow(
+          icon: e.encrypted ? Icons.lock_outline : Icons.play_circle_outline,
+          iconColor: e.encrypted ? AppTheme.accent : AppTheme.fgDim,
+          title: label,
+          secondary: secondary,
+          onTap: () => _play(e),
+          trailing: [
+            AppIconButton(
+              icon: Icons.play_arrow,
+              tooltip: l10n.playRecording,
+              onTap: () => _play(e),
+            ),
+            AppIconButton(
+              icon: Icons.delete_outline,
+              tooltip: l10n.deleteRecording,
+              color: AppTheme.red,
+              onTap: () => _delete(e),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Mobile entry — wraps [RecordingsPanel] in an [AppDialog] so the
+/// shape matches the rest of the manager dialogs (SSH Keys / Snippets
+/// / Tags). Desktop mounts the panel directly inside the Tools
+/// dialog's sidebar layout.
+class RecordingsBrowserDialog extends StatelessWidget {
+  const RecordingsBrowserDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return AppDialog.show<void>(
+      context,
+      builder: (_) => const RecordingsBrowserDialog(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
     return AppDialog(
       title: l10n.recordingsBrowserTitle,
       maxWidth: 640,
       scrollable: false,
       contentPadding: EdgeInsets.zero,
-      content: SizedBox(
-        height: 480,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-            : _entries.isEmpty
-            ? AppEmptyState(message: l10n.recordingsEmpty)
-            : ListView.builder(
-                itemCount: _entries.length,
-                itemBuilder: (context, i) {
-                  final e = _entries[i];
-                  final label = _resolveSessionLabel(e.sessionId, sessions);
-                  final duration = e.meta != null
-                      ? _formatDuration(e.meta!.durationSeconds)
-                      : '?';
-                  final secondary = [
-                    e.fileTimestamp.toLocal().toString().split('.').first,
-                    duration,
-                    _formatSize(e.sizeBytes),
-                    if (e.encrypted) 'encrypted',
-                  ].join('  •  ');
-                  return AppDataRow(
-                    icon: e.encrypted
-                        ? Icons.lock_outline
-                        : Icons.play_circle_outline,
-                    iconColor: e.encrypted ? AppTheme.accent : AppTheme.fgDim,
-                    title: label,
-                    secondary: secondary,
-                    onTap: () => _play(e),
-                    trailing: [
-                      AppIconButton(
-                        icon: Icons.play_arrow,
-                        tooltip: l10n.playRecording,
-                        onTap: () => _play(e),
-                      ),
-                      AppIconButton(
-                        icon: Icons.delete_outline,
-                        tooltip: l10n.deleteRecording,
-                        color: AppTheme.red,
-                        onTap: () => _delete(e),
-                      ),
-                    ],
-                  );
-                },
-              ),
-      ),
+      content: const SizedBox(height: 480, child: RecordingsPanel()),
       actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
     );
   }

@@ -73,6 +73,25 @@ class BiometricAuth {
   final TpmClient _tpm;
   final WinBioProbe _winbio;
 
+  /// Process-lifetime cache of the availability probe. The probe
+  /// hits fprintd / TPM2 / winbio every call; without this cache
+  /// every Settings rebuild + every connect dialog open spammed
+  /// fprintd with `GetDefaultDevice` D-Bus traffic (~10 calls per
+  /// minute on a busy session) which floods the log + wakes the
+  /// reader hardware unnecessarily.
+  ///
+  /// Invalidated only via explicit [invalidateProbe] — typically
+  /// called after a tier transition, master-password reset, or
+  /// when the user lands on the Security settings page (where a
+  /// stale "biometrics unavailable" answer would block legitimate
+  /// new enrolment from being detected).
+  BiometricAvailability? _cachedAvailability;
+  bool _availabilityProbed = false;
+  Future<BiometricAvailability>? _availabilityFuture;
+
+  BiometricBackingLevel? _cachedBackingLevel;
+  bool _backingLevelProbed = false;
+
   BiometricAuth({
     LocalAuthentication? auth,
     FprintdClient? fprintdClient,
@@ -85,6 +104,19 @@ class BiometricAuth {
 
   /// Convenience: true if [availability] returns null.
   Future<bool> isAvailable() async => (await availability()) == null;
+
+  /// Drop the cached availability + backing-level answers. Next
+  /// `availability()` call re-probes the platform. Call this after
+  /// the user does something that could plausibly change the
+  /// answer — enrolling a new finger via `fprintd-enroll`, plugging
+  /// in a hardware key, or transitioning between security tiers.
+  void invalidateProbe() {
+    _cachedAvailability = null;
+    _availabilityProbed = false;
+    _availabilityFuture = null;
+    _cachedBackingLevel = null;
+    _backingLevelProbed = false;
+  }
 
   /// Describe how the current platform protects the cached DB key.
   ///
@@ -109,6 +141,14 @@ class BiometricAuth {
   /// binary are both reachable — otherwise the fprintd + libsecret
   /// path is honestly labelled software.
   Future<BiometricBackingLevel?> backingLevel() async {
+    if (_backingLevelProbed) return _cachedBackingLevel;
+    final level = await _probeBackingLevel();
+    _cachedBackingLevel = level;
+    _backingLevelProbed = true;
+    return level;
+  }
+
+  Future<BiometricBackingLevel?> _probeBackingLevel() async {
     if (Platform.isIOS || Platform.isMacOS) {
       return BiometricBackingLevel.hardware;
     }
@@ -146,6 +186,25 @@ class BiometricAuth {
   ///      + `WinBioFree` — no prompts, no side effects, runs on every
   ///      Windows SKU we ship to.
   Future<BiometricAvailability> availability() async {
+    if (_availabilityProbed) return _cachedAvailability;
+    // Coalesce concurrent callers — Settings rebuild + a connect
+    // dialog opening at the same instant would otherwise fire two
+    // parallel probes against the same fprintd / TPM endpoints.
+    final inFlight = _availabilityFuture;
+    if (inFlight != null) return inFlight;
+    final future = _runAvailabilityProbe();
+    _availabilityFuture = future;
+    try {
+      final result = await future;
+      _cachedAvailability = result;
+      _availabilityProbed = true;
+      return result;
+    } finally {
+      _availabilityFuture = null;
+    }
+  }
+
+  Future<BiometricAvailability> _runAvailabilityProbe() async {
     if (Platform.isLinux) return _linuxAvailability();
     try {
       final supported = await _auth.isDeviceSupported();

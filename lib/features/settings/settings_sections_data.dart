@@ -47,7 +47,6 @@ class _DataSection extends ConsumerWidget {
         // read as part of the Export / Import flow directly above.
         _SectionHeader(title: S.of(context).dataStorageSection),
         const _DataPathTile(),
-        const _RecordingsTile(),
         const _ResetAllDataTile(),
       ],
     );
@@ -1072,23 +1071,3 @@ class _DataPathTile extends StatelessWidget {
 /// stepper for a security-sensitive setting where wrong values (too low,
 /// too high) damage UX or security. 5/15/30/60 + Off covers the common
 /// expectations ("step-away-for-a-coffee" up to "lunch break").
-
-
-/// Tile that opens the recordings browser modal. Lives in the
-/// Storage subsection because recordings are filesystem artefacts
-/// that share their disk-management UX with the data-location tile
-/// rather than the export/import flow.
-class _RecordingsTile extends StatelessWidget {
-  const _RecordingsTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = S.of(context);
-    return _ActionTile(
-      icon: Icons.play_circle_outline,
-      title: l10n.recordingsBrowserTitle,
-      subtitle: l10n.recordingsBrowserSubtitle,
-      onTap: () => RecordingsBrowser.show(context),
-    );
-  }
-}

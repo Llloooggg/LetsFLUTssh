@@ -13,6 +13,7 @@ import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/hover_region.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable snippet manager — toolbar + list with CRUD.
@@ -402,23 +403,30 @@ class _SnippetTokenHints extends StatelessWidget {
           runSpacing: 6,
           children: [
             for (final t in _tokens)
-              GestureDetector(
-                onTap: () => _insert(t),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.bg3,
-                    borderRadius: AppTheme.radiusSm,
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: Text(
-                    '{{$t}}',
-                    style: AppFonts.mono(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.accent,
+              // SelectionContainer.disabled — the chip is a button,
+              // its label must not behave like body text inside the
+              // surrounding SelectionArea (drag-to-copy on a button
+              // is the wrong affordance and reads as "this is text"
+              // not "this is tappable").
+              SelectionContainer.disabled(
+                child: HoverRegion(
+                  onTap: () => _insert(t),
+                  builder: (hovered) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hovered ? AppTheme.hover : AppTheme.bg3,
+                      borderRadius: AppTheme.radiusSm,
+                      border: Border.all(color: AppTheme.borderLight),
+                    ),
+                    child: Text(
+                      '{{$t}}',
+                      style: AppFonts.mono(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.accent,
+                      ),
                     ),
                   ),
                 ),
