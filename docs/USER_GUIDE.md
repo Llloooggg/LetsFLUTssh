@@ -525,10 +525,17 @@ The app verifies SSH host keys via Trust-On-First-Use, the same model OpenSSH us
 - **Tools → Known Hosts**.
 - Search by host. Per-row delete to forget a single host. Bulk delete via multi-select.
 
-### Import format
+### Importing
 
-- Tools → Known Hosts → Import → pick a known-hosts text file in the LetsFLUTssh wire format (`host:port keytype base64key`, one per line). Symmetric with the export side; produced naturally by `.lfs` archive round-trips.
-- **Not OpenSSH `~/.ssh/known_hosts`.** OpenSSH's format brackets non-default ports (`[host]:port`) and supports hashed hostnames; we trade compatibility for a one-line emitter.
+- Tools → Known Hosts → Import → pick a known-hosts text file. Both formats are parsed transparently — the importer detects per line:
+  - **LetsFLUTssh internal** (`host:port keytype base64key`) — what `exportToString` emits for `.lfs` archive round-trips.
+  - **OpenSSH `~/.ssh/known_hosts`** — what your shell has built up over years. Supported variants:
+    - bare hostname `example.com keytype base64` → port 22
+    - bracketed non-default port `[example.com]:2222 keytype base64`
+    - bracketed IPv6 `[::1]:22` / `[fe80::1]:8022`
+    - comma-separated multi-host `host1,host2,1.2.3.4 keytype base64` (one entry per host)
+    - leading `@cert-authority` / `@revoked` markers are stripped (we don't honour OpenSSH cert chains today; the row imports as a normal entry)
+- **Skipped:** hashed entries (`|1|salt|hash` from `HashKnownHosts yes`). HMAC-SHA1 hostname hashes are one-way; nothing to match against on subsequent connects. The importer counts skipped rows and surfaces them in the log.
 
 ### Sync caveat
 

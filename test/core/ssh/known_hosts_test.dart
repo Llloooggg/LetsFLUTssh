@@ -347,6 +347,90 @@ void main() {
       expect(manager.count, 2);
     });
 
+    test(
+      'importFromString accepts OpenSSH bare-hostname rows (port 22 default)',
+      () async {
+        await manager.load();
+        final added = await manager.importFromString(
+          'example.com ssh-ed25519 AAAA\n'
+          'github.com ssh-rsa BBBB\n',
+        );
+        expect(added, 2);
+        expect(manager.entries.containsKey('example.com:22'), isTrue);
+        expect(manager.entries.containsKey('github.com:22'), isTrue);
+      },
+    );
+
+    test(
+      'importFromString accepts OpenSSH bracketed [host]:port rows',
+      () async {
+        await manager.load();
+        final added = await manager.importFromString(
+          '[example.com]:2222 ssh-ed25519 AAAA\n'
+          '[::1]:22 ssh-rsa CCCC\n'
+          '[fe80::1]:8022 ssh-ed25519 DDDD\n',
+        );
+        expect(added, 3);
+        expect(manager.entries.containsKey('example.com:2222'), isTrue);
+        expect(manager.entries.containsKey('::1:22'), isTrue);
+        expect(manager.entries.containsKey('fe80::1:8022'), isTrue);
+      },
+    );
+
+    test('importFromString explodes comma-separated multi-host rows', () async {
+      await manager.load();
+      final added = await manager.importFromString(
+        'host1.example.com,host1,1.2.3.4 ssh-ed25519 AAAA\n',
+      );
+      expect(added, 3);
+      expect(manager.entries.containsKey('host1.example.com:22'), isTrue);
+      expect(manager.entries.containsKey('host1:22'), isTrue);
+      expect(manager.entries.containsKey('1.2.3.4:22'), isTrue);
+    });
+
+    test('importFromString silently drops hashed (|1|...) entries', () async {
+      await manager.load();
+      final added = await manager.importFromString(
+        '|1|abcdefghijklmnopqrst=|hashedvaluebase64== ssh-ed25519 AAAA\n'
+        'normal.example.com ssh-rsa BBBB\n',
+      );
+      // Hashed row skipped — HMAC-SHA1 cannot be reversed.
+      expect(added, 1);
+      expect(manager.entries.containsKey('normal.example.com:22'), isTrue);
+    });
+
+    test(
+      'importFromString skips @cert-authority / @revoked markers cleanly',
+      () async {
+        await manager.load();
+        final added = await manager.importFromString(
+          '@cert-authority *.example.com ssh-rsa AAAA\n'
+          '@revoked baddomain.com ssh-ed25519 BBBB\n',
+        );
+        // Marker is dropped; hostspec is parsed as if the marker was
+        // not there. `*.example.com` survives because we don't try to
+        // resolve wildcards — the entry sits as `*.example.com:22`
+        // and never matches a real connect (TOFU keys on host:port).
+        expect(added, 2);
+      },
+    );
+
+    test(
+      'importFromString accepts a mix of OpenSSH + internal formats',
+      () async {
+        await manager.load();
+        final added = await manager.importFromString(
+          'host1:22 ssh-ed25519 AAAA\n'
+          'openssh.com ssh-rsa BBBB\n'
+          '[bracketed]:2222 ssh-ed25519 CCCC\n',
+        );
+        expect(added, 3);
+        expect(manager.entries.containsKey('host1:22'), isTrue);
+        expect(manager.entries.containsKey('openssh.com:22'), isTrue);
+        expect(manager.entries.containsKey('bracketed:2222'), isTrue);
+      },
+    );
+
     test('importFromString skips existing', () async {
       manager.onUnknownHost = (_, _, _, _) async => true;
       await manager.load();

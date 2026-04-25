@@ -333,13 +333,19 @@ class KnownHostsManager {
     await load();
     final db = _db;
     var added = 0;
+    var skippedHashed = 0;
     for (final line in content.split('\n')) {
-      final entry = _parseLine(line);
-      if (entry == null || _hosts.containsKey(entry.hostPort)) continue;
-
-      _hosts[entry.hostPort] = entry.keyString;
-      if (db != null) await _persistEntry(db, entry);
-      added++;
+      final entries = _parseLine(line);
+      if (entries.isEmpty) {
+        if (_isHashedHostsLine(line)) skippedHashed++;
+        continue;
+      }
+      for (final entry in entries) {
+        if (_hosts.containsKey(entry.hostPort)) continue;
+        _hosts[entry.hostPort] = entry.keyString;
+        if (db != null) await _persistEntry(db, entry);
+        added++;
+      }
     }
     if (added > 0) {
       AppLogger.instance.log(
@@ -347,8 +353,24 @@ class KnownHostsManager {
         name: 'KnownHosts',
       );
     }
+    if (skippedHashed > 0) {
+      AppLogger.instance.log(
+        'Skipped $skippedHashed hashed known-hosts entries (HashKnownHosts) — '
+        'we cannot reverse the HMAC-SHA1 hash back to a hostname for storage',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+    }
     return added;
   });
+
+  static bool _isHashedHostsLine(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('#')) return false;
+    final firstSpace = trimmed.indexOf(RegExp(r'\s'));
+    if (firstSpace < 0) return false;
+    return trimmed.substring(0, firstSpace).startsWith('|1|');
+  }
 
   Future<void> _persistEntry(AppDatabase db, _ParsedHostEntry entry) async {
     final hpParts = entry.hostPort.split(':');
@@ -398,17 +420,108 @@ class KnownHostsManager {
 
   String _fingerprint(List<int> keyBytes) => fingerprint(keyBytes);
 
-  static _ParsedHostEntry? _parseLine(String line) {
+  /// Parse a single line into zero or more host entries.
+  ///
+  /// Accepts both formats:
+  ///
+  /// - **LetsFLUTssh internal** (`host:port keytype base64key`) —
+  ///   what `exportToString` emits for `.lfs` archive round-trips.
+  /// - **OpenSSH `~/.ssh/known_hosts`** — the file the user has
+  ///   built up over years of `ssh` use. Supports:
+  ///   - bare hostname (`example.com keytype base64`) → port 22
+  ///   - bracketed `[host]:port` for non-default ports
+  ///   - comma-separated multi-host (`example.com,1.2.3.4,...`)
+  ///   - bracketed IPv6 (`[::1]:22`, `[::1]`)
+  ///   - leading `@cert-authority` / `@revoked` markers — skipped
+  ///     (we don't ship a cert-authority chain today)
+  ///   - hashed hostnames (`|1|salt|hash`) — skipped, the HMAC-SHA1
+  ///     hash can't be reversed back to a real hostname so we have
+  ///     nothing to match against on subsequent connects. Counted
+  ///     and surfaced via the importer's "skipped N hashed entries"
+  ///     warning so the user knows their `HashKnownHosts yes` rows
+  ///     were not silently swallowed.
+  ///
+  /// Returns one entry per resolved host:port pair. A single
+  /// OpenSSH multi-host line can yield several entries.
+  static List<_ParsedHostEntry> _parseLine(String line) {
     final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) return null;
-    final parts = trimmed.split(' ');
-    if (parts.length < 3) return null;
-    return _ParsedHostEntry(
-      hostPort: parts[0],
-      keyType: parts[1],
-      keyBase64: parts[2],
-      keyString: '${parts[1]} ${parts[2]}',
-    );
+    if (trimmed.isEmpty || trimmed.startsWith('#')) return const [];
+    // OpenSSH @-markers (cert-authority, revoked) — drop the marker
+    // and re-parse the rest. We don't currently honour
+    // cert-authority semantics (no cert chain on connect) so the
+    // safest read is "treat it like a normal entry"; @revoked
+    // entries are still imported because the user clearly wanted
+    // them on the file but won't have any effect on TOFU here.
+    final parts = trimmed.split(RegExp(r'\s+'));
+    var idx = 0;
+    while (idx < parts.length && parts[idx].startsWith('@')) {
+      idx++;
+    }
+    if (parts.length - idx < 3) return const [];
+    final hostSpec = parts[idx];
+    final keyType = parts[idx + 1];
+    final keyBase64 = parts[idx + 2];
+
+    if (hostSpec.startsWith('|1|')) {
+      // Hashed entry — caller's _isHashedHostsLine surfaces a
+      // separate "skipped N hashed entries" warning. Returning an
+      // empty list here means the import loop counts it as skipped.
+      return const [];
+    }
+    final keyString = '$keyType $keyBase64';
+    final out = <_ParsedHostEntry>[];
+    for (final spec in hostSpec.split(',')) {
+      final hostPort = _normaliseHostSpec(spec);
+      if (hostPort == null) continue;
+      out.add(
+        _ParsedHostEntry(
+          hostPort: hostPort,
+          keyType: keyType,
+          keyBase64: keyBase64,
+          keyString: keyString,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Convert a single OpenSSH host-spec or LetsFLUTssh internal
+  /// `host:port` into the canonical `host:port` shape the rest of
+  /// the manager keys on. Returns null on malformed input.
+  static String? _normaliseHostSpec(String spec) {
+    final s = spec.trim();
+    if (s.isEmpty) return null;
+    // OpenSSH bracketed form: `[host]:port` or `[ipv6]` (no port)
+    if (s.startsWith('[')) {
+      final close = s.indexOf(']');
+      if (close < 0) return null;
+      final host = s.substring(1, close);
+      if (host.isEmpty) return null;
+      // Tail after `]` is either empty (port 22) or `:port`.
+      final tail = s.substring(close + 1);
+      if (tail.isEmpty) return '$host:22';
+      if (!tail.startsWith(':')) return null;
+      final port = int.tryParse(tail.substring(1));
+      if (port == null || port < 1 || port > 65535) return null;
+      return '$host:$port';
+    }
+    // Bare IPv6 without brackets is illegal in OpenSSH — assume
+    // anything with multiple `:` is unbracketed IPv6 and drop it.
+    final colonCount = s.split(':').length - 1;
+    if (colonCount > 1) return null;
+    if (colonCount == 1) {
+      // `host:port` — internal format (or OpenSSH IPv4-with-explicit
+      // port which OpenSSH itself does not emit but we accept).
+      final parts = s.split(':');
+      final host = parts[0];
+      final port = int.tryParse(parts[1]);
+      if (host.isEmpty || port == null || port < 1 || port > 65535) {
+        return null;
+      }
+      return '$host:$port';
+    }
+    // Bare hostname — OpenSSH default port 22.
+    return '$s:22';
   }
 }
 

@@ -512,7 +512,7 @@ JSON → deflate → base64url. Top-level keys:
 | `s` | `List<Map>` | Sessions (compact encoding). Manager-key sessions have `mg: 1` flag, `ki` = shortId |
 | `eg` | `List<String>` | Empty folder paths |
 | `c` | `Map` | App config JSON |
-| `kh` | `String` | Known hosts, LetsFLUTssh wire format (`host:port keytype base64key`, one per line — round-trips through `KnownHostsManager.importFromString/exportToString`; NOT OpenSSH `~/.ssh/known_hosts`) |
+| `kh` | `String` | Known hosts. **Export emits** the LetsFLUTssh internal wire format (`host:port keytype base64key`, one per line). **Import accepts both** the internal format and OpenSSH `~/.ssh/known_hosts` — `_parseLine` detects bare hostnames (port 22 default), `[host]:port` brackets (incl. IPv6), comma-separated multi-host fan-out, and `@cert-authority`/`@revoked` markers (stripped). Hashed (`|1|salt|hash`, `HashKnownHosts yes`) entries are skipped — HMAC-SHA1 hostname hashes are one-way so we have nothing to match against on a later TOFU `verify()`. The importer surfaces a "skipped N hashed entries" warning to the log when it drops them. |
 | `tg` | `List<{i, n, cl?}>` | Tags (id, name, optional color) |
 | `st` | `List<{si, ti}>` | Session→tag links |
 | `ft` | `List<{fi, ti}>` | Folder→tag links (folderPath, tagId) |
