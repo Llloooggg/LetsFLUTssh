@@ -2214,6 +2214,31 @@ class SHi extends S {
       'इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या हार्डवेयर कुंजी सक्षम होने पर रेस्ट में एन्क्रिप्टेड।';
 
   @override
+  String get recordingsBrowserTitle => 'रिकॉर्डिंग';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'रिकॉर्ड किए गए सत्र ब्राउज़, चलाएँ और हटाएँ';
+
+  @override
+  String get recordingsEmpty => 'अभी कोई रिकॉर्डिंग नहीं';
+
+  @override
+  String get playRecording => 'चलाएँ';
+
+  @override
+  String get deleteRecording => 'हटाएँ';
+
+  @override
+  String get recordingPlaybackTitle => 'रिकॉर्डिंग रीप्ले करें';
+
+  @override
+  String get recordingSpeed => 'गति';
+
+  @override
+  String get recordingSpeedInstant => 'तुरंत';
+
+  @override
   String get tags => 'टैग';
 
   @override

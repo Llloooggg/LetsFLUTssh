@@ -2236,6 +2236,31 @@ class SDe extends S {
       'Terminal-Ausgabe für diese Sitzung auf der Festplatte speichern. Bei aktiviertem Master-Passwort / Hardware-Key verschlüsselt im Ruhezustand.';
 
   @override
+  String get recordingsBrowserTitle => 'Aufzeichnungen';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Aufgezeichnete Sitzungen durchsuchen, abspielen und löschen';
+
+  @override
+  String get recordingsEmpty => 'Noch keine Aufzeichnungen';
+
+  @override
+  String get playRecording => 'Abspielen';
+
+  @override
+  String get deleteRecording => 'Löschen';
+
+  @override
+  String get recordingPlaybackTitle => 'Aufzeichnung wiedergeben';
+
+  @override
+  String get recordingSpeed => 'Geschwindigkeit';
+
+  @override
+  String get recordingSpeedInstant => 'Sofort';
+
+  @override
   String get tags => 'Tags';
 
   @override

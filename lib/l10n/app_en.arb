@@ -1279,6 +1279,14 @@
   },
   "recordSession": "Record session",
   "recordSessionHelp": "Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.",
+  "recordingsBrowserTitle": "Recordings",
+  "recordingsBrowserSubtitle": "Browse, replay, and delete recorded sessions",
+  "recordingsEmpty": "No recordings yet",
+  "playRecording": "Play",
+  "deleteRecording": "Delete",
+  "recordingPlaybackTitle": "Replay recording",
+  "recordingSpeed": "Speed",
+  "recordingSpeedInstant": "Instant",
   "@errProxyJumpBastionFailed": {
     "placeholders": {
       "label": {

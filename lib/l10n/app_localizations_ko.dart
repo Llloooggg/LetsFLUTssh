@@ -2165,6 +2165,30 @@ class SKo extends S {
       '이 세션의 터미널 출력을 디스크에 저장합니다. 마스터 비밀번호 또는 하드웨어 키가 활성화된 경우 저장 시 암호화됩니다.';
 
   @override
+  String get recordingsBrowserTitle => '녹화';
+
+  @override
+  String get recordingsBrowserSubtitle => '녹화된 세션 찾아보기, 재생, 삭제';
+
+  @override
+  String get recordingsEmpty => '아직 녹화가 없습니다';
+
+  @override
+  String get playRecording => '재생';
+
+  @override
+  String get deleteRecording => '삭제';
+
+  @override
+  String get recordingPlaybackTitle => '녹화 재생';
+
+  @override
+  String get recordingSpeed => '속도';
+
+  @override
+  String get recordingSpeedInstant => '즉시';
+
+  @override
   String get tags => '태그';
 
   @override

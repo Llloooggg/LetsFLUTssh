@@ -2203,6 +2203,31 @@ class SFa extends S {
       'ذخیره خروجی پایانه روی دیسک برای این نشست. هنگام فعال بودن گذرواژه اصلی یا کلید سخت‌افزاری رمزنگاری می‌شود.';
 
   @override
+  String get recordingsBrowserTitle => 'ضبط‌ها';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'مرور، پخش مجدد و حذف نشست‌های ضبط شده';
+
+  @override
+  String get recordingsEmpty => 'هنوز ضبطی وجود ندارد';
+
+  @override
+  String get playRecording => 'پخش';
+
+  @override
+  String get deleteRecording => 'حذف';
+
+  @override
+  String get recordingPlaybackTitle => 'پخش مجدد ضبط';
+
+  @override
+  String get recordingSpeed => 'سرعت';
+
+  @override
+  String get recordingSpeedInstant => 'فوری';
+
+  @override
   String get tags => 'برچسب‌ها';
 
   @override

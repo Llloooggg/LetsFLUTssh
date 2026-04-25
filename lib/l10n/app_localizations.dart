@@ -3921,6 +3921,54 @@ abstract class S {
   /// **'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.'**
   String get recordSessionHelp;
 
+  /// No description provided for @recordingsBrowserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recordings'**
+  String get recordingsBrowserTitle;
+
+  /// No description provided for @recordingsBrowserSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse, replay, and delete recorded sessions'**
+  String get recordingsBrowserSubtitle;
+
+  /// No description provided for @recordingsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No recordings yet'**
+  String get recordingsEmpty;
+
+  /// No description provided for @playRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playRecording;
+
+  /// No description provided for @deleteRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteRecording;
+
+  /// No description provided for @recordingPlaybackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay recording'**
+  String get recordingPlaybackTitle;
+
+  /// No description provided for @recordingSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get recordingSpeed;
+
+  /// No description provided for @recordingSpeedInstant.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant'**
+  String get recordingSpeedInstant;
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

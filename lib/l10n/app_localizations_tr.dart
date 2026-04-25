@@ -2214,6 +2214,31 @@ class STr extends S {
       'Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı varsa diskte şifreli.';
 
   @override
+  String get recordingsBrowserTitle => 'Kayıtlar';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Kaydedilmiş oturumlara göz atın, oynatın ve silin';
+
+  @override
+  String get recordingsEmpty => 'Henüz kayıt yok';
+
+  @override
+  String get playRecording => 'Oynat';
+
+  @override
+  String get deleteRecording => 'Sil';
+
+  @override
+  String get recordingPlaybackTitle => 'Kaydı oynat';
+
+  @override
+  String get recordingSpeed => 'Hız';
+
+  @override
+  String get recordingSpeedInstant => 'Anında';
+
+  @override
   String get tags => 'Etiketler';
 
   @override

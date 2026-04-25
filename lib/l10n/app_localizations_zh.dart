@@ -2149,6 +2149,30 @@ class SZh extends S {
   String get recordSessionHelp => '将此会话的终端输出保存到磁盘。启用主密码或硬件密钥时静态加密。';
 
   @override
+  String get recordingsBrowserTitle => '录制';
+
+  @override
+  String get recordingsBrowserSubtitle => '浏览、回放和删除已录制的会话';
+
+  @override
+  String get recordingsEmpty => '还没有录制';
+
+  @override
+  String get playRecording => '播放';
+
+  @override
+  String get deleteRecording => '删除';
+
+  @override
+  String get recordingPlaybackTitle => '回放录制';
+
+  @override
+  String get recordingSpeed => '速度';
+
+  @override
+  String get recordingSpeedInstant => '立即';
+
+  @override
   String get tags => '标签';
 
   @override

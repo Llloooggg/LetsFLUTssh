@@ -2228,6 +2228,31 @@ class SEs extends S {
       'Guardar la salida del terminal en disco para esta sesión. Cifrada en reposo si hay contraseña maestra o clave de hardware.';
 
   @override
+  String get recordingsBrowserTitle => 'Grabaciones';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Examinar, reproducir y eliminar sesiones grabadas';
+
+  @override
+  String get recordingsEmpty => 'Sin grabaciones aún';
+
+  @override
+  String get playRecording => 'Reproducir';
+
+  @override
+  String get deleteRecording => 'Eliminar';
+
+  @override
+  String get recordingPlaybackTitle => 'Reproducir grabación';
+
+  @override
+  String get recordingSpeed => 'Velocidad';
+
+  @override
+  String get recordingSpeedInstant => 'Instantáneo';
+
+  @override
   String get tags => 'Etiquetas';
 
   @override

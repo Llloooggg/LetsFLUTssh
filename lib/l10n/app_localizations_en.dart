@@ -2205,6 +2205,31 @@ class SEn extends S {
       'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
+  String get recordingsBrowserTitle => 'Recordings';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Browse, replay, and delete recorded sessions';
+
+  @override
+  String get recordingsEmpty => 'No recordings yet';
+
+  @override
+  String get playRecording => 'Play';
+
+  @override
+  String get deleteRecording => 'Delete';
+
+  @override
+  String get recordingPlaybackTitle => 'Replay recording';
+
+  @override
+  String get recordingSpeed => 'Speed';
+
+  @override
+  String get recordingSpeedInstant => 'Instant';
+
+  @override
   String get tags => 'Tags';
 
   @override

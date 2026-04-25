@@ -2216,6 +2216,31 @@ class SAr extends S {
       'حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر عند توفر كلمة مرور رئيسية أو مفتاح أجهزة.';
 
   @override
+  String get recordingsBrowserTitle => 'التسجيلات';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'تصفح وإعادة تشغيل وحذف الجلسات المسجلة';
+
+  @override
+  String get recordingsEmpty => 'لا توجد تسجيلات بعد';
+
+  @override
+  String get playRecording => 'تشغيل';
+
+  @override
+  String get deleteRecording => 'حذف';
+
+  @override
+  String get recordingPlaybackTitle => 'إعادة تشغيل التسجيل';
+
+  @override
+  String get recordingSpeed => 'السرعة';
+
+  @override
+  String get recordingSpeedInstant => 'فوري';
+
+  @override
   String get tags => 'العلامات';
 
   @override

@@ -2225,6 +2225,31 @@ class SPt extends S {
       'Guardar saída do terminal em disco para esta sessão. Cifrada em repouso quando há password mestra ou chave de hardware.';
 
   @override
+  String get recordingsBrowserTitle => 'Gravações';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Navegar, reproduzir e eliminar sessões gravadas';
+
+  @override
+  String get recordingsEmpty => 'Sem gravações ainda';
+
+  @override
+  String get playRecording => 'Reproduzir';
+
+  @override
+  String get deleteRecording => 'Eliminar';
+
+  @override
+  String get recordingPlaybackTitle => 'Reproduzir gravação';
+
+  @override
+  String get recordingSpeed => 'Velocidade';
+
+  @override
+  String get recordingSpeedInstant => 'Instantâneo';
+
+  @override
   String get tags => 'Tags';
 
   @override

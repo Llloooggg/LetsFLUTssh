@@ -2204,6 +2204,31 @@ class SVi extends S {
       'Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ nếu bật master password hoặc khóa phần cứng.';
 
   @override
+  String get recordingsBrowserTitle => 'Bản ghi';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Duyệt, phát lại và xóa các phiên đã ghi';
+
+  @override
+  String get recordingsEmpty => 'Chưa có bản ghi nào';
+
+  @override
+  String get playRecording => 'Phát';
+
+  @override
+  String get deleteRecording => 'Xóa';
+
+  @override
+  String get recordingPlaybackTitle => 'Phát lại bản ghi';
+
+  @override
+  String get recordingSpeed => 'Tốc độ';
+
+  @override
+  String get recordingSpeedInstant => 'Tức thì';
+
+  @override
   String get tags => 'Thẻ';
 
   @override

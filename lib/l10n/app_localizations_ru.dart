@@ -2232,6 +2232,31 @@ class SRu extends S {
       'Сохранять вывод терминала на диск для этой сессии. Шифруется на диске при включённом мастер-пароле или аппаратном ключе.';
 
   @override
+  String get recordingsBrowserTitle => 'Записи';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Просмотр, воспроизведение и удаление записанных сессий';
+
+  @override
+  String get recordingsEmpty => 'Записей пока нет';
+
+  @override
+  String get playRecording => 'Воспроизвести';
+
+  @override
+  String get deleteRecording => 'Удалить';
+
+  @override
+  String get recordingPlaybackTitle => 'Воспроизвести запись';
+
+  @override
+  String get recordingSpeed => 'Скорость';
+
+  @override
+  String get recordingSpeedInstant => 'Мгновенно';
+
+  @override
   String get tags => 'Теги';
 
   @override

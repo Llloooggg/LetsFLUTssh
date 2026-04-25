@@ -2239,6 +2239,31 @@ class SFr extends S {
       'Sauvegarder la sortie du terminal sur disque pour cette session. Chiffrée au repos avec mot de passe maître ou clé matérielle.';
 
   @override
+  String get recordingsBrowserTitle => 'Enregistrements';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Parcourir, rejouer et supprimer des sessions enregistrées';
+
+  @override
+  String get recordingsEmpty => 'Aucun enregistrement';
+
+  @override
+  String get playRecording => 'Lire';
+
+  @override
+  String get deleteRecording => 'Supprimer';
+
+  @override
+  String get recordingPlaybackTitle => 'Rejouer l\'enregistrement';
+
+  @override
+  String get recordingSpeed => 'Vitesse';
+
+  @override
+  String get recordingSpeedInstant => 'Instantané';
+
+  @override
   String get tags => 'Étiquettes';
 
   @override

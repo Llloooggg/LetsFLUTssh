@@ -2168,6 +2168,30 @@ class SJa extends S {
       'このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキー有効時は保存時に暗号化されます。';
 
   @override
+  String get recordingsBrowserTitle => '録画';
+
+  @override
+  String get recordingsBrowserSubtitle => '録画したセッションの閲覧、再生、削除';
+
+  @override
+  String get recordingsEmpty => '録画はまだありません';
+
+  @override
+  String get playRecording => '再生';
+
+  @override
+  String get deleteRecording => '削除';
+
+  @override
+  String get recordingPlaybackTitle => '録画を再生';
+
+  @override
+  String get recordingSpeed => '速度';
+
+  @override
+  String get recordingSpeedInstant => '即時';
+
+  @override
   String get tags => 'タグ';
 
   @override

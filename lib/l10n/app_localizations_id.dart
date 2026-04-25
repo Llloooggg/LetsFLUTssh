@@ -2216,6 +2216,31 @@ class SId extends S {
       'Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password / kunci hardware aktif.';
 
   @override
+  String get recordingsBrowserTitle => 'Rekaman';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Telusuri, putar ulang, dan hapus sesi yang direkam';
+
+  @override
+  String get recordingsEmpty => 'Belum ada rekaman';
+
+  @override
+  String get playRecording => 'Putar';
+
+  @override
+  String get deleteRecording => 'Hapus';
+
+  @override
+  String get recordingPlaybackTitle => 'Putar ulang rekaman';
+
+  @override
+  String get recordingSpeed => 'Kecepatan';
+
+  @override
+  String get recordingSpeedInstant => 'Langsung';
+
+  @override
   String get tags => 'Tag';
 
   @override
