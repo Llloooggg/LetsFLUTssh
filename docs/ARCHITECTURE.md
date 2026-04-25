@@ -17,6 +17,7 @@
   - [3.10 Update (`core/update/`)](#310-update-coreupdate)
   - [3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)](#311-keyboard-shortcuts-coreshortcut_registrydart)
   - [3.12 Snippets (`core/snippets/`)](#312-snippets-coresnippets)
+  - [3.13 Session Recording (`core/session/session_recorder.dart`)](#313-session-recording-coresessionsession_recorderdart)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -1990,6 +1991,61 @@ User-defined names are anything else; the picker collects them via [`_SnippetFil
 #### Picker integration
 
 `SnippetPicker.show(context, sessionId, templateContext)` in `features/snippets/snippet_picker.dart` is the single entry point used from the desktop terminal pane and the mobile terminal view. The caller assembles the built-in context from `widget.connection.sshConfig` (host, user, port, label, now) and hands it to the picker; the picker handles the render → prompt → fill flow internally and returns the final command (or `null` on cancel). The terminal pane never sees the unrendered command — by the time it calls `sendCommand` every placeholder has either resolved against the session or been filled by the user.
+
+---
+
+### 3.13 Session Recording (`core/session/session_recorder.dart`)
+
+Per-shell terminal recorder that captures the user-visible output stream + input keystrokes, framed as [asciinema v2](https://docs.asciinema.org/manual/asciicast/v2/) events, persisted to disk with optional encryption-at-rest.
+
+#### Lifecycle
+
+`SessionRecorder` is opened by `TerminalPane._maybeOpenRecorder` when the session has opted in via `Session.extras['record'] == true`. The recorder is handed to `ShellHelper.openShell` as an optional parameter; the helper tees stdout/stderr bytes (output) and `terminal.onOutput` bytes (input) into the recorder before the normal write paths run. `ShellConnection.close` calls `recorder.close()` after the shell tears down so any final tail bytes (banner, "logout") still land before the file is sealed.
+
+```
+TerminalPane
+  └── reads Session.extras['record']
+       └── SessionRecorder.open(sessionId, label, w, h, dbKey)
+            └── ShellHelper.openShell(... recorder: rec)
+                 ├── stdout/stderr.listen → terminal.write + recorder.recordOutput
+                 └── terminal.onOutput   → shell.write   + recorder.recordInput
+```
+
+#### Why per-shell, not per-connection
+
+Multi-pane connections run independent shell channels — each pane has its own xterm buffer, scrollback, and dimensions. A connection-level recorder would interleave bytes from N shells into a single timeline that no playback tool could un-mix. Per-shell keeps each recording straight-line.
+
+#### Why asciinema v2 inside an encryption envelope
+
+asciinema is the de-facto interop format — `asciinema play file.cast` plays it on any platform without our app installed. Keeping the plaintext shape standard means a future "Export to .cast" action is one decrypt away: the bytes inside the envelope are already the asciinema JSON-Lines that any cast viewer accepts. A custom binary format would lock recordings inside the app forever.
+
+#### Encryption envelope
+
+When the running [security tier](#36-security--encryption-coresecurity) carries an in-memory DB encryption key, the recorder derives a recording-specific 32-byte key via `HKDF-SHA-256(prk = dbKey, info = "letsflutssh-recording-v1", salt = empty)`. The HKDF context tag keeps the recording key cryptographically separate from the DB key — a recording leak does not compromise the DB and vice versa.
+
+File layout:
+
+```
+[LFR1 magic (4)] [version (1)]
+loop:
+  [plaintext-len (4 LE)] [nonce (12)] [ciphertext (len)] [GCM tag (16)]
+```
+
+Each plaintext chunk is one asciinema JSON-Lines record (header on first chunk, then `[t_seconds, "o"|"i", "data"]` events). Per-event GCM frames mean a truncated tail (crashed app, full disk) loses only the trailing event, not the whole timeline. Random nonces per frame plus the same authenticated key give standard GCM guarantees per event.
+
+#### Plaintext mode
+
+When the security tier is `plaintext`, the recorder writes raw asciinema JSON-Lines (no envelope, no encryption) to a `.cast` file with `chmod 600`. The user already opted out of crypto at the tier level — adding a different surface for one feature would be misleading. The file extension differs (`.cast` vs `.lfsr`) so a future loader can dispatch by suffix without reading magic bytes first.
+
+#### Storage
+
+Recordings live as discrete files at `<appSupport>/recordings/<sessionId>/<isoTimestamp>.<lfsr|cast>`. Each file caps at `maxFileBytes = 100 MB`; on overflow the recorder rotates to a fresh file under the same session (with a fresh asciinema header). 100 MB is large enough for a multi-hour vim-heavy day, small enough that exporting a single file stays trivially shareable. Global cap + LRU eviction is deferred to a follow-up alongside the playback browser — the user manages disk manually for v1.
+
+#### Privacy posture
+
+- **Opt-in per-session, default off.** Privacy-first positioning. Toggle lives on the session edit dialog Options tab.
+- **Quick-connect sessions skip recording.** No stable session id = no recording directory, no opt-in surface. Recorder returns null.
+- **Recorder failure is best-effort.** A refusal to open the file (permission, disk full) logs a warning and returns null; the connect itself never fails on a recorder error.
 
 ---
 

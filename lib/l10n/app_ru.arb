@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "Бастион {label} не подключился.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "Записывать сессию",
+  "recordSessionHelp": "Сохранять вывод терминала на диск для этой сессии. Шифруется на диске при включённом мастер-пароле или аппаратном ключе.",
   "tags": "Теги",
   "tagsSubtitle": "Организуйте сессии и папки цветными тегами",
   "noTags": "Тегов пока нет",

@@ -2156,33 +2156,40 @@ class SRu extends S {
       'Сейчас работает только локальный (-L); -R / -D сохраняются, но не активны.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Подключаться через';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Прямое подключение';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Сохранённая сессия';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Своё значение (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Свои хопы используют учётные данные этой сессии. Для другой аутентификации бастиона сохрани бастион отдельной сессией.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'Цепочка прокси замыкается на саму себя.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Цепочка прокси слишком глубокая (максимум $max хопов).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Бастион $label не подключился.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Теги';

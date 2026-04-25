@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "Bastion {label} bağlanamadı.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "Oturumu kaydet",
+  "recordSessionHelp": "Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı varsa diskte şifreli.",
   "tags": "Etiketler",
   "tagsSubtitle": "Oturumları ve klasörleri renkli etiketlerle düzenleyin",
   "noTags": "Henüz etiket yok",

@@ -2149,33 +2149,40 @@ class SPt extends S {
       'Apenas local (-L) está ativo hoje; -R / -D são guardadas mas inativas.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Ligar através de';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Ligação direta';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Sessão guardada';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Personalizado (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Hops personalizados usam as credenciais desta sessão. Para auth de bastião diferente, guarda o bastião como sessão própria.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'A cadeia de proxy forma um ciclo.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Cadeia de proxy demasiado profunda (máx $max hops).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'O bastião $label falhou ao conectar.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Tags';

@@ -2140,33 +2140,40 @@ class SId extends S {
       'Hanya lokal (-L) yang aktif saat ini; -R / -D disimpan tetapi tidak aktif.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Hubungkan melalui';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Koneksi langsung';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Sesi tersimpan';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Kustom (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Hop kustom memakai kredensial sesi ini. Untuk auth bastion berbeda, simpan bastion sebagai sesi tersendiri.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'Rantai proxy membentuk loop.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Rantai proxy terlalu dalam (maks $max hop).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Bastion $label gagal terhubung.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Tag';

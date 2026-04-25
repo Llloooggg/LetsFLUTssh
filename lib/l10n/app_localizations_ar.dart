@@ -2140,33 +2140,40 @@ class SAr extends S {
       'يعمل المحلي (-L) فقط الآن؛ يتم حفظ -R / -D لكنها غير نشطة.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'الاتصال عبر';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'اتصال مباشر';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'جلسة محفوظة';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'مخصص (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'القفزات المخصصة تستخدم بيانات اعتماد هذه الجلسة. لمصادقة بستيون مختلفة، احفظ البستيون كجلسة خاصة.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'سلسلة البروكسي تشكّل دائرة مغلقة.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'سلسلة البروكسي عميقة جدًا (الحد الأقصى $max قفزات).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'فشل اتصال البستيون $label.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'العلامات';

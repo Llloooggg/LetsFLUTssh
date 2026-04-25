@@ -2091,33 +2091,40 @@ class SKo extends S {
       '현재 로컬 (-L)만 작동합니다. -R / -D는 저장되지만 비활성 상태입니다.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => '경유 연결';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => '직접 연결';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => '저장된 세션';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => '사용자 지정 (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      '사용자 지정 hop은 이 세션의 인증 정보를 사용합니다. 다른 bastion 인증이 필요하면 bastion을 별도 세션으로 저장하세요.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => '프록시 체인이 순환됩니다.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return '프록시 체인이 너무 깊습니다 (최대 $max hop).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Bastion $label 연결 실패.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => '태그';

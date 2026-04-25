@@ -2128,33 +2128,40 @@ class SVi extends S {
       'Hiện chỉ -L hoạt động; -R / -D được lưu nhưng không kích hoạt.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Kết nối qua';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Kết nối trực tiếp';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Phiên đã lưu';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Tuỳ chỉnh (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Hop tuỳ chỉnh dùng thông tin xác thực của phiên này. Để xác thực bastion khác, hãy lưu bastion như một phiên riêng.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'Chuỗi proxy lặp lại chính nó.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Chuỗi proxy quá sâu (tối đa $max hop).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Bastion $label kết nối thất bại.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Thẻ';

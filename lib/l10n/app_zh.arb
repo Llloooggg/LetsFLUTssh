@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "堡垒机 {label} 连接失败。",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "录制会话",
+  "recordSessionHelp": "将此会话的终端输出保存到磁盘。启用主密码或硬件密钥时静态加密。",
   "tags": "标签",
   "tagsSubtitle": "使用彩色标签整理会话和文件夹",
   "noTags": "暂无标签",

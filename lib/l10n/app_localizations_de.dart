@@ -2160,33 +2160,40 @@ class SDe extends S {
       'Aktuell laufen nur lokale (-L) Weiterleitungen; -R / -D werden gespeichert, aber nicht aktiv.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Verbinden über';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Direkte Verbindung';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Gespeicherte Sitzung';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Benutzerdefiniert (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Override-Hops verwenden die Anmeldedaten dieser Sitzung. Für andere Bastion-Auth speichere den Bastion als eigene Sitzung.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'Proxy-Kette bildet einen Kreis.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Proxy-Kette ist zu tief (max $max Hops).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Bastion $label konnte nicht verbinden.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Tags';

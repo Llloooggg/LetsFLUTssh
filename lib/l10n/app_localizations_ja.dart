@@ -2094,33 +2094,40 @@ class SJa extends S {
       '現在はローカル (-L) のみ動作します。-R / -D は保存されますが無効です。';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => '経由先';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => '直接接続';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => '保存済みセッション';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'カスタム (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'カスタム経由はこのセッションの認証情報を使用します。別の踏み台認証が必要な場合は、踏み台を独立したセッションとして保存してください。';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'プロキシチェーンがループしています。';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'プロキシチェーンが深すぎます (最大 $max ホップ)。';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return '踏み台 $label に接続できませんでした。';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'タグ';

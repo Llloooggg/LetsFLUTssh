@@ -8,6 +8,7 @@ import 'package:xterm/xterm.dart';
 
 import '../../utils/logger.dart';
 import '../connection/connection.dart';
+import '../session/session_recorder.dart';
 
 /// Result of opening an SSH shell on a terminal.
 class ShellConnection {
@@ -15,21 +16,33 @@ class ShellConnection {
   final StreamSubscription stdoutSub;
   final StreamSubscription stderrSub;
   final Terminal _terminal;
+  final SessionRecorder? recorder;
 
   ShellConnection({
     required this.shell,
     required this.stdoutSub,
     required this.stderrSub,
     required Terminal terminal,
+    this.recorder,
   }) : _terminal = terminal;
 
   /// Cancel stream subscriptions, clear terminal callbacks, and close the shell.
+  ///
+  /// Recorder closes after the shell so any final tail bytes
+  /// (banner, "logout") still land in the recording before the
+  /// file is sealed.
   void close() {
     stdoutSub.cancel();
     stderrSub.cancel();
     _terminal.onOutput = null;
     _terminal.onResize = null;
     shell.close();
+    final r = recorder;
+    if (r != null) {
+      // Best-effort — fire and forget so caller does not have to
+      // become async to dispose a pane.
+      unawaited(r.close());
+    }
   }
 }
 
@@ -49,11 +62,17 @@ class ShellHelper {
   ///
   /// Returns a [ShellConnection] on success, or throws on final failure.
   /// [onDone] is called when the shell session closes.
+  ///
+  /// [recorder] is optional — when supplied every byte the user
+  /// sees on `terminal` and every byte the user types is forked
+  /// into it before the normal write paths run. The recorder owns
+  /// its own file lifecycle; this helper only feeds bytes.
   static Future<ShellConnection> openShell({
     required Connection connection,
     required Terminal terminal,
     int maxAttempts = 5,
     VoidCallback? onDone,
+    SessionRecorder? recorder,
   }) async {
     final sshConn = connection.sshConnection;
     if (sshConn == null || !sshConn.isConnected) {
@@ -78,6 +97,7 @@ class ShellHelper {
             .transform(decoder)
             .listen((data) {
               terminal.write(data);
+              recorder?.recordOutput(utf8.encode(data));
             });
 
         final stderrSub = shell.stderr
@@ -85,11 +105,13 @@ class ShellHelper {
             .transform(decoder)
             .listen((data) {
               terminal.write(data);
+              recorder?.recordOutput(utf8.encode(data));
             });
 
         try {
           terminal.onOutput = (data) {
             shell.write(Uint8List.fromList(utf8.encode(data)));
+            recorder?.recordInput(utf8.encode(data));
           };
 
           terminal.onResize = (width, height, pixelWidth, pixelHeight) {
@@ -111,6 +133,7 @@ class ShellHelper {
           stdoutSub: stdoutSub,
           stderrSub: stderrSub,
           terminal: terminal,
+          recorder: recorder,
         );
       } catch (e) {
         if (attempt == maxAttempts - 1) rethrow;

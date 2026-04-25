@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "Bastion {label} gagal terhubung.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "Rekam sesi",
+  "recordSessionHelp": "Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password / kunci hardware aktif.",
   "tags": "Tag",
   "tagsSubtitle": "Atur sesi dan folder dengan tag berwarna",
   "noTags": "Belum ada tag",

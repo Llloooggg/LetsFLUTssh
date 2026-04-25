@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "El bastión {label} no pudo conectar.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "Grabar sesión",
+  "recordSessionHelp": "Guardar la salida del terminal en disco para esta sesión. Cifrada en reposo si hay contraseña maestra o clave de hardware.",
   "tags": "Etiquetas",
   "tagsSubtitle": "Organiza sesiones y carpetas con etiquetas de color",
   "noTags": "Aún no hay etiquetas",

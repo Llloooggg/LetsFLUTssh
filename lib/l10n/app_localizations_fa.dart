@@ -2127,33 +2127,40 @@ class SFa extends S {
       'فقط محلی (-L) اکنون اجرا می‌شود؛ -R / -D ذخیره می‌شوند ولی فعال نیستند.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'اتصال از طریق';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'اتصال مستقیم';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'نشست ذخیره‌شده';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'سفارشی (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'پرش‌های سفارشی از اعتبارنامه‌های همین نشست استفاده می‌کنند. برای احراز هویت متفاوت بستیون، آن را به‌عنوان نشست جداگانه ذخیره کنید.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'زنجیره پروکسی به خودش بازمی‌گردد.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'زنجیره پروکسی بیش از حد عمیق است (حداکثر $max پرش).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'بستیون $label نتوانست متصل شود.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'برچسب‌ها';

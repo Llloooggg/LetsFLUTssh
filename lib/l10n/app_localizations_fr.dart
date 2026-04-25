@@ -2163,33 +2163,40 @@ class SFr extends S {
       'Seules les règles locales (-L) sont actives ; -R / -D sont enregistrées mais inactives.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Se connecter via';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Connexion directe';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Session enregistrée';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Personnalisé (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Les sauts personnalisés utilisent les identifiants de cette session. Pour une auth de bastion distincte, enregistrez le bastion comme session.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'La chaîne de proxy forme une boucle.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Chaîne de proxy trop profonde (max $max sauts).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Le bastion $label n\'a pas pu se connecter.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Étiquettes';

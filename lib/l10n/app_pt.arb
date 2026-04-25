@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "O bastião {label} falhou ao conectar.",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "Gravar sessão",
+  "recordSessionHelp": "Guardar saída do terminal em disco para esta sessão. Cifrada em repouso quando há password mestra ou chave de hardware.",
   "tags": "Tags",
   "tagsSubtitle": "Organize sessões e pastas com tags coloridas",
   "noTags": "Ainda não há tags",

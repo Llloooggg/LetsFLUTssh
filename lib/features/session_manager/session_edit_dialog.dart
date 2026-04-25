@@ -114,6 +114,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   late final TextEditingController _proxyPortCtrl;
   late final TextEditingController _proxyUserCtrl;
 
+  /// Backing state for the Options-tab Record-session toggle.
+  /// Hydrated from `Session.extras['record']` on init (default false
+  /// so a fresh session is opt-out by default — privacy-first).
+  bool _recordEnabled = false;
+
   bool get _isEditing => widget.session != null;
 
   /// Whether a key from the store is selected.
@@ -165,6 +170,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     } else if (s?.viaOverride != null) {
       _proxyMode = _ProxyMode.custom;
     }
+    _recordEnabled = s?.extrasBool('record') ?? false;
     if (s != null) {
       _loadForwards(s.id);
     }
@@ -227,8 +233,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
             user: _proxyUserCtrl.text.trim(),
           )
         : null;
+    // Merge the record-toggle into extras. `null` clears the key so
+    // a session that started as opt-in then went back to opt-out
+    // does not leave a `false` entry behind cluttering the bag.
+    final recordDelta = <String, Object?>{
+      'record': _recordEnabled ? true : null,
+    };
+    Session built;
     if (_isEditing) {
-      return widget.session!.copyWith(
+      built = widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
         folder: _folderCtrl.text.trim(),
         server: widget.session!.server.copyWith(
@@ -247,26 +260,28 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         viaSessionId: viaSessionId,
         viaOverride: viaOverride,
       );
+    } else {
+      built = Session(
+        label: _labelCtrl.text.trim(),
+        folder: _folderCtrl.text.trim(),
+        server: ServerAddress(
+          host: _hostCtrl.text.trim(),
+          port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+          user: _userCtrl.text.trim(),
+        ),
+        auth: SessionAuth(
+          authType: _derivedAuthType,
+          keyId: _selectedKeyId,
+          password: _passwordCtrl.text,
+          keyPath: keyPath,
+          keyData: _keyDataCtrl.text.trim(),
+          passphrase: _passphraseCtrl.text,
+        ),
+        viaSessionId: viaSessionId,
+        viaOverride: viaOverride,
+      );
     }
-    return Session(
-      label: _labelCtrl.text.trim(),
-      folder: _folderCtrl.text.trim(),
-      server: ServerAddress(
-        host: _hostCtrl.text.trim(),
-        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-        user: _userCtrl.text.trim(),
-      ),
-      auth: SessionAuth(
-        authType: _derivedAuthType,
-        keyId: _selectedKeyId,
-        password: _passwordCtrl.text,
-        keyPath: keyPath,
-        keyData: _keyDataCtrl.text.trim(),
-        passphrase: _passphraseCtrl.text,
-      ),
-      viaSessionId: viaSessionId,
-      viaOverride: viaOverride,
-    );
+    return built.withExtras(recordDelta);
   }
 
   bool _validateAuth() {
@@ -1028,7 +1043,35 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [_buildTagsSection()],
+      children: [
+        _buildTagsSection(),
+        const SizedBox(height: 16),
+        _buildRecordSection(),
+      ],
+    );
+  }
+
+  /// Per-session recording toggle. Persisted into `Session.extras`
+  /// (via [Session.withExtras]) when the user saves; the runtime
+  /// reads `extras['record']` at shell-open time. Off by default to
+  /// match the privacy-first positioning — recording is opt-in.
+  Widget _buildRecordSection() {
+    final l10n = S.of(context);
+    final current = _recordEnabled;
+    return _OptionRow(
+      label: l10n.recordSession,
+      trailing: Switch(
+        value: current,
+        onChanged: (v) => setState(() => _recordEnabled = v),
+      ),
+      detail: Text(
+        l10n.recordSessionHelp,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: AppFonts.xs,
+          color: AppTheme.fgFaint,
+        ),
+      ),
     );
   }
 

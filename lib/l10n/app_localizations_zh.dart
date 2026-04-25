@@ -2076,33 +2076,39 @@ class SZh extends S {
   String get forwardOnlyLocalSupported => '当前仅本地 (-L) 生效；-R / -D 会保存但不激活。';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => '通过连接';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => '直连';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => '已保存会话';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => '自定义 (user@host:port)';
 
   @override
-  String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+  String get proxyJumpCustomNote => '自定义跳转使用此会话的凭据。如需不同的堡垒机认证，请将堡垒机保存为独立会话。';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => '代理链路自我闭合。';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return '代理链太深（最多 $max 跳）。';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return '堡垒机 $label 连接失败。';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => '标签';

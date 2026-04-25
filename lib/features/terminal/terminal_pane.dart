@@ -13,7 +13,10 @@ import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
+import '../../core/session/session_recorder.dart';
 import '../../core/ssh/shell_helper.dart';
+import '../../providers/security_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
@@ -266,10 +269,35 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         onDone: onDone,
       );
     }
+    final recorder = await _maybeOpenRecorder(conn);
     return ShellHelper.openShell(
       connection: conn,
       terminal: _terminal,
       onDone: onDone,
+      recorder: recorder,
+    );
+  }
+
+  /// Open a recorder when the session has opted in via
+  /// `Session.extras['record'] == true`. Returns null if recording
+  /// is off, the session is unsaved (quick-connect), or the
+  /// recorder failed to open — all three are equivalent from the
+  /// shell's perspective: no tee, no file. Recorder failure is
+  /// best-effort; a refusal here never blocks the connect.
+  Future<SessionRecorder?> _maybeOpenRecorder(Connection conn) async {
+    final sessionId = conn.sessionId;
+    if (sessionId == null) return null;
+    final store = ref.read(sessionStoreProvider);
+    final session = await store.loadWithCredentials(sessionId);
+    if (session == null) return null;
+    if (session.extrasBool('record') != true) return null;
+    final dbKey = ref.read(securityStateProvider).encryptionKey;
+    return SessionRecorder.open(
+      sessionId: sessionId,
+      shellLabel: session.label,
+      width: _terminal.viewWidth,
+      height: _terminal.viewHeight,
+      dbKey: dbKey,
     );
   }
 

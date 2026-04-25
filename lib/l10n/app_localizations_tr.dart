@@ -2138,33 +2138,40 @@ class STr extends S {
       'Şu anda yalnızca yerel (-L) çalışıyor; -R / -D kaydediliyor ancak etkin değil.';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'Üzerinden bağlan';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'Doğrudan bağlantı';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'Kaydedilmiş oturum';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'Özel (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'Özel hoplar bu oturumun kimlik bilgilerini kullanır. Farklı bastion auth için bastion\'u ayrı bir oturum olarak kaydet.';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'Proxy zinciri kendine dolanıyor.';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'Proxy zinciri fazla derin (maks $max hop).';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'Bastion $label bağlanamadı.';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'Etiketler';

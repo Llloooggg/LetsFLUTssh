@@ -617,6 +617,8 @@
   "@errProxyJumpDepth": {"placeholders": {"max": {"type": "int"}}},
   "errProxyJumpBastionFailed": "बेस्टियन {label} कनेक्ट नहीं हो सका।",
   "@errProxyJumpBastionFailed": {"placeholders": {"label": {"type": "String"}}},
+  "recordSession": "सत्र रिकॉर्ड करें",
+  "recordSessionHelp": "इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या हार्डवेयर कुंजी सक्षम होने पर रेस्ट में एन्क्रिप्टेड।",
   "tags": "टैग",
   "tagsSubtitle": "रंगीन टैग के साथ सत्र और फ़ोल्डर व्यवस्थित करें",
   "noTags": "अभी तक कोई टैग नहीं",

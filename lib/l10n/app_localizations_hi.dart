@@ -2138,33 +2138,40 @@ class SHi extends S {
       'अभी केवल स्थानीय (-L) चल रहा है; -R / -D सहेजे जाते हैं पर निष्क्रिय हैं।';
 
   @override
-  String get proxyJump => 'Connect via';
+  String get proxyJump => 'इसके माध्यम से जुड़ें';
 
   @override
-  String get proxyJumpNone => 'Direct connection';
+  String get proxyJumpNone => 'सीधा कनेक्शन';
 
   @override
-  String get proxyJumpSavedSession => 'Saved session';
+  String get proxyJumpSavedSession => 'सहेजा गया सत्र';
 
   @override
-  String get proxyJumpCustom => 'Custom (user@host:port)';
+  String get proxyJumpCustom => 'कस्टम (user@host:port)';
 
   @override
   String get proxyJumpCustomNote =>
-      'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
+      'कस्टम हॉप्स इसी सत्र के क्रेडेंशियल उपयोग करते हैं। अलग बेस्टियन ऑथ के लिए बेस्टियन को अलग सत्र के रूप में सहेजें।';
 
   @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
+  String get errProxyJumpCycle => 'प्रॉक्सी श्रृंखला स्वयं को लूप करती है।';
 
   @override
   String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
+    return 'प्रॉक्सी श्रृंखला बहुत गहरी है (अधिकतम $max हॉप्स)।';
   }
 
   @override
   String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
+    return 'बेस्टियन $label कनेक्ट नहीं हो सका।';
   }
+
+  @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
 
   @override
   String get tags => 'टैग';

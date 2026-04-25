@@ -3849,6 +3849,18 @@ abstract class S {
   /// **'Bastion {label} failed to connect.'**
   String errProxyJumpBastionFailed(String label);
 
+  /// No description provided for @recordSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Record session'**
+  String get recordSession;
+
+  /// No description provided for @recordSessionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.'**
+  String get recordSessionHelp;
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

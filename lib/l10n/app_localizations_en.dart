@@ -2158,6 +2158,13 @@ class SEn extends S {
   }
 
   @override
+  String get recordSession => 'Record session';
+
+  @override
+  String get recordSessionHelp =>
+      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+
+  @override
   String get tags => 'Tags';
 
   @override
