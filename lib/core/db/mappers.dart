@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -52,7 +54,28 @@ Session dbSessionToSession(
     ),
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,
+    extras: _decodeExtras(db.extras),
   );
+}
+
+/// Decode the `Sessions.extras` JSON column. Tolerates malformed
+/// blobs (returns empty) — corrupt extras must never block a session
+/// from loading. The column default is `'{}'`, so this is a recovery
+/// path for hand-edited DBs or future schema regressions.
+Map<String, Object?> _decodeExtras(String raw) {
+  if (raw.isEmpty) return const <String, Object?>{};
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is Map) {
+      return decoded.map((k, v) => MapEntry(k.toString(), v));
+    }
+  } on FormatException {
+    AppLogger.instance.log(
+      'Corrupt session.extras JSON, dropping to empty map',
+      name: 'SessionMapper',
+    );
+  }
+  return const <String, Object?>{};
 }
 
 /// Convert domain [Session] to [SessionsCompanion] for DB insert/update.
@@ -70,6 +93,7 @@ SessionsCompanion sessionToCompanion(Session s, {required String? folderId}) {
     keyData: Value(s.keyData),
     keyId: Value(s.keyId.isEmpty ? null : s.keyId),
     passphrase: Value(s.passphrase),
+    extras: Value(jsonEncode(s.extras)),
     createdAt: Value(s.createdAt),
     updatedAt: Value(s.updatedAt),
   );

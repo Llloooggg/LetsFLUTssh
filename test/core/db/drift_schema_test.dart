@@ -40,4 +40,13 @@ void main() {
     await verifier.migrateAndValidate(db, 1);
     await db.close();
   });
+
+  test('v1 → v2 migration adds Sessions.extras column', () async {
+    // Build a fresh v1 DB, walk the registered onUpgrade, and ask
+    // drift's schema diff to confirm the result matches v2 byte-for-byte.
+    final connection = await verifier.startAt(1);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 2);
+    await db.close();
+  });
 }

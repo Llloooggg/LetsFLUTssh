@@ -49,6 +49,13 @@ class Sessions extends Table {
   TextColumn get notes => text().withDefault(const Constant(''))();
   DateTimeColumn get lastConnectedAt => dateTime().nullable()();
 
+  /// Free-form JSON bag for feature flags that don't justify their own
+  /// columns (recording toggle, layout hints, agent-forwarding state,
+  /// future per-session preferences). Always a JSON object — empty
+  /// `{}` by default. Structured fields (auth, port forwards, proxy
+  /// jump) keep their own columns; this is the escape hatch.
+  TextColumn get extras => text().withDefault(const Constant('{}'))();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 

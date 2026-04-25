@@ -698,6 +698,15 @@ class MockKnownHostsManager extends _i1.Mock implements _i13.KnownHostsManager {
           as _i2.Future<void>);
 
   @override
+  _i2.Future<void> reload() =>
+      (super.noSuchMethod(
+            Invocation.method(#reload, []),
+            returnValue: _i2.Future<void>.value(),
+            returnValueForMissingStub: _i2.Future<void>.value(),
+          )
+          as _i2.Future<void>);
+
+  @override
   _i2.Future<bool> verify(
     String? host,
     int? port,

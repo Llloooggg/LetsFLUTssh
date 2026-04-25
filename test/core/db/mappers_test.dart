@@ -14,24 +14,26 @@ DbFolder _folder(String id, String name, String? parentId) => DbFolder(
   createdAt: DateTime(2025, 1, 1),
 );
 
-DbSession _session({required String? folderId}) => DbSession(
-  id: 's1',
-  label: 'web-prod',
-  folderId: folderId,
-  host: 'example.com',
-  port: 22,
-  user: 'root',
-  authType: 'password',
-  keyId: null,
-  password: '',
-  keyPath: '',
-  keyData: '',
-  passphrase: '',
-  notes: '',
-  sortOrder: 0,
-  createdAt: DateTime(2025, 1, 1),
-  updatedAt: DateTime(2025, 1, 1),
-);
+DbSession _session({required String? folderId, String extras = '{}'}) =>
+    DbSession(
+      id: 's1',
+      label: 'web-prod',
+      folderId: folderId,
+      host: 'example.com',
+      port: 22,
+      user: 'root',
+      authType: 'password',
+      keyId: null,
+      password: '',
+      keyPath: '',
+      keyData: '',
+      passphrase: '',
+      notes: '',
+      sortOrder: 0,
+      extras: extras,
+      createdAt: DateTime(2025, 1, 1),
+      updatedAt: DateTime(2025, 1, 1),
+    );
 
 void main() {
   group('dbSessionToSession folder path resolution', () {

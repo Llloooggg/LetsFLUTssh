@@ -31,18 +31,33 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// Schema version. v1 is the permanent floor — any on-disk DB that
-  /// does not match this version (older or newer) is treated as corrupt
-  /// and routed through [DbCorruptDialog] + [WipeAllService]. Bump this
-  /// when adding/renaming columns or tables and append a `from{N-1}to{N}`
-  /// step to [migration]; never skip a version.
+  /// reports a version below 1 (pre-framework legacy) is treated as
+  /// corrupt and routed through [DbCorruptDialog] + [WipeAllService].
+  /// Forward bumps follow drift's normal `onUpgrade` flow with a
+  /// `from{N-1}to{N}` branch per step; never skip a version.
+  ///
+  /// Version log:
+  /// - v1: initial schema.
+  /// - v2: `Sessions.extras TEXT NOT NULL DEFAULT '{}'` — free-form
+  ///   JSON bag for feature flags that don't justify dedicated
+  ///   columns (see `tables.dart` Sessions.extras for the rationale).
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await _createPerformanceIndexes(this);
+    },
+    onUpgrade: (m, from, to) async {
+      // Walk every step from `from` up to `to` so we never skip a
+      // version. Each branch is responsible for one schema delta and
+      // must be additive (DEFAULT-backed columns, new tables) — drift
+      // cannot rewrite NOT NULL columns without a default in-place.
+      if (from < 2) {
+        await m.addColumn(sessions, sessions.extras);
+      }
     },
     beforeOpen: (details) async {
       // Foreign keys are also set in database_opener; repeat here so drift's

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:uuid/uuid.dart';
 
 import '../../utils/platform.dart';
@@ -84,6 +86,16 @@ class Session {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Free-form key-value bag persisted into `Sessions.extras` as JSON.
+  ///
+  /// Use [extrasBool] / [extrasStr] / [extrasInt] for typed reads and
+  /// [withExtras] to produce a copy with a delta merged in. Anything
+  /// load-bearing (auth, port forwards, proxy jump) gets its own
+  /// columns; this is the escape hatch for feature flags that don't
+  /// justify a migration on their own (recording toggle, layout
+  /// hints, etc.).
+  final Map<String, Object?> extras;
+
   Session({
     String? id,
     required this.label,
@@ -92,9 +104,11 @@ class Session {
     this.auth = const SessionAuth(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Map<String, Object?>? extras,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+       updatedAt = updatedAt ?? DateTime.now(),
+       extras = Map.unmodifiable(extras ?? const <String, Object?>{});
 
   // --- Convenience accessors (keep call sites short) ---
   String get host => server.host;
@@ -106,6 +120,40 @@ class Session {
   String get keyPath => auth.keyPath;
   String get keyData => auth.keyData;
   String get passphrase => auth.passphrase;
+
+  // --- Extras helpers ---
+  bool? extrasBool(String key) {
+    final v = extras[key];
+    return v is bool ? v : null;
+  }
+
+  String? extrasStr(String key) {
+    final v = extras[key];
+    return v is String ? v : null;
+  }
+
+  int? extrasInt(String key) {
+    final v = extras[key];
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return null;
+  }
+
+  /// Return a copy with [delta] merged into [extras]. A `null` value
+  /// removes the key (so callers can clear feature flags without
+  /// resorting to a sentinel string). Keeps `updatedAt` fresh via
+  /// [copyWith].
+  Session withExtras(Map<String, Object?> delta) {
+    final merged = Map<String, Object?>.from(extras);
+    delta.forEach((k, v) {
+      if (v == null) {
+        merged.remove(k);
+      } else {
+        merged[k] = v;
+      }
+    });
+    return copyWith(extras: merged);
+  }
 
   /// True if session has credentials — either carried in this instance
   /// (password/keyData/keyPath/keyId) or known to exist in persistent
@@ -173,6 +221,7 @@ class Session {
     String? folder,
     ServerAddress? server,
     SessionAuth? auth,
+    Map<String, Object?>? extras,
   }) {
     return Session(
       id: id,
@@ -182,6 +231,7 @@ class Session {
       auth: auth ?? this.auth,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
+      extras: extras ?? this.extras,
     );
   }
 
@@ -215,6 +265,7 @@ class Session {
     'key_path': keyPath,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
+    if (extras.isNotEmpty) 'extras': extras,
   };
 
   /// Serialize with secrets — for encrypted export only.
@@ -233,10 +284,32 @@ class Session {
           label == other.label &&
           folder == other.folder &&
           server == other.server &&
-          auth == other.auth;
+          auth == other.auth &&
+          _extrasEqual(extras, other.extras);
 
   @override
-  int get hashCode => Object.hash(id, label, folder, server, auth);
+  int get hashCode => Object.hash(
+    id,
+    label,
+    folder,
+    server,
+    auth,
+    // Map.hashCode is identity-based — fold the entries instead so
+    // two sessions with logically equal `extras` hash equal too.
+    Object.hashAllUnordered(
+      extras.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
+  );
+
+  static bool _extrasEqual(Map<String, Object?> a, Map<String, Object?> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key)) return false;
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
@@ -265,6 +338,31 @@ class Session {
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '') ??
           DateTime.now(),
+      extras: _decodeExtras(json['extras']),
     );
+  }
+
+  /// Decode the persisted `extras` payload tolerantly: accepts a
+  /// `Map<String, dynamic>` (modern import path), a JSON-encoded
+  /// string (DB load path through `mappers.dart`), and treats
+  /// anything malformed as empty so a corrupt blob can never block
+  /// the session from loading.
+  static Map<String, Object?> _decodeExtras(Object? raw) {
+    if (raw == null) return const <String, Object?>{};
+    if (raw is Map) {
+      return raw.map((k, v) => MapEntry(k.toString(), v));
+    }
+    if (raw is String) {
+      if (raw.isEmpty) return const <String, Object?>{};
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          return decoded.map((k, v) => MapEntry(k.toString(), v));
+        }
+      } on FormatException {
+        // Corrupt JSON in the column — fall through to empty.
+      }
+    }
+    return const <String, Object?>{};
   }
 }

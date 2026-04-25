@@ -499,4 +499,85 @@ void main() {
       expect(s.isValid, isFalse);
     });
   });
+
+  group('Session.extras', () {
+    Session base() => Session(
+      id: 'fixed-id',
+      label: 'l',
+      server: const ServerAddress(host: 'h', user: 'u'),
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    );
+
+    test('default is empty', () {
+      expect(base().extras, isEmpty);
+    });
+
+    test('extras map is unmodifiable', () {
+      final s = base().withExtras({'k': true});
+      expect(() => (s.extras as dynamic)['x'] = 1, throwsUnsupportedError);
+    });
+
+    test('typed accessors return null for missing or wrong-typed entries', () {
+      final s = base().withExtras({
+        'flag': true,
+        'name': 'r',
+        'count': 7,
+        'mismatch': 'oops',
+      });
+      expect(s.extrasBool('flag'), isTrue);
+      expect(s.extrasStr('name'), 'r');
+      expect(s.extrasInt('count'), 7);
+      expect(s.extrasBool('missing'), isNull);
+      expect(s.extrasInt('mismatch'), isNull);
+    });
+
+    test('withExtras merges and removes via null', () {
+      final s = base().withExtras({'a': 1, 'b': 'x'});
+      final merged = s.withExtras({'b': null, 'c': true});
+      expect(merged.extras.containsKey('b'), isFalse);
+      expect(merged.extras['a'], 1);
+      expect(merged.extras['c'], isTrue);
+    });
+
+    test('toJson omits empty extras, fromJson tolerates missing key', () {
+      final s = base();
+      expect(s.toJson().containsKey('extras'), isFalse);
+      final round = Session.fromJson({...s.toJson()});
+      expect(round.extras, isEmpty);
+    });
+
+    test('toJson includes extras when non-empty and round-trips', () {
+      final s = base().withExtras({'record': true, 'tag': 'prod'});
+      final json = s.toJsonWithCredentials();
+      expect(json['extras'], {'record': true, 'tag': 'prod'});
+      final back = Session.fromJson(json);
+      expect(back.extras['record'], isTrue);
+      expect(back.extras['tag'], 'prod');
+    });
+
+    test('fromJson tolerates a JSON-encoded extras string', () {
+      final s = base();
+      final json = s.toJson();
+      json['extras'] = '{"k":42}';
+      final back = Session.fromJson(json);
+      expect(back.extras['k'], 42);
+    });
+
+    test('fromJson silently drops corrupt extras', () {
+      final s = base();
+      final json = s.toJson();
+      json['extras'] = '{not-json';
+      final back = Session.fromJson(json);
+      expect(back.extras, isEmpty);
+    });
+
+    test('equality includes extras', () {
+      final a = base().withExtras({'k': 1});
+      final b = base().copyWith().withExtras({'k': 1});
+      final c = base().withExtras({'k': 2});
+      expect(a, equals(b));
+      expect(a, isNot(equals(c)));
+    });
+  });
 }

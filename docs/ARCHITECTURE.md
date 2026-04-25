@@ -480,8 +480,14 @@ class Session {
   final SessionAuth auth;     // authType, password, keyPath, keyData, passphrase
   final DateTime createdAt;
   final DateTime updatedAt;
+  final Map<String, Object?> extras; // free-form JSON bag, see "Session.extras" below
   bool get hasCredentials;    // true if password, keyData, keyId, or keyPath is set
   bool get isValid;           // true if host, port, user, and hasCredentials (highlighted orange when false)
+
+  bool? extrasBool(String key); // typed reads — null when missing or wrong-typed
+  String? extrasStr(String key);
+  int? extrasInt(String key);
+  Session withExtras(Map<String, Object?> delta); // merge; null value removes a key
 
   SSHConfig toSSHConfig();    // conversion for connection
   Session copyWith({...});    // preserves id, updates updatedAt
@@ -490,6 +496,18 @@ class Session {
   factory Session.fromJson(Map<String, dynamic> json);
 }
 ```
+
+##### Session.extras — JSON escape hatch
+
+Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column (added in DB schema v2). Holds feature flags that don't justify their own column — recording opt-in, layout hints, agent-forwarding state, future per-session preferences. The map is unmodifiable; mutate through [`Session.withExtras(delta)`] which returns a copy with the delta merged (a `null` value in `delta` removes the key).
+
+**Why a JSON column instead of a column per flag.** Every wave-1+ feature in `docs/FEATURE_BACKLOG.md` adds at least one Session field. Doing that one column at a time means a drift migration per feature; doing it via `extras` means one migration covers them all. Load-bearing fields that need indexed lookups or load-time access at connect time (auth, port forwards, proxy jump) keep their own columns; everything else funnels through `extras`. This is the **Option C hybrid** decision recorded in `docs/FEATURE_BACKLOG.md §2.1`.
+
+**Why typed accessors instead of raw map access.** The map is `Map<String, Object?>`; an `extras['record']` read at a feature site forces every call site to handle three failure modes (key missing, value is the wrong type, value is `null`). The `extrasBool` / `extrasStr` / `extrasInt` helpers fold all three into a single `null` result, so the call site reads `if (s.extrasBool('record') ?? false)` instead of branching on `is bool`.
+
+**JSON tolerance.** Both the DB mapper (`mappers.dart::_decodeExtras`) and the JSON factory (`Session._decodeExtras`) treat malformed payloads as empty. A corrupt `extras` blob never blocks a session from loading — the worst case is silently lost feature flags, not a session that disappears from the sidebar. The DB mapper logs the corruption; the JSON factory does not (it runs during import where the user already sees a per-session result).
+
+**Persistence path.** `mappers.dart::sessionToCompanion` calls `jsonEncode(s.extras)` on save; `mappers.dart::dbSessionToSession` calls `_decodeExtras(db.extras)` on load. The export path (`Session.toJson`) emits an `extras` key only when the map is non-empty — keeps imported v1 archives byte-stable in their JSON representation when no feature has populated extras yet.
 
 #### SessionStore — drift-backed persistence
 
@@ -3761,7 +3779,7 @@ All application data is stored in a single SQLite database via the drift ORM:
 
 | Table | Purpose | Key relationships |
 |-------|---------|-------------------|
-| `Sessions` | SSH sessions (metadata + credentials) | FK → Folders, FK → SshKeys |
+| `Sessions` | SSH sessions (metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys |
 | `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK |
 | `SshKeys` | SSH key pairs | — |
 | `KnownHosts` | TOFU host key database | unique(host, port) |
@@ -3808,7 +3826,11 @@ All files live in the platform's app-support directory (see **Location** below).
 
 **Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `ImportService.applyResult` wraps its entire body in `AppDatabase.transaction(...)` via the injected `runInTransaction` hook, so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback before the replace-mode snapshot restore runs).
 
-**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `beforeOpen` → `PRAGMA foreign_keys = ON`). v1 is the permanent floor — a DB on disk at any other version is treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Bump `schemaVersion` when adding/renaming columns or tables and append a `from{N-1}to{N}` branch to `onUpgrade`; never skip a version.
+**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `onUpgrade` → walks `from < N` branches in version order, `beforeOpen` → `PRAGMA foreign_keys = ON`). v1 is the permanent floor — pre-framework legacy layouts that report a version below 1 are treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Forward bumps follow drift's normal `onUpgrade` flow — bump `schemaVersion`, add a `from < N` branch that executes additive DDL (DEFAULT-backed `addColumn`, new tables), regenerate the snapshot via `make DB_VERSION=N drift-schema-dump && make drift-schema-generate`, and add a `verifier.migrateAndValidate(db, N)` test in `test/core/db/drift_schema_test.dart`. Never skip a version.
+
+**Version log:**
+- **v1** — initial schema (Folders, Sessions, SshKeys, KnownHosts, AppConfigs, Tags, SessionTags, FolderTags, Snippets, SessionSnippets, SftpBookmarks).
+- **v2** — `Sessions.extras TEXT NOT NULL DEFAULT '{}'` — JSON escape hatch for per-session feature flags. Cross-link: [§3.4 Session.extras — JSON escape hatch](#sessionextras--json-escape-hatch). Migration is additive (`m.addColumn(sessions, sessions.extras)`); the `DEFAULT '{}'` clause backfills existing rows on the first read after upgrade so no data rewrite is needed.
 
 **Performance indexes live outside `schemaVersion`.** `AppDatabase` runs a `_createPerformanceIndexes` helper inside both `onCreate` and `beforeOpen`, issuing `CREATE INDEX IF NOT EXISTS` statements for hot query paths (`sessions(folder_id)` for `SessionDao.getByFolder`, `folders(parent_id)` for the recursive `FolderDao.getDescendantIds` CTE, `sftp_bookmarks(session_id)` for `SftpBookmarkDao.getForSession`). The split is deliberate: bumping `schemaVersion` would trip the "any other version = corrupt" floor guard above and wipe every existing v1 DB just to add an index. `IF NOT EXISTS` makes the statements idempotent, so running them on every open costs microseconds on a cached `sqlite_master` and the same code path covers fresh v1 databases and v1 databases that predate a given index. Adding a new index is therefore a one-line edit in `_createPerformanceIndexes`; never add one via the schema-migration machinery. Functional schema changes (columns, tables, constraints) still require a `schemaVersion` bump and the attendant wipe semantics.
 
