@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../core/shortcut_registry.dart';
+import '../../core/ssh/port_forward_rule.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/app_theme.dart';
@@ -540,9 +541,33 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     SessionDialogResult result,
   ) async {
     switch (result) {
-      case SaveResult(:final session, :final connect):
+      case SaveResult(:final session, :final connect, :final forwards):
         await ref.read(sessionProvider.notifier).add(session);
+        await _syncForwards(ref, session.id, forwards);
         if (connect) widget.onConnect(session);
+    }
+  }
+
+  /// Diff the rule list against what the store holds for [sessionId]
+  /// and write the delta. Removed rules drop via `deletePortForward`,
+  /// added or edited rules go through `upsertPortForward` (which is
+  /// idempotent on the rule id). Runs in its own pass after the
+  /// session row commits so the FK constraint sees a real parent.
+  Future<void> _syncForwards(
+    WidgetRef ref,
+    String sessionId,
+    List<PortForwardRule> nextRules,
+  ) async {
+    final store = ref.read(sessionStoreProvider);
+    final existing = await store.loadPortForwards(sessionId);
+    final keep = nextRules.map((r) => r.id).toSet();
+    for (final old in existing) {
+      if (!keep.contains(old.id)) {
+        await store.deletePortForward(old.id);
+      }
+    }
+    for (final r in nextRules) {
+      await store.upsertPortForward(sessionId, r);
     }
   }
 
@@ -794,6 +819,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     if (result == null) return;
     if (result is SaveResult) {
       await ref.read(sessionProvider.notifier).update(result.session);
+      await _syncForwards(ref, result.session.id, result.forwards);
       if (result.connect) widget.onConnect(result.session);
     }
   }

@@ -2012,30 +2012,83 @@ class SKo extends S {
   String get snippetPreview => '미리보기';
 
   @override
-  String get broadcastSetDriver => 'Broadcast from this pane';
+  String get broadcastSetDriver => '이 창에서 브로드캐스트';
 
   @override
-  String get broadcastClearDriver => 'Stop broadcasting from this pane';
+  String get broadcastClearDriver => '이 창에서 브로드캐스트 중지';
 
   @override
-  String get broadcastAddReceiver => 'Receive broadcast here';
+  String get broadcastAddReceiver => '여기서 브로드캐스트 수신';
 
   @override
-  String get broadcastRemoveReceiver => 'Stop receiving broadcast';
+  String get broadcastRemoveReceiver => '브로드캐스트 수신 중지';
 
   @override
-  String get broadcastClearAll => 'Stop all broadcasting';
+  String get broadcastClearAll => '모든 브로드캐스트 중지';
 
   @override
-  String get broadcastPasteTitle => 'Send paste to all panes?';
+  String get broadcastPasteTitle => '붙여넣기를 모든 창에 보내시겠습니까?';
 
   @override
   String broadcastPasteBody(int chars, int count) {
-    return '$chars characters will be sent to $count other panes.';
+    return '$chars자가 $count개의 다른 창에 전송됩니다.';
   }
 
   @override
-  String get broadcastPasteSend => 'Send';
+  String get broadcastPasteSend => '보내기';
+
+  @override
+  String get portForwarding => 'Forwarding';
+
+  @override
+  String get portForwardingEmpty => 'No forward rules yet';
+
+  @override
+  String get addForwardRule => 'Add rule';
+
+  @override
+  String get editForwardRule => 'Edit rule';
+
+  @override
+  String get deleteForwardRule => 'Delete rule';
+
+  @override
+  String get localForward => 'Local (-L)';
+
+  @override
+  String get remoteForward => 'Remote (-R)';
+
+  @override
+  String get dynamicForward => 'Dynamic (-D)';
+
+  @override
+  String get forwardKind => 'Kind';
+
+  @override
+  String get bindAddress => 'Bind address';
+
+  @override
+  String get bindPort => 'Bind port';
+
+  @override
+  String get targetHost => 'Target host';
+
+  @override
+  String get targetPort => 'Target port';
+
+  @override
+  String get forwardDescription => 'Description (optional)';
+
+  @override
+  String get forwardEnabled => 'Enabled';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
 
   @override
   String get tags => '태그';

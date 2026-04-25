@@ -8,9 +8,11 @@ import '../../core/import/key_file_helper.dart';
 import '../../core/security/key_store.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
+import '../../core/ssh/port_forward_rule.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../core/tags/tag.dart';
 import '../../providers/key_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
@@ -22,6 +24,7 @@ import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
 import '../tags/tag_assign_dialog.dart';
+import 'session_forwards_tab.dart';
 
 /// Result of the session edit dialog.
 sealed class SessionDialogResult {}
@@ -30,7 +33,15 @@ sealed class SessionDialogResult {}
 class SaveResult extends SessionDialogResult {
   final Session session;
   final bool connect;
-  SaveResult(this.session, {this.connect = false});
+
+  /// Port-forward rules entered in the Forwarding tab. The caller is
+  /// responsible for diffing against the persisted set and writing
+  /// the delta — see `session_panel._handleDialogResult`. Empty when
+  /// the dialog was for a quick-connect / new session that never
+  /// touched the tab.
+  final List<PortForwardRule> forwards;
+
+  SaveResult(this.session, {this.connect = false, this.forwards = const []});
 }
 
 /// Dialog for creating or editing a session.
@@ -81,6 +92,13 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   String _selectedKeyId = '';
   String _selectedKeyLabel = '';
 
+  /// In-memory rule list backing the Forwarding tab. Hydrated from
+  /// the store on init when editing; the new-session path starts
+  /// empty. Persisted by the caller after a successful Save via
+  /// the SaveResult.forwards field — same contract as the session
+  /// itself (the dialog never writes to the store directly).
+  List<PortForwardRule> _forwards = const [];
+
   bool get _isEditing => widget.session != null;
 
   /// Whether a key from the store is selected.
@@ -118,6 +136,19 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     if (_selectedKeyId.isNotEmpty) {
       _resolveKeyLabel();
     }
+    if (s != null) {
+      _loadForwards(s.id);
+    }
+  }
+
+  /// Hydrate the in-memory rule list from the store. Only called for
+  /// edited sessions — new sessions never have rules until the user
+  /// adds one in the Forwarding tab.
+  Future<void> _loadForwards(String sessionId) async {
+    final store = ref.read(sessionStoreProvider);
+    final loaded = await store.loadPortForwards(sessionId);
+    if (!mounted) return;
+    setState(() => _forwards = loaded);
   }
 
   /// Look up the key label from the store for display.
@@ -228,7 +259,9 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       return;
     }
     if (!_validateAuth()) return;
-    Navigator.of(context).pop(SaveResult(_buildSession(), connect: connect));
+    Navigator.of(
+      context,
+    ).pop(SaveResult(_buildSession(), connect: connect, forwards: _forwards));
   }
 
   @override
@@ -268,6 +301,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                             offstage: _tabIndex != 2,
                             child: _buildOptionsTab(),
                           ),
+                          Offstage(
+                            offstage: _tabIndex != 3,
+                            child: SessionForwardsTab(
+                              rules: _forwards,
+                              onChanged: (next) =>
+                                  setState(() => _forwards = next),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -298,15 +339,16 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(border: AppTheme.borderBottom),
-      // Three Expanded tabs so Russian / German labels never push the
-      // third tab past the modal edge. Each tab caps its content at a
-      // third of the bar width and truncates with ellipsis if the
-      // translation still overflows that slot.
+      // Four Expanded tabs — each one caps content at a quarter of the
+      // bar width and truncates via ellipsis if the translation overflows.
       child: Row(
         children: [
           Expanded(child: _buildTab(0, Icons.dns, S.of(context).connection)),
           Expanded(child: _buildTab(1, Icons.shield, S.of(context).auth)),
           Expanded(child: _buildTab(2, Icons.folder, S.of(context).options)),
+          Expanded(
+            child: _buildTab(3, Icons.swap_horiz, S.of(context).portForwarding),
+          ),
         ],
       ),
     );

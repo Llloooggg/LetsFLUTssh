@@ -2059,30 +2059,83 @@ class STr extends S {
   String get snippetPreview => 'Önizleme';
 
   @override
-  String get broadcastSetDriver => 'Broadcast from this pane';
+  String get broadcastSetDriver => 'Bu panelden yayınla';
 
   @override
-  String get broadcastClearDriver => 'Stop broadcasting from this pane';
+  String get broadcastClearDriver => 'Bu panelden yayını durdur';
 
   @override
-  String get broadcastAddReceiver => 'Receive broadcast here';
+  String get broadcastAddReceiver => 'Yayını burada al';
 
   @override
-  String get broadcastRemoveReceiver => 'Stop receiving broadcast';
+  String get broadcastRemoveReceiver => 'Yayını almayı durdur';
 
   @override
-  String get broadcastClearAll => 'Stop all broadcasting';
+  String get broadcastClearAll => 'Tüm yayınları durdur';
 
   @override
-  String get broadcastPasteTitle => 'Send paste to all panes?';
+  String get broadcastPasteTitle => 'Yapıştırmayı tüm panellere gönder?';
 
   @override
   String broadcastPasteBody(int chars, int count) {
-    return '$chars characters will be sent to $count other panes.';
+    return '$chars karakter diğer $count panele gönderilecek.';
   }
 
   @override
-  String get broadcastPasteSend => 'Send';
+  String get broadcastPasteSend => 'Gönder';
+
+  @override
+  String get portForwarding => 'Forwarding';
+
+  @override
+  String get portForwardingEmpty => 'No forward rules yet';
+
+  @override
+  String get addForwardRule => 'Add rule';
+
+  @override
+  String get editForwardRule => 'Edit rule';
+
+  @override
+  String get deleteForwardRule => 'Delete rule';
+
+  @override
+  String get localForward => 'Local (-L)';
+
+  @override
+  String get remoteForward => 'Remote (-R)';
+
+  @override
+  String get dynamicForward => 'Dynamic (-D)';
+
+  @override
+  String get forwardKind => 'Kind';
+
+  @override
+  String get bindAddress => 'Bind address';
+
+  @override
+  String get bindPort => 'Bind port';
+
+  @override
+  String get targetHost => 'Target host';
+
+  @override
+  String get targetPort => 'Target port';
+
+  @override
+  String get forwardDescription => 'Description (optional)';
+
+  @override
+  String get forwardEnabled => 'Enabled';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
 
   @override
   String get tags => 'Etiketler';

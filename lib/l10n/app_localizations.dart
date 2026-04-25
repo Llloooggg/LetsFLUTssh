@@ -3699,6 +3699,108 @@ abstract class S {
   /// **'Send'**
   String get broadcastPasteSend;
 
+  /// No description provided for @portForwarding.
+  ///
+  /// In en, this message translates to:
+  /// **'Forwarding'**
+  String get portForwarding;
+
+  /// No description provided for @portForwardingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No forward rules yet'**
+  String get portForwardingEmpty;
+
+  /// No description provided for @addForwardRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Add rule'**
+  String get addForwardRule;
+
+  /// No description provided for @editForwardRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit rule'**
+  String get editForwardRule;
+
+  /// No description provided for @deleteForwardRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete rule'**
+  String get deleteForwardRule;
+
+  /// No description provided for @localForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Local (-L)'**
+  String get localForward;
+
+  /// No description provided for @remoteForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote (-R)'**
+  String get remoteForward;
+
+  /// No description provided for @dynamicForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic (-D)'**
+  String get dynamicForward;
+
+  /// No description provided for @forwardKind.
+  ///
+  /// In en, this message translates to:
+  /// **'Kind'**
+  String get forwardKind;
+
+  /// No description provided for @bindAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Bind address'**
+  String get bindAddress;
+
+  /// No description provided for @bindPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Bind port'**
+  String get bindPort;
+
+  /// No description provided for @targetHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Target host'**
+  String get targetHost;
+
+  /// No description provided for @targetPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Target port'**
+  String get targetPort;
+
+  /// No description provided for @forwardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get forwardDescription;
+
+  /// No description provided for @forwardEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get forwardEnabled;
+
+  /// No description provided for @forwardBindWildcardWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.'**
+  String get forwardBindWildcardWarning;
+
+  /// No description provided for @forwardOnlyLocalSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Only local (-L) forwards run today; -R / -D are saved but inactive.'**
+  String get forwardOnlyLocalSupported;
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

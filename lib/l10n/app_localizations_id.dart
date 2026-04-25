@@ -2061,30 +2061,83 @@ class SId extends S {
   String get snippetPreview => 'Pratinjau';
 
   @override
-  String get broadcastSetDriver => 'Broadcast from this pane';
+  String get broadcastSetDriver => 'Siarkan dari panel ini';
 
   @override
-  String get broadcastClearDriver => 'Stop broadcasting from this pane';
+  String get broadcastClearDriver => 'Hentikan siaran dari panel ini';
 
   @override
-  String get broadcastAddReceiver => 'Receive broadcast here';
+  String get broadcastAddReceiver => 'Terima siaran di sini';
 
   @override
-  String get broadcastRemoveReceiver => 'Stop receiving broadcast';
+  String get broadcastRemoveReceiver => 'Berhenti menerima siaran';
 
   @override
-  String get broadcastClearAll => 'Stop all broadcasting';
+  String get broadcastClearAll => 'Hentikan semua siaran';
 
   @override
-  String get broadcastPasteTitle => 'Send paste to all panes?';
+  String get broadcastPasteTitle => 'Kirim tempel ke semua panel?';
 
   @override
   String broadcastPasteBody(int chars, int count) {
-    return '$chars characters will be sent to $count other panes.';
+    return '$chars karakter akan dikirim ke $count panel lain.';
   }
 
   @override
-  String get broadcastPasteSend => 'Send';
+  String get broadcastPasteSend => 'Kirim';
+
+  @override
+  String get portForwarding => 'Forwarding';
+
+  @override
+  String get portForwardingEmpty => 'No forward rules yet';
+
+  @override
+  String get addForwardRule => 'Add rule';
+
+  @override
+  String get editForwardRule => 'Edit rule';
+
+  @override
+  String get deleteForwardRule => 'Delete rule';
+
+  @override
+  String get localForward => 'Local (-L)';
+
+  @override
+  String get remoteForward => 'Remote (-R)';
+
+  @override
+  String get dynamicForward => 'Dynamic (-D)';
+
+  @override
+  String get forwardKind => 'Kind';
+
+  @override
+  String get bindAddress => 'Bind address';
+
+  @override
+  String get bindPort => 'Bind port';
+
+  @override
+  String get targetHost => 'Target host';
+
+  @override
+  String get targetPort => 'Target port';
+
+  @override
+  String get forwardDescription => 'Description (optional)';
+
+  @override
+  String get forwardEnabled => 'Enabled';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
 
   @override
   String get tags => 'Tag';

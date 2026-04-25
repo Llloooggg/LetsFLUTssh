@@ -330,6 +330,8 @@ Per-session rules — model + persistence + lifecycle — that open `ssh -L`-sty
 
 **Failure isolation.** Listener bind failures (port already in use, permission denied) emit an `error` event but do not affect the rest of the rules — each rule's open is wrapped in its own `try/catch`. Channel-open failures on an accepted socket destroy that socket and continue listening; the next connection attempt gets a fresh channel. A `setRules` call replaces the in-memory list but does not reopen on the spot — listeners only refresh on the next reconnect, so the user does not get surprise port-bind ripples while editing rules in a dialog.
 
+**UI — Forwarding tab.** `features/session_manager/session_forwards_tab.dart` is a 4th tab in the session edit dialog (Connection / Auth / Options / Forwarding). The tab owns no state — the parent dialog holds `_forwards: List<PortForwardRule>` and re-renders on `onChanged`. Edits land via the in-line `_ForwardRuleEditor` modal which validates port range / required target host before returning the rule. Persistence is deferred to the parent dialog's Save: `SaveResult.forwards` carries the in-memory list out, and `session_panel._syncForwards` diffs against the store (delete missing ids, upsert the rest) after the session row commits, so the FK constraint sees a real parent. Quick-connect / new-session paths that never touch the tab pass an empty list and skip the diff entirely.
+
 ---
 
 ### 3.2 SFTP (`core/sftp/`)

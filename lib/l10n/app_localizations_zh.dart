@@ -1998,30 +1998,83 @@ class SZh extends S {
   String get snippetPreview => '预览';
 
   @override
-  String get broadcastSetDriver => 'Broadcast from this pane';
+  String get broadcastSetDriver => '从此窗格广播';
 
   @override
-  String get broadcastClearDriver => 'Stop broadcasting from this pane';
+  String get broadcastClearDriver => '停止从此窗格广播';
 
   @override
-  String get broadcastAddReceiver => 'Receive broadcast here';
+  String get broadcastAddReceiver => '在此接收广播';
 
   @override
-  String get broadcastRemoveReceiver => 'Stop receiving broadcast';
+  String get broadcastRemoveReceiver => '停止接收广播';
 
   @override
-  String get broadcastClearAll => 'Stop all broadcasting';
+  String get broadcastClearAll => '停止所有广播';
 
   @override
-  String get broadcastPasteTitle => 'Send paste to all panes?';
+  String get broadcastPasteTitle => '将粘贴发送到所有窗格?';
 
   @override
   String broadcastPasteBody(int chars, int count) {
-    return '$chars characters will be sent to $count other panes.';
+    return '将向其他 $count 个窗格发送 $chars 个字符。';
   }
 
   @override
-  String get broadcastPasteSend => 'Send';
+  String get broadcastPasteSend => '发送';
+
+  @override
+  String get portForwarding => 'Forwarding';
+
+  @override
+  String get portForwardingEmpty => 'No forward rules yet';
+
+  @override
+  String get addForwardRule => 'Add rule';
+
+  @override
+  String get editForwardRule => 'Edit rule';
+
+  @override
+  String get deleteForwardRule => 'Delete rule';
+
+  @override
+  String get localForward => 'Local (-L)';
+
+  @override
+  String get remoteForward => 'Remote (-R)';
+
+  @override
+  String get dynamicForward => 'Dynamic (-D)';
+
+  @override
+  String get forwardKind => 'Kind';
+
+  @override
+  String get bindAddress => 'Bind address';
+
+  @override
+  String get bindPort => 'Bind port';
+
+  @override
+  String get targetHost => 'Target host';
+
+  @override
+  String get targetPort => 'Target port';
+
+  @override
+  String get forwardDescription => 'Description (optional)';
+
+  @override
+  String get forwardEnabled => 'Enabled';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
 
   @override
   String get tags => '标签';

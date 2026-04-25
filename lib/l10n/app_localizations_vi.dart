@@ -2049,30 +2049,83 @@ class SVi extends S {
   String get snippetPreview => 'Xem trước';
 
   @override
-  String get broadcastSetDriver => 'Broadcast from this pane';
+  String get broadcastSetDriver => 'Phát từ ngăn này';
 
   @override
-  String get broadcastClearDriver => 'Stop broadcasting from this pane';
+  String get broadcastClearDriver => 'Dừng phát từ ngăn này';
 
   @override
-  String get broadcastAddReceiver => 'Receive broadcast here';
+  String get broadcastAddReceiver => 'Nhận phát ở đây';
 
   @override
-  String get broadcastRemoveReceiver => 'Stop receiving broadcast';
+  String get broadcastRemoveReceiver => 'Ngừng nhận phát';
 
   @override
-  String get broadcastClearAll => 'Stop all broadcasting';
+  String get broadcastClearAll => 'Dừng tất cả phát';
 
   @override
-  String get broadcastPasteTitle => 'Send paste to all panes?';
+  String get broadcastPasteTitle => 'Gửi dán đến tất cả các ngăn?';
 
   @override
   String broadcastPasteBody(int chars, int count) {
-    return '$chars characters will be sent to $count other panes.';
+    return '$chars ký tự sẽ được gửi đến $count ngăn khác.';
   }
 
   @override
-  String get broadcastPasteSend => 'Send';
+  String get broadcastPasteSend => 'Gửi';
+
+  @override
+  String get portForwarding => 'Forwarding';
+
+  @override
+  String get portForwardingEmpty => 'No forward rules yet';
+
+  @override
+  String get addForwardRule => 'Add rule';
+
+  @override
+  String get editForwardRule => 'Edit rule';
+
+  @override
+  String get deleteForwardRule => 'Delete rule';
+
+  @override
+  String get localForward => 'Local (-L)';
+
+  @override
+  String get remoteForward => 'Remote (-R)';
+
+  @override
+  String get dynamicForward => 'Dynamic (-D)';
+
+  @override
+  String get forwardKind => 'Kind';
+
+  @override
+  String get bindAddress => 'Bind address';
+
+  @override
+  String get bindPort => 'Bind port';
+
+  @override
+  String get targetHost => 'Target host';
+
+  @override
+  String get targetPort => 'Target port';
+
+  @override
+  String get forwardDescription => 'Description (optional)';
+
+  @override
+  String get forwardEnabled => 'Enabled';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
+
+  @override
+  String get forwardOnlyLocalSupported =>
+      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
 
   @override
   String get tags => 'Thẻ';
