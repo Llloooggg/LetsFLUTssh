@@ -1244,7 +1244,7 @@
   "forwardDescription": "Description (optional)",
   "forwardEnabled": "Enabled",
   "forwardBindWildcardWarning": "Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Only local (-L) forwards run today; -R / -D are saved but inactive.",
+  "forwardOnlyLocalSupported": "Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.",
   "proxyJump": "Connect via",
   "proxyJumpNone": "Direct connection",
   "proxyJumpSavedSession": "Saved session",

@@ -2181,11 +2181,11 @@ class SEs extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Grabar sesión';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Guardar la salida del terminal en disco para esta sesión. Cifrada en reposo si hay contraseña maestra o clave de hardware.';
 
   @override
   String get tags => 'Etiquetas';

@@ -2126,7 +2126,7 @@ class SEn extends S {
 
   @override
   String get forwardOnlyLocalSupported =>
-      'Only local (-L) forwards run today; -R / -D are saved but inactive.';
+      'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.';
 
   @override
   String get proxyJump => 'Connect via';

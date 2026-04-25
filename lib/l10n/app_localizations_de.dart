@@ -2189,11 +2189,11 @@ class SDe extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Sitzung aufzeichnen';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Terminal-Ausgabe für diese Sitzung auf der Festplatte speichern. Bei aktiviertem Master-Passwort / Hardware-Key verschlüsselt im Ruhezustand.';
 
   @override
   String get tags => 'Tags';

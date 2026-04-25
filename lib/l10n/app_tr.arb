@@ -606,7 +606,7 @@
   "forwardDescription": "Açıklama (isteğe bağlı)",
   "forwardEnabled": "Etkin",
   "forwardBindWildcardWarning": "0.0.0.0 bağlaması yönlendirmeyi tüm arabirimlerde açar — genelde 127.0.0.1 istersin.",
-  "forwardOnlyLocalSupported": "Şu anda yalnızca yerel (-L) çalışıyor; -R / -D kaydediliyor ancak etkin değil.",
+  "forwardOnlyLocalSupported": "Yerel (-L), uzak (-R) ve dinamik SOCKS5 (-D) yönlendirmeleri hepsi etkin.",
   "proxyJump": "Üzerinden bağlan",
   "proxyJumpNone": "Doğrudan bağlantı",
   "proxyJumpSavedSession": "Kaydedilmiş oturum",

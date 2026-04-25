@@ -2169,11 +2169,11 @@ class SAr extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'تسجيل الجلسة';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر عند توفر كلمة مرور رئيسية أو مفتاح أجهزة.';
 
   @override
   String get tags => 'العلامات';

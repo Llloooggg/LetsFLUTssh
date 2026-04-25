@@ -68,5 +68,39 @@ void main() {
     test('id is stable for ConnectionExtension diagnostics', () {
       expect(PortForwardRuntime().id, 'port-forward-runtime');
     });
+
+    test('rule kinds round-trip through the wire-name extension', () {
+      // Belt-and-braces guard against a misnamed enum case showing
+      // up only at runtime — the parser dispatches on `wireName`.
+      for (final k in PortForwardKind.values) {
+        expect(PortForwardKindExt.fromWireName(k.wireName), k);
+      }
+    });
+
+    test('remote-rule defaults validate cleanly', () {
+      final remote = PortForwardRule(
+        kind: PortForwardKind.remote,
+        bindHost: '0.0.0.0',
+        bindPort: 8080,
+        remoteHost: 'app.local',
+        remotePort: 80,
+      );
+      expect(remote.validate(), isNull);
+      // bindsLoopbackOnly is false here even though `remoteHost` is
+      // a string that happens to start with a digit — the helper
+      // looks at bindHost only, which is the canonical SSH semantic.
+      expect(remote.bindsLoopbackOnly, isFalse);
+    });
+
+    test('dynamic-rule validates without remote host/port', () {
+      final dyn = PortForwardRule(
+        kind: PortForwardKind.dynamic_,
+        bindHost: '127.0.0.1',
+        bindPort: 1080,
+        remoteHost: '',
+        remotePort: 0,
+      );
+      expect(dyn.validate(), isNull);
+    });
   });
 }

@@ -2156,11 +2156,11 @@ class SFa extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'ضبط نشست';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'ذخیره خروجی پایانه روی دیسک برای این نشست. هنگام فعال بودن گذرواژه اصلی یا کلید سخت‌افزاری رمزنگاری می‌شود.';
 
   @override
   String get tags => 'برچسب‌ها';

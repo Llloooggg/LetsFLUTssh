@@ -3798,7 +3798,7 @@ abstract class S {
   /// No description provided for @forwardOnlyLocalSupported.
   ///
   /// In en, this message translates to:
-  /// **'Only local (-L) forwards run today; -R / -D are saved but inactive.'**
+  /// **'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.'**
   String get forwardOnlyLocalSupported;
 
   /// No description provided for @proxyJump.

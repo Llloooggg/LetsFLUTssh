@@ -606,7 +606,7 @@
   "forwardDescription": "描述（可选）",
   "forwardEnabled": "启用",
   "forwardBindWildcardWarning": "绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。",
-  "forwardOnlyLocalSupported": "当前仅本地 (-L) 生效；-R / -D 会保存但不激活。",
+  "forwardOnlyLocalSupported": "本地 (-L)、远程 (-R) 和动态 SOCKS5 (-D) 转发均已启用。",
   "proxyJump": "通过连接",
   "proxyJumpNone": "直连",
   "proxyJumpSavedSession": "已保存会话",

@@ -606,7 +606,7 @@
   "forwardDescription": "विवरण (वैकल्पिक)",
   "forwardEnabled": "सक्षम",
   "forwardBindWildcardWarning": "0.0.0.0 से बाइंड करने पर फ़ॉरवर्ड हर इंटरफ़ेस पर प्रकाशित होता है — आमतौर पर 127.0.0.1 चाहिए।",
-  "forwardOnlyLocalSupported": "अभी केवल स्थानीय (-L) चल रहा है; -R / -D सहेजे जाते हैं पर निष्क्रिय हैं।",
+  "forwardOnlyLocalSupported": "स्थानीय (-L), दूरस्थ (-R) और गतिशील SOCKS5 (-D) फ़ॉरवर्ड सभी सक्रिय हैं।",
   "proxyJump": "इसके माध्यम से जुड़ें",
   "proxyJumpNone": "सीधा कनेक्शन",
   "proxyJumpSavedSession": "सहेजा गया सत्र",

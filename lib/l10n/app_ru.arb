@@ -606,7 +606,7 @@
   "forwardDescription": "Описание (необязательно)",
   "forwardEnabled": "Включено",
   "forwardBindWildcardWarning": "Привязка к 0.0.0.0 открывает туннель на всех интерфейсах — обычно нужен 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Сейчас работает только локальный (-L); -R / -D сохраняются, но не активны.",
+  "forwardOnlyLocalSupported": "Локальные (-L), удалённые (-R) и динамические SOCKS5 (-D) туннели все активны.",
   "proxyJump": "Подключаться через",
   "proxyJumpNone": "Прямое подключение",
   "proxyJumpSavedSession": "Сохранённая сессия",

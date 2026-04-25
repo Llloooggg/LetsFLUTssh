@@ -606,7 +606,7 @@
   "forwardDescription": "الوصف (اختياري)",
   "forwardEnabled": "مفعّل",
   "forwardBindWildcardWarning": "الربط بـ 0.0.0.0 ينشر التحويل على جميع الواجهات — غالبًا تريد 127.0.0.1.",
-  "forwardOnlyLocalSupported": "يعمل المحلي (-L) فقط الآن؛ يتم حفظ -R / -D لكنها غير نشطة.",
+  "forwardOnlyLocalSupported": "التوجيه المحلي (-L) والبعيد (-R) و SOCKS5 الديناميكي (-D) جميعها مفعّلة.",
   "proxyJump": "الاتصال عبر",
   "proxyJumpNone": "اتصال مباشر",
   "proxyJumpSavedSession": "جلسة محفوظة",

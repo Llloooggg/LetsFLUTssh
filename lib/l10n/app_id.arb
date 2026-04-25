@@ -606,7 +606,7 @@
   "forwardDescription": "Deskripsi (opsional)",
   "forwardEnabled": "Aktif",
   "forwardBindWildcardWarning": "Bind ke 0.0.0.0 mempublikasikan penerusan ke semua antarmuka — biasanya 127.0.0.1 yang Anda inginkan.",
-  "forwardOnlyLocalSupported": "Hanya lokal (-L) yang aktif saat ini; -R / -D disimpan tetapi tidak aktif.",
+  "forwardOnlyLocalSupported": "Penerusan lokal (-L), jarak jauh (-R), dan SOCKS5 dinamis (-D) semuanya aktif.",
   "proxyJump": "Hubungkan melalui",
   "proxyJumpNone": "Koneksi langsung",
   "proxyJumpSavedSession": "Sesi tersimpan",

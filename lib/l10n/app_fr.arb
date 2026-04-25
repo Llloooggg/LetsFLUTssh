@@ -606,7 +606,7 @@
   "forwardDescription": "Description (facultatif)",
   "forwardEnabled": "Activée",
   "forwardBindWildcardWarning": "Lier à 0.0.0.0 expose la redirection sur toutes les interfaces — en général, choisissez 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Seules les règles locales (-L) sont actives ; -R / -D sont enregistrées mais inactives.",
+  "forwardOnlyLocalSupported": "Les redirections locales (-L), distantes (-R) et SOCKS5 dynamiques (-D) sont toutes actives.",
   "proxyJump": "Se connecter via",
   "proxyJumpNone": "Connexion directe",
   "proxyJumpSavedSession": "Session enregistrée",

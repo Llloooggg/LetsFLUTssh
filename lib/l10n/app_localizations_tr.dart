@@ -2167,11 +2167,11 @@ class STr extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Oturumu kaydet';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı varsa diskte şifreli.';
 
   @override
   String get tags => 'Etiketler';

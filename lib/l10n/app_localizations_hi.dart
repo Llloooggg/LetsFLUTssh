@@ -2167,11 +2167,11 @@ class SHi extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'सत्र रिकॉर्ड करें';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'इस सत्र के लिए टर्मिनल आउटपुट को डिस्क पर सहेजें। मास्टर पासवर्ड या हार्डवेयर कुंजी सक्षम होने पर रेस्ट में एन्क्रिप्टेड।';
 
   @override
   String get tags => 'टैग';

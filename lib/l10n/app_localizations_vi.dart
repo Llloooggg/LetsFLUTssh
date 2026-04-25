@@ -2157,11 +2157,11 @@ class SVi extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Ghi phiên';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ nếu bật master password hoặc khóa phần cứng.';
 
   @override
   String get tags => 'Thẻ';

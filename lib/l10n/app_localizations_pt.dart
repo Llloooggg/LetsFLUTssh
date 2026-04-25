@@ -2178,11 +2178,11 @@ class SPt extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Gravar sessão';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Guardar saída do terminal em disco para esta sessão. Cifrada em repouso quando há password mestra ou chave de hardware.';
 
   @override
   String get tags => 'Tags';

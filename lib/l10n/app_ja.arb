@@ -606,7 +606,7 @@
   "forwardDescription": "説明（任意）",
   "forwardEnabled": "有効",
   "forwardBindWildcardWarning": "0.0.0.0 にバインドすると全インターフェースに公開されます — 通常は 127.0.0.1 を使用してください。",
-  "forwardOnlyLocalSupported": "現在はローカル (-L) のみ動作します。-R / -D は保存されますが無効です。",
+  "forwardOnlyLocalSupported": "ローカル (-L)、リモート (-R)、動的 SOCKS5 (-D) 転送すべて動作します。",
   "proxyJump": "経由先",
   "proxyJumpNone": "直接接続",
   "proxyJumpSavedSession": "保存済みセッション",

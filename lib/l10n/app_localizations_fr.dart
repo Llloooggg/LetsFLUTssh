@@ -2192,11 +2192,11 @@ class SFr extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Enregistrer la session';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Sauvegarder la sortie du terminal sur disque pour cette session. Chiffrée au repos avec mot de passe maître ou clé matérielle.';
 
   @override
   String get tags => 'Étiquettes';

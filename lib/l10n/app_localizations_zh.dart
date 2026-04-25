@@ -2104,11 +2104,10 @@ class SZh extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => '录制会话';
 
   @override
-  String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+  String get recordSessionHelp => '将此会话的终端输出保存到磁盘。启用主密码或硬件密钥时静态加密。';
 
   @override
   String get tags => '标签';

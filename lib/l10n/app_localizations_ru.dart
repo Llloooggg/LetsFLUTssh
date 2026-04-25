@@ -2185,11 +2185,11 @@ class SRu extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Записывать сессию';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Сохранять вывод терминала на диск для этой сессии. Шифруется на диске при включённом мастер-пароле или аппаратном ключе.';
 
   @override
   String get tags => 'Теги';

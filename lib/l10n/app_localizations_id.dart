@@ -2169,11 +2169,11 @@ class SId extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'Rekam sesi';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password / kunci hardware aktif.';
 
   @override
   String get tags => 'Tag';

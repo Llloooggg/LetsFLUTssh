@@ -606,7 +606,7 @@
   "forwardDescription": "Beschreibung (optional)",
   "forwardEnabled": "Aktiviert",
   "forwardBindWildcardWarning": "Bindung an 0.0.0.0 macht die Weiterleitung auf jeder Schnittstelle sichtbar — meist willst du 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Aktuell laufen nur lokale (-L) Weiterleitungen; -R / -D werden gespeichert, aber nicht aktiv.",
+  "forwardOnlyLocalSupported": "Lokale (-L), entfernte (-R) und dynamische SOCKS5 (-D) Weiterleitungen sind alle aktiv.",
   "proxyJump": "Verbinden über",
   "proxyJumpNone": "Direkte Verbindung",
   "proxyJumpSavedSession": "Gespeicherte Sitzung",

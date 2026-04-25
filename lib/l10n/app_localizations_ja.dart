@@ -2123,11 +2123,11 @@ class SJa extends S {
   }
 
   @override
-  String get recordSession => 'Record session';
+  String get recordSession => 'セッションを記録';
 
   @override
   String get recordSessionHelp =>
-      'Save terminal output to disk for this session. Encrypted at rest when a master password / hardware key is enabled.';
+      'このセッションの端末出力をディスクに保存します。マスターパスワードまたはハードウェアキー有効時は保存時に暗号化されます。';
 
   @override
   String get tags => 'タグ';
