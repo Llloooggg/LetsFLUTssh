@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../utils/logger.dart';
 import '../db/database.dart';
 import '../db/mappers.dart';
+import '../ssh/port_forward_rule.dart';
 import 'session.dart';
 
 /// CRUD + persistence for sessions, backed by drift database.
@@ -144,6 +145,62 @@ class SessionStore {
   /// in which plaintext secrets live on the Dart heap. Connect/edit/export
   /// flows call this right before they need the secrets and drop the
   /// reference as soon as the consumer is done with it.
+  /// Read every saved port-forward rule for [sessionId], sorted by
+  /// the user-defined order. Empty when the session has no rules
+  /// (the runtime then skips attaching a `PortForwardRuntime` and
+  /// the connection pays no cost).
+  Future<List<PortForwardRule>> loadPortForwards(String sessionId) async {
+    final db = _db;
+    if (db == null) return const [];
+    final rows = await db.portForwardRuleDao.getBySession(sessionId);
+    return rows
+        .map(
+          (r) => PortForwardRule(
+            id: r.id,
+            kind: PortForwardKindExt.fromWireName(r.kind),
+            bindHost: r.bindHost,
+            bindPort: r.bindPort,
+            remoteHost: r.remoteHost,
+            remotePort: r.remotePort,
+            description: r.description,
+            enabled: r.enabled,
+            sortOrder: r.sortOrder,
+            createdAt: r.createdAt,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  /// Insert or update [rule] for [sessionId]. Idempotent on the rule
+  /// id — re-saving a rule with the same id overwrites.
+  Future<void> upsertPortForward(String sessionId, PortForwardRule rule) async {
+    final db = _db;
+    if (db == null) return;
+    await db.portForwardRuleDao.upsert(
+      PortForwardRulesCompanion(
+        id: Value(rule.id),
+        sessionId: Value(sessionId),
+        kind: Value(rule.kind.wireName),
+        bindHost: Value(rule.bindHost),
+        bindPort: Value(rule.bindPort),
+        remoteHost: Value(rule.remoteHost),
+        remotePort: Value(rule.remotePort),
+        description: Value(rule.description),
+        enabled: Value(rule.enabled),
+        sortOrder: Value(rule.sortOrder),
+        createdAt: Value(rule.createdAt),
+      ),
+    );
+  }
+
+  /// Drop a single rule by id. Returns true when something was
+  /// removed (helpful for the UI confirm-toast).
+  Future<bool> deletePortForward(String ruleId) async {
+    final db = _db;
+    if (db == null) return false;
+    return (await db.portForwardRuleDao.deleteById(ruleId)) > 0;
+  }
+
   Future<Session?> loadWithCredentials(String id) async {
     final db = _db;
     if (db == null) return null;

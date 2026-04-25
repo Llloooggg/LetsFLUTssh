@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/session/session.dart';
+import '../../core/ssh/port_forward_runtime.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
@@ -69,11 +70,29 @@ class SessionConnect {
     );
     final config = await _resolveConfig(ref, fresh);
     final manager = ref.read(connectionManagerProvider);
-    return manager.connectAsync(
+    final conn = manager.connectAsync(
       config,
       label: fresh.label.isNotEmpty ? fresh.label : fresh.displayName,
       sessionId: fresh.id,
     );
+    await _attachPortForwards(ref, fresh.id, conn);
+    return conn;
+  }
+
+  /// Read the saved port-forward rules for [sessionId] and attach a
+  /// runtime that opens listeners on connect / closes them on
+  /// disconnect. Cheap when the rule list is empty — the runtime is
+  /// only constructed when the user has configured at least one rule.
+  static Future<void> _attachPortForwards(
+    WidgetRef ref,
+    String sessionId,
+    Connection conn,
+  ) async {
+    final store = ref.read(sessionStoreProvider);
+    final rules = await store.loadPortForwards(sessionId);
+    if (rules.isEmpty) return;
+    final runtime = PortForwardRuntime(rules: rules);
+    conn.addExtension(runtime);
   }
 
   /// Build SSHConfig, resolving keyId from the key store if set.

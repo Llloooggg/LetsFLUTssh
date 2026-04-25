@@ -180,6 +180,28 @@ class SessionSnippets extends Table {
   Set<Column> get primaryKey => {sessionId, snippetId};
 }
 
+/// SSH port-forward rules — one row per local/remote/dynamic forward
+/// attached to a session. Loaded into [PortForwardRuntime] on connect,
+/// torn down on disconnect via the [ConnectionExtension] hook chain.
+@DataClassName('DbPortForwardRule')
+class PortForwardRules extends Table {
+  TextColumn get id => text()();
+  TextColumn get sessionId =>
+      text().references(Sessions, #id, onDelete: KeyAction.cascade)();
+  TextColumn get kind => text().withDefault(const Constant('local'))();
+  TextColumn get bindHost => text().withDefault(const Constant('127.0.0.1'))();
+  IntColumn get bindPort => integer()();
+  TextColumn get remoteHost => text().withDefault(const Constant(''))();
+  IntColumn get remotePort => integer().withDefault(const Constant(0))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// SFTP path bookmarks — saved remote paths per session.
 @DataClassName('DbSftpBookmark')
 class SftpBookmarks extends Table {

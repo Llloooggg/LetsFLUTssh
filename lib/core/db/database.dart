@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import 'dao/config_dao.dart';
 import 'dao/folder_dao.dart';
 import 'dao/known_host_dao.dart';
+import 'dao/port_forward_rule_dao.dart';
 import 'dao/session_dao.dart';
 import 'dao/sftp_bookmark_dao.dart';
 import 'dao/snippet_dao.dart';
@@ -25,6 +26,7 @@ part 'database.g.dart';
     Snippets,
     SessionSnippets,
     SftpBookmarks,
+    PortForwardRules,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -41,8 +43,11 @@ class AppDatabase extends _$AppDatabase {
   /// - v2: `Sessions.extras TEXT NOT NULL DEFAULT '{}'` — free-form
   ///   JSON bag for feature flags that don't justify dedicated
   ///   columns (see `tables.dart` Sessions.extras for the rationale).
+  /// - v3: `PortForwardRules` table — one row per SSH port-forward
+  ///   attached to a session, opened by `PortForwardRuntime` on
+  ///   connect via the `ConnectionExtension` hook.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -57,6 +62,9 @@ class AppDatabase extends _$AppDatabase {
       // cannot rewrite NOT NULL columns without a default in-place.
       if (from < 2) {
         await m.addColumn(sessions, sessions.extras);
+      }
+      if (from < 3) {
+        await m.createTable(portForwardRules);
       }
     },
     beforeOpen: (details) async {
@@ -81,6 +89,7 @@ class AppDatabase extends _$AppDatabase {
   late final tagDao = TagDao(this);
   late final snippetDao = SnippetDao(this);
   late final sftpBookmarkDao = SftpBookmarkDao(this);
+  late final portForwardRuleDao = PortForwardRuleDao(this);
 }
 
 /// Create performance-only indexes. Not part of the schema (no

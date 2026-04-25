@@ -49,4 +49,11 @@ void main() {
     await verifier.migrateAndValidate(db, 2);
     await db.close();
   });
+
+  test('v2 → v3 migration creates PortForwardRules table', () async {
+    final connection = await verifier.startAt(2);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 3);
+    await db.close();
+  });
 }

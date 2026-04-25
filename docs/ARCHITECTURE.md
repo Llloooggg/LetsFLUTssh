@@ -228,6 +228,8 @@ lib/
 | `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed, CRUD management (remove/import/export/clear) |
 | `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
+| `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model + JSON codec for the per-session forwarding tabs |
+| `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); opens local listeners and bridges them to dartssh2 channels |
 
 #### SSHConnection — lifecycle
 
@@ -313,6 +315,20 @@ class KnownHostsManager {
 **Why global `navigatorKey`:** dartssh2 callback arrives from async context without BuildContext. Global key allows showing a dialog from anywhere.
 
 **Concurrency invariant — `verify` serialised with mutators.** `verify` runs through the same `_serializeWrite` chain as `clearAll` / `removeMultiple` / `importFromString`. Reason: the reader path can call `onUnknownHost` (interactive TOFU prompt) and block on user input, which opens an arbitrarily long window during which a Settings → "Clear Known Hosts" click could interleave. Before the fix, the sequence `verify(host) → await prompt → user accepts → clearAll() fires in parallel → _hosts/DB wiped → verify resumes → _addHost re-inserts the row the user just asked to forget` was reachable, leaving the user staring at a row they thought they deleted. Full serialisation is cheap (TOFU events are sparse, user-driven) and the invariant is trivial to reason about. Regression guard: `test/core/ssh/known_hosts_test.dart` "verify is serialised against clearAll — accepted TOFU survives".
+
+#### Port forwarding
+
+Per-session rules — model + persistence + lifecycle — that open `ssh -L`-style local listeners on connect and tear them down on disconnect. The model lives in `port_forward_rule.dart` (`PortForwardRule { id, kind, bindHost, bindPort, remoteHost, remotePort, description, enabled, sortOrder, createdAt }`), the runtime in `port_forward_runtime.dart`.
+
+**Persistence.** `PortForwardRules` table (DB schema v3 — see [§11 Persistence Version log](#drift-sqlite-database)) joined to `Sessions` with `ON DELETE CASCADE`. `SessionStore.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the DAO never escapes the store.
+
+**Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionManager`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime opens its listeners with no race against the new SSHClient assignment.
+
+**Listener model.** For every enabled rule, `onConnected` calls `ServerSocket.bind(bindHost, bindPort)`. Each accepted local socket triggers `client.forwardLocal(remoteHost, remotePort)` to open an `SSHForwardChannel`; the runtime then bridges the local socket and the channel byte-stream in both directions and tracks both subscriptions in `_activeTunnels` so `onDisconnecting` / `onReconnecting` can drain them without leaking handles. A `PortForwardStatus` event is emitted on the broadcast `statusStream` for every state transition (idle / listening / error) so a UI surface can colour-code rule rows.
+
+**v1 scope: local (-L) only.** Remote (-R) and dynamic SOCKS5 (-D) entries are accepted by the persistence layer (a saved rule with `kind != local` round-trips through DB and JSON unchanged) but the runtime emits a one-off `error` status with "Only local (-L) forwards supported in this build" and skips the listener. The follow-up work — `forwardRemote` plumbing for -R, a SOCKS5-over-`forwardDynamic` listener for -D — is tracked in [`docs/FEATURE_BACKLOG.md` §3.1](FEATURE_BACKLOG.md). Designing the model + persistence around the eventual three-way enum now means the migration to fully-functional -R/-D requires no schema bump.
+
+**Failure isolation.** Listener bind failures (port already in use, permission denied) emit an `error` event but do not affect the rest of the rules — each rule's open is wrapped in its own `try/catch`. Channel-open failures on an accepted socket destroy that socket and continue listening; the next connection attempt gets a fresh channel. A `setRules` call replaces the in-memory list but does not reopen on the spot — listeners only refresh on the next reconnect, so the user does not get surprise port-bind ripples while editing rules in a dialog.
 
 ---
 
@@ -3869,6 +3885,7 @@ All application data is stored in a single SQLite database via the drift ORM:
 | `Snippets` | Reusable command snippets | — |
 | `SessionSnippets` | M2M: sessions ↔ snippets | cascade on delete |
 | `SftpBookmarks` | Saved remote paths per session | FK → Sessions, cascade |
+| `PortForwardRules` | Per-session SSH port-forward rules (local / remote / dynamic) | FK → Sessions, cascade |
 
 ### Files on disk
 
@@ -3910,6 +3927,7 @@ All files live in the platform's app-support directory (see **Location** below).
 **Version log:**
 - **v1** — initial schema (Folders, Sessions, SshKeys, KnownHosts, AppConfigs, Tags, SessionTags, FolderTags, Snippets, SessionSnippets, SftpBookmarks).
 - **v2** — `Sessions.extras TEXT NOT NULL DEFAULT '{}'` — JSON escape hatch for per-session feature flags. Cross-link: [§3.4 Session.extras — JSON escape hatch](#sessionextras--json-escape-hatch). Migration is additive (`m.addColumn(sessions, sessions.extras)`); the `DEFAULT '{}'` clause backfills existing rows on the first read after upgrade so no data rewrite is needed.
+- **v3** — `PortForwardRules` table — one row per SSH port-forward attached to a session. Cross-link: [§3.1 Port forwarding](#port-forwarding). Migration is additive (`m.createTable(portForwardRules)`); existing sessions enter v3 with no rules and no behaviour change.
 
 **Performance indexes live outside `schemaVersion`.** `AppDatabase` runs a `_createPerformanceIndexes` helper inside both `onCreate` and `beforeOpen`, issuing `CREATE INDEX IF NOT EXISTS` statements for hot query paths (`sessions(folder_id)` for `SessionDao.getByFolder`, `folders(parent_id)` for the recursive `FolderDao.getDescendantIds` CTE, `sftp_bookmarks(session_id)` for `SftpBookmarkDao.getForSession`). The split is deliberate: bumping `schemaVersion` would trip the "any other version = corrupt" floor guard above and wipe every existing v1 DB just to add an index. `IF NOT EXISTS` makes the statements idempotent, so running them on every open costs microseconds on a cached `sqlite_master` and the same code path covers fresh v1 databases and v1 databases that predate a given index. Adding a new index is therefore a one-line edit in `_createPerformanceIndexes`; never add one via the schema-migration machinery. Functional schema changes (columns, tables, constraints) still require a `schemaVersion` bump and the attendant wipe semantics.
 
