@@ -6,6 +6,7 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 
 - **[`docs/AGENT_RULES.md`](docs/AGENT_RULES.md)** — all rules, conventions, doc-maintenance checklist, code-quality, testing methodology, commit/release flow. Read on demand via the navigation tables below — never cover-to-cover.
 - **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — module structure, APIs, data flows, design decisions. 3000+ lines — never read cover-to-cover, jump to specific § via [AGENT_RULES nav](docs/AGENT_RULES.md#within-architecturemd).
+- **[`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)** — end-user reference for every shipped feature with step-by-step usage and worked examples. Update whenever a user-visible flow / toggle / surface changes.
 - **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** — build instructions, code style (for humans).
 
 ---
@@ -27,6 +28,7 @@ LetsFLUTssh — lightweight cross-platform SSH/SFTP client (Dart/Flutter, all 5 
 | Add/change a UI control | [AGENT_RULES § Reuse First](docs/AGENT_RULES.md#reuse-first-project-wide-not-just-ui) + [§ UI Components](docs/AGENT_RULES.md#ui-components) (disable-vs-hide) |
 | Touch theme / fonts / radii / heights | [AGENT_RULES § Theme & UI Constants](docs/AGENT_RULES.md#theme--ui-constants) — never hardcode |
 | Add a new file/class/widget/provider in `lib/` | [AGENT_RULES § Doc Maintenance](docs/AGENT_RULES.md#documentation-maintenance-checklist) — find the row, update the named ARCHITECTURE § |
+| Ship a user-visible feature / change a flow / add a toggle / move a control | [AGENT_RULES § Doc Maintenance](docs/AGENT_RULES.md#documentation-maintenance-checklist) → "User-visible change" + "New end-user feature" rows. Update [`USER_GUIDE.md`](docs/USER_GUIDE.md): walk-through steps, at least one worked example, platform notes in §17 mobile-differences table. Brand-new feature → add a top-level § linked from the TOC |
 | Change the wire format of a persisted file (`config.json`, `credentials.kdf`, hardware-vault blobs, `.lfs` archive contents) **or** add a new envelope artefact | [ARCHITECTURE §3.6 → Migration framework → Developer guide](docs/ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — bump `SchemaVersions`, ship a `Migration`, register it in `buildAppMigrationRegistry()` (or `archiveMigrationRegistry`), test the chain. **Drift intra-DB schema changes** (add/rename column, new table) follow the separate drift `MigrationStrategy` flow in [§11 Persistence](docs/ARCHITECTURE.md#11-persistence--storage) |
 | Add/edit a diagram in `docs/*.md` / `README.md` / `SECURITY.md` | [AGENT_RULES § Diagrams in Docs](docs/AGENT_RULES.md#diagrams-in-docs--mermaid-not-ascii-box-art) — Mermaid only, no ASCII box-art |
 | Write a commit message | [AGENT_RULES § Commits & Versioning](docs/AGENT_RULES.md#commits--versioning) + [§ Plan-Item IDs Stay Internal](docs/AGENT_RULES.md#plan-item-ids-stay-internal) |

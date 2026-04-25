@@ -154,7 +154,8 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | New/changed user-facing string | Add key to `lib/l10n/app_en.arb` **and translate into every other `app_*.arb` file** (ar, de, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh — 15 total). Run `flutter gen-l10n`. Use `S.of(context).key`. Missing keys in non-en locales silently fall back to English — ship broken UX |
 | New/changed shared component | Before adding a new widget/helper, search `lib/widgets/` and `lib/core/**` for an existing equivalent. Extend the shared component (add a param) instead of duplicating. Update [§6 Widgets API](ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Architecture changed | Update CLAUDE.md if navigation links affected |
-| User-visible change | Update README.md |
+| User-visible change | Update README.md **and** [`USER_GUIDE.md`](USER_GUIDE.md) — the user guide is the end-user reference; every shipped feature has a section there with usage steps, examples, and platform caveats. New flow / new toggle / changed UX → update / extend the relevant § |
+| New end-user feature | Add a top-level § (or a sub-§ under an existing one) in [`USER_GUIDE.md`](USER_GUIDE.md), linked from its TOC. Walk-through style: numbered steps, at least one worked example, platform differences in the §17 mobile-differences table |
 | Security scope change | Update SECURITY.md |
 
 ## Conventions
