@@ -1210,6 +1210,24 @@
   "snippetFillTitle": "Fill in snippet parameters",
   "snippetFillSubmit": "Run",
   "snippetPreview": "Preview",
+  "broadcastSetDriver": "Broadcast from this pane",
+  "broadcastClearDriver": "Stop broadcasting from this pane",
+  "broadcastAddReceiver": "Receive broadcast here",
+  "broadcastRemoveReceiver": "Stop receiving broadcast",
+  "broadcastClearAll": "Stop all broadcasting",
+  "broadcastPasteTitle": "Send paste to all panes?",
+  "broadcastPasteBody": "{chars} characters will be sent to {count} other panes.",
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "broadcastPasteSend": "Send",
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,9 @@ import '../../widgets/context_menu.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart' as plat;
 import '../snippets/snippet_picker.dart';
+import '../../providers/broadcast_provider.dart';
+import '../../widgets/app_dialog.dart';
+import 'broadcast_controller.dart';
 
 /// A single terminal pane — xterm TerminalView connected to one SSH shell.
 ///
@@ -45,6 +49,16 @@ class TerminalPane extends ConsumerStatefulWidget {
   /// Whether there are multiple panes in the tiling layout.
   /// Focus border is only shown when this is true.
   final bool hasMultiplePanes;
+
+  /// Tiling-tree leaf id — stable across rebuilds, used for the
+  /// broadcast registry. Optional so tests / single-pane callers
+  /// (mobile shell, quick-connect) can omit it.
+  final String? paneId;
+
+  /// Owning tab's stable id. Required together with [paneId] for the
+  /// broadcast feature; both nullable so non-tabbed callers compile.
+  final String? tabId;
+
   final VoidCallback? onFocused;
   final VoidCallback? onClose;
 
@@ -56,10 +70,17 @@ class TerminalPane extends ConsumerStatefulWidget {
     required this.connection,
     this.isFocused = false,
     this.hasMultiplePanes = false,
+    this.paneId,
+    this.tabId,
     this.onFocused,
     this.onClose,
     this.shellFactory,
   });
+
+  /// True when both ids are present — guards every broadcast-related
+  /// code path so the feature stays inert in single-pane / mobile
+  /// surfaces that never plumb an id through.
+  bool get supportsBroadcast => paneId != null && tabId != null;
 
   @override
   ConsumerState<TerminalPane> createState() => TerminalPaneState();
@@ -71,6 +92,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   ShellConnection? _shellConn;
   StreamSubscription<ConnectionStep>? _progressSub;
   Map<AppShortcut, VoidCallback>? _shortcuts;
+  BroadcastController? _broadcast;
+  VoidCallback? _broadcastUnsubscribe;
 
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
@@ -176,6 +199,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       // to terminal.write(), so any server output must not be erased.
       writer.clear();
       _shellConn = await _openShell(conn);
+      _attachBroadcast();
       // Notify provider so workspace status dots and connection bar update
       if (mounted) ref.read(connectionManagerProvider).notifyStateChanged();
     } catch (e) {
@@ -190,6 +214,42 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         setState(() => _error = localized);
       }
     }
+  }
+
+  /// Wire this pane into the per-tab broadcast controller. Must run
+  /// after [_openShell] so the shell sink is non-null. Idempotent —
+  /// re-runs after a reconnect drop the previous registration first.
+  void _attachBroadcast() {
+    if (!widget.supportsBroadcast) return;
+    final shell = _shellConn?.shell;
+    if (shell == null) return;
+    final controller = ref.read(broadcastControllerProvider(widget.tabId!));
+    final paneId = widget.paneId!;
+    _broadcast = controller;
+    controller.registerSink(paneId, (bytes) {
+      try {
+        shell.write(bytes);
+      } catch (_) {
+        // Receiver shell torn down between dispatch and write — drop
+        // the byte rather than fault the driver loop.
+      }
+    });
+    // Wrap the existing onOutput hook so the driver path also fans out
+    // to receivers. We capture the original hook installed by
+    // ShellHelper so a future swap (e.g. local echo) keeps composing.
+    final original = _terminal.onOutput;
+    _terminal.onOutput = (data) {
+      original?.call(data);
+      if (controller.isDriver(paneId)) {
+        controller.broadcastFrom(paneId, Uint8List.fromList(utf8.encode(data)));
+      }
+    };
+    void onChange() {
+      if (mounted) setState(() {});
+    }
+
+    controller.addListener(onChange);
+    _broadcastUnsubscribe = () => controller.removeListener(onChange);
   }
 
   Future<ShellConnection> _openShell(Connection conn) async {
@@ -226,6 +286,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     TerminalScrubber.instance.unregister(_terminal);
     _progressSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onShiftToggle);
+    _broadcastUnsubscribe?.call();
+    if (widget.paneId != null) _broadcast?.unregisterSink(widget.paneId!);
     _shellConn?.close();
     _terminalController.dispose();
     _showSearch.dispose();
@@ -268,64 +330,86 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // xterm TerminalView's own pan/select gesture claiming the arena)
     // swallows the event, so the focused pane would stop switching
     // "every other click" when jumping between split panes.
+    final paneId = widget.paneId;
+    final tabId = widget.tabId;
+    BroadcastController? broadcast;
+    if (paneId != null && tabId != null) {
+      broadcast = ref.watch(broadcastControllerProvider(tabId));
+    }
+    final isDriver = broadcast != null && paneId != null
+        ? broadcast.isDriver(paneId)
+        : false;
+    final isReceiver = broadcast != null && paneId != null
+        ? broadcast.isReceiver(paneId)
+        : false;
+    final borderColor = isDriver || isReceiver ? AppTheme.yellow : null;
+    final borderWidth = isDriver ? 2.5 : 1.5;
+
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => widget.onFocused?.call(),
-      child: CallbackShortcuts(
-        bindings: AppShortcutRegistry.instance.buildCallbackMap({
-          AppShortcut.terminalSearch: toggleSearch,
-          AppShortcut.terminalCloseSearch: _closeSearch,
-        }),
-        child: Column(
-          children: [
-            ValueListenableBuilder<bool>(
-              valueListenable: _showSearch,
-              builder: (context, show, _) {
-                if (!show) return const SizedBox.shrink();
-                return TerminalSearchBar(
-                  terminal: _terminal,
-                  terminalController: _terminalController,
-                  onClose: _closeSearch,
-                );
-              },
-            ),
-            // Snap the terminal widget's height to an integer number of
-            // cells so xterm's viewport doesn't leave a dead strip at
-            // the bottom — the same trick MobileTerminalView applies.
-            // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
-            // painter uses internally; mirroring it here gives us a
-            // pre-layout estimate that matches the real measurement
-            // closely enough that xterm settles on `rows * cellHeight`
-            // rendered text with zero trailing gap. The remainder pixels
-            // become a `ColoredBox` painted in the terminal background
-            // so the boundary between the last row and the pane's next
-            // widget (split divider / status) reads as a clean edge.
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
-                  final cellHeight = fontSize * kTerminalLineHeight;
-                  final usable = constraints.maxHeight - verticalPadding;
-                  final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
-                  final snappedHeight = rows > 0
-                      ? rows * cellHeight + verticalPadding
-                      : constraints.maxHeight;
-                  return Column(
-                    children: [
-                      SizedBox(
-                        height: snappedHeight,
-                        child: _buildTerminalStack(fontSize),
-                      ),
-                      if (snappedHeight < constraints.maxHeight)
-                        Expanded(
-                          child: ColoredBox(color: _terminalTheme.background),
-                        ),
-                    ],
+      child: Container(
+        decoration: borderColor == null
+            ? null
+            : BoxDecoration(
+                border: Border.all(color: borderColor, width: borderWidth),
+              ),
+        child: CallbackShortcuts(
+          bindings: AppShortcutRegistry.instance.buildCallbackMap({
+            AppShortcut.terminalSearch: toggleSearch,
+            AppShortcut.terminalCloseSearch: _closeSearch,
+          }),
+          child: Column(
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: _showSearch,
+                builder: (context, show, _) {
+                  if (!show) return const SizedBox.shrink();
+                  return TerminalSearchBar(
+                    terminal: _terminal,
+                    terminalController: _terminalController,
+                    onClose: _closeSearch,
                   );
                 },
               ),
-            ),
-          ],
+              // Snap the terminal widget's height to an integer number of
+              // cells so xterm's viewport doesn't leave a dead strip at
+              // the bottom — the same trick MobileTerminalView applies.
+              // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
+              // painter uses internally; mirroring it here gives us a
+              // pre-layout estimate that matches the real measurement
+              // closely enough that xterm settles on `rows * cellHeight`
+              // rendered text with zero trailing gap. The remainder pixels
+              // become a `ColoredBox` painted in the terminal background
+              // so the boundary between the last row and the pane's next
+              // widget (split divider / status) reads as a clean edge.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+                    final cellHeight = fontSize * kTerminalLineHeight;
+                    final usable = constraints.maxHeight - verticalPadding;
+                    final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
+                    final snappedHeight = rows > 0
+                        ? rows * cellHeight + verticalPadding
+                        : constraints.maxHeight;
+                    return Column(
+                      children: [
+                        SizedBox(
+                          height: snappedHeight,
+                          child: _buildTerminalStack(fontSize),
+                        ),
+                        if (snappedHeight < constraints.maxHeight)
+                          Expanded(
+                            child: ColoredBox(color: _terminalTheme.background),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -369,6 +453,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   void _showContextMenu(BuildContext context, Offset position) {
     final hasSelection = _terminalController.selection != null;
+    final l10n = S.of(context);
 
     showAppContextMenu(
       context: context,
@@ -389,8 +474,48 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           context,
           onTap: () => _showSnippetPicker(context),
         ),
+        ..._buildBroadcastMenuItems(l10n),
       ],
     );
+  }
+
+  /// Broadcast actions are only meaningful when the pane is part of a
+  /// multi-pane tab and we have ids to address it by — guard on both
+  /// before adding any entry, otherwise the menu grows misleading
+  /// "Broadcast from this pane" rows on solo panes / mobile.
+  List<ContextMenuItem> _buildBroadcastMenuItems(S l10n) {
+    if (!widget.supportsBroadcast || !widget.hasMultiplePanes) {
+      return const [];
+    }
+    final controller = ref.read(broadcastControllerProvider(widget.tabId!));
+    final paneId = widget.paneId!;
+    final isDriver = controller.isDriver(paneId);
+    final isReceiver = controller.isReceiver(paneId);
+
+    return [
+      const ContextMenuItem.divider(),
+      ContextMenuItem(
+        label: isDriver ? l10n.broadcastClearDriver : l10n.broadcastSetDriver,
+        icon: isDriver ? Icons.podcasts : Icons.podcasts_outlined,
+        color: isDriver ? AppTheme.yellow : null,
+        onTap: () => controller.setDriver(isDriver ? null : paneId),
+      ),
+      if (!isDriver)
+        ContextMenuItem(
+          label: isReceiver
+              ? l10n.broadcastRemoveReceiver
+              : l10n.broadcastAddReceiver,
+          icon: isReceiver ? Icons.input : Icons.input_outlined,
+          color: isReceiver ? AppTheme.yellow : null,
+          onTap: () => controller.toggleReceiver(paneId),
+        ),
+      if (controller.driverId != null || controller.receiverIds.isNotEmpty)
+        ContextMenuItem(
+          label: l10n.broadcastClearAll,
+          icon: Icons.stop_circle_outlined,
+          onTap: controller.clearAll,
+        ),
+    ];
   }
 
   /// Intercept keyboard shortcuts before xterm's built-in handler consumes
@@ -420,7 +545,60 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   void _copySelection() =>
       TerminalClipboard.copy(_terminal, _terminalController);
 
-  Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
+  Future<void> _pasteClipboard() async {
+    final controller = widget.supportsBroadcast
+        ? ref.read(broadcastControllerProvider(widget.tabId!))
+        : null;
+    final isDriver = controller != null && controller.isDriver(widget.paneId!);
+    if (isDriver && controller.isActive) {
+      final clip = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = clip?.text;
+      if (text == null || text.isEmpty) return;
+      if (!mounted) return;
+      final ok = await _confirmBroadcastPaste(text, controller);
+      if (!ok) return;
+      if (!mounted) return;
+      // Same wire format as TerminalClipboard.paste — feed the bytes
+      // directly so onOutput's broadcast wrapper fires and the receivers
+      // see the same paste in lockstep.
+      _terminal.paste(text);
+      return;
+    }
+    return TerminalClipboard.paste(_terminal);
+  }
+
+  Future<bool> _confirmBroadcastPaste(
+    String text,
+    BroadcastController controller,
+  ) async {
+    final l10n = S.of(context);
+    final receiverCount = controller.receiverIds
+        .where((id) => id != widget.paneId)
+        .length;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AppDialog(
+        title: l10n.broadcastPasteTitle,
+        maxWidth: 420,
+        content: Text(
+          l10n.broadcastPasteBody(text.length, receiverCount),
+          style: TextStyle(
+            color: AppTheme.fg,
+            fontSize: AppFonts.sm,
+            fontFamily: 'Inter',
+          ),
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context, false)),
+          AppButton.primary(
+            label: l10n.broadcastPasteSend,
+            onTap: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
 
   Future<void> _showSnippetPicker(BuildContext context) async {
     final cfg = widget.connection.sshConfig;

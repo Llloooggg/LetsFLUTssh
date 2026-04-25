@@ -2088,6 +2088,7 @@ class _FooDialogState extends State<FooDialog> {
 | `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay). Exports the canonical 1.2 line-height multiplier used by every custom painter that sits on top of `TerminalView`. |
 | `tiling_view.dart` | `TilingView` | Recursive split tree renderer |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
+| `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out) |
 
 #### Split tree (tiling)
 
@@ -2195,6 +2196,23 @@ SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane I
 | Delete | Delete focused session |
 
 Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
+
+#### Broadcast input — per-tab fan-out
+
+`BroadcastController` (`features/terminal/broadcast_controller.dart`) is a `ChangeNotifier` instantiated per tab via `broadcastControllerProvider.family<BroadcastController, String>(tabId)`. One pane in a tab can be the **driver**; every byte its `Terminal.onOutput` produces is mirrored into every registered **receiver** pane's shell sink. The pane registers itself in `_attachBroadcast` once `_openShell` returns, and unregisters in `dispose` — `_broadcastUnsubscribe` cleans up the listener subscription, `BroadcastController.unregisterSink` clears the role assignment.
+
+**Why per-tab and not workspace-global.** A workspace-wide controller would let a driver in tab A leak keystrokes into tab B's panes after a tab switch — almost never what the user wants. Tying the lifetime of the controller to the tab matches the user's mental "I'm broadcasting in this tab" model and survives split / unsplit operations within the same tab. Trade-off: re-opening a tab from scratch gives a fresh controller; we accept that because the alternative (persisting broadcast state across tab close) is the worse default.
+
+**Driver / receiver wiring.**
+- `_attachBroadcast` wraps `Terminal.onOutput` so the original hook installed by `ShellHelper.openShell` still runs; the wrapper additionally calls `controller.broadcastFrom(paneId, bytes)` when `controller.isDriver(paneId)` is true. The driver's own shell still receives the bytes through the original hook — broadcast is a side-channel, never a replacement.
+- Receivers register a sink that calls `shell.write(bytes)` directly. The controller iterates the sink list in registration order and wraps each call in `try/catch` — a torn-down receiver shell never stalls the driver loop.
+- `isActive` requires both a driver and at least one *other* receiver. A driver alone does not broadcast; toggling the driver's id in the receiver set is filtered out.
+
+**Visual indicator.** The pane build wraps its content in a `Container` whose `Border.all` colour is `AppTheme.yellow` for both driver and receiver, with a slightly thicker stroke (2.5 px) on the driver. Active state is read from the per-tab controller via `ref.watch(broadcastControllerProvider(tabId))` so border updates land on the same `notifyListeners()` cycle that flips the role.
+
+**Paste guard.** When the focused pane is the active driver, `_pasteClipboard` shunts through a confirmation dialog (`broadcastPasteTitle` / `broadcastPasteBody` / `broadcastPasteSend`) before letting the bytes through. The body string carries character count + receiver count so the user gets a concrete picture of the blast radius before sending. Cancel returns to the pane without writing anything; confirm calls `terminal.paste(text)` so the broadcast wrapper fires (sending paste bytes through the bypass would skip every receiver — wrong by construction).
+
+**Single-pane / mobile guard.** `TerminalPane.supportsBroadcast` returns `paneId != null && tabId != null`. The mobile shell and quick-connect surfaces don't plumb either id, so every broadcast path stays inert and the context menu does not grow misleading entries on solo panes. The desktop tiling view passes both ids through `TilingView._buildLeaf`.
 
 ---
 

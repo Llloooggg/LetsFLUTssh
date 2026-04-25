@@ -3651,6 +3651,54 @@ abstract class S {
   /// **'Preview'**
   String get snippetPreview;
 
+  /// No description provided for @broadcastSetDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast from this pane'**
+  String get broadcastSetDriver;
+
+  /// No description provided for @broadcastClearDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop broadcasting from this pane'**
+  String get broadcastClearDriver;
+
+  /// No description provided for @broadcastAddReceiver.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive broadcast here'**
+  String get broadcastAddReceiver;
+
+  /// No description provided for @broadcastRemoveReceiver.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop receiving broadcast'**
+  String get broadcastRemoveReceiver;
+
+  /// No description provided for @broadcastClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop all broadcasting'**
+  String get broadcastClearAll;
+
+  /// No description provided for @broadcastPasteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send paste to all panes?'**
+  String get broadcastPasteTitle;
+
+  /// No description provided for @broadcastPasteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{chars} characters will be sent to {count} other panes.'**
+  String broadcastPasteBody(int chars, int count);
+
+  /// No description provided for @broadcastPasteSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get broadcastPasteSend;
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

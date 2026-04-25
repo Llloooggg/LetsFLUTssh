@@ -2068,13 +2068,39 @@ class SRu extends S {
   String get commandCopied => 'Команда скопирована';
 
   @override
-  String get snippetFillTitle => 'Fill in snippet parameters';
+  String get snippetFillTitle => 'Заполните параметры сниппета';
 
   @override
-  String get snippetFillSubmit => 'Run';
+  String get snippetFillSubmit => 'Выполнить';
 
   @override
-  String get snippetPreview => 'Preview';
+  String get snippetPreview => 'Предпросмотр';
+
+  @override
+  String get broadcastSetDriver => 'Broadcast from this pane';
+
+  @override
+  String get broadcastClearDriver => 'Stop broadcasting from this pane';
+
+  @override
+  String get broadcastAddReceiver => 'Receive broadcast here';
+
+  @override
+  String get broadcastRemoveReceiver => 'Stop receiving broadcast';
+
+  @override
+  String get broadcastClearAll => 'Stop all broadcasting';
+
+  @override
+  String get broadcastPasteTitle => 'Send paste to all panes?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars characters will be sent to $count other panes.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Send';
 
   @override
   String get tags => 'Теги';
