@@ -2,6 +2,36 @@
 
 Concrete per-feature execution plan for the next agent/developer. Each feature section lists **what exists today**, **what needs to be added**, and **every file that has to change with approximate line anchors**, so a contributor can open the listed paths and start typing.
 
+## Progress log
+
+Tracks features that have already shipped end-to-end (data + tests + docs). The table below should be the first thing a new contributor reads — sections marked **DONE** are reference material only; sections without it are still open.
+
+| Status | Section | Commit | What landed |
+|---|---|---|---|
+| **DONE** | §2.1 Session extras column | `feat(session): add Sessions.extras JSON column` | Drift v1→v2 schema bump + Session model `Map<String, Object?> extras` + typed accessors. Unblocks every later wave-1+ feature without a migration per flag. |
+| **DONE** | §2.2 ConnectionExtension hooks | `feat(connection): add ConnectionExtension lifecycle hooks` | Generic `onConnected` / `onDisconnecting` / `onReconnecting` interface + Connection fan-out. Failure-isolated; idempotent on never-connected transports. |
+| **DONE (scoped down)** | §2.3 RemoteFs abstraction | `docs(backlog): scope down §2.3 RemoteFs prerequisite` | Existing `FileSystem` interface in `core/sftp/file_system.dart` already covers list/mkdir/remove/rename/dirSize and is implemented by both `LocalFS` and `RemoteFS`; the section above documents the additional surface (`stat` / `getStream`/`putStream` / `close`) to add later when S3 / WebDAV need it. |
+| **DONE (-L only, backend)** | §3.1 Port forwarding | `feat(ssh): add local SSH port forwarding (-L)` | DB v2→v3 with `PortForwardRules` table, `PortForwardRule` model + JSON codec, `PortForwardRuntime` implementing `ConnectionExtension`, store methods, automatic attach in `session_connect`. **Open work:** UI in `session_edit_dialog` (rule list / add / edit / toggle); `-R` via `forwardRemote`; `-D` via `forwardDynamic` + SOCKS5 listener; session-row badge. |
+| **DONE** | §3.4 Snippet parameters | `feat(snippets): add {{name}} parameter substitution` | `renderSnippet` template engine + picker integration + fill dialog. Built-in `{{host}}` / `{{user}}` / `{{port}}` / `{{label}}` / `{{now}}`; user tokens prompt at execution. |
+| **DONE** | §5.1 Broadcast input | `feat(terminal): add per-tab broadcast input` | Per-tab `BroadcastController` + driver/receiver context-menu actions + yellow border indicator + paste-confirmation dialog. Mobile / quick-connect inert via `supportsBroadcast` guard. |
+
+### Open features
+
+Sections in the rest of this doc still apply as-written for the unfinished work — the same per-file action tables, schema bumps, and l10n key lists are accurate. **Read the `Status` of each above before starting**: a feature already marked DONE is reference, not work.
+
+The remaining backlog (high to low priority):
+
+1. **§3.1 Port forwarding UI** — wire `SessionStore.upsert/loadPortForwards` into a new "Port Forwarding" tab in `lib/features/session_manager/session_edit_dialog.dart`. The data layer is already in place; the missing piece is a list widget with add / edit / toggle / delete actions. Follow the existing tab patterns in the dialog.
+2. **§3.2 ProxyJump** — leverages `client.forwardLocal` (already validated by §3.1 plumbing) to wrap an `SSHForwardChannel` as the transport `SSHSocket` for the next hop's `SSHClient`. Add an optional `socket:` parameter on `SSHConnection`, recursive connect with cycle detection in `ConnectionManager`. Schema bump v3→v4 for `viaSessionId` + `via*` override columns. Plan in §3.2.
+3. **§3.3 PuTTY `.ppk`** — pure-Dart parser for v2 (HMAC-SHA-1) and v3 (Argon2id) using `pointycastle`. No DB changes. Plan in §3.3.
+4. **§4.1 WebDAV sync** — encrypted `.lfs` archive over WebDAV with LWW + soft-delete tombstones. Largest feature; touches every DAO. Plan in §4.1.
+5. **§4.2 S3 bucket browser** — depends on §4.1 prerequisites. Plan in §4.2.
+6. **§6.1 Session recording** — `ConnectionExtension`-based recorder + browser. Plan in §6.1.
+7. **§6.2 SSH certificates** — OpenSSH cert parser + key-store cert column + optional renewal command. Plan in §6.2.
+8. **§6.3 FIDO2-SSH** — CTAP2 HID bridge, desktop-only v1. Highest-risk; plan in §6.3.
+
+---
+
 Style contract — the doc stays useful only if it matches the codebase:
 
 - File paths are live, line numbers are a hint (refresh before acting).
