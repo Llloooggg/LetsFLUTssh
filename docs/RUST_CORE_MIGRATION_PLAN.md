@@ -838,6 +838,23 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
   - Test suite refactor: integration tests target the Rust app state via FRB; widget tests inject view-stream test doubles.
   - Update `ARCHITECTURE.md` §3 across the board to reflect view-model + Rust-actor shape.
 
+### Phase 5 status snapshot
+
+| Sub-phase | Status |
+|---|---|
+| 5.0 Foundation (Cmd/Evt bus) | `[x]` shipped |
+| 5.1 Connection lifecycle | `[x]` Rust actor + driver + ProxyJump + Dart `ConnectionManager` swap shipped |
+| 5.2 Port forward actor | `[-]` Rust registry + bus events shipped; Tokio listener-accept driver + Dart `PortForwardRuntime` retire pending |
+| 5.3 Transfer queue actor | `[-]` Rust queue + state machine + bus events shipped; Tokio worker-pool driver + Dart `TransferManager` retire pending |
+| 5.4 Recorder | `[-]` Rust registry + bus events shipped; frame-write driver + Dart `SessionRecorder` retire pending |
+| 5.5 Auto-lock state | `[-]` Rust state machine + ticker + bus events shipped; Dart `AutoLockDetector` lifecycle-bridge swap pending |
+| 5.6 `.lfs` import | `[-]` Rust handle registry + sanitized preview shape shipped; decrypt/parse/apply driver + Dart `ImportService` retire pending |
+| 5.7 Native plugin Rust ports | `[ ]` deferred — small ports (`TpmClient`, `FprintdClient`, `WinBioProbe`, macOS code-signing orchestrator) |
+| 5.8 Pure utility ports | `[ ]` deferred — OpenSSH config parser + KdfParams envelope + sanitization regexes + path tilde |
+| 5.9 Dart cleanup | `[ ]` waits on every preceding sub-phase's Dart-side retire |
+
+The Rust side of every state-bearing sub-phase (5.1-5.6) is in tree as scaffolding or full driver; the matching Dart-side bridges + driver loops land in dedicated follow-up commits. This shape — *Rust scaffolding first, driver next, Dart bridge last* — was already validated on Phase 5.1, so the remaining sub-phases follow the same pattern.
+
 ### Effort estimate
 
 | Phase | Effort |
