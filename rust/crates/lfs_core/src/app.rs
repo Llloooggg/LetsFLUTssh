@@ -53,6 +53,16 @@ impl AppState {
         let g = self.db.lock().expect("db slot lock");
         g.clone()
     }
+
+    /// Drop the running DB handle. Idempotent — calling twice is a
+    /// no-op. Used by the auto-lock path to release the rusqlite
+    /// connection (and SQLCipher's C-layer page-cipher state) when
+    /// the user steps away. Unlock re-runs `db_init` to bring the
+    /// handle back under the freshly re-derived master key.
+    pub fn db_close(&self) {
+        let mut g = self.db.lock().expect("db slot lock");
+        *g = None;
+    }
 }
 
 /// Build the singleton if it doesn't exist yet. Safe to call from
@@ -84,8 +94,8 @@ mod tests {
     #[test]
     fn secrets_round_trip_via_singleton() {
         let app = init();
-        app.secrets.put("phase4-test", b"value");
-        assert_eq!(&*app.secrets.get("phase4-test").unwrap(), b"value");
-        app.secrets.drop_id("phase4-test");
+        app.secrets.put("singleton-test", b"value");
+        assert_eq!(&*app.secrets.get("singleton-test").unwrap(), b"value");
+        app.secrets.drop_id("singleton-test");
     }
 }

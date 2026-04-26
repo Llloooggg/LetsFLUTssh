@@ -42,10 +42,16 @@ Future<void> secretsClear() => RustLib.instance.api.crateApiAppSecretsClear();
 Future<void> dbInit({required String path, required List<int> key}) =>
     RustLib.instance.api.crateApiAppDbInit(path: path, key: key);
 
+/// Drop the running Rust DB handle. Idempotent. Used by the auto-
+/// lock path to wipe SQLCipher's C-layer page-cipher state when the
+/// user steps away. Unlock re-calls `db_init` to bring the handle
+/// back under the freshly re-derived master key.
+Future<void> dbClose() => RustLib.instance.api.crateApiAppDbClose();
+
 /// Re-encrypt the running Rust DB with `new_key`. Used by the
-/// security-tier switcher so drift's `letsflutssh.db` and lfs_core's
-/// `lfs_core.db` rekey in lock-step on tier transitions. Empty
-/// `new_key` is rejected — see `Db::rekey`.
+/// security-tier switcher so the encrypted `lfs_core.db` rekeys
+/// atomically on tier transitions. Empty `new_key` is rejected —
+/// see `Db::rekey`.
 Future<void> dbRekey({required List<int> newKey}) =>
     RustLib.instance.api.crateApiAppDbRekey(newKey: newKey);
 

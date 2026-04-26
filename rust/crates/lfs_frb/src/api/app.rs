@@ -59,10 +59,18 @@ pub async fn db_init(path: String, key: Vec<u8>) -> Result<(), String> {
     .map_err(|e| format!("db_init task: {e}"))?
 }
 
+/// Drop the running Rust DB handle. Idempotent. Used by the auto-
+/// lock path to wipe SQLCipher's C-layer page-cipher state when the
+/// user steps away. Unlock re-calls `db_init` to bring the handle
+/// back under the freshly re-derived master key.
+pub fn db_close() {
+    lfs_core::app::instance().db_close();
+}
+
 /// Re-encrypt the running Rust DB with `new_key`. Used by the
-/// security-tier switcher so drift's `letsflutssh.db` and lfs_core's
-/// `lfs_core.db` rekey in lock-step on tier transitions. Empty
-/// `new_key` is rejected — see `Db::rekey`.
+/// security-tier switcher so the encrypted `lfs_core.db` rekeys
+/// atomically on tier transitions. Empty `new_key` is rejected —
+/// see `Db::rekey`.
 pub async fn db_rekey(new_key: Vec<u8>) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         let db = lfs_core::app::instance()

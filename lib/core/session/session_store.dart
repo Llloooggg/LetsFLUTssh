@@ -1,6 +1,5 @@
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
-import '../db/database.dart';
 import '../db/mappers.dart';
 import '../ssh/port_forward_rule.dart';
 import 'session.dart';
@@ -9,33 +8,11 @@ import 'session.dart';
 /// DAO is Rust + rusqlite; in-memory cache invariants match the
 /// previous drift-era implementation.
 ///
-/// `setDatabase(AppDatabase)` / [database] are kept as a transitional
-/// hand-off: a couple of consumers still need the drift handle for
-/// cross-DB workflows that have not been ported yet — `import_flow`
-/// opens a drift `transaction` to wrap multi-store import as one
-/// unit of work, and the security tier switcher drives
-/// `PRAGMA rekey` against drift. Both retire when drift is removed.
-///
 /// Failures from FRB calls (DB locked / native lib missing in unit
 /// tests) are caught at every entry point and degrade to the same
-/// empty-result / no-op semantics drift's `_db == null` branch
+/// empty-result / no-op semantics the legacy `_db == null` branch
 /// used to expose. Live persistence coverage moves to integration_test.
 class SessionStore {
-  AppDatabase? _drift;
-
-  /// Inject the drift handle. Transitional only — the data calls
-  /// themselves go through FRB; this reference exists so legacy
-  /// callers (`import_flow.runInTransaction`, security-tier rekey)
-  /// keep operating until they migrate off drift.
-  void setDatabase(AppDatabase db) {
-    _drift = db;
-    invalidateCache();
-  }
-
-  /// Drift handle, or null when locked / between unlocks. Used only
-  /// by transitional consumers — see class doc.
-  AppDatabase? get database => _drift;
-
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
@@ -52,35 +29,13 @@ class SessionStore {
   String? folderIdByPath(String path) => findFolderIdByPath(path, _folderMap);
 
   /// Drop the in-memory cache so the next [load] re-reads. Called
-  /// from the unlock handshake; replaces the drift-era
-  /// `setDatabase` injection.
+  /// from the unlock handshake.
   void invalidateCache() {
     _sessions.clear();
     _emptyFolders.clear();
     _collapsedFolders.clear();
     _folderMap = {};
     _loadFuture = null;
-  }
-
-  /// Close the held drift handle and drop the reference. The
-  /// auto-lock path calls this right after zeroing the in-memory DB
-  /// key so MC's internal page cache (which retains the key in its
-  /// C-layer state for as long as the handle is open) also gets
-  /// zeroed. On unlock `_injectDatabase` opens a fresh drift handle
-  /// and re-injects via [setDatabase].
-  Future<void> closeDatabase() async {
-    final drift = _drift;
-    _drift = null;
-    invalidateCache();
-    if (drift == null) return;
-    try {
-      await drift.close();
-    } catch (e) {
-      AppLogger.instance.log(
-        'SessionStore: drift close failed: $e',
-        name: 'SessionStore',
-      );
-    }
   }
 
   /// Guards concurrent [load] calls.

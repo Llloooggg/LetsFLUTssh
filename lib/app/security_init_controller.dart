@@ -1092,17 +1092,12 @@ class SecurityInitController {
     if (_disposed) return;
     final db = _dbOpener(encryptionKey: key);
     _activeDatabase = db;
-    ref.read(sessionStoreProvider).setDatabase(db);
-    // ^ transitional drift handle — see SessionStore docs. Data
-    // reads/writes go through FRB; the handle stays around for
-    // import_flow's drift transaction + tier rekey.
+    // Stores read/write through FRB into `lfs_core.db`; the unlock
+    // handshake invalidates each store's in-memory cache so the next
+    // read pulls fresh rows after the engine swap.
+    ref.read(sessionStoreProvider).invalidateCache();
     ref.read(keyStoreProvider).invalidateCache();
     ref.read(knownHostsProvider).invalidateCache();
-    // SnippetStore reads/writes through FRB now — no setDatabase.
-    // TagStore reads/writes through FRB now — no setDatabase.
-    // AutoLockStore now reads/writes through FRB (lfs_core.db) — the
-    // unlock handshake (ensureRustDbOpen above) is what initialises
-    // it. No setDatabase call needed.
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }

@@ -1,4 +1,4 @@
-import 'dart:async' show Timer, unawaited;
+import 'dart:async' show Timer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +10,7 @@ import '../core/security/terminal_scrubber.dart';
 import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
-import '../providers/session_provider.dart';
+import '../src/rust/api/app.dart' as rust_app;
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
@@ -198,15 +198,26 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     // read it. Clearing the scrollback is cheap even when no
     // terminals are registered (empty-set iteration).
     TerminalScrubber.instance.scrubAll();
-    // Unconditionally zero the in-memory DB key and close the
-    // drift / MC handle. Live SSH sessions stay reconnectable
-    // because `SessionCredentialCache` (populated on connect, kept
-    // alive across the lock) holds each session's auth envelope in
-    // page-locked memory outside the DB. The next idle tick / unlock
-    // re-opens the DB via `main._injectDatabase` under the freshly
-    // re-derived key.
+    // Unconditionally zero the in-memory DB key and drop the
+    // rusqlite handle in lfs_core (which also wipes SQLCipher's
+    // C-layer page-cipher state). Live SSH sessions stay
+    // reconnectable because `SessionCredentialCache` (populated on
+    // connect, kept alive across the lock) holds each session's
+    // auth envelope in page-locked memory outside the DB. The next
+    // idle tick / unlock re-opens the DB via `_injectDatabase`
+    // under the freshly re-derived key.
     ref.read(securityStateProvider.notifier).clearEncryption();
-    // Fire-and-forget — UI must not block on a close.
-    unawaited(ref.read(sessionStoreProvider).closeDatabase());
+    // db_close is sync on the Rust side. Swallow the
+    // RustLib-not-initialised throw the unit-test runner raises
+    // (no native lib in flutter_test) so widget tests can still
+    // exercise the rest of the lock policy.
+    try {
+      rust_app.dbClose();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Auto-lock dbClose failed (no native lib in unit tests?): $e',
+        name: 'AutoLockDetector',
+      );
+    }
   }
 }

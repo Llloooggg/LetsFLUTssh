@@ -56,7 +56,9 @@ class TestStores {
 /// is no cross-test state leakage.
 TestStores makeTestStores() {
   final db = openTestDatabase();
-  final sessionStore = SessionStore()..setDatabase(db);
+  // SessionStore reads/writes through FRB; native lib not loaded
+  // in unit tests so reads return empty / writes no-op.
+  final sessionStore = SessionStore();
   // TagStore now backed by FRB — see SnippetStore note above.
   final tagStore = TagStore();
   // SnippetStore now backed by FRB; native lib not loaded in unit
