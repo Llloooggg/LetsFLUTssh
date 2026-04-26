@@ -1918,8 +1918,10 @@ class _FakeHttpClient implements HttpClient {
   @override
   void close({bool force = false}) {}
 
-  // No-op for SPKI pinning hook — production wires this through
-  // CertPinning.enforce, but the fake never returns a real cert chain.
+  // No-op for SPKI pinning hook — pin enforcement, when re-introduced,
+  // lands Rust-side as a custom `rustls::ServerCertVerifier` in
+  // `lfs_core::update_http`; the Dart fallback path uses system CA
+  // only and the fake never returns a real cert chain anyway.
   @override
   set badCertificateCallback(
     bool Function(X509Certificate cert, String host, int port)? callback,

@@ -49,9 +49,6 @@ dependencies:
   # (Phases 2.1 / 2.2 / 2.4 / 2.6).
   crypto: ^3.0.5
 
-  # X.509 ASN.1 parsing for SPKI extraction in cert_pinning.dart.
-  asn1lib: ^1.6.5
-
   # Archive (pure Dart ZIP)
   archive: ^4.0.4
 

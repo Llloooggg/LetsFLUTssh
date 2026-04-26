@@ -12,7 +12,6 @@ import '../../src/rust/api/update_metadata.dart' as rust_update;
 import '../../src/rust/api/update_signing.dart' as rust_update_signing;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
-import 'cert_pinning.dart';
 
 /// Callback shape for the optional native macOS `.dmg` installer. Kept
 /// as a typedef at the core layer so `UpdateService` can invoke the
@@ -794,9 +793,12 @@ class UpdateService {
   static Future<String> defaultFetch(Uri url) async {
     // Production: route through `lfs_core::update_http::fetch_text`.
     // The Rust client uses rustls + system CAs, the same trust
-    // anchor `cert_pinning.dart` falls back to today (no SPKI pins
-    // configured), and the same trusted-host allowlist gates both
-    // request and redirects.
+    // anchor used today (no SPKI pins configured), and the same
+    // trusted-host allowlist gates both request and redirects.
+    // When SPKI pinning gets re-introduced, it lands Rust-side as
+    // a custom `rustls::ServerCertVerifier` in
+    // `lfs_core::update_http`, not as a Dart-side
+    // `badCertificateCallback`.
     try {
       return await rust_update_http.updateFetchText(url: url.toString());
     } catch (e) {
@@ -814,7 +816,6 @@ class UpdateService {
 
   static Future<String> _defaultFetchDart(Uri url) async {
     final client = HttpClient();
-    CertPinning.enforce(client);
     try {
       final request = await client.getUrl(url);
       request.headers.set('Accept', 'application/vnd.github.v3+json');
@@ -889,7 +890,6 @@ class UpdateService {
   ) async {
     const maxRedirects = 10;
     final client = HttpClient();
-    CertPinning.enforce(client);
     try {
       var requestUri = url;
       var redirectCount = 0;
