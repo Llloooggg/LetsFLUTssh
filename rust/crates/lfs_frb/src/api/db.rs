@@ -318,6 +318,30 @@ pub async fn db_sessions_stage_secrets(
         .map(|opt| opt.map(DbStagedSecrets::from))
 }
 
+/// Copy a saved session row to a new id + label, optionally
+/// re-parented under [`target_folder_id`]. Credentials flow column-
+/// to-column inside SQLite and never cross the FRB boundary, so the
+/// duplicate path no longer carries plaintext on the Dart heap.
+pub async fn db_sessions_duplicate(
+    src_id: String,
+    new_id: String,
+    new_label: String,
+    target_folder_id: Option<String>,
+    now_ms: i64,
+) -> Result<(), String> {
+    run_db(move |c| {
+        lfs_core::db::sessions::duplicate_session(
+            c,
+            &src_id,
+            &new_id,
+            &new_label,
+            target_folder_id.as_deref(),
+            now_ms,
+        )
+    })
+    .await
+}
+
 pub async fn db_sessions_delete_multiple(ids: Vec<String>) -> Result<u32, String> {
     run_db(move |c| lfs_core::db::sessions::delete_multiple(c, &ids))
         .await
