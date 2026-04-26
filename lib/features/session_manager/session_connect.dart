@@ -65,12 +65,18 @@ class SessionConnect {
     Session session,
     String logLabel,
   ) async {
-    final store = ref.read(sessionStoreProvider);
-    final fresh = await store.loadWithCredentials(session.id) ?? session;
-    if (!fresh.isValid) {
+    // No `loadWithCredentials` round-trip — the cached `session`
+    // carries the metadata + per-slot stored-secret flags that
+    // `Session.hasCredentials` reads. The connect path inside
+    // `ConnectionManager._authFromConfig` stages the actual
+    // credential bytes directly from the DB into the SecretStore
+    // via `db_sessions_stage_secrets`, so plaintext never has to
+    // ride the Dart heap.
+    if (!session.isValid) {
       if (context.mounted) _showIncompleteMessage(context);
       return null;
     }
+    final fresh = session;
     AppLogger.instance.log(
       'Opening $logLabel for ${fresh.label}',
       name: 'Session',
@@ -129,8 +135,12 @@ class SessionConnect {
     SSHConfig bastionConfig;
     String bastionLabel;
     if (current.viaSessionId != null) {
+      // Same shape as the non-bastion connect: read the cached
+      // session (no credentials on the heap) and let the connect
+      // path stage secrets directly from the DB into the
+      // SecretStore.
       final store = ref.read(sessionStoreProvider);
-      bastionSession = await store.loadWithCredentials(current.viaSessionId!);
+      bastionSession = store.get(current.viaSessionId!);
       if (bastionSession == null) {
         throw ProxyJumpBastionError(
           current.viaSessionId!,
