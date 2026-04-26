@@ -270,7 +270,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusProgressStep dco_decode_bus_progress_step(dynamic raw);
 
   @protected
+  BusRuleStatus dco_decode_bus_rule_status(dynamic raw);
+
+  @protected
   BusStepStatus dco_decode_bus_step_status(dynamic raw);
+
+  @protected
+  BusTaskState dco_decode_bus_task_state(dynamic raw);
 
   @protected
   BusTopic dco_decode_bus_topic(dynamic raw);
@@ -686,7 +692,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusProgressStep sse_decode_bus_progress_step(SseDeserializer deserializer);
 
   @protected
+  BusRuleStatus sse_decode_bus_rule_status(SseDeserializer deserializer);
+
+  @protected
   BusStepStatus sse_decode_bus_step_status(SseDeserializer deserializer);
+
+  @protected
+  BusTaskState sse_decode_bus_task_state(SseDeserializer deserializer);
 
   @protected
   BusTopic sse_decode_bus_topic(SseDeserializer deserializer);
@@ -1190,7 +1202,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_bus_rule_status(BusRuleStatus self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bus_step_status(BusStepStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bus_task_state(BusTaskState self, SseSerializer serializer);
 
   @protected
   void sse_encode_bus_topic(BusTopic self, SseSerializer serializer);

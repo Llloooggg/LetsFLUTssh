@@ -6720,6 +6720,74 @@ impl SseDecode for crate::api::bus::BusEvent {
                     minutes: var_minutes,
                 };
             }
+            8 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_path = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::RecorderStarted {
+                    id: var_id,
+                    path: var_path,
+                };
+            }
+            9 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::RecorderStopped { id: var_id };
+            }
+            10 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_totalBytes = <u64>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::RecorderBytesWritten {
+                    id: var_id,
+                    total_bytes: var_totalBytes,
+                };
+            }
+            11 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::TransferTaskAdded { id: var_id };
+            }
+            12 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_state = <crate::api::bus::BusTaskState>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::TransferTaskState {
+                    id: var_id,
+                    state: var_state,
+                };
+            }
+            13 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_bytesDone = <u64>::sse_decode(deserializer);
+                let mut var_bytesTotal = <u64>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::TransferTaskProgress {
+                    id: var_id,
+                    bytes_done: var_bytesDone,
+                    bytes_total: var_bytesTotal,
+                };
+            }
+            14 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_detail = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::TransferTaskError {
+                    id: var_id,
+                    detail: var_detail,
+                };
+            }
+            15 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::PortForwardRegistered { id: var_id };
+            }
+            16 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_status = <crate::api::bus::BusRuleStatus>::sse_decode(deserializer);
+                let mut var_detail = <Option<String>>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::PortForwardStatus {
+                    id: var_id,
+                    status: var_status,
+                    detail: var_detail,
+                };
+            }
+            17 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::PortForwardRemoved { id: var_id };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -6741,6 +6809,19 @@ impl SseDecode for crate::api::bus::BusProgressStep {
     }
 }
 
+impl SseDecode for crate::api::bus::BusRuleStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::bus::BusRuleStatus::Idle,
+            1 => crate::api::bus::BusRuleStatus::Listening,
+            2 => crate::api::bus::BusRuleStatus::Error,
+            _ => unreachable!("Invalid variant for BusRuleStatus: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::bus::BusStepStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6750,6 +6831,21 @@ impl SseDecode for crate::api::bus::BusStepStatus {
             1 => crate::api::bus::BusStepStatus::Success,
             2 => crate::api::bus::BusStepStatus::Failed,
             _ => unreachable!("Invalid variant for BusStepStatus: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::bus::BusTaskState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::bus::BusTaskState::Queued,
+            1 => crate::api::bus::BusTaskState::Running,
+            2 => crate::api::bus::BusTaskState::Completed,
+            3 => crate::api::bus::BusTaskState::Failed,
+            4 => crate::api::bus::BusTaskState::Cancelled,
+            _ => unreachable!("Invalid variant for BusTaskState: {}", inner),
         };
     }
 }
@@ -8199,6 +8295,60 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::AutoLockTimeoutChanged { minutes } => {
                 [7.into_dart(), minutes.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::bus::BusEvent::RecorderStarted { id, path } => [
+                8.into_dart(),
+                id.into_into_dart().into_dart(),
+                path.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::RecorderStopped { id } => {
+                [9.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::bus::BusEvent::RecorderBytesWritten { id, total_bytes } => [
+                10.into_dart(),
+                id.into_into_dart().into_dart(),
+                total_bytes.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::TransferTaskAdded { id } => {
+                [11.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::bus::BusEvent::TransferTaskState { id, state } => [
+                12.into_dart(),
+                id.into_into_dart().into_dart(),
+                state.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::TransferTaskProgress {
+                id,
+                bytes_done,
+                bytes_total,
+            } => [
+                13.into_dart(),
+                id.into_into_dart().into_dart(),
+                bytes_done.into_into_dart().into_dart(),
+                bytes_total.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::TransferTaskError { id, detail } => [
+                14.into_dart(),
+                id.into_into_dart().into_dart(),
+                detail.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::PortForwardRegistered { id } => {
+                [15.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::bus::BusEvent::PortForwardStatus { id, status, detail } => [
+                16.into_dart(),
+                id.into_into_dart().into_dart(),
+                status.into_into_dart().into_dart(),
+                detail.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::PortForwardRemoved { id } => {
+                [17.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
             _ => {
                 unimplemented!("");
             }
@@ -8234,6 +8384,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusProgressStep>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusRuleStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Idle => 0.into_dart(),
+            Self::Listening => 1.into_dart(),
+            Self::Error => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::bus::BusRuleStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusRuleStatus>
+    for crate::api::bus::BusRuleStatus
+{
+    fn into_into_dart(self) -> crate::api::bus::BusRuleStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::bus::BusStepStatus {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -8252,6 +8424,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusStepStatus>
     for crate::api::bus::BusStepStatus
 {
     fn into_into_dart(self) -> crate::api::bus::BusStepStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusTaskState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Queued => 0.into_dart(),
+            Self::Running => 1.into_dart(),
+            Self::Completed => 2.into_dart(),
+            Self::Failed => 3.into_dart(),
+            Self::Cancelled => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::bus::BusTaskState {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusTaskState>
+    for crate::api::bus::BusTaskState
+{
+    fn into_into_dart(self) -> crate::api::bus::BusTaskState {
         self
     }
 }
@@ -9092,6 +9285,58 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <i32>::sse_encode(7, serializer);
                 <i64>::sse_encode(minutes, serializer);
             }
+            crate::api::bus::BusEvent::RecorderStarted { id, path } => {
+                <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(id, serializer);
+                <String>::sse_encode(path, serializer);
+            }
+            crate::api::bus::BusEvent::RecorderStopped { id } => {
+                <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(id, serializer);
+            }
+            crate::api::bus::BusEvent::RecorderBytesWritten { id, total_bytes } => {
+                <i32>::sse_encode(10, serializer);
+                <String>::sse_encode(id, serializer);
+                <u64>::sse_encode(total_bytes, serializer);
+            }
+            crate::api::bus::BusEvent::TransferTaskAdded { id } => {
+                <i32>::sse_encode(11, serializer);
+                <String>::sse_encode(id, serializer);
+            }
+            crate::api::bus::BusEvent::TransferTaskState { id, state } => {
+                <i32>::sse_encode(12, serializer);
+                <String>::sse_encode(id, serializer);
+                <crate::api::bus::BusTaskState>::sse_encode(state, serializer);
+            }
+            crate::api::bus::BusEvent::TransferTaskProgress {
+                id,
+                bytes_done,
+                bytes_total,
+            } => {
+                <i32>::sse_encode(13, serializer);
+                <String>::sse_encode(id, serializer);
+                <u64>::sse_encode(bytes_done, serializer);
+                <u64>::sse_encode(bytes_total, serializer);
+            }
+            crate::api::bus::BusEvent::TransferTaskError { id, detail } => {
+                <i32>::sse_encode(14, serializer);
+                <String>::sse_encode(id, serializer);
+                <String>::sse_encode(detail, serializer);
+            }
+            crate::api::bus::BusEvent::PortForwardRegistered { id } => {
+                <i32>::sse_encode(15, serializer);
+                <String>::sse_encode(id, serializer);
+            }
+            crate::api::bus::BusEvent::PortForwardStatus { id, status, detail } => {
+                <i32>::sse_encode(16, serializer);
+                <String>::sse_encode(id, serializer);
+                <crate::api::bus::BusRuleStatus>::sse_encode(status, serializer);
+                <Option<String>>::sse_encode(detail, serializer);
+            }
+            crate::api::bus::BusEvent::PortForwardRemoved { id } => {
+                <i32>::sse_encode(17, serializer);
+                <String>::sse_encode(id, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -9108,6 +9353,23 @@ impl SseEncode for crate::api::bus::BusProgressStep {
     }
 }
 
+impl SseEncode for crate::api::bus::BusRuleStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::bus::BusRuleStatus::Idle => 0,
+                crate::api::bus::BusRuleStatus::Listening => 1,
+                crate::api::bus::BusRuleStatus::Error => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::bus::BusStepStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9116,6 +9378,25 @@ impl SseEncode for crate::api::bus::BusStepStatus {
                 crate::api::bus::BusStepStatus::InProgress => 0,
                 crate::api::bus::BusStepStatus::Success => 1,
                 crate::api::bus::BusStepStatus::Failed => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::bus::BusTaskState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::bus::BusTaskState::Queued => 0,
+                crate::api::bus::BusTaskState::Running => 1,
+                crate::api::bus::BusTaskState::Completed => 2,
+                crate::api::bus::BusTaskState::Failed => 3,
+                crate::api::bus::BusTaskState::Cancelled => 4,
                 _ => {
                     unimplemented!("");
                 }

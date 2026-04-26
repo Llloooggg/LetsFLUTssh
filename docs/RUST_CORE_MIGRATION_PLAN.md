@@ -784,21 +784,21 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
   - Dart: `Connection` Dart class becomes a view subscriber (state read-only, ops dispatch). `ConnectionManager` shrinks to thin dispatcher + Riverpod glue; the Dart-side FSM is gone.
   - Touches: every `Connection`-aware widget (`workspace_controller`, `terminal_pane`, `sftp_browser_pane`, `connections_provider`, etc).
 
-- [ ] **5.2 Port forward → Tokio actor**
+- [-] **5.2 Port forward → Tokio actor (registry shipped)**
   - Rust: `PortForwardActor` per rule, owned by the parent `ConnectionActor` so disconnect cascades teardown. `tokio::net::TcpListener` for `-L` / `-D`; `requestRemoteForward` for `-R` reusing the existing transport surface.
   - SOCKS5 (RFC 1928, CONNECT-only, NO_AUTH-only) handshake — Rust impl mirroring the existing Dart shape (`0x01` IPv4, `0x03` domain, `0x04` IPv6).
   - Bridge: tokio `io::copy_bidirectional` between accepted socket and russh `direct-tcpip` channel.
   - Events: `RuleStatus { rule_id, status: idle|listening|error, detail }`, optional per-tunnel byte counters (deferred — UI doesn't show them today).
   - Dart `PortForwardRuntime` retired; `Connection.addExtension` registry hook becomes a registry call into Rust.
 
-- [ ] **5.3 Transfer queue → Tokio actor**
+- [-] **5.3 Transfer queue → Tokio actor (queue shipped)**
   - Rust: `TransferQueue` with bounded worker pool (configurable, default = host-platform-aware), per-task state (`Queued / Running / Completed / Failed / Cancelled`), history ring buffer.
   - Workers pull tasks from a tokio channel, drive `lfs_core::sftp::download_file` / `upload_file` with progress callbacks. Cancellation token per task.
   - Commands: `EnqueueDownload`, `EnqueueUpload`, `CancelTask`, `ClearHistory`.
   - Events: `TaskAdded`, `TaskProgress(bytes, total)`, `TaskCompleted`, `TaskFailed(err)`, `TaskCancelled`.
   - Dart `TransferManager` + `TransferPanelController` retire to view subscribers.
 
-- [ ] **5.4 Recorder → Rust**
+- [-] **5.4 Recorder → Rust (registry shipped)**
   - Rust: `RecorderRegistry` per active recording. Owns ring buffer (capped backing store) and file handle. Per-frame AES-GCM already Rust; this phase moves the buffer + write loop alongside.
   - Commands: `StartRecording(sessionId, path)`, `StopRecording(id)`, `ToggleRecording(id)`.
   - Events: `RecordingStarted`, `RecordingStopped`, `FrameWritten(byte_count)`.

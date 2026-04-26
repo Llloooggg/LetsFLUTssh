@@ -6099,6 +6099,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return BusEvent_AutoLockTimeoutChanged(
           minutes: dco_decode_i_64(raw[1]),
         );
+      case 8:
+        return BusEvent_RecorderStarted(
+          id: dco_decode_String(raw[1]),
+          path: dco_decode_String(raw[2]),
+        );
+      case 9:
+        return BusEvent_RecorderStopped(id: dco_decode_String(raw[1]));
+      case 10:
+        return BusEvent_RecorderBytesWritten(
+          id: dco_decode_String(raw[1]),
+          totalBytes: dco_decode_u_64(raw[2]),
+        );
+      case 11:
+        return BusEvent_TransferTaskAdded(id: dco_decode_String(raw[1]));
+      case 12:
+        return BusEvent_TransferTaskState(
+          id: dco_decode_String(raw[1]),
+          state: dco_decode_bus_task_state(raw[2]),
+        );
+      case 13:
+        return BusEvent_TransferTaskProgress(
+          id: dco_decode_String(raw[1]),
+          bytesDone: dco_decode_u_64(raw[2]),
+          bytesTotal: dco_decode_u_64(raw[3]),
+        );
+      case 14:
+        return BusEvent_TransferTaskError(
+          id: dco_decode_String(raw[1]),
+          detail: dco_decode_String(raw[2]),
+        );
+      case 15:
+        return BusEvent_PortForwardRegistered(id: dco_decode_String(raw[1]));
+      case 16:
+        return BusEvent_PortForwardStatus(
+          id: dco_decode_String(raw[1]),
+          status: dco_decode_bus_rule_status(raw[2]),
+          detail: dco_decode_opt_String(raw[3]),
+        );
+      case 17:
+        return BusEvent_PortForwardRemoved(id: dco_decode_String(raw[1]));
       default:
         throw Exception('unreachable');
     }
@@ -6118,9 +6158,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BusRuleStatus dco_decode_bus_rule_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusRuleStatus.values[raw as int];
+  }
+
+  @protected
   BusStepStatus dco_decode_bus_step_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return BusStepStatus.values[raw as int];
+  }
+
+  @protected
+  BusTaskState dco_decode_bus_task_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusTaskState.values[raw as int];
   }
 
   @protected
@@ -7241,6 +7293,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 7:
         final var_minutes = sse_decode_i_64(deserializer);
         return BusEvent_AutoLockTimeoutChanged(minutes: var_minutes);
+      case 8:
+        final var_id = sse_decode_String(deserializer);
+        final var_path = sse_decode_String(deserializer);
+        return BusEvent_RecorderStarted(id: var_id, path: var_path);
+      case 9:
+        final var_id = sse_decode_String(deserializer);
+        return BusEvent_RecorderStopped(id: var_id);
+      case 10:
+        final var_id = sse_decode_String(deserializer);
+        final var_totalBytes = sse_decode_u_64(deserializer);
+        return BusEvent_RecorderBytesWritten(
+          id: var_id,
+          totalBytes: var_totalBytes,
+        );
+      case 11:
+        final var_id = sse_decode_String(deserializer);
+        return BusEvent_TransferTaskAdded(id: var_id);
+      case 12:
+        final var_id = sse_decode_String(deserializer);
+        final var_state = sse_decode_bus_task_state(deserializer);
+        return BusEvent_TransferTaskState(id: var_id, state: var_state);
+      case 13:
+        final var_id = sse_decode_String(deserializer);
+        final var_bytesDone = sse_decode_u_64(deserializer);
+        final var_bytesTotal = sse_decode_u_64(deserializer);
+        return BusEvent_TransferTaskProgress(
+          id: var_id,
+          bytesDone: var_bytesDone,
+          bytesTotal: var_bytesTotal,
+        );
+      case 14:
+        final var_id = sse_decode_String(deserializer);
+        final var_detail = sse_decode_String(deserializer);
+        return BusEvent_TransferTaskError(id: var_id, detail: var_detail);
+      case 15:
+        final var_id = sse_decode_String(deserializer);
+        return BusEvent_PortForwardRegistered(id: var_id);
+      case 16:
+        final var_id = sse_decode_String(deserializer);
+        final var_status = sse_decode_bus_rule_status(deserializer);
+        final var_detail = sse_decode_opt_String(deserializer);
+        return BusEvent_PortForwardStatus(
+          id: var_id,
+          status: var_status,
+          detail: var_detail,
+        );
+      case 17:
+        final var_id = sse_decode_String(deserializer);
+        return BusEvent_PortForwardRemoved(id: var_id);
       default:
         throw UnimplementedError('');
     }
@@ -7260,10 +7361,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BusRuleStatus sse_decode_bus_rule_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return BusRuleStatus.values[inner];
+  }
+
+  @protected
   BusStepStatus sse_decode_bus_step_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final inner = sse_decode_i_32(deserializer);
     return BusStepStatus.values[inner];
+  }
+
+  @protected
+  BusTaskState sse_decode_bus_task_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return BusTaskState.values[inner];
   }
 
   @protected
@@ -8679,6 +8794,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusEvent_AutoLockTimeoutChanged(minutes: final minutes):
         sse_encode_i_32(7, serializer);
         sse_encode_i_64(minutes, serializer);
+      case BusEvent_RecorderStarted(id: final id, path: final path):
+        sse_encode_i_32(8, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_String(path, serializer);
+      case BusEvent_RecorderStopped(id: final id):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(id, serializer);
+      case BusEvent_RecorderBytesWritten(
+        id: final id,
+        totalBytes: final totalBytes,
+      ):
+        sse_encode_i_32(10, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_u_64(totalBytes, serializer);
+      case BusEvent_TransferTaskAdded(id: final id):
+        sse_encode_i_32(11, serializer);
+        sse_encode_String(id, serializer);
+      case BusEvent_TransferTaskState(id: final id, state: final state):
+        sse_encode_i_32(12, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_bus_task_state(state, serializer);
+      case BusEvent_TransferTaskProgress(
+        id: final id,
+        bytesDone: final bytesDone,
+        bytesTotal: final bytesTotal,
+      ):
+        sse_encode_i_32(13, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_u_64(bytesDone, serializer);
+        sse_encode_u_64(bytesTotal, serializer);
+      case BusEvent_TransferTaskError(id: final id, detail: final detail):
+        sse_encode_i_32(14, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_String(detail, serializer);
+      case BusEvent_PortForwardRegistered(id: final id):
+        sse_encode_i_32(15, serializer);
+        sse_encode_String(id, serializer);
+      case BusEvent_PortForwardStatus(
+        id: final id,
+        status: final status,
+        detail: final detail,
+      ):
+        sse_encode_i_32(16, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_bus_rule_status(status, serializer);
+        sse_encode_opt_String(detail, serializer);
+      case BusEvent_PortForwardRemoved(id: final id):
+        sse_encode_i_32(17, serializer);
+        sse_encode_String(id, serializer);
     }
   }
 
@@ -8694,10 +8858,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bus_rule_status(
+    BusRuleStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_bus_step_status(
     BusStepStatus self,
     SseSerializer serializer,
   ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_bus_task_state(BusTaskState self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }

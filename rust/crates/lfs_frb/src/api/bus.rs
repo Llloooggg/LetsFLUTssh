@@ -145,6 +145,77 @@ pub enum BusEvent {
     /// 5.5 auto-lock — fired when the configured idle timeout
     /// changes. Carries the new value in minutes (0 = off).
     AutoLockTimeoutChanged { minutes: i64 },
+
+    /// 5.4 recorder — recording actor entered the registry.
+    RecorderStarted { id: String, path: String },
+    /// 5.4 recorder — recording actor left the registry.
+    RecorderStopped { id: String },
+    /// 5.4 recorder — chunk written; carries running byte total.
+    RecorderBytesWritten { id: String, total_bytes: u64 },
+
+    /// 5.3 transfer queue — task entered the queue.
+    TransferTaskAdded { id: String },
+    /// 5.3 transfer queue — task transitioned to a new state.
+    TransferTaskState { id: String, state: BusTaskState },
+    /// 5.3 transfer queue — bytes-done counter advanced.
+    TransferTaskProgress {
+        id: String,
+        bytes_done: u64,
+        bytes_total: u64,
+    },
+    /// 5.3 transfer queue — terminal failure on a task.
+    TransferTaskError { id: String, detail: String },
+
+    /// 5.2 port forward — rule actor entered the registry.
+    PortForwardRegistered { id: String },
+    /// 5.2 port forward — rule status transitioned.
+    PortForwardStatus {
+        id: String,
+        status: BusRuleStatus,
+        detail: Option<String>,
+    },
+    /// 5.2 port forward — rule actor left the registry.
+    PortForwardRemoved { id: String },
+}
+
+/// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
+#[derive(Debug, Clone, Copy)]
+pub enum BusRuleStatus {
+    Idle,
+    Listening,
+    Error,
+}
+
+impl From<lfs_core::portforward::RuleStatus> for BusRuleStatus {
+    fn from(s: lfs_core::portforward::RuleStatus) -> Self {
+        match s {
+            lfs_core::portforward::RuleStatus::Idle => BusRuleStatus::Idle,
+            lfs_core::portforward::RuleStatus::Listening => BusRuleStatus::Listening,
+            lfs_core::portforward::RuleStatus::Error => BusRuleStatus::Error,
+        }
+    }
+}
+
+/// Task state — FRB mirror of `lfs_core::transfer::TaskState`.
+#[derive(Debug, Clone, Copy)]
+pub enum BusTaskState {
+    Queued,
+    Running,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+impl From<lfs_core::transfer::TaskState> for BusTaskState {
+    fn from(s: lfs_core::transfer::TaskState) -> Self {
+        match s {
+            lfs_core::transfer::TaskState::Queued => BusTaskState::Queued,
+            lfs_core::transfer::TaskState::Running => BusTaskState::Running,
+            lfs_core::transfer::TaskState::Completed => BusTaskState::Completed,
+            lfs_core::transfer::TaskState::Failed => BusTaskState::Failed,
+            lfs_core::transfer::TaskState::Cancelled => BusTaskState::Cancelled,
+        }
+    }
 }
 
 impl BusEvent {
@@ -170,6 +241,41 @@ impl BusEvent {
             lfs_core::bus::Event::AutoLockTimeoutChanged { minutes } => {
                 BusEvent::AutoLockTimeoutChanged { minutes }
             }
+            lfs_core::bus::Event::RecorderStarted { id, path } => {
+                BusEvent::RecorderStarted { id, path }
+            }
+            lfs_core::bus::Event::RecorderStopped { id } => BusEvent::RecorderStopped { id },
+            lfs_core::bus::Event::RecorderBytesWritten { id, total_bytes } => {
+                BusEvent::RecorderBytesWritten { id, total_bytes }
+            }
+            lfs_core::bus::Event::TransferTaskAdded { id } => BusEvent::TransferTaskAdded { id },
+            lfs_core::bus::Event::TransferTaskState { id, state } => BusEvent::TransferTaskState {
+                id,
+                state: state.into(),
+            },
+            lfs_core::bus::Event::TransferTaskProgress {
+                id,
+                bytes_done,
+                bytes_total,
+            } => BusEvent::TransferTaskProgress {
+                id,
+                bytes_done,
+                bytes_total,
+            },
+            lfs_core::bus::Event::TransferTaskError { id, detail } => {
+                BusEvent::TransferTaskError { id, detail }
+            }
+            lfs_core::bus::Event::PortForwardRegistered { id } => {
+                BusEvent::PortForwardRegistered { id }
+            }
+            lfs_core::bus::Event::PortForwardStatus { id, status, detail } => {
+                BusEvent::PortForwardStatus {
+                    id,
+                    status: status.into(),
+                    detail,
+                }
+            }
+            lfs_core::bus::Event::PortForwardRemoved { id } => BusEvent::PortForwardRemoved { id },
         }
     }
 }

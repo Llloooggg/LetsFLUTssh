@@ -1013,7 +1013,7 @@ extension BusEventPatterns on BusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1024,7 +1024,17 @@ return connectionError(_that);case BusEvent_ConnectionRemoved() when connectionR
 return connectionRemoved(_that);case BusEvent_AutoLockLocked() when autoLockLocked != null:
 return autoLockLocked(_that);case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
 return autoLockUnlocked(_that);case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
-return autoLockTimeoutChanged(_that);case _:
+return autoLockTimeoutChanged(_that);case BusEvent_RecorderStarted() when recorderStarted != null:
+return recorderStarted(_that);case BusEvent_RecorderStopped() when recorderStopped != null:
+return recorderStopped(_that);case BusEvent_RecorderBytesWritten() when recorderBytesWritten != null:
+return recorderBytesWritten(_that);case BusEvent_TransferTaskAdded() when transferTaskAdded != null:
+return transferTaskAdded(_that);case BusEvent_TransferTaskState() when transferTaskState != null:
+return transferTaskState(_that);case BusEvent_TransferTaskProgress() when transferTaskProgress != null:
+return transferTaskProgress(_that);case BusEvent_TransferTaskError() when transferTaskError != null:
+return transferTaskError(_that);case BusEvent_PortForwardRegistered() when portForwardRegistered != null:
+return portForwardRegistered(_that);case BusEvent_PortForwardStatus() when portForwardStatus != null:
+return portForwardStatus(_that);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
+return portForwardRemoved(_that);case _:
   return orElse();
 
 }
@@ -1042,7 +1052,7 @@ return autoLockTimeoutChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
@@ -1053,7 +1063,17 @@ return connectionError(_that);case BusEvent_ConnectionRemoved():
 return connectionRemoved(_that);case BusEvent_AutoLockLocked():
 return autoLockLocked(_that);case BusEvent_AutoLockUnlocked():
 return autoLockUnlocked(_that);case BusEvent_AutoLockTimeoutChanged():
-return autoLockTimeoutChanged(_that);}
+return autoLockTimeoutChanged(_that);case BusEvent_RecorderStarted():
+return recorderStarted(_that);case BusEvent_RecorderStopped():
+return recorderStopped(_that);case BusEvent_RecorderBytesWritten():
+return recorderBytesWritten(_that);case BusEvent_TransferTaskAdded():
+return transferTaskAdded(_that);case BusEvent_TransferTaskState():
+return transferTaskState(_that);case BusEvent_TransferTaskProgress():
+return transferTaskProgress(_that);case BusEvent_TransferTaskError():
+return transferTaskError(_that);case BusEvent_PortForwardRegistered():
+return portForwardRegistered(_that);case BusEvent_PortForwardStatus():
+return portForwardStatus(_that);case BusEvent_PortForwardRemoved():
+return portForwardRemoved(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -1067,7 +1087,7 @@ return autoLockTimeoutChanged(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1078,7 +1098,17 @@ return connectionError(_that);case BusEvent_ConnectionRemoved() when connectionR
 return connectionRemoved(_that);case BusEvent_AutoLockLocked() when autoLockLocked != null:
 return autoLockLocked(_that);case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
 return autoLockUnlocked(_that);case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
-return autoLockTimeoutChanged(_that);case _:
+return autoLockTimeoutChanged(_that);case BusEvent_RecorderStarted() when recorderStarted != null:
+return recorderStarted(_that);case BusEvent_RecorderStopped() when recorderStopped != null:
+return recorderStopped(_that);case BusEvent_RecorderBytesWritten() when recorderBytesWritten != null:
+return recorderBytesWritten(_that);case BusEvent_TransferTaskAdded() when transferTaskAdded != null:
+return transferTaskAdded(_that);case BusEvent_TransferTaskState() when transferTaskState != null:
+return transferTaskState(_that);case BusEvent_TransferTaskProgress() when transferTaskProgress != null:
+return transferTaskProgress(_that);case BusEvent_TransferTaskError() when transferTaskError != null:
+return transferTaskError(_that);case BusEvent_PortForwardRegistered() when portForwardRegistered != null:
+return portForwardRegistered(_that);case BusEvent_PortForwardStatus() when portForwardStatus != null:
+return portForwardStatus(_that);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
+return portForwardRemoved(_that);case _:
   return null;
 
 }
@@ -1095,7 +1125,7 @@ return autoLockTimeoutChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1105,7 +1135,17 @@ return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved() 
 return connectionRemoved(_that.id);case BusEvent_AutoLockLocked() when autoLockLocked != null:
 return autoLockLocked();case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
 return autoLockUnlocked();case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
-return autoLockTimeoutChanged(_that.minutes);case _:
+return autoLockTimeoutChanged(_that.minutes);case BusEvent_RecorderStarted() when recorderStarted != null:
+return recorderStarted(_that.id,_that.path);case BusEvent_RecorderStopped() when recorderStopped != null:
+return recorderStopped(_that.id);case BusEvent_RecorderBytesWritten() when recorderBytesWritten != null:
+return recorderBytesWritten(_that.id,_that.totalBytes);case BusEvent_TransferTaskAdded() when transferTaskAdded != null:
+return transferTaskAdded(_that.id);case BusEvent_TransferTaskState() when transferTaskState != null:
+return transferTaskState(_that.id,_that.state);case BusEvent_TransferTaskProgress() when transferTaskProgress != null:
+return transferTaskProgress(_that.id,_that.bytesDone,_that.bytesTotal);case BusEvent_TransferTaskError() when transferTaskError != null:
+return transferTaskError(_that.id,_that.detail);case BusEvent_PortForwardRegistered() when portForwardRegistered != null:
+return portForwardRegistered(_that.id);case BusEvent_PortForwardStatus() when portForwardStatus != null:
+return portForwardStatus(_that.id,_that.status,_that.detail);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
+return portForwardRemoved(_that.id);case _:
   return orElse();
 
 }
@@ -1123,7 +1163,7 @@ return autoLockTimeoutChanged(_that.minutes);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged():
@@ -1133,7 +1173,17 @@ return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved():
 return connectionRemoved(_that.id);case BusEvent_AutoLockLocked():
 return autoLockLocked();case BusEvent_AutoLockUnlocked():
 return autoLockUnlocked();case BusEvent_AutoLockTimeoutChanged():
-return autoLockTimeoutChanged(_that.minutes);}
+return autoLockTimeoutChanged(_that.minutes);case BusEvent_RecorderStarted():
+return recorderStarted(_that.id,_that.path);case BusEvent_RecorderStopped():
+return recorderStopped(_that.id);case BusEvent_RecorderBytesWritten():
+return recorderBytesWritten(_that.id,_that.totalBytes);case BusEvent_TransferTaskAdded():
+return transferTaskAdded(_that.id);case BusEvent_TransferTaskState():
+return transferTaskState(_that.id,_that.state);case BusEvent_TransferTaskProgress():
+return transferTaskProgress(_that.id,_that.bytesDone,_that.bytesTotal);case BusEvent_TransferTaskError():
+return transferTaskError(_that.id,_that.detail);case BusEvent_PortForwardRegistered():
+return portForwardRegistered(_that.id);case BusEvent_PortForwardStatus():
+return portForwardStatus(_that.id,_that.status,_that.detail);case BusEvent_PortForwardRemoved():
+return portForwardRemoved(_that.id);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -1147,7 +1197,7 @@ return autoLockTimeoutChanged(_that.minutes);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1157,7 +1207,17 @@ return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved() 
 return connectionRemoved(_that.id);case BusEvent_AutoLockLocked() when autoLockLocked != null:
 return autoLockLocked();case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
 return autoLockUnlocked();case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
-return autoLockTimeoutChanged(_that.minutes);case _:
+return autoLockTimeoutChanged(_that.minutes);case BusEvent_RecorderStarted() when recorderStarted != null:
+return recorderStarted(_that.id,_that.path);case BusEvent_RecorderStopped() when recorderStopped != null:
+return recorderStopped(_that.id);case BusEvent_RecorderBytesWritten() when recorderBytesWritten != null:
+return recorderBytesWritten(_that.id,_that.totalBytes);case BusEvent_TransferTaskAdded() when transferTaskAdded != null:
+return transferTaskAdded(_that.id);case BusEvent_TransferTaskState() when transferTaskState != null:
+return transferTaskState(_that.id,_that.state);case BusEvent_TransferTaskProgress() when transferTaskProgress != null:
+return transferTaskProgress(_that.id,_that.bytesDone,_that.bytesTotal);case BusEvent_TransferTaskError() when transferTaskError != null:
+return transferTaskError(_that.id,_that.detail);case BusEvent_PortForwardRegistered() when portForwardRegistered != null:
+return portForwardRegistered(_that.id);case BusEvent_PortForwardStatus() when portForwardStatus != null:
+return portForwardStatus(_that.id,_that.status,_that.detail);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
+return portForwardRemoved(_that.id);case _:
   return null;
 
 }
@@ -1625,6 +1685,682 @@ class _$BusEvent_AutoLockTimeoutChangedCopyWithImpl<$Res>
   return _then(BusEvent_AutoLockTimeoutChanged(
 minutes: null == minutes ? _self.minutes : minutes // ignore: cast_nullable_to_non_nullable
 as PlatformInt64,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_RecorderStarted extends BusEvent {
+  const BusEvent_RecorderStarted({required this.id, required this.path}): super._();
+  
+
+ final  String id;
+ final  String path;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_RecorderStartedCopyWith<BusEvent_RecorderStarted> get copyWith => _$BusEvent_RecorderStartedCopyWithImpl<BusEvent_RecorderStarted>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_RecorderStarted&&(identical(other.id, id) || other.id == id)&&(identical(other.path, path) || other.path == path));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,path);
+
+@override
+String toString() {
+  return 'BusEvent.recorderStarted(id: $id, path: $path)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_RecorderStartedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_RecorderStartedCopyWith(BusEvent_RecorderStarted value, $Res Function(BusEvent_RecorderStarted) _then) = _$BusEvent_RecorderStartedCopyWithImpl;
+@useResult
+$Res call({
+ String id, String path
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_RecorderStartedCopyWithImpl<$Res>
+    implements $BusEvent_RecorderStartedCopyWith<$Res> {
+  _$BusEvent_RecorderStartedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_RecorderStarted _self;
+  final $Res Function(BusEvent_RecorderStarted) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? path = null,}) {
+  return _then(BusEvent_RecorderStarted(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_RecorderStopped extends BusEvent {
+  const BusEvent_RecorderStopped({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_RecorderStoppedCopyWith<BusEvent_RecorderStopped> get copyWith => _$BusEvent_RecorderStoppedCopyWithImpl<BusEvent_RecorderStopped>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_RecorderStopped&&(identical(other.id, id) || other.id == id));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id);
+
+@override
+String toString() {
+  return 'BusEvent.recorderStopped(id: $id)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_RecorderStoppedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_RecorderStoppedCopyWith(BusEvent_RecorderStopped value, $Res Function(BusEvent_RecorderStopped) _then) = _$BusEvent_RecorderStoppedCopyWithImpl;
+@useResult
+$Res call({
+ String id
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_RecorderStoppedCopyWithImpl<$Res>
+    implements $BusEvent_RecorderStoppedCopyWith<$Res> {
+  _$BusEvent_RecorderStoppedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_RecorderStopped _self;
+  final $Res Function(BusEvent_RecorderStopped) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(BusEvent_RecorderStopped(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_RecorderBytesWritten extends BusEvent {
+  const BusEvent_RecorderBytesWritten({required this.id, required this.totalBytes}): super._();
+  
+
+ final  String id;
+ final  BigInt totalBytes;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_RecorderBytesWrittenCopyWith<BusEvent_RecorderBytesWritten> get copyWith => _$BusEvent_RecorderBytesWrittenCopyWithImpl<BusEvent_RecorderBytesWritten>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_RecorderBytesWritten&&(identical(other.id, id) || other.id == id)&&(identical(other.totalBytes, totalBytes) || other.totalBytes == totalBytes));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,totalBytes);
+
+@override
+String toString() {
+  return 'BusEvent.recorderBytesWritten(id: $id, totalBytes: $totalBytes)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_RecorderBytesWrittenCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_RecorderBytesWrittenCopyWith(BusEvent_RecorderBytesWritten value, $Res Function(BusEvent_RecorderBytesWritten) _then) = _$BusEvent_RecorderBytesWrittenCopyWithImpl;
+@useResult
+$Res call({
+ String id, BigInt totalBytes
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_RecorderBytesWrittenCopyWithImpl<$Res>
+    implements $BusEvent_RecorderBytesWrittenCopyWith<$Res> {
+  _$BusEvent_RecorderBytesWrittenCopyWithImpl(this._self, this._then);
+
+  final BusEvent_RecorderBytesWritten _self;
+  final $Res Function(BusEvent_RecorderBytesWritten) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? totalBytes = null,}) {
+  return _then(BusEvent_RecorderBytesWritten(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,totalBytes: null == totalBytes ? _self.totalBytes : totalBytes // ignore: cast_nullable_to_non_nullable
+as BigInt,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_TransferTaskAdded extends BusEvent {
+  const BusEvent_TransferTaskAdded({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_TransferTaskAddedCopyWith<BusEvent_TransferTaskAdded> get copyWith => _$BusEvent_TransferTaskAddedCopyWithImpl<BusEvent_TransferTaskAdded>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_TransferTaskAdded&&(identical(other.id, id) || other.id == id));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id);
+
+@override
+String toString() {
+  return 'BusEvent.transferTaskAdded(id: $id)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_TransferTaskAddedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_TransferTaskAddedCopyWith(BusEvent_TransferTaskAdded value, $Res Function(BusEvent_TransferTaskAdded) _then) = _$BusEvent_TransferTaskAddedCopyWithImpl;
+@useResult
+$Res call({
+ String id
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_TransferTaskAddedCopyWithImpl<$Res>
+    implements $BusEvent_TransferTaskAddedCopyWith<$Res> {
+  _$BusEvent_TransferTaskAddedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_TransferTaskAdded _self;
+  final $Res Function(BusEvent_TransferTaskAdded) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(BusEvent_TransferTaskAdded(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_TransferTaskState extends BusEvent {
+  const BusEvent_TransferTaskState({required this.id, required this.state}): super._();
+  
+
+ final  String id;
+ final  BusTaskState state;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_TransferTaskStateCopyWith<BusEvent_TransferTaskState> get copyWith => _$BusEvent_TransferTaskStateCopyWithImpl<BusEvent_TransferTaskState>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_TransferTaskState&&(identical(other.id, id) || other.id == id)&&(identical(other.state, state) || other.state == state));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,state);
+
+@override
+String toString() {
+  return 'BusEvent.transferTaskState(id: $id, state: $state)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_TransferTaskStateCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_TransferTaskStateCopyWith(BusEvent_TransferTaskState value, $Res Function(BusEvent_TransferTaskState) _then) = _$BusEvent_TransferTaskStateCopyWithImpl;
+@useResult
+$Res call({
+ String id, BusTaskState state
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_TransferTaskStateCopyWithImpl<$Res>
+    implements $BusEvent_TransferTaskStateCopyWith<$Res> {
+  _$BusEvent_TransferTaskStateCopyWithImpl(this._self, this._then);
+
+  final BusEvent_TransferTaskState _self;
+  final $Res Function(BusEvent_TransferTaskState) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? state = null,}) {
+  return _then(BusEvent_TransferTaskState(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as BusTaskState,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_TransferTaskProgress extends BusEvent {
+  const BusEvent_TransferTaskProgress({required this.id, required this.bytesDone, required this.bytesTotal}): super._();
+  
+
+ final  String id;
+ final  BigInt bytesDone;
+ final  BigInt bytesTotal;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_TransferTaskProgressCopyWith<BusEvent_TransferTaskProgress> get copyWith => _$BusEvent_TransferTaskProgressCopyWithImpl<BusEvent_TransferTaskProgress>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_TransferTaskProgress&&(identical(other.id, id) || other.id == id)&&(identical(other.bytesDone, bytesDone) || other.bytesDone == bytesDone)&&(identical(other.bytesTotal, bytesTotal) || other.bytesTotal == bytesTotal));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,bytesDone,bytesTotal);
+
+@override
+String toString() {
+  return 'BusEvent.transferTaskProgress(id: $id, bytesDone: $bytesDone, bytesTotal: $bytesTotal)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_TransferTaskProgressCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_TransferTaskProgressCopyWith(BusEvent_TransferTaskProgress value, $Res Function(BusEvent_TransferTaskProgress) _then) = _$BusEvent_TransferTaskProgressCopyWithImpl;
+@useResult
+$Res call({
+ String id, BigInt bytesDone, BigInt bytesTotal
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_TransferTaskProgressCopyWithImpl<$Res>
+    implements $BusEvent_TransferTaskProgressCopyWith<$Res> {
+  _$BusEvent_TransferTaskProgressCopyWithImpl(this._self, this._then);
+
+  final BusEvent_TransferTaskProgress _self;
+  final $Res Function(BusEvent_TransferTaskProgress) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? bytesDone = null,Object? bytesTotal = null,}) {
+  return _then(BusEvent_TransferTaskProgress(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,bytesDone: null == bytesDone ? _self.bytesDone : bytesDone // ignore: cast_nullable_to_non_nullable
+as BigInt,bytesTotal: null == bytesTotal ? _self.bytesTotal : bytesTotal // ignore: cast_nullable_to_non_nullable
+as BigInt,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_TransferTaskError extends BusEvent {
+  const BusEvent_TransferTaskError({required this.id, required this.detail}): super._();
+  
+
+ final  String id;
+ final  String detail;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_TransferTaskErrorCopyWith<BusEvent_TransferTaskError> get copyWith => _$BusEvent_TransferTaskErrorCopyWithImpl<BusEvent_TransferTaskError>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_TransferTaskError&&(identical(other.id, id) || other.id == id)&&(identical(other.detail, detail) || other.detail == detail));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,detail);
+
+@override
+String toString() {
+  return 'BusEvent.transferTaskError(id: $id, detail: $detail)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_TransferTaskErrorCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_TransferTaskErrorCopyWith(BusEvent_TransferTaskError value, $Res Function(BusEvent_TransferTaskError) _then) = _$BusEvent_TransferTaskErrorCopyWithImpl;
+@useResult
+$Res call({
+ String id, String detail
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_TransferTaskErrorCopyWithImpl<$Res>
+    implements $BusEvent_TransferTaskErrorCopyWith<$Res> {
+  _$BusEvent_TransferTaskErrorCopyWithImpl(this._self, this._then);
+
+  final BusEvent_TransferTaskError _self;
+  final $Res Function(BusEvent_TransferTaskError) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? detail = null,}) {
+  return _then(BusEvent_TransferTaskError(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,detail: null == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_PortForwardRegistered extends BusEvent {
+  const BusEvent_PortForwardRegistered({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_PortForwardRegisteredCopyWith<BusEvent_PortForwardRegistered> get copyWith => _$BusEvent_PortForwardRegisteredCopyWithImpl<BusEvent_PortForwardRegistered>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_PortForwardRegistered&&(identical(other.id, id) || other.id == id));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id);
+
+@override
+String toString() {
+  return 'BusEvent.portForwardRegistered(id: $id)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_PortForwardRegisteredCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_PortForwardRegisteredCopyWith(BusEvent_PortForwardRegistered value, $Res Function(BusEvent_PortForwardRegistered) _then) = _$BusEvent_PortForwardRegisteredCopyWithImpl;
+@useResult
+$Res call({
+ String id
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_PortForwardRegisteredCopyWithImpl<$Res>
+    implements $BusEvent_PortForwardRegisteredCopyWith<$Res> {
+  _$BusEvent_PortForwardRegisteredCopyWithImpl(this._self, this._then);
+
+  final BusEvent_PortForwardRegistered _self;
+  final $Res Function(BusEvent_PortForwardRegistered) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(BusEvent_PortForwardRegistered(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_PortForwardStatus extends BusEvent {
+  const BusEvent_PortForwardStatus({required this.id, required this.status, this.detail}): super._();
+  
+
+ final  String id;
+ final  BusRuleStatus status;
+ final  String? detail;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_PortForwardStatusCopyWith<BusEvent_PortForwardStatus> get copyWith => _$BusEvent_PortForwardStatusCopyWithImpl<BusEvent_PortForwardStatus>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_PortForwardStatus&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.detail, detail) || other.detail == detail));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,status,detail);
+
+@override
+String toString() {
+  return 'BusEvent.portForwardStatus(id: $id, status: $status, detail: $detail)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_PortForwardStatusCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_PortForwardStatusCopyWith(BusEvent_PortForwardStatus value, $Res Function(BusEvent_PortForwardStatus) _then) = _$BusEvent_PortForwardStatusCopyWithImpl;
+@useResult
+$Res call({
+ String id, BusRuleStatus status, String? detail
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_PortForwardStatusCopyWithImpl<$Res>
+    implements $BusEvent_PortForwardStatusCopyWith<$Res> {
+  _$BusEvent_PortForwardStatusCopyWithImpl(this._self, this._then);
+
+  final BusEvent_PortForwardStatus _self;
+  final $Res Function(BusEvent_PortForwardStatus) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? status = null,Object? detail = freezed,}) {
+  return _then(BusEvent_PortForwardStatus(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as BusRuleStatus,detail: freezed == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_PortForwardRemoved extends BusEvent {
+  const BusEvent_PortForwardRemoved({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_PortForwardRemovedCopyWith<BusEvent_PortForwardRemoved> get copyWith => _$BusEvent_PortForwardRemovedCopyWithImpl<BusEvent_PortForwardRemoved>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_PortForwardRemoved&&(identical(other.id, id) || other.id == id));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id);
+
+@override
+String toString() {
+  return 'BusEvent.portForwardRemoved(id: $id)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_PortForwardRemovedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_PortForwardRemovedCopyWith(BusEvent_PortForwardRemoved value, $Res Function(BusEvent_PortForwardRemoved) _then) = _$BusEvent_PortForwardRemovedCopyWithImpl;
+@useResult
+$Res call({
+ String id
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_PortForwardRemovedCopyWithImpl<$Res>
+    implements $BusEvent_PortForwardRemovedCopyWith<$Res> {
+  _$BusEvent_PortForwardRemovedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_PortForwardRemoved _self;
+  final $Res Function(BusEvent_PortForwardRemoved) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(BusEvent_PortForwardRemoved(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

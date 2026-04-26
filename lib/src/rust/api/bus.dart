@@ -10,7 +10,7 @@ import 'ssh.dart';
 part 'bus.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Direct connect entry point. Bypasses the bus because connect is
 /// a request/response operation: the Dart caller awaits the result
@@ -218,6 +218,60 @@ sealed class BusEvent with _$BusEvent {
   const factory BusEvent.autoLockTimeoutChanged({
     required PlatformInt64 minutes,
   }) = BusEvent_AutoLockTimeoutChanged;
+
+  /// 5.4 recorder — recording actor entered the registry.
+  const factory BusEvent.recorderStarted({
+    required String id,
+    required String path,
+  }) = BusEvent_RecorderStarted;
+
+  /// 5.4 recorder — recording actor left the registry.
+  const factory BusEvent.recorderStopped({required String id}) =
+      BusEvent_RecorderStopped;
+
+  /// 5.4 recorder — chunk written; carries running byte total.
+  const factory BusEvent.recorderBytesWritten({
+    required String id,
+    required BigInt totalBytes,
+  }) = BusEvent_RecorderBytesWritten;
+
+  /// 5.3 transfer queue — task entered the queue.
+  const factory BusEvent.transferTaskAdded({required String id}) =
+      BusEvent_TransferTaskAdded;
+
+  /// 5.3 transfer queue — task transitioned to a new state.
+  const factory BusEvent.transferTaskState({
+    required String id,
+    required BusTaskState state,
+  }) = BusEvent_TransferTaskState;
+
+  /// 5.3 transfer queue — bytes-done counter advanced.
+  const factory BusEvent.transferTaskProgress({
+    required String id,
+    required BigInt bytesDone,
+    required BigInt bytesTotal,
+  }) = BusEvent_TransferTaskProgress;
+
+  /// 5.3 transfer queue — terminal failure on a task.
+  const factory BusEvent.transferTaskError({
+    required String id,
+    required String detail,
+  }) = BusEvent_TransferTaskError;
+
+  /// 5.2 port forward — rule actor entered the registry.
+  const factory BusEvent.portForwardRegistered({required String id}) =
+      BusEvent_PortForwardRegistered;
+
+  /// 5.2 port forward — rule status transitioned.
+  const factory BusEvent.portForwardStatus({
+    required String id,
+    required BusRuleStatus status,
+    String? detail,
+  }) = BusEvent_PortForwardStatus;
+
+  /// 5.2 port forward — rule actor left the registry.
+  const factory BusEvent.portForwardRemoved({required String id}) =
+      BusEvent_PortForwardRemoved;
 }
 
 /// Connection progress step — FRB mirror of
@@ -246,8 +300,14 @@ class BusProgressStep {
           detail == other.detail;
 }
 
+/// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
+enum BusRuleStatus { idle, listening, error }
+
 /// Step status — FRB mirror of `lfs_core::connection::StepStatus`.
 enum BusStepStatus { inProgress, success, failed }
+
+/// Task state — FRB mirror of `lfs_core::transfer::TaskState`.
+enum BusTaskState { queued, running, completed, failed, cancelled }
 
 /// Topic tag the Dart subscriber picks. The FRB-visible mirror of
 /// `lfs_core::bus::EventTopic` — bumped in lockstep when sub-phases

@@ -114,6 +114,44 @@ pub enum Event {
     /// 5.5 auto-lock — fired when the configured idle timeout
     /// changes. Carries the new value in minutes (0 = off).
     AutoLockTimeoutChanged { minutes: i64 },
+
+    /// 5.4 recorder — fired when a fresh recording actor enters
+    /// the registry.
+    RecorderStarted { id: String, path: String },
+    /// 5.4 recorder — fired when an actor leaves the registry
+    /// (close / shutdown / file rotation).
+    RecorderStopped { id: String },
+    /// 5.4 recorder — fired after the frame-write driver records
+    /// a chunk of bytes. Carries the running total so subscribers
+    /// can render progress without polling.
+    RecorderBytesWritten { id: String, total_bytes: u64 },
+
+    /// 5.3 transfer queue — task entered the queue.
+    TransferTaskAdded { id: String },
+    /// 5.3 transfer queue — task transitioned to a new state.
+    TransferTaskState {
+        id: String,
+        state: crate::transfer::TaskState,
+    },
+    /// 5.3 transfer queue — bytes-done counter advanced.
+    TransferTaskProgress {
+        id: String,
+        bytes_done: u64,
+        bytes_total: u64,
+    },
+    /// 5.3 transfer queue — terminal failure on a task.
+    TransferTaskError { id: String, detail: String },
+
+    /// 5.2 port forward — rule actor entered the registry.
+    PortForwardRegistered { id: String },
+    /// 5.2 port forward — rule status transitioned.
+    PortForwardStatus {
+        id: String,
+        status: crate::portforward::RuleStatus,
+        detail: Option<String>,
+    },
+    /// 5.2 port forward — rule actor left the registry.
+    PortForwardRemoved { id: String },
 }
 
 impl Event {
@@ -127,6 +165,16 @@ impl Event {
             Event::AutoLockLocked
             | Event::AutoLockUnlocked
             | Event::AutoLockTimeoutChanged { .. } => EventTopic::AutoLock,
+            Event::RecorderStarted { .. }
+            | Event::RecorderStopped { .. }
+            | Event::RecorderBytesWritten { .. } => EventTopic::Recorder,
+            Event::TransferTaskAdded { .. }
+            | Event::TransferTaskState { .. }
+            | Event::TransferTaskProgress { .. }
+            | Event::TransferTaskError { .. } => EventTopic::Transfer,
+            Event::PortForwardRegistered { .. }
+            | Event::PortForwardStatus { .. }
+            | Event::PortForwardRemoved { .. } => EventTopic::PortForward,
         }
     }
 }
