@@ -29,6 +29,7 @@ pub mod keys;
 pub mod password_strength;
 pub mod path;
 pub mod portforward;
+pub mod rate_limit;
 pub mod recorder;
 pub mod secrets;
 pub mod sftp;
