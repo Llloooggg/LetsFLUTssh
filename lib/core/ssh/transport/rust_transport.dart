@@ -3,9 +3,11 @@
 //
 // Wraps the engine-specific FRB types (`rust_ssh.SshSession`,
 // `SshShell`, `SshForwardChannel`, `SshSftp`) behind the
-// engine-agnostic abstraction. The unified Dart-side dispatch in
-// session_connect.dart picks this transport when the
-// `useRustSshTransport` flag is on.
+// engine-agnostic abstraction. The session itself is built by the
+// Rust connection actor; this Dart wrapper exists to bridge the
+// channel-ops surface (`openShell` / `openSftp` /
+// `openDirectTcpip` / `requestRemoteForward`) into the engine-
+// agnostic `SshTransport` abstraction the rest of the app binds to.
 //
 // See docs/RUST_CORE_MIGRATION_PLAN.md §13.
 
@@ -25,179 +27,21 @@ class RustTransport implements SshTransport {
   Future<void>? _forwardPump;
   bool _disconnected = false;
 
-  /// True when this transport adopted a session from the Rust
-  /// connection actor (`connectionGetSession`). Lifecycle ownership
-  /// belongs to the actor; the local `disconnect` becomes a no-op
-  /// to avoid double-tearing the shared `Arc<Session>`.
-  bool _adopted = false;
+  RustTransport._adopted(rust_ssh.SshSession session) : _session = session {
+    _startForwardPump();
+  }
 
-  RustTransport();
-
-  /// Adopt an actor-owned `SshSession`. The adopted
-  /// transport surfaces `isConnected = true` immediately so channel
-  /// ops (`openShell`, `openSftp`, `openDirectTcpip`,
+  /// Adopt an actor-owned `SshSession`. The adopted transport
+  /// surfaces `isConnected = true` immediately so channel ops
+  /// (`openShell`, `openSftp`, `openDirectTcpip`,
   /// `requestRemoteForward`) start working without a separate
   /// `connect()` round-trip. Tear-down belongs to the actor —
   /// dispatch `ConnectionDisconnect` over the bus.
-  factory RustTransport.adopt(rust_ssh.SshSession session) {
-    final t = RustTransport();
-    t._session = session;
-    t._adopted = true;
-    t._startForwardPump();
-    return t;
-  }
+  factory RustTransport.adopt(rust_ssh.SshSession session) =>
+      RustTransport._adopted(session);
 
   @override
   bool get isConnected => _session != null && !_disconnected;
-
-  @override
-  Future<void> connect(SshConnectRequest request) async {
-    if (_session != null) {
-      throw StateError('RustTransport.connect called twice');
-    }
-    final auth = request.auth;
-    try {
-      _session = await switch (auth) {
-        SshAuthPassword() => rust_ssh.sshConnectPassword(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          password: auth.password,
-        ),
-        SshAuthPubkey() => rust_ssh.sshConnectPubkey(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          privateKey: auth.privateKey,
-          passphrase: auth.passphrase,
-        ),
-        SshAuthPubkeyCert() => rust_ssh.sshConnectPubkeyCert(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          privateKey: auth.privateKey,
-          passphrase: auth.passphrase,
-          cert: auth.cert,
-        ),
-        SshAuthAgent() => rust_ssh.sshConnectAgent(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-        ),
-        // Secret-store-backed variants. The plaintext never crosses
-        // the FRB boundary at connect time; Rust resolves the IDs
-        // against the SecretStore.
-        SshAuthPasswordRef() => rust_ssh.sshConnectPasswordWithSecret(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          passwordSecretId: auth.passwordSecretId,
-        ),
-        SshAuthPubkeyRef() => rust_ssh.sshConnectPubkeyWithSecret(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          keySecretId: auth.keySecretId,
-          passphraseSecretId: auth.passphraseSecretId,
-        ),
-        SshAuthPubkeyCertRef() => rust_ssh.sshConnectPubkeyCertWithSecret(
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          keySecretId: auth.keySecretId,
-          certSecretId: auth.certSecretId,
-          passphraseSecretId: auth.passphraseSecretId,
-        ),
-      };
-    } catch (e) {
-      throw _classifyConnectError(e);
-    }
-    _startForwardPump();
-  }
-
-  /// Connect this transport over a `direct-tcpip` channel on
-  /// [parent] — the ProxyJump bastion-chain primitive. Composable:
-  /// the resulting transport can itself act as a parent for the next
-  /// hop. Reuses the standard auth dispatch on the Rust side so cert
-  /// / agent / pubkey auth work identically over a ProxyJump tunnel
-  /// and over a direct TCP dial.
-  Future<void> connectViaProxy(
-    RustTransport parent,
-    SshConnectRequest request,
-  ) async {
-    if (_session != null) {
-      throw StateError('RustTransport.connectViaProxy called twice');
-    }
-    final parentSession = parent._session;
-    if (parentSession == null || parent._disconnected) {
-      throw const SshConnectError('proxy parent not connected');
-    }
-    final auth = request.auth;
-    try {
-      _session = await switch (auth) {
-        SshAuthPassword() => rust_ssh.sshConnectPasswordViaProxy(
-          parent: parentSession,
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          password: auth.password,
-        ),
-        SshAuthPubkey() => rust_ssh.sshConnectPubkeyViaProxy(
-          parent: parentSession,
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          privateKey: auth.privateKey,
-          passphrase: auth.passphrase,
-        ),
-        SshAuthPubkeyCert() => rust_ssh.sshConnectPubkeyCertViaProxy(
-          parent: parentSession,
-          host: request.host,
-          port: request.port,
-          user: request.user,
-          privateKey: auth.privateKey,
-          passphrase: auth.passphrase,
-          cert: auth.cert,
-        ),
-        SshAuthAgent() => throw const SshConnectError(
-          'ssh-agent auth via ProxyJump is not supported on this build — '
-          'the agent client futures are not Send and the proxy variant '
-          'cannot be wrapped through FRB. Use a key (or key+cert) on the '
-          'inner hop, or run the agent on the bastion itself.',
-        ),
-        // Secret-store-backed ProxyJump variants are not yet
-        // exposed on the Rust side. The proxy connect path is rare
-        // enough that adding the parallel surface waits for a real
-        // user need; for now ConnectionManager falls through to the
-        // plaintext variants when a Ref slips through.
-        SshAuthPasswordRef() ||
-        SshAuthPubkeyRef() ||
-        SshAuthPubkeyCertRef() => throw const SshConnectError(
-          'secret-ref auth via ProxyJump is not yet wired — '
-          'fall back to the plaintext SshAuthPassword / '
-          'SshAuthPubkey / SshAuthPubkeyCert variants on the '
-          'inner hop.',
-        ),
-      };
-    } catch (e) {
-      throw _classifyConnectError(e);
-    }
-    _startForwardPump();
-  }
-
-  Object _classifyConnectError(Object e) {
-    final msg = e.toString();
-    if (msg.contains('authentication failed') || msg.contains('AuthFailed')) {
-      return const SshAuthFailed();
-    }
-    if (msg.contains('host key')) {
-      return const SshHostKeyRejected('');
-    }
-    if (msg.contains('connect failed') || msg.contains('Connect')) {
-      return SshConnectError(msg);
-    }
-    return SshConnectError(msg);
-  }
 
   @override
   Future<SshShellChannel> openShell({
@@ -309,22 +153,14 @@ class RustTransport implements SshTransport {
   Future<void> disconnect() async {
     if (_disconnected) return;
     _disconnected = true;
-    final session = _session;
     _session = null;
-    // Adopted sessions belong to the connection actor — calling
+    // The adopted session belongs to the connection actor — calling
     // `session.disconnect()` here would clear only this wrapper's
     // slot (the actor still holds its own `Arc<Session>` clone),
     // leaving the actor pointing at a half-torn russh handle.
-    // Tear-down for an adopted transport happens through the bus
-    // command (`ConnectionDisconnect`); the local Dart shutdown
-    // just stops the forward pump and closes the broadcast.
-    if (session != null && !_adopted) {
-      try {
-        await session.disconnect();
-      } catch (_) {
-        // Best-effort — session already torn down.
-      }
-    }
+    // Tear-down happens through the bus command
+    // (`ConnectionDisconnect`); the local Dart shutdown just stops
+    // the forward pump and closes the broadcast.
     await _forwardPump;
     await _forwardCtrl.close();
   }

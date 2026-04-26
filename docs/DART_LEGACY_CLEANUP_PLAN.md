@@ -230,7 +230,7 @@ by default. Either:
 
 ### Step 6 — final dead-code sweep
 
-**Status:** TODO
+**Status:** DONE
 
 **Why last:** post-cleanup audit. Anything still referenced
 only by retired tests or by the dropped paths gets pruned.

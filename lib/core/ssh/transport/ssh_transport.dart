@@ -4,38 +4,29 @@
 // the abstraction stays so test mocks can swap in.
 //
 // Surface:
-//   - connect (password / pubkey / cert / agent) + ProxyJump variants
 //   - openShell with PTY size + bidirectional bytes
 //   - openSftp returning an engine-agnostic SFTP client
 //   - direct-tcpip channel for `-L` / `-D` / ProxyJump primitive
 //   - server-side `-R` request + inbound queue
 //   - graceful disconnect
 //
-// What's NOT in this interface (yet):
-//   - host-key verification — Rust core accepts every server key today
-//     (TOFU + known_hosts integration is a follow-up).
-//   - keep-alive — protocol-level concern handled by russh internally.
-//   - terminal-resize → shell.resize is on the shell handle, not the
-//     transport.
+// Connecting + authenticating happens Rust-side in the connection
+// actor (see `core/connection/connection_manager.dart` +
+// `lfs_core::connection::actor`). The Dart wrapper adopts the
+// already-authenticated session via `RustTransport.adopt(session)`
+// — there is no Dart-driven `connect` method any more.
 
 import 'dart:async';
 import 'dart:typed_data';
 
 /// A bidirectional, engine-agnostic SSH connection.
 ///
-/// Lifecycle: build a [SshConnectRequest] → call [connect] → use
-/// [openShell] / [openSftp] / [openDirectTcpip] / [requestRemoteForward]
-/// for sub-channels → [disconnect] when done. `Drop`-equivalent
-/// cleanup runs through `disconnect`; relying on garbage collection
-/// is engine-specific (russh tears the channel down on Drop;
-/// Drop-equivalent cleanup runs through `disconnect`; relying on
-/// garbage collection is engine-specific.
+/// Lifecycle: the Rust connection actor produces an authenticated
+/// `SshSession`; Dart adopts it via `RustTransport.adopt(session)`
+/// and uses [openShell] / [openSftp] / [openDirectTcpip] /
+/// [requestRemoteForward] for sub-channels → [disconnect] when
+/// done. Drop-equivalent cleanup runs through `disconnect`.
 abstract class SshTransport {
-  /// Connect + authenticate. Returns when the SSH userauth phase
-  /// completes successfully; throws [SshAuthFailed] / [SshConnectError]
-  /// on failure.
-  Future<void> connect(SshConnectRequest request);
-
   /// Open a PTY-backed interactive shell channel. Multiple shells
   /// can coexist on one transport; each one gets its own
   /// [SshShellChannel] handle.
@@ -78,49 +69,12 @@ abstract class SshTransport {
   bool get isConnected;
 }
 
-/// Auth + connection parameters fed into [SshTransport.connect].
-class SshConnectRequest {
-  final String host;
-  final int port;
-  final String user;
-  final SshAuthMethod auth;
-  final Duration? inactivityTimeout;
-
-  const SshConnectRequest({
-    required this.host,
-    required this.port,
-    required this.user,
-    required this.auth,
-    this.inactivityTimeout,
-  });
-}
-
-/// Auth method discriminator. Each variant carries its own payload.
+/// Auth method discriminator. Each variant carries the resolved
+/// reference into the Rust SecretStore; the connection actor reads
+/// the bytes Rust-side without ever pulling plaintext credentials
+/// across the FRB boundary.
 sealed class SshAuthMethod {
   const SshAuthMethod();
-}
-
-class SshAuthPassword extends SshAuthMethod {
-  final String password;
-  const SshAuthPassword(this.password);
-}
-
-class SshAuthPubkey extends SshAuthMethod {
-  /// OpenSSH PEM (`-----BEGIN OPENSSH PRIVATE KEY-----`) or PuTTY PPK.
-  final Uint8List privateKey;
-
-  /// Required iff the key file is encrypted.
-  final String? passphrase;
-  const SshAuthPubkey(this.privateKey, {this.passphrase});
-}
-
-class SshAuthPubkeyCert extends SshAuthMethod {
-  final Uint8List privateKey;
-  final String? passphrase;
-
-  /// OpenSSH cert blob (`id_*-cert.pub`).
-  final Uint8List cert;
-  const SshAuthPubkeyCert(this.privateKey, this.cert, {this.passphrase});
 }
 
 class SshAuthAgent extends SshAuthMethod {
@@ -129,12 +83,6 @@ class SshAuthAgent extends SshAuthMethod {
   /// when registered (`ssh-add -K`).
   const SshAuthAgent();
 }
-
-/// Reference-shaped variants — plaintext bytes live in the Rust
-/// core's SecretStore; Dart hands over IDs only. Mixing a Ref
-/// variant into a [SshConnectRequest] tells [RustTransport.connect]
-/// to call the `ssh_connect_*_with_secret` FRB variants which
-/// resolve the IDs Rust-side without round-tripping plaintext.
 
 class SshAuthPasswordRef extends SshAuthMethod {
   final String passwordSecretId;

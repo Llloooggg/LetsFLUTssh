@@ -342,14 +342,6 @@ class ConnectionManager {
           passphraseSecretId: passphraseSecretId,
         ),
       SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
-      // _authFromConfig stages plaintext into transient SecretStore
-      // entries so the production path always returns a Ref variant.
-      // Reaching this arm means a caller bypassed `_authFromConfig`;
-      // surface as an error rather than leaking plaintext through
-      // an alternate code path.
-      _ => throw StateError(
-        'Rust actor connect path requires a Ref-shaped SshAuthMethod; got $auth',
-      ),
     };
   }
 
@@ -376,7 +368,7 @@ class ConnectionManager {
   static const connectionTimeout = Duration(seconds: 30);
 
   /// Translate the legacy [SshAuth] config bag into the typed
-  /// [SshAuthMethod] family that [SshConnectRequest] uses.
+  /// [SshAuthMethod] family the bus connect args carry.
   /// Precedence: keyData > password.
   ///
   /// Saved sessions go through `db_sessions_stage_secrets` which
@@ -482,9 +474,14 @@ class ConnectionManager {
       );
       return SshAuthPasswordRef(id);
     }
-    // Empty auth — let russh surface "no credentials" instead of
-    // pushing an empty value.
-    return const SshAuthPassword('');
+    // Empty auth — stage an empty password as a transient secret
+    // so the actor still receives a Ref-shaped variant. russh
+    // surfaces "no credentials" naturally; pushing the bytes via
+    // SecretStore avoids leaking an alternate plaintext code path
+    // through the bus.
+    final id = 'conn.password.$transientId';
+    await rust_app.secretsPut(id: id, bytes: Uint8List(0));
+    return SshAuthPasswordRef(id);
   }
 
   /// Overlay credentials onto [config] from two defensive sources, in
