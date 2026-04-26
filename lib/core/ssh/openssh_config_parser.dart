@@ -1,6 +1,7 @@
 import 'dart:convert' show LineSplitter;
 import 'dart:io';
 
+import '../../src/rust/api/ssh_config.dart' as rust_ssh_config;
 import '../../utils/logger.dart';
 import '../../utils/platform.dart';
 import '../session/session.dart' show AuthType;
@@ -63,6 +64,17 @@ List<OpenSshConfigEntry> parseOpenSshConfig(
   final reader = includeReader ?? _defaultIncludeReader;
   final base = baseDir ?? _defaultSshDir();
   final expanded = _expandIncludes(content, reader, base, maxIncludeDepth, {});
+  // Hand the fully-expanded content (no remaining Include directives)
+  // to the Rust parser. Dart owns the filesystem walk so per-platform
+  // home semantics — Android's `EXTERNAL_STORAGE` fallback, in
+  // particular — stay where they belong. Falls back to the in-Dart
+  // resolver when the FRB native lib isn't loaded (unit tests).
+  try {
+    final rustEntries = rust_ssh_config.parseOpensshConfig(content: expanded);
+    return [for (final e in rustEntries) _fromRustEntry(e)];
+  } catch (_) {
+    // Fall through to the Dart pipeline below.
+  }
   final blocks = _parseBlocks(expanded);
 
   // Resolution walks only two lists per concrete host: its own block plus the
@@ -91,6 +103,25 @@ List<OpenSshConfigEntry> parseOpenSshConfig(
     for (final (blockIndex, pattern) in concretePatterns)
       _resolveEntry(pattern, blocks[blockIndex], wildcardBlocks),
   ];
+}
+
+OpenSshConfigEntry _fromRustEntry(rust_ssh_config.DbOpenSshHostEntry e) {
+  final preferred = e.preferredAuthTypes
+      ?.map(
+        (a) => switch (a) {
+          rust_ssh_config.DbOpenSshAuthType.password => AuthType.password,
+          rust_ssh_config.DbOpenSshAuthType.key => AuthType.key,
+        },
+      )
+      .toList(growable: false);
+  return OpenSshConfigEntry(
+    host: e.host,
+    hostName: e.hostName,
+    user: e.user,
+    port: e.port,
+    identityFiles: List.unmodifiable(e.identityFiles),
+    preferredAuthTypes: preferred == null ? null : List.unmodifiable(preferred),
+  );
 }
 
 /// Merge [ownBlock] with every [wildcardBlocks] block that matches [host],
