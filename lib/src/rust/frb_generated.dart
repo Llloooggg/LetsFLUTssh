@@ -22,6 +22,7 @@ import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
 import 'api/transfer.dart';
+import 'api/update_http.dart';
 import 'api/update_metadata.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
@@ -87,7 +88,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1184063472;
+  int get rustContentHash => -1474414102;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -797,6 +798,13 @@ abstract class RustLibApi extends BaseApi {
     required String a,
     required String b,
   });
+
+  Future<String> crateApiUpdateHttpUpdateDownloadToFile({
+    required String url,
+    required String targetPath,
+  });
+
+  Future<String> crateApiUpdateHttpUpdateFetchText({required String url});
 
   bool crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri({
     required String uri,
@@ -6631,6 +6639,69 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiUpdateHttpUpdateDownloadToFile({
+    required String url,
+    required String targetPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(url, serializer);
+          sse_encode_String(targetPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 170,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiUpdateHttpUpdateDownloadToFileConstMeta,
+        argValues: [url, targetPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateHttpUpdateDownloadToFileConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_download_to_file',
+        argNames: ['url', 'targetPath'],
+      );
+
+  @override
+  Future<String> crateApiUpdateHttpUpdateFetchText({required String url}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(url, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 171,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiUpdateHttpUpdateFetchTextConstMeta,
+        argValues: [url],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateHttpUpdateFetchTextConstMeta =>
+      const TaskConstMeta(debugName: 'update_fetch_text', argNames: ['url']);
+
+  @override
   bool crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri({
     required String uri,
   }) {
@@ -6642,7 +6713,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 170,
+            funcId: 172,
           )!;
         },
         codec: SseCodec(
@@ -6676,7 +6747,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 171,
+            funcId: 173,
           )!;
         },
         codec: SseCodec(
@@ -6708,7 +6779,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 172,
+            funcId: 174,
           )!;
         },
         codec: SseCodec(
@@ -6737,7 +6808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 173,
+            funcId: 175,
           )!;
         },
         codec: SseCodec(

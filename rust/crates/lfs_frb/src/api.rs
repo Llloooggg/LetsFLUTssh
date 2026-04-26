@@ -20,6 +20,7 @@ pub mod ssh;
 pub mod ssh_config;
 pub mod threat_eval;
 pub mod transfer;
+pub mod update_http;
 pub mod update_metadata;
 pub mod winbio;
 

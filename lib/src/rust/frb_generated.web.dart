@@ -25,6 +25,7 @@ import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
 import 'api/transfer.dart';
+import 'api/update_http.dart';
 import 'api/update_metadata.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';

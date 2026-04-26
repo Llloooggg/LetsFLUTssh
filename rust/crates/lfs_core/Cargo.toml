@@ -41,6 +41,11 @@ zip = { workspace = true }
 flate2 = { workspace = true }
 base64 = { workspace = true }
 regex = { workspace = true }
+# HTTP fetch for `lfs_core::update_http` — the auto-update
+# channel's manifest + asset download path. Kept on rustls-tls
+# so the dep tree stays pure-Rust (no openssl system link).
+reqwest = { workspace = true }
+futures-util = { workspace = true }
 
 # Linux-only D-Bus client for the fprintd shim under
 # `platform::linux::fprintd`. Gated per-target so non-Linux builds

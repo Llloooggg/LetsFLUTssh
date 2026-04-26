@@ -43,6 +43,7 @@ pub mod ssh_config;
 pub mod threat_eval;
 pub mod threat_vocabulary;
 pub mod transfer;
+pub mod update_http;
 pub mod update_metadata;
 
 pub use error::Error;

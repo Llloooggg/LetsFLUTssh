@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../src/rust/api/update_http.dart' as rust_update_http;
 import '../../src/rust/api/update_metadata.dart' as rust_update;
 import '../../utils/logger.dart';
 import 'cert_pinning.dart';
@@ -787,6 +788,27 @@ class UpdateService {
   // ---------------------------------------------------------------------------
 
   static Future<String> defaultFetch(Uri url) async {
+    // Production: route through `lfs_core::update_http::fetch_text`.
+    // The Rust client uses rustls + system CAs, the same trust
+    // anchor `cert_pinning.dart` falls back to today (no SPKI pins
+    // configured), and the same trusted-host allowlist gates both
+    // request and redirects.
+    try {
+      return await rust_update_http.updateFetchText(url: url.toString());
+    } catch (e) {
+      // Fallback for flutter_test / fresh-checkout contexts where
+      // the FRB native lib isn't loaded. The Dart implementation
+      // mirrors the same posture (system CA + trusted-host check).
+      AppLogger.instance.log(
+        'updateFetchText FRB call failed; falling back to dart:io: $e',
+        name: 'UpdateService',
+        level: LogLevel.warn,
+      );
+      return _defaultFetchDart(url);
+    }
+  }
+
+  static Future<String> _defaultFetchDart(Uri url) async {
     final client = HttpClient();
     CertPinning.enforce(client);
     try {

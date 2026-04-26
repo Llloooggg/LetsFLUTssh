@@ -174,18 +174,37 @@ Migration tests must confirm round-trip equality.
 
 ### Step 6 — UpdateService → Rust
 
-**Status:** PARTIAL — pure-function helpers ported to
-`lfs_core::update_metadata` with 17 unit tests:
+**Status:** PARTIAL — pure-function helpers + HTTP text fetch
+ported.
+
+Pure-function pack (`lfs_core::update_metadata`, 17 tests):
 `compare_versions`, `is_trusted_release_asset_uri`,
 `asset_suffix`, `parse_asset_version`, `parse_sha256_manifest`,
-`build_cumulative_changelog`. Dart `UpdateService` routes
-through the FRB calls + retains tiny fallbacks (flutter_test
-constraint).
+`build_cumulative_changelog`.
 
-The HTTP fetch + cert_pinning SPKI extraction + signed manifest
-download + Ed25519-via-rust_crypto orchestration stays Dart
-for now — needs a focused arc for `reqwest` + `rustls`
-integration plus per-platform smoke. Tracked separately.
+HTTP fetch (`lfs_core::update_http`, 3 tests):
+`fetch_text(url)` for the GitHub Releases API JSON +
+`download_to_file(url, path)` with streaming SHA-256.
+Built on `reqwest` + `rustls-tls` (pure-Rust dep tree, no
+openssl system link). Trusted-host allowlist gates both the
+initial URL and every redirect target — a 302 to evil.com
+fails closed even if reqwest followed it.
+
+`UpdateService.defaultFetch` now routes through the Rust
+fetch with a Dart fallback for flutter_test. Posture matches:
+both use system-CA validation, both reject untrusted hosts,
+both cap redirects at 10. SPKI pin map was empty Dart-side
+already (falls back to system CA), so no security regression.
+
+Pending follow-ups (separate arcs):
+  - `defaultDownload` rewire — needs a bus event variant
+    (`UpdateDownloadProgress { written, total }`) so the
+    determinate progress bar still ticks while the Rust
+    streamer hashes + writes to disk.
+  - SPKI cert pinning — needs a custom rustls
+    `ServerCertVerifier` if/when GitHub keys get pinned.
+  - Signed manifest fetch — small piece, lands when
+    `defaultDownload` does.
 
 **Why sixth:** HTTP fetch + SHA-256 + Ed25519 verify all live in
 crypto already. ~500 LOC drops Dart-side. Keep the OS-specific

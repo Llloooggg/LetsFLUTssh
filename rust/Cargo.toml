@@ -138,6 +138,24 @@ serde = { version = "1", default-features = false }
 # `lfs_frb::api::winbio` (Windows-only) to mirror the Dart
 # `DynamicLibrary.open('winbio.dll')` shape.
 libloading = "0.8"
+# HTTP client for the auto-update fetch path
+# (`lfs_core::update_http`). `rustls-tls` keeps the dep tree
+# pure-Rust (no openssl system link) — same TLS stack russh
+# uses internally so no second crypto provider gets pulled in.
+# `stream` exposes byte-stream responses so the `Read` adapter
+# can drive a SHA-256 hasher + progress callback without
+# materialising the full body in memory. `default-features = false`
+# strips the default `native-tls` + cookies + gzip auto-decode
+# we do not need.
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+    "stream",
+    "http2",
+    "charset",
+] }
+# `Read` over an async stream — adapts `reqwest::Response::bytes_stream`
+# into a synchronous-ish chunk iterator the SHA-256 hasher feeds.
+futures-core = { version = "0.3", default-features = false }
 
 [profile.release]
 codegen-units = 1
