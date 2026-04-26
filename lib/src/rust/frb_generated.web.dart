@@ -18,6 +18,7 @@ import 'api/path.dart';
 import 'api/recorder.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
+import 'api/ssh_config.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -253,6 +254,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshShellEvent dco_decode_box_autoadd_ssh_shell_event(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
   BusCommand dco_decode_bus_command(dynamic raw);
 
   @protected
@@ -299,6 +303,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHost dco_decode_db_known_host(dynamic raw);
+
+  @protected
+  DbOpenSshAuthType dco_decode_db_open_ssh_auth_type(dynamic raw);
+
+  @protected
+  DbOpenSshHostEntry dco_decode_db_open_ssh_host_entry(dynamic raw);
 
   @protected
   DbPortForwardRule dco_decode_db_port_forward_rule(dynamic raw);
@@ -353,6 +363,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbKnownHost> dco_decode_list_db_known_host(dynamic raw);
+
+  @protected
+  List<DbOpenSshAuthType> dco_decode_list_db_open_ssh_auth_type(dynamic raw);
+
+  @protected
+  List<DbOpenSshHostEntry> dco_decode_list_db_open_ssh_host_entry(dynamic raw);
 
   @protected
   List<DbPortForwardRule> dco_decode_list_db_port_forward_rule(dynamic raw);
@@ -419,6 +435,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent? dco_decode_opt_box_autoadd_ssh_shell_event(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  List<DbOpenSshAuthType>? dco_decode_opt_list_db_open_ssh_auth_type(
+    dynamic raw,
+  );
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
@@ -672,6 +696,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   BusCommand sse_decode_bus_command(SseDeserializer deserializer);
 
   @protected
@@ -724,6 +751,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer);
+
+  @protected
+  DbOpenSshAuthType sse_decode_db_open_ssh_auth_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbOpenSshHostEntry sse_decode_db_open_ssh_host_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbPortForwardRule sse_decode_db_port_forward_rule(
@@ -786,6 +823,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbKnownHost> sse_decode_list_db_known_host(SseDeserializer deserializer);
+
+  @protected
+  List<DbOpenSshAuthType> sse_decode_list_db_open_ssh_auth_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbOpenSshHostEntry> sse_decode_list_db_open_ssh_host_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbPortForwardRule> sse_decode_list_db_port_forward_rule(
@@ -868,6 +915,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent? sse_decode_opt_box_autoadd_ssh_shell_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  List<DbOpenSshAuthType>? sse_decode_opt_list_db_open_ssh_auth_type(
     SseDeserializer deserializer,
   );
 
@@ -1178,6 +1233,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bus_command(BusCommand self, SseSerializer serializer);
 
   @protected
@@ -1242,6 +1300,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_known_host(DbKnownHost self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_open_ssh_auth_type(
+    DbOpenSshAuthType self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_open_ssh_host_entry(
+    DbOpenSshHostEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_port_forward_rule(
@@ -1321,6 +1391,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_known_host(
     List<DbKnownHost> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_open_ssh_auth_type(
+    List<DbOpenSshAuthType> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_open_ssh_host_entry(
+    List<DbOpenSshHostEntry> self,
     SseSerializer serializer,
   );
 
@@ -1434,6 +1516,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_ssh_shell_event(
     SshShellEvent? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_db_open_ssh_auth_type(
+    List<DbOpenSshAuthType>? self,
     SseSerializer serializer,
   );
 
