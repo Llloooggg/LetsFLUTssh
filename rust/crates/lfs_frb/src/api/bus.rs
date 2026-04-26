@@ -364,21 +364,23 @@ impl From<BusConnectArgs> for lfs_core::connection::ConnectArgs {
 /// dedicated FRB entry.
 #[derive(Debug, Clone)]
 pub enum BusCommand {
-    /// 5.0 smoke command — emits `Echoed` with the same payload.
+    /// Smoke command — emits `Echoed` with the same payload.
     NoopEcho { payload: String },
-    /// 5.1 — remove an actor from the registry. Idempotent on a
+    /// Remove an actor from the registry. Idempotent on a
     /// missing id.
     ConnectionDisconnect { id: String },
+    /// Tear down every active connection actor.
+    ConnectionDisconnectAll,
 
-    /// 5.5 auto-lock — pointer activity ping.
+    /// Auto-lock — pointer activity ping.
     AutoLockOnPointerActivity,
-    /// 5.5 auto-lock — lifecycle change.
+    /// Auto-lock — lifecycle change.
     AutoLockOnLifecycleChange { background: bool },
-    /// 5.5 auto-lock — set the idle timeout in minutes (0 = off).
+    /// Auto-lock — set the idle timeout in minutes (0 = off).
     AutoLockSetTimeout { minutes: i64 },
-    /// 5.5 auto-lock — explicit lock request.
+    /// Auto-lock — explicit lock request.
     AutoLockRequestLock,
-    /// 5.5 auto-lock — unlock signal from the Dart-side dialog.
+    /// Auto-lock — unlock signal from the Dart-side dialog.
     AutoLockUnlock,
 }
 
@@ -388,6 +390,9 @@ impl From<BusCommand> for lfs_core::bus::Command {
             BusCommand::NoopEcho { payload } => lfs_core::bus::Command::NoopEcho { payload },
             BusCommand::ConnectionDisconnect { id } => {
                 lfs_core::bus::Command::ConnectionDisconnect { id }
+            }
+            BusCommand::ConnectionDisconnectAll => {
+                lfs_core::bus::Command::ConnectionDisconnectAll
             }
             BusCommand::AutoLockOnPointerActivity => {
                 lfs_core::bus::Command::AutoLockOnPointerActivity

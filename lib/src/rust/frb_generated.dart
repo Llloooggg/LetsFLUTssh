@@ -6145,16 +6145,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 1:
         return BusCommand_ConnectionDisconnect(id: dco_decode_String(raw[1]));
       case 2:
-        return const BusCommand_AutoLockOnPointerActivity();
+        return const BusCommand_ConnectionDisconnectAll();
       case 3:
+        return const BusCommand_AutoLockOnPointerActivity();
+      case 4:
         return BusCommand_AutoLockOnLifecycleChange(
           background: dco_decode_bool(raw[1]),
         );
-      case 4:
-        return BusCommand_AutoLockSetTimeout(minutes: dco_decode_i_64(raw[1]));
       case 5:
-        return const BusCommand_AutoLockRequestLock();
+        return BusCommand_AutoLockSetTimeout(minutes: dco_decode_i_64(raw[1]));
       case 6:
+        return const BusCommand_AutoLockRequestLock();
+      case 7:
         return const BusCommand_AutoLockUnlock();
       default:
         throw Exception('unreachable');
@@ -7333,16 +7335,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final var_id = sse_decode_String(deserializer);
         return BusCommand_ConnectionDisconnect(id: var_id);
       case 2:
-        return const BusCommand_AutoLockOnPointerActivity();
+        return const BusCommand_ConnectionDisconnectAll();
       case 3:
+        return const BusCommand_AutoLockOnPointerActivity();
+      case 4:
         final var_background = sse_decode_bool(deserializer);
         return BusCommand_AutoLockOnLifecycleChange(background: var_background);
-      case 4:
+      case 5:
         final var_minutes = sse_decode_i_64(deserializer);
         return BusCommand_AutoLockSetTimeout(minutes: var_minutes);
-      case 5:
-        return const BusCommand_AutoLockRequestLock();
       case 6:
+        return const BusCommand_AutoLockRequestLock();
+      case 7:
         return const BusCommand_AutoLockUnlock();
       default:
         throw UnimplementedError('');
@@ -8866,18 +8870,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusCommand_ConnectionDisconnect(id: final id):
         sse_encode_i_32(1, serializer);
         sse_encode_String(id, serializer);
-      case BusCommand_AutoLockOnPointerActivity():
+      case BusCommand_ConnectionDisconnectAll():
         sse_encode_i_32(2, serializer);
-      case BusCommand_AutoLockOnLifecycleChange(background: final background):
+      case BusCommand_AutoLockOnPointerActivity():
         sse_encode_i_32(3, serializer);
+      case BusCommand_AutoLockOnLifecycleChange(background: final background):
+        sse_encode_i_32(4, serializer);
         sse_encode_bool(background, serializer);
       case BusCommand_AutoLockSetTimeout(minutes: final minutes):
-        sse_encode_i_32(4, serializer);
+        sse_encode_i_32(5, serializer);
         sse_encode_i_64(minutes, serializer);
       case BusCommand_AutoLockRequestLock():
-        sse_encode_i_32(5, serializer);
-      case BusCommand_AutoLockUnlock():
         sse_encode_i_32(6, serializer);
+      case BusCommand_AutoLockUnlock():
+        sse_encode_i_32(7, serializer);
     }
   }
 

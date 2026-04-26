@@ -6702,24 +6702,27 @@ impl SseDecode for crate::api::bus::BusCommand {
                 return crate::api::bus::BusCommand::ConnectionDisconnect { id: var_id };
             }
             2 => {
-                return crate::api::bus::BusCommand::AutoLockOnPointerActivity;
+                return crate::api::bus::BusCommand::ConnectionDisconnectAll;
             }
             3 => {
+                return crate::api::bus::BusCommand::AutoLockOnPointerActivity;
+            }
+            4 => {
                 let mut var_background = <bool>::sse_decode(deserializer);
                 return crate::api::bus::BusCommand::AutoLockOnLifecycleChange {
                     background: var_background,
                 };
             }
-            4 => {
+            5 => {
                 let mut var_minutes = <i64>::sse_decode(deserializer);
                 return crate::api::bus::BusCommand::AutoLockSetTimeout {
                     minutes: var_minutes,
                 };
             }
-            5 => {
+            6 => {
                 return crate::api::bus::BusCommand::AutoLockRequestLock;
             }
-            6 => {
+            7 => {
                 return crate::api::bus::BusCommand::AutoLockUnlock;
             }
             _ => {
@@ -8301,15 +8304,16 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusCommand {
             crate::api::bus::BusCommand::ConnectionDisconnect { id } => {
                 [1.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::bus::BusCommand::AutoLockOnPointerActivity => [2.into_dart()].into_dart(),
+            crate::api::bus::BusCommand::ConnectionDisconnectAll => [2.into_dart()].into_dart(),
+            crate::api::bus::BusCommand::AutoLockOnPointerActivity => [3.into_dart()].into_dart(),
             crate::api::bus::BusCommand::AutoLockOnLifecycleChange { background } => {
-                [3.into_dart(), background.into_into_dart().into_dart()].into_dart()
+                [4.into_dart(), background.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusCommand::AutoLockSetTimeout { minutes } => {
-                [4.into_dart(), minutes.into_into_dart().into_dart()].into_dart()
+                [5.into_dart(), minutes.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::bus::BusCommand::AutoLockRequestLock => [5.into_dart()].into_dart(),
-            crate::api::bus::BusCommand::AutoLockUnlock => [6.into_dart()].into_dart(),
+            crate::api::bus::BusCommand::AutoLockRequestLock => [6.into_dart()].into_dart(),
+            crate::api::bus::BusCommand::AutoLockUnlock => [7.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -9342,22 +9346,25 @@ impl SseEncode for crate::api::bus::BusCommand {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(id, serializer);
             }
-            crate::api::bus::BusCommand::AutoLockOnPointerActivity => {
+            crate::api::bus::BusCommand::ConnectionDisconnectAll => {
                 <i32>::sse_encode(2, serializer);
             }
-            crate::api::bus::BusCommand::AutoLockOnLifecycleChange { background } => {
+            crate::api::bus::BusCommand::AutoLockOnPointerActivity => {
                 <i32>::sse_encode(3, serializer);
+            }
+            crate::api::bus::BusCommand::AutoLockOnLifecycleChange { background } => {
+                <i32>::sse_encode(4, serializer);
                 <bool>::sse_encode(background, serializer);
             }
             crate::api::bus::BusCommand::AutoLockSetTimeout { minutes } => {
-                <i32>::sse_encode(4, serializer);
+                <i32>::sse_encode(5, serializer);
                 <i64>::sse_encode(minutes, serializer);
             }
             crate::api::bus::BusCommand::AutoLockRequestLock => {
-                <i32>::sse_encode(5, serializer);
+                <i32>::sse_encode(6, serializer);
             }
             crate::api::bus::BusCommand::AutoLockUnlock => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(7, serializer);
             }
             _ => {
                 unimplemented!("");

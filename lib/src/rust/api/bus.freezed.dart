@@ -55,12 +55,13 @@ extension BusCommandPatterns on BusCommand {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult Function( BusCommand_ConnectionDisconnectAll value)?  connectionDisconnectAll,TResult Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return connectionDisconnect(_that);case BusCommand_ConnectionDisconnectAll() when connectionDisconnectAll != null:
+return connectionDisconnectAll(_that);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
 return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
 return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
@@ -83,12 +84,13 @@ return autoLockUnlock(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,required TResult Function( BusCommand_AutoLockOnPointerActivity value)  autoLockOnPointerActivity,required TResult Function( BusCommand_AutoLockOnLifecycleChange value)  autoLockOnLifecycleChange,required TResult Function( BusCommand_AutoLockSetTimeout value)  autoLockSetTimeout,required TResult Function( BusCommand_AutoLockRequestLock value)  autoLockRequestLock,required TResult Function( BusCommand_AutoLockUnlock value)  autoLockUnlock,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,required TResult Function( BusCommand_ConnectionDisconnectAll value)  connectionDisconnectAll,required TResult Function( BusCommand_AutoLockOnPointerActivity value)  autoLockOnPointerActivity,required TResult Function( BusCommand_AutoLockOnLifecycleChange value)  autoLockOnLifecycleChange,required TResult Function( BusCommand_AutoLockSetTimeout value)  autoLockSetTimeout,required TResult Function( BusCommand_AutoLockRequestLock value)  autoLockRequestLock,required TResult Function( BusCommand_AutoLockUnlock value)  autoLockUnlock,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
 return noopEcho(_that);case BusCommand_ConnectionDisconnect():
-return connectionDisconnect(_that);case BusCommand_AutoLockOnPointerActivity():
+return connectionDisconnect(_that);case BusCommand_ConnectionDisconnectAll():
+return connectionDisconnectAll(_that);case BusCommand_AutoLockOnPointerActivity():
 return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChange():
 return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout():
 return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock():
@@ -107,12 +109,13 @@ return autoLockUnlock(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult? Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult? Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult? Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult? Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult? Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult? Function( BusCommand_ConnectionDisconnectAll value)?  connectionDisconnectAll,TResult? Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult? Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult? Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult? Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult? Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return connectionDisconnect(_that);case BusCommand_ConnectionDisconnectAll() when connectionDisconnectAll != null:
+return connectionDisconnectAll(_that);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
 return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
 return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
@@ -134,11 +137,12 @@ return autoLockUnlock(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,TResult Function()?  autoLockOnPointerActivity,TResult Function( bool background)?  autoLockOnLifecycleChange,TResult Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult Function()?  autoLockRequestLock,TResult Function()?  autoLockUnlock,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,TResult Function()?  connectionDisconnectAll,TResult Function()?  autoLockOnPointerActivity,TResult Function( bool background)?  autoLockOnLifecycleChange,TResult Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult Function()?  autoLockRequestLock,TResult Function()?  autoLockUnlock,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that.id);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return connectionDisconnect(_that.id);case BusCommand_ConnectionDisconnectAll() when connectionDisconnectAll != null:
+return connectionDisconnectAll();case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
 return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
 return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
@@ -161,11 +165,12 @@ return autoLockUnlock();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,required TResult Function()  autoLockOnPointerActivity,required TResult Function( bool background)  autoLockOnLifecycleChange,required TResult Function( PlatformInt64 minutes)  autoLockSetTimeout,required TResult Function()  autoLockRequestLock,required TResult Function()  autoLockUnlock,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,required TResult Function()  connectionDisconnectAll,required TResult Function()  autoLockOnPointerActivity,required TResult Function( bool background)  autoLockOnLifecycleChange,required TResult Function( PlatformInt64 minutes)  autoLockSetTimeout,required TResult Function()  autoLockRequestLock,required TResult Function()  autoLockUnlock,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect():
-return connectionDisconnect(_that.id);case BusCommand_AutoLockOnPointerActivity():
+return connectionDisconnect(_that.id);case BusCommand_ConnectionDisconnectAll():
+return connectionDisconnectAll();case BusCommand_AutoLockOnPointerActivity():
 return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange():
 return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout():
 return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock():
@@ -184,11 +189,12 @@ return autoLockUnlock();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,TResult? Function()?  autoLockOnPointerActivity,TResult? Function( bool background)?  autoLockOnLifecycleChange,TResult? Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult? Function()?  autoLockRequestLock,TResult? Function()?  autoLockUnlock,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,TResult? Function()?  connectionDisconnectAll,TResult? Function()?  autoLockOnPointerActivity,TResult? Function( bool background)?  autoLockOnLifecycleChange,TResult? Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult? Function()?  autoLockRequestLock,TResult? Function()?  autoLockUnlock,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that.id);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return connectionDisconnect(_that.id);case BusCommand_ConnectionDisconnectAll() when connectionDisconnectAll != null:
+return connectionDisconnectAll();case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
 return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
 return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
@@ -332,6 +338,38 @@ as String,
 
 
 }
+
+/// @nodoc
+
+
+class BusCommand_ConnectionDisconnectAll extends BusCommand {
+  const BusCommand_ConnectionDisconnectAll(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_ConnectionDisconnectAll);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusCommand.connectionDisconnectAll()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 

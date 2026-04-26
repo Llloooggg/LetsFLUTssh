@@ -591,6 +591,33 @@ async fn record_progress(handle: Arc<Mutex<ConnectionActor>>, id: ConnId, step: 
         .publish(crate::bus::Event::ConnectionProgress { id, step });
 }
 
+/// Tear down every active connection actor. Convenience for
+/// "lock now" / shutdown paths — walks the current registry
+/// snapshot in insertion order and dispatches [`disconnect`]
+/// against each. Returns the number of actors that were torn
+/// down. Best-effort: per-actor protocol-level disconnect errors
+/// surface through the bus, not the return value.
+pub async fn disconnect_all() -> usize {
+    let app = crate::app::instance();
+    // Snapshot the id list under the registry lock first so the
+    // iteration doesn't hold the registry's mutex across the
+    // per-actor `disconnect` (which itself takes the lock again
+    // to remove the row).
+    let ids: Vec<String> = app
+        .connections
+        .snapshot_all()
+        .into_iter()
+        .map(|s| s.id)
+        .collect();
+    let mut torn_down = 0;
+    for id in ids {
+        if disconnect(&id).await.is_ok() {
+            torn_down += 1;
+        }
+    }
+    torn_down
+}
+
 /// Tear down a connection actor. Idempotent on a missing id.
 /// Drops the held russh handle (which sends `SSH_MSG_DISCONNECT`
 /// on Drop) and removes the actor from the registry; subscribers

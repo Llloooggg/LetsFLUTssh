@@ -62,34 +62,38 @@ Stream<BusEvent> busSubscribe({required BusTopic topic}) =>
 sealed class BusCommand with _$BusCommand {
   const BusCommand._();
 
-  /// 5.0 smoke command — emits `Echoed` with the same payload.
+  /// Smoke command — emits `Echoed` with the same payload.
   const factory BusCommand.noopEcho({required String payload}) =
       BusCommand_NoopEcho;
 
-  /// 5.1 — remove an actor from the registry. Idempotent on a
+  /// Remove an actor from the registry. Idempotent on a
   /// missing id.
   const factory BusCommand.connectionDisconnect({required String id}) =
       BusCommand_ConnectionDisconnect;
 
-  /// 5.5 auto-lock — pointer activity ping.
+  /// Tear down every active connection actor.
+  const factory BusCommand.connectionDisconnectAll() =
+      BusCommand_ConnectionDisconnectAll;
+
+  /// Auto-lock — pointer activity ping.
   const factory BusCommand.autoLockOnPointerActivity() =
       BusCommand_AutoLockOnPointerActivity;
 
-  /// 5.5 auto-lock — lifecycle change.
+  /// Auto-lock — lifecycle change.
   const factory BusCommand.autoLockOnLifecycleChange({
     required bool background,
   }) = BusCommand_AutoLockOnLifecycleChange;
 
-  /// 5.5 auto-lock — set the idle timeout in minutes (0 = off).
+  /// Auto-lock — set the idle timeout in minutes (0 = off).
   const factory BusCommand.autoLockSetTimeout({
     required PlatformInt64 minutes,
   }) = BusCommand_AutoLockSetTimeout;
 
-  /// 5.5 auto-lock — explicit lock request.
+  /// Auto-lock — explicit lock request.
   const factory BusCommand.autoLockRequestLock() =
       BusCommand_AutoLockRequestLock;
 
-  /// 5.5 auto-lock — unlock signal from the Dart-side dialog.
+  /// Auto-lock — unlock signal from the Dart-side dialog.
   const factory BusCommand.autoLockUnlock() = BusCommand_AutoLockUnlock;
 }
 

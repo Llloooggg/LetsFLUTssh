@@ -194,6 +194,11 @@ pub enum Command {
     /// `SSH_MSG_DISCONNECT` on Drop) before clearing the row.
     ConnectionDisconnect { id: crate::connection::ConnId },
 
+    /// Tear down every active connection actor. Convenience for
+    /// "lock now" / shutdown paths — emits `ConnectionRemoved`
+    /// per actor as it walks the registry.
+    ConnectionDisconnectAll,
+
     /// Auto-lock — pointer activity ping. Resets the idle
     /// timer; the Dart side fires this once per significant
     /// pointer event so the lock doesn't trip mid-typing.
@@ -274,6 +279,10 @@ pub async fn dispatch(cmd: Command) -> Result<(), Error> {
             Ok(())
         }
         Command::ConnectionDisconnect { id } => crate::connection::disconnect(&id).await,
+        Command::ConnectionDisconnectAll => {
+            crate::connection::disconnect_all().await;
+            Ok(())
+        }
         Command::AutoLockOnPointerActivity => {
             app.autolock.on_pointer_activity();
             Ok(())
