@@ -174,7 +174,15 @@ Migration tests must confirm round-trip equality.
 
 ### Step 6 — UpdateService → Rust
 
-**Status:** TODO
+**Status:** DEFERRED — separate arc. ~830 LOC of Dart that
+requires bringing in `reqwest` + `rustls` (transitively
+hyper / tokio-rustls), porting `cert_pinning.dart` SPKI
+extraction, `release_signing.dart` Ed25519 verifier (the crate
+exists, the integration doesn't), redirect-host allowlist,
+SHA-256 streaming verifier, progress streaming via the bus,
+and the OS file launcher coordination. Integration risk is
+high (replaces the entire update channel). Land on its own
+branch with explicit smoke-test on every platform.
 
 **Why sixth:** HTTP fetch + SHA-256 + Ed25519 verify all live in
 crypto already. ~500 LOC drops Dart-side. Keep the OS-specific
@@ -198,7 +206,16 @@ the equivalent through `rustls` + the pinned-leaf list.
 
 ### Step 7 — migration_runner → Rust
 
-**Status:** TODO
+**Status:** DEFERRED — separate arc. Startup-only and runs
+before UI mounts; a half-ported migrator that fails at boot
+on an existing install is the worst possible regression. The
+existing Dart runner walks artefacts (`config.json`,
+`credentials.kdf`, `.lfs` archive imports, hardware-vault
+sealed blobs) in a known order. Porting requires every
+artefact's format owner to have a Rust counterpart for the
+specific transform — currently only the `.lfs` archive does.
+Port format-by-format as the rest of the formats themselves
+move into Rust.
 
 **Why seventh:** config.json + credentials.kdf migration runs
 during startup before UI mounts. ~365 LOC. Logic is format-
@@ -218,7 +235,15 @@ or boot can fail mid-migration on existing installs.
 
 ### Step 8 — PortForwardRuntime → Rust actor
 
-**Status:** TODO
+**Status:** DEFERRED — separate arc. ~691 LOC of hot-path
+listener + accept loop + forward lifecycle code. The
+`forward::driver` crate landed with a generic `ChannelFactory`
+already; the actor-shape wrapper that owns per-connection
+listener state needs a careful bus-event protocol
+(`ForwardOpened` / `ForwardBytes` / `ForwardClosed`) plus
+mobile smoke-tests (Android exercises this heavily for
+ProxyJump). Work warranted but blocks on a focused testing
+session.
 
 **Why eighth:** Largest hot-path drop (~691 LOC). Plan in
 `RUST_CORE_MIGRATION_PLAN.md` already had a `forward::driver`
@@ -241,7 +266,14 @@ landing.
 
 ### Step 9 — Security tier orchestration → Rust
 
-**Status:** TODO (large; defer until 1–8 land)
+**Status:** DEFERRED — separate arc. Largest port. ~1700 LOC
+across master_password + password_rate_limiter +
+hardware_tier_vault + keychain_password_gate +
+security_bootstrap + biometric_key_vault. Touches every
+platform's secure storage (Linux Secret Service / TPM, macOS
+Keychain, Windows DPAPI / WinBio) and the startup unlock flow.
+Platform clients already ported; the orchestration that
+composes them stays Dart for now.
 
 **Why last:** ~1700 LOC across master_password +
 password_rate_limiter + hardware_tier_vault +
