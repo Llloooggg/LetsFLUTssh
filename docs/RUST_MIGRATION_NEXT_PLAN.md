@@ -63,35 +63,42 @@ archive, db (rusqlite + SQLCipher), all crypto, all pure parsers
 password strength, log sanitiser, update HTTP, platform clients
 (TPM / fprintd / keychain / WinBio).
 
-What still drives logic from Dart:
+What still drives logic from Dart (after the Apr-2026 grind —
+LOC reflects current tree):
 
-| File | LOC | What it owns (Dart-side) |
-|---|---|---|
-| `core/connection/connection_manager.dart` | 768 | registry + generation counter + bastion-await coordination + credential overlay + reconnect cascade + active-count tracking |
-| `core/session/session_store.dart` | 712 | in-memory list + folder-map cache + collapsed-folders set + duplicate-naming + folder rename / move / delete cascade + snapshot restore |
-| `core/transfer/transfer_manager.dart` | 393 | queue scheduler + concurrency cap + history truncation + progress throttle + timeout tracker |
-| `core/update/update_service.dart` | 960 | check → fetch → verify → download → install state machine + signed manifest verify orchestration + cert pinning |
-| `core/ssh/port_forward_runtime.dart` | 691 | listener accept loops + per-rule lifecycle + reconnect re-arm |
-| `core/ssh/known_hosts.dart` | 584 | TOFU policy + add / remove / match + cache |
-| `core/migration/migration_runner.dart` | 365 | dependency graph + per-artefact transform + rollback |
-| `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion |
-| `core/security/password_rate_limiter.dart` | 396 | exponential backoff state |
-| `core/security/hardware_tier_vault.dart` | 395 | TPM / Keychain / WinBio composer |
-| `core/security/wipe_all_service.dart` | 374 | catastrophic-reset orchestrator |
-| `core/security/security_bootstrap.dart` | 351 | startup tier resolution |
-| `core/security/keychain_password_gate.dart` | 262 | keychain unlock gate sequence |
-| `core/security/biometric_key_vault.dart` | 255 | biometric unlock sequence |
-| `core/security/security_tier.dart` | 257 | tier model + transitions |
-| `core/config/app_config.dart` | 605 | schema + defaults + validation + migrations |
-| `core/import/import_service.dart` | 300 | apply driver remnants |
-| `core/session/session_recorder.dart` | 334 | header build + ring buffer + write loop |
-| `core/session/qr_codec.dart` | 980 | encode payload marshalling (Rust pure encode shipped; Dart still owns the `ExportPayloadInput` build) |
-| `core/deeplink/deeplink_handler.dart` | 266 | `app_links` subscription dispatch |
-| `core/update/release_signing.dart` | 135 | verify orchestration |
-| `core/update/cert_pinning.dart` | 177 | SPKI extraction (Dart HTTP-client coupled) |
-| `core/transfer/conflict_resolver.dart` | 72 | pure logic |
-| `core/security/secret_buffer.dart` | 215 | RAII + zeroing |
-| `core/security/secure_ref.dart` | 122 | RAII handle |
+| File | LOC | What it owns (Dart-side) | Plan step |
+|---|---|---|---|
+| `core/connection/connection_manager.dart` | 768 | registry + generation counter + bastion-await coordination + credential overlay + reconnect cascade + active-count tracking | 4 |
+| `core/session/session_store.dart` | 712 | in-memory list + folder-map cache + collapsed-folders set + duplicate-naming + folder rename / move / delete cascade + snapshot restore | 3 |
+| `core/transfer/transfer_manager.dart` | 393 | queue scheduler + concurrency cap + history truncation + progress throttle + timeout tracker | 5 |
+| `core/update/update_service.dart` | 961 | check → fetch → verify → download → install state machine | 8c |
+| `core/ssh/port_forward_runtime.dart` | 691 | listener accept loops + per-rule lifecycle + reconnect re-arm (Rust drivers ready, Dart UI swap pending) | 6 (Dart retire) |
+| `core/ssh/known_hosts.dart` | 584 | TOFU policy + add / remove / match + cache | 7 |
+| `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion | 9 |
+| `core/security/password_rate_limiter.dart` | 396 | exponential backoff state | 9 |
+| `core/security/hardware_tier_vault.dart` | 395 | TPM / Keychain / WinBio composer | 9 |
+| `core/security/wipe_all_service.dart` | 374 | catastrophic-reset orchestrator | 9 |
+| `core/security/security_bootstrap.dart` | 351 | startup tier resolution | 9 |
+| `core/security/keychain_password_gate.dart` | 262 | keychain unlock gate sequence | 9 |
+| `core/security/biometric_key_vault.dart` | 255 | biometric unlock sequence | 9 |
+| `core/security/security_tier.dart` | 257 | tier model + transitions | 9 |
+| `core/config/app_config.dart` | 605 | schema + defaults + validation + migrations | 2 (gated on 9) |
+| `core/import/import_service.dart` | 300 | apply driver remnants | 11 |
+| `core/session/session_recorder.dart` | 348 | ring buffer + write loop (asciinema composer DONE in `5adceb05`; pure UI-side queue carrier remains) | 10b |
+| `core/session/qr_codec.dart` | 980 | encode payload marshalling (Rust pure encode shipped; Dart still owns the `ExportPayloadInput` build) | 11 |
+| `core/deeplink/deeplink_handler.dart` | 266 | `app_links` subscription dispatch (parser already Rust) | 12 |
+| `core/transfer/conflict_resolver.dart` | 72 | UI-prompt cache state | 7 (folded) |
+| `core/security/secret_buffer.dart` | 215 | RAII + zeroing | 9 (folded) |
+| `core/security/secure_ref.dart` | 122 | RAII handle | 9 (folded) |
+| `core/security/clipboard_secret.dart` | 99 | timed clipboard wipe | 13d (DEFERRED) |
+| `core/migration/migration_runner.dart` | 51 | thin shim — DONE | shim only |
+
+Already retired this arc:
+- `aes_gcm.dart` (19 LOC, `f1d14183`)
+- `release_signing.dart` (135 LOC, `f4fd49d4`)
+- `cert_pinning.dart` (177 LOC, `4710271e`)
+- `tier_backing.dart` (167 LOC, `6e249d86`) — dead code, no production caller
+- Migration framework Dart files (~840 LOC across 9 files, `101798a7`)
 | `core/security/clipboard_secret.dart` | 99 | timed clipboard wipe |
 | `core/security/aes_gcm.dart` | 19 | random key fill |
 
