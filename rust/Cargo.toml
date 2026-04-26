@@ -117,6 +117,12 @@ flate2 = { version = "1", default-features = false, features = [
 # base64url encoding for the QR payload tail. RFC 4648 §5 — `-_`
 # alphabet, no padding, matches Dart's `base64Url.encode`.
 base64 = "0.22"
+# Regex engine for `lfs_core::log_sanitize`. Pure-Rust (no PCRE),
+# deterministic linear-time matching — the sanitiser is a hot path
+# (every log line + every user-visible error toast) so the
+# regex-engine guarantees matter. Same crate the standard library's
+# fancy-format helpers reach for.
+regex = "1"
 
 [profile.release]
 codegen-units = 1

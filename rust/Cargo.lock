@@ -1275,6 +1275,7 @@ dependencies = [
  "hkdf",
  "internal-russh-forked-ssh-key",
  "rand 0.8.6",
+ "regex",
  "rusqlite",
  "russh",
  "russh-sftp",

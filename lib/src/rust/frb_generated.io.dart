@@ -11,6 +11,7 @@ import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/forward.dart';
 import 'api/keys.dart';
+import 'api/log_sanitize.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
 import 'api/recorder.dart';
