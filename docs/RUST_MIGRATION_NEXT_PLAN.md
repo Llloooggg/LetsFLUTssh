@@ -196,15 +196,21 @@ both use system-CA validation, both reject untrusted hosts,
 both cap redirects at 10. SPKI pin map was empty Dart-side
 already (falls back to system CA), so no security regression.
 
+`defaultDownload` rewired through `update_download_to_file`.
+Per-chunk progress flows through a new `BusEvent::UpdateDownloadProgress`
+variant on a fresh `Update` topic; `UpdateService.defaultDownload`
+subscribes for the duration of the download and forwards ticks
+to the existing `onProgress` callback so the determinate
+progress bar keeps moving.
+
 Pending follow-ups (separate arcs):
-  - `defaultDownload` rewire — needs a bus event variant
-    (`UpdateDownloadProgress { written, total }`) so the
-    determinate progress bar still ticks while the Rust
-    streamer hashes + writes to disk.
   - SPKI cert pinning — needs a custom rustls
     `ServerCertVerifier` if/when GitHub keys get pinned.
-  - Signed manifest fetch — small piece, lands when
-    `defaultDownload` does.
+    Pin map is empty Dart-side today, so no posture regression.
+  - Signed manifest fetch (`.sha256sums` + `.sha256sums.sig`) —
+    currently still uses the Dart `download` callback wired
+    through `_defaultVerifyArtifact`. Rewires trivially in a
+    follow-up since both endpoints are now Rust.
 
 **Why sixth:** HTTP fetch + SHA-256 + Ed25519 verify all live in
 crypto already. ~500 LOC drops Dart-side. Keep the OS-specific

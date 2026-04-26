@@ -7249,6 +7249,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
   BusCommand dco_decode_bus_command(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -7400,6 +7406,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 17:
         return BusEvent_PortForwardRemoved(id: dco_decode_String(raw[1]));
+      case 18:
+        return BusEvent_UpdateDownloadProgress(
+          url: dco_decode_String(raw[1]),
+          writtenBytes: dco_decode_u_64(raw[2]),
+          totalBytes: dco_decode_opt_box_autoadd_u_64(raw[3]),
+        );
       default:
         throw Exception('unreachable');
     }
@@ -8196,6 +8208,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
   List<DbOpenSshAuthType>? dco_decode_opt_list_db_open_ssh_auth_type(
     dynamic raw,
   ) {
@@ -8763,6 +8781,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
   BusCommand sse_decode_bus_command(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -8948,6 +8972,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 17:
         final var_id = sse_decode_String(deserializer);
         return BusEvent_PortForwardRemoved(id: var_id);
+      case 18:
+        final var_url = sse_decode_String(deserializer);
+        final var_writtenBytes = sse_decode_u_64(deserializer);
+        final var_totalBytes = sse_decode_opt_box_autoadd_u_64(deserializer);
+        return BusEvent_UpdateDownloadProgress(
+          url: var_url,
+          writtenBytes: var_writtenBytes,
+          totalBytes: var_totalBytes,
+        );
       default:
         throw UnimplementedError('');
     }
@@ -10069,6 +10102,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   List<DbOpenSshAuthType>? sse_decode_opt_list_db_open_ssh_auth_type(
     SseDeserializer deserializer,
   ) {
@@ -10731,6 +10775,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_bus_command(BusCommand self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
@@ -10900,6 +10950,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusEvent_PortForwardRemoved(id: final id):
         sse_encode_i_32(17, serializer);
         sse_encode_String(id, serializer);
+      case BusEvent_UpdateDownloadProgress(
+        url: final url,
+        writtenBytes: final writtenBytes,
+        totalBytes: final totalBytes,
+      ):
+        sse_encode_i_32(18, serializer);
+        sse_encode_String(url, serializer);
+        sse_encode_u_64(writtenBytes, serializer);
+        sse_encode_opt_box_autoadd_u_64(totalBytes, serializer);
     }
   }
 
@@ -11803,6 +11862,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
     }
   }
 

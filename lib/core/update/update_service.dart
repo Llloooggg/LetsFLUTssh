@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,9 +6,11 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/update_http.dart' as rust_update_http;
 import '../../src/rust/api/update_metadata.dart' as rust_update;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 import 'cert_pinning.dart';
 import 'release_signing.dart';
 
@@ -836,7 +839,53 @@ class UpdateService {
     if (!isTrustedReleaseAssetUri(url)) {
       throw StateError('Untrusted update download URL: $url');
     }
+    // Production: route through `lfs_core::update_http::download_to_file`.
+    // Per-chunk progress is published onto the bus as
+    // `BusEvent::UpdateDownloadProgress`; subscribe to the
+    // `Update` topic for the duration of this download and forward
+    // ticks to `onProgress` so the UI's determinate progress bar
+    // keeps moving. Ed25519 manifest verification still runs Dart-
+    // side via `_defaultVerifyArtifact` after the download lands.
+    final urlString = url.toString();
+    StreamSubscription<rust_bus.BusEvent>? sub;
+    try {
+      if (onProgress != null) {
+        sub = AppBus.instance.subscribe(rust_bus.BusTopic.update).listen((
+          event,
+        ) {
+          if (event is rust_bus.BusEvent_UpdateDownloadProgress &&
+              event.url == urlString) {
+            onProgress(
+              event.writtenBytes.toInt(),
+              event.totalBytes?.toInt() ?? 0,
+            );
+          }
+        });
+      }
+      await rust_update_http.updateDownloadToFile(
+        url: urlString,
+        targetPath: savePath,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'updateDownloadToFile FRB call failed; falling back to dart:io: $e',
+        name: 'UpdateService',
+        level: LogLevel.warn,
+      );
+      await sub?.cancel();
+      sub = null;
+      await _defaultDownloadDart(url, savePath, onProgress);
+      return;
+    } finally {
+      await sub?.cancel();
+    }
+  }
 
+  static Future<void> _defaultDownloadDart(
+    Uri url,
+    String savePath,
+    void Function(int received, int total)? onProgress,
+  ) async {
     const maxRedirects = 10;
     final client = HttpClient();
     CertPinning.enforce(client);

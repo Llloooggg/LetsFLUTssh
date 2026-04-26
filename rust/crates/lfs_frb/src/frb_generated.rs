@@ -8003,6 +8003,16 @@ impl SseDecode for crate::api::bus::BusEvent {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::PortForwardRemoved { id: var_id };
             }
+            18 => {
+                let mut var_url = <String>::sse_decode(deserializer);
+                let mut var_writtenBytes = <u64>::sse_decode(deserializer);
+                let mut var_totalBytes = <Option<u64>>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::UpdateDownloadProgress {
+                    url: var_url,
+                    written_bytes: var_writtenBytes,
+                    total_bytes: var_totalBytes,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -8077,6 +8087,7 @@ impl SseDecode for crate::api::bus::BusTopic {
             4 => crate::api::bus::BusTopic::Recorder,
             5 => crate::api::bus::BusTopic::AutoLock,
             6 => crate::api::bus::BusTopic::Import,
+            7 => crate::api::bus::BusTopic::Update,
             _ => unreachable!("Invalid variant for BusTopic: {}", inner),
         };
     }
@@ -9187,6 +9198,17 @@ impl SseDecode for Option<u32> {
     }
 }
 
+impl SseDecode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<Vec<crate::api::ssh_config::DbOpenSshAuthType>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10087,6 +10109,17 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::PortForwardRemoved { id } => {
                 [17.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::bus::BusEvent::UpdateDownloadProgress {
+                url,
+                written_bytes,
+                total_bytes,
+            } => [
+                18.into_dart(),
+                url.into_into_dart().into_dart(),
+                written_bytes.into_into_dart().into_dart(),
+                total_bytes.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -10197,6 +10230,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusTopic {
             Self::Recorder => 4.into_dart(),
             Self::AutoLock => 5.into_dart(),
             Self::Import => 6.into_dart(),
+            Self::Update => 7.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -11532,6 +11566,16 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <i32>::sse_encode(17, serializer);
                 <String>::sse_encode(id, serializer);
             }
+            crate::api::bus::BusEvent::UpdateDownloadProgress {
+                url,
+                written_bytes,
+                total_bytes,
+            } => {
+                <i32>::sse_encode(18, serializer);
+                <String>::sse_encode(url, serializer);
+                <u64>::sse_encode(written_bytes, serializer);
+                <Option<u64>>::sse_encode(total_bytes, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -11613,6 +11657,7 @@ impl SseEncode for crate::api::bus::BusTopic {
                 crate::api::bus::BusTopic::Recorder => 4,
                 crate::api::bus::BusTopic::AutoLock => 5,
                 crate::api::bus::BusTopic::Import => 6,
+                crate::api::bus::BusTopic::Update => 7,
                 _ => {
                     unimplemented!("");
                 }
@@ -12436,6 +12481,16 @@ impl SseEncode for Option<u32> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <u32>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u64>::sse_encode(value, serializer);
         }
     }
 }

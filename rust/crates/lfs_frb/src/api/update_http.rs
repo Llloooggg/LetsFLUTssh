@@ -20,7 +20,19 @@ pub async fn update_fetch_text(url: String) -> Result<String, String> {
 /// determinate progress on the Rust path.
 pub async fn update_download_to_file(url: String, target_path: String) -> Result<String, String> {
     let path = std::path::PathBuf::from(target_path);
-    lfs_core::update_http::download_to_file(&url, &path, |_, _| {})
-        .await
-        .map_err(|e| e.to_string())
+    let url_for_progress = url.clone();
+    lfs_core::update_http::download_to_file(&url, &path, move |written, total| {
+        // `app::instance()` is a process-singleton getter — every
+        // call returns the same `&'static AppState`, so the
+        // closure's `'static` bound holds without a clone.
+        lfs_core::app::instance()
+            .bus
+            .publish(lfs_core::bus::Event::UpdateDownloadProgress {
+                url: url_for_progress.clone(),
+                written_bytes: written,
+                total_bytes: total,
+            });
+    })
+    .await
+    .map_err(|e| e.to_string())
 }

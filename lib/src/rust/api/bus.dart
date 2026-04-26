@@ -276,6 +276,15 @@ sealed class BusEvent with _$BusEvent {
   /// Port forward — rule actor left the registry.
   const factory BusEvent.portForwardRemoved({required String id}) =
       BusEvent_PortForwardRemoved;
+
+  /// Auto-update — bytes-written tick during a streaming
+  /// download. `total_bytes` is `None` when the server did not
+  /// declare a `Content-Length`.
+  const factory BusEvent.updateDownloadProgress({
+    required String url,
+    required BigInt writtenBytes,
+    BigInt? totalBytes,
+  }) = BusEvent_UpdateDownloadProgress;
 }
 
 /// Connection progress step — FRB mirror of
@@ -324,4 +333,5 @@ enum BusTopic {
   recorder,
   autoLock,
   import_,
+  update,
 }

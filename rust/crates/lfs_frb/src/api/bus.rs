@@ -17,6 +17,7 @@ pub enum BusTopic {
     Recorder,
     AutoLock,
     Import,
+    Update,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -29,6 +30,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::Recorder => lfs_core::bus::EventTopic::Recorder,
             BusTopic::AutoLock => lfs_core::bus::EventTopic::AutoLock,
             BusTopic::Import => lfs_core::bus::EventTopic::Import,
+            BusTopic::Update => lfs_core::bus::EventTopic::Update,
         }
     }
 }
@@ -175,6 +177,15 @@ pub enum BusEvent {
     },
     /// Port forward — rule actor left the registry.
     PortForwardRemoved { id: String },
+
+    /// Auto-update — bytes-written tick during a streaming
+    /// download. `total_bytes` is `None` when the server did not
+    /// declare a `Content-Length`.
+    UpdateDownloadProgress {
+        url: String,
+        written_bytes: u64,
+        total_bytes: Option<u64>,
+    },
 }
 
 /// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
@@ -275,6 +286,15 @@ impl BusEvent {
                 }
             }
             lfs_core::bus::Event::PortForwardRemoved { id } => BusEvent::PortForwardRemoved { id },
+            lfs_core::bus::Event::UpdateDownloadProgress {
+                url,
+                written_bytes,
+                total_bytes,
+            } => BusEvent::UpdateDownloadProgress {
+                url,
+                written_bytes,
+                total_bytes,
+            },
         }
     }
 }

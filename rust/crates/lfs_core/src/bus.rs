@@ -57,6 +57,8 @@ pub enum EventTopic {
     AutoLock,
     /// `.lfs` import handle progress.
     Import,
+    /// Auto-update channel — fetch / download progress.
+    Update,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -153,6 +155,17 @@ pub enum Event {
     },
     /// Port forward — rule actor left the registry.
     PortForwardRemoved { id: String },
+
+    /// Auto-update — bytes-written tick during a streaming
+    /// download. `total_bytes` is `None` when the server did not
+    /// declare a `Content-Length`. Subscribers tick the progress
+    /// bar; the URL identifies the active download for UIs that
+    /// drive multiple in parallel.
+    UpdateDownloadProgress {
+        url: String,
+        written_bytes: u64,
+        total_bytes: Option<u64>,
+    },
 }
 
 impl Event {
@@ -176,6 +189,7 @@ impl Event {
             Event::PortForwardRegistered { .. }
             | Event::PortForwardStatus { .. }
             | Event::PortForwardRemoved { .. } => EventTopic::PortForward,
+            Event::UpdateDownloadProgress { .. } => EventTopic::Update,
         }
     }
 }
