@@ -11,6 +11,7 @@ import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/forward.dart';
 import 'api/keys.dart';
+import 'api/password_strength.dart';
 import 'api/path.dart';
 import 'api/recorder.dart';
 import 'api/sftp.dart';
@@ -310,6 +311,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbOpenSshHostEntry dco_decode_db_open_ssh_host_entry(dynamic raw);
+
+  @protected
+  DbPasswordStrength dco_decode_db_password_strength(dynamic raw);
 
   @protected
   DbPortForwardRule dco_decode_db_port_forward_rule(dynamic raw);
@@ -771,6 +775,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbOpenSshHostEntry sse_decode_db_open_ssh_host_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbPasswordStrength sse_decode_db_password_strength(
     SseDeserializer deserializer,
   );
 
@@ -1338,6 +1347,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_open_ssh_host_entry(
     DbOpenSshHostEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_password_strength(
+    DbPasswordStrength self,
     SseSerializer serializer,
   );
 

@@ -26,6 +26,7 @@ pub mod crypto;
 pub mod db;
 pub mod error;
 pub mod keys;
+pub mod password_strength;
 pub mod path;
 pub mod portforward;
 pub mod recorder;

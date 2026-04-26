@@ -9,6 +9,7 @@ pub mod crypto;
 pub mod db;
 pub mod forward;
 pub mod keys;
+pub mod password_strength;
 pub mod path;
 pub mod recorder;
 pub mod sftp;
