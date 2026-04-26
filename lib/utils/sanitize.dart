@@ -1,27 +1,38 @@
 // Utilities for sanitizing sensitive data before logging or surfacing in
 // user-facing error toasts.
 //
-// Prevents accidental leakage of:
-// - SSH private keys in PEM format and long base64 key blobs
-// - IP addresses (IPv4)
-// - Usernames in SSH context (user@host)
-// - Port numbers in connection strings
-// - File paths containing usernames
-//
-// Sqlite/drift exceptions are the usual offender: their `toString()` embeds
-// the failing `INSERT` statement along with every bound parameter, which can
-// include a PEM-encoded private key pulled from a session row. Anything that
-// might put such a message in front of the user (toasts, error dialogs) must
-// run it through [redactSecrets] first.
+// Routes through `lfs_core::log_sanitize` over the synchronous FRB
+// endpoints so production keeps a single canonical implementation.
+// Falls back to the Dart RegExp pipeline when the FRB native lib isn't
+// loaded (unit tests without `RustLib.init`); the fallback is the
+// historical implementation kept in tree under the private `_dart*`
+// helpers below.
 
-/// Strip PEM private keys and long base64 blobs.
-///
-/// Called before any user-visible error surfaces (toasts, dialogs) and as
-/// the first step of [AppLogger.sanitize] for log files. Catches the common
-/// drift/sqlite leak where a failed `INSERT` dumps its bound parameters —
-/// including `-----BEGIN OPENSSH PRIVATE KEY-----...` — into the exception
-/// message.
+import '../src/rust/api/log_sanitize.dart' as rust_san;
+
+/// Strip PEM private keys and long base64 blobs. Routes through Rust
+/// where available; the Dart fallback is exercised by unit tests that
+/// don't bootstrap the FRB runtime.
 String redactSecrets(String input) {
+  try {
+    return rust_san.redactSecrets(input: input);
+  } catch (_) {
+    return _redactSecretsDart(input);
+  }
+}
+
+/// Remove sensitive data from error messages. Routes through Rust
+/// where available; the Dart fallback mirrors the same regex
+/// pipeline byte-for-byte.
+String sanitizeErrorMessage(String message) {
+  try {
+    return rust_san.sanitizeErrorMessage(input: message);
+  } catch (_) {
+    return _sanitizeErrorMessageDart(message);
+  }
+}
+
+String _redactSecretsDart(String input) {
   // Match any PEM-style block (private key, encrypted private key, future
   // proprietary formats with hyphens in the type name like "OPENSSH PRIVATE
   // KEY"). The type-name class is restricted to non-newline characters
@@ -38,8 +49,7 @@ String redactSecrets(String input) {
   return out;
 }
 
-/// Remove sensitive data from error messages before logging.
-String sanitizeErrorMessage(String message) {
+String _sanitizeErrorMessageDart(String message) {
   // IPv6 literals FIRST — broader shape than IPv4 and would otherwise
   // get partially chewed by later rules. Covers:
   //   * full 8-group form `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
