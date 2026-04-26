@@ -1,0 +1,661 @@
+//! OpenSSH `~/.ssh/config` parser.
+//!
+//! Mirrors the Dart `parseOpenSshConfig` shape so a future
+//! Rust-driven importer produces the same set of host entries.
+//! Parses the OpenSSH `Host`-block syntax: line-oriented
+//! directives, `#`-prefixed comments, optional `=` separator,
+//! quoted values, wildcard / negation `Host` patterns
+//! (`*.internal`, `!staging.example.com`), and `Include`
+//! directives expanded against an injectable reader.
+//!
+//! Wildcard handling matches OpenSSH's first-value-wins
+//! semantics: a concrete-host entry takes its own block's
+//! directives and then fills any unset field from every wildcard
+//! block whose pattern matches the host, in file order.
+//!
+//! The supported directive set is intentionally small —
+//! enough for our import flow to reconstruct the connection
+//! tuple (`Host`, `HostName`, `User`, `Port`, `IdentityFile`,
+//! `PreferredAuthentications`). Unknown directives are silently
+//! ignored so unfamiliar configs still produce usable entries.
+
+/// Authentication method we map onto for the importer. Mirrors
+/// `lib/core/session/session.dart` `AuthType`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuthType {
+    Password,
+    Key,
+}
+
+/// One concrete host entry extracted from a config file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostEntry {
+    pub host: String,
+    pub host_name: Option<String>,
+    pub user: Option<String>,
+    pub port: Option<u16>,
+    pub identity_files: Vec<String>,
+    /// `None` when the user did not set `PreferredAuthentications`.
+    /// `Some(empty)` is normalised to `None` so callers don't
+    /// need to special-case "directive present but every method
+    /// unknown".
+    pub preferred_auth_types: Option<Vec<AuthType>>,
+}
+
+impl HostEntry {
+    /// HostName when set, otherwise the Host alias.
+    pub fn effective_host(&self) -> &str {
+        self.host_name.as_deref().unwrap_or(&self.host)
+    }
+}
+
+/// Caller-supplied reader for `Include` directives. Returns
+/// `None` when the file does not exist / cannot be read.
+pub type IncludeReader<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+/// Parse `content` into a list of concrete host entries.
+///
+/// `base_dir` anchors relative `Include` paths (defaults to
+/// `<home>/.ssh` Dart-side). `max_include_depth` bounds recursion
+/// so a pathological `Include ./config` does not blow the stack;
+/// the Dart parser uses 8 by default.
+pub fn parse_openssh_config(
+    content: &str,
+    include_reader: IncludeReader<'_>,
+    base_dir: &str,
+    max_include_depth: usize,
+) -> Vec<HostEntry> {
+    let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let expanded = expand_includes(content, include_reader, base_dir, max_include_depth, &mut visited);
+    let blocks = parse_blocks(&expanded);
+
+    let mut wildcard_blocks: Vec<&RawBlock> = Vec::new();
+    let mut concrete: Vec<(usize, &str)> = Vec::new();
+    for (i, block) in blocks.iter().enumerate() {
+        let mut any_concrete = false;
+        for pat in &block.patterns {
+            if is_wildcard_pattern(pat) {
+                continue;
+            }
+            any_concrete = true;
+            concrete.push((i, pat));
+        }
+        if !any_concrete || block.patterns.iter().any(|p| is_wildcard_pattern(p)) {
+            wildcard_blocks.push(block);
+        }
+    }
+
+    concrete
+        .into_iter()
+        .map(|(idx, pat)| resolve_entry(pat, &blocks[idx], &wildcard_blocks))
+        .collect()
+}
+
+#[derive(Debug, Clone)]
+struct RawBlock {
+    order_index: usize,
+    patterns: Vec<String>,
+    host_name: Option<String>,
+    user: Option<String>,
+    port: Option<u16>,
+    identity_files: Vec<String>,
+    preferred_auth_types: Option<Vec<AuthType>>,
+}
+
+impl RawBlock {
+    fn matches(&self, host: &str) -> bool {
+        let mut positive = false;
+        for raw in &self.patterns {
+            let (neg, pat) = if let Some(rest) = raw.strip_prefix('!') {
+                (true, rest)
+            } else {
+                (false, raw.as_str())
+            };
+            if !glob_matches(pat, host) {
+                continue;
+            }
+            if neg {
+                return false;
+            }
+            positive = true;
+        }
+        positive
+    }
+}
+
+fn resolve_entry(host: &str, own: &RawBlock, wildcards: &[&RawBlock]) -> HostEntry {
+    let mut host_name: Option<String> = None;
+    let mut user: Option<String> = None;
+    let mut port: Option<u16> = None;
+    let mut preferred: Option<Vec<AuthType>> = None;
+    let mut identity_files: Vec<String> = Vec::new();
+
+    let mut ordered: Vec<&RawBlock> = wildcards.to_vec();
+    if !ordered.iter().any(|b| std::ptr::eq(*b, own)) {
+        ordered.push(own);
+    }
+    ordered.sort_by_key(|b| b.order_index);
+
+    for block in ordered {
+        let is_own = std::ptr::eq(block, own);
+        if !is_own && !block.matches(host) {
+            continue;
+        }
+        if host_name.is_none() {
+            host_name = block.host_name.clone();
+        }
+        if user.is_none() {
+            user = block.user.clone();
+        }
+        if port.is_none() {
+            port = block.port;
+        }
+        if preferred.is_none() {
+            preferred = block.preferred_auth_types.clone();
+        }
+        identity_files.extend(block.identity_files.iter().cloned());
+    }
+
+    HostEntry {
+        host: host.to_string(),
+        host_name,
+        user,
+        port,
+        identity_files,
+        preferred_auth_types: preferred,
+    }
+}
+
+fn parse_blocks(content: &str) -> Vec<RawBlock> {
+    let mut blocks: Vec<RawBlock> = Vec::new();
+    let mut patterns: Option<Vec<String>> = None;
+    let mut host_name: Option<String> = None;
+    let mut user: Option<String> = None;
+    let mut port: Option<u16> = None;
+    let mut preferred: Option<Vec<AuthType>> = None;
+    let mut identity_files: Vec<String> = Vec::new();
+
+    let flush = |blocks: &mut Vec<RawBlock>,
+                 patterns: &mut Option<Vec<String>>,
+                 host_name: &mut Option<String>,
+                 user: &mut Option<String>,
+                 port: &mut Option<u16>,
+                 preferred: &mut Option<Vec<AuthType>>,
+                 identity_files: &mut Vec<String>| {
+        if let Some(p) = patterns.take() {
+            blocks.push(RawBlock {
+                order_index: blocks.len(),
+                patterns: p,
+                host_name: host_name.take(),
+                user: user.take(),
+                port: port.take(),
+                identity_files: std::mem::take(identity_files),
+                preferred_auth_types: preferred.take(),
+            });
+        }
+    };
+
+    for raw_line in content.lines() {
+        let stripped = strip_comment(raw_line);
+        let line = stripped.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some((kw_raw, value)) = split_keyword_value(line) else {
+            continue;
+        };
+        let kw = kw_raw.to_ascii_lowercase();
+        if kw == "host" {
+            flush(
+                &mut blocks,
+                &mut patterns,
+                &mut host_name,
+                &mut user,
+                &mut port,
+                &mut preferred,
+                &mut identity_files,
+            );
+            patterns = Some(split_host_patterns(&value));
+            continue;
+        }
+        if patterns.is_none() {
+            continue;
+        }
+        match kw.as_str() {
+            "hostname" if host_name.is_none() => host_name = Some(value),
+            "user" if user.is_none() => user = Some(value),
+            "port" if port.is_none() => port = value.parse::<u16>().ok(),
+            "identityfile" => identity_files.push(value),
+            "preferredauthentications" if preferred.is_none() => {
+                preferred = parse_preferred_auths(&value);
+            }
+            _ => {}
+        }
+    }
+    flush(
+        &mut blocks,
+        &mut patterns,
+        &mut host_name,
+        &mut user,
+        &mut port,
+        &mut preferred,
+        &mut identity_files,
+    );
+    blocks
+}
+
+/// Map OpenSSH's `PreferredAuthentications` comma-list onto our
+/// internal `AuthType` ordering. Methods we don't support
+/// (`hostbased`, `gssapi-*`) are dropped so an entry like
+/// `gssapi-with-mic,publickey,password` still resolves to
+/// `[Key, Password]`.
+fn parse_preferred_auths(raw: &str) -> Option<Vec<AuthType>> {
+    let mut seen = std::collections::HashSet::<AuthType>::new();
+    let mut out: Vec<AuthType> = Vec::new();
+    for part in raw.split(',') {
+        let mapped = match part.trim().to_ascii_lowercase().as_str() {
+            "publickey" => Some(AuthType::Key),
+            "password" => Some(AuthType::Password),
+            "keyboard-interactive" => Some(AuthType::Password),
+            _ => None,
+        };
+        if let Some(m) = mapped {
+            if seen.insert(m) {
+                out.push(m);
+            }
+        }
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+fn expand_includes(
+    content: &str,
+    reader: IncludeReader<'_>,
+    base_dir: &str,
+    remaining: usize,
+    visited: &mut std::collections::HashSet<String>,
+) -> String {
+    if remaining == 0 {
+        return content.to_string();
+    }
+    let mut buf = String::new();
+    for raw_line in content.lines() {
+        let stripped = strip_comment(raw_line);
+        let line = stripped.trim();
+        let mut expanded = false;
+        if !line.is_empty() {
+            if let Some((kw, value)) = split_keyword_value(line) {
+                if kw.eq_ignore_ascii_case("include") {
+                    for token in split_host_patterns(&value) {
+                        for resolved in resolve_include_paths(&token, base_dir) {
+                            if !visited.insert(resolved.clone()) {
+                                continue;
+                            }
+                            if let Some(included) = reader(&resolved) {
+                                buf.push_str(&expand_includes(
+                                    &included,
+                                    reader,
+                                    base_dir,
+                                    remaining - 1,
+                                    visited,
+                                ));
+                                buf.push('\n');
+                            }
+                        }
+                    }
+                    expanded = true;
+                }
+            }
+        }
+        if !expanded {
+            buf.push_str(raw_line);
+            buf.push('\n');
+        }
+    }
+    buf
+}
+
+fn resolve_include_paths(pattern: &str, base_dir: &str) -> Vec<String> {
+    let mut resolved = pattern.to_string();
+    if resolved == "~" {
+        resolved = crate::path::expand_tilde("~");
+    } else if resolved.starts_with("~/") {
+        resolved = crate::path::expand_tilde(&resolved);
+    } else if !is_absolute_path(&resolved) {
+        let sep = if cfg!(windows) { '\\' } else { '/' };
+        resolved = format!("{base_dir}{sep}{resolved}");
+    }
+    // Glob expansion is filesystem-touching — left to a future
+    // commit alongside the Rust-driven importer that owns the
+    // reader. Today the parser receives Include readers from the
+    // caller for both plain paths and globs; a glob token resolves
+    // to one path that the reader can fan out itself, so this
+    // entry-point only emits the canonical resolved path.
+    vec![resolved]
+}
+
+fn is_absolute_path(path: &str) -> bool {
+    if path.starts_with('/') {
+        return true;
+    }
+    let bytes = path.as_bytes();
+    if bytes.len() >= 2 && bytes[1] == b':' {
+        return true;
+    }
+    if path.starts_with("\\\\") {
+        return true;
+    }
+    false
+}
+
+fn is_wildcard_pattern(host: &str) -> bool {
+    host.contains('*') || host.contains('?') || host.starts_with('!')
+}
+
+/// Recursive minimal glob match. `*` runs of any length, `?`
+/// exactly one char, anything else literal. Case-sensitive.
+/// Real-world `Host` patterns are short enough that the
+/// worst-case backtracking cost stays in microseconds.
+pub(crate) fn glob_matches(pattern: &str, text: &str) -> bool {
+    glob_at(pattern.as_bytes(), 0, text.as_bytes(), 0)
+}
+
+fn glob_at(p: &[u8], pi: usize, t: &[u8], ti: usize) -> bool {
+    if pi == p.len() {
+        return ti == t.len();
+    }
+    match p[pi] {
+        b'*' => {
+            for k in ti..=t.len() {
+                if glob_at(p, pi + 1, t, k) {
+                    return true;
+                }
+            }
+            false
+        }
+        b'?' => {
+            if ti == t.len() {
+                return false;
+            }
+            glob_at(p, pi + 1, t, ti + 1)
+        }
+        c => {
+            if ti == t.len() || t[ti] != c {
+                return false;
+            }
+            glob_at(p, pi + 1, t, ti + 1)
+        }
+    }
+}
+
+fn strip_comment(line: &str) -> String {
+    let mut in_quotes = false;
+    let mut out = String::with_capacity(line.len());
+    for c in line.chars() {
+        if c == '"' {
+            in_quotes = !in_quotes;
+        }
+        if c == '#' && !in_quotes {
+            break;
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn split_keyword_value(line: &str) -> Option<(String, String)> {
+    let eq_idx = line.find('=');
+    let space_idx = line.find(|c: char| c.is_whitespace());
+    let sep_idx = match (eq_idx, space_idx) {
+        (None, None) => return None,
+        (Some(e), None) => e,
+        (None, Some(s)) => s,
+        (Some(e), Some(s)) => std::cmp::min(e, s),
+    };
+    let keyword = line[..sep_idx].trim().to_string();
+    let mut rest = line[sep_idx + 1..].trim().to_string();
+    if let Some(stripped) = rest.strip_prefix('=') {
+        rest = stripped.trim().to_string();
+    }
+    if keyword.is_empty() || rest.is_empty() {
+        return None;
+    }
+    Some((keyword, unquote(&rest).to_string()))
+}
+
+fn unquote(value: &str) -> &str {
+    if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+        &value[1..value.len() - 1]
+    } else {
+        value
+    }
+}
+
+fn split_host_patterns(value: &str) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+    let mut buf = String::new();
+    let mut in_quotes = false;
+    for c in value.chars() {
+        if c == '"' {
+            in_quotes = !in_quotes;
+            continue;
+        }
+        if !in_quotes && (c == ' ' || c == '\t') {
+            if !buf.is_empty() {
+                result.push(std::mem::take(&mut buf));
+            }
+            continue;
+        }
+        buf.push(c);
+    }
+    if !buf.is_empty() {
+        result.push(buf);
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn no_includes(_: &str) -> Option<String> {
+        None
+    }
+
+    #[test]
+    fn parses_single_concrete_host() {
+        let cfg = "Host prod\n  HostName 10.0.0.1\n  User deploy\n  Port 2222\n  IdentityFile ~/.ssh/prod_id\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries.len(), 1);
+        let e = &entries[0];
+        assert_eq!(e.host, "prod");
+        assert_eq!(e.host_name.as_deref(), Some("10.0.0.1"));
+        assert_eq!(e.user.as_deref(), Some("deploy"));
+        assert_eq!(e.port, Some(2222));
+        assert_eq!(e.identity_files, vec!["~/.ssh/prod_id"]);
+        assert!(e.preferred_auth_types.is_none());
+    }
+
+    #[test]
+    fn comment_and_blank_lines_ignored() {
+        let cfg = "# header comment\n\nHost a\n  HostName b\n# trailing comment\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].host_name.as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn equals_separator_supported() {
+        let cfg = "Host eq\n  HostName=internal.local\n  Port = 4242\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries[0].host_name.as_deref(), Some("internal.local"));
+        assert_eq!(entries[0].port, Some(4242));
+    }
+
+    #[test]
+    fn wildcard_block_cascades_onto_concretes() {
+        let cfg = "Host *\n  User globaluser\n  Port 2200\nHost prod\n  HostName p.example\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries.len(), 1);
+        let e = &entries[0];
+        assert_eq!(e.host, "prod");
+        assert_eq!(e.user.as_deref(), Some("globaluser"));
+        assert_eq!(e.port, Some(2200));
+    }
+
+    #[test]
+    fn wildcard_user_overridden_by_concrete() {
+        // Concrete block declared first → its user wins for its own host;
+        // the trailing wildcard fills only Port (which the concrete
+        // didn't declare).
+        let cfg = "Host prod\n  User deploy\nHost *\n  User other\n  Port 22\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        let e = &entries[0];
+        assert_eq!(e.user.as_deref(), Some("deploy"));
+        assert_eq!(e.port, Some(22));
+    }
+
+    #[test]
+    fn negation_pattern_excludes_match() {
+        let cfg = "Host *.internal !secret.internal\n  User svc\nHost public.example\n";
+        // We test the wildcard `matches` directly via parsing two
+        // concrete hosts at once isn't possible here without two
+        // blocks; assert via the lower-level matcher.
+        let blocks = parse_blocks(cfg);
+        let wild = blocks.iter().find(|b| b.patterns.contains(&"*.internal".into())).unwrap();
+        assert!(wild.matches("foo.internal"));
+        assert!(!wild.matches("secret.internal"));
+        assert!(!wild.matches("public.example"));
+    }
+
+    #[test]
+    fn preferred_auth_strips_unknown_methods() {
+        let cfg = "Host x\n  PreferredAuthentications gssapi-with-mic,publickey,password\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(
+            entries[0].preferred_auth_types.as_deref(),
+            Some(&[AuthType::Key, AuthType::Password][..])
+        );
+    }
+
+    #[test]
+    fn preferred_auth_all_unknown_yields_none() {
+        let cfg = "Host x\n  PreferredAuthentications gssapi,hostbased\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert!(entries[0].preferred_auth_types.is_none());
+    }
+
+    #[test]
+    fn multiple_identity_files_accumulate() {
+        let cfg = "Host k\n  IdentityFile ~/.ssh/a\n  IdentityFile ~/.ssh/b\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries[0].identity_files, vec!["~/.ssh/a", "~/.ssh/b"]);
+    }
+
+    #[test]
+    fn quoted_value_preserves_spaces() {
+        let cfg = "Host q\n  HostName \"host with space\"\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries[0].host_name.as_deref(), Some("host with space"));
+    }
+
+    #[test]
+    fn unknown_directive_silently_ignored() {
+        let cfg = "Host x\n  HostName y\n  StrictHostKeyChecking no\n  ProxyCommand ssh -W %h:%p bastion\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries[0].host_name.as_deref(), Some("y"));
+    }
+
+    #[test]
+    fn host_line_with_multiple_patterns_emits_one_entry_per_concrete() {
+        let cfg = "Host prod stage\n  HostName common.example\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        let names: Vec<&str> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert_eq!(names, vec!["prod", "stage"]);
+        assert!(entries.iter().all(|e| e.host_name.as_deref() == Some("common.example")));
+    }
+
+    #[test]
+    fn glob_matcher_handles_star_question_literal() {
+        assert!(glob_matches("*.internal", "foo.internal"));
+        assert!(glob_matches("*.internal", "a.b.internal"));
+        assert!(glob_matches("ho?t", "host"));
+        assert!(!glob_matches("ho?t", "house"));
+        assert!(glob_matches("exact", "exact"));
+        assert!(!glob_matches("exact", "exactly"));
+        assert!(glob_matches("*", ""));
+    }
+
+    #[test]
+    fn include_directive_expanded_through_reader() {
+        let included = "Host inc\n  HostName from-include\n";
+        let reader = |path: &str| -> Option<String> {
+            if path == "/cfg/extras" {
+                Some(included.to_string())
+            } else {
+                None
+            }
+        };
+        let cfg = "Include extras\nHost main\n  HostName m.example\n";
+        let entries = parse_openssh_config(cfg, &reader, "/cfg", 8);
+        let mut by_host: std::collections::HashMap<String, &HostEntry> = Default::default();
+        for e in &entries {
+            by_host.insert(e.host.clone(), e);
+        }
+        assert_eq!(by_host.len(), 2);
+        assert_eq!(by_host["inc"].host_name.as_deref(), Some("from-include"));
+        assert_eq!(by_host["main"].host_name.as_deref(), Some("m.example"));
+    }
+
+    #[test]
+    fn include_max_depth_breaks_recursion() {
+        // A reader that always returns a fresh `Include` line would
+        // recurse forever without the depth bound.
+        let reader = |path: &str| -> Option<String> {
+            if path == "/cfg/loop" {
+                Some("Include loop\n".to_string())
+            } else {
+                None
+            }
+        };
+        let cfg = "Include loop\n";
+        // Should return without panicking and with no host entries.
+        let entries = parse_openssh_config(cfg, &reader, "/cfg", 3);
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn malformed_lines_dropped_gracefully() {
+        let cfg = "no-keyword-only-line\nHost ok\n  HostName y\n  : weird\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].host_name.as_deref(), Some("y"));
+    }
+
+    #[test]
+    fn orphan_directive_before_host_skipped() {
+        let cfg = "HostName lone\nHost a\n  HostName actual\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].host_name.as_deref(), Some("actual"));
+    }
+
+    #[test]
+    fn first_value_wins_inside_block() {
+        let cfg = "Host a\n  HostName first\n  HostName second\n  Port 1\n  Port 2\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries[0].host_name.as_deref(), Some("first"));
+        assert_eq!(entries[0].port, Some(1));
+    }
+
+    #[test]
+    fn effective_host_falls_back_to_alias() {
+        let cfg = "Host alias\n";
+        let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
+        assert_eq!(entries[0].effective_host(), "alias");
+    }
+}
