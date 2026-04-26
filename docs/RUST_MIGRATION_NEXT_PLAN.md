@@ -44,7 +44,8 @@ right now"*, the design is wrong.
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
 | 8c. `update_service` state machine → Rust | pending |
 | 9. Security tier stack → Rust | pending — largest port; `KdfParams` + `SecretBuffer` + `SecureRef` retire here |
-| 10. `session_recorder` → Rust driver | pending — Rust registry+events shipped Phase 5.4; asciinema event composer + frame-write loop pending |
+| 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
+| 10b. `session_recorder` ring buffer + driver loop | pending — registry-owned write loop is the next piece |
 | 11. `qr_codec` finish + `import_service` close | pending |
 | 12. `deeplink_handler` listener through bus | pending — listener stays Dart (`app_links` plugin), parser already Rust |
 | 13a. `aes_gcm.generateKey` → Rust | DONE | `f1d14183` |
