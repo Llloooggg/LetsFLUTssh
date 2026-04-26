@@ -295,8 +295,11 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   Future<SessionRecorder?> _maybeOpenRecorder(Connection conn) async {
     final sessionId = conn.sessionId;
     if (sessionId == null) return null;
+    // Recorder only needs the label + the `record` extras flag — the
+    // cached session model carries both without dragging the
+    // credential columns onto the Dart heap.
     final store = ref.read(sessionStoreProvider);
-    final session = await store.loadWithCredentials(sessionId);
+    final session = store.get(sessionId);
     if (session == null) return null;
     if (session.extrasBool('record') != true) return null;
     final dbKey = ref.read(securityStateProvider).encryptionKey;
