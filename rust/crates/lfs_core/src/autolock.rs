@@ -22,12 +22,18 @@
 //! triggers an immediate lock, mirroring the Dart-era
 //! `AutoLockDetector.didChangeAppLifecycleState` policy.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 use tokio::sync::Notify;
 
 use crate::bus::{Event, EventBus};
+
+/// Side-effect chain run inside [`AutoLockMachine::fire_lock`].
+/// Wraps the secret-store wipe + DB close so the machine's tests
+/// can stay app-state-free; production wires the real chain
+/// during [`crate::app::AppState`] init.
+pub type LockAction = Arc<dyn Fn() + Send + Sync>;
 
 /// Mirrors the Dart `AppLifecycleState` enum the lifecycle
 /// observer dispatches. We only care about the foreground /
@@ -63,6 +69,11 @@ pub struct AutoLockMachine {
     /// configured timeout takes effect without waiting for the
     /// next tick.
     waker: Notify,
+    /// Side-effect chain triggered alongside `Event::AutoLockLocked`.
+    /// `AppState::new` registers the secrets-clear + db-close pair;
+    /// unit tests leave this empty so transitions are observable
+    /// without a process-singleton dependency.
+    lock_action: RwLock<Option<LockAction>>,
 }
 
 impl AutoLockMachine {
@@ -75,7 +86,18 @@ impl AutoLockMachine {
                 locked: false,
             }),
             waker: Notify::new(),
+            lock_action: RwLock::new(None),
         }
+    }
+
+    /// Register the side-effect chain `fire_lock` runs on lock
+    /// transitions. Called once during `AppState::new`. Replacing
+    /// it later is allowed — the latest action wins.
+    pub fn set_lock_action(&self, action: LockAction) {
+        *self
+            .lock_action
+            .write()
+            .expect("autolock action lock poisoned") = Some(action);
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
@@ -164,12 +186,17 @@ impl AutoLockMachine {
     }
 
     fn fire_lock(&self, bus: &EventBus) {
-        // Zero the cached secrets + close the encrypted DB so
-        // SQLCipher's C-layer page-cipher state is wiped at the
-        // same instant the lock event fires.
-        let app = crate::app::instance();
-        app.secrets.clear();
-        app.db_close();
+        // Run the registered side-effect chain (secret-store wipe +
+        // DB close in production) so SQLCipher's C-layer page-cipher
+        // state is zeroed at the same instant the event fires.
+        let action = self
+            .lock_action
+            .read()
+            .expect("autolock action lock poisoned")
+            .clone();
+        if let Some(action) = action {
+            (action)();
+        }
         bus.publish(Event::AutoLockLocked);
     }
 
@@ -183,7 +210,7 @@ impl AutoLockMachine {
     /// No-op when no tokio runtime is reachable — synchronous
     /// unit tests that call `app::init()` outside a runtime
     /// context would otherwise panic on the spawn.
-    pub fn spawn_ticker(self: std::sync::Arc<Self>) {
+    pub fn spawn_ticker(self: Arc<Self>) {
         if tokio::runtime::Handle::try_current().is_err() {
             return;
         }
@@ -287,5 +314,73 @@ mod tests {
         // Timeout left at 0 (off) — backgrounding must NOT lock.
         m.on_lifecycle_change(LifecycleState::Background, &bus);
         assert!(!m.is_locked());
+    }
+
+    #[test]
+    fn request_lock_publishes_locked_and_runs_action() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        let counter = Arc::new(AtomicU32::new(0));
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe();
+        let m = AutoLockMachine::new();
+        let c2 = counter.clone();
+        m.set_lock_action(Arc::new(move || {
+            c2.fetch_add(1, Ordering::SeqCst);
+        }));
+        m.request_lock(&bus);
+        assert!(m.is_locked());
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+        match rx.try_recv().expect("event") {
+            Event::AutoLockLocked => {}
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn request_lock_when_already_locked_is_idempotent() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        let counter = Arc::new(AtomicU32::new(0));
+        let bus = EventBus::new();
+        let m = AutoLockMachine::new();
+        let c2 = counter.clone();
+        m.set_lock_action(Arc::new(move || {
+            c2.fetch_add(1, Ordering::SeqCst);
+        }));
+        m.request_lock(&bus);
+        m.request_lock(&bus);
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn unlock_after_lock_publishes_unlocked() {
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe();
+        let m = AutoLockMachine::new();
+        m.set_lock_action(Arc::new(|| {}));
+        m.request_lock(&bus);
+        // Drain the Locked event.
+        rx.try_recv().unwrap();
+        m.unlock(&bus);
+        assert!(!m.is_locked());
+        match rx.try_recv().expect("event") {
+            Event::AutoLockUnlocked => {}
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn lifecycle_background_with_timeout_locks() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        let counter = Arc::new(AtomicU32::new(0));
+        let bus = EventBus::new();
+        let m = AutoLockMachine::new();
+        let c2 = counter.clone();
+        m.set_lock_action(Arc::new(move || {
+            c2.fetch_add(1, Ordering::SeqCst);
+        }));
+        m.set_timeout_minutes(5, &bus);
+        m.on_lifecycle_change(LifecycleState::Background, &bus);
+        assert!(m.is_locked());
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 }

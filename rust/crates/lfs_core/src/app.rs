@@ -114,6 +114,17 @@ pub fn init() -> Arc<AppState> {
     let state = APP_STATE
         .get_or_init(|| {
             let app = Arc::new(AppState::new());
+            // Wire the side-effect chain that fires alongside
+            // `Event::AutoLockLocked`. Held inside a closure so the
+            // machine stays decoupled from `AppState` for unit tests.
+            let app_for_lock = Arc::downgrade(&app);
+            app.autolock
+                .set_lock_action(Arc::new(move || {
+                    if let Some(app) = app_for_lock.upgrade() {
+                        app.secrets.clear();
+                        app.db_close();
+                    }
+                }));
             app.autolock.clone().spawn_ticker();
             app
         })
