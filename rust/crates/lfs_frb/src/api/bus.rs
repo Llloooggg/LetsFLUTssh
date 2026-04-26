@@ -279,6 +279,34 @@ pub async fn connection_connect(id: String, args: BusConnectArgs) -> Result<(), 
         .map_err(|e| e.to_string())
 }
 
+/// Pull the live `SshSession` handle off a connected actor. Returns
+/// `Ok(None)` when the actor is missing or hasn't reached the
+/// `Connected` state yet — the caller can subscribe to
+/// `ConnectionStateChanged` events to learn when to retry. The
+/// returned wrapper shares the underlying `Arc<Session>` with the
+/// actor so channel ops (`open_shell`, `open_sftp`, …) drive the
+/// same russh session the actor parked on `Connected`. Callers
+/// must NOT call `disconnect()` on the returned wrapper — that
+/// would only clear the wrapper's own slot, leaving the actor's
+/// session live but no longer reachable through this handle.
+/// Tear-down belongs to the actor (`bus_dispatch(ConnectionDisconnect)`).
+pub async fn connection_get_session(
+    id: String,
+) -> Result<Option<crate::api::ssh::SshSession>, String> {
+    let app = lfs_core::app::instance();
+    let Some(actor_handle) = app.connections.get(&id) else {
+        return Ok(None);
+    };
+    let arc = {
+        let actor = actor_handle.lock().expect("actor mutex poisoned");
+        if actor.state != lfs_core::connection::ConnectionState::Connected {
+            return Ok(None);
+        }
+        actor.clone_session()
+    };
+    Ok(arc.map(crate::api::ssh::SshSession::from_arc))
+}
+
 /// Dispatch a typed command. Single entry point Dart calls for
 /// every operation; the Rust side routes by command variant.
 pub async fn bus_dispatch(command: BusCommand) -> Result<(), String> {

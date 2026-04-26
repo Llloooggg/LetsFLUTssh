@@ -100,6 +100,19 @@ impl SshSession {
         }
     }
 
+    /// Construct a wrapper around an already-shared `Arc<Session>`.
+    /// Used by `connection_get_session` so the FRB layer can hand
+    /// the Dart side a handle that points at the same russh session
+    /// the connection actor holds. Both wrappers share the
+    /// underlying `Arc`, so a `disconnect()` call on either drops
+    /// only its own slot — the actor's session lives until the
+    /// actor itself is removed from the registry.
+    pub(crate) fn from_arc(session: Arc<lfs_core::ssh::Session>) -> Self {
+        Self {
+            inner: Mutex::new(Some(session)),
+        }
+    }
+
     /// Pull the live `Arc<Session>` out from under the outer mutex,
     /// then drop the lock before the caller awaits anything. Returns
     /// "session disconnected" once `disconnect()` has cleared the

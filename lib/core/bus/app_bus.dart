@@ -34,4 +34,20 @@ class AppBus {
   /// broadcast receiver drops). No explicit close needed.
   Stream<rust_bus.BusEvent> subscribe(rust_bus.BusTopic topic) =>
       rust_bus.busSubscribe(topic: topic);
+
+  /// Convenience — subscribe to [BusTopic.connection] events and
+  /// filter to a single connection id. Variants without an id (none
+  /// at the 5.1 surface today) are dropped.
+  Stream<rust_bus.BusEvent> subscribeConnection(String connectionId) {
+    return subscribe(rust_bus.BusTopic.connection).where((e) {
+      final eventId = switch (e) {
+        rust_bus.BusEvent_ConnectionStateChanged(:final id) => id,
+        rust_bus.BusEvent_ConnectionProgress(:final id) => id,
+        rust_bus.BusEvent_ConnectionError(:final id) => id,
+        rust_bus.BusEvent_ConnectionRemoved(:final id) => id,
+        _ => null,
+      };
+      return eventId == connectionId;
+    });
+  }
 }

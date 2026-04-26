@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+import 'ssh.dart';
 part 'bus.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
@@ -26,6 +27,20 @@ Future<void> connectionConnect({
   required String id,
   required BusConnectArgs args,
 }) => RustLib.instance.api.crateApiBusConnectionConnect(id: id, args: args);
+
+/// Pull the live `SshSession` handle off a connected actor. Returns
+/// `Ok(None)` when the actor is missing or hasn't reached the
+/// `Connected` state yet — the caller can subscribe to
+/// `ConnectionStateChanged` events to learn when to retry. The
+/// returned wrapper shares the underlying `Arc<Session>` with the
+/// actor so channel ops (`open_shell`, `open_sftp`, …) drive the
+/// same russh session the actor parked on `Connected`. Callers
+/// must NOT call `disconnect()` on the returned wrapper — that
+/// would only clear the wrapper's own slot, leaving the actor's
+/// session live but no longer reachable through this handle.
+/// Tear-down belongs to the actor (`bus_dispatch(ConnectionDisconnect)`).
+Future<SshSession?> connectionGetSession({required String id}) =>
+    RustLib.instance.api.crateApiBusConnectionGetSession(id: id);
 
 /// Dispatch a typed command. Single entry point Dart calls for
 /// every operation; the Rust side routes by command variant.
