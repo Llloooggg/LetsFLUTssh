@@ -37,18 +37,20 @@ right now"*, the design is wrong.
 | 2. `app_config` → Rust | pending — **gated on step 9** (security_tier types couple in) |
 | 3. `session_store` → Rust | pending |
 | 4. `connection_manager` → Rust | pending |
-| 5. `transfer_manager` → Rust driver | pending — Rust queue+state shipped Phase 5.3; needs executor wired to live `SshSftpFile` handles + Dart UI swap |
-| 6. `port_forward_runtime` → Rust driver | pending — Rust registry+events shipped Phase 5.2; needs Tokio listener-accept loop |
+| 5. `transfer_manager` → Rust driver | pending — Rust queue+state+`SftpTaskExecutor` shipped Phase 5.3; needs FRB `transfer_enqueue` + Dart UI rewire (TransferManager retire + transfer_panel snapshot view) |
+| 6. `port_forward_runtime` → Rust driver | partial — `port_forward_start_local` + `_stop_local` shipped; needs `_start_remote` / `_start_dynamic` driver + Dart UI rewire (~691 LOC retire) |
 | 7. `known_hosts` manager → Rust + prompt protocol | pending |
-| 8. `update_service` → Rust state machine | pending |
-| 9. Security tier stack → Rust | pending — largest port |
-| 10. `session_recorder` → Rust driver | pending — Rust registry+events shipped Phase 5.4; needs frame-write loop |
+| 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
+| 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
+| 8c. `update_service` state machine → Rust | pending |
+| 9. Security tier stack → Rust | pending — largest port; `KdfParams` + `SecretBuffer` + `SecureRef` retire here |
+| 10. `session_recorder` → Rust driver | pending — Rust registry+events shipped Phase 5.4; asciinema event composer + frame-write loop pending |
 | 11. `qr_codec` finish + `import_service` close | pending |
-| 12. `deeplink_handler` listener through bus | pending |
+| 12. `deeplink_handler` listener through bus | pending — listener stays Dart (`app_links` plugin), parser already Rust |
 | 13a. `aes_gcm.generateKey` → Rust | DONE | `f1d14183` |
 | 13b. `conflict_resolver` | folded into step 7 (prompt protocol) |
 | 13c. `secret_buffer` / `secure_ref` | folded into step 9 (security tier) |
-| 13d. `clipboard_secret` | pending |
+| 13d. `clipboard_secret` | DEFERRED — Android sensitive-flag MethodChannel coupling makes a clean Rust port low-leverage |
 
 ## Status today
 
