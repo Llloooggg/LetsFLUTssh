@@ -177,99 +177,99 @@ enum BusConnectionState { disconnected, connecting, connected }
 sealed class BusEvent with _$BusEvent {
   const BusEvent._();
 
-  /// 5.0 smoke event. Foundation plumbing test only — no domain
+  /// Smoke event. Foundation plumbing test only — no domain
   /// state behind it.
   const factory BusEvent.echoed({required String payload}) = BusEvent_Echoed;
 
-  /// 5.1 — connection state machine transitioned.
+  /// Connection state machine transitioned.
   const factory BusEvent.connectionStateChanged({
     required String id,
     required BusConnectionState state,
   }) = BusEvent_ConnectionStateChanged;
 
-  /// 5.1 — per-step progress fan-out during connect / reconnect.
+  /// Per-step progress fan-out during connect / reconnect.
   const factory BusEvent.connectionProgress({
     required String id,
     required BusProgressStep step,
   }) = BusEvent_ConnectionProgress;
 
-  /// 5.1 — connect-time error recorded against an actor.
+  /// Connect-time error recorded against an actor.
   const factory BusEvent.connectionError({
     required String id,
     required String detail,
   }) = BusEvent_ConnectionError;
 
-  /// 5.1 — actor removed from the registry (manual disconnect or
+  /// Actor removed from the registry (manual disconnect or
   /// parent of a disconnected bastion chain).
   const factory BusEvent.connectionRemoved({required String id}) =
       BusEvent_ConnectionRemoved;
 
-  /// 5.5 auto-lock — fired when the idle timer expires, the app
+  /// Auto-lock — fired when the idle timer expires, the app
   /// backgrounds with a non-zero timeout, or the user explicitly
   /// requests a lock.
   const factory BusEvent.autoLockLocked() = BusEvent_AutoLockLocked;
 
-  /// 5.5 auto-lock — fired after the Dart unlock dialog supplies
+  /// Auto-lock — fired after the Dart unlock dialog supplies
   /// a fresh key + reopens the DB.
   const factory BusEvent.autoLockUnlocked() = BusEvent_AutoLockUnlocked;
 
-  /// 5.5 auto-lock — fired when the configured idle timeout
+  /// Auto-lock — fired when the configured idle timeout
   /// changes. Carries the new value in minutes (0 = off).
   const factory BusEvent.autoLockTimeoutChanged({
     required PlatformInt64 minutes,
   }) = BusEvent_AutoLockTimeoutChanged;
 
-  /// 5.4 recorder — recording actor entered the registry.
+  /// Recorder — recording actor entered the registry.
   const factory BusEvent.recorderStarted({
     required String id,
     required String path,
   }) = BusEvent_RecorderStarted;
 
-  /// 5.4 recorder — recording actor left the registry.
+  /// Recorder — recording actor left the registry.
   const factory BusEvent.recorderStopped({required String id}) =
       BusEvent_RecorderStopped;
 
-  /// 5.4 recorder — chunk written; carries running byte total.
+  /// Recorder — chunk written; carries running byte total.
   const factory BusEvent.recorderBytesWritten({
     required String id,
     required BigInt totalBytes,
   }) = BusEvent_RecorderBytesWritten;
 
-  /// 5.3 transfer queue — task entered the queue.
+  /// Transfer queue — task entered the queue.
   const factory BusEvent.transferTaskAdded({required String id}) =
       BusEvent_TransferTaskAdded;
 
-  /// 5.3 transfer queue — task transitioned to a new state.
+  /// Transfer queue — task transitioned to a new state.
   const factory BusEvent.transferTaskState({
     required String id,
     required BusTaskState state,
   }) = BusEvent_TransferTaskState;
 
-  /// 5.3 transfer queue — bytes-done counter advanced.
+  /// Transfer queue — bytes-done counter advanced.
   const factory BusEvent.transferTaskProgress({
     required String id,
     required BigInt bytesDone,
     required BigInt bytesTotal,
   }) = BusEvent_TransferTaskProgress;
 
-  /// 5.3 transfer queue — terminal failure on a task.
+  /// Transfer queue — terminal failure on a task.
   const factory BusEvent.transferTaskError({
     required String id,
     required String detail,
   }) = BusEvent_TransferTaskError;
 
-  /// 5.2 port forward — rule actor entered the registry.
+  /// Port forward — rule actor entered the registry.
   const factory BusEvent.portForwardRegistered({required String id}) =
       BusEvent_PortForwardRegistered;
 
-  /// 5.2 port forward — rule status transitioned.
+  /// Port forward — rule status transitioned.
   const factory BusEvent.portForwardStatus({
     required String id,
     required BusRuleStatus status,
     String? detail,
   }) = BusEvent_PortForwardStatus;
 
-  /// 5.2 port forward — rule actor left the registry.
+  /// Port forward — rule actor left the registry.
   const factory BusEvent.portForwardRemoved({required String id}) =
       BusEvent_PortForwardRemoved;
 }
@@ -310,8 +310,8 @@ enum BusStepStatus { inProgress, success, failed }
 enum BusTaskState { queued, running, completed, failed, cancelled }
 
 /// Topic tag the Dart subscriber picks. The FRB-visible mirror of
-/// `lfs_core::bus::EventTopic` — bumped in lockstep when sub-phases
-/// add new domains.
+/// `lfs_core::bus::EventTopic` — bumped in lockstep when new
+/// domains are added.
 enum BusTopic {
   diagnostics,
   connection,

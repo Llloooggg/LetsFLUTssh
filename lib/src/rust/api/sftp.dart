@@ -41,8 +41,8 @@ abstract class SshSftp implements RustOpaqueInterface {
   /// Create a directory (single level — caller walks for `mkdir -p`).
   Future<void> mkdir({required String path});
 
-  /// Read a small file fully into memory. Use the streaming surface
-  /// (sub-phase 1.5b) for files larger than a few MB.
+  /// Read a small file fully into memory. Use the streaming
+  /// surface for files larger than a few MB.
   Future<Uint8List> readFile({required String path});
 
   /// Remove an empty directory.

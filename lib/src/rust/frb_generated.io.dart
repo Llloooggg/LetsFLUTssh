@@ -11,6 +11,7 @@ import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/forward.dart';
 import 'api/keys.dart';
+import 'api/path.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'dart:async';
