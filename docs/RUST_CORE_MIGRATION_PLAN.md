@@ -731,12 +731,10 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
 
 ### Sub-phases
 
-- [ ] **5.0 Foundation — Command / Event bus + view streams**
-  - `lfs_core::bus` — `Command` enum (operation envelope), `Event` enum (state change envelope), `View` trait (per-screen projection).
-  - `AppState` gains an event broker. Sub-actors append events; view streams filter by topic + subscriber id.
-  - FRB exposure: `dispatch(Command) -> Result<(), String>`, `subscribe_view::<View>(args) -> Stream<Event>`. Per-screen view types: `WorkspaceView`, `SessionDetail`, `TransferQueueView`, `LockState`.
-  - Dart: `CommandDispatcher` Riverpod base + `viewStreamProvider.family<TView>(args)` builder. `ref.onDispose` cancels Rust-side subscription.
-  - Smoke test: dispatch a no-op command, observe an echo event end-to-end.
+- [x] **5.0 Foundation — Command / Event bus + view streams**
+  - `lfs_core::bus` ships typed `Command` / `Event` / `EventTopic` enums + a `tokio::sync::broadcast`-backed `EventBus` broker that `AppState` owns. Domain actors call `bus.publish`; subscribers call `bus.subscribe` for a fresh `Receiver`. The 5.0 enums carry only `NoopEcho` / `Echoed` as the smoke surface — sub-phases extend the variants in lockstep with each actor move.
+  - FRB: `bus_dispatch(BusCommand) -> ()` + `bus_subscribe(BusTopic) -> Stream<BusEvent>`. The subscriber loop drains the broadcast receiver, filters by topic, and routes events to the FRB `StreamSink`; cancelling the Dart subscription drops the sink → loop exits → receiver auto-detaches.
+  - Dart: `lib/core/bus/app_bus.dart` re-exports the generated FRB types and wraps them under a Dart-side `AppBus` singleton so consumers don't depend on the regenerated symbols directly. Riverpod views layer on top in 5.1+.
 
 - [ ] **5.1 Connection lifecycle → Rust actor**
   - Rust: `ConnectionRegistry` holds `HashMap<ConnId, ConnectionActor>`. Each actor owns: state (`Idle / Connecting / Connected / Disconnected`), generation counter, transport handle, bastion ref, error, progress steps, sshConfig, label, sessionId.
