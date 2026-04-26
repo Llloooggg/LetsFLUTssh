@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/recorder.dart' as rust_recorder;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
@@ -76,9 +77,10 @@ class SessionRecorder {
   /// `t = 0` lines up with the real wall-clock of the session start.
   final DateTime _start;
 
-  /// Open file handle. Re-opened when [_currentBytes] crosses
-  /// [maxFileBytes] and a new rotation file is created.
-  IOSink? _sink;
+  /// Active Rust-side recorder handle id. Re-allocated on each
+  /// rotation (`_rotate` closes the previous handle and registers
+  /// a fresh one). Empty when the recorder is closed.
+  String _handleId;
   int _currentBytes = 0;
   String? _currentPath;
 
@@ -86,7 +88,7 @@ class SessionRecorder {
   /// don't reorder — a strict serialised tail keeps timestamps
   /// monotonic in the rare case a stdout chunk arrives mid-await.
   final _writeQueue = StreamController<Uint8List>(sync: false);
-  StreamSubscription<Uint8List>? _writeSub;
+  StreamSubscription<void>? _writeSub;
 
   /// Set by [close]; subsequent record calls become no-ops so the
   /// shell teardown's last bytes do not throw on a closed sink.
@@ -103,16 +105,18 @@ class SessionRecorder {
     required this.width,
     required this.height,
     required Uint8List? key,
-    required IOSink sink,
+    required String handleId,
     required String path,
   }) : _key = key,
-       _sink = sink,
+       _handleId = handleId,
        _currentPath = path,
        _start = DateTime.now() {
-    // Queue is plaintext-shaped; the per-frame encryption (when
-    // encrypted mode is on) runs inside `asyncMap` so frames stay in
-    // arrival order across the FRB AES-GCM roundtrip.
-    _writeSub = _writeQueue.stream.asyncMap(_encryptIfNeeded).listen(_drainOne);
+    // The Rust recorder owns IO + encryption now; the Dart queue
+    // serialises asciinema header + per-event JSON lines and hands
+    // each plaintext buffer to the FRB endpoint. Arrival order
+    // through `asyncMap` keeps timestamps monotonic across the FRB
+    // round-trip.
+    _writeSub = _writeQueue.stream.asyncMap(_drainOne).listen((_) {});
   }
 
   /// Open a recorder rooted at the platform's app-support directory.
@@ -140,24 +144,31 @@ class SessionRecorder {
           .split('.')
           .first;
       final path = p.join(dir.path, '$isoTs.$ext');
+      // Empty file with hardened perms before Rust opens its
+      // append-mode handle — keeps the existing 0600 / no-group
+      // discipline regardless of which side owns the writer.
       final file = File(path);
       await file.create();
       await hardenFilePerms(path);
-      final sink = file.openWrite(mode: FileMode.append);
-      // Magic header first so a stray file can be identified out of
-      // band. Plaintext mode skips the magic — its content is
-      // already directly playable as asciinema.
-      if (encrypted) {
-        sink.add(_lfrMagic);
-        sink.add([_lfrVersion]);
-      }
+      final key = encrypted ? await _deriveKey(dbKey) : null;
+      final handleId = const Uuid().v4();
+      // Rust opens the file in append mode and writes the LFR1
+      // magic + version when `key` is non-empty. Plaintext mode
+      // (empty key bytes) leaves the file untouched at open so the
+      // result stays a valid asciinema document.
+      await rust_recorder.recorderRegister(
+        id: handleId,
+        sessionId: sessionId,
+        path: path,
+        key: key ?? Uint8List(0),
+      );
       final recorder = SessionRecorder._(
         sessionId: sessionId,
         terminalShellLabel: shellLabel,
         width: width,
         height: height,
-        key: encrypted ? await _deriveKey(dbKey) : null,
-        sink: sink,
+        key: key,
+        handleId: handleId,
         path: path,
       );
       // Emit asciinema v2 header line so any plaintext export — and
@@ -194,18 +205,20 @@ class SessionRecorder {
     _closed = true;
     await _writeQueue.close();
     await _writeSub?.cancel();
-    await _sink?.flush();
-    await _sink?.close();
-    _sink = null;
+    if (_handleId.isNotEmpty) {
+      try {
+        await rust_recorder.recorderClose(id: _handleId);
+      } catch (e) {
+        AppLogger.instance.log('recorderClose failed: $e', name: 'Recorder');
+      }
+      _handleId = '';
+    }
     return _currentPath;
   }
 
   // -----------------------------------------------------------------
   // Implementation
   // -----------------------------------------------------------------
-
-  static const List<int> _lfrMagic = [0x4C, 0x46, 0x52, 0x31]; // "LFR1"
-  static const int _lfrVersion = 1;
 
   static Future<Directory> _ensureDirectory(String sessionId) async {
     final base = await getApplicationSupportDirectory();
@@ -254,45 +267,42 @@ class SessionRecorder {
     _writeQueue.add(plaintext);
   }
 
-  /// Apply per-frame AES-GCM if `_key` is set, otherwise pass-through.
-  /// Runs inside `asyncMap` so the FRB roundtrip serialises with
-  /// queue order — arrival order in equals write order out.
-  Future<Uint8List> _encryptIfNeeded(Uint8List plaintext) async {
-    if (_key == null) return plaintext;
-    return _encryptFrame(plaintext);
-  }
-
-  Future<Uint8List> _encryptFrame(Uint8List plaintext) async {
-    final nonce = _randomBytes(12);
-    final ct = await rust_crypto.cryptoAesGcmEncryptRaw(
-      key: _key!,
-      nonce: nonce,
-      plaintext: plaintext,
-      aad: Uint8List(0),
-    );
-    // Frame: [len(4 LE)][nonce(12)][ciphertext+tag]
-    final frame = BytesBuilder(copy: false);
-    final len = ByteData(4)..setUint32(0, plaintext.length, Endian.little);
-    frame.add(len.buffer.asUint8List());
-    frame.add(nonce);
-    frame.add(ct);
-    return frame.toBytes();
-  }
-
-  Future<void> _drainOne(Uint8List frame) async {
-    if (_sink == null) return;
-    if (_currentBytes + frame.length > maxFileBytes) {
+  /// Drain one queued plaintext buffer onto disk via the Rust
+  /// recorder. Encryption (when `_key` is set) + the
+  /// `[len][nonce][ct+tag]` framing both happen Rust-side; Dart
+  /// only owns the asciinema header / event-line composition that
+  /// produced `plaintext`.
+  Future<void> _drainOne(Uint8List plaintext) async {
+    if (_handleId.isEmpty) return;
+    try {
+      final total = await rust_recorder.recorderRecordFrame(
+        id: _handleId,
+        plaintext: plaintext,
+      );
+      _currentBytes = total.toInt();
+    } catch (e) {
+      AppLogger.instance.log(
+        'recorderRecordFrame failed: $e',
+        name: 'Recorder',
+      );
+      return;
+    }
+    if (_currentBytes > maxFileBytes) {
       await _rotate();
     }
-    _sink!.add(frame);
-    _currentBytes += frame.length;
   }
 
   Future<void> _rotate() async {
-    final old = _sink;
-    _sink = null;
-    await old?.flush();
-    await old?.close();
+    final oldHandle = _handleId;
+    _handleId = '';
+    if (oldHandle.isNotEmpty) {
+      try {
+        await rust_recorder.recorderClose(id: oldHandle);
+      } catch (_) {
+        // Best-effort tear-down — keep going to the new file
+        // even if the old handle's flush hiccuped.
+      }
+    }
     final dir = await _ensureDirectory(sessionId);
     final isoTs = DateTime.now()
         .toUtc()
@@ -305,19 +315,16 @@ class SessionRecorder {
     final file = File(path);
     await file.create();
     await hardenFilePerms(path);
-    final sink = file.openWrite(mode: FileMode.append);
-    if (_key != null) {
-      sink.add(_lfrMagic);
-      sink.add([_lfrVersion]);
-    }
-    _sink = sink;
+    final newHandle = const Uuid().v4();
+    await rust_recorder.recorderRegister(
+      id: newHandle,
+      sessionId: sessionId,
+      path: path,
+      key: _key ?? Uint8List(0),
+    );
+    _handleId = newHandle;
     _currentPath = path;
     _currentBytes = 0;
     _enqueueHeader();
-  }
-
-  static Uint8List _randomBytes(int n) {
-    final r = Random.secure();
-    return Uint8List.fromList(List.generate(n, (_) => r.nextInt(256)));
   }
 }
