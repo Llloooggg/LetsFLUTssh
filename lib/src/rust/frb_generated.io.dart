@@ -215,6 +215,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw);
 
   @protected
+  DbApplyOptions dco_decode_box_autoadd_db_apply_options(dynamic raw);
+
+  @protected
   DbExportInput dco_decode_box_autoadd_db_export_input(dynamic raw);
 
   @protected
@@ -294,6 +297,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig dco_decode_db_app_config(dynamic raw);
+
+  @protected
+  DbApplyOptions dco_decode_db_apply_options(dynamic raw);
+
+  @protected
+  DbApplyResult dco_decode_db_apply_result(dynamic raw);
 
   @protected
   DbExportInput dco_decode_db_export_input(dynamic raw);
@@ -661,6 +670,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbApplyOptions sse_decode_box_autoadd_db_apply_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbExportInput sse_decode_box_autoadd_db_export_input(
     SseDeserializer deserializer,
   );
@@ -762,6 +776,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig sse_decode_db_app_config(SseDeserializer deserializer);
+
+  @protected
+  DbApplyOptions sse_decode_db_apply_options(SseDeserializer deserializer);
+
+  @protected
+  DbApplyResult sse_decode_db_apply_result(SseDeserializer deserializer);
 
   @protected
   DbExportInput sse_decode_db_export_input(SseDeserializer deserializer);
@@ -1204,6 +1224,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_apply_options(
+    DbApplyOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_export_input(
     DbExportInput self,
     SseSerializer serializer,
@@ -1337,6 +1363,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_app_config(DbAppConfig self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_apply_options(
+    DbApplyOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_apply_result(DbApplyResult self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_export_input(DbExportInput self, SseSerializer serializer);

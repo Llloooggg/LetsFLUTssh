@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `random_handle_id`, `require_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Compose and (optionally) encrypt the `.lfs` archive entirely
 /// inside Rust. Plaintext credentials never cross the FRB boundary
@@ -45,10 +45,107 @@ Future<DbImportOpenResult> dbImportOpen({
 /// Drop the staged archive without applying it. Idempotent on a
 /// missing handle id. Pair with [`db_import_open`] from the Dart
 /// side: cancel button on the preview dialog calls this; OK
-/// button hands the id to the apply driver (lands in a
-/// follow-up).
+/// button hands the id to [`db_import_apply`].
 Future<void> dbImportDrop({required String handleId}) =>
     RustLib.instance.api.crateApiArchiveDbImportDrop(handleId: handleId);
+
+/// Commit the staged archive to the DB in merge mode. The
+/// handle is consumed (taken out of the registry) on success;
+/// on parse failure the registry keeps the entry so the caller
+/// can retry / drop. `created_at_ms` stamps the rows that don't
+/// carry their own timestamp in the archive.
+Future<DbApplyResult> dbImportApply({
+  required String handleId,
+  required DbApplyOptions options,
+  required PlatformInt64 createdAtMs,
+}) => RustLib.instance.api.crateApiArchiveDbImportApply(
+  handleId: handleId,
+  options: options,
+  createdAtMs: createdAtMs,
+);
+
+/// Apply-time toggles. Each flag enables the matching entry kind
+/// regardless of what the archive carries — the apply driver
+/// silently no-ops on missing JSON entries.
+class DbApplyOptions {
+  final bool applySessions;
+  final bool applyKeys;
+  final bool applyTags;
+  final bool applySnippets;
+  final bool applyKnownHosts;
+
+  const DbApplyOptions({
+    required this.applySessions,
+    required this.applyKeys,
+    required this.applyTags,
+    required this.applySnippets,
+    required this.applyKnownHosts,
+  });
+
+  @override
+  int get hashCode =>
+      applySessions.hashCode ^
+      applyKeys.hashCode ^
+      applyTags.hashCode ^
+      applySnippets.hashCode ^
+      applyKnownHosts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbApplyOptions &&
+          runtimeType == other.runtimeType &&
+          applySessions == other.applySessions &&
+          applyKeys == other.applyKeys &&
+          applyTags == other.applyTags &&
+          applySnippets == other.applySnippets &&
+          applyKnownHosts == other.applyKnownHosts;
+}
+
+/// Counters returned by [`db_import_apply`]. Mirrors
+/// `lfs_core::archive::ApplyResult` field-for-field.
+class DbApplyResult {
+  final PlatformInt64 sessionsApplied;
+  final PlatformInt64 keysApplied;
+  final PlatformInt64 keysSkippedDedup;
+  final PlatformInt64 tagsApplied;
+  final PlatformInt64 snippetsApplied;
+  final PlatformInt64 knownHostsApplied;
+  final List<String> errors;
+
+  const DbApplyResult({
+    required this.sessionsApplied,
+    required this.keysApplied,
+    required this.keysSkippedDedup,
+    required this.tagsApplied,
+    required this.snippetsApplied,
+    required this.knownHostsApplied,
+    required this.errors,
+  });
+
+  @override
+  int get hashCode =>
+      sessionsApplied.hashCode ^
+      keysApplied.hashCode ^
+      keysSkippedDedup.hashCode ^
+      tagsApplied.hashCode ^
+      snippetsApplied.hashCode ^
+      knownHostsApplied.hashCode ^
+      errors.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbApplyResult &&
+          runtimeType == other.runtimeType &&
+          sessionsApplied == other.sessionsApplied &&
+          keysApplied == other.keysApplied &&
+          keysSkippedDedup == other.keysSkippedDedup &&
+          tagsApplied == other.tagsApplied &&
+          snippetsApplied == other.snippetsApplied &&
+          knownHostsApplied == other.knownHostsApplied &&
+          errors == other.errors;
+}
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB
 /// boundary; the orchestrator owns the actual archive composition.

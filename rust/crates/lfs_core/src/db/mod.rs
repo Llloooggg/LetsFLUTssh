@@ -154,7 +154,7 @@ impl Db {
 /// drift schema column-for-column. The data migration tool reads
 /// from drift's `db.sqlite` (via Dart) and writes through these
 /// tables; once that lands the drift Daos retire.
-fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
+pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(SCHEMA_SQL)
         .map_err(|e| Error::Io(format!("bootstrap schema: {e}")))
 }

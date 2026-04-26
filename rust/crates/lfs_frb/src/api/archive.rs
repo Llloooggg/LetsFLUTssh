@@ -224,12 +224,90 @@ pub async fn db_import_open(
 /// Drop the staged archive without applying it. Idempotent on a
 /// missing handle id. Pair with [`db_import_open`] from the Dart
 /// side: cancel button on the preview dialog calls this; OK
-/// button hands the id to the apply driver (lands in a
-/// follow-up).
+/// button hands the id to [`db_import_apply`].
 pub async fn db_import_drop(handle_id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::app::instance().imports.drop_handle(&handle_id);
     })
     .await
     .map_err(|e| format!("import drop task: {e}"))
+}
+
+/// Apply-time toggles. Each flag enables the matching entry kind
+/// regardless of what the archive carries — the apply driver
+/// silently no-ops on missing JSON entries.
+#[derive(Debug, Clone)]
+pub struct DbApplyOptions {
+    pub apply_sessions: bool,
+    pub apply_keys: bool,
+    pub apply_tags: bool,
+    pub apply_snippets: bool,
+    pub apply_known_hosts: bool,
+}
+
+/// Counters returned by [`db_import_apply`]. Mirrors
+/// `lfs_core::archive::ApplyResult` field-for-field.
+#[derive(Debug, Clone)]
+pub struct DbApplyResult {
+    pub sessions_applied: i64,
+    pub keys_applied: i64,
+    pub keys_skipped_dedup: i64,
+    pub tags_applied: i64,
+    pub snippets_applied: i64,
+    pub known_hosts_applied: i64,
+    pub errors: Vec<String>,
+}
+
+impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
+    fn from(r: lfs_core::archive::ApplyResult) -> Self {
+        DbApplyResult {
+            sessions_applied: r.sessions_applied,
+            keys_applied: r.keys_applied,
+            keys_skipped_dedup: r.keys_skipped_dedup,
+            tags_applied: r.tags_applied,
+            snippets_applied: r.snippets_applied,
+            known_hosts_applied: r.known_hosts_applied,
+            errors: r.errors,
+        }
+    }
+}
+
+/// Commit the staged archive to the DB in merge mode. The
+/// handle is consumed (taken out of the registry) on success;
+/// on parse failure the registry keeps the entry so the caller
+/// can retry / drop. `created_at_ms` stamps the rows that don't
+/// carry their own timestamp in the archive.
+pub async fn db_import_apply(
+    handle_id: String,
+    options: DbApplyOptions,
+    created_at_ms: i64,
+) -> Result<DbApplyResult, String> {
+    let core_options = lfs_core::archive::ApplyOptions {
+        apply_sessions: options.apply_sessions,
+        apply_keys: options.apply_keys,
+        apply_tags: options.apply_tags,
+        apply_snippets: options.apply_snippets,
+        apply_known_hosts: options.apply_known_hosts,
+    };
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        let pending = app
+            .imports
+            .take(&handle_id)
+            .ok_or_else(|| format!("import handle {handle_id} not found"))?;
+        let db = require_db()?;
+        let result = db
+            .with_conn(|c| {
+                lfs_core::archive::apply_pending_import_merge(
+                    c,
+                    &pending,
+                    &core_options,
+                    created_at_ms,
+                )
+            })
+            .map_err(|e| e.to_string())?;
+        Ok(DbApplyResult::from(result))
+    })
+    .await
+    .map_err(|e| format!("import apply task: {e}"))?
 }
