@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/db/database.dart';
-import '../core/db/database_opener.dart';
-import '../core/db/migrate_drift_to_rust.dart';
 import '../core/db/rust_db_init.dart';
+import '../src/rust/api/app.dart' as rust_app;
 import '../core/migration/artefacts/config_artefact.dart';
 import '../core/migration/migration_runner.dart';
 import '../core/migration/registry.dart';
@@ -50,13 +48,13 @@ import 'security_dialogs.dart';
 /// Owns the startup / security / tier / DB lifecycle that
 /// `_LetsFLUTsshAppState` used to carry inline.
 ///
-/// Four mutable fields (`_activeDatabase`, `_securityReady`,
-/// `_corruptionRetries`, `_credentialsWereReset`) are touched by
-/// ~30 methods spanning migration, first-launch wizard, per-tier
-/// unlock, DB-corruption recovery, reset, and reinit. Pulling them
-/// out of the state class keeps main.dart's widget-level code focused
-/// on the UI shell while giving this flow a single place to reason
-/// about its invariants.
+/// Three mutable fields (`_securityReady`, `_corruptionRetries`,
+/// `_credentialsWereReset`) are touched by ~30 methods spanning
+/// migration, first-launch wizard, per-tier unlock, DB-corruption
+/// recovery, reset, and reinit. Pulling them out of the state class
+/// keeps main.dart's widget-level code focused on the UI shell
+/// while giving this flow a single place to reason about its
+/// invariants.
 ///
 /// Lifecycle contract:
 ///   1. Constructed in `_LetsFLUTsshAppState.initState` with the
@@ -75,20 +73,16 @@ import 'security_dialogs.dart';
 ///   5. `dispose()` called from the state's `dispose()` so any
 ///      in-flight async completes into a disposed flag instead of
 ///      touching the DB.
-/// Signature of `openDatabase` from `database_opener.dart`. Matching
-/// shape is what lets tests pass `openTestDatabase` (in-memory, no
-/// cipher) in place of the real file-backed opener.
-typedef DbOpener = AppDatabase Function({Uint8List? encryptionKey});
-
-/// Signature of `databaseFileExists` — async bool probe on the app-
-/// support directory. Lets tests flip "first launch vs existing install"
-/// without touching the filesystem.
+/// Signature of the `lfs_core.db` existence probe. Lets tests flip
+/// "first launch vs existing install" without touching the
+/// filesystem.
 typedef DbFileExistsProbe = Future<bool> Function();
 
-/// Signature of `verifyDatabaseReadable` — trivial `SELECT 1` probe.
-/// Injectable so tests can simulate a corrupt database without a real
-/// MC cipher mismatch on disk.
-typedef DbReadableProbe = Future<bool> Function(AppDatabase);
+/// Signature of `verifyRustDbReadable` — trivial `SELECT count(*)
+/// FROM sqlite_master` probe against the running Rust handle.
+/// Injectable so tests can simulate a corrupt database without
+/// synthesising a SQLCipher cipher mismatch on disk.
+typedef DbReadableProbe = Future<bool> Function();
 
 /// Signature of `MigrationRunner.runOnStartup`. Injectable so tests can
 /// drive the error / recovery paths without having to synthesize a
@@ -99,15 +93,10 @@ class SecurityInitController {
   final WidgetRef ref;
   final bool Function() isMounted;
 
-  /// Test seams — production leaves every field at the default so the
-  /// byte-for-byte unlock path stays identical. The four hooks mirror
-  /// `database_opener.dart`'s top-level functions plus the security-
-  /// dialog factories; tests swap in an in-memory `openTestDatabase`,
-  /// a canned "file exists" flag, a deterministic readability probe,
-  /// and a scripted dialog prompter. Same indirection-through-field
-  /// pattern already used by `SecurityTierSwitcher._rekey` and
-  /// `HardwareTierVault._stateFile` — no new vocabulary.
-  final DbOpener _dbOpener;
+  /// Test seams — production leaves every field at the default so
+  /// the unlock path stays identical. The hooks let tests swap in a
+  /// canned "file exists" flag, a deterministic readability probe,
+  /// a scripted dialog prompter, and a stubbed migration runner.
   final DbFileExistsProbe _dbFileExists;
   final DbReadableProbe _verifyReadable;
   final SecurityDialogPrompter _dialogs;
@@ -116,14 +105,12 @@ class SecurityInitController {
   SecurityInitController({
     required this.ref,
     required this.isMounted,
-    DbOpener? dbOpener,
     DbFileExistsProbe? dbFileExists,
     DbReadableProbe? verifyReadable,
     SecurityDialogPrompter? dialogPrompter,
     MigrationRunnerFn? migrationRunner,
-  }) : _dbOpener = dbOpener ?? openDatabase,
-       _dbFileExists = dbFileExists ?? databaseFileExists,
-       _verifyReadable = verifyReadable ?? verifyDatabaseReadable,
+  }) : _dbFileExists = dbFileExists ?? lfsCoreDbExists,
+       _verifyReadable = verifyReadable ?? verifyRustDbReadable,
        _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter(),
        _migrationRunner =
            migrationRunner ??
@@ -131,15 +118,8 @@ class SecurityInitController {
 
   // ── State fields ────────────────────────────────────────────
 
-  /// Tracks the AppDatabase currently installed in the stores, so
-  /// the post-[bootstrap] readability probe can close it cleanly if
-  /// the on-disk file turns out to be unreadable under the chosen
-  /// tier's cipher (e.g. `config.security == plaintext` on a DB
-  /// that is still encrypted from a pre-tier install).
-  AppDatabase? _activeDatabase;
-
   /// True once the integrity probe has observed a successful read
-  /// against [_activeDatabase]. Gates every follow-on query path —
+  /// against the live `lfs_core.db`. Gates every follow-on query path —
   /// session reloads, auto-lock load — so nothing hits the DB
   /// before the cipher is validated.
   bool _securityReady = false;
@@ -255,18 +235,7 @@ class SecurityInitController {
   /// wipe completed elsewhere (Settings → Reset All Data).
   Future<void> reinitFromReset() async {
     if (!isMounted()) return;
-    final db = _activeDatabase;
-    if (db != null) {
-      try {
-        await db.close();
-      } catch (e) {
-        AppLogger.instance.log(
-          'DB close before reinit failed (continuing): $e',
-          name: 'App',
-        );
-      }
-    }
-    _activeDatabase = null;
+    _safeRustDbClose();
     _corruptionRetries = 0;
     _securityReady = false;
     // Drop the cached `FutureProvider` snapshots so Settings UI
@@ -290,12 +259,7 @@ class SecurityInitController {
   /// or quit. Public because [reinitFromReset] re-runs it after the
   /// wizard and because tests drive it directly.
   Future<void> handleCorruption() async {
-    final db = _activeDatabase;
-    if (db == null) {
-      _markSecurityReady();
-      return;
-    }
-    if (await _verifyReadable(db)) {
+    if (await _verifyReadable()) {
       _markSecurityReady();
       return;
     }
@@ -1090,8 +1054,6 @@ class SecurityInitController {
     SecurityTierModifiers? modifiers,
   }) async {
     if (_disposed) return;
-    final db = _dbOpener(encryptionKey: key);
-    _activeDatabase = db;
     // Stores read/write through FRB into `lfs_core.db`; the unlock
     // handshake invalidates each store's in-memory cache so the next
     // read pulls fresh rows after the engine swap.
@@ -1101,14 +1063,10 @@ class SecurityInitController {
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }
-    // Open the Rust-owned sqlite handle alongside drift, keyed off
-    // the same master key. Failures degrade silently — see
-    // ensureRustDbOpen.
+    // Open the Rust-owned sqlite handle, keyed off the same master
+    // key the tier-derivation step just produced. Failures degrade
+    // silently — see ensureRustDbOpen.
     await ensureRustDbOpen(key: key);
-    // Replay drift's tables into `lfs_core.db` once so the Rust DAOs
-    // observe the same data the legacy drift store holds. Idempotent;
-    // marker file gates repeats. Failures are swallowed.
-    unawaited(migrateDriftToRustOnce(db));
     await _persistSecurityTier(level, modifiers);
   }
 
@@ -1124,15 +1082,7 @@ class SecurityInitController {
   Future<void> _retryUnlockUnderDifferentTier() async {
     _corruptionRetries++;
     _securityReady = false;
-    final db = _activeDatabase;
-    if (db != null) {
-      try {
-        await db.close();
-      } catch (e) {
-        AppLogger.instance.log('DB close before retry failed: $e', name: 'App');
-      }
-    }
-    _activeDatabase = null;
+    _safeRustDbClose();
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
@@ -1162,18 +1112,7 @@ class SecurityInitController {
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
-    final db = _activeDatabase;
-    if (db != null) {
-      try {
-        await db.close();
-      } catch (e) {
-        AppLogger.instance.log(
-          'DB close before wipe failed (continuing): $e',
-          name: 'App',
-        );
-      }
-    }
-    _activeDatabase = null;
+    _safeRustDbClose();
     await WipeAllService(
       credentialCacheEvict: ref.read(sessionCredentialCacheProvider).evictAll,
     ).wipeAll();
@@ -1188,8 +1127,7 @@ class SecurityInitController {
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
     await _firstLaunchSetup(manager, keyStorage);
-    final fresh = _activeDatabase;
-    if (fresh != null && await _verifyReadable(fresh)) {
+    if (await _verifyReadable()) {
       _markSecurityReady();
     }
   }
@@ -1216,5 +1154,20 @@ class SecurityInitController {
     await ref
         .read(configProvider.notifier)
         .update((cfg) => cfg.copyWithSecurity(security: next));
+  }
+
+  /// Drop the running Rust DB handle, swallowing the
+  /// RustLib-not-initialised throw the unit-test runner raises (no
+  /// native lib in flutter_test). Used in the lock / wipe / retry
+  /// paths where the close is best-effort.
+  void _safeRustDbClose() {
+    try {
+      rust_app.dbClose();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Rust DB close failed (no native lib in unit tests?): $e',
+        name: 'App',
+      );
+    }
   }
 }

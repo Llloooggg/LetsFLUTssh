@@ -24,6 +24,41 @@ const _rustDbFileName = 'lfs_core.db';
 /// Failures are logged and swallowed: a missing Rust DB only means
 /// the FRB-backed DAOs are unusable for this run, not that the app
 /// can't boot. Drift-backed legacy paths still operate.
+/// Whether `lfs_core.db` already exists on disk. Used by the
+/// first-launch path to distinguish "fresh install, no data" from
+/// "existing install — unlock the previous key".
+Future<bool> lfsCoreDbExists() async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    return File(p.join(dir.path, _rustDbFileName)).exists();
+  } catch (e) {
+    AppLogger.instance.log(
+      'lfs_core.db existence probe failed: $e',
+      name: 'RustDbInit',
+      level: LogLevel.warn,
+    );
+    return false;
+  }
+}
+
+/// Cheap integrity probe — runs a `SELECT count(*) FROM sqlite_master`
+/// against the running Rust DB. Returns false when SQLCipher rejects
+/// the master key (header decrypt fails) or when the FRB call itself
+/// errors out (no native lib in unit tests). Mirrors the contract of
+/// the legacy `verifyDatabaseReadable`.
+Future<bool> verifyRustDbReadable() async {
+  try {
+    await rust_app.dbSchemaObjectCount();
+    return true;
+  } catch (e) {
+    AppLogger.instance.log(
+      'lfs_core.db readability probe failed: ${e.runtimeType}',
+      name: 'RustDbInit',
+    );
+    return false;
+  }
+}
+
 Future<void> ensureRustDbOpen({Uint8List? key}) async {
   try {
     final dir = await getApplicationSupportDirectory();
