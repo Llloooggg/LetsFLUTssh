@@ -3,3 +3,4 @@
 //! Cargo target dep table can drop `zbus` on every other host.
 
 pub mod fprintd;
+pub mod tpm;
