@@ -1,8 +1,9 @@
-import 'dart:async' show Timer;
+import 'dart:async' show StreamSubscription, Timer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/bus/app_bus.dart';
 import '../core/security/lock_state.dart';
 import '../core/security/security_tier.dart';
 import '../core/security/session_lock_listener.dart';
@@ -11,6 +12,7 @@ import '../providers/auto_lock_provider.dart';
 import '../providers/config_provider.dart';
 import '../providers/security_provider.dart';
 import '../src/rust/api/app.dart' as rust_app;
+import '../src/rust/api/bus.dart' as rust_bus;
 import '../utils/logger.dart';
 
 /// Wraps the app body and locks the app after `autoLockMinutesProvider`
@@ -61,6 +63,7 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   Duration _timeout = Duration.zero;
   final SessionLockListener _sessionLockListener = SessionLockListener();
   VoidCallback? _sessionLockDispose;
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
 
   @override
   void initState() {
@@ -78,23 +81,42 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
         'OS session-lock signal received; firing auto-lock',
         name: 'AutoLock',
       );
+      _dispatchRust(const rust_bus.BusCommand.autoLockRequestLock());
       _triggerLock();
     });
+    // Mirror Rust-side `AutoLockLocked` events back into the Dart
+    // overlay. The Rust ticker fires the same lock policy (db_close
+    // + secrets.clear) inside the state machine; the Dart bridge
+    // only adds the Dart-side overlay + scrub. Locking is idempotent
+    // through `lockStateProvider`, so a parallel Dart-side fire +
+    // Rust-side fire collapses into a single overlay.
+    try {
+      _busSub = AppBus.instance
+          .subscribe(rust_bus.BusTopic.autoLock)
+          .listen(_onBusEvent);
+    } catch (_) {
+      // No native lib in unit tests — bus subscription unavailable.
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isBackground =
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden;
+    // Mirror lifecycle into the Rust state machine regardless of
+    // tier — the machine ignores transitions when the timeout is 0.
+    _dispatchRust(
+      rust_bus.BusCommand.autoLockOnLifecycleChange(background: isBackground),
+    );
     // Lock on backgrounding (paused / inactive / hidden) only when the
     // user has opted in to auto-lock at all — i.e. the timer is not
     // "Off". Locking unconditionally on every window focus change was
     // the #1 user complaint: "блокировка срабатывает, если свернуть
     // приложение" even with the timer off. The session-count gate
     // inside [_triggerLock] still protects active SSH/SFTP sessions.
-    if (state != AppLifecycleState.paused &&
-        state != AppLifecycleState.inactive &&
-        state != AppLifecycleState.hidden) {
-      return;
-    }
+    if (!isBackground) return;
     if (!_hasTypedSecret()) return;
     final minutes = ref.read(autoLockMinutesProvider);
     if (minutes <= 0) return;
@@ -149,9 +171,33 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   @override
   void dispose() {
     _sessionLockDispose?.call();
+    _busSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  void _onBusEvent(rust_bus.BusEvent event) {
+    if (!mounted) return;
+    if (event is rust_bus.BusEvent_AutoLockLocked) {
+      if (ref.read(lockStateProvider)) return;
+      AppLogger.instance.log(
+        'AutoLockLocked received from Rust; mirroring overlay',
+        name: 'AutoLock',
+      );
+      _triggerLock();
+    }
+  }
+
+  /// Best-effort dispatch into the Rust auto-lock state machine.
+  /// Swallow `RustLib`-not-initialised throws so widget tests with
+  /// no native lib loaded keep working.
+  void _dispatchRust(rust_bus.BusCommand cmd) {
+    try {
+      AppBus.instance.dispatch(cmd);
+    } catch (_) {
+      // No native lib in unit tests — silently skip.
+    }
   }
 
   void _rearm() {
@@ -162,6 +208,12 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
 
   void _syncTimer(int minutes, SecurityTier level) {
     final enabled = minutes > 0 && _hasTypedSecret();
+    // Keep the Rust state machine in lockstep with the Dart timer.
+    // `0` disables the Rust ticker; otherwise the Rust side runs
+    // its own idle countdown alongside our Timer as a watchdog.
+    _dispatchRust(
+      rust_bus.BusCommand.autoLockSetTimeout(minutes: enabled ? minutes : 0),
+    );
     if (!enabled) {
       _timer?.cancel();
       _timer = null;
@@ -178,6 +230,20 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
     if (_timeout == Duration.zero) return;
     _timer?.cancel();
     _timer = Timer(_timeout, _triggerLock);
+    _pingRustActivity();
+  }
+
+  /// Throttle activity pings into the Rust state machine. Pointer
+  /// hover events fire at display refresh rate; one FRB call per
+  /// pointer move would saturate the bus. 1 ping/s is more than
+  /// enough — the Rust ticker reads the last-activity timestamp
+  /// only on its idle-check tick.
+  DateTime _lastPing = DateTime.fromMillisecondsSinceEpoch(0);
+  void _pingRustActivity() {
+    final now = DateTime.now();
+    if (now.difference(_lastPing).inMilliseconds < 1000) return;
+    _lastPing = now;
+    _dispatchRust(const rust_bus.BusCommand.autoLockOnPointerActivity());
   }
 
   void _triggerLock() {

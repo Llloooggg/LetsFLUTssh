@@ -1,4 +1,4 @@
-/// Phase 5 Command / Event bus — Dart-side wrapper.
+/// Command / Event bus — Dart-side wrapper.
 ///
 /// Frontend dispatches typed [BusCommand]s through [AppBus.dispatch];
 /// Riverpod views subscribe to per-topic event streams via
@@ -36,8 +36,8 @@ class AppBus {
       rust_bus.busSubscribe(topic: topic);
 
   /// Convenience — subscribe to [BusTopic.connection] events and
-  /// filter to a single connection id. Variants without an id (none
-  /// at the 5.1 surface today) are dropped.
+  /// filter to a single connection id. Variants without an id are
+  /// dropped.
   Stream<rust_bus.BusEvent> subscribeConnection(String connectionId) {
     return subscribe(rust_bus.BusTopic.connection).where((e) {
       final eventId = switch (e) {
