@@ -671,6 +671,6 @@ If we want to start earlier, a useful first slice is **4.0 Foundation + 4.1 Secr
 - [x] **ARCHITECTURE.md §3.14** — rewritten: migration complete, `lfs_core` is the only SSH engine, dartssh2 removed. The dep table at the bottom of the doc now points readers at the Rust workspace.
 - [x] **SECURITY.md** — "Upstream dependency vulnerabilities" + "Out of scope" entries updated: dartssh2 swapped for russh + RustCrypto stack.
 - [ ] **ARCHITECTURE.md §3.1 / §3.2 / §3.6** — these still describe the old Dart `SSHConnection` / `SFTPService` / migration-framework wrappers in dartssh2 terms. Major rewrite — defer to a follow-up commit (volume too large for the migration close-out).
-- [ ] **CONTRIBUTING.md** — Rust toolchain section already present; refresh build steps once a fresh-clone sanity-check confirms `make run` still works post-drop.
-- [ ] **AGENT_RULES.md** — doc-map row for the unified transport surface.
-- [ ] **README.md** — dependency list (no longer mentions dartssh2; verify by grep), Rust core mention.
+- [x] **CONTRIBUTING.md** — Rust toolchain section reflects the steady state: cargokit is wired into `flutter run`, no opt-in step needed; codegen instructions now point at `lfs_frb/src/api/`. Stale `make gen # drift codegen` and `chore: upgrade dartssh2` examples gone.
+- [x] **AGENT_RULES.md** — navigation rows, persistence row, FRB-codegen row, external-libraries lookup order, API gotchas, and logging examples all reflect the russh / rusqlite / RustCrypto stack. dartssh2 / drift / pointycastle references retired.
+- [x] **README.md** — `grep -i 'dartssh2\|drift\|pointycastle\|pinenacl'` is empty; no further changes needed.

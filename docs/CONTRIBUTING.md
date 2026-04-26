@@ -138,9 +138,9 @@ make build-ios
 
 ### Rust core (security/transport)
 
-The SSH/crypto core is being progressively moved to a Rust workspace at `rust/`. End-users still install nothing — the native blob is bundled per platform alongside the Flutter binary. Contributors building from source need the Rust toolchain.
+The SSH/crypto/persistence core lives in the Rust workspace at `rust/`. End-users install nothing — the native blob is bundled per platform alongside the Flutter binary. Contributors building from source need the Rust toolchain; the Flutter build invokes `cargokit` automatically, so any edit under `rust/` is picked up by the next `make run` / `make build-*`.
 
-See [`RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) for scope, sub-phases, and the migration mechanism.
+See [`RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) for the migration history and the boundary contract that closed each sub-phase.
 
 **Install Rust toolchain** (once per machine):
 
@@ -164,11 +164,11 @@ make rust-build          # cargo build --release --workspace
 make rust-test           # cargo test --workspace
 make rust-fmt            # cargo fmt --all
 make rust-lint           # cargo clippy -D warnings
-make rust-codegen        # regenerate Dart bindings after editing rust/crates/lfs_core/src/api.rs
+make rust-codegen        # regenerate Dart bindings after editing rust/crates/lfs_frb/src/api/*.rs
 make rust-clean          # cargo clean
 ```
 
-The Flutter build does not yet depend on `rust-build` — sub-phase 1.1 wires it in. Until then the Rust workspace is opt-in: editing Dart code does not require a Rust toolchain.
+After editing any FFI-facing function under `rust/crates/lfs_frb/src/api/`, run `make rust-codegen` and stage the regenerated `lib/src/rust/` alongside the Rust change.
 
 ## Development
 
@@ -178,7 +178,7 @@ make run            # Run in debug mode
 make test           # Run all tests (with coverage)
 make analyze        # Run Dart analyzer (--fatal-infos)
 make check          # Analyzer + tests
-make gen            # Code generation (drift codegen)
+make gen            # Code generation (l10n, FRB bridge)
 make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
@@ -242,7 +242,7 @@ fix(sftp): handle SSH disconnect during file transfer
 refactor(dialogs): extract shared dialog logic into ConfirmDialog widget
 test(credentials): add tests for credential store encryption
 docs: update README with mobile screenshots
-chore: upgrade dartssh2 to 2.16.0
+chore: upgrade russh to 0.59.0
 ci: add commit message linting for PRs
 ```
 

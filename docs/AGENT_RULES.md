@@ -13,7 +13,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Open a PR / merge to main | [§ Branching & Release Flow](#branching--release-flow) |
 | Add/edit a diagram in docs | [§ Diagrams in Docs](#diagrams-in-docs--mermaid-not-ascii-box-art) — Mermaid only, no ASCII box-art |
 | Write or refactor any Dart code | [§ Code Quality — SonarCloud](#code-quality--sonarcloud) + [§ Conventions](#conventions) |
-| Call API of an external package (dartssh2, drift, riverpod, xterm, …) | [§ Conventions → External Libraries & APIs](#external-libraries--apis--look-up-dont-guess) — grep repo first, then Context7 / web docs / pub-cache source |
+| Call API of an external package (riverpod, xterm, FRB, russh / rusqlite via the Rust core, …) | [§ Conventions → External Libraries & APIs](#external-libraries--apis--look-up-dont-guess) — grep repo first, then Context7 / web docs / pub-cache source / `rust/Cargo.toml` |
 | Add a new dependency or feature that needs an OS capability | [§ Conventions → Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs |
 | Tempted to propose per-platform native rewrite of a working feature ("true X", "real X", "verified X") | [§ Conventions → Don't Escalate Working Baselines](#dont-escalate-working-baselines) — don't escalate; document the gap, don't fill it with code unless the user asks |
 | Write or update a test | [§ Testing Methodology](#testing-methodology) |
@@ -44,7 +44,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Work with theme / colors | [§8 Theme System](ARCHITECTURE.md#8-theme-system) |
 | Add/change user-facing strings | [§8.1 i18n](ARCHITECTURE.md#81-internationalization-i18n) |
 | Understand Riverpod providers | [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod) |
-| Understand data persistence / drift DB | [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
+| Understand data persistence (rusqlite + SQLCipher under the FRB DAO surface) | [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
 | Work with database / DAOs | [§2 Module Map](ARCHITECTURE.md#2-module-map) (`core/db/`) + [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
 | Work with snippets | `core/snippets/` + `features/snippets/` + `providers/snippet_provider.dart` |
 | Work with tags | `core/tags/` + `features/tags/` + `providers/tag_provider.dart` |
@@ -144,7 +144,7 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | New/changed utility | Update [§7 Utilities API](ARCHITECTURE.md#7-utilities--public-api-reference) |
 | Changed data flow | Update relevant [§9 Data Flow](ARCHITECTURE.md#9-data-flow-diagrams) diagram |
 | New dependency added | Update [§17 Dependencies](ARCHITECTURE.md#17-dependencies) |
-| Changed persistence format (drift schema column/table change) | Update [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) — drift `MigrationStrategy.onUpgrade` step + schemaVersion bump |
+| Changed persistence schema (rusqlite SQL: add/rename column, new table, new index) | Update [§11 Persistence](ARCHITECTURE.md#11-persistence--storage). Schema lives in `lfs_core::db::*` and is bootstrapped idempotently on open; structural changes need an additive `ALTER TABLE` / `CREATE TABLE IF NOT EXISTS` step in the bootstrap path so existing user DBs upgrade without a wipe |
 | Changed wire format of a persisted file (`config.json`, `credentials.kdf`, hardware-vault blob, `.lfs` archive) **or** added a new envelope artefact | Update [§3.6 → Migration framework → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — bump `SchemaVersions.<x>`, ship a `Migration`, register it in `buildAppMigrationRegistry()` (or `archiveMigrationRegistry`), and add the chain test |
 | Changed security model | Update [§13 Security Model](ARCHITECTURE.md#13-security-model) + SECURITY.md |
 | New design decision | Add to [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) with rationale |
@@ -155,7 +155,7 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | New/changed shared component | Before adding a new widget/helper, search `lib/widgets/` and `lib/core/**` for an existing equivalent. Extend the shared component (add a param) instead of duplicating. Update [§6 Widgets API](ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Architecture changed | Update CLAUDE.md if navigation links affected |
 | Touched any `rust/**/*.rs` file (Rust security/transport core) | Tick the matching sub-phase in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) §13 checklist; once a sub-phase ships behaviour, add/update the relevant ARCHITECTURE.md § (e.g., §3.1 SSH, §3.6 Security) and cross-link the plan. Run `make rust-fmt`, `make rust-lint`, `make rust-test`; if the FRB API surface changed, also `make rust-codegen` and stage the regenerated `lib/src/rust/` |
-| Edited Rust API surface (`rust/crates/lfs_core/src/api*`) | Run `make rust-codegen` and stage the regenerated Dart bindings in `lib/src/rust/` in the same commit. Pin in `pubspec.yaml` (`flutter_rust_bridge:` runtime) and `rust/crates/lfs_core/Cargo.toml` (`flutter_rust_bridge =` build dep) MUST match the codegen CLI version exactly |
+| Edited the FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) | Run `make rust-codegen` and stage the regenerated Dart bindings in `lib/src/rust/` in the same commit. Pin in `pubspec.yaml` (`flutter_rust_bridge:` runtime) and `rust/crates/lfs_frb/Cargo.toml` (`flutter_rust_bridge =` build dep) MUST match the codegen CLI version exactly. `lfs_core` MUST NOT depend on `flutter_rust_bridge` directly — every FFI concern lives in `lfs_frb` |
 | User-visible change | Update README.md **and** [`USER_GUIDE.md`](USER_GUIDE.md) — the user guide is the end-user reference; every shipped feature has a section there with usage steps, examples, and platform caveats. New flow / new toggle / changed UX → update / extend the relevant § |
 | New end-user feature | Add a top-level § (or a sub-§ under an existing one) in [`USER_GUIDE.md`](USER_GUIDE.md), linked from its TOC. Walk-through style: numbered steps, at least one worked example, platform differences in the §17 mobile-differences table |
 | Security scope change | Update SECURITY.md |
@@ -232,13 +232,13 @@ This is a **caveat on** [§ Self-Contained Binary](#self-contained-binary--end-u
 **Never invent method signatures, parameter names, default values, or behaviour of any external package from memory.** Hallucinated APIs compile-fail in the best case and silently misbehave in the worst (wrong default for a keepalive timer, missed `await`, dropped error class).
 
 Lookup order before calling an unfamiliar API:
-1. **Existing usage in this repo** — `Grep` for the symbol or `import 'package:<pkg>'` first. The project already established the canonical idiom; copy that pattern instead of looking elsewhere. Canonical examples: dartssh2 (`core/ssh/`), drift (`core/db/`), pointycastle (`core/security/aes_gcm.dart`), riverpod (`providers/`), xterm (`features/terminal/`), `app_links`, `flutter_secure_storage`, `sqlite3` build hooks (`pubspec.yaml`).
+1. **Existing usage in this repo** — `Grep` for the symbol or `import 'package:<pkg>'` first. The project already established the canonical idiom; copy that pattern instead of looking elsewhere. Canonical examples: russh / russh-sftp under `rust/crates/lfs_core/src/ssh/`, rusqlite under `rust/crates/lfs_core/src/db/`, RustCrypto (`aes-gcm`, `argon2`, `ed25519-dalek`) under `rust/crates/lfs_core/src/crypto/`, FRB bindings under `lib/src/rust/`, riverpod (`providers/`), xterm (`features/terminal/`), `app_links`, `flutter_secure_storage`.
 2. **Context7 MCP** (if available) — `resolve-library-id` then `get-library-docs` for the exact package + topic. Pull docs into context before writing the call.
 3. **Web docs** — `WebFetch` on the package's `pub.dev` page, official documentation site, or `README.md` in the GitHub repo. Pin version-specific behaviour to the version in `pubspec.yaml`.
 4. **Source on disk** — read the resolved package source under `.dart_tool/pub-cache/hosted/pub.dev/<pkg>-<version>/lib/` when docs are thin or contradictory.
 5. **Ask the user** if all of the above leave the contract unclear — never guess.
 
-Specifically high-risk surfaces (already burned by hallucination in past sessions, listed in [ARCHITECTURE §16.2 API Gotchas](ARCHITECTURE.md#162-api-gotchas)): `SSHConnectionState` (NOT Flutter's `ConnectionState`), dartssh2 host-key callback signature, dartssh2 SFTP `attr.mode?.value` / `remoteFile.writeBytes()`, xterm `hardwareKeyboardOnly`. When working in `core/ssh/`, `core/sftp/`, or `features/terminal/` — assume every signature is non-obvious and verify.
+Specifically high-risk surfaces (already burned by hallucination in past sessions, listed in [ARCHITECTURE §16.2 API Gotchas](ARCHITECTURE.md#162-api-gotchas)): `SSHConnectionState` (NOT Flutter's `ConnectionState`), russh handler trait shape, russh-sftp `metadata.permissions` / `OpenFlags` constants, FRB `#[frb(sync)]` vs async future-returning fns, xterm `hardwareKeyboardOnly`. When working in `rust/crates/lfs_core/src/ssh/`, `rust/crates/lfs_core/src/sftp/`, or `features/terminal/` — assume every signature is non-obvious and verify against the upstream crate version pinned in `rust/Cargo.lock`.
 
 ### Reuse First (project-wide, not just UI)
 **Before adding any new widget, helper, mixin, style constant, or store: search `lib/widgets/`, `lib/theme/`, `lib/core/**` for an existing equivalent.** If behaviour is close but not identical, **extend** the shared primitive (add a parameter) instead of forking. A second caller is the trigger to extract a shared helper; a third caller makes it mandatory. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason must be obvious in code.
@@ -269,7 +269,7 @@ Non-negotiable triggers — if any of these appear in a diff, refactor before co
 Reference: full project-wide formulation in [ARCHITECTURE §1 Reuse principle](ARCHITECTURE.md#1-high-level-overview).
 
 ### Architecture (non-obvious rules)
-- **No SCP** — dartssh2 doesn't support it; SFTP covers all use cases
+- **No SCP** — SFTP covers every transfer use case; the project never shipped SCP and `lfs_core::sftp` is the only file-transfer surface
 - SSH keys accepted **both as file and text** (paste PEM)
 - `.lfs` export format and import modes — single source of truth: [§3.9 Import](ARCHITECTURE.md#39-import-coreimport)
 - Credentials in `CredentialStore` (AES-256-GCM), NOT in plain JSON — [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity)
@@ -281,7 +281,7 @@ Every log line goes through `AppLogger.instance.log(message, name: 'Tag', error:
 
 Log output is threshold-gated at runtime (Settings → Logging level — `Off` / `Error` / `Warn` / `Info` / `Debug`). Picking any level opens the file sink and admits lines at or above that level — so `Warn` writes W + E, `Debug` writes everything, `Off` writes nothing. Default is `Off` (privacy-first). `logCritical` bypasses the threshold so crash breadcrumbs land even when routine logging is disabled.
 
-**Every log message passes through `AppLogger.sanitize` automatically** — `redactSecrets` scrubs PEM private keys and long base64 runs, then `sanitizeErrorMessage` redacts IPv4/IPv6, `user@host`, `host:port`, Windows `C:\Users\<name>` and Unix `/home/<name>` paths, plus `as <user>` / `user=<user>` / `login=<user>` shapes from dartssh2 exception text. You do **not** pre-sanitize by hand; the logger does it. The one thing the sanitizer cannot catch is **free-form user-chosen strings** (session labels, key labels, tag names, snippet titles, folder names) — those have no regex shape. For those, log the marker `<label>` or `<name>` instead of the value, the same way `session_connect.dart:resolveConfig` writes `'Resolved keyId X → <label>'`. See [ARCHITECTURE §17 Error Handling](ARCHITECTURE.md#17-error-handling--sanitization) for the full sanitizer table.
+**Every log message passes through `AppLogger.sanitize` automatically** — `redactSecrets` scrubs PEM private keys and long base64 runs, then `sanitizeErrorMessage` redacts IPv4/IPv6, `user@host`, `host:port`, Windows `C:\Users\<name>` and Unix `/home/<name>` paths, plus `as <user>` / `user=<user>` / `login=<user>` shapes from russh exception text. You do **not** pre-sanitize by hand; the logger does it. The one thing the sanitizer cannot catch is **free-form user-chosen strings** (session labels, key labels, tag names, snippet titles, folder names) — those have no regex shape. For those, log the marker `<label>` or `<name>` instead of the value. See [ARCHITECTURE §17 Error Handling](ARCHITECTURE.md#17-error-handling--sanitization) for the full sanitizer table.
 
 **Add logs generously.** The default file sink is off so there is no "log spam" cost to worry about; only users who opted into logging pay the write, and they opted in because they want the detail. Log at every load-bearing state transition:
 
@@ -294,7 +294,7 @@ When you notice existing code missing a log on one of the above, add it in the s
 
 **Name tags are module-scoped, not file-scoped**: `'FilePane'`, `'Session'`, `'KdfParams'`, `'MigrationRunner'`, `'KnownHosts'`, `'SecureClipboard'`. Grep existing `name: '...'` usage before inventing a new tag so a single module's lines stay greppable under one tag.
 
-**Never compose a message that embeds a raw password, passphrase, or private-key byte.** The sanitizer catches PEM blocks and long base64 runs, but a short passphrase or a typed master password falls through. Put them in the code path, not the log string — log `'Password verify failed'`, never `'Password verify failed: $typedPassword'`. Same rule for error paths: `catch (e)` → `AppLogger.instance.log('X failed: $e', name: 'Tag', error: e)` is fine (dartssh2 exception text goes through the sanitizer); `AppLogger.instance.log('X failed with pass $password: $e', name: 'Tag')` is not.
+**Never compose a message that embeds a raw password, passphrase, or private-key byte.** The sanitizer catches PEM blocks and long base64 runs, but a short passphrase or a typed master password falls through. Put them in the code path, not the log string — log `'Password verify failed'`, never `'Password verify failed: $typedPassword'`. Same rule for error paths: `catch (e)` → `AppLogger.instance.log('X failed: $e', name: 'Tag', error: e)` is fine (russh exception text goes through the sanitizer); `AppLogger.instance.log('X failed with pass $password: $e', name: 'Tag')` is not.
 
 **Critical paths use `logCritical`**. Global crash handlers (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded`), migration fatals, and the DB integrity-probe failure write through `logCritical` so the file line lands even when the user has routine logging off — a first-launch crash has to be debuggable without a settings visit first.
 
