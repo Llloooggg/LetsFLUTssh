@@ -46,6 +46,150 @@ use crate::error::Error;
 /// — bump there and here in lockstep.
 const QR_FORMAT_VERSION: i64 = 4;
 
+// ---- 5.6 import handle scaffolding -------------------------------
+// The import flow is two-phase: Rust decrypts + parses the
+// archive, the user reviews a sanitized preview in Dart, then
+// the user confirms and Rust applies the cached blob through
+// the DAO layer. The handle pattern keeps the decoded entries
+// inside Rust so they never round-trip through the Dart heap as
+// they would today (`core/import/import_service.dart` walks the
+// decoded `ImportResult` Dart-side).
+//
+// Today the registry only owns the handle slot + sanitized
+// preview shape; the apply driver lands in the next 5.6 commit
+// alongside the Dart-side `ImportService` retire.
+
+/// Stable handle id for an in-flight import. Allocated Dart-side
+/// via `Uuid().v4()` so the same string flows through Riverpod
+/// ownership before Rust finishes the decrypt.
+pub type ImportHandleId = String;
+
+/// Sanitized preview the FRB layer hands to Dart after
+/// `import_decrypt` resolves. Carries counts + non-secret labels
+/// so the preview dialog can render without ever materialising
+/// session passwords / key PEM bytes on the Dart heap.
+#[derive(Debug, Clone)]
+pub struct ImportPreview {
+    pub schema_version: i64,
+    pub session_count: i64,
+    pub session_labels: Vec<String>,
+    pub manager_key_count: i64,
+    pub tag_count: i64,
+    pub snippet_count: i64,
+    pub empty_folder_count: i64,
+    pub has_config: bool,
+    pub has_known_hosts: bool,
+}
+
+/// Decrypted-but-not-yet-applied import. Held inside the registry
+/// under the caller-supplied handle id; the apply driver consumes
+/// the entries in place. The actual entry payload is just the
+/// raw JSON byte buffers extracted from the ZIP — the apply step
+/// parses + writes per-entity through the DAO layer.
+#[derive(Debug, Clone)]
+pub struct PendingImport {
+    pub manifest_json: Option<String>,
+    pub sessions_json: Option<String>,
+    pub keys_json: Option<String>,
+    pub tags_json: Option<String>,
+    pub session_tags_json: Option<String>,
+    pub folder_tags_json: Option<String>,
+    pub snippets_json: Option<String>,
+    pub session_snippets_json: Option<String>,
+    pub empty_folders_json: Option<String>,
+    pub config_json: Option<String>,
+    pub known_hosts_text: Option<String>,
+}
+
+impl PendingImport {
+    pub fn preview(&self, schema_version: i64) -> ImportPreview {
+        let session_labels = self
+            .sessions_json
+            .as_deref()
+            .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(s).ok())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| {
+                        v.get("label")
+                            .and_then(|l| l.as_str())
+                            .map(|l| l.to_string())
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let session_count = session_labels.len() as i64;
+        let manager_key_count = json_array_len(self.keys_json.as_deref());
+        let tag_count = json_array_len(self.tags_json.as_deref());
+        let snippet_count = json_array_len(self.snippets_json.as_deref());
+        let empty_folder_count = json_array_len(self.empty_folders_json.as_deref());
+        ImportPreview {
+            schema_version,
+            session_count,
+            session_labels,
+            manager_key_count,
+            tag_count,
+            snippet_count,
+            empty_folder_count,
+            has_config: self.config_json.as_deref().is_some_and(|s| !s.is_empty()),
+            has_known_hosts: self
+                .known_hosts_text
+                .as_deref()
+                .is_some_and(|s| !s.is_empty()),
+        }
+    }
+}
+
+fn json_array_len(s: Option<&str>) -> i64 {
+    s.and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(s).ok())
+        .map(|v| v.len() as i64)
+        .unwrap_or(0)
+}
+
+/// Process-singleton import handle registry. Owned by `AppState`.
+pub struct ImportRegistry {
+    inner: std::sync::Mutex<std::collections::HashMap<ImportHandleId, PendingImport>>,
+}
+
+impl ImportRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: std::sync::Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+
+    fn lock(
+        &self,
+    ) -> std::sync::MutexGuard<'_, std::collections::HashMap<ImportHandleId, PendingImport>> {
+        self.inner.lock().expect("import registry mutex poisoned")
+    }
+
+    pub fn insert(&self, id: ImportHandleId, pending: PendingImport) {
+        self.lock().insert(id, pending);
+    }
+
+    pub fn take(&self, id: &str) -> Option<PendingImport> {
+        self.lock().remove(id)
+    }
+
+    pub fn get_clone(&self, id: &str) -> Option<PendingImport> {
+        self.lock().get(id).cloned()
+    }
+
+    pub fn drop_handle(&self, id: &str) {
+        self.lock().remove(id);
+    }
+
+    pub fn count(&self) -> usize {
+        self.lock().len()
+    }
+}
+
+impl Default for ImportRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// LFSE encrypted-archive magic (`'L','F','S','E'`).
 const ENC_HEADER_MAGIC: [u8; 4] = [0x4C, 0x46, 0x53, 0x45];
 /// Version byte for the Argon2id + AES-GCM envelope.

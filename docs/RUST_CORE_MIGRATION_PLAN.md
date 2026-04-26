@@ -812,7 +812,7 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
   - Dart: `AutoLockDetector` retires to a thin lifecycle bridge. Biometric prompt + tier dialog UI stays Dart (OS surface).
   - Session-lock listener (Win32 `WTSSessionNotification`, macOS `screenIsLocked`, Linux `login1.Session.Lock`) keeps the native plugin glue but now dispatches into the Rust machine via `OnLifecycleChange(Inactive)`.
 
-- [ ] **5.6 `.lfs` import → Rust orchestrator**
+- [-] **5.6 `.lfs` import → Rust orchestrator (handle registry shipped)**
   - Rust: `lfs_core::archive::import_archive_decrypt(path, password) -> ImportPreview` reads file, decrypts with Argon2id + AES-GCM, parses ZIP entries, caches decoded blob in AppState slot under a handle id. Returns sanitized preview struct (counts + session labels — no PEM bytes).
   - Rust: `import_archive_apply(handle_id, mode, options) -> ImportSummary` writes via DAOs with merge / replace semantics + snapshot/rollback for replace mode. Conflict resolution per entity type: session id collision → fresh UUID + `(copy)` suffix, tag/snippet name collision → same, manager-key dedup via fingerprint.
   - Rust: `import_archive_drop(handle_id)` clears the cached blob.

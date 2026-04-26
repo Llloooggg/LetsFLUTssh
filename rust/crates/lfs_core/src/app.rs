@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
+use crate::archive::ImportRegistry;
 use crate::autolock::AutoLockMachine;
 use crate::bus::EventBus;
 use crate::connection::ConnectionRegistry;
@@ -57,6 +58,11 @@ pub struct AppState {
     /// table + status; Tokio listener-accept loops land in the
     /// next 5.2 commit.
     pub port_forwards: PortForwardRegistry,
+    /// Phase 5.6 import handle registry. Holds decrypted-but-not-
+    /// yet-applied `.lfs` archives between the preview and apply
+    /// FRB calls so plaintext entries never leak through the Dart
+    /// heap during the user's preview review.
+    pub imports: ImportRegistry,
 }
 
 impl AppState {
@@ -70,6 +76,7 @@ impl AppState {
             recorders: RecorderRegistry::new(),
             transfers: TransferQueue::new(),
             port_forwards: PortForwardRegistry::new(),
+            imports: ImportRegistry::new(),
         }
     }
 
