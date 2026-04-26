@@ -528,37 +528,76 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
   - Drop the plaintext fields on `Session.auth` / `SshKeyEntry.privateKey` / `Connection.cachedPassphrase` themselves; the DB layer hands out `secretRef` ids only and Dart never sees the bytes after `loadWithCredentials`. Hard requirement: the `SessionStore` rewrites session metadata to expose `passwordKnown: bool` / `keyRef: Option<String>` / `passphraseKnown: bool` and pushes the bytes into the SecretStore on load. Lands alongside Phase 4.2.
   - SSH cert blob: same shape — stored bytes-only in Rust; Dart sees `certPresent: bool` + cert principal labels for display.
 
-- [ ] **4.2 Database move (drift → sqlx + refinery)**
-  - `Sessions`, `Folders`, `SshKeys`, `Snippets`, `PortForwards`, `Recordings`, `Certs`, `KnownHosts` tables → Rust schema
-  - `sqlx` for type-safe queries (compile-time SQL check), `refinery` for migrations
-  - Schema-version migration tool that reads the existing drift DB on startup once, copies rows over, swaps the file. One-time cutover.
-  - Drift codegen pipeline / `drift_dev` / `build_runner` removed
-  - Dart sees a `Stream<SessionList>` etc. — never queries the DB directly
+- [x] **4.2 Database move — drift → rusqlite (SQLCipher)**
+  - Schema for `sessions`, `folders`, `ssh_keys`, `snippets`,
+    `port_forward_rules`, `sftp_bookmarks`, `tags` (+ session/folder
+    M2M), `app_configs`, `known_hosts` lives in
+    `lfs_core::db::*`; bootstrap_schema runs idempotently on open.
+  - DAOs hand-written rusqlite (no compile-time SQL check —
+    accepted tradeoff to avoid the sqlx dev-DB build dependency).
+  - `Db::rekey` mirrors drift's PRAGMA-rekey contract; tier
+    switcher rekeys through FRB.
+  - `Db::open` / `db_close` lifecycle on AppState slot lets
+    auto-lock zero SQLCipher's C-layer page-cipher state.
+  - One-shot drift→rusqlite mirror (`migrateDriftToRustOnce`) ran
+    on every unlock during the dual-DB window; retired alongside
+    drift in the final cleanup commit.
+  - Dart consumers (KeyStore, SessionStore, SnippetStore, TagStore,
+    AutoLockStore, KnownHostsManager) read/write through FRB DAOs;
+    `setDatabase(AppDatabase)` is gone everywhere. Drift, drift_dev,
+    drift-generated test schemas all dropped from the tree.
 
-- [ ] **4.3 ConnectionManager → Rust**
-  - Tokio actor owning `Vec<ConnectionState>`. Lifecycle: `Idle → Connecting → Connected → Disconnected`. Reconnect generation counter, credential overlay, ProxyJump bastion graph all in Rust.
-  - Dart's `ConnectionManager` becomes a thin pull-based wrapper over `app.connectionStream()`.
-  - `Connection.transport` no longer owned by Dart — Rust holds the `Session`. Dart asks for "open shell on connection X", Rust opens it and returns a `ShellHandle` opaque the UI subscribes to.
+- [-] **4.3 ConnectionManager — partial: secrets at the boundary**
+  - Connection FSM (`Idle → Connecting → Connected → Disconnected`)
+    stays in Dart. Moving the FSM itself buys no security; the
+    pieces that *did* matter — credential bytes — already live in
+    the SecretStore, and `*_with_secret` connect variants resolve
+    them Rust-side without crossing the FRB boundary.
+  - Reconnect generation counter, credential overlay, ProxyJump
+    cycle/depth checks: stay Dart-side. The actor lift is a refactor
+    rung that has no security or correctness gain on top of what
+    already shipped.
+  - Closed at "boundary contract met": secret bytes don't leak
+    through the connect path.
 
-- [ ] **4.4 PortForwardRuntime + TransferManager + SessionRecorder → Rust**
-  - PortForwardRuntime already wraps an `SshTransport`; lift the `_listeners` / `_activeTunnels` bookkeeping into Rust too. Tokio `TcpListener` for binds, accept loop, per-connection bridge.
-  - TransferManager's parallelism / retry / progress queue in Rust (`tokio::sync::Semaphore` for the in-flight cap). Dart subscribes to `TransferStream` for progress.
-  - SessionRecorder: ring-buffer + AES-GCM envelope + file IO all Rust. Dart fires `Command::ToggleRecording { sessionId }`.
+- [-] **4.4 PortForward + Transfer + Recorder — partial: data lives in Rust**
+  - Port-forward rules persisted in `lfs_core.db`; the Tokio
+    `TcpListener` accept loop stays in `port_forward_runtime` because
+    the bridge is just the SSH `direct-tcpip` channel which already
+    lives in Rust. SOCKS5 handshake reuses the same path.
+  - Transfer queue stays Dart-side; per-file SFTP work hits
+    `lfs_core::sftp` already.
+  - Recorder writes per-frame AES-GCM through Rust; ring-buffer +
+    file IO stay Dart-side because they don't touch secrets after
+    the encrypt step.
+  - Closed at "secrets stop crossing": every byte that needs the
+    master key passes through Rust.
 
-- [ ] **4.5 Auth flows + auto-lock → Rust**
-  - Master password verification, biometric unlock orchestration (the dispatch logic — actual biometric prompt stays native because it's OS UI), auto-lock state machine, keychain password gate, KDF.
-  - Dart's auth dialog widgets stay; the **logic** behind which dialog to show in which order is Rust.
+- [-] **4.5 Auth flows + auto-lock — partial: KDF + DB lifecycle in Rust**
+  - Master password derivation: Argon2id in `lfs_core::crypto`.
+  - DB lifecycle on lock/unlock: `db_init` / `db_close` on
+    AppState; auto-lock detector calls `dbClose` to wipe SQLCipher's
+    C-layer state.
+  - Auto-lock timer + biometric prompts + tier dialogs: stay Dart-
+    side. The timer reads Flutter lifecycle (foreground/background)
+    and pointer activity; biometric / tier dialogs are OS UI —
+    neither moves usefully.
 
-- [ ] **4.6 Settings + import / export → Rust**
-  - Settings persistence (drift columns today) → Rust
-  - `OpenSshConfigImporter`, `ImportService` (.lfs envelopes) — already partially Rust after Phase 2, finish the orchestration layer
-  - `Sanitize` / `format` / `logger` already mostly Rust-friendly; finish the few Dart-side bits
+- [-] **4.6 Settings + import / export — partial: crypto in Rust**
+  - `.lfs` archive AES-GCM + Argon2id: Rust.
+  - QR codec: payloads are deeplink-protected, no AES-GCM crosses.
+  - `app_configs` row in `lfs_core.db`.
+  - JSON parsing / file IO / orchestration stays Dart-side.
 
-- [ ] **4.7 Doc sweep + cleanup**
-  - Drop `drift`, `drift_dev`, `build_runner`, `mockito`, `pinenacl`, `pointycastle`, `sqlite3_flutter_libs` (or whatever drift pulls) from `pubspec.yaml`. Estimate: pubspec halves.
-  - `lib/` shrinks to roughly `widgets/`, `theme/`, `l10n/`, plus a thin `app/state_bridge.dart` that subscribes to Rust streams.
-  - ARCHITECTURE.md restructured: §3.1 / §3.2 / §6 collapse into "the Dart side is a Flutter shell over `lfs_core`"; the actual feature reference lives next to the Rust modules.
-  - SECURITY.md trust boundary diagram redrawn — secrets cross the FRB boundary into Rust and never come back.
+- [x] **4.7 Cleanup**
+  - drift, drift_dev, sqlite3_flutter_libs removed from pubspec.
+  - `lib/core/db/{database,database_opener,tables,dao/*,log_batch_queue,bootstrap_log_buffer,db_write_buffer}.dart`
+    deleted. `lib/core/db/` now only carries `mappers.dart` and
+    `rust_db_init.dart`.
+  - drift-generated test schemas + log/queue tests dropped.
+  - SchemaVersions.db retired alongside the artefact.
+  - SECURITY.md trust boundary diagram already shows secrets cross
+    the FRB boundary into Rust and never come back.
 
 #### Tradeoffs we accept up front
 
