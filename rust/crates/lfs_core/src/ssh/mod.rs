@@ -116,7 +116,17 @@ pub struct ForwardedConnection {
 
 fn default_client_config() -> Arc<client::Config> {
     Arc::new(client::Config {
-        inactivity_timeout: Some(Duration::from_secs(30)),
+        // No inactivity timeout — interactive SSH sessions sit idle
+        // for arbitrary stretches between user keystrokes / shell
+        // opens, and a 30-second cap tore down freshly-authenticated
+        // sessions before the user could open the terminal pane.
+        // Liveness is enforced through keepalive_interval +
+        // keepalive_max instead, which mirror OpenSSH's
+        // ServerAliveInterval / ServerAliveCountMax — server hangs
+        // up after a true network partition, not after a user pause.
+        inactivity_timeout: None,
+        keepalive_interval: Some(Duration::from_secs(30)),
+        keepalive_max: 3,
         ..client::Config::default()
     })
 }
