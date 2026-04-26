@@ -758,13 +758,24 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
   dedicated FRB call (`connection_connect`) because connect is a
   request/response op rather than a fire-and-forget command.
 
-  **Remaining scope (Dart-side rework):** Dart `Connection` class
-  becomes a view subscriber (state read off `ConnectionStateChanged`
-  events; progress off `ConnectionProgress`); `ConnectionManager`
-  shrinks to a thin dispatcher (no local FSM, no transport ownership);
-  consumer updates (workspace, terminal, sftp) for channel ops that
-  today reach into `conn.transport`; test refactor against the new
-  view-stream surface.
+  **Shipped (Dart-side helpers):** `AppBus.subscribeConnection(id)`
+  filters the connection topic stream to a single id;
+  `connection_get_session(id)` FRB endpoint returns the live
+  `SshSession` handle off a Connected actor (same `Arc<Session>`
+  the actor holds — channel ops on the returned handle drive the
+  same russh session). These are the building blocks the
+  `ConnectionManager` rework consumes.
+
+  **Remaining scope (Dart-side rework):** `ConnectionManager.connectAsync`
+  swaps its `_doConnect` (Dart-side handshake driver) for a thin
+  shape that dispatches `connection_connect`, subscribes to the
+  per-id event stream, and mirrors transitions onto the Dart
+  `Connection` view. `Connection.transport` becomes a getter that
+  resolves via `connection_get_session`. Channel-ops consumers
+  (workspace, terminal, sftp, port-forward, recorder) keep calling
+  `conn.transport.openShell` / `openSftp` / etc — the resolution
+  changes underneath. Test refactor against the new view-stream
+  surface comes last.
   - Rust: `ConnectionRegistry` holds `HashMap<ConnId, ConnectionActor>`. Each actor owns: state (`Idle / Connecting / Connected / Disconnected`), generation counter, transport handle, bastion ref, error, progress steps, sshConfig, label, sessionId.
   - Commands: `ConnectAsync`, `Disconnect`, `Reconnect`, `BindBastion`.
   - Per-connection events: `StateChanged`, `ProgressStep`, `Connected`, `ErrorRaised`.
