@@ -6473,10 +6473,41 @@ impl SseDecode for crate::api::bus::BusCommand {
                     payload: var_payload,
                 };
             }
+            1 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusCommand::ConnectionDisconnect { id: var_id };
+            }
             _ => {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for crate::api::bus::BusConnectionPhase {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::bus::BusConnectionPhase::SocketConnect,
+            1 => crate::api::bus::BusConnectionPhase::HostKeyVerify,
+            2 => crate::api::bus::BusConnectionPhase::Authenticate,
+            3 => crate::api::bus::BusConnectionPhase::OpenChannel,
+            _ => unreachable!("Invalid variant for BusConnectionPhase: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::bus::BusConnectionState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::bus::BusConnectionState::Disconnected,
+            1 => crate::api::bus::BusConnectionState::Connecting,
+            2 => crate::api::bus::BusConnectionState::Connected,
+            _ => unreachable!("Invalid variant for BusConnectionState: {}", inner),
+        };
     }
 }
 
@@ -6491,10 +6522,65 @@ impl SseDecode for crate::api::bus::BusEvent {
                     payload: var_payload,
                 };
             }
+            1 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_state = <crate::api::bus::BusConnectionState>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::ConnectionStateChanged {
+                    id: var_id,
+                    state: var_state,
+                };
+            }
+            2 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_step = <crate::api::bus::BusProgressStep>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::ConnectionProgress {
+                    id: var_id,
+                    step: var_step,
+                };
+            }
+            3 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_detail = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::ConnectionError {
+                    id: var_id,
+                    detail: var_detail,
+                };
+            }
+            4 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::ConnectionRemoved { id: var_id };
+            }
             _ => {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for crate::api::bus::BusProgressStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_phase = <crate::api::bus::BusConnectionPhase>::sse_decode(deserializer);
+        let mut var_status = <crate::api::bus::BusStepStatus>::sse_decode(deserializer);
+        let mut var_detail = <Option<String>>::sse_decode(deserializer);
+        return crate::api::bus::BusProgressStep {
+            phase: var_phase,
+            status: var_status,
+            detail: var_detail,
+        };
+    }
+}
+
+impl SseDecode for crate::api::bus::BusStepStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::bus::BusStepStatus::InProgress,
+            1 => crate::api::bus::BusStepStatus::Success,
+            2 => crate::api::bus::BusStepStatus::Failed,
+            _ => unreachable!("Invalid variant for BusStepStatus: {}", inner),
+        };
     }
 }
 
@@ -7754,6 +7840,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusCommand {
             crate::api::bus::BusCommand::NoopEcho { payload } => {
                 [0.into_dart(), payload.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::bus::BusCommand::ConnectionDisconnect { id } => {
+                [1.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
             _ => {
                 unimplemented!("");
             }
@@ -7769,11 +7858,77 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusCommand>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusConnectionPhase {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::SocketConnect => 0.into_dart(),
+            Self::HostKeyVerify => 1.into_dart(),
+            Self::Authenticate => 2.into_dart(),
+            Self::OpenChannel => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::bus::BusConnectionPhase
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusConnectionPhase>
+    for crate::api::bus::BusConnectionPhase
+{
+    fn into_into_dart(self) -> crate::api::bus::BusConnectionPhase {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusConnectionState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Disconnected => 0.into_dart(),
+            Self::Connecting => 1.into_dart(),
+            Self::Connected => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::bus::BusConnectionState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusConnectionState>
+    for crate::api::bus::BusConnectionState
+{
+    fn into_into_dart(self) -> crate::api::bus::BusConnectionState {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             crate::api::bus::BusEvent::Echoed { payload } => {
                 [0.into_dart(), payload.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::bus::BusEvent::ConnectionStateChanged { id, state } => [
+                1.into_dart(),
+                id.into_into_dart().into_dart(),
+                state.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::ConnectionProgress { id, step } => [
+                2.into_dart(),
+                id.into_into_dart().into_dart(),
+                step.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::ConnectionError { id, detail } => [
+                3.into_dart(),
+                id.into_into_dart().into_dart(),
+                detail.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::ConnectionRemoved { id } => {
+                [4.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -7784,6 +7939,50 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::bus::BusEvent {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusEvent> for crate::api::bus::BusEvent {
     fn into_into_dart(self) -> crate::api::bus::BusEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusProgressStep {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.phase.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.detail.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::bus::BusProgressStep
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusProgressStep>
+    for crate::api::bus::BusProgressStep
+{
+    fn into_into_dart(self) -> crate::api::bus::BusProgressStep {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusStepStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InProgress => 0.into_dart(),
+            Self::Success => 1.into_dart(),
+            Self::Failed => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::bus::BusStepStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusStepStatus>
+    for crate::api::bus::BusStepStatus
+{
+    fn into_into_dart(self) -> crate::api::bus::BusStepStatus {
         self
     }
 }
@@ -8474,10 +8673,49 @@ impl SseEncode for crate::api::bus::BusCommand {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(payload, serializer);
             }
+            crate::api::bus::BusCommand::ConnectionDisconnect { id } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(id, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::api::bus::BusConnectionPhase {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::bus::BusConnectionPhase::SocketConnect => 0,
+                crate::api::bus::BusConnectionPhase::HostKeyVerify => 1,
+                crate::api::bus::BusConnectionPhase::Authenticate => 2,
+                crate::api::bus::BusConnectionPhase::OpenChannel => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::bus::BusConnectionState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::bus::BusConnectionState::Disconnected => 0,
+                crate::api::bus::BusConnectionState::Connecting => 1,
+                crate::api::bus::BusConnectionState::Connected => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -8489,10 +8727,55 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(payload, serializer);
             }
+            crate::api::bus::BusEvent::ConnectionStateChanged { id, state } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(id, serializer);
+                <crate::api::bus::BusConnectionState>::sse_encode(state, serializer);
+            }
+            crate::api::bus::BusEvent::ConnectionProgress { id, step } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(id, serializer);
+                <crate::api::bus::BusProgressStep>::sse_encode(step, serializer);
+            }
+            crate::api::bus::BusEvent::ConnectionError { id, detail } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(id, serializer);
+                <String>::sse_encode(detail, serializer);
+            }
+            crate::api::bus::BusEvent::ConnectionRemoved { id } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(id, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::api::bus::BusProgressStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::bus::BusConnectionPhase>::sse_encode(self.phase, serializer);
+        <crate::api::bus::BusStepStatus>::sse_encode(self.status, serializer);
+        <Option<String>>::sse_encode(self.detail, serializer);
+    }
+}
+
+impl SseEncode for crate::api::bus::BusStepStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::bus::BusStepStatus::InProgress => 0,
+                crate::api::bus::BusStepStatus::Success => 1,
+                crate::api::bus::BusStepStatus::Failed => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

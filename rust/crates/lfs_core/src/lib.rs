@@ -20,6 +20,7 @@
 pub mod app;
 pub mod archive;
 pub mod bus;
+pub mod connection;
 pub mod crypto;
 pub mod db;
 pub mod error;

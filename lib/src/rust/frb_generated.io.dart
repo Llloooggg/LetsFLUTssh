@@ -192,6 +192,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusCommand dco_decode_box_autoadd_bus_command(dynamic raw);
 
   @protected
+  BusProgressStep dco_decode_box_autoadd_bus_progress_step(dynamic raw);
+
+  @protected
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw);
 
   @protected
@@ -240,7 +243,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusCommand dco_decode_bus_command(dynamic raw);
 
   @protected
+  BusConnectionPhase dco_decode_bus_connection_phase(dynamic raw);
+
+  @protected
+  BusConnectionState dco_decode_bus_connection_state(dynamic raw);
+
+  @protected
   BusEvent dco_decode_bus_event(dynamic raw);
+
+  @protected
+  BusProgressStep dco_decode_bus_progress_step(dynamic raw);
+
+  @protected
+  BusStepStatus dco_decode_bus_step_status(dynamic raw);
 
   @protected
   BusTopic dco_decode_bus_topic(dynamic raw);
@@ -544,6 +559,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusCommand sse_decode_box_autoadd_bus_command(SseDeserializer deserializer);
 
   @protected
+  BusProgressStep sse_decode_box_autoadd_bus_progress_step(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbAppConfig sse_decode_box_autoadd_db_app_config(
     SseDeserializer deserializer,
   );
@@ -610,7 +630,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusCommand sse_decode_bus_command(SseDeserializer deserializer);
 
   @protected
+  BusConnectionPhase sse_decode_bus_connection_phase(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BusConnectionState sse_decode_bus_connection_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BusEvent sse_decode_bus_event(SseDeserializer deserializer);
+
+  @protected
+  BusProgressStep sse_decode_bus_progress_step(SseDeserializer deserializer);
+
+  @protected
+  BusStepStatus sse_decode_bus_step_status(SseDeserializer deserializer);
 
   @protected
   BusTopic sse_decode_bus_topic(SseDeserializer deserializer);
@@ -966,6 +1002,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bus_progress_step(
+    BusProgressStep self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_app_config(
     DbAppConfig self,
     SseSerializer serializer,
@@ -1056,7 +1098,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bus_command(BusCommand self, SseSerializer serializer);
 
   @protected
+  void sse_encode_bus_connection_phase(
+    BusConnectionPhase self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bus_connection_state(
+    BusConnectionState self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bus_event(BusEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bus_progress_step(
+    BusProgressStep self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bus_step_status(BusStepStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_bus_topic(BusTopic self, SseSerializer serializer);

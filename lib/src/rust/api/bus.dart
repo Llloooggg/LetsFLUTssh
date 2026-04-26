@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'bus.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Dispatch a typed command. Single entry point Dart calls for
 /// every operation; the Rust side routes by command variant.
@@ -34,7 +34,25 @@ sealed class BusCommand with _$BusCommand {
   /// 5.0 smoke command — emits `Echoed` with the same payload.
   const factory BusCommand.noopEcho({required String payload}) =
       BusCommand_NoopEcho;
+
+  /// 5.1 — remove an actor from the registry. Idempotent on a
+  /// missing id.
+  const factory BusCommand.connectionDisconnect({required String id}) =
+      BusCommand_ConnectionDisconnect;
 }
+
+/// Connection progress phase — FRB mirror of
+/// `lfs_core::connection::ConnectionPhase`.
+enum BusConnectionPhase {
+  socketConnect,
+  hostKeyVerify,
+  authenticate,
+  openChannel,
+}
+
+/// Connection lifecycle state — FRB mirror of
+/// `lfs_core::connection::ConnectionState`.
+enum BusConnectionState { disconnected, connecting, connected }
 
 @freezed
 sealed class BusEvent with _$BusEvent {
@@ -43,7 +61,59 @@ sealed class BusEvent with _$BusEvent {
   /// 5.0 smoke event. Foundation plumbing test only — no domain
   /// state behind it.
   const factory BusEvent.echoed({required String payload}) = BusEvent_Echoed;
+
+  /// 5.1 — connection state machine transitioned.
+  const factory BusEvent.connectionStateChanged({
+    required String id,
+    required BusConnectionState state,
+  }) = BusEvent_ConnectionStateChanged;
+
+  /// 5.1 — per-step progress fan-out during connect / reconnect.
+  const factory BusEvent.connectionProgress({
+    required String id,
+    required BusProgressStep step,
+  }) = BusEvent_ConnectionProgress;
+
+  /// 5.1 — connect-time error recorded against an actor.
+  const factory BusEvent.connectionError({
+    required String id,
+    required String detail,
+  }) = BusEvent_ConnectionError;
+
+  /// 5.1 — actor removed from the registry (manual disconnect or
+  /// parent of a disconnected bastion chain).
+  const factory BusEvent.connectionRemoved({required String id}) =
+      BusEvent_ConnectionRemoved;
 }
+
+/// Connection progress step — FRB mirror of
+/// `lfs_core::connection::ProgressStep`.
+class BusProgressStep {
+  final BusConnectionPhase phase;
+  final BusStepStatus status;
+  final String? detail;
+
+  const BusProgressStep({
+    required this.phase,
+    required this.status,
+    this.detail,
+  });
+
+  @override
+  int get hashCode => phase.hashCode ^ status.hashCode ^ detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BusProgressStep &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          status == other.status &&
+          detail == other.detail;
+}
+
+/// Step status — FRB mirror of `lfs_core::connection::StepStatus`.
+enum BusStepStatus { inProgress, success, failed }
 
 /// Topic tag the Dart subscriber picks. The FRB-visible mirror of
 /// `lfs_core::bus::EventTopic` — bumped in lockstep when sub-phases

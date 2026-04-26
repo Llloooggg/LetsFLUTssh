@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 
 use crate::bus::EventBus;
+use crate::connection::ConnectionRegistry;
 use crate::db::Db;
 use crate::error::Error;
 use crate::secrets::SecretStore;
@@ -32,6 +33,10 @@ pub struct AppState {
     /// events; FRB subscribers consume them via per-screen view
     /// streams. See `crate::bus` for the wire contract.
     pub bus: EventBus,
+    /// Phase 5.1 connection registry. Owns every active connection
+    /// actor; commands look up actors by [`crate::connection::ConnId`]
+    /// and run state-machine transitions under per-actor locks.
+    pub connections: ConnectionRegistry,
 }
 
 impl AppState {
@@ -40,6 +45,7 @@ impl AppState {
             secrets: SecretStore::new(),
             db: Mutex::new(None),
             bus: EventBus::new(),
+            connections: ConnectionRegistry::new(),
         }
     }
 

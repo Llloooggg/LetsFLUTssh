@@ -59,20 +59,58 @@ pub enum EventTopic {
 }
 
 /// State change envelope published onto the bus. Variants accrete
-/// as Phase 5 sub-phases land; today the enum carries only the 5.0
-/// smoke variant.
+/// as Phase 5 sub-phases land.
 #[derive(Debug, Clone)]
 pub enum Event {
     /// Foundation smoke event. `bus_dispatch(NoopEcho)` publishes
     /// this with the same payload so the FRB plumbing can be
     /// verified end-to-end before any real domain command lands.
     Echoed { payload: String },
+
+    /// 5.1 connection lifecycle — emitted whenever an actor
+    /// transitions between `Disconnected / Connecting / Connected`.
+    /// Subscribers re-snapshot their connection-level views off
+    /// this signal; the snapshot itself is fetched via a separate
+    /// `ConnectionSnapshot` command (cheap copy of the actor's
+    /// plain-data view).
+    ConnectionStateChanged {
+        id: crate::connection::ConnId,
+        state: crate::connection::ConnectionState,
+    },
+
+    /// 5.1 connection lifecycle — fan-out per progress step
+    /// (`socketConnect / hostKeyVerify / authenticate / openChannel`
+    /// at `inProgress / success / failed`). The Dart-era
+    /// `Connection.progressStream` retires in favour of subscribing
+    /// here and filtering by id.
+    ConnectionProgress {
+        id: crate::connection::ConnId,
+        step: crate::connection::ProgressStep,
+    },
+
+    /// 5.1 connection lifecycle — emitted when an actor records a
+    /// fresh connect-time error. Detail is the localised /
+    /// sanitised message; subscribers pair this with the matching
+    /// `ConnectionStateChanged(Disconnected)` for UI feedback.
+    ConnectionError {
+        id: crate::connection::ConnId,
+        detail: String,
+    },
+
+    /// 5.1 connection lifecycle — emitted when an actor is
+    /// removed from the registry (manual disconnect, parent of a
+    /// disconnected bastion chain).
+    ConnectionRemoved { id: crate::connection::ConnId },
 }
 
 impl Event {
     pub fn topic(&self) -> EventTopic {
         match self {
             Event::Echoed { .. } => EventTopic::Diagnostics,
+            Event::ConnectionStateChanged { .. }
+            | Event::ConnectionProgress { .. }
+            | Event::ConnectionError { .. }
+            | Event::ConnectionRemoved { .. } => EventTopic::Connection,
         }
     }
 }
@@ -85,6 +123,13 @@ pub enum Command {
     /// same payload. No state mutation; use only for FRB plumbing
     /// tests.
     NoopEcho { payload: String },
+
+    /// 5.1 — remove an actor from the registry. Idempotent on a
+    /// missing id. The full `ConnectAsync` / `Reconnect` family
+    /// lands in the next 5.1 commit alongside the connect driver
+    /// port; this scaffolding ships only the verb every actor
+    /// eventually needs.
+    ConnectionDisconnect { id: crate::connection::ConnId },
 }
 
 /// Broadcast-backed event broker. Owned by `AppState` (process
@@ -130,13 +175,26 @@ impl Default for EventBus {
 }
 
 /// Dispatch a typed command. Domain handlers route by command
-/// variant; the 5.0 surface only handles `NoopEcho`. Sub-phases
-/// extend the match arms in lockstep with the actor moves.
-pub fn dispatch(cmd: Command) -> Result<(), Error> {
+/// variant. Sub-phases extend the match arms in lockstep with each
+/// actor move.
+///
+/// Async because 5.1+ command handlers touch tokio mutexes
+/// (registry lookups, per-actor locks). Synchronous-leaf commands
+/// like `NoopEcho` keep the same await shape so the FRB caller
+/// never has to branch.
+pub async fn dispatch(cmd: Command) -> Result<(), Error> {
     let app = crate::app::instance();
     match cmd {
         Command::NoopEcho { payload } => {
             app.bus.publish(Event::Echoed { payload });
+            Ok(())
+        }
+        Command::ConnectionDisconnect { id } => {
+            // Idempotent: missing id is a no-op (the actor was
+            // already removed by a parallel teardown).
+            if app.connections.remove(&id).await.is_some() {
+                app.bus.publish(Event::ConnectionRemoved { id });
+            }
             Ok(())
         }
     }
@@ -156,6 +214,7 @@ mod tests {
         let event = rx.recv().await.expect("event");
         match event {
             Event::Echoed { payload } => assert_eq!(payload, "hello"),
+            other => panic!("unexpected event: {other:?}"),
         }
     }
 

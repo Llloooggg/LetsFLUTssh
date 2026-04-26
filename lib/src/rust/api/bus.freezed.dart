@@ -14,61 +14,30 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BusCommand {
 
- String get payload;
-/// Create a copy of BusCommand
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$BusCommandCopyWith<BusCommand> get copyWith => _$BusCommandCopyWithImpl<BusCommand>(this as BusCommand, _$identity);
+
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand&&(identical(other.payload, payload) || other.payload == payload));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,payload);
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'BusCommand(payload: $payload)';
+  return 'BusCommand()';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $BusCommandCopyWith<$Res>  {
-  factory $BusCommandCopyWith(BusCommand value, $Res Function(BusCommand) _then) = _$BusCommandCopyWithImpl;
-@useResult
-$Res call({
- String payload
-});
-
-
-
-
-}
-/// @nodoc
-class _$BusCommandCopyWithImpl<$Res>
-    implements $BusCommandCopyWith<$Res> {
-  _$BusCommandCopyWithImpl(this._self, this._then);
-
-  final BusCommand _self;
-  final $Res Function(BusCommand) _then;
-
-/// Create a copy of BusCommand
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? payload = null,}) {
-  return _then(_self.copyWith(
-payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
+class $BusCommandCopyWith<$Res>  {
+$BusCommandCopyWith(BusCommand _, $Res Function(BusCommand) __);
 }
 
 
@@ -86,11 +55,12 @@ extension BusCommandPatterns on BusCommand {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
-return noopEcho(_that);case _:
+return noopEcho(_that);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
+return connectionDisconnect(_that);case _:
   return orElse();
 
 }
@@ -108,11 +78,12 @@ return noopEcho(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
-return noopEcho(_that);}
+return noopEcho(_that);case BusCommand_ConnectionDisconnect():
+return connectionDisconnect(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -126,11 +97,12 @@ return noopEcho(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
-return noopEcho(_that);case _:
+return noopEcho(_that);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
+return connectionDisconnect(_that);case _:
   return null;
 
 }
@@ -147,10 +119,11 @@ return noopEcho(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
-return noopEcho(_that.payload);case _:
+return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
+return connectionDisconnect(_that.id);case _:
   return orElse();
 
 }
@@ -168,10 +141,11 @@ return noopEcho(_that.payload);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
-return noopEcho(_that.payload);}
+return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect():
+return connectionDisconnect(_that.id);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -185,10 +159,11 @@ return noopEcho(_that.payload);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
-return noopEcho(_that.payload);case _:
+return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
+return connectionDisconnect(_that.id);case _:
   return null;
 
 }
@@ -203,11 +178,11 @@ class BusCommand_NoopEcho extends BusCommand {
   const BusCommand_NoopEcho({required this.payload}): super._();
   
 
-@override final  String payload;
+ final  String payload;
 
 /// Create a copy of BusCommand
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $BusCommand_NoopEchoCopyWith<BusCommand_NoopEcho> get copyWith => _$BusCommand_NoopEchoCopyWithImpl<BusCommand_NoopEcho>(this, _$identity);
 
@@ -233,7 +208,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $BusCommand_NoopEchoCopyWith<$Res> implements $BusCommandCopyWith<$Res> {
   factory $BusCommand_NoopEchoCopyWith(BusCommand_NoopEcho value, $Res Function(BusCommand_NoopEcho) _then) = _$BusCommand_NoopEchoCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String payload
 });
@@ -252,7 +227,7 @@ class _$BusCommand_NoopEchoCopyWithImpl<$Res>
 
 /// Create a copy of BusCommand
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? payload = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? payload = null,}) {
   return _then(BusCommand_NoopEcho(
 payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
 as String,
@@ -263,40 +238,45 @@ as String,
 }
 
 /// @nodoc
-mixin _$BusEvent {
 
- String get payload;
-/// Create a copy of BusEvent
+
+class BusCommand_ConnectionDisconnect extends BusCommand {
+  const BusCommand_ConnectionDisconnect({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of BusCommand
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-$BusEventCopyWith<BusEvent> get copyWith => _$BusEventCopyWithImpl<BusEvent>(this as BusEvent, _$identity);
+$BusCommand_ConnectionDisconnectCopyWith<BusCommand_ConnectionDisconnect> get copyWith => _$BusCommand_ConnectionDisconnectCopyWithImpl<BusCommand_ConnectionDisconnect>(this, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent&&(identical(other.payload, payload) || other.payload == payload));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_ConnectionDisconnect&&(identical(other.id, id) || other.id == id));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,payload);
+int get hashCode => Object.hash(runtimeType,id);
 
 @override
 String toString() {
-  return 'BusEvent(payload: $payload)';
+  return 'BusCommand.connectionDisconnect(id: $id)';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $BusEventCopyWith<$Res>  {
-  factory $BusEventCopyWith(BusEvent value, $Res Function(BusEvent) _then) = _$BusEventCopyWithImpl;
+abstract mixin class $BusCommand_ConnectionDisconnectCopyWith<$Res> implements $BusCommandCopyWith<$Res> {
+  factory $BusCommand_ConnectionDisconnectCopyWith(BusCommand_ConnectionDisconnect value, $Res Function(BusCommand_ConnectionDisconnect) _then) = _$BusCommand_ConnectionDisconnectCopyWithImpl;
 @useResult
 $Res call({
- String payload
+ String id
 });
 
 
@@ -304,22 +284,52 @@ $Res call({
 
 }
 /// @nodoc
-class _$BusEventCopyWithImpl<$Res>
-    implements $BusEventCopyWith<$Res> {
-  _$BusEventCopyWithImpl(this._self, this._then);
+class _$BusCommand_ConnectionDisconnectCopyWithImpl<$Res>
+    implements $BusCommand_ConnectionDisconnectCopyWith<$Res> {
+  _$BusCommand_ConnectionDisconnectCopyWithImpl(this._self, this._then);
 
-  final BusEvent _self;
-  final $Res Function(BusEvent) _then;
+  final BusCommand_ConnectionDisconnect _self;
+  final $Res Function(BusCommand_ConnectionDisconnect) _then;
 
-/// Create a copy of BusEvent
+/// Create a copy of BusCommand
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? payload = null,}) {
-  return _then(_self.copyWith(
-payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(BusCommand_ConnectionDisconnect(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
 
+
+}
+
+/// @nodoc
+mixin _$BusEvent {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusEvent()';
+}
+
+
+}
+
+/// @nodoc
+class $BusEventCopyWith<$Res>  {
+$BusEventCopyWith(BusEvent _, $Res Function(BusEvent) __);
 }
 
 
@@ -337,11 +347,15 @@ extension BusEventPatterns on BusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
-return echoed(_that);case _:
+return echoed(_that);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
+return connectionStateChanged(_that);case BusEvent_ConnectionProgress() when connectionProgress != null:
+return connectionProgress(_that);case BusEvent_ConnectionError() when connectionError != null:
+return connectionError(_that);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
+return connectionRemoved(_that);case _:
   return orElse();
 
 }
@@ -359,11 +373,15 @@ return echoed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
-return echoed(_that);}
+return echoed(_that);case BusEvent_ConnectionStateChanged():
+return connectionStateChanged(_that);case BusEvent_ConnectionProgress():
+return connectionProgress(_that);case BusEvent_ConnectionError():
+return connectionError(_that);case BusEvent_ConnectionRemoved():
+return connectionRemoved(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -377,11 +395,15 @@ return echoed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
-return echoed(_that);case _:
+return echoed(_that);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
+return connectionStateChanged(_that);case BusEvent_ConnectionProgress() when connectionProgress != null:
+return connectionProgress(_that);case BusEvent_ConnectionError() when connectionError != null:
+return connectionError(_that);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
+return connectionRemoved(_that);case _:
   return null;
 
 }
@@ -398,10 +420,14 @@ return echoed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
-return echoed(_that.payload);case _:
+return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
+return connectionStateChanged(_that.id,_that.state);case BusEvent_ConnectionProgress() when connectionProgress != null:
+return connectionProgress(_that.id,_that.step);case BusEvent_ConnectionError() when connectionError != null:
+return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
+return connectionRemoved(_that.id);case _:
   return orElse();
 
 }
@@ -419,10 +445,14 @@ return echoed(_that.payload);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
-return echoed(_that.payload);}
+return echoed(_that.payload);case BusEvent_ConnectionStateChanged():
+return connectionStateChanged(_that.id,_that.state);case BusEvent_ConnectionProgress():
+return connectionProgress(_that.id,_that.step);case BusEvent_ConnectionError():
+return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved():
+return connectionRemoved(_that.id);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -436,10 +466,14 @@ return echoed(_that.payload);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
-return echoed(_that.payload);case _:
+return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
+return connectionStateChanged(_that.id,_that.state);case BusEvent_ConnectionProgress() when connectionProgress != null:
+return connectionProgress(_that.id,_that.step);case BusEvent_ConnectionError() when connectionError != null:
+return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
+return connectionRemoved(_that.id);case _:
   return null;
 
 }
@@ -454,11 +488,11 @@ class BusEvent_Echoed extends BusEvent {
   const BusEvent_Echoed({required this.payload}): super._();
   
 
-@override final  String payload;
+ final  String payload;
 
 /// Create a copy of BusEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $BusEvent_EchoedCopyWith<BusEvent_Echoed> get copyWith => _$BusEvent_EchoedCopyWithImpl<BusEvent_Echoed>(this, _$identity);
 
@@ -484,7 +518,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $BusEvent_EchoedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
   factory $BusEvent_EchoedCopyWith(BusEvent_Echoed value, $Res Function(BusEvent_Echoed) _then) = _$BusEvent_EchoedCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String payload
 });
@@ -503,9 +537,279 @@ class _$BusEvent_EchoedCopyWithImpl<$Res>
 
 /// Create a copy of BusEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? payload = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? payload = null,}) {
   return _then(BusEvent_Echoed(
 payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_ConnectionStateChanged extends BusEvent {
+  const BusEvent_ConnectionStateChanged({required this.id, required this.state}): super._();
+  
+
+ final  String id;
+ final  BusConnectionState state;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_ConnectionStateChangedCopyWith<BusEvent_ConnectionStateChanged> get copyWith => _$BusEvent_ConnectionStateChangedCopyWithImpl<BusEvent_ConnectionStateChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_ConnectionStateChanged&&(identical(other.id, id) || other.id == id)&&(identical(other.state, state) || other.state == state));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,state);
+
+@override
+String toString() {
+  return 'BusEvent.connectionStateChanged(id: $id, state: $state)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_ConnectionStateChangedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_ConnectionStateChangedCopyWith(BusEvent_ConnectionStateChanged value, $Res Function(BusEvent_ConnectionStateChanged) _then) = _$BusEvent_ConnectionStateChangedCopyWithImpl;
+@useResult
+$Res call({
+ String id, BusConnectionState state
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_ConnectionStateChangedCopyWithImpl<$Res>
+    implements $BusEvent_ConnectionStateChangedCopyWith<$Res> {
+  _$BusEvent_ConnectionStateChangedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_ConnectionStateChanged _self;
+  final $Res Function(BusEvent_ConnectionStateChanged) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? state = null,}) {
+  return _then(BusEvent_ConnectionStateChanged(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as BusConnectionState,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_ConnectionProgress extends BusEvent {
+  const BusEvent_ConnectionProgress({required this.id, required this.step}): super._();
+  
+
+ final  String id;
+ final  BusProgressStep step;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_ConnectionProgressCopyWith<BusEvent_ConnectionProgress> get copyWith => _$BusEvent_ConnectionProgressCopyWithImpl<BusEvent_ConnectionProgress>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_ConnectionProgress&&(identical(other.id, id) || other.id == id)&&(identical(other.step, step) || other.step == step));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,step);
+
+@override
+String toString() {
+  return 'BusEvent.connectionProgress(id: $id, step: $step)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_ConnectionProgressCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_ConnectionProgressCopyWith(BusEvent_ConnectionProgress value, $Res Function(BusEvent_ConnectionProgress) _then) = _$BusEvent_ConnectionProgressCopyWithImpl;
+@useResult
+$Res call({
+ String id, BusProgressStep step
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_ConnectionProgressCopyWithImpl<$Res>
+    implements $BusEvent_ConnectionProgressCopyWith<$Res> {
+  _$BusEvent_ConnectionProgressCopyWithImpl(this._self, this._then);
+
+  final BusEvent_ConnectionProgress _self;
+  final $Res Function(BusEvent_ConnectionProgress) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? step = null,}) {
+  return _then(BusEvent_ConnectionProgress(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,step: null == step ? _self.step : step // ignore: cast_nullable_to_non_nullable
+as BusProgressStep,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_ConnectionError extends BusEvent {
+  const BusEvent_ConnectionError({required this.id, required this.detail}): super._();
+  
+
+ final  String id;
+ final  String detail;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_ConnectionErrorCopyWith<BusEvent_ConnectionError> get copyWith => _$BusEvent_ConnectionErrorCopyWithImpl<BusEvent_ConnectionError>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_ConnectionError&&(identical(other.id, id) || other.id == id)&&(identical(other.detail, detail) || other.detail == detail));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,detail);
+
+@override
+String toString() {
+  return 'BusEvent.connectionError(id: $id, detail: $detail)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_ConnectionErrorCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_ConnectionErrorCopyWith(BusEvent_ConnectionError value, $Res Function(BusEvent_ConnectionError) _then) = _$BusEvent_ConnectionErrorCopyWithImpl;
+@useResult
+$Res call({
+ String id, String detail
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_ConnectionErrorCopyWithImpl<$Res>
+    implements $BusEvent_ConnectionErrorCopyWith<$Res> {
+  _$BusEvent_ConnectionErrorCopyWithImpl(this._self, this._then);
+
+  final BusEvent_ConnectionError _self;
+  final $Res Function(BusEvent_ConnectionError) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? detail = null,}) {
+  return _then(BusEvent_ConnectionError(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,detail: null == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_ConnectionRemoved extends BusEvent {
+  const BusEvent_ConnectionRemoved({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_ConnectionRemovedCopyWith<BusEvent_ConnectionRemoved> get copyWith => _$BusEvent_ConnectionRemovedCopyWithImpl<BusEvent_ConnectionRemoved>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_ConnectionRemoved&&(identical(other.id, id) || other.id == id));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id);
+
+@override
+String toString() {
+  return 'BusEvent.connectionRemoved(id: $id)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_ConnectionRemovedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_ConnectionRemovedCopyWith(BusEvent_ConnectionRemoved value, $Res Function(BusEvent_ConnectionRemoved) _then) = _$BusEvent_ConnectionRemovedCopyWithImpl;
+@useResult
+$Res call({
+ String id
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_ConnectionRemovedCopyWithImpl<$Res>
+    implements $BusEvent_ConnectionRemovedCopyWith<$Res> {
+  _$BusEvent_ConnectionRemovedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_ConnectionRemoved _self;
+  final $Res Function(BusEvent_ConnectionRemoved) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(BusEvent_ConnectionRemoved(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

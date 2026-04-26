@@ -5803,6 +5803,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BusProgressStep dco_decode_box_autoadd_bus_progress_step(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_bus_progress_step(raw);
+  }
+
+  @protected
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_db_app_config(raw);
@@ -5898,9 +5904,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     switch (raw[0]) {
       case 0:
         return BusCommand_NoopEcho(payload: dco_decode_String(raw[1]));
+      case 1:
+        return BusCommand_ConnectionDisconnect(id: dco_decode_String(raw[1]));
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  BusConnectionPhase dco_decode_bus_connection_phase(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusConnectionPhase.values[raw as int];
+  }
+
+  @protected
+  BusConnectionState dco_decode_bus_connection_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusConnectionState.values[raw as int];
   }
 
   @protected
@@ -5909,9 +5929,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     switch (raw[0]) {
       case 0:
         return BusEvent_Echoed(payload: dco_decode_String(raw[1]));
+      case 1:
+        return BusEvent_ConnectionStateChanged(
+          id: dco_decode_String(raw[1]),
+          state: dco_decode_bus_connection_state(raw[2]),
+        );
+      case 2:
+        return BusEvent_ConnectionProgress(
+          id: dco_decode_String(raw[1]),
+          step: dco_decode_box_autoadd_bus_progress_step(raw[2]),
+        );
+      case 3:
+        return BusEvent_ConnectionError(
+          id: dco_decode_String(raw[1]),
+          detail: dco_decode_String(raw[2]),
+        );
+      case 4:
+        return BusEvent_ConnectionRemoved(id: dco_decode_String(raw[1]));
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  BusProgressStep dco_decode_bus_progress_step(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BusProgressStep(
+      phase: dco_decode_bus_connection_phase(arr[0]),
+      status: dco_decode_bus_step_status(arr[1]),
+      detail: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  BusStepStatus dco_decode_bus_step_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusStepStatus.values[raw as int];
   }
 
   @protected
@@ -6750,6 +6806,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BusProgressStep sse_decode_box_autoadd_bus_progress_step(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bus_progress_step(deserializer));
+  }
+
+  @protected
   DbAppConfig sse_decode_box_autoadd_db_app_config(
     SseDeserializer deserializer,
   ) {
@@ -6866,9 +6930,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 0:
         final var_payload = sse_decode_String(deserializer);
         return BusCommand_NoopEcho(payload: var_payload);
+      case 1:
+        final var_id = sse_decode_String(deserializer);
+        return BusCommand_ConnectionDisconnect(id: var_id);
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  BusConnectionPhase sse_decode_bus_connection_phase(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return BusConnectionPhase.values[inner];
+  }
+
+  @protected
+  BusConnectionState sse_decode_bus_connection_state(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return BusConnectionState.values[inner];
   }
 
   @protected
@@ -6880,9 +6965,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 0:
         final var_payload = sse_decode_String(deserializer);
         return BusEvent_Echoed(payload: var_payload);
+      case 1:
+        final var_id = sse_decode_String(deserializer);
+        final var_state = sse_decode_bus_connection_state(deserializer);
+        return BusEvent_ConnectionStateChanged(id: var_id, state: var_state);
+      case 2:
+        final var_id = sse_decode_String(deserializer);
+        final var_step = sse_decode_box_autoadd_bus_progress_step(deserializer);
+        return BusEvent_ConnectionProgress(id: var_id, step: var_step);
+      case 3:
+        final var_id = sse_decode_String(deserializer);
+        final var_detail = sse_decode_String(deserializer);
+        return BusEvent_ConnectionError(id: var_id, detail: var_detail);
+      case 4:
+        final var_id = sse_decode_String(deserializer);
+        return BusEvent_ConnectionRemoved(id: var_id);
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  BusProgressStep sse_decode_bus_progress_step(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_phase = sse_decode_bus_connection_phase(deserializer);
+    final var_status = sse_decode_bus_step_status(deserializer);
+    final var_detail = sse_decode_opt_String(deserializer);
+    return BusProgressStep(
+      phase: var_phase,
+      status: var_status,
+      detail: var_detail,
+    );
+  }
+
+  @protected
+  BusStepStatus sse_decode_bus_step_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return BusStepStatus.values[inner];
   }
 
   @protected
@@ -8001,6 +8121,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_bus_progress_step(
+    BusProgressStep self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bus_progress_step(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_db_app_config(
     DbAppConfig self,
     SseSerializer serializer,
@@ -8139,7 +8268,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusCommand_NoopEcho(payload: final payload):
         sse_encode_i_32(0, serializer);
         sse_encode_String(payload, serializer);
+      case BusCommand_ConnectionDisconnect(id: final id):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(id, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_bus_connection_phase(
+    BusConnectionPhase self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_bus_connection_state(
+    BusConnectionState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -8149,7 +8299,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusEvent_Echoed(payload: final payload):
         sse_encode_i_32(0, serializer);
         sse_encode_String(payload, serializer);
+      case BusEvent_ConnectionStateChanged(id: final id, state: final state):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_bus_connection_state(state, serializer);
+      case BusEvent_ConnectionProgress(id: final id, step: final step):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_box_autoadd_bus_progress_step(step, serializer);
+      case BusEvent_ConnectionError(id: final id, detail: final detail):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(id, serializer);
+        sse_encode_String(detail, serializer);
+      case BusEvent_ConnectionRemoved(id: final id):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(id, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_bus_progress_step(
+    BusProgressStep self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bus_connection_phase(self.phase, serializer);
+    sse_encode_bus_step_status(self.status, serializer);
+    sse_encode_opt_String(self.detail, serializer);
+  }
+
+  @protected
+  void sse_encode_bus_step_status(
+    BusStepStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
