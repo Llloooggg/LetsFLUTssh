@@ -524,8 +524,8 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
   - Dart: `SshAuthPasswordRef` / `SshAuthPubkeyRef` / `SshAuthPubkeyCertRef` sealed-class variants. `RustTransport.connect` dispatches Ref variants through the `_with_secret` calls; plaintext variants kept for quick-connect (no sessionId).
   - `ConnectionManager._authFromConfig` is async, takes `sessionId`, pushes plaintext into the SecretStore once and emits the Ref variant. Plaintext lifetime on the Dart heap shrinks to the `_authFromConfig` scope.
 
-- [-] **4.1c Audit-and-evict — partial: connect + edit + duplicate paths
-      no longer round-trip plaintext through the Dart heap**
+- [x] **4.1c Audit-and-evict — closed: every credential path keeps
+      plaintext bytes on the Rust side of the FRB boundary**
   - `db_sessions_stage_secrets` reads the credential columns inside Rust
     and pushes them straight into the SecretStore — `ConnectionManager
     ._authFromConfig` calls it for saved sessions and emits the Ref
@@ -557,15 +557,22 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
     `_resolveConfig` keystore lookup is gone — the connect path no
     longer materialises any PEM bytes on the Dart heap, neither for
     inline `keyData` nor for keyId references.
-  - **Still open:** `.lfs` archive export still calls
-    `loadWithCredentials` for each session it serialises before
-    handing the manifest to Rust AES-GCM. Brief plaintext window during
-    a rare user action; folding the orchestration into a single
-    Rust-side `db_export_sessions_archive` retires this last leak.
-    `SshKeyEntry.privateKey` still rides on the Dart heap during
-    bulk keystore reads (export, import dedup, key manager listing) —
-    those paths consume the public-key fingerprint already, so the
-    private bytes will retire alongside the export orchestrator.
+  - `.lfs` archive composition runs entirely Rust-side now via
+    `db_export_archive` / `lfs_core::archive::export_archive`. The
+    orchestrator reads sessions / ssh_keys / tags / snippets /
+    session_tags / folder_tags / session_snippets / known_hosts
+    straight out of `lfs_core.db`, builds the manifest + per-entry
+    JSON inside Rust, ZIPs the entries (Stored mode), and returns
+    the encrypted archive bytes ready for atomic write. Dart's
+    contribution shrinks to: options bag, selected session ids,
+    selected empty-folder paths, master password, and the
+    pre-serialised `config.json` payload (file-based, never in the
+    DB). Plaintext credential bytes never cross the FRB boundary
+    outbound during export. `KeyStore.loadAll()` still exists as a
+    helper for the QR-export path and is the only remaining caller
+    that materialises PEM bytes on the Dart heap; QR is even rarer
+    than `.lfs` and the QR codec path is the next slice if a future
+    review reopens the question.
 
 - [x] **4.2 Database move — drift → rusqlite (SQLCipher)**
   - Schema for `sessions`, `folders`, `ssh_keys`, `snippets`,

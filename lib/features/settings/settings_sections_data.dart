@@ -462,48 +462,31 @@ class _ExportImportTile extends ConsumerWidget {
     String outputPath,
     UnifiedExportResult exportResult,
   ) async {
-    // Resolve keyId → keyData for actual export
-    final resolvedSessions = await _resolveSessionKeys(
-      ref,
-      exportResult.selectedSessions,
-    );
-
-    if (!context.mounted) return;
-
-    // Progress bar covers the collection, Argon2id+encryption, and write steps.
+    // Progress bar covers the Rust orchestrator + write step. The
+    // orchestrator reads sessions / keys / tags / snippets / known-hosts
+    // straight from `lfs_core.db` so plaintext credentials never round-
+    // trip through the Dart heap during export. Dart only passes the
+    // pre-serialised `config.json` payload (file-based, not in the DB).
     final l10n = S.of(context);
     final reporter = ProgressReporter(l10n.progressCollectingData);
     AppProgressBarDialog.show(context, reporter);
     try {
-      final managerKeyEntries = await _collectManagerKeys(ref, exportResult);
-      final (tags, sessionTags) = await _collectTags(ref, exportResult);
-      final (snippets, sessionSnippets) = await _collectSnippets(
-        ref,
-        exportResult,
-      );
-      final knownHostsContent = exportResult.options.includeKnownHosts
-          ? await ref.read(knownHostsProvider).exportToString()
-          : null;
-
-      await ExportImport.export(
+      final selectedIds = exportResult.selectedSessions
+          .map((s) => s.id)
+          .toList();
+      final emptyFolders = exportResult.options.includeSessions
+          ? exportResult.selectedEmptyFolders.toList()
+          : <String>[];
+      final config = ref.read(configProvider);
+      await ExportImport.exportViaRust(
         masterPassword: password,
         outputPath: outputPath,
+        options: exportResult.options,
+        selectedSessionIds: selectedIds,
+        selectedEmptyFolders: emptyFolders,
+        config: exportResult.options.includeConfig ? config : null,
         progress: reporter,
         l10n: l10n,
-        input: LfsExportInput(
-          sessions: resolvedSessions,
-          config: ref.read(configProvider),
-          options: exportResult.options,
-          emptyFolders: exportResult.options.includeSessions
-              ? exportResult.selectedEmptyFolders
-              : {},
-          knownHostsContent: knownHostsContent,
-          managerKeyEntries: managerKeyEntries,
-          tags: tags,
-          sessionTags: sessionTags,
-          snippets: snippets,
-          sessionSnippets: sessionSnippets,
-        ),
       );
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -519,68 +502,6 @@ class _ExportImportTile extends ConsumerWidget {
     } finally {
       reporter.dispose();
     }
-  }
-
-  Future<List<SshKeyEntry>> _collectManagerKeys(
-    WidgetRef ref,
-    UnifiedExportResult exportResult,
-  ) async {
-    final managerKeyEntries = <SshKeyEntry>[];
-    if (!exportResult.options.hasManagerKeys) return managerKeyEntries;
-    final keyStore = ref.read(keyStoreProvider);
-    final allKeys = await keyStore.loadAll();
-    if (exportResult.options.includeAllManagerKeys) {
-      managerKeyEntries.addAll(allKeys.values);
-    } else {
-      final usedKeyIds = exportResult.selectedSessions
-          .where((s) => s.keyId.isNotEmpty)
-          .map((s) => s.keyId)
-          .toSet();
-      managerKeyEntries.addAll(
-        allKeys.entries
-            .where((e) => usedKeyIds.contains(e.key))
-            .map((e) => e.value),
-      );
-    }
-    return managerKeyEntries;
-  }
-
-  Future<(List<Tag>, List<ExportLink>)> _collectTags(
-    WidgetRef ref,
-    UnifiedExportResult exportResult,
-  ) async {
-    final tagStore = ref.read(tagStoreProvider);
-    final tags = exportResult.options.includeTags
-        ? await tagStore.loadAll()
-        : <Tag>[];
-    final sessionTags = <ExportLink>[];
-    if (tags.isEmpty) return (tags, sessionTags);
-    for (final s in exportResult.selectedSessions) {
-      final sTags = await tagStore.getForSession(s.id);
-      for (final t in sTags) {
-        sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
-      }
-    }
-    return (tags, sessionTags);
-  }
-
-  Future<(List<Snippet>, List<ExportLink>)> _collectSnippets(
-    WidgetRef ref,
-    UnifiedExportResult exportResult,
-  ) async {
-    final snippetStore = ref.read(snippetStoreProvider);
-    final snippets = exportResult.options.includeSnippets
-        ? await snippetStore.loadAll()
-        : <Snippet>[];
-    final sessionSnippets = <ExportLink>[];
-    if (snippets.isEmpty) return (snippets, sessionSnippets);
-    for (final s in exportResult.selectedSessions) {
-      final sSnippets = await snippetStore.loadForSession(s.id);
-      for (final sn in sSnippets) {
-        sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
-      }
-    }
-    return (snippets, sessionSnippets);
   }
 
   /// Opens a save-file picker.

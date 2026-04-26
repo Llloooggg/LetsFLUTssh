@@ -15,6 +15,7 @@ import '../../core/session/session.dart';
 import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
+import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../utils/logger.dart';
 import '../../utils/platform.dart' as plat;
@@ -474,11 +475,84 @@ class ExportImport {
         .toList();
   }
 
-  /// Export app data to an encrypted .lfs file.
+  /// Export app data to an encrypted `.lfs` file via the Rust
+  /// orchestrator. Sessions / keys / tags / snippets / known-hosts
+  /// are read from `lfs_core.db` inside Rust; only `config.json`
+  /// (file-based) is passed across the FRB boundary as a JSON
+  /// string. Plaintext credentials never round-trip through the
+  /// Dart heap during export.
   ///
-  /// [input] groups sessions/config/tags/etc inputs. See [LfsExportInput].
-  /// [input.knownHostsContent] is the decrypted known_hosts text (from
-  /// [KnownHostsManager.exportToString]). Pass null to omit known_hosts.
+  /// Returns the file path of the created archive.
+  static Future<String> exportViaRust({
+    required String masterPassword,
+    required String outputPath,
+    required ExportOptions options,
+    required List<String> selectedSessionIds,
+    List<String> selectedEmptyFolders = const [],
+    AppConfig? config,
+    ProgressReporter? progress,
+    S? l10n,
+    KdfParams? kdfParams,
+    String? appVersion,
+  }) async {
+    progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
+    final params = kdfParams ?? defaultKdfParams;
+    final configJson = config != null
+        ? jsonEncode(config.toJsonForExport())
+        : '';
+    final encrypted = await rust_archive.dbExportArchive(
+      input: rust_archive.DbExportInput(
+        options: rust_archive.DbExportOptions(
+          includeSessions: options.includeSessions,
+          includeKnownHosts: options.includeKnownHosts,
+          includeConfig: options.includeConfig && config != null,
+          includeTags: options.includeTags,
+          includeSnippets: options.includeSnippets,
+          includeAllManagerKeys: options.includeAllManagerKeys,
+          hasManagerKeys: options.hasManagerKeys,
+        ),
+        selectedSessionIds: selectedSessionIds,
+        selectedEmptyFolders: selectedEmptyFolders,
+        configJson: configJson,
+        schemaVersion: currentSchemaVersion,
+        appVersion: appVersion,
+        masterPassword: masterPassword,
+        kdfMemoryKib: params.memoryKiB,
+        kdfIterations: params.iterations,
+        kdfParallelism: params.parallelism,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    AppLogger.instance.log(
+      'Export: Rust orchestrator produced ${encrypted.length} bytes',
+      name: 'ExportImport',
+    );
+
+    progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
+    final file = File(outputPath);
+    await file.parent.create(recursive: true);
+    final tmp = File('$outputPath.tmp');
+    try {
+      await tmp.writeAsBytes(encrypted, flush: true);
+      await tmp.rename(outputPath);
+    } catch (e) {
+      if (await tmp.exists()) {
+        try {
+          await tmp.delete();
+        } catch (_) {
+          // Best-effort cleanup; original error is what the user needs.
+        }
+      }
+      rethrow;
+    }
+    return outputPath;
+  }
+
+  /// Legacy in-Dart archive composer. Retained for the test suite
+  /// (round-tripping `_buildArchive` against the Dart import path)
+  /// and for callers that still need the explicit `LfsExportInput`
+  /// shape. Production export goes through [exportViaRust] so
+  /// plaintext credentials stay Rust-side.
   ///
   /// Returns the file path of the created archive.
   static Future<String> export({

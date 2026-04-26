@@ -8,6 +8,7 @@
 
 import 'api.dart';
 import 'api/app.dart';
+import 'api/archive.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/forward.dart';
@@ -189,6 +190,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw);
 
   @protected
+  DbExportInput dco_decode_box_autoadd_db_export_input(dynamic raw);
+
+  @protected
   DbFolder dco_decode_box_autoadd_db_folder(dynamic raw);
 
   @protected
@@ -226,6 +230,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig dco_decode_db_app_config(dynamic raw);
+
+  @protected
+  DbExportInput dco_decode_db_export_input(dynamic raw);
+
+  @protected
+  DbExportOptions dco_decode_db_export_options(dynamic raw);
 
   @protected
   DbFolder dco_decode_db_folder(dynamic raw);
@@ -505,6 +515,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbExportInput sse_decode_box_autoadd_db_export_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbFolder sse_decode_box_autoadd_db_folder(SseDeserializer deserializer);
 
   @protected
@@ -554,6 +569,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig sse_decode_db_app_config(SseDeserializer deserializer);
+
+  @protected
+  DbExportInput sse_decode_db_export_input(SseDeserializer deserializer);
+
+  @protected
+  DbExportOptions sse_decode_db_export_options(SseDeserializer deserializer);
 
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
@@ -883,6 +904,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_export_input(
+    DbExportInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_folder(
     DbFolder self,
     SseSerializer serializer,
@@ -953,6 +980,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_app_config(DbAppConfig self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_export_input(DbExportInput self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_export_options(
+    DbExportOptions self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_folder(DbFolder self, SseSerializer serializer);

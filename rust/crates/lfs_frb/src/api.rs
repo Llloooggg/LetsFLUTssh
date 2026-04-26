@@ -3,6 +3,7 @@
 //! over the equivalent module in `lfs_core`.
 
 pub mod app;
+pub mod archive;
 pub mod crypto;
 pub mod db;
 pub mod forward;

@@ -18,6 +18,7 @@
 //!   - Crypto-material equality uses `subtle::ConstantTimeEq`, never `==`.
 
 pub mod app;
+pub mod archive;
 pub mod crypto;
 pub mod db;
 pub mod error;
