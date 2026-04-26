@@ -524,9 +524,37 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
   - Dart: `SshAuthPasswordRef` / `SshAuthPubkeyRef` / `SshAuthPubkeyCertRef` sealed-class variants. `RustTransport.connect` dispatches Ref variants through the `_with_secret` calls; plaintext variants kept for quick-connect (no sessionId).
   - `ConnectionManager._authFromConfig` is async, takes `sessionId`, pushes plaintext into the SecretStore once and emits the Ref variant. Plaintext lifetime on the Dart heap shrinks to the `_authFromConfig` scope.
 
-- [ ] **4.1c Audit-and-evict — full secrets boundary**
-  - Drop the plaintext fields on `Session.auth` / `SshKeyEntry.privateKey` / `Connection.cachedPassphrase` themselves; the DB layer hands out `secretRef` ids only and Dart never sees the bytes after `loadWithCredentials`. Hard requirement: the `SessionStore` rewrites session metadata to expose `passwordKnown: bool` / `keyRef: Option<String>` / `passphraseKnown: bool` and pushes the bytes into the SecretStore on load. Lands alongside Phase 4.2.
-  - SSH cert blob: same shape — stored bytes-only in Rust; Dart sees `certPresent: bool` + cert principal labels for display.
+- [-] **4.1c Audit-and-evict — partial: connect + edit + duplicate paths
+      no longer round-trip plaintext through the Dart heap**
+  - `db_sessions_stage_secrets` reads the credential columns inside Rust
+    and pushes them straight into the SecretStore — `ConnectionManager
+    ._authFromConfig` calls it for saved sessions and emits the Ref
+    variant the russh handshake reads. Quick-connect (no session id)
+    keys a transient secret-store entry off a fresh UUID before
+    constructing the same Ref variant.
+  - `db_sessions_duplicate` copies the row column-to-column inside
+    SQLite (`INSERT INTO sessions (...) SELECT ... FROM sessions WHERE
+    id = ?`) under a fresh id, so duplication no longer rides a
+    `loadWithCredentials` → `Session.duplicate()` → `add()` plaintext
+    cycle.
+  - Edit dialog reads per-slot `hasStoredPassword` / `hasStoredKeyData`
+    / `hasStoredPassphrase` flags off the cached `SessionAuth` and
+    renders "Saved — type to change" hints; the controllers stay empty
+    until the user types. `SessionStore.updatePartial` writes metadata
+    via `db_sessions_update_metadata` and only fires
+    `db_sessions_set_secret` for slots whose dirty bit flipped.
+  - Connect path stops calling `loadWithCredentials` — it works off the
+    cached metadata + per-slot flags, and the Rust staging layer pushes
+    the bytes directly. Same for the bastion-resolution loop and the
+    terminal recorder hook.
+  - **Still open:** `.lfs` archive export still calls
+    `loadWithCredentials` for each session it serialises before
+    handing the manifest to Rust AES-GCM. Brief plaintext window during
+    a rare user action; folding the orchestration into a single
+    Rust-side `db_export_sessions_archive` retires this last leak.
+  - SSH cert blob: same shape — `SshKeyEntry.privateKey` still rides on
+    the Dart heap when the keystore opens an entry. Move keystore
+    reads through a similar staging surface.
 
 - [x] **4.2 Database move — drift → rusqlite (SQLCipher)**
   - Schema for `sessions`, `folders`, `ssh_keys`, `snippets`,
