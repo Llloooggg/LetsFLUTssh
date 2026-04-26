@@ -593,47 +593,67 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
     `setDatabase(AppDatabase)` is gone everywhere. Drift, drift_dev,
     drift-generated test schemas all dropped from the tree.
 
-- [-] **4.3 ConnectionManager — partial: secrets at the boundary**
-  - Connection FSM (`Idle → Connecting → Connected → Disconnected`)
-    stays in Dart. Moving the FSM itself buys no security; the
-    pieces that *did* matter — credential bytes — already live in
-    the SecretStore, and `*_with_secret` connect variants resolve
-    them Rust-side without crossing the FRB boundary.
-  - Reconnect generation counter, credential overlay, ProxyJump
-    cycle/depth checks: stay Dart-side. The actor lift is a refactor
-    rung that has no security or correctness gain on top of what
-    already shipped.
-  - Closed at "boundary contract met": secret bytes don't leak
-    through the connect path.
+- [x] **4.3 ConnectionManager — closed at boundary contract**
+  - Connect path resolves credentials Rust-side via
+    `*_with_secret` variants — `SshAuthPasswordRef` /
+    `SshAuthPubkeyRef` / `SshAuthPubkeyCertRef` carry SecretStore
+    ids over FRB; russh fetches the bytes inside Rust. Saved
+    sessions stage via `db_sessions_stage_secrets`; manager-key
+    references stage via `db_ssh_keys_stage_secret`.
+  - Connection FSM (`Idle → Connecting → Connected →
+    Disconnected`), reconnect generation counter, credential
+    overlay, and ProxyJump cycle / depth guards remain Dart-side.
+    Moving the FSM into a Rust actor was scoped, evaluated, and
+    rejected as pure refactor — no security or correctness rung
+    sits on top of what shipped.
+  - Done: secret bytes do not leak through the connect path.
 
-- [-] **4.4 PortForward + Transfer + Recorder — partial: data lives in Rust**
-  - Port-forward rules persisted in `lfs_core.db`; the Tokio
-    `TcpListener` accept loop stays in `port_forward_runtime` because
-    the bridge is just the SSH `direct-tcpip` channel which already
-    lives in Rust. SOCKS5 handshake reuses the same path.
-  - Transfer queue stays Dart-side; per-file SFTP work hits
+- [x] **4.4 PortForward + Transfer + Recorder — closed at boundary contract**
+  - Port-forward rules live in `lfs_core.db`; runtime bridges
+    `ServerSocket` ↔ russh `direct-tcpip` channels (already
+    Rust-side). SOCKS5 (-D) reuses the same path. Remote (-R)
+    forwards register `tcpip-forward` and drain via
+    `transport.forwardedConnections`.
+  - Transfer queue remains Dart-side; per-file SFTP work hits
     `lfs_core::sftp` already.
-  - Recorder writes per-frame AES-GCM through Rust; ring-buffer +
-    file IO stay Dart-side because they don't touch secrets after
-    the encrypt step.
-  - Closed at "secrets stop crossing": every byte that needs the
-    master key passes through Rust.
+  - Recorder per-frame AES-GCM runs Rust-side; the ring buffer +
+    file IO are post-encrypt and never see plaintext.
+  - Done: every byte that needs the master key passes through Rust.
 
-- [-] **4.5 Auth flows + auto-lock — partial: KDF + DB lifecycle in Rust**
-  - Master password derivation: Argon2id in `lfs_core::crypto`.
-  - DB lifecycle on lock/unlock: `db_init` / `db_close` on
-    AppState; auto-lock detector calls `dbClose` to wipe SQLCipher's
-    C-layer state.
-  - Auto-lock timer + biometric prompts + tier dialogs: stay Dart-
-    side. The timer reads Flutter lifecycle (foreground/background)
-    and pointer activity; biometric / tier dialogs are OS UI —
-    neither moves usefully.
+- [x] **4.5 Auth flows + auto-lock — closed at boundary contract**
+  - Master-password Argon2id derivation in `lfs_core::crypto`;
+    DB lifecycle on lock/unlock through `db_init` / `db_close`
+    on AppState; auto-lock detector zeroes SQLCipher's C-layer
+    state via `dbClose`.
+  - Auto-lock timer reads Flutter lifecycle + pointer activity;
+    biometric prompts + tier dialogs are OS UI. Neither moves
+    Rust-side usefully — the timer would still need a Flutter →
+    Rust event bridge for lifecycle, and biometric APIs live in
+    each platform's native SDK. Dart stays as the lifecycle
+    listener; Rust owns every byte the lock path touches.
+  - Done: KDF + at-rest cipher state are Rust-owned; UI plumbing
+    stays where the platform exposes it.
 
-- [-] **4.6 Settings + import / export — partial: crypto in Rust**
-  - `.lfs` archive AES-GCM + Argon2id: Rust.
-  - QR codec: payloads are deeplink-protected, no AES-GCM crosses.
-  - `app_configs` row in `lfs_core.db`.
-  - JSON parsing / file IO / orchestration stays Dart-side.
+- [x] **4.6 Settings + import / export — closed at boundary contract**
+  - `.lfs` archive composition: `lfs_core::archive::export_archive`
+    reads sessions / ssh_keys / tags / snippets / known_hosts from
+    `lfs_core.db`, builds the manifest + per-entry JSON, ZIPs in
+    Stored mode, applies the Argon2id + AES-GCM envelope, returns
+    the encrypted bytes. Dart writes atomically.
+  - QR codec: `lfs_core::archive::qr_export_payload` builds the
+    compact JSON, deflates, base64url-encodes — all Rust-side.
+    Only the encoded ASCII string returns to Dart.
+  - `app_configs` table in `lfs_core.db`.
+  - **Accepted residual:** `.lfs` archive *import* still decrypts
+    + parses Dart-side because the merge / replace machinery in
+    `core/import/import_service.dart` (~1000 lines) walks
+    sessions / tags / snippets with conflict resolution, snapshot/
+    rollback for replace mode, and FK-aware ordering that depends
+    on per-entry feedback to the user. Plaintext window is bounded
+    by an explicit user action (file picker → password prompt → 
+    preview → confirm) and the bytes land in `lfs_core.db` over
+    FRB DAOs the moment apply commits. Porting the apply layer is
+    a follow-up rung, not a security boundary item.
 
 - [x] **4.7 Cleanup**
   - drift, drift_dev, sqlite3_flutter_libs removed from pubspec.
