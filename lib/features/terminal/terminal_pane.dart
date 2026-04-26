@@ -198,10 +198,18 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     }
 
     try {
+      AppLogger.instance.log(
+        'Shell open: starting openShell for connection ${conn.id}',
+        name: 'TerminalPane',
+      );
       // Clear progress log before opening shell — openShell wires stdout
       // to terminal.write(), so any server output must not be erased.
       writer.clear();
       _shellConn = await _openShell(conn);
+      AppLogger.instance.log(
+        'Shell open: success for ${conn.id}',
+        name: 'TerminalPane',
+      );
       _attachBroadcast();
       // Notify provider so workspace status dots and connection bar update
       if (mounted) ref.read(connectionManagerProvider).notifyStateChanged();

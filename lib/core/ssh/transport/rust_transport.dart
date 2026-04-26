@@ -16,6 +16,7 @@ import 'dart:typed_data';
 import '../../../src/rust/api/forward.dart' as rust_forward;
 import '../../../src/rust/api/sftp.dart' as rust_sftp;
 import '../../../src/rust/api/ssh.dart' as rust_ssh;
+import '../../../utils/logger.dart';
 import 'ssh_transport.dart';
 
 class RustTransport implements SshTransport {
@@ -183,14 +184,35 @@ class RustTransport implements SshTransport {
     required int rows,
   }) async {
     final session = _requireSession();
+    final t0 = DateTime.now();
+    AppLogger.instance.log(
+      'RustTransport.openShell: requesting (${cols}x$rows)',
+      name: 'RustTransport',
+    );
     final shell = await session.openShell(cols: cols, rows: rows);
+    final ms = DateTime.now().difference(t0).inMilliseconds;
+    AppLogger.instance.log(
+      'RustTransport.openShell: got SshShell in ${ms}ms',
+      name: 'RustTransport',
+    );
     return _RustShell(shell);
   }
 
   @override
   Future<rust_sftp.SshSftp> openSftp() async {
     final session = _requireSession();
-    return await rust_sftp.sshOpenSftp(session: session);
+    final t0 = DateTime.now();
+    AppLogger.instance.log(
+      'RustTransport.openSftp: requesting',
+      name: 'RustTransport',
+    );
+    final sftp = await rust_sftp.sshOpenSftp(session: session);
+    final ms = DateTime.now().difference(t0).inMilliseconds;
+    AppLogger.instance.log(
+      'RustTransport.openSftp: got SshSftp in ${ms}ms',
+      name: 'RustTransport',
+    );
+    return sftp;
   }
 
   @override

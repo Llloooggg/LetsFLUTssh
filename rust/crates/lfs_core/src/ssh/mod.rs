@@ -13,7 +13,6 @@
 //! Sub-phase 1.4b: legacy PEM PKCS#1 / PKCS#8.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use russh::client::{self, AuthResult, Handle, Handler, Msg};
 use russh::keys::{ssh_key, Certificate, HashAlg, PrivateKey, PrivateKeyWithHashAlg};
@@ -118,15 +117,12 @@ fn default_client_config() -> Arc<client::Config> {
     Arc::new(client::Config {
         // No inactivity timeout — interactive SSH sessions sit idle
         // for arbitrary stretches between user keystrokes / shell
-        // opens, and a 30-second cap tore down freshly-authenticated
-        // sessions before the user could open the terminal pane.
-        // Liveness is enforced through keepalive_interval +
-        // keepalive_max instead, which mirror OpenSSH's
-        // ServerAliveInterval / ServerAliveCountMax — server hangs
-        // up after a true network partition, not after a user pause.
+        // opens, and any cap tears the freshly-authenticated session
+        // down before the user reaches for the terminal pane. Lets
+        // the underlying TCP layer + the OS keepalive policy be the
+        // dead-link detector, mirroring an OpenSSH client without
+        // ServerAliveInterval set.
         inactivity_timeout: None,
-        keepalive_interval: Some(Duration::from_secs(30)),
-        keepalive_max: 3,
         ..client::Config::default()
     })
 }
@@ -671,11 +667,12 @@ impl Session {
         rx.recv().await
     }
 
-    /// Cleanly disconnect the session. Equivalent to dropping the
-    /// `Session` but with the `SSH_MSG_DISCONNECT` message sent
-    /// explicitly. Errors during teardown are logged through the
-    /// returned `Result`; callers may safely ignore them.
-    pub async fn disconnect(self) -> Result<(), Error> {
+    /// Cleanly disconnect the session. Sends `SSH_MSG_DISCONNECT`;
+    /// the actual transport teardown rides on `Drop` of the inner
+    /// `Handle` once every shared reference goes out of scope.
+    /// Idempotent; russh ignores a second disconnect after the
+    /// first lands.
+    pub async fn disconnect(&self) -> Result<(), Error> {
         self.handle
             .disconnect(russh::Disconnect::ByApplication, "client closed", "en")
             .await

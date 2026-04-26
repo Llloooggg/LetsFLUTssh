@@ -76,24 +76,51 @@ pub async fn ssh_try_connect_pubkey(
 /// handle, Rust drops the inner `Session` and russh tears the TCP
 /// connection down. Call `disconnect()` first for a graceful
 /// `SSH_MSG_DISCONNECT`.
+///
+/// Inner is `Mutex<Option<Arc<Session>>>` — every method clones the
+/// `Arc` under the lock and immediately releases it before awaiting
+/// any per-channel work. Concurrent operations (open_shell while a
+/// forward pump is parked on `next_forwarded_connection`) therefore
+/// never serialise on the outer mutex; russh handles the per-channel
+/// concurrency itself. Holding the lock across an `await` previously
+/// produced an infinite deadlock against the long-lived forward
+/// pump.
 #[frb(opaque)]
 pub struct SshSession {
-    /// `Mutex<Option<>>` — lets `disconnect` take the inner value
-    /// out for the consume-by-value `Session::disconnect`. Once
-    /// taken, subsequent calls return "session disconnected".
-    inner: Mutex<Option<lfs_core::ssh::Session>>,
+    inner: Mutex<Option<Arc<lfs_core::ssh::Session>>>,
 }
 
 impl SshSession {
+    /// Construct a fresh `SshSession` wrapper around an `Arc`-shared
+    /// core `Session`. Connect helpers below funnel through here so
+    /// the Arc shape stays consistent.
+    fn from_core(session: lfs_core::ssh::Session) -> Self {
+        Self {
+            inner: Mutex::new(Some(Arc::new(session))),
+        }
+    }
+
+    /// Pull the live `Arc<Session>` out from under the outer mutex,
+    /// then drop the lock before the caller awaits anything. Returns
+    /// "session disconnected" once `disconnect()` has cleared the
+    /// slot. The Arc lets the underlying `Session` outlive the lock
+    /// for as long as the operation needs it — concurrent operations
+    /// share the same `Session` without serialising at the FRB
+    /// boundary.
+    async fn snapshot(&self) -> Result<Arc<lfs_core::ssh::Session>, String> {
+        let guard = self.inner.lock().await;
+        guard
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| "session disconnected".to_string())
+    }
+
     /// Open a PTY-backed shell channel sized to `cols × rows`.
     /// Returned `SshShell` lives independently of the session — the
     /// session can be dropped while the shell is still in use; russh
     /// then errors out the next read / write.
     pub async fn open_shell(&self, cols: u32, rows: u32) -> Result<SshShell, String> {
-        let guard = self.inner.lock().await;
-        let session = guard
-            .as_ref()
-            .ok_or_else(|| "session disconnected".to_string())?;
+        let session = self.snapshot().await?;
         let shell = session
             .open_shell(cols, rows)
             .await
@@ -108,25 +135,17 @@ impl SshSession {
     /// crate while still letting siblings reach in.
     #[frb(ignore)]
     pub(crate) async fn open_sftp_inner(&self) -> Result<lfs_core::sftp::Sftp, String> {
-        let guard = self.inner.lock().await;
-        let session = guard
-            .as_ref()
-            .ok_or_else(|| "session disconnected".to_string())?;
+        let session = self.snapshot().await?;
         session.open_sftp().await.map_err(|e| e.to_string())
     }
 
-    /// Internal helpers for the `api::forward` family — same shape
-    /// as `open_sftp_inner`, reuse the Mutex<Option> guard.
     #[frb(ignore)]
     pub(crate) async fn request_remote_forward_inner(
         &self,
         address: &str,
         port: u32,
     ) -> Result<u32, String> {
-        let guard = self.inner.lock().await;
-        let session = guard
-            .as_ref()
-            .ok_or_else(|| "session disconnected".to_string())?;
+        let session = self.snapshot().await?;
         session
             .request_remote_forward(address, port)
             .await
@@ -139,10 +158,7 @@ impl SshSession {
         address: &str,
         port: u32,
     ) -> Result<(), String> {
-        let guard = self.inner.lock().await;
-        let session = guard
-            .as_ref()
-            .ok_or_else(|| "session disconnected".to_string())?;
+        let session = self.snapshot().await?;
         session
             .cancel_remote_forward(address, port)
             .await
@@ -153,12 +169,8 @@ impl SshSession {
     pub(crate) async fn next_forwarded_connection_inner(
         &self,
     ) -> Option<crate::api::forward::SshForwardedConnection> {
-        let guard = self.inner.lock().await;
-        let session = guard.as_ref()?;
+        let session = self.snapshot().await.ok()?;
         let conn = session.next_forwarded_connection().await?;
-        // `Drop`-borrow of the inner Session ends here so the channel
-        // is owned outright by the returned wrapper.
-        drop(guard);
         Some(crate::api::forward::SshForwardedConnection::from_core(conn))
     }
 
@@ -170,10 +182,7 @@ impl SshSession {
         originator_address: &str,
         originator_port: u32,
     ) -> Result<lfs_core::ssh::ForwardChannel, String> {
-        let guard = self.inner.lock().await;
-        let session = guard
-            .as_ref()
-            .ok_or_else(|| "session disconnected".to_string())?;
+        let session = self.snapshot().await?;
         session
             .open_direct_tcpip(
                 host_to_connect,
@@ -185,14 +194,19 @@ impl SshSession {
             .map_err(|e| e.to_string())
     }
 
-    /// Send `SSH_MSG_DISCONNECT` and tear down. Idempotent — calling
-    /// twice (or after `Drop`) is a no-op.
+    /// Send `SSH_MSG_DISCONNECT`. Idempotent — clearing the slot
+    /// stops new operations; russh's underlying `Handle` drops once
+    /// the last cloned `Arc` goes out of scope, which tears the TCP
+    /// connection down. The forward-pump loop holding the last live
+    /// clone exits naturally on the next `recv()` returning `None`.
     pub async fn disconnect(&self) -> Result<(), String> {
-        let mut guard = self.inner.lock().await;
-        if let Some(session) = guard.take() {
-            session.disconnect().await.map_err(|e| e.to_string())
-        } else {
-            Ok(())
+        let session = {
+            let mut guard = self.inner.lock().await;
+            guard.take()
+        };
+        match session {
+            Some(arc) => arc.disconnect().await.map_err(|e| e.to_string()),
+            None => Ok(()),
         }
     }
 }
@@ -209,9 +223,7 @@ pub async fn ssh_connect_password(
     let session = lfs_core::ssh::Session::connect_password(&host, port, &user, &password)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// Connect + authenticate by delegating signing to the system SSH
@@ -248,9 +260,7 @@ pub async fn ssh_connect_agent(
     })
     .await
     .map_err(|e| format!("agent task: {e}"))??;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// Connect + authenticate with an OpenSSH **certificate** (an SSH
@@ -286,9 +296,7 @@ pub async fn ssh_connect_pubkey_cert(
     })
     .await
     .map_err(|e| format!("cert connect task: {e}"))??;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// Connect + authenticate with username + private key. Accepts both
@@ -311,9 +319,7 @@ pub async fn ssh_connect_pubkey(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 // ---- Secret-store-backed variants -------------------------------------
@@ -340,9 +346,7 @@ pub async fn ssh_connect_password_with_secret(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// Pubkey auth using SecretStore-stored bytes. `passphrase_secret_id`
@@ -363,9 +367,7 @@ pub async fn ssh_connect_pubkey_with_secret(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// OpenSSH-cert auth using SecretStore-stored bytes.
@@ -387,9 +389,7 @@ pub async fn ssh_connect_pubkey_cert_with_secret(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 // ---- ProxyJump bastion variants (1.10b) -------------------------------
@@ -425,9 +425,7 @@ pub async fn ssh_connect_password_via_proxy(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// Pubkey auth tunnelled through `parent`.
@@ -453,9 +451,7 @@ pub async fn ssh_connect_pubkey_via_proxy(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 /// OpenSSH cert auth tunnelled through `parent`.
@@ -483,9 +479,7 @@ pub async fn ssh_connect_pubkey_cert_via_proxy(
     )
     .await
     .map_err(|e| e.to_string())?;
-    Ok(SshSession {
-        inner: Mutex::new(Some(session)),
-    })
+    Ok(SshSession::from_core(session))
 }
 
 // `ssh_connect_agent_via_proxy` intentionally NOT exposed: russh's
