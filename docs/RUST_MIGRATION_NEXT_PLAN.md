@@ -29,6 +29,27 @@ Litmus test for any review: if the answer to *"what does Dart need
 to know about this?"* is anything beyond *"what to draw on screen
 right now"*, the design is wrong.
 
+## Progress log
+
+| Step | Status | Commit |
+|---|---|---|
+| 1. `migration_runner` → Rust | DONE | `101798a7` |
+| 2. `app_config` → Rust | pending — **gated on step 9** (security_tier types couple in) |
+| 3. `session_store` → Rust | pending |
+| 4. `connection_manager` → Rust | pending |
+| 5. `transfer_manager` → Rust driver | pending — Rust queue+state shipped Phase 5.3; needs executor wired to live `SshSftpFile` handles + Dart UI swap |
+| 6. `port_forward_runtime` → Rust driver | pending — Rust registry+events shipped Phase 5.2; needs Tokio listener-accept loop |
+| 7. `known_hosts` manager → Rust + prompt protocol | pending |
+| 8. `update_service` → Rust state machine | pending |
+| 9. Security tier stack → Rust | pending — largest port |
+| 10. `session_recorder` → Rust driver | pending — Rust registry+events shipped Phase 5.4; needs frame-write loop |
+| 11. `qr_codec` finish + `import_service` close | pending |
+| 12. `deeplink_handler` listener through bus | pending |
+| 13a. `aes_gcm.generateKey` → Rust | DONE | `f1d14183` |
+| 13b. `conflict_resolver` | folded into step 7 (prompt protocol) |
+| 13c. `secret_buffer` / `secure_ref` | folded into step 9 (security tier) |
+| 13d. `clipboard_secret` | pending |
+
 ## Status today
 
 `lfs_core` carries the load-bearing primitives: SSH transport,
@@ -88,28 +109,17 @@ Order picks dependencies first so each step lands on a stable
 base. Each step is one focused arc (1–3 commits depending on
 shape). Mark `[done]` next to checklist items as they ship.
 
-### 1 — `migration_runner` → Rust
+### 1 — `migration_runner` → Rust [DONE]
 
-Startup-only; runs before UI mounts. Blocks the later
-`app_config` + master-password ports because they hit the
-migration registry on boot. Keeping the runner Dart while those
-swap creates a dual-runner window.
-
-**Touches.**
-- `lfs_core::migration::Runner` + `Migration` trait + per-
-  artefact transforms (re-export of the existing artefact
-  registry; Dart-side artefact code becomes Rust modules under
-  `lfs_core::migration::artefacts::*`).
-- FRB: `migration_run_for_artifact(name, blob, target_version)`,
-  `migration_run_all_at_boot()`.
-- Dart: `core/migration/migration_runner.dart` +
-  `core/migration/artefacts/*.dart` retire; boot sequence in
-  `app_init` calls Rust runner per artefact.
-
-**Risk.** Boot regression on existing installs. Mitigate with
-golden-file integration tests against representative artefact
-fixtures (`config.json` v1→v2, `credentials.kdf` v1→v3, `.lfs`
-v3→v4) before flipping.
+Shipped in commit `101798a7`. `lfs_core::migration` carries the
+Runner + Artefact + Migration traits + Registry + ConfigArtefact +
+KdfArtefact + SchemaVersions; FRB exposes
+`migration_run_on_startup` and `migration_config_version_on_disk`.
+Dart `core/migration/` shrinks to a one-line shim over the FRB
+call (`runStartupMigrations`). 11 unit tests in
+`lfs_core::migration` cover runner + artefact paths; Dart-side
+runner / archive / artefact / versioned-blob / registry tests
+deleted.
 
 ### 2 — `app_config` → Rust
 
@@ -358,20 +368,27 @@ dispatch is the residual.
 
 ### 13 — Pure helpers cleanup
 
-No dependencies on other steps; lands last to keep diffs small.
+No dependencies on other steps; lands as small commits when each
+gate clears.
 
-- `core/transfer/conflict_resolver.dart` — pure transform; fold
-  into `lfs_core::sftp::conflict_resolve`.
+- `core/transfer/conflict_resolver.dart` — **deferred to step 7
+  prompt protocol.** On second look the file is not pure logic;
+  it owns a `ConflictPrompt` callback that drives a UI dialog
+  and caches the user's "apply to all" decision. Moving Rust-side
+  needs the bus prompt-event protocol that step 7 (`known_hosts`)
+  ships first. Fold both prompt-protocol arcs into one rung.
 - `core/security/secret_buffer.dart` + `secure_ref.dart` — RAII
   helpers; the Dart wrappers retire once the security tier stack
-  moves (step 9). Already routes to `lfs_core::secrets::SecretStore`;
-  only the Dart class shells survive that step.
+  moves (step 9). Already routes to
+  `lfs_core::secrets::SecretStore`; only the Dart class shells
+  survive that step.
 - `core/security/clipboard_secret.dart` — timed clipboard wipe;
   fold into `lfs_core::clipboard` (uses `arboard` for the OS
   clipboard surface; Dart MethodChannel for Android sensitive-
   flag stays for that one platform).
-- `core/security/aes_gcm.dart` — keygen helper; fold into
-  `lfs_core::crypto::aes_gcm_random_key`.
+- ~~`core/security/aes_gcm.dart`~~ — **DONE**, commit `f1d14183`.
+  19-LOC keygen folded into `lfs_core::crypto::aes_gcm_random_key`
+  exposed as `frb(sync)`. Seven call sites swapped.
 
 After step 13: every load-bearing path runs in Rust. Dart layer
 is widgets + Riverpod subscribers + MethodChannel proxies.
