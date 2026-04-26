@@ -34,6 +34,7 @@ pub mod secrets;
 pub mod sftp;
 pub mod ssh;
 pub mod ssh_config;
+pub mod threat_vocabulary;
 pub mod transfer;
 
 pub use error::Error;
