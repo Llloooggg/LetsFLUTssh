@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'ssh.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `cancel_remote_forward_inner`, `from_core`, `next_forwarded_connection_inner`, `open_direct_tcpip_inner`, `open_sftp_inner`, `request_remote_forward_inner`
+// These functions are ignored because they are not marked as `pub`: `cancel_remote_forward_inner`, `from_core`, `from_core`, `next_forwarded_connection_inner`, `open_direct_tcpip_inner`, `open_sftp_inner`, `request_remote_forward_inner`, `snapshot`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Probe an SSH server with username + password.
@@ -244,8 +244,11 @@ Future<SshSession> sshConnectPubkeyCertViaProxy({
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SshSession>>
 abstract class SshSession implements RustOpaqueInterface {
-  /// Send `SSH_MSG_DISCONNECT` and tear down. Idempotent — calling
-  /// twice (or after `Drop`) is a no-op.
+  /// Send `SSH_MSG_DISCONNECT`. Idempotent — clearing the slot
+  /// stops new operations; russh's underlying `Handle` drops once
+  /// the last cloned `Arc` goes out of scope, which tears the TCP
+  /// connection down. The forward-pump loop holding the last live
+  /// clone exits naturally on the next `recv()` returning `None`.
   Future<void> disconnect();
 
   /// Open a PTY-backed shell channel sized to `cols × rows`.

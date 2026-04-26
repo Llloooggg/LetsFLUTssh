@@ -284,6 +284,40 @@ pub async fn db_sessions_delete(id: String) -> Result<u32, String> {
         .map(|n| n as u32)
 }
 
+/// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.
+#[derive(Debug, Clone)]
+pub struct DbStagedSecrets {
+    pub auth_type: String,
+    pub has_password: bool,
+    pub has_key_data: bool,
+    pub has_passphrase: bool,
+}
+
+impl From<lfs_core::db::sessions::StagedSecrets> for DbStagedSecrets {
+    fn from(r: lfs_core::db::sessions::StagedSecrets) -> Self {
+        Self {
+            auth_type: r.auth_type,
+            has_password: r.has_password,
+            has_key_data: r.has_key_data,
+            has_passphrase: r.has_passphrase,
+        }
+    }
+}
+
+/// Read the credential columns for [`session_id`] and push every
+/// non-empty value straight into the process-singleton SecretStore
+/// under the canonical `sess.<slot>.<id>` ids — bytes never cross
+/// back to Dart. Returns metadata describing which slots were staged
+/// so the caller can dispatch to the matching connect variant. Null
+/// when the row no longer exists.
+pub async fn db_sessions_stage_secrets(
+    session_id: String,
+) -> Result<Option<DbStagedSecrets>, String> {
+    run_db(move |c| lfs_core::db::sessions::stage_secrets_into_store(c, &session_id))
+        .await
+        .map(|opt| opt.map(DbStagedSecrets::from))
+}
+
 pub async fn db_sessions_delete_multiple(ids: Vec<String>) -> Result<u32, String> {
     run_db(move |c| lfs_core::db::sessions::delete_multiple(c, &ids))
         .await

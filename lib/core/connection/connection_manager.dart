@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../security/session_credential_cache.dart';
 import '../ssh/known_hosts.dart';
@@ -262,46 +263,78 @@ class ConnectionManager {
   /// [SshAuthMethod] family that [SshConnectRequest] uses.
   /// Precedence: keyData > password.
   ///
-  /// When the connection has a stable [sessionId] we stash plaintext
-  /// into the Rust SecretStore and emit the `*Ref` variant so the
-  /// russh handshake reads bytes from Rust-side rather than receiving
-  /// them through FRB. Quick-connect (no sessionId) keeps the
-  /// plaintext variant as a fallback — switching that path onto a
-  /// per-connection ephemeral ID is a follow-up.
+  /// Saved sessions go through `db_sessions_stage_secrets` which
+  /// reads the credential columns inside Rust and pushes them
+  /// straight into the SecretStore — plaintext never lands on the
+  /// Dart heap on the connect path. Quick-connect (no sessionId,
+  /// no DB row) still has to take its bytes from the in-memory
+  /// `SshAuth` because there is nothing on disk to read; for that
+  /// path we copy into a transient secret-store entry under a fresh
+  /// UUID so the russh handshake itself receives a Ref variant.
   Future<SshAuthMethod> _authFromConfig(SshAuth auth, String? sessionId) async {
     if (sessionId != null) {
-      if (auth.keyData.isNotEmpty) {
-        final keyId = 'sess.key.$sessionId';
-        await rust_app.secretsPut(
-          id: keyId,
-          bytes: Uint8List.fromList(auth.keyData.codeUnits),
+      try {
+        final staged = await rust_db.dbSessionsStageSecrets(
+          sessionId: sessionId,
         );
-        String? passphraseId;
-        if (auth.passphrase.isNotEmpty) {
-          passphraseId = 'sess.passphrase.$sessionId';
-          await rust_app.secretsPut(
-            id: passphraseId,
-            bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
-          );
+        if (staged != null) {
+          if (staged.hasKeyData) {
+            return SshAuthPubkeyRef(
+              'sess.key.$sessionId',
+              passphraseSecretId: staged.hasPassphrase
+                  ? 'sess.passphrase.$sessionId'
+                  : null,
+            );
+          }
+          if (staged.hasPassword) {
+            return SshAuthPasswordRef('sess.password.$sessionId');
+          }
         }
-        return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseId);
-      }
-      if (auth.password.isNotEmpty) {
-        final id = 'sess.password.$sessionId';
-        await rust_app.secretsPut(
-          id: id,
-          bytes: Uint8List.fromList(utf8.encode(auth.password)),
+      } catch (e) {
+        // Falls through to the plaintext variant if the stage call
+        // fails (DB locked, missing row, FRB unavailable). The
+        // operator still gets to connect; the only loss is the
+        // bytes-stay-Rust-side guarantee for this one attempt.
+        AppLogger.instance.log(
+          'dbSessionsStageSecrets failed; falling back to plaintext: $e',
+          name: 'Connection',
+          level: LogLevel.warn,
         );
-        return SshAuthPasswordRef(id);
       }
     }
+    // Quick-connect / staging fallback — copy the bytes once into a
+    // transient secret-store entry keyed by a fresh UUID and return
+    // the matching Ref variant. The plaintext lifetime on the Dart
+    // heap shrinks to this scope; the entry is dropped after the
+    // connect attempt by `_evictTransientSecret`.
+    final transientId = const Uuid().v4();
     if (auth.keyData.isNotEmpty) {
-      return SshAuthPubkey(
-        Uint8List.fromList(auth.keyData.codeUnits),
-        passphrase: auth.passphrase.isEmpty ? null : auth.passphrase,
+      final keyId = 'conn.key.$transientId';
+      await rust_app.secretsPut(
+        id: keyId,
+        bytes: Uint8List.fromList(auth.keyData.codeUnits),
       );
+      String? passphraseId;
+      if (auth.passphrase.isNotEmpty) {
+        passphraseId = 'conn.passphrase.$transientId';
+        await rust_app.secretsPut(
+          id: passphraseId,
+          bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
+        );
+      }
+      return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseId);
     }
-    return SshAuthPassword(auth.password);
+    if (auth.password.isNotEmpty) {
+      final id = 'conn.password.$transientId';
+      await rust_app.secretsPut(
+        id: id,
+        bytes: Uint8List.fromList(utf8.encode(auth.password)),
+      );
+      return SshAuthPasswordRef(id);
+    }
+    // Empty auth — let russh surface "no credentials" instead of
+    // pushing an empty value.
+    return const SshAuthPassword('');
   }
 
   /// Overlay credentials onto [config] from two defensive sources, in
