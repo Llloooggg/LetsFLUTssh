@@ -7,8 +7,7 @@
 // session_connect.dart picks this transport when the
 // `useRustSshTransport` flag is on.
 //
-// Sub-phase 1.5+ of the Rust core migration (see
-// docs/RUST_CORE_MIGRATION_PLAN.md §13).
+// See docs/RUST_CORE_MIGRATION_PLAN.md §13.
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -26,7 +25,7 @@ class RustTransport implements SshTransport {
   Future<void>? _forwardPump;
   bool _disconnected = false;
 
-  /// True when this transport adopted a session from the Phase 5.1
+  /// True when this transport adopted a session from the Rust
   /// connection actor (`connectionGetSession`). Lifecycle ownership
   /// belongs to the actor; the local `disconnect` becomes a no-op
   /// to avoid double-tearing the shared `Arc<Session>`.
@@ -34,7 +33,7 @@ class RustTransport implements SshTransport {
 
   RustTransport();
 
-  /// Adopt a Phase 5.1 actor-owned `SshSession`. The adopted
+  /// Adopt an actor-owned `SshSession`. The adopted
   /// transport surfaces `isConnected = true` immediately so channel
   /// ops (`openShell`, `openSftp`, `openDirectTcpip`,
   /// `requestRemoteForward`) start working without a separate

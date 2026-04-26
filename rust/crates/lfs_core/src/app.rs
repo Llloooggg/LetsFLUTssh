@@ -34,33 +34,31 @@ pub struct AppState {
     /// master key in hand. Callers that hit a `None` here surface
     /// "DB not initialized" up the stack rather than panicking.
     db: Mutex<Option<Arc<Db>>>,
-    /// Phase 5 typed Command / Event bus. Domain actors append
-    /// events; FRB subscribers consume them via per-screen view
-    /// streams. See `crate::bus` for the wire contract.
+    /// Typed Command / Event bus. Domain actors append events;
+    /// FRB subscribers consume them via per-screen view streams.
+    /// See `crate::bus` for the wire contract.
     pub bus: EventBus,
-    /// Phase 5.1 connection registry. Owns every active connection
-    /// actor; commands look up actors by [`crate::connection::ConnId`]
+    /// Connection registry. Owns every active connection actor;
+    /// commands look up actors by [`crate::connection::ConnId`]
     /// and run state-machine transitions under per-actor locks.
     pub connections: ConnectionRegistry,
-    /// Phase 5.5 auto-lock state machine. Owns the canonical idle
-    /// timer + lifecycle state; emits `AutoLockLocked` /
+    /// Auto-lock state machine. Owns the canonical idle timer +
+    /// lifecycle state; emits `AutoLockLocked` /
     /// `AutoLockUnlocked` events when transitions fire.
     pub autolock: Arc<AutoLockMachine>,
-    /// Phase 5.4 recorder registry. Owns the canonical state of
-    /// every active recording — Dart-side `SessionRecorder` swaps
-    /// to thin views over this once the frame-write driver lands.
+    /// Recorder registry. Owns the canonical state of every
+    /// active recording — Dart-side `SessionRecorder` swaps to
+    /// thin views over this once the frame-write driver lands.
     pub recorders: RecorderRegistry,
-    /// Phase 5.3 transfer queue. Owns the canonical task table +
-    /// per-task progress; Tokio worker pool driver lands in the
-    /// next 5.3 commit.
+    /// Transfer queue. Owns the canonical task table + per-task
+    /// progress; Tokio worker pool driver lands in a follow-up.
     pub transfers: TransferQueue,
-    /// Phase 5.2 port-forward registry. Owns the canonical rule
-    /// table + status; Tokio listener-accept loops land in the
-    /// next 5.2 commit.
+    /// Port-forward registry. Owns the canonical rule table +
+    /// status; Tokio listener-accept loops land in a follow-up.
     pub port_forwards: PortForwardRegistry,
-    /// Phase 5.6 import handle registry. Holds decrypted-but-not-
-    /// yet-applied `.lfs` archives between the preview and apply
-    /// FRB calls so plaintext entries never leak through the Dart
+    /// Import handle registry. Holds decrypted-but-not-yet-
+    /// applied `.lfs` archives between the preview and apply FRB
+    /// calls so plaintext entries never leak through the Dart
     /// heap during the user's preview review.
     pub imports: ImportRegistry,
 }

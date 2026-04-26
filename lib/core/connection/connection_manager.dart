@@ -69,7 +69,7 @@ class ConnectionManager {
   final SshTransport Function(KnownHostsManager)? _transportFactory;
 
   /// When true, [connectAsync] dispatches handshake work to the
-  /// Phase 5.1 Rust connection actor instead of the legacy
+  /// Rust connection actor instead of the legacy
   /// in-Dart driver. Production wires this on; tests that exercise
   /// the manager without a live FRB native lib leave it off so
   /// they keep the in-Dart driver semantics with their injected
@@ -135,7 +135,7 @@ class ConnectionManager {
     );
 
     // Start connection in background. Production path (`_useRustActor`)
-    // goes through the Phase 5.1 Rust connection actor. Tests that
+    // goes through the Rust connection actor. Tests that
     // exercise the manager without a live FRB native lib leave the
     // flag off and keep the legacy in-Dart driver, where they can
     // inject mock transports via `_transportFactory`.
@@ -148,8 +148,8 @@ class ConnectionManager {
     return conn;
   }
 
-  /// Phase 5.1 connect path — dispatches the connect command to the
-  /// Rust connection actor and mirrors its bus events back onto the
+  /// Rust-actor connect path — dispatches the connect command to
+  /// the Rust connection actor and mirrors its bus events back onto the
   /// Dart `Connection` so the existing UI can keep observing the
   /// same `state` / `progressStream` / `connectionError` surface.
   /// Once the actor reports `Connected`, the live `SshSession` is
@@ -373,7 +373,7 @@ class ConnectionManager {
       // surface as an error rather than leaking plaintext through
       // an alternate code path.
       _ => throw StateError(
-        'Phase 5.1 actor path requires a Ref-shaped SshAuthMethod; got $auth',
+        'Rust actor connect path requires a Ref-shaped SshAuthMethod; got $auth',
       ),
     };
   }

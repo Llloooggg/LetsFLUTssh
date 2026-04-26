@@ -2,8 +2,8 @@
 //! client opened off an `SshSession`; methods exposed as Dart calls
 //! returning futures / typed Dart exceptions on error.
 //!
-//! Sub-phase 1.5a — byte-level CRUD only. Streaming GET/PUT for
-//! large files (progress-reporting) lands at sub-phase 1.5b.
+//! Byte-level CRUD only. Streaming GET/PUT for large files
+//! (progress-reporting) lands in a follow-up.
 
 use std::sync::Arc;
 
@@ -75,8 +75,8 @@ impl SshSftp {
         Ok(entries.into_iter().map(SftpDirEntry::from).collect())
     }
 
-    /// Read a small file fully into memory. Use the streaming surface
-    /// (sub-phase 1.5b) for files larger than a few MB.
+    /// Read a small file fully into memory. Use the streaming
+    /// surface for files larger than a few MB.
     pub async fn read_file(&self, path: String) -> Result<Vec<u8>, String> {
         self.inner.read_file(&path).await.map_err(|e| e.to_string())
     }

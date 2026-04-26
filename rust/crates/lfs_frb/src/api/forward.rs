@@ -1,11 +1,11 @@
 //! FRB adapter for `lfs_core` direct-tcpip channels (`-L` primitive
 //! and ProxyJump hops).
 //!
-//! Sub-phase 1.7a — exposes the russh primitive. Local-listener
-//! glue (`-L` accept loop) and bastion-as-transport plumbing
-//! (ProxyJump) live higher up — Dart drives the listener for now;
-//! 1.7b/1.10 may move that into `lfs_core::forward` once the
-//! bastion-chain shape is clearer.
+//! Exposes the russh primitive. Local-listener glue (`-L` accept
+//! loop) and bastion-as-transport plumbing (ProxyJump) live
+//! higher up — Dart drives the listener for now; a follow-up may
+//! move that into `lfs_core::forward` once the bastion-chain
+//! shape is clearer.
 
 use std::sync::Arc;
 

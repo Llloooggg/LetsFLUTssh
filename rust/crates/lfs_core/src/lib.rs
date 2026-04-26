@@ -39,8 +39,8 @@ pub use error::Error;
 ///
 /// Used by adapters as a smoke test for the FFI plumbing — the
 /// frontend calls into the adapter, the adapter delegates here, the
-/// version string round-trips back. Sub-phase 1.1 keeps this around
-/// even as real entrypoints (`connect_password`, etc.) come online.
+/// version string round-trips back. Kept around alongside the
+/// real entrypoints (`connect_password`, etc.) as a cheap probe.
 pub fn ping() -> String {
     format!("lfs_core v{}", env!("CARGO_PKG_VERSION"))
 }

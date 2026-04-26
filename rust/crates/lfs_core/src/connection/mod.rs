@@ -1,4 +1,4 @@
-//! Connection lifecycle — Phase 5.1 actor.
+//! Connection lifecycle actor.
 //!
 //! Owns the canonical state for every active SSH connection. Dart
 //! drives operations by dispatching `ConnectionCommand`s through the

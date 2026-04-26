@@ -1,14 +1,15 @@
-//! Typed Command / Event bus — Phase 5 foundation.
+//! Typed Command / Event bus — Rust-core foundation.
 //!
 //! Frontend dispatches `Command`s (operation envelopes); domain
 //! actors mutate state and publish `Event`s onto the bus broker.
 //! Subscribers receive an `Event` stream filtered by topic, so a
 //! per-screen view picks up only the events that affect it.
 //!
-//! The 5.0 surface defines just the scaffolding: a `NoopEcho`
-//! command + an `Echoed` event used as smoke test for the FRB
-//! plumbing. Sub-phases 5.1+ extend the enums in lockstep with the
-//! actor moves (`Connection*`, `PortForward*`, `Transfer*`, ...).
+//! The foundation surface defines just the scaffolding: a
+//! `NoopEcho` command + an `Echoed` event used as smoke test for
+//! the FRB plumbing. Concrete domain enums (`Connection*`,
+//! `PortForward*`, `Transfer*`, ...) extend in lockstep with the
+//! actor moves below.
 //!
 //! # Design choices
 //!
@@ -42,24 +43,24 @@ const EVENT_CHANNEL_CAPACITY: usize = 256;
 /// to one or two topics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EventTopic {
-    /// Smoke / debug events — Phase 5.0 echo, future bus self-tests.
+    /// Smoke / debug events — foundation echo, future bus self-tests.
     Diagnostics,
-    /// Connection lifecycle (Phase 5.1).
+    /// Connection lifecycle.
     Connection,
-    /// Port forward rule status (Phase 5.2).
+    /// Port forward rule status.
     PortForward,
-    /// Transfer queue task progress (Phase 5.3).
+    /// Transfer queue task progress.
     Transfer,
-    /// Recorder lifecycle (Phase 5.4).
+    /// Recorder lifecycle.
     Recorder,
-    /// Auto-lock state machine (Phase 5.5).
+    /// Auto-lock state machine.
     AutoLock,
-    /// `.lfs` import handle progress (Phase 5.6).
+    /// `.lfs` import handle progress.
     Import,
 }
 
 /// State change envelope published onto the bus. Variants accrete
-/// as Phase 5 sub-phases land.
+/// as actor lifts land.
 #[derive(Debug, Clone)]
 pub enum Event {
     /// Foundation smoke event. `bus_dispatch(NoopEcho)` publishes
@@ -67,7 +68,7 @@ pub enum Event {
     /// verified end-to-end before any real domain command lands.
     Echoed { payload: String },
 
-    /// 5.1 connection lifecycle — emitted whenever an actor
+    /// Connection lifecycle — emitted whenever an actor
     /// transitions between `Disconnected / Connecting / Connected`.
     /// Subscribers re-snapshot their connection-level views off
     /// this signal; the snapshot itself is fetched via a separate
@@ -78,7 +79,7 @@ pub enum Event {
         state: crate::connection::ConnectionState,
     },
 
-    /// 5.1 connection lifecycle — fan-out per progress step
+    /// Connection lifecycle — fan-out per progress step
     /// (`socketConnect / hostKeyVerify / authenticate / openChannel`
     /// at `inProgress / success / failed`). The Dart-era
     /// `Connection.progressStream` retires in favour of subscribing
@@ -88,7 +89,7 @@ pub enum Event {
         step: crate::connection::ProgressStep,
     },
 
-    /// 5.1 connection lifecycle — emitted when an actor records a
+    /// Connection lifecycle — emitted when an actor records a
     /// fresh connect-time error. Detail is the localised /
     /// sanitised message; subscribers pair this with the matching
     /// `ConnectionStateChanged(Disconnected)` for UI feedback.
@@ -97,60 +98,60 @@ pub enum Event {
         detail: String,
     },
 
-    /// 5.1 connection lifecycle — emitted when an actor is
+    /// Connection lifecycle — emitted when an actor is
     /// removed from the registry (manual disconnect, parent of a
     /// disconnected bastion chain).
     ConnectionRemoved { id: crate::connection::ConnId },
 
-    /// 5.5 auto-lock — fired when the idle timer expires, when
+    /// Auto-lock — fired when the idle timer expires, when
     /// the app backgrounds with a non-zero timeout, or when the
     /// user explicitly requests a lock. The payload is empty —
     /// subscribers re-fetch any state they need from the
     /// machine snapshot or the DB.
     AutoLockLocked,
-    /// 5.5 auto-lock — fired after the Dart unlock dialog
+    /// Auto-lock — fired after the Dart unlock dialog
     /// supplies a fresh key + reopens the DB.
     AutoLockUnlocked,
-    /// 5.5 auto-lock — fired when the configured idle timeout
+    /// Auto-lock — fired when the configured idle timeout
     /// changes. Carries the new value in minutes (0 = off).
     AutoLockTimeoutChanged { minutes: i64 },
 
-    /// 5.4 recorder — fired when a fresh recording actor enters
+    /// Recorder — fired when a fresh recording actor enters
     /// the registry.
     RecorderStarted { id: String, path: String },
-    /// 5.4 recorder — fired when an actor leaves the registry
+    /// Recorder — fired when an actor leaves the registry
     /// (close / shutdown / file rotation).
     RecorderStopped { id: String },
-    /// 5.4 recorder — fired after the frame-write driver records
+    /// Recorder — fired after the frame-write driver records
     /// a chunk of bytes. Carries the running total so subscribers
     /// can render progress without polling.
     RecorderBytesWritten { id: String, total_bytes: u64 },
 
-    /// 5.3 transfer queue — task entered the queue.
+    /// Transfer queue — task entered the queue.
     TransferTaskAdded { id: String },
-    /// 5.3 transfer queue — task transitioned to a new state.
+    /// Transfer queue — task transitioned to a new state.
     TransferTaskState {
         id: String,
         state: crate::transfer::TaskState,
     },
-    /// 5.3 transfer queue — bytes-done counter advanced.
+    /// Transfer queue — bytes-done counter advanced.
     TransferTaskProgress {
         id: String,
         bytes_done: u64,
         bytes_total: u64,
     },
-    /// 5.3 transfer queue — terminal failure on a task.
+    /// Transfer queue — terminal failure on a task.
     TransferTaskError { id: String, detail: String },
 
-    /// 5.2 port forward — rule actor entered the registry.
+    /// Port forward — rule actor entered the registry.
     PortForwardRegistered { id: String },
-    /// 5.2 port forward — rule status transitioned.
+    /// Port forward — rule status transitioned.
     PortForwardStatus {
         id: String,
         status: crate::portforward::RuleStatus,
         detail: Option<String>,
     },
-    /// 5.2 port forward — rule actor left the registry.
+    /// Port forward — rule actor left the registry.
     PortForwardRemoved { id: String },
 }
 
@@ -179,7 +180,7 @@ impl Event {
     }
 }
 
-/// Operation envelope dispatched by the frontend. Sub-phases
+/// Operation envelope dispatched by the frontend. New variants
 /// extend this enum with concrete domain commands.
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -188,27 +189,27 @@ pub enum Command {
     /// tests.
     NoopEcho { payload: String },
 
-    /// 5.1 — remove an actor from the registry. Idempotent on a
+    /// Remove an actor from the registry. Idempotent on a
     /// missing id. Drops the held russh handle (which sends
     /// `SSH_MSG_DISCONNECT` on Drop) before clearing the row.
     ConnectionDisconnect { id: crate::connection::ConnId },
 
-    /// 5.5 auto-lock — pointer activity ping. Resets the idle
+    /// Auto-lock — pointer activity ping. Resets the idle
     /// timer; the Dart side fires this once per significant
     /// pointer event so the lock doesn't trip mid-typing.
     AutoLockOnPointerActivity,
-    /// 5.5 auto-lock — lifecycle change. `background = true` is
+    /// Auto-lock — lifecycle change. `background = true` is
     /// the Dart-era `paused / inactive / hidden` umbrella;
     /// `background = false` is `resumed`.
     AutoLockOnLifecycleChange { background: bool },
-    /// 5.5 auto-lock — configure the idle timeout in minutes
+    /// Auto-lock — configure the idle timeout in minutes
     /// (0 disables the timer). Mirrors the Settings → Auto-lock
     /// preset list.
     AutoLockSetTimeout { minutes: i64 },
-    /// 5.5 auto-lock — explicit lock request (Settings →
+    /// Auto-lock — explicit lock request (Settings →
     /// "Lock now", deeplink, etc).
     AutoLockRequestLock,
-    /// 5.5 auto-lock — unlock signal from the Dart-side unlock
+    /// Auto-lock — unlock signal from the Dart-side unlock
     /// dialog. The dialog has already supplied the master key +
     /// reopened the DB; the machine just resets its activity
     /// clock and emits the matching event.
@@ -258,10 +259,10 @@ impl Default for EventBus {
 }
 
 /// Dispatch a typed command. Domain handlers route by command
-/// variant. Sub-phases extend the match arms in lockstep with each
-/// actor move.
+/// variant. New variants extend the match arms in lockstep with
+/// each actor move.
 ///
-/// Async because 5.1+ command handlers touch tokio mutexes
+/// Async because command handlers touch tokio mutexes
 /// (registry lookups, per-actor locks). Synchronous-leaf commands
 /// like `NoopEcho` keep the same await shape so the FRB caller
 /// never has to branch.

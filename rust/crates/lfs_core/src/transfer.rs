@@ -1,4 +1,4 @@
-//! Transfer queue — Phase 5.3 scaffolding.
+//! Transfer queue — scaffolding.
 //!
 //! Owns the canonical state for the SFTP transfer queue: per-task
 //! status (`Queued / Running / Completed / Failed / Cancelled`),

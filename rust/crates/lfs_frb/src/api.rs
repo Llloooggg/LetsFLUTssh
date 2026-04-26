@@ -1,6 +1,6 @@
-//! FRB-exposed surface. Sub-phases (1.1+) register submodules here
-//! (`mod ssh`, `mod keys`, `mod agent`, ...) — each one a thin wrapper
-//! over the equivalent module in `lfs_core`.
+//! FRB-exposed surface. Submodules register here (`mod ssh`,
+//! `mod keys`, `mod agent`, ...) — each one a thin wrapper over
+//! the equivalent module in `lfs_core`.
 
 pub mod app;
 pub mod archive;

@@ -1,4 +1,4 @@
-//! Session recorder — Phase 5.4 scaffolding.
+//! Session recorder — registry scaffolding.
 //!
 //! Owns the canonical ring buffer + file IO state for active
 //! recordings. Per-frame AES-GCM crypto already runs Rust-side

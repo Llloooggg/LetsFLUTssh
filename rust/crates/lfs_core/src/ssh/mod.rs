@@ -1,16 +1,15 @@
 //! SSH transport surface (russh-backed).
 //!
-//! Sub-phase 1.1 shipped `try_connect_password` — a one-shot
-//! validate-and-disconnect probe over the password method.
-//! Sub-phase 1.2 added `try_connect_pubkey` for OpenSSH-format keys.
-//! Sub-phase 1.3 introduces long-lived `Session` + `Shell` (PTY-
-//! allocated shell channel) — the foundation for the `SshTransport`
-//! interface that arrives at sub-phase 1.5 once SFTP + port
-//! forwarding land.
-//! Sub-phase 1.4a extends key parsing to PuTTY PPK (v2 + v3 / Argon2id)
-//! via russh-keys' `from_ppk` (gated on the `ppk` cargo feature, enabled
-//! through a direct dep on `internal-russh-forked-ssh-key`).
-//! Sub-phase 1.4b: legacy PEM PKCS#1 / PKCS#8.
+//! Provides `try_connect_password` / `try_connect_pubkey` (one-shot
+//! validate-and-disconnect probes) plus long-lived `Session` +
+//! `Shell` (PTY-allocated shell channel) — the foundation for the
+//! `SshTransport` interface alongside SFTP + port forwarding.
+//!
+//! Key parsing covers OpenSSH, PuTTY PPK (v2 + v3 / Argon2id) via
+//! russh-keys' `from_ppk` (gated on the `ppk` cargo feature,
+//! enabled through a direct dep on
+//! `internal-russh-forked-ssh-key`), and legacy PEM PKCS#1 /
+//! PKCS#8.
 
 use std::sync::Arc;
 
@@ -29,11 +28,10 @@ use crate::error::Error;
 /// and we relay it through the queue for the caller to drain via
 /// `Session::next_forwarded_connection`.
 ///
-/// Sub-phase 1.1–1.3 only validates that the protocol pipeline reaches
-/// userauth — host-key verification (TOFU + known_hosts integration)
-/// arrives in sub-phase 1.5 alongside the real session lifecycle. Do
-/// not promote the accept-all `check_server_key` to default once 1.5
-/// lands.
+/// Validates that the protocol pipeline reaches userauth.
+/// Host-key verification (TOFU + known_hosts integration) sits
+/// alongside the real session lifecycle. Do not promote the
+/// accept-all `check_server_key` to default.
 pub struct LfsHandler {
     forward_tx: Option<tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>,
 }
@@ -231,11 +229,9 @@ pub async fn try_connect_password(
 /// auth + immediate disconnect.
 ///
 /// Accepts:
-///   - OpenSSH PEM (`-----BEGIN OPENSSH PRIVATE KEY-----`) — since 1.2
-///   - PuTTY PPK (`PuTTY-User-Key-File-...`)             — since 1.4a
-///
-/// Legacy PEM PKCS#1 / PKCS#8 (`-----BEGIN RSA PRIVATE KEY-----`)
-/// land at sub-phase 1.4b.
+///   - OpenSSH PEM (`-----BEGIN OPENSSH PRIVATE KEY-----`)
+///   - PuTTY PPK (`PuTTY-User-Key-File-...`)
+///   - Legacy PEM PKCS#1 / PKCS#8 (`-----BEGIN RSA PRIVATE KEY-----`)
 ///
 /// `passphrase`, when given, also wraps in `Zeroizing` for the same
 /// best-effort scrub semantics as `try_connect_password`.
@@ -325,8 +321,8 @@ impl Session {
     /// returned `Shell` owns both halves of the channel and exposes
     /// concurrent write + read APIs.
     ///
-    /// Sub-phase 1.3a fixes `term = "xterm-256color"`. A `term`
-    /// override lands at 1.3b alongside the Dart-side wiring.
+    /// Fixes `term = "xterm-256color"`; a `term` override is a
+    /// follow-up alongside the Dart-side wiring.
     pub async fn open_shell(&self, cols: u32, rows: u32) -> Result<Shell, Error> {
         let channel = self
             .handle
@@ -653,7 +649,7 @@ impl Session {
         })
     }
 
-    // ---- ProxyJump + secret-store-backed connects (Phase 5.1) -----
+    // ---- ProxyJump + secret-store-backed connects ----------------
     // The `_via_proxy_with_secret_owned_arc` family takes an
     // `Arc<Session>` for the parent (so the returned future owns
     // its parent reference and stays `'static` instead of borrowing
@@ -1078,9 +1074,9 @@ async fn connect_via_agent(host: String, port: u16, user: String) -> Result<Sess
     for ident in identities {
         let public = match ident {
             russh::keys::agent::AgentIdentity::PublicKey { key, .. } => key,
-            // Cert-bearing identities skipped at sub-phase 1.11a —
-            // SSH cert userauth (sub-phase 1.12) needs the upstream
-            // russh-keys cert algorithm tables anyway.
+            // Cert-bearing identities skipped here — SSH cert
+            // userauth needs the upstream russh-keys cert
+            // algorithm tables anyway.
             russh::keys::agent::AgentIdentity::Certificate { .. } => continue,
         };
         let hash_alg = if public.algorithm().is_rsa() {
@@ -1170,8 +1166,8 @@ async fn finish_authenticate_pubkey(
 ) -> Result<(), Error> {
     let hash_alg = if key.algorithm().is_rsa() {
         // Default to SHA-256 for RSA — server-side OpenSSH ≥7.2 prefers
-        // it over the legacy SHA-1 (`ssh-rsa`). Sub-phase 1.2b will
-        // probe `best_supported_rsa_hash` and fall back if the server
+        // it over the legacy SHA-1 (`ssh-rsa`). A follow-up may probe
+        // `best_supported_rsa_hash` and fall back if the server
         // explicitly rejects SHA-256.
         Some(HashAlg::Sha256)
     } else {
@@ -1199,9 +1195,9 @@ async fn finish_authenticate_pubkey(
 /// marker routes to russh-keys' `from_openssh`; bytes starting with
 /// `PuTTY-User-Key-File-` route to `from_ppk` (PPK feature on the
 /// forked ssh-key crate, enabled via Cargo.toml direct dep). Legacy
-/// PEM PKCS#1 / PKCS#8 (`-----BEGIN RSA PRIVATE KEY-----` etc.) are
-/// not yet handled — sub-phase 1.4b layers an `rsa::pkcs1` /
-/// `pkcs8` parser on top once the upstream RustCrypto RC graduates.
+/// PEM PKCS#1 / PKCS#8 (`-----BEGIN RSA PRIVATE KEY-----` etc.)
+/// route through the legacy `rsa::pkcs1` / `pkcs8` parser on top
+/// of russh-keys.
 fn parse_private_key(bytes: &[u8], passphrase: Option<&str>) -> Result<PrivateKey, Error> {
     let trimmed: Vec<u8> = bytes
         .iter()

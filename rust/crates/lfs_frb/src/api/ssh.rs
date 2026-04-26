@@ -2,12 +2,11 @@
 //!
 //! Two surfaces today:
 //!   - One-shot probes (`ssh_try_connect_password`,
-//!     `ssh_try_connect_pubkey`) — sub-phase 1.1 / 1.2. Validate
-//!     credentials and disconnect.
+//!     `ssh_try_connect_pubkey`) — validate credentials and
+//!     disconnect.
 //!   - Long-lived session + shell (`SshSession`, `SshShell`) —
-//!     sub-phase 1.3. Opens an interactive PTY-backed shell channel
-//!     and exposes write / read / resize / eof. Real Dart
-//!     integration into the terminal UI lands at sub-phase 1.3b.
+//!     opens an interactive PTY-backed shell channel and exposes
+//!     write / read / resize / eof.
 //!
 //! Session / shell are exposed as FRB opaque types — Dart receives
 //! handle objects whose `dispose()` triggers Rust `Drop` and tears
@@ -36,9 +35,8 @@ use crate::frb_generated::StreamSink;
 /// disconnected after); throws a typed Dart exception on connect
 /// failure, host-key rejection, or auth failure.
 ///
-/// Sub-phase 1.1 surface — sub-phase 1.3 introduces a long-lived
-/// session handle and the full `SshTransport` interface on the Dart
-/// side.
+/// One-shot probe surface — the long-lived session handle plus
+/// the full `SshTransport` interface live on `SshSession`.
 pub async fn ssh_try_connect_password(
     host: String,
     port: u16,
@@ -57,7 +55,7 @@ pub async fn ssh_try_connect_password(
 /// `passphrase` is required only when the key file is encrypted.
 ///
 /// Legacy PEM PKCS#1 / PKCS#8 (`-----BEGIN RSA PRIVATE KEY-----`
-/// etc.) lands at sub-phase 1.4b.
+/// etc.) routes through the same parser.
 pub async fn ssh_try_connect_pubkey(
     host: String,
     port: u16,
@@ -286,7 +284,7 @@ pub async fn ssh_connect_agent(
 /// id_*.pub`). Server must trust the issuing CA via
 /// `TrustedUserCAKeys`.
 ///
-/// Sub-phase 1.12 — §6.2 surface.
+/// SSH certificate auth surface (see ARCHITECTURE §6.2).
 pub async fn ssh_connect_pubkey_cert(
     host: String,
     port: u16,
@@ -552,7 +550,7 @@ impl SshShell {
     /// remote sent `Close` / `Eof`) or when the Dart subscription is
     /// cancelled (sink rejects further `add`s).
     ///
-    /// Sub-phase 1.3b surface — the Dart-side terminal widget binds
+    /// The Dart-side terminal widget binds
     /// `terminal.write(...)` to the `Output` / `ExtendedOutput`
     /// variants and surfaces `ExitStatus` / `ExitSignal` to the
     /// connection-state UI. Since `SshShell::next_event` already

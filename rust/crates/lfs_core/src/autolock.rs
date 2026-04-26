@@ -1,4 +1,4 @@
-//! Auto-lock state machine — Phase 5.5.
+//! Auto-lock state machine.
 //!
 //! Owns the canonical idle-lock state. Dart side dispatches
 //! lifecycle + activity commands through the bus; Rust mutates

@@ -1,13 +1,13 @@
-//! FRB adapter for `lfs_core::bus`. Phase 5.0 surface — typed
-//! Command / Event bus that turns Dart into a thin renderer
-//! subscribed to Rust state. Sub-phases extend the enum variants in
-//! lockstep with the actor moves.
+//! FRB adapter for `lfs_core::bus` — typed Command / Event bus
+//! that turns Dart into a thin renderer subscribed to Rust state.
+//! New variants extend the enums in lockstep with the actor
+//! moves.
 
 use crate::frb_generated::StreamSink;
 
 /// Topic tag the Dart subscriber picks. The FRB-visible mirror of
-/// `lfs_core::bus::EventTopic` — bumped in lockstep when sub-phases
-/// add new domains.
+/// `lfs_core::bus::EventTopic` — bumped in lockstep when new
+/// domains are added.
 #[derive(Debug, Clone, Copy)]
 pub enum BusTopic {
     Diagnostics,
@@ -115,66 +115,65 @@ impl From<lfs_core::connection::ProgressStep> for BusProgressStep {
 }
 
 /// State change envelope delivered to subscribers. Mirrors
-/// `lfs_core::bus::Event` — variants accrete as Phase 5 sub-phases
-/// land.
+/// `lfs_core::bus::Event` — variants accrete as actor lifts land.
 #[derive(Debug, Clone)]
 pub enum BusEvent {
-    /// 5.0 smoke event. Foundation plumbing test only — no domain
+    /// Smoke event. Foundation plumbing test only — no domain
     /// state behind it.
     Echoed { payload: String },
-    /// 5.1 — connection state machine transitioned.
+    /// Connection state machine transitioned.
     ConnectionStateChanged {
         id: String,
         state: BusConnectionState,
     },
-    /// 5.1 — per-step progress fan-out during connect / reconnect.
+    /// Per-step progress fan-out during connect / reconnect.
     ConnectionProgress { id: String, step: BusProgressStep },
-    /// 5.1 — connect-time error recorded against an actor.
+    /// Connect-time error recorded against an actor.
     ConnectionError { id: String, detail: String },
-    /// 5.1 — actor removed from the registry (manual disconnect or
+    /// Actor removed from the registry (manual disconnect or
     /// parent of a disconnected bastion chain).
     ConnectionRemoved { id: String },
 
-    /// 5.5 auto-lock — fired when the idle timer expires, the app
+    /// Auto-lock — fired when the idle timer expires, the app
     /// backgrounds with a non-zero timeout, or the user explicitly
     /// requests a lock.
     AutoLockLocked,
-    /// 5.5 auto-lock — fired after the Dart unlock dialog supplies
+    /// Auto-lock — fired after the Dart unlock dialog supplies
     /// a fresh key + reopens the DB.
     AutoLockUnlocked,
-    /// 5.5 auto-lock — fired when the configured idle timeout
+    /// Auto-lock — fired when the configured idle timeout
     /// changes. Carries the new value in minutes (0 = off).
     AutoLockTimeoutChanged { minutes: i64 },
 
-    /// 5.4 recorder — recording actor entered the registry.
+    /// Recorder — recording actor entered the registry.
     RecorderStarted { id: String, path: String },
-    /// 5.4 recorder — recording actor left the registry.
+    /// Recorder — recording actor left the registry.
     RecorderStopped { id: String },
-    /// 5.4 recorder — chunk written; carries running byte total.
+    /// Recorder — chunk written; carries running byte total.
     RecorderBytesWritten { id: String, total_bytes: u64 },
 
-    /// 5.3 transfer queue — task entered the queue.
+    /// Transfer queue — task entered the queue.
     TransferTaskAdded { id: String },
-    /// 5.3 transfer queue — task transitioned to a new state.
+    /// Transfer queue — task transitioned to a new state.
     TransferTaskState { id: String, state: BusTaskState },
-    /// 5.3 transfer queue — bytes-done counter advanced.
+    /// Transfer queue — bytes-done counter advanced.
     TransferTaskProgress {
         id: String,
         bytes_done: u64,
         bytes_total: u64,
     },
-    /// 5.3 transfer queue — terminal failure on a task.
+    /// Transfer queue — terminal failure on a task.
     TransferTaskError { id: String, detail: String },
 
-    /// 5.2 port forward — rule actor entered the registry.
+    /// Port forward — rule actor entered the registry.
     PortForwardRegistered { id: String },
-    /// 5.2 port forward — rule status transitioned.
+    /// Port forward — rule status transitioned.
     PortForwardStatus {
         id: String,
         status: BusRuleStatus,
         detail: Option<String>,
     },
-    /// 5.2 port forward — rule actor left the registry.
+    /// Port forward — rule actor left the registry.
     PortForwardRemoved { id: String },
 }
 

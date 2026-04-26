@@ -1,14 +1,12 @@
 //! SFTP client surface (russh-sftp-backed, v3 protocol).
 //!
-//! Sub-phase 1.5a shipped the byte-level CRUD surface — list, read,
-//! write, stat, rename, mkdir, remove.
-//!
-//! Sub-phase 1.5b adds streamed GET/PUT for large files: open
-//! returns a `SftpFile` handle, callers pump chunks via `read_chunk`
-//! / `write_all` and may seek for resumable transfers. Mirrors
-//! dartssh2's `SftpFile.read()` / `writeBytes()` byte-stream surface
-//! and feeds the existing transfer queue once the unified
-//! SshTransport swap lands.
+//! Byte-level CRUD surface — list, read, write, stat, rename,
+//! mkdir, remove — plus streamed GET/PUT for large files: open
+//! returns a `SftpFile` handle, callers pump chunks via
+//! `read_chunk` / `write_all` and may seek for resumable
+//! transfers. Mirrors dartssh2's `SftpFile.read()` /
+//! `writeBytes()` byte-stream surface and feeds the existing
+//! transfer queue once the unified SshTransport swap lands.
 //!
 //! `Sftp` is opened off a live `ssh::Session` via
 //! `Session::open_sftp` — internally it allocates a fresh channel,
@@ -74,7 +72,7 @@ impl Sftp {
 
     /// Read a small file fully into memory. Suitable for config /
     /// dotfile-sized reads; large files (≥ a few MB) should go
-    /// through the streaming surface that lands at sub-phase 1.5b.
+    /// through the streaming surface (`open` + `read_chunk`).
     pub async fn read_file(&self, path: &str) -> Result<Vec<u8>, Error> {
         self.session
             .read(path)

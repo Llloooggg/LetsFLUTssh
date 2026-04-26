@@ -1,4 +1,4 @@
-//! Port forward registry — Phase 5.2 scaffolding.
+//! Port forward registry — scaffolding.
 //!
 //! Owns the canonical state of every active forwarding rule:
 //! kind (`Local` / `Remote` / `Dynamic`), bind endpoint, target,
