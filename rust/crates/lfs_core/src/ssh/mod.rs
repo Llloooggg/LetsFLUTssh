@@ -11,6 +11,7 @@
 //! `internal-russh-forked-ssh-key`), and legacy PEM PKCS#1 /
 //! PKCS#8.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use russh::client::{self, AuthResult, Handle, Handler, Msg};
@@ -265,10 +266,98 @@ pub struct Session {
     handle: Handle<LfsHandler>,
     /// Inbound `-R` forwarded connections enqueued by `LfsHandler`.
     /// `Mutex` because `recv()` is `&mut self` on the receiver.
+    /// Drained either by the legacy `next_forwarded_connection` path
+    /// or — once `register_remote_forward_route` lazy-spawns it — by
+    /// the per-session route dispatcher.
     forward_rx: Mutex<tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>>,
+    /// Per-`(connected_address, connected_port)` route table
+    /// populated by `register_remote_forward_route`. The dispatcher
+    /// task pulls from `forward_rx` and routes inbound forwards to
+    /// the matching sender; mismatched (or unregistered) forwards
+    /// are dropped on the floor.
+    forward_routes: Mutex<HashMap<(String, u32), tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>>,
+    /// Lazy-spawn flag for the dispatcher task. Set on the first
+    /// call to `register_remote_forward_route`; mutual exclusion
+    /// against concurrent first-call races is via
+    /// `compare_exchange` rather than a Mutex so the registration
+    /// hot-path stays lock-free after the dispatcher is up.
+    forward_dispatcher_started: std::sync::atomic::AtomicBool,
 }
 
 impl Session {
+    /// Build the [`Session`] wrapper around a freshly authenticated
+    /// russh `Handle` + the matching forwarded-channel receiver.
+    /// Co-located with the field set so every constructor site
+    /// (password / pubkey / cert / agent / proxy variants) uses the
+    /// same shape — adding a field bumps just this helper.
+    fn from_handle(
+        handle: Handle<LfsHandler>,
+        forward_rx: tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>,
+    ) -> Self {
+        Session {
+            handle,
+            forward_rx: Mutex::new(forward_rx),
+            forward_routes: Mutex::new(HashMap::new()),
+            forward_dispatcher_started: std::sync::atomic::AtomicBool::new(false),
+        }
+    }
+
+    /// Register a route for inbound `-R` forwarded connections that
+    /// arrive at `(connected_address, connected_port)`. Returns a
+    /// fresh receiver — each accepted connection whose
+    /// `connected_address` + `connected_port` match the supplied
+    /// pair is delivered through it.
+    ///
+    /// Lazy-spawns the dispatcher task on the first call. Subsequent
+    /// registrations only insert into the route table; the
+    /// dispatcher pulls from `forward_rx` and routes inbound
+    /// `ForwardedConnection`s to the matching sender. Mismatched (or
+    /// unregistered) forwards are dropped — there is no requeue path.
+    ///
+    /// Pair with [`Session::unregister_remote_forward_route`] when
+    /// the rule tears down so the route table stays empty for the
+    /// matching `(host, port)` (otherwise the dispatcher keeps a
+    /// dangling sender that can leak inbound connections after the
+    /// listener is supposed to be gone).
+    pub async fn register_remote_forward_route(
+        self: &Arc<Self>,
+        host: String,
+        port: u32,
+    ) -> tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection> {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        {
+            let mut routes = self.forward_routes.lock().await;
+            routes.insert((host, port), tx);
+        }
+        if !self
+            .forward_dispatcher_started
+            .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            let session = self.clone();
+            tokio::spawn(async move {
+                while let Some(conn) = session.next_forwarded_connection().await {
+                    let key = (conn.connected_address.clone(), conn.connected_port);
+                    let routes = session.forward_routes.lock().await;
+                    if let Some(sender) = routes.get(&key) {
+                        let _ = sender.send(conn);
+                    }
+                    // No matching route — drop on the floor. Unmatched
+                    // forwards usually mean a route was withdrawn
+                    // mid-flight; the server will see the channel
+                    // closed and tear its end down.
+                }
+            });
+        }
+        rx
+    }
+
+    /// Withdraw a route registered through
+    /// [`Session::register_remote_forward_route`]. Idempotent.
+    pub async fn unregister_remote_forward_route(&self, host: &str, port: u32) {
+        let mut routes = self.forward_routes.lock().await;
+        routes.remove(&(host.to_string(), port));
+    }
+
     /// Connect + authenticate with a username and password. The
     /// returned session stays live until `disconnect` or `Drop`.
     pub async fn connect_password(
@@ -289,10 +378,7 @@ impl Session {
             return Err(Error::AuthFailed);
         }
 
-        Ok(Session {
-            handle,
-            forward_rx: Mutex::new(forward_rx),
-        })
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     /// Connect + authenticate with a username and OpenSSH-format
@@ -311,10 +397,7 @@ impl Session {
         let (mut handle, forward_rx) = open_handle_for_session(host, port).await?;
         finish_authenticate_pubkey(&mut handle, user, key).await?;
 
-        Ok(Session {
-            handle,
-            forward_rx: Mutex::new(forward_rx),
-        })
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     /// Open a PTY-backed shell channel sized to `cols × rows`. The
@@ -379,10 +462,7 @@ impl Session {
             return Err(Error::AuthFailed);
         }
 
-        Ok(Session {
-            handle,
-            forward_rx: Mutex::new(forward_rx),
-        })
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     /// Connect + authenticate by delegating signing to the system
@@ -423,10 +503,7 @@ impl Session {
             return Err(Error::AuthFailed);
         }
 
-        Ok(Session {
-            handle,
-            forward_rx: Mutex::new(forward_rx),
-        })
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     /// Pubkey auth tunnelled through a ProxyJump parent.
@@ -444,10 +521,7 @@ impl Session {
         let (mut handle, forward_rx) = open_handle_via_proxy(parent, host, port).await?;
         finish_authenticate_pubkey(&mut handle, user, key).await?;
 
-        Ok(Session {
-            handle,
-            forward_rx: Mutex::new(forward_rx),
-        })
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     /// OpenSSH cert auth tunnelled through a ProxyJump parent.
@@ -475,10 +549,7 @@ impl Session {
             return Err(Error::AuthFailed);
         }
 
-        Ok(Session {
-            handle,
-            forward_rx: Mutex::new(forward_rx),
-        })
+        Ok(Session::from_handle(handle, forward_rx))
     }
 
     // ---- Secret-store-backed connects ─────────────────────────────
@@ -1115,10 +1186,7 @@ async fn connect_via_agent(host: String, port: u16, user: String) -> Result<Sess
             .await
         {
             Ok(AuthResult::Success) => {
-                return Ok(Session {
-                    handle,
-                    forward_rx: Mutex::new(forward_rx),
-                });
+                return Ok(Session::from_handle(handle, forward_rx));
             }
             Ok(AuthResult::Failure { .. }) => continue,
             Err(e) => return Err(Error::Auth(format!("agent sign: {e}"))),
@@ -1172,10 +1240,7 @@ async fn connect_via_agent_proxy(
             .await
         {
             Ok(AuthResult::Success) => {
-                return Ok(Session {
-                    handle,
-                    forward_rx: Mutex::new(forward_rx),
-                });
+                return Ok(Session::from_handle(handle, forward_rx));
             }
             Ok(AuthResult::Failure { .. }) => continue,
             Err(e) => return Err(Error::Auth(format!("agent sign: {e}"))),

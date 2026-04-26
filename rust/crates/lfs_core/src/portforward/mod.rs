@@ -89,6 +89,7 @@ impl RuleActor {
 pub struct PortForwardRegistry {
     inner: Mutex<RegistryInner>,
     listeners: Mutex<HashMap<RuleId, driver::ListenerHandle>>,
+    remote_forwards: Mutex<HashMap<RuleId, driver::RemoteForwardHandle>>,
 }
 
 struct RegistryInner {
@@ -102,7 +103,30 @@ impl PortForwardRegistry {
                 by_id: HashMap::new(),
             }),
             listeners: Mutex::new(HashMap::new()),
+            remote_forwards: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Park a Rust-driven `-R` remote-forward handle alongside the
+    /// rule row. Replaces any prior handle for the same id (the
+    /// previous handle drops, which aborts its dispatcher task and
+    /// withdraws the server-side listener).
+    pub fn store_remote_forward(&self, id: &str, handle: driver::RemoteForwardHandle) {
+        self.remote_forwards
+            .lock()
+            .expect("port forward remote_forwards mutex poisoned")
+            .insert(id.to_string(), handle);
+    }
+
+    /// Drop the stored `-R` handle so the inbound bridge task aborts
+    /// and the server-side listener is withdrawn. Idempotent on a
+    /// missing id. Returns `true` when a handle was actually stopped.
+    pub fn stop_remote_forward(&self, id: &str) -> bool {
+        self.remote_forwards
+            .lock()
+            .expect("port forward remote_forwards mutex poisoned")
+            .remove(id)
+            .is_some()
     }
 
     /// Park the listener handle alongside the rule row so a

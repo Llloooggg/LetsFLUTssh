@@ -78,6 +78,40 @@ Future<int> portForwardStartDynamic({
 Future<bool> portForwardStopDynamic({required String ruleId}) =>
     RustLib.instance.api.crateApiForwardPortForwardStopDynamic(ruleId: ruleId);
 
+/// Start a Rust-driven `-R` remote-forward against the supplied
+/// connection actor. Asks the server to listen on
+/// `bind_host:bind_port` (pass `0` to let the server pick),
+/// registers a route through the session-level dispatcher, and
+/// spawns the bridge task that opens a fresh local TCP connection
+/// to `target_host:target_port` per inbound forwarded connection.
+///
+/// Returns the actual bound port the server accepted (servers may
+/// substitute their own when the caller asked for 0). Status
+/// events (`Listening` / `Error`) flow onto the bus through the
+/// registered rule id; the Dart UI subscribes there as usual.
+Future<int> portForwardStartRemote({
+  required String ruleId,
+  required String connectionId,
+  required String bindHost,
+  required int bindPort,
+  required String targetHost,
+  required int targetPort,
+}) => RustLib.instance.api.crateApiForwardPortForwardStartRemote(
+  ruleId: ruleId,
+  connectionId: connectionId,
+  bindHost: bindHost,
+  bindPort: bindPort,
+  targetHost: targetHost,
+  targetPort: targetPort,
+);
+
+/// Stop a `-R` handle spawned by [`port_forward_start_remote`].
+/// Drops the handle (which aborts the bridge task, withdraws the
+/// session-level route, and asks the server to stop listening).
+/// Idempotent on a missing rule id.
+Future<bool> portForwardStopRemote({required String ruleId}) =>
+    RustLib.instance.api.crateApiForwardPortForwardStopRemote(ruleId: ruleId);
+
 /// Open a direct-tcpip channel. `host_to_connect` / `port_to_connect`
 /// is the remote endpoint reached server-side; `originator_address`
 /// / `originator_port` is the local socket peer (used only by the

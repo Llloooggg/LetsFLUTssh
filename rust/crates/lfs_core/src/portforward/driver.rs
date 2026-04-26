@@ -394,6 +394,144 @@ fn format_ipv6(bytes: &[u8; 16]) -> String {
     groups.join(":")
 }
 
+/// Handle owning the spawned `-R` dispatcher task plus the
+/// session-side route registration. Dropping aborts the bridge
+/// task, withdraws the route from the session's dispatcher, and
+/// asks the server to stop listening on the bound port.
+///
+/// The post-Drop teardown is fire-and-forget — the unregister +
+/// cancel run on a detached tokio task because `Drop` cannot be
+/// async itself. The handle goes away promptly; the network-side
+/// withdrawal lands a moment later.
+pub struct RemoteForwardHandle {
+    inner: JoinHandle<()>,
+    session: Arc<crate::ssh::Session>,
+    bind_host: String,
+    bound_port: u32,
+}
+
+impl RemoteForwardHandle {
+    pub fn bound_port(&self) -> u32 {
+        self.bound_port
+    }
+
+    pub fn abort(&self) {
+        self.inner.abort();
+    }
+}
+
+impl Drop for RemoteForwardHandle {
+    fn drop(&mut self) {
+        self.inner.abort();
+        let session = self.session.clone();
+        let host = self.bind_host.clone();
+        let port = self.bound_port;
+        tokio::spawn(async move {
+            session.unregister_remote_forward_route(&host, port).await;
+            // Best-effort — the channel may already be torn down.
+            let _ = session.cancel_remote_forward(&host, port).await;
+        });
+    }
+}
+
+/// Start a Rust-driven `-R` remote-forward against the supplied
+/// session. Asks the server to listen on
+/// `bind_host:bind_port` (passing 0 lets the server pick), then
+/// registers a route through the session-level dispatcher and
+/// spawns a bridge task that, per inbound forwarded connection,
+/// opens a local TCP connection to `target_host:target_port` and
+/// pumps bytes bidirectionally.
+///
+/// Status events (`Listening` / `Error`) flow onto the bus
+/// through the supplied [`StatusReporter`]. Bridge teardown is
+/// driven by [`RemoteForwardHandle`]'s `Drop` impl.
+pub async fn spawn_remote_forward(
+    session: Arc<crate::ssh::Session>,
+    bind_host: String,
+    bind_port: u32,
+    target_host: String,
+    target_port: u16,
+    reporter: Arc<dyn StatusReporter>,
+) -> Result<RemoteForwardHandle, Error> {
+    let bound_port = match session.request_remote_forward(&bind_host, bind_port).await {
+        Ok(p) => p,
+        Err(e) => {
+            reporter.report(RuleStatus::Error, Some(e.to_string()));
+            return Err(e);
+        }
+    };
+    let mut rx = session
+        .register_remote_forward_route(bind_host.clone(), bound_port)
+        .await;
+    reporter.report(RuleStatus::Listening, None);
+
+    let target_host_inner = target_host.clone();
+    let task = tokio::spawn(async move {
+        while let Some(conn) = rx.recv().await {
+            let target_host = target_host_inner.clone();
+            tokio::spawn(async move {
+                let _ = bridge_forward_to_local_tcp(conn.channel, &target_host, target_port).await;
+            });
+        }
+    });
+
+    Ok(RemoteForwardHandle {
+        inner: task,
+        session,
+        bind_host,
+        bound_port,
+    })
+}
+
+/// Bridge one inbound `-R` `ForwardChannel` to a fresh local TCP
+/// connection at `(target_host, target_port)`. Each direction
+/// runs to completion in its own task; either side closing tears
+/// down the counterpart.
+async fn bridge_forward_to_local_tcp(
+    channel: crate::ssh::ForwardChannel,
+    target_host: &str,
+    target_port: u16,
+) -> Result<(), Error> {
+    let socket = TcpStream::connect((target_host, target_port))
+        .await
+        .map_err(|e| Error::Io(format!("connect {target_host}:{target_port}: {e}")))?;
+    let (mut sock_r, mut sock_w) = socket.into_split();
+    let channel = Arc::new(channel);
+
+    let chan_to_sock = {
+        let channel = channel.clone();
+        tokio::spawn(async move {
+            while let Some(bytes) = channel.read().await {
+                if sock_w.write_all(&bytes).await.is_err() {
+                    break;
+                }
+            }
+            let _ = sock_w.shutdown().await;
+        })
+    };
+
+    let sock_to_chan = {
+        let channel = channel.clone();
+        tokio::spawn(async move {
+            let mut buf = vec![0u8; 16 * 1024];
+            loop {
+                let n = match sock_r.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => n,
+                };
+                if channel.write(&buf[..n]).await.is_err() {
+                    break;
+                }
+            }
+            let _ = channel.eof().await;
+        })
+    };
+
+    let _ = chan_to_sock.await;
+    let _ = sock_to_chan.await;
+    Ok(())
+}
+
 /// Bidirectional copy between an accepted [`TcpStream`] and an
 /// upstream channel reader / writer pair. Each direction runs
 /// to completion: client shutting down the write side
