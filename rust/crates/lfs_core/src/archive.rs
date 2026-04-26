@@ -841,11 +841,22 @@ pub fn read_archive_to_pending(
     Ok((pending, preview))
 }
 
+/// Apply mode — `Merge` upserts, `Replace` clears the matching
+/// kinds first inside a transaction so a partial failure rolls
+/// back cleanly. Mirrors the Dart `ImportMode` enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ImportMode {
+    #[default]
+    Merge,
+    Replace,
+}
+
 /// What entries the apply driver should commit. Mirrors the
 /// Dart `ImportOptions` toggle set; turning a flag off skips
 /// every entry of that kind, even if the staged JSON carries it.
 #[derive(Debug, Clone, Default)]
 pub struct ApplyOptions {
+    pub mode: ImportMode,
     pub apply_sessions: bool,
     pub apply_keys: bool,
     pub apply_tags: bool,
@@ -865,6 +876,9 @@ pub struct ApplyResult {
     pub tags_applied: i64,
     pub snippets_applied: i64,
     pub known_hosts_applied: i64,
+    pub folders_applied: i64,
+    pub session_tags_applied: i64,
+    pub session_snippets_applied: i64,
     pub errors: Vec<String>,
 }
 
@@ -912,19 +926,55 @@ fn civil_to_unix_ms(year: i64, month: u32, day: u32, hh: u32, mm: u32, ss: u32) 
     secs * 1000
 }
 
-/// Apply a staged [`PendingImport`] in merge mode. `merge` here
-/// means: id collisions on sessions / keys / tags / snippets
-/// upsert (existing row's mutable columns refresh from the
-/// archive), and known-hosts entries upsert by `(host, port)`.
-/// Manager keys additionally dedup by public-key fingerprint
-/// before upsert so a key already on disk doesn't double-land
-/// under the archive's id.
+/// Apply a staged [`PendingImport`].
 ///
-/// Out of scope for now (lands in a follow-up):
-/// - replace mode (clear-then-load with snapshot/rollback)
-/// - folder hierarchy reconstruction (sessions land with
-///   `folder_id = NULL` — the orphan-folder UI surfaces them)
-/// - session_tags / session_snippets junction-table apply
+/// **Merge mode** upserts every entry by id; collisions update
+/// the existing row's mutable columns. Known-hosts upsert by
+/// `(host, port)`; manager keys dedup by public-key fingerprint
+/// so a key already on disk does not double-land under the
+/// archive's id. Folder paths from `sessions.json` flatten
+/// into a per-archive folder tree; ids are minted fresh.
+///
+/// **Replace mode** runs every stage inside a single sqlite
+/// transaction. For each enabled kind, the existing rows clear
+/// before the archive entries insert; a downstream parse error
+/// rolls the whole transaction back, so a botched import never
+/// leaves the DB half-overwritten. Junctions (`session_tags`,
+/// `session_snippets`) are cleared alongside their owning
+/// kinds (sessions / tags).
+///
+/// `now_ms` stamps the rows that lack a timestamp in the
+/// archive (apply moment as the effective `created_at` /
+/// `updated_at`).
+pub fn apply_pending_import(
+    conn: &mut Connection,
+    pending: &PendingImport,
+    options: &ApplyOptions,
+    now_ms: i64,
+) -> Result<ApplyResult, Error> {
+    match options.mode {
+        ImportMode::Merge => {
+            let mut result = ApplyResult::default();
+            run_apply(conn, pending, options, now_ms, &mut result);
+            Ok(result)
+        }
+        ImportMode::Replace => {
+            let tx = conn
+                .transaction()
+                .map_err(|e| Error::Io(format!("apply tx begin: {e}")))?;
+            let mut result = ApplyResult::default();
+            run_replace_clear(&tx, options, &mut result);
+            run_apply(&tx, pending, options, now_ms, &mut result);
+            tx.commit()
+                .map_err(|e| Error::Io(format!("apply tx commit: {e}")))?;
+            Ok(result)
+        }
+    }
+}
+
+/// Backwards-compatible alias. Existing callers route through
+/// here; the new mode-aware entry point is
+/// [`apply_pending_import`].
 pub fn apply_pending_import_merge(
     conn: &Connection,
     pending: &PendingImport,
@@ -932,33 +982,267 @@ pub fn apply_pending_import_merge(
     now_ms: i64,
 ) -> Result<ApplyResult, Error> {
     let mut result = ApplyResult::default();
+    run_apply(conn, pending, options, now_ms, &mut result);
+    Ok(result)
+}
 
+fn run_apply(
+    conn: &Connection,
+    pending: &PendingImport,
+    options: &ApplyOptions,
+    now_ms: i64,
+    result: &mut ApplyResult,
+) {
     if options.apply_keys {
         if let Some(json) = pending.keys_json.as_deref() {
-            apply_keys(conn, json, now_ms, &mut result);
+            apply_keys(conn, json, now_ms, result);
         }
     }
+    // Apply folders + sessions together so session.folder_id
+    // resolves through the freshly-inserted folder tree.
+    let mut folder_path_to_id: HashMap<String, String> = HashMap::new();
     if options.apply_sessions {
         if let Some(json) = pending.sessions_json.as_deref() {
-            apply_sessions(conn, json, now_ms, &mut result);
+            folder_path_to_id = apply_folder_tree(conn, json, now_ms, result);
+            apply_sessions(conn, json, &folder_path_to_id, now_ms, result);
+        }
+        if let Some(json) = pending.empty_folders_json.as_deref() {
+            apply_empty_folders(conn, json, &mut folder_path_to_id, now_ms, result);
         }
     }
     if options.apply_tags {
         if let Some(json) = pending.tags_json.as_deref() {
-            apply_tags(conn, json, now_ms, &mut result);
+            apply_tags(conn, json, now_ms, result);
+        }
+    }
+    if options.apply_sessions && options.apply_tags {
+        if let Some(json) = pending.session_tags_json.as_deref() {
+            apply_session_tags(conn, json, result);
         }
     }
     if options.apply_snippets {
         if let Some(json) = pending.snippets_json.as_deref() {
-            apply_snippets(conn, json, now_ms, &mut result);
+            apply_snippets(conn, json, now_ms, result);
+        }
+    }
+    if options.apply_sessions && options.apply_snippets {
+        if let Some(json) = pending.session_snippets_json.as_deref() {
+            apply_session_snippets(conn, json, result);
         }
     }
     if options.apply_known_hosts {
         if let Some(text) = pending.known_hosts_text.as_deref() {
-            apply_known_hosts(conn, text, now_ms, &mut result);
+            apply_known_hosts(conn, text, now_ms, result);
         }
     }
-    Ok(result)
+}
+
+fn run_replace_clear(conn: &Connection, options: &ApplyOptions, result: &mut ApplyResult) {
+    // Order matters — junctions clear before their owning rows
+    // so the FKs stay sane. Each `delete_all` is idempotent on
+    // an already-empty table.
+    if options.apply_sessions {
+        if let Err(e) = sessions::delete_all(conn) {
+            result
+                .errors
+                .push(format!("replace clear sessions: {e}"));
+        }
+        if let Err(e) = folders::delete_all(conn) {
+            result.errors.push(format!("replace clear folders: {e}"));
+        }
+    }
+    if options.apply_tags {
+        if let Err(e) = tags::delete_all(conn) {
+            result.errors.push(format!("replace clear tags: {e}"));
+        }
+    }
+    if options.apply_snippets {
+        if let Err(e) = snippets::delete_all(conn) {
+            result.errors.push(format!("replace clear snippets: {e}"));
+        }
+    }
+    if options.apply_known_hosts {
+        if let Err(e) = known_hosts::clear_all(conn) {
+            result
+                .errors
+                .push(format!("replace clear known_hosts: {e}"));
+        }
+    }
+    // Manager keys are intentionally NOT wiped on replace — the
+    // user's existing keys stay valid; the archive's keys merge
+    // by fingerprint as in merge mode. Mirrors the Dart impl.
+}
+
+fn apply_folder_tree(
+    conn: &Connection,
+    sessions_json: &str,
+    now_ms: i64,
+    result: &mut ApplyResult,
+) -> HashMap<String, String> {
+    use rand::RngCore;
+    let arr = match serde_json::from_str::<Vec<Value>>(sessions_json) {
+        Ok(a) => a,
+        Err(_) => return HashMap::new(),
+    };
+    // Collect every distinct folder path from sessions.
+    let mut paths: HashSet<String> = HashSet::new();
+    for v in &arr {
+        if let Some(p) = v.get("folder").and_then(|x| x.as_str()) {
+            if !p.is_empty() {
+                paths.insert(p.to_string());
+            }
+        }
+    }
+    let mut path_to_id: HashMap<String, String> = HashMap::new();
+    let mut sort_order: i64 = 0;
+    let mut sorted: Vec<String> = paths.into_iter().collect();
+    sorted.sort();
+    for path in sorted {
+        // Walk from root → leaf so each segment's parent_id
+        // resolves before the child lands.
+        let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        let mut parent_id: Option<String> = None;
+        let mut accum = String::new();
+        for seg in segments {
+            if !accum.is_empty() {
+                accum.push('/');
+            }
+            accum.push_str(seg);
+            if let Some(existing) = path_to_id.get(&accum) {
+                parent_id = Some(existing.clone());
+                continue;
+            }
+            let mut bytes = [0u8; 16];
+            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+            let row = folders::FolderRow {
+                id: id.clone(),
+                name: seg.to_string(),
+                parent_id: parent_id.clone(),
+                sort_order,
+                collapsed: false,
+                created_at_ms: now_ms,
+            };
+            sort_order += 1;
+            match folders::upsert(conn, &row) {
+                Ok(_) => {
+                    result.folders_applied += 1;
+                    path_to_id.insert(accum.clone(), id.clone());
+                    parent_id = Some(id);
+                }
+                Err(e) => {
+                    result.errors.push(format!("folder {accum} upsert: {e}"));
+                    parent_id = None;
+                }
+            }
+        }
+    }
+    path_to_id
+}
+
+fn apply_empty_folders(
+    conn: &Connection,
+    json: &str,
+    path_to_id: &mut HashMap<String, String>,
+    now_ms: i64,
+    result: &mut ApplyResult,
+) {
+    use rand::RngCore;
+    let arr: Vec<String> = match serde_json::from_str(json) {
+        Ok(a) => a,
+        Err(e) => {
+            result.errors.push(format!("empty_folders parse: {e}"));
+            return;
+        }
+    };
+    let mut sort_order: i64 = path_to_id.len() as i64;
+    for path in arr {
+        if path.is_empty() || path_to_id.contains_key(&path) {
+            continue;
+        }
+        let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        let mut parent_id: Option<String> = None;
+        let mut accum = String::new();
+        for seg in segments {
+            if !accum.is_empty() {
+                accum.push('/');
+            }
+            accum.push_str(seg);
+            if let Some(existing) = path_to_id.get(&accum) {
+                parent_id = Some(existing.clone());
+                continue;
+            }
+            let mut bytes = [0u8; 16];
+            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+            let row = folders::FolderRow {
+                id: id.clone(),
+                name: seg.to_string(),
+                parent_id: parent_id.clone(),
+                sort_order,
+                collapsed: false,
+                created_at_ms: now_ms,
+            };
+            sort_order += 1;
+            match folders::upsert(conn, &row) {
+                Ok(_) => {
+                    result.folders_applied += 1;
+                    path_to_id.insert(accum.clone(), id.clone());
+                    parent_id = Some(id);
+                }
+                Err(e) => {
+                    result.errors.push(format!("empty_folder {accum} upsert: {e}"));
+                    parent_id = None;
+                }
+            }
+        }
+    }
+}
+
+fn apply_session_tags(conn: &Connection, json: &str, result: &mut ApplyResult) {
+    let arr = match serde_json::from_str::<Vec<Value>>(json) {
+        Ok(a) => a,
+        Err(e) => {
+            result.errors.push(format!("session_tags parse: {e}"));
+            return;
+        }
+    };
+    for v in arr {
+        let session_id = json_string(&v, "session_id");
+        let tag_id = json_string(&v, "tag_id");
+        if session_id.is_empty() || tag_id.is_empty() {
+            continue;
+        }
+        match tags::link_session_tag(conn, &session_id, &tag_id) {
+            Ok(_) => result.session_tags_applied += 1,
+            Err(e) => result
+                .errors
+                .push(format!("session_tag {session_id}↔{tag_id}: {e}")),
+        }
+    }
+}
+
+fn apply_session_snippets(conn: &Connection, json: &str, result: &mut ApplyResult) {
+    let arr = match serde_json::from_str::<Vec<Value>>(json) {
+        Ok(a) => a,
+        Err(e) => {
+            result.errors.push(format!("session_snippets parse: {e}"));
+            return;
+        }
+    };
+    for v in arr {
+        let session_id = json_string(&v, "session_id");
+        let snippet_id = json_string(&v, "snippet_id");
+        if session_id.is_empty() || snippet_id.is_empty() {
+            continue;
+        }
+        match snippets::link_session_snippet(conn, &session_id, &snippet_id) {
+            Ok(_) => result.session_snippets_applied += 1,
+            Err(e) => result
+                .errors
+                .push(format!("session_snippet {session_id}↔{snippet_id}: {e}")),
+        }
+    }
 }
 
 fn json_string(v: &Value, key: &str) -> String {
@@ -969,7 +1253,13 @@ fn json_i64(v: &Value, key: &str) -> i64 {
     v.get(key).and_then(|x| x.as_i64()).unwrap_or(0)
 }
 
-fn apply_sessions(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResult) {
+fn apply_sessions(
+    conn: &Connection,
+    json: &str,
+    folder_path_to_id: &HashMap<String, String>,
+    now_ms: i64,
+    result: &mut ApplyResult,
+) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
         Ok(a) => a,
         Err(e) => {
@@ -993,12 +1283,17 @@ fn apply_sessions(conn: &Connection, json: &str, now_ms: i64, result: &mut Apply
             .filter(|x| x.is_object())
             .map(|x| x.to_string())
             .unwrap_or_default();
+        // Resolve `folder` (path string) → folder_id via the
+        // map [`apply_folder_tree`] built moments earlier.
+        let folder_id = v
+            .get("folder")
+            .and_then(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .and_then(|p| folder_path_to_id.get(p).cloned());
         let row = sessions::SessionRow {
             id: json_string(&v, "id"),
             label: json_string(&v, "label"),
-            // Folder hierarchy reconstruction left to a future
-            // commit. Land orphaned for now.
-            folder_id: None,
+            folder_id,
             host: json_string(&v, "host"),
             port: json_i64(&v, "port"),
             user: json_string(&v, "user"),
@@ -1793,6 +2088,7 @@ mod tests {
 
     fn merge_all_options() -> ApplyOptions {
         ApplyOptions {
+            mode: ImportMode::Merge,
             apply_sessions: true,
             apply_keys: true,
             apply_tags: true,

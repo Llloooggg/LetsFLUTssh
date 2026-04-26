@@ -6878,14 +6878,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbApplyOptions dco_decode_db_apply_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DbApplyOptions(
-      applySessions: dco_decode_bool(arr[0]),
-      applyKeys: dco_decode_bool(arr[1]),
-      applyTags: dco_decode_bool(arr[2]),
-      applySnippets: dco_decode_bool(arr[3]),
-      applyKnownHosts: dco_decode_bool(arr[4]),
+      mode: dco_decode_db_import_mode(arr[0]),
+      applySessions: dco_decode_bool(arr[1]),
+      applyKeys: dco_decode_bool(arr[2]),
+      applyTags: dco_decode_bool(arr[3]),
+      applySnippets: dco_decode_bool(arr[4]),
+      applyKnownHosts: dco_decode_bool(arr[5]),
     );
   }
 
@@ -6893,8 +6894,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbApplyResult dco_decode_db_apply_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return DbApplyResult(
       sessionsApplied: dco_decode_i_64(arr[0]),
       keysApplied: dco_decode_i_64(arr[1]),
@@ -6902,7 +6903,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tagsApplied: dco_decode_i_64(arr[3]),
       snippetsApplied: dco_decode_i_64(arr[4]),
       knownHostsApplied: dco_decode_i_64(arr[5]),
-      errors: dco_decode_list_String(arr[6]),
+      foldersApplied: dco_decode_i_64(arr[6]),
+      sessionTagsApplied: dco_decode_i_64(arr[7]),
+      sessionSnippetsApplied: dco_decode_i_64(arr[8]),
+      errors: dco_decode_list_String(arr[9]),
     );
   }
 
@@ -6958,6 +6962,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       collapsed: dco_decode_bool(arr[4]),
       createdAtMs: dco_decode_i_64(arr[5]),
     );
+  }
+
+  @protected
+  DbImportMode dco_decode_db_import_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbImportMode.values[raw as int];
   }
 
   @protected
@@ -8261,12 +8271,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbApplyOptions sse_decode_db_apply_options(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_mode = sse_decode_db_import_mode(deserializer);
     final var_applySessions = sse_decode_bool(deserializer);
     final var_applyKeys = sse_decode_bool(deserializer);
     final var_applyTags = sse_decode_bool(deserializer);
     final var_applySnippets = sse_decode_bool(deserializer);
     final var_applyKnownHosts = sse_decode_bool(deserializer);
     return DbApplyOptions(
+      mode: var_mode,
       applySessions: var_applySessions,
       applyKeys: var_applyKeys,
       applyTags: var_applyTags,
@@ -8284,6 +8296,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_tagsApplied = sse_decode_i_64(deserializer);
     final var_snippetsApplied = sse_decode_i_64(deserializer);
     final var_knownHostsApplied = sse_decode_i_64(deserializer);
+    final var_foldersApplied = sse_decode_i_64(deserializer);
+    final var_sessionTagsApplied = sse_decode_i_64(deserializer);
+    final var_sessionSnippetsApplied = sse_decode_i_64(deserializer);
     final var_errors = sse_decode_list_String(deserializer);
     return DbApplyResult(
       sessionsApplied: var_sessionsApplied,
@@ -8292,6 +8307,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tagsApplied: var_tagsApplied,
       snippetsApplied: var_snippetsApplied,
       knownHostsApplied: var_knownHostsApplied,
+      foldersApplied: var_foldersApplied,
+      sessionTagsApplied: var_sessionTagsApplied,
+      sessionSnippetsApplied: var_sessionSnippetsApplied,
       errors: var_errors,
     );
   }
@@ -8363,6 +8381,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       collapsed: var_collapsed,
       createdAtMs: var_createdAtMs,
     );
+  }
+
+  @protected
+  DbImportMode sse_decode_db_import_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbImportMode.values[inner];
   }
 
   @protected
@@ -9996,6 +10021,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_import_mode(self.mode, serializer);
     sse_encode_bool(self.applySessions, serializer);
     sse_encode_bool(self.applyKeys, serializer);
     sse_encode_bool(self.applyTags, serializer);
@@ -10015,6 +10041,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.tagsApplied, serializer);
     sse_encode_i_64(self.snippetsApplied, serializer);
     sse_encode_i_64(self.knownHostsApplied, serializer);
+    sse_encode_i_64(self.foldersApplied, serializer);
+    sse_encode_i_64(self.sessionTagsApplied, serializer);
+    sse_encode_i_64(self.sessionSnippetsApplied, serializer);
     sse_encode_list_String(self.errors, serializer);
   }
 
@@ -10061,6 +10090,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.sortOrder, serializer);
     sse_encode_bool(self.collapsed, serializer);
     sse_encode_i_64(self.createdAtMs, serializer);
+  }
+
+  @protected
+  void sse_encode_db_import_mode(DbImportMode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

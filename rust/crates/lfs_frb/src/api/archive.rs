@@ -233,11 +233,28 @@ pub async fn db_import_drop(handle_id: String) -> Result<(), String> {
     .map_err(|e| format!("import drop task: {e}"))
 }
 
+/// Mirror of `lfs_core::archive::ImportMode`.
+#[derive(Debug, Clone, Copy)]
+pub enum DbImportMode {
+    Merge,
+    Replace,
+}
+
+impl From<DbImportMode> for lfs_core::archive::ImportMode {
+    fn from(m: DbImportMode) -> Self {
+        match m {
+            DbImportMode::Merge => lfs_core::archive::ImportMode::Merge,
+            DbImportMode::Replace => lfs_core::archive::ImportMode::Replace,
+        }
+    }
+}
+
 /// Apply-time toggles. Each flag enables the matching entry kind
 /// regardless of what the archive carries — the apply driver
 /// silently no-ops on missing JSON entries.
 #[derive(Debug, Clone)]
 pub struct DbApplyOptions {
+    pub mode: DbImportMode,
     pub apply_sessions: bool,
     pub apply_keys: bool,
     pub apply_tags: bool,
@@ -255,6 +272,9 @@ pub struct DbApplyResult {
     pub tags_applied: i64,
     pub snippets_applied: i64,
     pub known_hosts_applied: i64,
+    pub folders_applied: i64,
+    pub session_tags_applied: i64,
+    pub session_snippets_applied: i64,
     pub errors: Vec<String>,
 }
 
@@ -267,6 +287,9 @@ impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
             tags_applied: r.tags_applied,
             snippets_applied: r.snippets_applied,
             known_hosts_applied: r.known_hosts_applied,
+            folders_applied: r.folders_applied,
+            session_tags_applied: r.session_tags_applied,
+            session_snippets_applied: r.session_snippets_applied,
             errors: r.errors,
         }
     }
@@ -283,6 +306,7 @@ pub async fn db_import_apply(
     created_at_ms: i64,
 ) -> Result<DbApplyResult, String> {
     let core_options = lfs_core::archive::ApplyOptions {
+        mode: options.mode.into(),
         apply_sessions: options.apply_sessions,
         apply_keys: options.apply_keys,
         apply_tags: options.apply_tags,
@@ -297,8 +321,8 @@ pub async fn db_import_apply(
             .ok_or_else(|| format!("import handle {handle_id} not found"))?;
         let db = require_db()?;
         let result = db
-            .with_conn(|c| {
-                lfs_core::archive::apply_pending_import_merge(
+            .with_conn_mut(|c| {
+                lfs_core::archive::apply_pending_import(
                     c,
                     &pending,
                     &core_options,

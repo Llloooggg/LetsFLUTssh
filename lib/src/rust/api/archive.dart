@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `random_handle_id`, `require_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Compose and (optionally) encrypt the `.lfs` archive entirely
 /// inside Rust. Plaintext credentials never cross the FRB boundary
@@ -68,6 +68,7 @@ Future<DbApplyResult> dbImportApply({
 /// regardless of what the archive carries — the apply driver
 /// silently no-ops on missing JSON entries.
 class DbApplyOptions {
+  final DbImportMode mode;
   final bool applySessions;
   final bool applyKeys;
   final bool applyTags;
@@ -75,6 +76,7 @@ class DbApplyOptions {
   final bool applyKnownHosts;
 
   const DbApplyOptions({
+    required this.mode,
     required this.applySessions,
     required this.applyKeys,
     required this.applyTags,
@@ -84,6 +86,7 @@ class DbApplyOptions {
 
   @override
   int get hashCode =>
+      mode.hashCode ^
       applySessions.hashCode ^
       applyKeys.hashCode ^
       applyTags.hashCode ^
@@ -95,6 +98,7 @@ class DbApplyOptions {
       identical(this, other) ||
       other is DbApplyOptions &&
           runtimeType == other.runtimeType &&
+          mode == other.mode &&
           applySessions == other.applySessions &&
           applyKeys == other.applyKeys &&
           applyTags == other.applyTags &&
@@ -111,6 +115,9 @@ class DbApplyResult {
   final PlatformInt64 tagsApplied;
   final PlatformInt64 snippetsApplied;
   final PlatformInt64 knownHostsApplied;
+  final PlatformInt64 foldersApplied;
+  final PlatformInt64 sessionTagsApplied;
+  final PlatformInt64 sessionSnippetsApplied;
   final List<String> errors;
 
   const DbApplyResult({
@@ -120,6 +127,9 @@ class DbApplyResult {
     required this.tagsApplied,
     required this.snippetsApplied,
     required this.knownHostsApplied,
+    required this.foldersApplied,
+    required this.sessionTagsApplied,
+    required this.sessionSnippetsApplied,
     required this.errors,
   });
 
@@ -131,6 +141,9 @@ class DbApplyResult {
       tagsApplied.hashCode ^
       snippetsApplied.hashCode ^
       knownHostsApplied.hashCode ^
+      foldersApplied.hashCode ^
+      sessionTagsApplied.hashCode ^
+      sessionSnippetsApplied.hashCode ^
       errors.hashCode;
 
   @override
@@ -144,6 +157,9 @@ class DbApplyResult {
           tagsApplied == other.tagsApplied &&
           snippetsApplied == other.snippetsApplied &&
           knownHostsApplied == other.knownHostsApplied &&
+          foldersApplied == other.foldersApplied &&
+          sessionTagsApplied == other.sessionTagsApplied &&
+          sessionSnippetsApplied == other.sessionSnippetsApplied &&
           errors == other.errors;
 }
 
@@ -255,6 +271,9 @@ class DbExportOptions {
           includeAllManagerKeys == other.includeAllManagerKeys &&
           hasManagerKeys == other.hasManagerKeys;
 }
+
+/// Mirror of `lfs_core::archive::ImportMode`.
+enum DbImportMode { merge, replace }
 
 /// Result of a successful preview — the registered handle id
 /// the Dart caller passes back to the apply / drop endpoints,

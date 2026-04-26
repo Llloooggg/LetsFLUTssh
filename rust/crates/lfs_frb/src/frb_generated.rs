@@ -7549,12 +7549,14 @@ impl SseDecode for crate::api::db::DbAppConfig {
 impl SseDecode for crate::api::archive::DbApplyOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_mode = <crate::api::archive::DbImportMode>::sse_decode(deserializer);
         let mut var_applySessions = <bool>::sse_decode(deserializer);
         let mut var_applyKeys = <bool>::sse_decode(deserializer);
         let mut var_applyTags = <bool>::sse_decode(deserializer);
         let mut var_applySnippets = <bool>::sse_decode(deserializer);
         let mut var_applyKnownHosts = <bool>::sse_decode(deserializer);
         return crate::api::archive::DbApplyOptions {
+            mode: var_mode,
             apply_sessions: var_applySessions,
             apply_keys: var_applyKeys,
             apply_tags: var_applyTags,
@@ -7573,6 +7575,9 @@ impl SseDecode for crate::api::archive::DbApplyResult {
         let mut var_tagsApplied = <i64>::sse_decode(deserializer);
         let mut var_snippetsApplied = <i64>::sse_decode(deserializer);
         let mut var_knownHostsApplied = <i64>::sse_decode(deserializer);
+        let mut var_foldersApplied = <i64>::sse_decode(deserializer);
+        let mut var_sessionTagsApplied = <i64>::sse_decode(deserializer);
+        let mut var_sessionSnippetsApplied = <i64>::sse_decode(deserializer);
         let mut var_errors = <Vec<String>>::sse_decode(deserializer);
         return crate::api::archive::DbApplyResult {
             sessions_applied: var_sessionsApplied,
@@ -7581,6 +7586,9 @@ impl SseDecode for crate::api::archive::DbApplyResult {
             tags_applied: var_tagsApplied,
             snippets_applied: var_snippetsApplied,
             known_hosts_applied: var_knownHostsApplied,
+            folders_applied: var_foldersApplied,
+            session_tags_applied: var_sessionTagsApplied,
+            session_snippets_applied: var_sessionSnippetsApplied,
             errors: var_errors,
         };
     }
@@ -7654,6 +7662,18 @@ impl SseDecode for crate::api::db::DbFolder {
             sort_order: var_sortOrder,
             collapsed: var_collapsed,
             created_at_ms: var_createdAtMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::archive::DbImportMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::archive::DbImportMode::Merge,
+            1 => crate::api::archive::DbImportMode::Replace,
+            _ => unreachable!("Invalid variant for DbImportMode: {}", inner),
         };
     }
 }
@@ -9412,6 +9432,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbAppConfig>
 impl flutter_rust_bridge::IntoDart for crate::api::archive::DbApplyOptions {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.mode.into_into_dart().into_dart(),
             self.apply_sessions.into_into_dart().into_dart(),
             self.apply_keys.into_into_dart().into_dart(),
             self.apply_tags.into_into_dart().into_dart(),
@@ -9442,6 +9463,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::archive::DbApplyResult {
             self.tags_applied.into_into_dart().into_dart(),
             self.snippets_applied.into_into_dart().into_dart(),
             self.known_hosts_applied.into_into_dart().into_dart(),
+            self.folders_applied.into_into_dart().into_dart(),
+            self.session_tags_applied.into_into_dart().into_dart(),
+            self.session_snippets_applied.into_into_dart().into_dart(),
             self.errors.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -9531,6 +9555,27 @@ impl flutter_rust_bridge::IntoDart for crate::api::db::DbFolder {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::db::DbFolder {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbFolder> for crate::api::db::DbFolder {
     fn into_into_dart(self) -> crate::api::db::DbFolder {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::archive::DbImportMode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Merge => 0.into_dart(),
+            Self::Replace => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::archive::DbImportMode
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::archive::DbImportMode>
+    for crate::api::archive::DbImportMode
+{
+    fn into_into_dart(self) -> crate::api::archive::DbImportMode {
         self
     }
 }
@@ -10562,6 +10607,7 @@ impl SseEncode for crate::api::db::DbAppConfig {
 impl SseEncode for crate::api::archive::DbApplyOptions {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::archive::DbImportMode>::sse_encode(self.mode, serializer);
         <bool>::sse_encode(self.apply_sessions, serializer);
         <bool>::sse_encode(self.apply_keys, serializer);
         <bool>::sse_encode(self.apply_tags, serializer);
@@ -10579,6 +10625,9 @@ impl SseEncode for crate::api::archive::DbApplyResult {
         <i64>::sse_encode(self.tags_applied, serializer);
         <i64>::sse_encode(self.snippets_applied, serializer);
         <i64>::sse_encode(self.known_hosts_applied, serializer);
+        <i64>::sse_encode(self.folders_applied, serializer);
+        <i64>::sse_encode(self.session_tags_applied, serializer);
+        <i64>::sse_encode(self.session_snippets_applied, serializer);
         <Vec<String>>::sse_encode(self.errors, serializer);
     }
 }
@@ -10622,6 +10671,22 @@ impl SseEncode for crate::api::db::DbFolder {
         <i64>::sse_encode(self.sort_order, serializer);
         <bool>::sse_encode(self.collapsed, serializer);
         <i64>::sse_encode(self.created_at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::archive::DbImportMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::archive::DbImportMode::Merge => 0,
+                crate::api::archive::DbImportMode::Replace => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

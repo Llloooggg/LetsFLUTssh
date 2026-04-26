@@ -148,6 +148,20 @@ impl Db {
         let g = self.conn.lock().expect("db lock");
         f(&g)
     }
+
+    /// Same as [`with_conn`] but hands the closure a `&mut
+    /// Connection` so callers that need a `transaction()` (the
+    /// import apply driver in particular) can scope rollback /
+    /// commit cleanly. The connection still lives behind the
+    /// crate-level mutex; only one caller holds the mut ref at
+    /// a time.
+    pub fn with_conn_mut<R>(
+        &self,
+        f: impl FnOnce(&mut Connection) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let mut g = self.conn.lock().expect("db lock");
+        f(&mut g)
+    }
 }
 
 /// Create every table the DAOs expect, idempotently. Mirrors the

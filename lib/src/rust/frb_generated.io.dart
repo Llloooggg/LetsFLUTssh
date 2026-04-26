@@ -317,6 +317,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder dco_decode_db_folder(dynamic raw);
 
   @protected
+  DbImportMode dco_decode_db_import_mode(dynamic raw);
+
+  @protected
   DbImportOpenResult dco_decode_db_import_open_result(dynamic raw);
 
   @protected
@@ -794,6 +797,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
+
+  @protected
+  DbImportMode sse_decode_db_import_mode(SseDeserializer deserializer);
 
   @protected
   DbImportOpenResult sse_decode_db_import_open_result(
@@ -1387,6 +1393,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_folder(DbFolder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_import_mode(DbImportMode self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_import_open_result(
