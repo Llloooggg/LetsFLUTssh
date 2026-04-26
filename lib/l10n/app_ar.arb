@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "عبارة مرور المفتاح",
   "hintOptional": "اختياري",
+  "savedTypeToChange": "محفوظ — اكتب للتغيير",
   "hidePemText": "إخفاء نص PEM",
   "pastePemKeyText": "لصق نص مفتاح PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Key passphrase",
   "hintOptional": "Tùy chọn",
+  "savedTypeToChange": "Đã lưu — nhập để thay đổi",
   "hidePemText": "Ẩn văn bản PEM",
   "pastePemKeyText": "Dán văn bản khóa PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

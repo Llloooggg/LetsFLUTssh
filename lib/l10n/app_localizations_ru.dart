@@ -423,6 +423,9 @@ class SRu extends S {
   String get hintOptional => 'Необязательно';
 
   @override
+  String get savedTypeToChange => 'Сохранено — введите для замены';
+
+  @override
   String get hidePemText => 'Скрыть PEM-текст';
 
   @override

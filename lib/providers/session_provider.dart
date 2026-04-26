@@ -104,6 +104,20 @@ class SessionNotifier extends Notifier<List<Session>> {
       _run('add session', () => _store.add(session));
   Future<void> update(Session session) =>
       _run('update session', () => _store.update(session));
+  Future<void> updatePartial(
+    Session session, {
+    bool passwordDirty = false,
+    bool keyDataDirty = false,
+    bool passphraseDirty = false,
+  }) => _run(
+    'update session (partial)',
+    () => _store.updatePartial(
+      session,
+      passwordDirty: passwordDirty,
+      keyDataDirty: keyDataDirty,
+      passphraseDirty: passphraseDirty,
+    ),
+  );
   Future<void> delete(String id) =>
       _runUndoable('delete session', () => _store.delete(id));
   Future<Session> duplicate(String id, {String? targetFolder}) => _run(

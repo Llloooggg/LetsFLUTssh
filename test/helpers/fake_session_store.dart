@@ -77,6 +77,19 @@ class FakeSessionStore extends SessionStore {
   }
 
   @override
+  Future<void> updatePartial(
+    Session session, {
+    bool passwordDirty = false,
+    bool keyDataDirty = false,
+    bool passphraseDirty = false,
+  }) async {
+    final idx = _fakeSessions.indexWhere((s) => s.id == session.id);
+    if (idx >= 0) {
+      _fakeSessions[idx] = session;
+    }
+  }
+
+  @override
   Future<void> delete(String id) async {
     _fakeSessions.removeWhere((s) => s.id == id);
   }

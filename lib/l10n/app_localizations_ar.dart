@@ -425,6 +425,9 @@ class SAr extends S {
   String get hintOptional => 'اختياري';
 
   @override
+  String get savedTypeToChange => 'محفوظ — اكتب للتغيير';
+
+  @override
   String get hidePemText => 'إخفاء نص PEM';
 
   @override

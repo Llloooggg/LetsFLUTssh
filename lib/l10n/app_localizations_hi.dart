@@ -419,6 +419,9 @@ class SHi extends S {
   String get hintOptional => 'वैकल्पिक';
 
   @override
+  String get savedTypeToChange => 'सहेजा गया — बदलने के लिए टाइप करें';
+
+  @override
   String get hidePemText => 'PEM टेक्स्ट छिपाएं';
 
   @override

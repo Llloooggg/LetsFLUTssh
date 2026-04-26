@@ -56,18 +56,28 @@ class SessionAuth extends SshAuth {
   /// Reference to a key in the central key store. Empty = not set.
   final String keyId;
 
-  /// Credentials exist in persistent storage even when the in-memory
-  /// [password] / [keyData] / [passphrase] fields are empty. Set by the
-  /// DB loader when the cache is populated without decrypted secrets
-  /// (so plaintext secrets don't sit on the Dart heap) — the list UI
-  /// still needs to know whether a session has credentials to decide
-  /// whether to flag it as incomplete.
-  final bool hasStoredSecret;
+  /// Per-slot "credential exists in persistent storage" flags. Set by
+  /// the DB loader when the cache is populated without decrypted
+  /// secrets (so plaintext bytes don't sit on the Dart heap). Used by
+  /// the list UI to flag incomplete sessions and by the edit dialog
+  /// to render "[Saved]" badges next to fields whose underlying row
+  /// has a value without ever pre-filling the controller.
+  final bool hasStoredPassword;
+  final bool hasStoredKeyData;
+  final bool hasStoredPassphrase;
+
+  /// Composite "any credential is stored" — kept as a getter so call
+  /// sites that only care about "is the session complete enough to
+  /// connect" don't have to inspect every slot.
+  bool get hasStoredSecret =>
+      hasStoredPassword || hasStoredKeyData || hasStoredPassphrase;
 
   const SessionAuth({
     this.authType = AuthType.password,
     this.keyId = '',
-    this.hasStoredSecret = false,
+    this.hasStoredPassword = false,
+    this.hasStoredKeyData = false,
+    this.hasStoredPassphrase = false,
     super.password,
     super.keyPath,
     super.keyData,
@@ -78,7 +88,9 @@ class SessionAuth extends SshAuth {
   SessionAuth copyWith({
     AuthType? authType,
     String? keyId,
-    bool? hasStoredSecret,
+    bool? hasStoredPassword,
+    bool? hasStoredKeyData,
+    bool? hasStoredPassphrase,
     String? password,
     String? keyPath,
     String? keyData,
@@ -86,7 +98,9 @@ class SessionAuth extends SshAuth {
   }) => SessionAuth(
     authType: authType ?? this.authType,
     keyId: keyId ?? this.keyId,
-    hasStoredSecret: hasStoredSecret ?? this.hasStoredSecret,
+    hasStoredPassword: hasStoredPassword ?? this.hasStoredPassword,
+    hasStoredKeyData: hasStoredKeyData ?? this.hasStoredKeyData,
+    hasStoredPassphrase: hasStoredPassphrase ?? this.hasStoredPassphrase,
     password: password ?? this.password,
     keyPath: keyPath ?? this.keyPath,
     keyData: keyData ?? this.keyData,
@@ -99,7 +113,9 @@ class SessionAuth extends SshAuth {
       other is SessionAuth &&
           authType == other.authType &&
           keyId == other.keyId &&
-          hasStoredSecret == other.hasStoredSecret &&
+          hasStoredPassword == other.hasStoredPassword &&
+          hasStoredKeyData == other.hasStoredKeyData &&
+          hasStoredPassphrase == other.hasStoredPassphrase &&
           password == other.password &&
           keyPath == other.keyPath &&
           keyData == other.keyData &&
@@ -109,7 +125,9 @@ class SessionAuth extends SshAuth {
   int get hashCode => Object.hash(
     authType,
     keyId,
-    hasStoredSecret,
+    hasStoredPassword,
+    hasStoredKeyData,
+    hasStoredPassphrase,
     password,
     keyPath,
     keyData,

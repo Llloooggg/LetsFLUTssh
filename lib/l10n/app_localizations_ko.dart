@@ -414,6 +414,9 @@ class SKo extends S {
   String get hintOptional => '선택 사항';
 
   @override
+  String get savedTypeToChange => '저장됨 — 변경하려면 입력';
+
+  @override
   String get hidePemText => 'PEM 텍스트 숨기기';
 
   @override

@@ -417,6 +417,9 @@ class SId extends S {
   String get hintOptional => 'Opsional';
 
   @override
+  String get savedTypeToChange => 'Tersimpan — ketik untuk mengubah';
+
+  @override
   String get hidePemText => 'Sembunyikan teks PEM';
 
   @override

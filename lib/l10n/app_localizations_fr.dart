@@ -420,6 +420,9 @@ class SFr extends S {
   String get hintOptional => 'Facultatif';
 
   @override
+  String get savedTypeToChange => 'Enregistré — saisir pour modifier';
+
+  @override
   String get hidePemText => 'Masquer le texte PEM';
 
   @override

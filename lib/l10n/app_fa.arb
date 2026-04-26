@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "رمز عبور کلید",
   "hintOptional": "اختیاری",
+  "savedTypeToChange": "ذخیره شد — برای تغییر بنویسید",
   "hidePemText": "پنهان کردن متن PEM",
   "pastePemKeyText": "جای‌گذاری متن کلید PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

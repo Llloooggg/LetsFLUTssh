@@ -25,14 +25,10 @@ Session dbSessionToSession(
   Map<String, rust_db.DbFolder> folderMap, {
   bool withCredentials = false,
 }) {
-  // Record whether the row actually carries a secret even when we strip
-  // it from the in-memory copy — the tree view needs this to decide
-  // whether to flag the session as incomplete (yellow warning). Without
-  // it, every embedded-key session would look broken after a restart.
-  final hasStoredSecret =
-      db.password.isNotEmpty ||
-      db.keyData.isNotEmpty ||
-      db.passphrase.isNotEmpty;
+  // Per-slot stored-secret flags so the edit dialog can render
+  // "[Saved]" badges next to each field whose underlying column has
+  // a value, without ever pre-filling the controller. Without these
+  // an embedded-key session would look broken after a restart.
   return Session(
     id: db.id,
     label: db.label,
@@ -44,7 +40,9 @@ Session dbSessionToSession(
         orElse: () => AuthType.password,
       ),
       keyId: db.keyId ?? '',
-      hasStoredSecret: hasStoredSecret,
+      hasStoredPassword: db.password.isNotEmpty,
+      hasStoredKeyData: db.keyData.isNotEmpty,
+      hasStoredPassphrase: db.passphrase.isNotEmpty,
       password: withCredentials ? db.password : '',
       keyPath: db.keyPath,
       keyData: withCredentials ? db.keyData : '',

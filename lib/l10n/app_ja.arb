@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "鍵のパスフレーズ",
   "hintOptional": "任意",
+  "savedTypeToChange": "保存済み — 変更するには入力",
   "hidePemText": "PEMテキストを隠す",
   "pastePemKeyText": "PEM鍵テキストを貼り付け",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

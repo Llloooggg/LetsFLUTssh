@@ -42,7 +42,22 @@ class SaveResult extends SessionDialogResult {
   /// touched the tab.
   final List<PortForwardRule> forwards;
 
-  SaveResult(this.session, {this.connect = false, this.forwards = const []});
+  /// Per-slot dirty bits. Only fields the user actually typed into
+  /// during this dialog session land in the DB; untouched secret
+  /// columns keep whatever they had before so editing the label
+  /// never accidentally wipes a stored password.
+  final bool passwordDirty;
+  final bool keyDataDirty;
+  final bool passphraseDirty;
+
+  SaveResult(
+    this.session, {
+    this.connect = false,
+    this.forwards = const [],
+    this.passwordDirty = false,
+    this.keyDataDirty = false,
+    this.passphraseDirty = false,
+  });
 }
 
 /// Dialog for creating or editing a session.
@@ -120,18 +135,47 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// so a fresh session is opt-out by default — privacy-first).
   bool _recordEnabled = false;
 
+  /// Per-slot dirty bits. Flipped to `true` the first time the user
+  /// types into / changes the corresponding secret field. The dialog
+  /// hands these to the caller via `SaveResult` so the save path can
+  /// skip the credential columns the user didn't touch — editing a
+  /// label never wipes a stored password.
+  bool _passwordDirty = false;
+  bool _keyDataDirty = false;
+  bool _passphraseDirty = false;
+
+  /// Set the moment `dispose()` starts wiping the secret controllers
+  /// so the listeners we attached in `initState` short-circuit
+  /// before they call `setState` on a tearing-down State.
+  bool _disposing = false;
+  VoidCallback? _passwordListener;
+  VoidCallback? _keyDataListener;
+  VoidCallback? _passphraseListener;
+
   bool get _isEditing => widget.session != null;
 
   /// Whether a key from the store is selected.
   bool get _hasStoreKey => _selectedKeyId.isNotEmpty;
 
-  /// Derive auth type from what the user actually filled in.
+  /// Derive auth type from what the user filled in *or* from the
+  /// per-slot `hasStoredX` flags so an edit pass that doesn't touch
+  /// the secret fields keeps the saved authType (a key-only session
+  /// stays key-only even if the user only changed the host). Also
+  /// honours legacy in-memory plaintext on `widget.session.auth` —
+  /// older callers (and tests) still pass populated `password` /
+  /// `keyData` directly.
   AuthType get _derivedAuthType {
-    final hasPassword = _passwordCtrl.text.isNotEmpty;
+    final saved = widget.session?.auth;
+    final hasPassword =
+        _passwordCtrl.text.isNotEmpty ||
+        (saved?.hasStoredPassword ?? false) ||
+        (saved?.password.isNotEmpty ?? false);
     final hasKey =
         _hasStoreKey ||
         _keyPathCtrl.text.trim().isNotEmpty ||
-        _keyDataCtrl.text.trim().isNotEmpty;
+        _keyDataCtrl.text.trim().isNotEmpty ||
+        (saved?.hasStoredKeyData ?? false) ||
+        (saved?.keyData.isNotEmpty ?? false);
     if (hasPassword && hasKey) return AuthType.keyWithPassword;
     if (hasKey) return AuthType.key;
     return AuthType.password;
@@ -148,11 +192,49 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _hostCtrl = TextEditingController(text: s?.host ?? '');
     _portCtrl = TextEditingController(text: '${s?.port ?? 22}');
     _userCtrl = TextEditingController(text: s?.user ?? '');
-    _passwordCtrl = TextEditingController(text: s?.password ?? '');
+    // Secret-bearing controllers start empty even on edit — the
+    // existing password / private key / passphrase live in the
+    // database and cross FRB only via `db_sessions_stage_secrets`,
+    // which never hands the bytes back to Dart. The UI shows a
+    // "[Saved]" badge next to the field when the corresponding
+    // `hasStoredX` flag on the session is true; the user has to
+    // type a new value to change the secret, leaving the field
+    // blank to keep the existing one intact.
+    _passwordCtrl = TextEditingController();
     _keyPathCtrl = TextEditingController(text: s?.keyPath ?? '');
-    _keyDataCtrl = TextEditingController(text: s?.keyData ?? '');
-    _passphraseCtrl = TextEditingController(text: s?.passphrase ?? '');
-    _showKeyText = (s?.keyData ?? '').isNotEmpty;
+    _keyDataCtrl = TextEditingController();
+    _passphraseCtrl = TextEditingController();
+    // Mark each secret slot dirty the first time the user touches
+    // it. Save consults these to decide whether the corresponding
+    // column is part of the partial-update DB write — leaving a
+    // field blank on edit therefore preserves the stored secret
+    // instead of clearing it. The `_disposing` guard short-circuits
+    // the listener once `dispose()` starts wiping the controllers
+    // (`wipeAndClear` mutates `text` which fires this listener after
+    // the framework has already torn down the State).
+    _passwordListener = () {
+      if (_disposing || _passwordDirty) return;
+      setState(() => _passwordDirty = true);
+    };
+    _keyDataListener = () {
+      if (_disposing || _keyDataDirty) return;
+      setState(() => _keyDataDirty = true);
+    };
+    _passphraseListener = () {
+      if (_disposing || _passphraseDirty) return;
+      setState(() => _passphraseDirty = true);
+    };
+    _passwordCtrl.addListener(_passwordListener!);
+    _keyDataCtrl.addListener(_keyDataListener!);
+    _passphraseCtrl.addListener(_passphraseListener!);
+    // Auto-expand the inline-PEM section on edit when the saved
+    // session is keyData-bearing — we never see the bytes themselves
+    // (controller stays empty), but the per-slot flag tells us the
+    // user picked the inline-key path last time. Legacy callers
+    // (and tests) still pass populated `keyData` plaintext directly,
+    // so accept that too.
+    _showKeyText =
+        (s?.auth.hasStoredKeyData ?? false) || (s?.keyData.isNotEmpty ?? false);
     _selectedKeyId = s?.keyId ?? '';
     if (_selectedKeyId.isNotEmpty) {
       _resolveKeyLabel();
@@ -198,6 +280,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   @override
   void dispose() {
+    _disposing = true;
+    // Detach the dirty-bit listeners explicitly before `wipeAndClear`
+    // mutates the controller text — otherwise the listener would
+    // fire `setState` on a tearing-down State and trip the
+    // `_lifecycleState != defunct` framework assertion.
+    if (_passwordListener != null) {
+      _passwordCtrl.removeListener(_passwordListener!);
+    }
+    if (_keyDataListener != null) {
+      _keyDataCtrl.removeListener(_keyDataListener!);
+    }
+    if (_passphraseListener != null) {
+      _passphraseCtrl.removeListener(_passphraseListener!);
+    }
     // Secret-bearing controllers — overwrite with null bytes and
     // clear before disposing so the Dart-heap residency window for
     // the typed password / PEM body / passphrase ends at dialog
@@ -286,11 +382,17 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   }
 
   bool _validateAuth() {
-    final hasPassword = _passwordCtrl.text.isNotEmpty;
+    final saved = widget.session?.auth;
+    final hasPassword =
+        _passwordCtrl.text.isNotEmpty ||
+        (saved?.hasStoredPassword ?? false) ||
+        (saved?.password.isNotEmpty ?? false);
     final hasKey =
         _hasStoreKey ||
         _keyPathCtrl.text.trim().isNotEmpty ||
-        _keyDataCtrl.text.trim().isNotEmpty;
+        _keyDataCtrl.text.trim().isNotEmpty ||
+        (saved?.hasStoredKeyData ?? false) ||
+        (saved?.keyData.isNotEmpty ?? false);
 
     if (!hasPassword && !hasKey) {
       setState(() {
@@ -321,9 +423,16 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       return;
     }
     if (!_validateAuth()) return;
-    Navigator.of(
-      context,
-    ).pop(SaveResult(_buildSession(), connect: connect, forwards: _forwards));
+    Navigator.of(context).pop(
+      SaveResult(
+        _buildSession(),
+        connect: connect,
+        forwards: _forwards,
+        passwordDirty: _passwordDirty,
+        keyDataDirty: _keyDataDirty,
+        passphraseDirty: _passphraseDirty,
+      ),
+    );
   }
 
   @override
@@ -678,10 +787,11 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   }
 
   Widget _buildPasswordField() {
+    final hasStored = widget.session?.auth.hasStoredPassword ?? false;
     return StyledFormField(
       label: S.of(context).password,
       controller: _passwordCtrl,
-      hint: '••••••••',
+      hint: hasStored ? S.of(context).savedTypeToChange : '••••••••',
       obscure: _obscurePassword,
       suffixIcon: GestureDetector(
         onTap: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -945,10 +1055,13 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   }
 
   Widget _buildPemTextField() {
+    final hasStored = widget.session?.auth.hasStoredKeyData ?? false;
     return TextFormField(
       controller: _keyDataCtrl,
       decoration: InputDecoration(
-        hintText: S.of(context).hintPemKey,
+        hintText: hasStored
+            ? S.of(context).savedTypeToChange
+            : S.of(context).hintPemKey,
         hintStyle: AppFonts.mono(
           fontSize: AppFonts.xs,
           color: AppTheme.fgFaint,
@@ -987,10 +1100,13 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   }
 
   Widget _buildPassphraseField() {
+    final hasStored = widget.session?.auth.hasStoredPassphrase ?? false;
     return StyledFormField(
       label: S.of(context).keyPassphrase,
       controller: _passphraseCtrl,
-      hint: S.of(context).hintOptional,
+      hint: hasStored
+          ? S.of(context).savedTypeToChange
+          : S.of(context).hintOptional,
       obscure: _obscurePassphrase,
       suffixIcon: GestureDetector(
         onTap: () => setState(() => _obscurePassphrase = !_obscurePassphrase),

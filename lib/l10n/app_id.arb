@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Frasa Sandi Kunci",
   "hintOptional": "Opsional",
+  "savedTypeToChange": "Tersimpan — ketik untuk mengubah",
   "hidePemText": "Sembunyikan teks PEM",
   "pastePemKeyText": "Tempel teks kunci PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

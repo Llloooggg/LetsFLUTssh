@@ -809,16 +809,23 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     WidgetRef ref,
     Session session,
   ) async {
-    // In-memory cached [session] has no credentials (lazy-load). Reload
-    // from DB so the edit form pre-fills password/keyData/passphrase
-    // correctly; fall back to the bare cache entry if the row vanished.
-    final store = ref.read(sessionStoreProvider);
-    final full = await store.loadWithCredentials(session.id) ?? session;
-    if (!context.mounted) return;
-    final result = await SessionEditDialog.show(context, session: full);
+    // The cached [session] no longer carries plaintext credentials —
+    // the edit dialog renders "[Saved]" badges off the per-slot
+    // `hasStoredPassword` / `hasStoredKeyData` / `hasStoredPassphrase`
+    // flags and only writes the secret columns whose dirty bits the
+    // user flipped. No `loadWithCredentials` round-trip; no plaintext
+    // on the Dart heap during the edit.
+    final result = await SessionEditDialog.show(context, session: session);
     if (result == null) return;
     if (result is SaveResult) {
-      await ref.read(sessionProvider.notifier).update(result.session);
+      await ref
+          .read(sessionProvider.notifier)
+          .updatePartial(
+            result.session,
+            passwordDirty: result.passwordDirty,
+            keyDataDirty: result.keyDataDirty,
+            passphraseDirty: result.passphraseDirty,
+          );
       await _syncForwards(ref, result.session.id, result.forwards);
       if (result.connect) widget.onConnect(result.session);
     }

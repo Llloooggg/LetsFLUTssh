@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Парольная фраза ключа",
   "hintOptional": "Необязательно",
+  "savedTypeToChange": "Сохранено — введите для замены",
   "hidePemText": "Скрыть PEM-текст",
   "pastePemKeyText": "Вставить PEM-текст ключа",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

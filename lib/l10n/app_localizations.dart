@@ -843,6 +843,12 @@ abstract class S {
   /// **'Optional'**
   String get hintOptional;
 
+  /// No description provided for @savedTypeToChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved — type to change'**
+  String get savedTypeToChange;
+
   /// No description provided for @hidePemText.
   ///
   /// In en, this message translates to:

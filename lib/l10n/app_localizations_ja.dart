@@ -414,6 +414,9 @@ class SJa extends S {
   String get hintOptional => '任意';
 
   @override
+  String get savedTypeToChange => '保存済み — 変更するには入力';
+
+  @override
   String get hidePemText => 'PEMテキストを隠す';
 
   @override
