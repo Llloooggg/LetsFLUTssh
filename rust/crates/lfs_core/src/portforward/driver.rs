@@ -209,6 +209,191 @@ async fn accept_loop(
     }
 }
 
+/// Bind a SOCKS5 dynamic-forward listener (`-D`). Each accepted
+/// socket runs the SOCKS5 CONNECT handshake (RFC 1928, NO_AUTH
+/// only — same shape the Dart-side path enforced) and on success
+/// opens a fresh `direct-tcpip` channel to the target the client
+/// asked for, then pumps bytes bidirectionally.
+///
+/// Bind contract matches [`spawn_listener`]: returns once the
+/// listener is bound (or fails to bind); the accept loop runs
+/// in the background. `bind_addr` of `127.0.0.1:0` lets the OS
+/// pick a port — the returned [`ListenerHandle::bound_addr`]
+/// reports the actual port for the UI.
+pub async fn spawn_socks5_listener(
+    bind_addr: SocketAddr,
+    session: Arc<crate::ssh::Session>,
+    reporter: Arc<dyn StatusReporter>,
+) -> Result<ListenerHandle, Error> {
+    let listener = match TcpListener::bind(bind_addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            reporter.report(RuleStatus::Error, Some(e.to_string()));
+            return Err(Error::Io(format!("bind {bind_addr}: {e}")));
+        }
+    };
+    let bound = listener
+        .local_addr()
+        .map_err(|e| Error::Io(format!("local_addr: {e}")))?;
+    reporter.report(RuleStatus::Listening, None);
+
+    let task = tokio::spawn(socks5_accept_loop(listener, session, reporter));
+    Ok(ListenerHandle { inner: task, bound })
+}
+
+async fn socks5_accept_loop(
+    listener: TcpListener,
+    session: Arc<crate::ssh::Session>,
+    reporter: Arc<dyn StatusReporter>,
+) {
+    loop {
+        let (socket, peer) = match listener.accept().await {
+            Ok(pair) => pair,
+            Err(e) => {
+                reporter.report(RuleStatus::Error, Some(e.to_string()));
+                continue;
+            }
+        };
+        let session = session.clone();
+        tokio::spawn(async move {
+            let _ = handle_socks5_client(socket, peer, session).await;
+        });
+    }
+}
+
+async fn handle_socks5_client(
+    mut socket: TcpStream,
+    peer: SocketAddr,
+    session: Arc<crate::ssh::Session>,
+) -> Result<(), Error> {
+    // Greeting: [VER=0x05][NMETHODS][methods…]
+    let mut greeting = [0u8; 2];
+    socket
+        .read_exact(&mut greeting)
+        .await
+        .map_err(|e| Error::Io(format!("socks5 greeting: {e}")))?;
+    if greeting[0] != 0x05 {
+        let _ = socks5_fail(&mut socket, 0x07).await;
+        return Err(Error::Io("socks5: bad version in greeting".into()));
+    }
+    let n_methods = greeting[1] as usize;
+    let mut methods = vec![0u8; n_methods];
+    socket
+        .read_exact(&mut methods)
+        .await
+        .map_err(|e| Error::Io(format!("socks5 methods: {e}")))?;
+    // Always pick NO_AUTH (0x00). If the client didn't offer it,
+    // the connect will fail at the request stage; auth selection
+    // is fixed at the Dart-era behaviour.
+    socket
+        .write_all(&[0x05, 0x00])
+        .await
+        .map_err(|e| Error::Io(format!("socks5 method ack: {e}")))?;
+
+    // Request: [VER=0x05][CMD=0x01 CONNECT][RSV=0x00][ATYP][…]
+    let mut head = [0u8; 4];
+    socket
+        .read_exact(&mut head)
+        .await
+        .map_err(|e| Error::Io(format!("socks5 req head: {e}")))?;
+    if head[0] != 0x05 {
+        let _ = socks5_fail(&mut socket, 0x07).await;
+        return Err(Error::Io("socks5: bad version in request".into()));
+    }
+    if head[1] != 0x01 {
+        let _ = socks5_fail(&mut socket, 0x07).await;
+        return Err(Error::Io("socks5: only CONNECT supported".into()));
+    }
+    let host = match head[3] {
+        0x01 => {
+            let mut addr = [0u8; 4];
+            socket
+                .read_exact(&mut addr)
+                .await
+                .map_err(|e| Error::Io(format!("socks5 ipv4: {e}")))?;
+            format!("{}.{}.{}.{}", addr[0], addr[1], addr[2], addr[3])
+        }
+        0x03 => {
+            let mut len = [0u8; 1];
+            socket
+                .read_exact(&mut len)
+                .await
+                .map_err(|e| Error::Io(format!("socks5 domain len: {e}")))?;
+            let mut domain = vec![0u8; len[0] as usize];
+            socket
+                .read_exact(&mut domain)
+                .await
+                .map_err(|e| Error::Io(format!("socks5 domain: {e}")))?;
+            String::from_utf8(domain).map_err(|_| Error::Io("socks5: domain not utf-8".into()))?
+        }
+        0x04 => {
+            let mut addr = [0u8; 16];
+            socket
+                .read_exact(&mut addr)
+                .await
+                .map_err(|e| Error::Io(format!("socks5 ipv6: {e}")))?;
+            format_ipv6(&addr)
+        }
+        _ => {
+            let _ = socks5_fail(&mut socket, 0x08).await;
+            return Err(Error::Io("socks5: unsupported address type".into()));
+        }
+    };
+    let mut port_bytes = [0u8; 2];
+    socket
+        .read_exact(&mut port_bytes)
+        .await
+        .map_err(|e| Error::Io(format!("socks5 port: {e}")))?;
+    let port = ((port_bytes[0] as u16) << 8) | port_bytes[1] as u16;
+
+    // Open direct-tcpip channel to the target.
+    let stream = match session
+        .open_direct_tcpip_stream(
+            &host,
+            port as u32,
+            &peer.ip().to_string(),
+            peer.port() as u32,
+        )
+        .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = socks5_fail(&mut socket, 0x05).await;
+            return Err(e);
+        }
+    };
+
+    // Reply: success. BND values are zero — clients ignore them
+    // for CONNECT against a SOCKS5 over SSH.
+    socket
+        .write_all(&[
+            0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ])
+        .await
+        .map_err(|e| Error::Io(format!("socks5 reply: {e}")))?;
+
+    let (r, w) = tokio::io::split(stream);
+    let reader: ReaderHalf = Box::pin(r);
+    let writer: WriterHalf = Box::pin(w);
+    pump(socket, reader, writer).await
+}
+
+async fn socks5_fail(socket: &mut TcpStream, rep: u8) -> std::io::Result<()> {
+    socket
+        .write_all(&[0x05, rep, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+        .await?;
+    socket.flush().await
+}
+
+fn format_ipv6(bytes: &[u8; 16]) -> String {
+    let mut groups = Vec::with_capacity(8);
+    for i in (0..16).step_by(2) {
+        let word = ((bytes[i] as u16) << 8) | bytes[i + 1] as u16;
+        groups.push(format!("{word:x}"));
+    }
+    groups.join(":")
+}
+
 /// Bidirectional copy between an accepted [`TcpStream`] and an
 /// upstream channel reader / writer pair. Each direction runs
 /// to completion: client shutting down the write side

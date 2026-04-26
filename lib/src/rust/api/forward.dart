@@ -47,6 +47,37 @@ Future<int> portForwardStartLocal({
 Future<bool> portForwardStopLocal({required String ruleId}) =>
     RustLib.instance.api.crateApiForwardPortForwardStopLocal(ruleId: ruleId);
 
+/// Start a Rust-driven `-D` SOCKS5 dynamic-forward listener
+/// against the supplied connection actor. Binds
+/// `bind_host:bind_port`, resolves the active russh `Session`
+/// via the connection registry, and spawns the accept loop that
+/// runs the SOCKS5 CONNECT handshake (RFC 1928, NO_AUTH only)
+/// per accepted socket and bridges it through a fresh
+/// `direct-tcpip` channel to the target the client asked for.
+///
+/// Returns the actual bound port (matters when the caller
+/// passes `0` to let the OS pick). Status events (`Listening` /
+/// `Error`) flow onto the bus through the registered rule id;
+/// the Dart UI subscribes there as usual.
+Future<int> portForwardStartDynamic({
+  required String ruleId,
+  required String connectionId,
+  required String bindHost,
+  required int bindPort,
+}) => RustLib.instance.api.crateApiForwardPortForwardStartDynamic(
+  ruleId: ruleId,
+  connectionId: connectionId,
+  bindHost: bindHost,
+  bindPort: bindPort,
+);
+
+/// Stop a SOCKS5 listener spawned by
+/// [`port_forward_start_dynamic`]. Same shape as
+/// [`port_forward_stop_local`] — both share the registry's
+/// listener handle slot.
+Future<bool> portForwardStopDynamic({required String ruleId}) =>
+    RustLib.instance.api.crateApiForwardPortForwardStopDynamic(ruleId: ruleId);
+
 /// Open a direct-tcpip channel. `host_to_connect` / `port_to_connect`
 /// is the remote endpoint reached server-side; `originator_address`
 /// / `originator_port` is the local socket peer (used only by the
