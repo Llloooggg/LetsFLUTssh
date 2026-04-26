@@ -9,8 +9,23 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'bus.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BusConnectArgs`, `BusConnectAuthRef`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+
+/// Direct connect entry point. Bypasses the bus because connect is
+/// a request/response operation: the Dart caller awaits the result
+/// to learn whether the actor reached `Connected`. Lifecycle events
+/// (`ConnectionStateChanged`, `ConnectionProgress`) still fan out
+/// over the bus for any subscribed view.
+///
+/// The driver inside `lfs_core::connection` dispatches onto the
+/// `connect_*_with_secret_owned` family so the entire future chain
+/// (`wrap_async → connect_async → Session::connect_*_with_secret_owned`)
+/// keeps an unambiguous `Send + 'static` shape — no `&str` HRTB
+/// auto-trait propagation between the layers.
+Future<void> connectionConnect({
+  required String id,
+  required BusConnectArgs args,
+}) => RustLib.instance.api.crateApiBusConnectionConnect(id: id, args: args);
 
 /// Dispatch a typed command. Single entry point Dart calls for
 /// every operation; the Rust side routes by command variant.
@@ -40,6 +55,73 @@ sealed class BusCommand with _$BusCommand {
   /// missing id.
   const factory BusCommand.connectionDisconnect({required String id}) =
       BusCommand_ConnectionDisconnect;
+}
+
+/// Inputs to a connect command — FRB mirror of
+/// `lfs_core::connection::ConnectArgs`.
+class BusConnectArgs {
+  final String label;
+  final String? sessionId;
+  final String host;
+  final int port;
+  final String user;
+  final BusConnectAuthRef auth;
+  final String? bastionId;
+  final bool internal;
+
+  const BusConnectArgs({
+    required this.label,
+    this.sessionId,
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.auth,
+    this.bastionId,
+    required this.internal,
+  });
+
+  @override
+  int get hashCode =>
+      label.hashCode ^
+      sessionId.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      auth.hashCode ^
+      bastionId.hashCode ^
+      internal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BusConnectArgs &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          sessionId == other.sessionId &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          auth == other.auth &&
+          bastionId == other.bastionId &&
+          internal == other.internal;
+}
+
+@freezed
+sealed class BusConnectAuthRef with _$BusConnectAuthRef {
+  const BusConnectAuthRef._();
+
+  const factory BusConnectAuthRef.password({required String secretId}) =
+      BusConnectAuthRef_Password;
+  const factory BusConnectAuthRef.pubkey({
+    required String keySecretId,
+    String? passphraseSecretId,
+  }) = BusConnectAuthRef_Pubkey;
+  const factory BusConnectAuthRef.pubkeyCert({
+    required String keySecretId,
+    required String certSecretId,
+    String? passphraseSecretId,
+  }) = BusConnectAuthRef_PubkeyCert;
+  const factory BusConnectAuthRef.agent() = BusConnectAuthRef_Agent;
 }
 
 /// Connection progress phase — FRB mirror of

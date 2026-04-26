@@ -459,20 +459,24 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         auth,
         ..
     } = args;
+    // Owned-arg `_owned` variants — `Session::connect_*_with_secret_owned`
+    // takes `String` by value so the resulting future is `Send + 'static`
+    // without HRTB inference on `&str` borrows. The wrapping `wrap_async`
+    // future on the FRB side stays clean.
     match auth {
         ConnectAuthRef::Password { secret_id } => {
-            Session::connect_password_with_secret(&host, port, &user, &secret_id).await
+            Session::connect_password_with_secret_owned(host, port, user, secret_id).await
         }
         ConnectAuthRef::Pubkey {
             key_secret_id,
             passphrase_secret_id,
         } => {
-            Session::connect_pubkey_with_secret(
-                &host,
+            Session::connect_pubkey_with_secret_owned(
+                host,
                 port,
-                &user,
-                &key_secret_id,
-                passphrase_secret_id.as_deref(),
+                user,
+                key_secret_id,
+                passphrase_secret_id,
             )
             .await
         }
@@ -481,17 +485,17 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
             cert_secret_id,
             passphrase_secret_id,
         } => {
-            Session::connect_pubkey_cert_with_secret(
-                &host,
+            Session::connect_pubkey_cert_with_secret_owned(
+                host,
                 port,
-                &user,
-                &key_secret_id,
-                &cert_secret_id,
-                passphrase_secret_id.as_deref(),
+                user,
+                key_secret_id,
+                cert_secret_id,
+                passphrase_secret_id,
             )
             .await
         }
-        ConnectAuthRef::Agent => Session::connect_agent(&host, port, &user).await,
+        ConnectAuthRef::Agent => Session::connect_agent_owned(host, port, user).await,
     }
 }
 

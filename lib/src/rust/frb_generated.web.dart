@@ -194,6 +194,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusCommand dco_decode_box_autoadd_bus_command(dynamic raw);
 
   @protected
+  BusConnectArgs dco_decode_box_autoadd_bus_connect_args(dynamic raw);
+
+  @protected
   BusProgressStep dco_decode_box_autoadd_bus_progress_step(dynamic raw);
 
   @protected
@@ -243,6 +246,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusCommand dco_decode_bus_command(dynamic raw);
+
+  @protected
+  BusConnectArgs dco_decode_bus_connect_args(dynamic raw);
+
+  @protected
+  BusConnectAuthRef dco_decode_bus_connect_auth_ref(dynamic raw);
 
   @protected
   BusConnectionPhase dco_decode_bus_connection_phase(dynamic raw);
@@ -561,6 +570,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusCommand sse_decode_box_autoadd_bus_command(SseDeserializer deserializer);
 
   @protected
+  BusConnectArgs sse_decode_box_autoadd_bus_connect_args(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BusProgressStep sse_decode_box_autoadd_bus_progress_step(
     SseDeserializer deserializer,
   );
@@ -630,6 +644,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusCommand sse_decode_bus_command(SseDeserializer deserializer);
+
+  @protected
+  BusConnectArgs sse_decode_bus_connect_args(SseDeserializer deserializer);
+
+  @protected
+  BusConnectAuthRef sse_decode_bus_connect_auth_ref(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BusConnectionPhase sse_decode_bus_connection_phase(
@@ -1004,6 +1026,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bus_connect_args(
+    BusConnectArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_bus_progress_step(
     BusProgressStep self,
     SseSerializer serializer,
@@ -1098,6 +1126,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bus_command(BusCommand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bus_connect_args(
+    BusConnectArgs self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bus_connect_auth_ref(
+    BusConnectAuthRef self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bus_connection_phase(

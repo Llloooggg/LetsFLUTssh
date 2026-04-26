@@ -510,6 +510,23 @@ impl Session {
         Self::connect_password(host, port, user, pwd).await
     }
 
+    /// Owned-arg twin of [`connect_password_with_secret`]. Returns
+    /// `Pin<Box<dyn Future + Send + 'static>>` so the FRB layer's
+    /// `wrap_async` `Send + 'static` bound is satisfied without
+    /// HRTB inference reaching into the `&str`-borrowing internals.
+    /// One heap allocation per connect — invisible next to the
+    /// russh handshake.
+    pub fn connect_password_with_secret_owned(
+        host: String,
+        port: u16,
+        user: String,
+        secret_id: String,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(
+            async move { Self::connect_password_with_secret(&host, port, &user, &secret_id).await },
+        )
+    }
+
     /// Pubkey auth using SecretStore entries — `key_secret_id` for
     /// the private-key bytes and an optional `passphrase_secret_id`
     /// for the decryption passphrase.
@@ -536,6 +553,27 @@ impl Session {
             None => None,
         };
         Self::connect_pubkey(host, port, user, &key_bytes, passphrase).await
+    }
+
+    /// Owned-arg twin of [`connect_pubkey_with_secret`]. Boxed for
+    /// the same reason as [`connect_password_with_secret_owned`].
+    pub fn connect_pubkey_with_secret_owned(
+        host: String,
+        port: u16,
+        user: String,
+        key_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Self::connect_pubkey_with_secret(
+                &host,
+                port,
+                &user,
+                &key_secret_id,
+                passphrase_secret_id.as_deref(),
+            )
+            .await
+        })
     }
 
     /// OpenSSH-cert auth using SecretStore entries — `key_secret_id`
@@ -568,6 +606,51 @@ impl Session {
             None => None,
         };
         Self::connect_pubkey_cert(host, port, user, &key_bytes, passphrase, &cert_bytes).await
+    }
+
+    /// Owned-arg twin of [`connect_pubkey_cert_with_secret`]. Boxed
+    /// for the same reason as [`connect_password_with_secret_owned`].
+    #[allow(clippy::too_many_arguments)] // every cert auth ingredient is load-bearing
+    pub fn connect_pubkey_cert_with_secret_owned(
+        host: String,
+        port: u16,
+        user: String,
+        key_secret_id: String,
+        cert_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            Self::connect_pubkey_cert_with_secret(
+                &host,
+                port,
+                &user,
+                &key_secret_id,
+                &cert_secret_id,
+                passphrase_secret_id.as_deref(),
+            )
+            .await
+        })
+    }
+
+    /// Owned-arg twin of [`connect_agent`]. Bridges through
+    /// `spawn_blocking + Handle::block_on` because the russh agent
+    /// client holds a non-Send dyn trait object that cannot ride
+    /// inside an FRB `wrap_async` future. Mirrors the workaround
+    /// the legacy FRB `ssh_connect_agent` already uses, so the
+    /// connection actor can expose a uniform `_owned` family.
+    pub fn connect_agent_owned(
+        host: String,
+        port: u16,
+        user: String,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let handle = tokio::runtime::Handle::current();
+            tokio::task::spawn_blocking(move || {
+                handle.block_on(Self::connect_agent(&host, port, &user))
+            })
+            .await
+            .map_err(|e| Error::Auth(format!("agent task: {e}")))?
+        })
     }
 
     /// SSH-agent auth tunnelled through a ProxyJump parent. Mirrors

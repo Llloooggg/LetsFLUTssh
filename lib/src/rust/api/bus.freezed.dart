@@ -304,6 +304,414 @@ as String,
 }
 
 /// @nodoc
+mixin _$BusConnectAuthRef {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusConnectAuthRef()';
+}
+
+
+}
+
+/// @nodoc
+class $BusConnectAuthRefCopyWith<$Res>  {
+$BusConnectAuthRefCopyWith(BusConnectAuthRef _, $Res Function(BusConnectAuthRef) __);
+}
+
+
+/// Adds pattern-matching-related methods to [BusConnectAuthRef].
+extension BusConnectAuthRefPatterns on BusConnectAuthRef {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusConnectAuthRef_Password value)?  password,TResult Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult Function( BusConnectAuthRef_Agent value)?  agent,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case BusConnectAuthRef_Password() when password != null:
+return password(_that);case BusConnectAuthRef_Pubkey() when pubkey != null:
+return pubkey(_that);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that);case BusConnectAuthRef_Agent() when agent != null:
+return agent(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusConnectAuthRef_Password value)  password,required TResult Function( BusConnectAuthRef_Pubkey value)  pubkey,required TResult Function( BusConnectAuthRef_PubkeyCert value)  pubkeyCert,required TResult Function( BusConnectAuthRef_Agent value)  agent,}){
+final _that = this;
+switch (_that) {
+case BusConnectAuthRef_Password():
+return password(_that);case BusConnectAuthRef_Pubkey():
+return pubkey(_that);case BusConnectAuthRef_PubkeyCert():
+return pubkeyCert(_that);case BusConnectAuthRef_Agent():
+return agent(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusConnectAuthRef_Password value)?  password,TResult? Function( BusConnectAuthRef_Pubkey value)?  pubkey,TResult? Function( BusConnectAuthRef_PubkeyCert value)?  pubkeyCert,TResult? Function( BusConnectAuthRef_Agent value)?  agent,}){
+final _that = this;
+switch (_that) {
+case BusConnectAuthRef_Password() when password != null:
+return password(_that);case BusConnectAuthRef_Pubkey() when pubkey != null:
+return pubkey(_that);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that);case BusConnectAuthRef_Agent() when agent != null:
+return agent(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult Function()?  agent,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case BusConnectAuthRef_Password() when password != null:
+return password(_that.secretId);case BusConnectAuthRef_Pubkey() when pubkey != null:
+return pubkey(_that.keySecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_Agent() when agent != null:
+return agent();case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,required TResult Function()  agent,}) {final _that = this;
+switch (_that) {
+case BusConnectAuthRef_Password():
+return password(_that.secretId);case BusConnectAuthRef_Pubkey():
+return pubkey(_that.keySecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeyCert():
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_Agent():
+return agent();}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,TResult? Function()?  agent,}) {final _that = this;
+switch (_that) {
+case BusConnectAuthRef_Password() when password != null:
+return password(_that.secretId);case BusConnectAuthRef_Pubkey() when pubkey != null:
+return pubkey(_that.keySecretId,_that.passphraseSecretId);case BusConnectAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case BusConnectAuthRef_Agent() when agent != null:
+return agent();case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class BusConnectAuthRef_Password extends BusConnectAuthRef {
+  const BusConnectAuthRef_Password({required this.secretId}): super._();
+  
+
+ final  String secretId;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusConnectAuthRef_PasswordCopyWith<BusConnectAuthRef_Password> get copyWith => _$BusConnectAuthRef_PasswordCopyWithImpl<BusConnectAuthRef_Password>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef_Password&&(identical(other.secretId, secretId) || other.secretId == secretId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,secretId);
+
+@override
+String toString() {
+  return 'BusConnectAuthRef.password(secretId: $secretId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusConnectAuthRef_PasswordCopyWith<$Res> implements $BusConnectAuthRefCopyWith<$Res> {
+  factory $BusConnectAuthRef_PasswordCopyWith(BusConnectAuthRef_Password value, $Res Function(BusConnectAuthRef_Password) _then) = _$BusConnectAuthRef_PasswordCopyWithImpl;
+@useResult
+$Res call({
+ String secretId
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusConnectAuthRef_PasswordCopyWithImpl<$Res>
+    implements $BusConnectAuthRef_PasswordCopyWith<$Res> {
+  _$BusConnectAuthRef_PasswordCopyWithImpl(this._self, this._then);
+
+  final BusConnectAuthRef_Password _self;
+  final $Res Function(BusConnectAuthRef_Password) _then;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? secretId = null,}) {
+  return _then(BusConnectAuthRef_Password(
+secretId: null == secretId ? _self.secretId : secretId // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusConnectAuthRef_Pubkey extends BusConnectAuthRef {
+  const BusConnectAuthRef_Pubkey({required this.keySecretId, this.passphraseSecretId}): super._();
+  
+
+ final  String keySecretId;
+ final  String? passphraseSecretId;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusConnectAuthRef_PubkeyCopyWith<BusConnectAuthRef_Pubkey> get copyWith => _$BusConnectAuthRef_PubkeyCopyWithImpl<BusConnectAuthRef_Pubkey>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef_Pubkey&&(identical(other.keySecretId, keySecretId) || other.keySecretId == keySecretId)&&(identical(other.passphraseSecretId, passphraseSecretId) || other.passphraseSecretId == passphraseSecretId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,keySecretId,passphraseSecretId);
+
+@override
+String toString() {
+  return 'BusConnectAuthRef.pubkey(keySecretId: $keySecretId, passphraseSecretId: $passphraseSecretId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusConnectAuthRef_PubkeyCopyWith<$Res> implements $BusConnectAuthRefCopyWith<$Res> {
+  factory $BusConnectAuthRef_PubkeyCopyWith(BusConnectAuthRef_Pubkey value, $Res Function(BusConnectAuthRef_Pubkey) _then) = _$BusConnectAuthRef_PubkeyCopyWithImpl;
+@useResult
+$Res call({
+ String keySecretId, String? passphraseSecretId
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusConnectAuthRef_PubkeyCopyWithImpl<$Res>
+    implements $BusConnectAuthRef_PubkeyCopyWith<$Res> {
+  _$BusConnectAuthRef_PubkeyCopyWithImpl(this._self, this._then);
+
+  final BusConnectAuthRef_Pubkey _self;
+  final $Res Function(BusConnectAuthRef_Pubkey) _then;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? keySecretId = null,Object? passphraseSecretId = freezed,}) {
+  return _then(BusConnectAuthRef_Pubkey(
+keySecretId: null == keySecretId ? _self.keySecretId : keySecretId // ignore: cast_nullable_to_non_nullable
+as String,passphraseSecretId: freezed == passphraseSecretId ? _self.passphraseSecretId : passphraseSecretId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusConnectAuthRef_PubkeyCert extends BusConnectAuthRef {
+  const BusConnectAuthRef_PubkeyCert({required this.keySecretId, required this.certSecretId, this.passphraseSecretId}): super._();
+  
+
+ final  String keySecretId;
+ final  String certSecretId;
+ final  String? passphraseSecretId;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusConnectAuthRef_PubkeyCertCopyWith<BusConnectAuthRef_PubkeyCert> get copyWith => _$BusConnectAuthRef_PubkeyCertCopyWithImpl<BusConnectAuthRef_PubkeyCert>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef_PubkeyCert&&(identical(other.keySecretId, keySecretId) || other.keySecretId == keySecretId)&&(identical(other.certSecretId, certSecretId) || other.certSecretId == certSecretId)&&(identical(other.passphraseSecretId, passphraseSecretId) || other.passphraseSecretId == passphraseSecretId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,keySecretId,certSecretId,passphraseSecretId);
+
+@override
+String toString() {
+  return 'BusConnectAuthRef.pubkeyCert(keySecretId: $keySecretId, certSecretId: $certSecretId, passphraseSecretId: $passphraseSecretId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusConnectAuthRef_PubkeyCertCopyWith<$Res> implements $BusConnectAuthRefCopyWith<$Res> {
+  factory $BusConnectAuthRef_PubkeyCertCopyWith(BusConnectAuthRef_PubkeyCert value, $Res Function(BusConnectAuthRef_PubkeyCert) _then) = _$BusConnectAuthRef_PubkeyCertCopyWithImpl;
+@useResult
+$Res call({
+ String keySecretId, String certSecretId, String? passphraseSecretId
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusConnectAuthRef_PubkeyCertCopyWithImpl<$Res>
+    implements $BusConnectAuthRef_PubkeyCertCopyWith<$Res> {
+  _$BusConnectAuthRef_PubkeyCertCopyWithImpl(this._self, this._then);
+
+  final BusConnectAuthRef_PubkeyCert _self;
+  final $Res Function(BusConnectAuthRef_PubkeyCert) _then;
+
+/// Create a copy of BusConnectAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? keySecretId = null,Object? certSecretId = null,Object? passphraseSecretId = freezed,}) {
+  return _then(BusConnectAuthRef_PubkeyCert(
+keySecretId: null == keySecretId ? _self.keySecretId : keySecretId // ignore: cast_nullable_to_non_nullable
+as String,certSecretId: null == certSecretId ? _self.certSecretId : certSecretId // ignore: cast_nullable_to_non_nullable
+as String,passphraseSecretId: freezed == passphraseSecretId ? _self.passphraseSecretId : passphraseSecretId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusConnectAuthRef_Agent extends BusConnectAuthRef {
+  const BusConnectAuthRef_Agent(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusConnectAuthRef_Agent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusConnectAuthRef.agent()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$BusEvent {
 
 
