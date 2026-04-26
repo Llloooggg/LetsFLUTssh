@@ -50,11 +50,8 @@ pub mod inner {
     const BIOMETRIC_FACTORS: u32 =
         WINBIO_TYPE_FINGERPRINT | WINBIO_TYPE_FACIAL_FEATURES | WINBIO_TYPE_IRIS;
 
-    type EnumBiometricUnitsFn = unsafe extern "system" fn(
-        u32,
-        *mut *mut core::ffi::c_void,
-        *mut usize,
-    ) -> i32;
+    type EnumBiometricUnitsFn =
+        unsafe extern "system" fn(u32, *mut *mut core::ffi::c_void, *mut usize) -> i32;
     type FreeFn = unsafe extern "system" fn(*mut core::ffi::c_void) -> i32;
 
     pub fn count() -> i64 {
@@ -77,11 +74,10 @@ pub mod inner {
                 Ok(s) => s,
                 Err(_) => return 0,
             };
-        let free_fn: libloading::Symbol<FreeFn> =
-            match unsafe { lib.get(b"WinBioFree") } {
-                Ok(s) => s,
-                Err(_) => return 0,
-            };
+        let free_fn: libloading::Symbol<FreeFn> = match unsafe { lib.get(b"WinBioFree") } {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
 
         let mut schemas: *mut core::ffi::c_void = core::ptr::null_mut();
         let mut count: usize = 0;

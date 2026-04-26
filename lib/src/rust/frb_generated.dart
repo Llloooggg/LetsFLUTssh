@@ -6930,8 +6930,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbApplyResult dco_decode_db_apply_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return DbApplyResult(
       sessionsApplied: dco_decode_i_64(arr[0]),
       keysApplied: dco_decode_i_64(arr[1]),
@@ -6943,6 +6943,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sessionTagsApplied: dco_decode_i_64(arr[7]),
       sessionSnippetsApplied: dco_decode_i_64(arr[8]),
       errors: dco_decode_list_String(arr[9]),
+      configJson: dco_decode_opt_String(arr[10]),
     );
   }
 
@@ -8365,6 +8366,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_sessionTagsApplied = sse_decode_i_64(deserializer);
     final var_sessionSnippetsApplied = sse_decode_i_64(deserializer);
     final var_errors = sse_decode_list_String(deserializer);
+    final var_configJson = sse_decode_opt_String(deserializer);
     return DbApplyResult(
       sessionsApplied: var_sessionsApplied,
       keysApplied: var_keysApplied,
@@ -8376,6 +8378,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sessionTagsApplied: var_sessionTagsApplied,
       sessionSnippetsApplied: var_sessionSnippetsApplied,
       errors: var_errors,
+      configJson: var_configJson,
     );
   }
 
@@ -10148,6 +10151,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.sessionTagsApplied, serializer);
     sse_encode_i_64(self.sessionSnippetsApplied, serializer);
     sse_encode_list_String(self.errors, serializer);
+    sse_encode_opt_String(self.configJson, serializer);
   }
 
   @protected

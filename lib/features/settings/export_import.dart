@@ -18,7 +18,6 @@ import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../utils/logger.dart';
-import '../../utils/platform.dart' as plat;
 
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM
 /// under an Argon2id-derived key.
@@ -38,6 +37,11 @@ import '../../utils/platform.dart' as plat;
 /// missing manifest, an unrecognised header byte, or no `LFSE` magic is
 /// rejected with [UnsupportedLfsVersionException]. Future format changes
 /// ship a [Migration] registered in `archive_registry.dart`.
+///
+/// **Read path lives in Rust** — `lfs_core::archive::read_archive_to_pending`
+/// + `apply_pending_import` handle decrypt + parse + apply. The Dart
+/// half here only composes the export side and exposes `probeArchive`
+/// for the SAF file-picker classification step.
 class ExportImport {
   /// Current .lfs schema version. Bump on format-breaking changes; every
   /// bump ships a corresponding archive `Migration`. Sourced from
@@ -63,134 +67,15 @@ class ExportImport {
   @visibleForTesting
   static KdfParams defaultKdfParams = KdfParams.productionDefaults;
 
-  /// Absolute ceiling on the Argon2id memory cost we are willing to
-  /// honour from an untrusted archive header on desktop — 1 GiB. On
-  /// desktop the OS accounts for memory generously (swap, working-set
-  /// trimming, plenty of RAM on a 2025-era workstation) so Argon2id at
-  /// 1 GiB decodes without OOM-killer risk; higher values fail the
-  /// import as malformed so a hostile header still cannot pin the
-  /// isolate into swap indefinitely. See [resolveMaxImportArgon2idMemoryKiB]
-  /// for the mobile branch which uses a lower static floor.
-  @visibleForTesting
-  static const int maxImportArgon2idMemoryKiB = 1 * 1024 * 1024;
-
-  /// Hard import-time memory ceiling on iOS / Android — 512 MiB.
-  ///
-  /// Rationale. `ProcessInfo.maxRss` is the current process peak,
-  /// not total physical RAM, so the previous `maxRss * 4` proxy
-  /// underestimated RAM on cold-start (tiny peak → tight cap →
-  /// legitimate 30 MB `.lfs` imports rejected as malformed on a 6 GB
-  /// phone) and overestimated it on long-running warm sessions with
-  /// live SSH + open SFTP panels. Neither branch was tracking the
-  /// real "can Argon2id decode this without tripping Android's
-  /// low-memory killer" question.
-  ///
-  /// Dart does not expose a total-physical-RAM API, and pulling in a
-  /// new method-channel plugin across 5 platforms solely for this
-  /// single DoS bound is disproportionate. A flat 512 MiB floor
-  /// meets the real constraint: it sits comfortably below the OOM
-  /// threshold on every Android device the app supports (Android 8+
-  /// baseline ≥ 2 GB RAM; 512 MiB is 25 %) and is still well inside
-  /// the 1 GiB desktop ceiling so `resolveMax…` picks the correct
-  /// branch by platform. Tests can still override via
-  /// [debugMemoryProbeOverride].
-  @visibleForTesting
-  static const int mobileImportArgon2idMemoryKiB = 512 * 1024;
-
-  /// Resolve the effective memory cap at import time by platform.
-  /// Mobile → [mobileImportArgon2idMemoryKiB] (512 MiB). Desktop →
-  /// [maxImportArgon2idMemoryKiB] (1 GiB). The injection point
-  /// [debugMemoryProbeOverride] bypasses the platform branch entirely
-  /// — set it to the KiB value the test wants honoured.
-  static int resolveMaxImportArgon2idMemoryKiB() {
-    final override = debugMemoryProbeOverride;
-    if (override != null) return override;
-    return plat.isMobilePlatform
-        ? mobileImportArgon2idMemoryKiB
-        : maxImportArgon2idMemoryKiB;
-  }
-
-  /// Injection point for tests — set to the KiB value the resolver
-  /// should return so the mobile / desktop branch can be exercised
-  /// deterministically without the platform gate.
-  @visibleForTesting
-  static int? debugMemoryProbeOverride;
-
-  /// Upper bound on Argon2id iterations in an untrusted header. Argon2id
-  /// is memory-heavy per pass; even a modest iteration count at 1 GiB
-  /// takes minutes, so 20 is a generous cap above any legitimate value.
-  @visibleForTesting
-  static const int maxImportArgon2idIterations = 20;
-
-  /// Upper bound on Argon2id parallelism. Going above physical core count
-  /// is counter-productive and this cap prevents a malformed header from
-  /// requesting thousands of lanes.
-  @visibleForTesting
-  static const int maxImportArgon2idParallelism = 16;
-
-  /// Maximum accepted encrypted archive size (50 MiB). Enforced before any
-  /// decryption or decompression so a pathologically large file can't OOM
-  /// the process — Argon2id + AES-GCM both hold the full plaintext in memory
-  /// on mobile. Legitimate exports are dominated by session credentials and
-  /// known_hosts; real archives run in the single-digit-MB range, so 50 MiB
-  /// is generous for normal use but catches zip-bomb-scale inputs.
+  /// Maximum accepted encrypted archive size (50 MiB). Used by the
+  /// `probeArchive` classifier; the Rust read path enforces its own
+  /// bounds during decrypt.
   static const int maxArchiveBytes = 50 * 1024 * 1024;
 
   /// Maximum total uncompressed payload accepted from any decoded ZIP
-  /// (200 MiB). The outer file size is already capped by [maxArchiveBytes],
-  /// but ZIP allows tiny compressed entries to declare wildly large
-  /// uncompressed sizes (the classic zip-bomb pattern). After decoding the
-  /// archive we sum every entry's `size` and refuse to continue if the
-  /// total exceeds this cap, before any further processing reads the
-  /// content into memory.
-  ///
-  /// Set to 4× the compressed cap so legitimate exports with high-ratio
-  /// JSON content still fit, but anything pathological is rejected.
+  /// (200 MiB). Used by `probeArchive` only — the Rust read path uses
+  /// the same per-entry caps internally.
   static const int maxDecompressedBytes = 200 * 1024 * 1024;
-
-  /// Scan [zipBytes] from the tail for the End-of-Central-Directory
-  /// signature (`PK\x05\x06`, `0x50 0x4B 0x05 0x06`). Returns false when
-  /// the signature is not present in the last 64 KiB — the PKZip spec
-  /// allows up to 64 KiB of ZIP comment after the signature, so a
-  /// signature further back cannot be valid.
-  static bool _hasEocdSignature(Uint8List zipBytes) {
-    const eocdSig = [0x50, 0x4B, 0x05, 0x06];
-    const maxCommentLen = 0xFFFF; // 64 KiB ZIP spec cap.
-    final windowStart = zipBytes.length > maxCommentLen + 22
-        ? zipBytes.length - maxCommentLen - 22
-        : 0;
-    for (var i = zipBytes.length - 4; i >= windowStart; i--) {
-      if (zipBytes[i] == eocdSig[0] &&
-          zipBytes[i + 1] == eocdSig[1] &&
-          zipBytes[i + 2] == eocdSig[2] &&
-          zipBytes[i + 3] == eocdSig[3]) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// Walk every entry in [archive] and force a read of its decompressed
-  /// bytes. A truncated archive whose central directory survived but
-  /// whose payload section was cut off (the common mid-transfer failure)
-  /// decodes into an [Archive] object that only throws when an entry is
-  /// actually read — pulling the bytes early lets us surface the
-  /// truncation with a typed exception before any parser touches it.
-  ///
-  /// Throws [LfsArchiveTruncatedException].
-  @visibleForTesting
-  static void validateArchiveEntriesReadable(Archive archive) {
-    for (final entry in archive) {
-      if (!entry.isFile) continue;
-      try {
-        // Touching `.content` forces the decoder to decompress the
-        // entry's payload; for truncated entries this throws.
-        entry.content;
-      } catch (e) {
-        throw LfsArchiveTruncatedException(cause: e, entryName: entry.name);
-      }
-    }
-  }
 
   /// Walk every entry in [archive] and refuse if the cumulative declared
   /// uncompressed size exceeds [maxDecompressedBytes].
@@ -213,15 +98,6 @@ class ExportImport {
     }
   }
 
-  /// Maximum accepted decompressed known_hosts payload (10 MiB). The outer
-  /// archive size is already bounded by [maxArchiveBytes], but a malicious
-  /// or corrupted .lfs could still ship a tiny ZIP entry that decompresses
-  /// to a runaway known_hosts blob — `KnownHostsManager.importFromString`
-  /// processes it line-by-line on the UI isolate and would stall the app.
-  /// 10 MiB comfortably covers any real fleet (~50k host keys at ~200 B
-  /// per line) and rejects pathological inputs early.
-  static const int maxKnownHostsBytes = 10 * 1024 * 1024;
-
   /// Detect an unencrypted `.lfs` (plain ZIP) by its local-file-header
   /// magic `PK\x03\x04`. Encrypted archives start with a random 32-byte
   /// salt, so a false positive is a ~2⁻³² lottery — and even then the
@@ -232,17 +108,6 @@ class ExportImport {
         data[1] == 0x4B &&
         data[2] == 0x03 &&
         data[3] == 0x04;
-  }
-
-  /// True when [data] starts with the `LFSE` magic. Pre-magic archives
-  /// are rejected as [UnsupportedLfsVersionException] in the decrypt
-  /// path — this predicate just drives the version-byte lookup.
-  static bool _hasEncryptionHeader(Uint8List data) {
-    if (data.length < _encHeaderMagic.length + 1) return false;
-    for (var i = 0; i < _encHeaderMagic.length; i++) {
-      if (data[i] != _encHeaderMagic[i]) return false;
-    }
-    return true;
   }
 
   /// Probe an `.lfs` candidate file and decide what the import flow
@@ -321,159 +186,6 @@ class ExportImport {
   static const _folderTagsFile = 'folder_tags.json';
   static const _snippetsFile = 'snippets.json';
   static const _sessionSnippetsFile = 'session_snippets.json';
-
-  // ─── Per-entry JSON parsers ─────────────────────────────────────────────
-  // Extracted for testability / fuzzing. Each parser accepts a raw JSON
-  // string (as stored inside the archive) and returns an empty list when
-  // the JSON is null, malformed, or not a list. Individual entries that
-  // fail to parse are skipped rather than aborting the whole import.
-
-  static String? _entryJson(ArchiveFile? file) {
-    if (file == null) return null;
-    try {
-      return utf8.decode(file.content as List<int>);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static List<Map<String, dynamic>> _decodeList(String? json) {
-    if (json == null || json.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(json);
-      if (decoded is! List) return const [];
-      return decoded.whereType<Map<String, dynamic>>().toList();
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  static DateTime _parseDate(Object? raw) {
-    if (raw is String) {
-      final parsed = DateTime.tryParse(raw);
-      if (parsed != null) return parsed;
-    }
-    return DateTime.now();
-  }
-
-  static String _asString(Object? raw) => raw is String ? raw : '';
-
-  /// Parse the sessions JSON entry. Each session is decoded inside an
-  /// individual try/catch so a single malformed record (wrong type for
-  /// `port`, missing required field, etc.) skips that one entry and logs
-  /// the count instead of aborting the entire import.
-  ///
-  /// Returns `(parsedSessions, skippedCount)`.
-  @visibleForTesting
-  static (List<Session>, int) parseSessionsJson(String? json) {
-    final maps = _decodeList(json);
-    final out = <Session>[];
-    var skipped = 0;
-    for (final m in maps) {
-      try {
-        out.add(Session.fromJson(m));
-      } catch (e) {
-        skipped++;
-        AppLogger.instance.log(
-          'Skipped malformed session during import: $e',
-          name: 'ExportImport',
-        );
-      }
-    }
-    return (out, skipped);
-  }
-
-  /// Parse the empty-folders JSON entry. Non-string entries are dropped
-  /// rather than crashing the cast.
-  @visibleForTesting
-  static Set<String> parseEmptyFoldersJson(String? json) {
-    if (json == null || json.isEmpty) return const {};
-    try {
-      final decoded = jsonDecode(json);
-      if (decoded is! List) return const {};
-      return decoded.whereType<String>().toSet();
-    } catch (_) {
-      return const {};
-    }
-  }
-
-  @visibleForTesting
-  static List<SshKeyEntry> parseKeysJson(String? json) {
-    return _decodeList(json)
-        .map(
-          (m) => SshKeyEntry(
-            id: _asString(m['id']),
-            label: _asString(m['label']),
-            privateKey: _asString(m['private_key']),
-            publicKey: _asString(m['public_key']),
-            keyType: _asString(m['key_type']),
-            isGenerated: m['is_generated'] is bool
-                ? m['is_generated'] as bool
-                : false,
-            createdAt: _parseDate(m['created_at']),
-          ),
-        )
-        .toList();
-  }
-
-  @visibleForTesting
-  static List<Tag> parseTagsJson(String? json) {
-    return _decodeList(json)
-        .map(
-          (m) => Tag(
-            id: _asString(m['id']),
-            name: _asString(m['name']),
-            color: m['color'] is String ? m['color'] as String : null,
-            createdAt: _parseDate(m['created_at']),
-          ),
-        )
-        .toList();
-  }
-
-  @visibleForTesting
-  static List<Snippet> parseSnippetsJson(String? json) {
-    return _decodeList(json)
-        .map(
-          (m) => Snippet(
-            id: _asString(m['id']),
-            title: _asString(m['title']),
-            command: _asString(m['command']),
-            description: _asString(m['description']),
-            createdAt: _parseDate(m['created_at']),
-            updatedAt: _parseDate(m['updated_at']),
-          ),
-        )
-        .toList();
-  }
-
-  /// Parse session→target links. [targetKey] is `'tag_id'` for session-tag
-  /// links or `'snippet_id'` for session-snippet links.
-  @visibleForTesting
-  static List<ExportLink> parseLinksJson(
-    String? json, {
-    required String targetKey,
-  }) {
-    return _decodeList(json)
-        .map(
-          (m) => ExportLink(
-            sessionId: _asString(m['session_id']),
-            targetId: _asString(m[targetKey]),
-          ),
-        )
-        .toList();
-  }
-
-  @visibleForTesting
-  static List<ExportFolderTagLink> parseFolderTagLinksJson(String? json) {
-    return _decodeList(json)
-        .map(
-          (m) => ExportFolderTagLink(
-            folderPath: _asString(m['folder_path']),
-            tagId: _asString(m['tag_id']),
-          ),
-        )
-        .toList();
-  }
 
   /// Export app data to an encrypted `.lfs` file via the Rust
   /// orchestrator. Sessions / keys / tags / snippets / known-hosts
@@ -784,304 +496,6 @@ class ExportImport {
     return zipBytes.length + _argon2idHeaderMaxLen + _saltLen + _ivLen + 16;
   }
 
-  /// Decrypt an .lfs file and parse the archive contents.
-  static Future<_ParsedArchive> _decryptAndParseArchive({
-    required String filePath,
-    required String masterPassword,
-    ProgressReporter? progress,
-    S? l10n,
-  }) async {
-    progress?.phase(l10n?.progressReadingArchive ?? 'Reading archive…');
-    final file = File(filePath);
-    final fileSize = await file.length();
-    if (fileSize > maxArchiveBytes) {
-      throw LfsArchiveTooLargeException(size: fileSize, limit: maxArchiveBytes);
-    }
-    final encData = await file.readAsBytes();
-
-    // Detect unencrypted archive by the ZIP local-file-header magic
-    // `PK\x03\x04` (0x50 0x4B 0x03 0x04). Encrypted archives start with a
-    // random 32-byte salt, so the probability of a collision is 2^-32 and
-    // the decoder would reject a false positive as malformed anyway.
-    final Uint8List zipBytes;
-    if (isUnencryptedArchive(encData)) {
-      progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
-      zipBytes = encData;
-    } else {
-      progress?.phase(l10n?.progressDecrypting ?? 'Decrypting…');
-      // Argon2id KDF runs on the Rust core's blocking pool; GCM
-      // auth-tag failure (wrong password or tampered archive)
-      // surfaces as `Error::Crypto` from `lfs_core::crypto`.
-      // ZipDecoder also throws on successfully-decrypted-but-
-      // non-ZIP bytes (truncated file). Both cases collapse to
-      // LfsDecryptionFailedException so the UI can show a single
-      // localized message.
-      try {
-        zipBytes = await _decryptWithPassword(encData, masterPassword);
-      } on LfsMalformedHeaderException {
-        rethrow;
-      } on UnsupportedLfsVersionException {
-        rethrow;
-      } catch (e) {
-        throw LfsDecryptionFailedException(cause: e);
-      }
-    }
-    progress?.phase(l10n?.progressParsingArchive ?? 'Parsing archive…');
-    // EOCD guard: the ZipDecoder in the `archive` package is lenient
-    // with truncated files — it scans forward from local file headers
-    // instead of anchoring on the End-of-Central-Directory record, so a
-    // ZIP whose tail (central directory + EOCD) has been cut off still
-    // decodes into an `Archive` containing only the entries that
-    // happened to survive. That collapses into a "manifest missing"
-    // error deeper in the flow, which reads as "archive from the wrong
-    // version" to the user. Scan for `PK\x05\x06` up front so
-    // truncation surfaces with its own typed exception — it means
-    // "archive is incomplete; re-download or re-export", not "wrong
-    // password" or "unsupported version".
-    if (!_hasEocdSignature(zipBytes)) {
-      throw const LfsArchiveTruncatedException();
-    }
-    final Archive archive;
-    try {
-      archive = ZipDecoder().decodeBytes(zipBytes);
-    } catch (e) {
-      // A structurally broken ZIP that still carried EOCD but can't be
-      // decoded in full shares the UI copy with a successful EOCD-less
-      // truncation — either way the archive is incomplete.
-      throw LfsArchiveTruncatedException(cause: e);
-    }
-    // Zip-bomb guard: refuse before the manifest / session readers start
-    // pulling entry bytes into memory.
-    enforceDecompressedSizeCap(archive);
-    // Integrity guard: the ZipDecoder validates the central directory
-    // record but not each entry's compressed payload — a file truncated
-    // inside an entry's data section would still decode into an Archive
-    // whose first `entry.content` access throws. Force-read every entry
-    // up front so a truncation surfaces here with a typed exception
-    // rather than deep inside one of the per-entry parsers.
-    validateArchiveEntriesReadable(archive);
-
-    final manifest = _parseManifest(archive);
-    // Any schema_version that is not exactly [currentSchemaVersion]
-    // (future OR past) is rejected — future archives can't be read by
-    // this build, past archives fall below the v1 floor. Future format
-    // bumps register migrations in archive_registry.dart.
-    if (manifest.schemaVersion != currentSchemaVersion) {
-      throw UnsupportedLfsVersionException(
-        found: manifest.schemaVersion,
-        supported: currentSchemaVersion,
-      );
-    }
-
-    final (sessions, skippedSessions) = parseSessionsJson(
-      _entryJson(archive.findFile(_sessionsFile)),
-    );
-    final emptyFolders = parseEmptyFoldersJson(
-      _entryJson(archive.findFile(_emptyFoldersFile)),
-    );
-
-    final managerKeys = parseKeysJson(_entryJson(archive.findFile(_keysFile)));
-    final tags = parseTagsJson(_entryJson(archive.findFile(_tagsFile)));
-    final sessionTagLinks = parseLinksJson(
-      _entryJson(archive.findFile(_sessionTagsFile)),
-      targetKey: 'tag_id',
-    );
-    final folderTagLinks = parseFolderTagLinksJson(
-      _entryJson(archive.findFile(_folderTagsFile)),
-    );
-    final snippetList = parseSnippetsJson(
-      _entryJson(archive.findFile(_snippetsFile)),
-    );
-    final sessionSnippetLinks = parseLinksJson(
-      _entryJson(archive.findFile(_sessionSnippetsFile)),
-      targetKey: 'snippet_id',
-    );
-
-    AppLogger.instance.log(
-      'Import: decrypted ${encData.length} bytes, '
-      '${sessions.length} sessions (skipped $skippedSessions), '
-      '${managerKeys.length} keys, '
-      '${tags.length} tags, ${snippetList.length} snippets, '
-      '${emptyFolders.length} empty folders',
-      name: 'ExportImport',
-    );
-    return _ParsedArchive(
-      archive: archive,
-      manifest: manifest,
-      sessions: sessions,
-      skippedSessions: skippedSessions,
-      emptyFolders: emptyFolders,
-      managerKeys: managerKeys,
-      tags: tags,
-      sessionTags: sessionTagLinks,
-      folderTags: folderTagLinks,
-      snippets: snippetList,
-      sessionSnippets: sessionSnippetLinks,
-    );
-  }
-
-  /// Parse the manifest entry. The manifest is mandatory — absence or
-  /// malformed content throws [UnsupportedLfsVersionException] so the
-  /// caller surfaces a clear "archive not recognised; re-export" error.
-  /// `found: 0` is the sentinel for "manifest missing or unreadable".
-  static LfsManifest _parseManifest(Archive archive) {
-    final file = archive.findFile(_manifestFile);
-    if (file == null) {
-      throw const UnsupportedLfsVersionException(
-        found: 0,
-        supported: currentSchemaVersion,
-      );
-    }
-    try {
-      final json = utf8.decode(file.content as List<int>);
-      final decoded = jsonDecode(json);
-      if (decoded is! Map<String, dynamic>) {
-        throw const UnsupportedLfsVersionException(
-          found: 0,
-          supported: currentSchemaVersion,
-        );
-      }
-      final versionRaw = decoded['schema_version'];
-      final int schemaVersion;
-      if (versionRaw is int) {
-        schemaVersion = versionRaw;
-      } else if (versionRaw is num) {
-        schemaVersion = versionRaw.toInt();
-      } else {
-        throw const UnsupportedLfsVersionException(
-          found: 0,
-          supported: currentSchemaVersion,
-        );
-      }
-      return LfsManifest(
-        schemaVersion: schemaVersion,
-        appVersion: decoded['app_version'] is String
-            ? decoded['app_version'] as String
-            : null,
-        createdAt: decoded['created_at'] is String
-            ? DateTime.tryParse(decoded['created_at'] as String)
-            : null,
-      );
-    } on UnsupportedLfsVersionException {
-      rethrow;
-    } catch (e) {
-      // Wrap every other manifest parse failure (malformed JSON,
-      // unexpected type, truncated header) into the same
-      // user-facing "unsupported version" path so the message stays
-      // consistent. Log the original reason so a support trace can
-      // distinguish "user has a newer build's archive" from "bytes
-      // are corrupt".
-      AppLogger.instance.log(
-        'Manifest parse failed → reporting UnsupportedLfsVersionException: $e',
-        name: 'ExportImport',
-      );
-      throw const UnsupportedLfsVersionException(
-        found: 0,
-        supported: currentSchemaVersion,
-      );
-    }
-  }
-
-  /// Preview contents of an .lfs archive without full import.
-  static Future<LfsPreview> preview({
-    required String filePath,
-    required String masterPassword,
-  }) async {
-    final parsed = await _decryptAndParseArchive(
-      filePath: filePath,
-      masterPassword: masterPassword,
-    );
-
-    final hasConfig = parsed.archive.findFile(_configFile) != null;
-    final hasKnownHosts = parsed.archive.findFile(_knownHostsFile) != null;
-
-    return LfsPreview(
-      sessions: parsed.sessions,
-      hasConfig: hasConfig,
-      hasKnownHosts: hasKnownHosts,
-      emptyFolders: parsed.emptyFolders,
-      managerKeyCount: parsed.managerKeys.length,
-      tagCount: parsed.tags.length,
-      snippetCount: parsed.snippets.length,
-      manifest: parsed.manifest,
-      skippedSessions: parsed.skippedSessions,
-    );
-  }
-
-  /// Import data from an .lfs archive.
-  ///
-  /// [options] controls what data to import (only imports what's present).
-  /// [mode] controls how sessions are merged:
-  /// - `ImportMode.merge` — add new sessions, skip existing (by ID)
-  /// - `ImportMode.replace` — replace all sessions with imported ones
-  static Future<ImportResult> import_({
-    required String filePath,
-    required String masterPassword,
-    required ImportMode mode,
-    ExportOptions options = const ExportOptions(),
-    ProgressReporter? progress,
-    S? l10n,
-  }) async {
-    final parsed = await _decryptAndParseArchive(
-      filePath: filePath,
-      masterPassword: masterPassword,
-      progress: progress,
-      l10n: l10n,
-    );
-
-    final config = options.includeConfig
-        ? _readConfigEntry(parsed.archive)
-        : null;
-    final knownHostsContent = options.includeKnownHosts
-        ? _readKnownHostsEntry(parsed.archive)
-        : null;
-
-    return ImportResult(
-      sessions: options.includeSessions ? parsed.sessions : [],
-      emptyFolders: options.includeSessions ? parsed.emptyFolders : {},
-      managerKeys: options.hasManagerKeys ? parsed.managerKeys : [],
-      tags: options.includeTags ? parsed.tags : [],
-      sessionTags: options.includeTags ? parsed.sessionTags : [],
-      folderTags: options.includeTags ? parsed.folderTags : [],
-      snippets: options.includeSnippets ? parsed.snippets : [],
-      sessionSnippets: options.includeSnippets ? parsed.sessionSnippets : [],
-      config: config,
-      mode: mode,
-      knownHostsContent: knownHostsContent,
-      includeTags: options.includeTags,
-      includeSnippets: options.includeSnippets,
-      includeKnownHosts: options.includeKnownHosts,
-      skippedSessions: options.includeSessions ? parsed.skippedSessions : 0,
-    );
-  }
-
-  /// Read and parse the optional `config.json` entry. Returns null if
-  /// the archive doesn't carry one — callers decide what "no config"
-  /// means for their mode.
-  static AppConfig? _readConfigEntry(Archive archive) {
-    final configFile = archive.findFile(_configFile);
-    if (configFile == null) return null;
-    final json = utf8.decode(configFile.content as List<int>);
-    return AppConfig.fromJson(jsonDecode(json) as Map<String, dynamic>);
-  }
-
-  /// Read the optional `known_hosts` entry. Returns null when the
-  /// archive doesn't carry one; throws [LfsKnownHostsTooLargeException]
-  /// when it does but the decompressed blob exceeds the per-entry cap
-  /// — caller must surface that as a localized error.
-  static String? _readKnownHostsEntry(Archive archive) {
-    final khFile = archive.findFile(_knownHostsFile);
-    if (khFile == null) return null;
-    final bytes = khFile.content as List<int>;
-    if (bytes.length > maxKnownHostsBytes) {
-      throw LfsKnownHostsTooLargeException(
-        size: bytes.length,
-        limit: maxKnownHostsBytes,
-      );
-    }
-    return utf8.decode(bytes);
-  }
-
   // --- Crypto helpers ---
 
   static void _addJsonFile(Archive archive, String name, List<dynamic> data) {
@@ -1149,93 +563,8 @@ class ExportImport {
     }
   }
 
-  /// Decrypt bytes with a password-derived key. Argon2id-only. Missing
-  /// `LFSE` magic or a header version byte other than
-  /// [_encVersionArgon2id] is rejected with
-  /// [UnsupportedLfsVersionException].
-  static Future<Uint8List> _decryptWithPassword(
-    Uint8List data,
-    String password,
-  ) async {
-    final bytes = Uint8List.fromList(data);
-
-    if (!_hasEncryptionHeader(bytes)) {
-      throw const UnsupportedLfsVersionException(
-        found: 0,
-        supported: currentSchemaVersion,
-      );
-    }
-
-    final version = bytes[_encHeaderMagic.length];
-    if (version != _encVersionArgon2id) {
-      throw UnsupportedLfsVersionException(
-        found: version,
-        supported: currentSchemaVersion,
-      );
-    }
-    return _decryptArgon2id(bytes, password);
-  }
-
-  /// Decrypt a v3 Argon2id archive. Parses params from the header and
-  /// enforces [maxImportArgon2idMemoryKiB] / [maxImportArgon2idIterations]
-  /// / [maxImportArgon2idParallelism] DoS bounds before running the KDF.
-  static Future<Uint8List> _decryptArgon2id(
-    Uint8List bytes,
-    String password,
-  ) async {
-    final paramsStart = _encHeaderMagic.length + 1;
-    if (bytes.length <= paramsStart) {
-      throw const LfsMalformedHeaderException(
-        reason: 'truncated Argon2id header',
-      );
-    }
-    final KdfParams params;
-    try {
-      params = KdfParams.decode(Uint8List.sublistView(bytes, paramsStart));
-    } on FormatException catch (e) {
-      throw LfsMalformedHeaderException(reason: e.message);
-    }
-    final memoryCap = resolveMaxImportArgon2idMemoryKiB();
-    if (params.memoryKiB > memoryCap ||
-        params.iterations > maxImportArgon2idIterations ||
-        params.parallelism > maxImportArgon2idParallelism) {
-      throw LfsMalformedHeaderException(
-        reason:
-            'Argon2id params exceed import caps '
-            '(m=${params.memoryKiB}, t=${params.iterations}, '
-            'p=${params.parallelism})',
-      );
-    }
-    final saltStart = paramsStart + params.encodedLength;
-    if (bytes.length < saltStart + _saltLen + _ivLen) {
-      throw const LfsMalformedHeaderException(
-        reason: 'truncated Argon2id payload',
-      );
-    }
-    final salt = bytes.sublist(saltStart, saltStart + _saltLen);
-    final ivStart = saltStart + _saltLen;
-    final iv = bytes.sublist(ivStart, ivStart + _ivLen);
-    final ciphertext = bytes.sublist(ivStart + _ivLen);
-
-    final derivedKey = await _deriveArgon2idAsync(password, salt, params);
-    try {
-      return Uint8List.fromList(
-        await rust_crypto.cryptoAesGcmDecryptRaw(
-          key: derivedKey,
-          nonce: iv,
-          ciphertext: ciphertext,
-          aad: Uint8List(0),
-        ),
-      );
-    } finally {
-      for (var i = 0; i < derivedKey.length; i++) {
-        derivedKey[i] = 0;
-      }
-    }
-  }
-
-  /// Argon2id derivation via the Rust core's blocking pool (Phase
-  /// 2.4). Returns plain bytes; caller scrubs the buffer after use.
+  /// Argon2id derivation via the Rust core's blocking pool.
+  /// Returns plain bytes; caller scrubs the buffer after use.
   static Future<Uint8List> _deriveArgon2idAsync(
     String password,
     Uint8List salt,
@@ -1254,8 +583,8 @@ class ExportImport {
 
   /// Build an archive with an unknown version byte. Used only by tests
   /// that assert the rejection path — the header layout is well-formed
-  /// but the version byte is not [_encVersionArgon2id], so
-  /// [_decryptWithPassword] rejects it before any cipher runs.
+  /// but the version byte is not [_encVersionArgon2id], so the Rust
+  /// reader rejects it before any cipher runs.
   @visibleForTesting
   static Uint8List encryptInvalidVersionForTesting(
     Uint8List data, {
@@ -1278,36 +607,7 @@ class ExportImport {
   }
 }
 
-/// Internal parsed archive result.
-class _ParsedArchive {
-  final Archive archive;
-  final LfsManifest manifest;
-  final List<Session> sessions;
-  final int skippedSessions;
-  final Set<String> emptyFolders;
-  final List<SshKeyEntry> managerKeys;
-  final List<Tag> tags;
-  final List<ExportLink> sessionTags;
-  final List<ExportFolderTagLink> folderTags;
-  final List<Snippet> snippets;
-  final List<ExportLink> sessionSnippets;
-
-  const _ParsedArchive({
-    required this.archive,
-    required this.manifest,
-    required this.sessions,
-    this.skippedSessions = 0,
-    required this.emptyFolders,
-    required this.managerKeys,
-    this.tags = const [],
-    this.sessionTags = const [],
-    this.folderTags = const [],
-    this.snippets = const [],
-    this.sessionSnippets = const [],
-  });
-}
-
-/// Manifest metadata parsed from the archive.
+/// Manifest metadata returned by the Rust import preview.
 class LfsManifest {
   final int schemaVersion;
   final String? appVersion;
@@ -1378,7 +678,7 @@ class LfsArchiveTooLargeException implements Exception {
 }
 
 /// Thrown when the known_hosts entry inside a successfully decrypted .lfs
-/// archive is larger than [ExportImport.maxKnownHostsBytes]. The line-by-line
+/// archive is larger than the per-entry cap (10 MiB). The line-by-line
 /// importer would otherwise stall the UI on a multi-GB blob.
 class LfsKnownHostsTooLargeException implements Exception {
   final int size;
@@ -1406,9 +706,7 @@ class LfsDecryptionFailedException implements Exception {
   String toString() => 'LfsDecryptionFailedException';
 }
 
-/// Thrown when the ZIP container inside a .lfs archive is incomplete —
-/// End-of-Central-Directory record is missing or corrupt, or an entry's
-/// payload was cut off mid-stream (distinguishable at force-read time).
+/// Thrown when the ZIP container inside a .lfs archive is incomplete.
 /// Typical cause: the file was copied before a download / SAF write
 /// finished. UI should prompt the user to re-download or re-export
 /// from the original device.
@@ -1425,8 +723,9 @@ class LfsArchiveTruncatedException implements Exception {
 }
 
 /// The encrypted-archive header carried a value that we refuse to honour
-/// (e.g. an iteration count of 0 or above [LfsExportImport.maxImportIterations]).
-/// Importing would otherwise hang the isolate or crash on bad input.
+/// (e.g. an Argon2id memory cost above the import cap, an iteration count
+/// of 0, or a malformed KdfParams envelope). Importing would otherwise
+/// hang the isolate or crash on bad input.
 class LfsMalformedHeaderException implements Exception {
   final String reason;
   const LfsMalformedHeaderException({required this.reason});
@@ -1435,42 +734,62 @@ class LfsMalformedHeaderException implements Exception {
   String toString() => 'LfsMalformedHeaderException: $reason';
 }
 
-/// Preview of .lfs archive contents.
+/// Sanitised preview of an `.lfs` archive — produced by the Rust
+/// reader (`dbImportOpen`) and surfaced in the LFS preview dialog.
+/// Carries counts + non-secret labels only; the full payload (session
+/// passwords, key PEM, …) stays Rust-side under a registry handle until
+/// the apply step consumes it.
 class LfsPreview {
-  final List<Session> sessions;
-  final bool hasConfig;
-  final bool hasKnownHosts;
-  final Set<String> emptyFolders;
+  final int schemaVersion;
+  final int sessionCount;
+  final List<String> sessionLabels;
   final int managerKeyCount;
   final int tagCount;
   final int snippetCount;
+  final int emptyFoldersCount;
+  final bool hasConfig;
+  final bool hasKnownHosts;
   final LfsManifest manifest;
 
-  /// Number of session entries that failed to parse (malformed JSON, type
-  /// mismatch). Surfaced in the preview dialog and in the post-import toast
-  /// so the user knows the archive contained corrupt records.
-  final int skippedSessions;
-
   const LfsPreview({
-    required this.sessions,
-    this.hasConfig = false,
-    this.hasKnownHosts = false,
-    this.emptyFolders = const {},
+    required this.schemaVersion,
+    this.sessionCount = 0,
+    this.sessionLabels = const [],
     this.managerKeyCount = 0,
     this.tagCount = 0,
     this.snippetCount = 0,
+    this.emptyFoldersCount = 0,
+    this.hasConfig = false,
+    this.hasKnownHosts = false,
     this.manifest = LfsManifest.placeholder,
-    this.skippedSessions = 0,
   });
 
-  bool get hasSessions => sessions.isNotEmpty;
-  int get emptyFoldersCount => emptyFolders.length;
+  bool get hasSessions => sessionCount > 0;
+
+  /// Build an [LfsPreview] from the FRB `DbImportPreview` mirror.
+  factory LfsPreview.fromRust(rust_archive.DbImportPreview p) {
+    return LfsPreview(
+      schemaVersion: p.schemaVersion.toInt(),
+      sessionCount: p.sessionCount.toInt(),
+      sessionLabels: List<String>.unmodifiable(p.sessionLabels),
+      managerKeyCount: p.managerKeyCount.toInt(),
+      tagCount: p.tagCount.toInt(),
+      snippetCount: p.snippetCount.toInt(),
+      emptyFoldersCount: p.emptyFolderCount.toInt(),
+      hasConfig: p.hasConfig,
+      hasKnownHosts: p.hasKnownHosts,
+      manifest: LfsManifest(schemaVersion: p.schemaVersion.toInt()),
+    );
+  }
 }
 
 /// Import mode for sessions.
 enum ImportMode { merge, replace }
 
-/// Result of importing an .lfs archive.
+/// Result of importing data from a non-`.lfs` source (QR payload,
+/// paste-link, OpenSSH config). `.lfs` archives bypass this struct
+/// entirely — they decode straight into a Rust-side handle and apply
+/// from there. Used by [applyResultViaRust] to stage the JSON envelope.
 class ImportResult {
   final List<Session> sessions;
   final Set<String> emptyFolders;

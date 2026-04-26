@@ -45,10 +45,7 @@ impl<'a> Codesigner<'a> {
         let path_str = app_bundle.to_string_lossy().into_owned();
         let res = self
             .runner
-            .run(
-                CODESIGN_PATH,
-                &["-d", "--entitlements", ":-", &path_str],
-            )
+            .run(CODESIGN_PATH, &["-d", "--entitlements", ":-", &path_str])
             .ok()?;
         if !res.success() {
             return None;
@@ -311,5 +308,4 @@ mod tests {
         assert_eq!(found[0].file_name().unwrap(), "My.framework");
         let _ = fs::remove_dir_all(&tmp);
     }
-
 }

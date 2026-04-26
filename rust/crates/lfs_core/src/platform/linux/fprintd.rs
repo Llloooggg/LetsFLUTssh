@@ -115,11 +115,7 @@ pub async fn verify(timeout: Duration) -> bool {
     result
 }
 
-async fn run_verify_cycle(
-    conn: &Connection,
-    device_path: &str,
-    timeout: Duration,
-) -> bool {
+async fn run_verify_cycle(conn: &Connection, device_path: &str, timeout: Duration) -> bool {
     use futures_util::StreamExt;
     let device = match zbus::Proxy::new(conn, BUS_NAME, device_path, DEVICE_INTERFACE).await {
         Ok(p) => p,
@@ -149,15 +145,16 @@ async fn run_verify_cycle(
         }
         false
     };
-    tokio::time::timeout(timeout, waiter).await.unwrap_or_default()
+    tokio::time::timeout(timeout, waiter)
+        .await
+        .unwrap_or_default()
 }
 
 async fn default_device_path(conn: &Connection) -> Option<String> {
     let manager = zbus::Proxy::new(conn, BUS_NAME, MANAGER_PATH, MANAGER_INTERFACE)
         .await
         .ok()?;
-    let path: zbus::zvariant::OwnedObjectPath =
-        manager.call("GetDefaultDevice", &()).await.ok()?;
+    let path: zbus::zvariant::OwnedObjectPath = manager.call("GetDefaultDevice", &()).await.ok()?;
     let s = path.as_str();
     if s.is_empty() || s == "/" {
         return None;

@@ -11,9 +11,9 @@ import 'migration.dart';
 /// v1 is the permanent floor; no migrations are registered today — every
 /// supported archive is at v1 by definition. Archives whose
 /// `schema_version` does not match the current [SchemaVersions.archive]
-/// (missing manifest, older, or newer) are rejected with
-/// `UnsupportedLfsVersionException` inside
-/// `ExportImport._decryptWithPassword` / `_parseManifest`.
+/// (missing manifest, older, or newer) are rejected by the Rust
+/// reader (`lfs_core::archive::read_archive_to_pending`) with the
+/// FRB-mapped `UnsupportedLfsVersionException`.
 ///
 /// When bumping archive schema_version to 2:
 /// 1. Add a new `Migration` subclass in `lib/core/migration/migrations/

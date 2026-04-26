@@ -8,9 +8,10 @@ import 'import_preview_dialog.dart';
 
 /// Result from the LFS import preview dialog.
 ///
-/// The master password is NOT part of this result — the caller must have
-/// already decrypted the archive to build the [LfsPreview], so it already
-/// has the password in hand.
+/// The master password is NOT part of this result — the caller has
+/// already opened the archive Rust-side via `dbImportOpen` to obtain
+/// the [LfsPreview], so the password (and the staged handle) are
+/// already its own concern.
 typedef LfsImportPreviewResult = ({
   String filePath,
   ImportMode mode,
@@ -44,7 +45,7 @@ class LfsImportPreviewDialog extends StatelessWidget {
       context,
       header: _ArchiveHeader(filePath: filePath),
       counts: (
-        sessions: preview.sessions.length,
+        sessions: preview.sessionCount,
         hasConfig: preview.hasConfig,
         managerKeys: preview.managerKeyCount,
         tags: preview.tagCount,
@@ -65,7 +66,7 @@ class LfsImportPreviewDialog extends StatelessWidget {
     return ImportPreviewDialog(
       header: _ArchiveHeader(filePath: filePath),
       counts: (
-        sessions: preview.sessions.length,
+        sessions: preview.sessionCount,
         hasConfig: preview.hasConfig,
         managerKeys: preview.managerKeyCount,
         tags: preview.tagCount,

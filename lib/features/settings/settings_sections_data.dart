@@ -575,25 +575,42 @@ class _ExportImportTile extends ConsumerWidget {
     }
 
     final passwordCtrl = TextEditingController();
+    String? handleId;
     try {
       final password = await _askImportPassword(context, kind, passwordCtrl);
       if (password == null || !context.mounted) return;
 
-      final fullImport = await _decryptForPreview(context, path, password);
-      if (fullImport == null || !context.mounted) return;
+      final opened = await _openArchive(context, path, password);
+      if (opened == null || !context.mounted) return;
+      handleId = opened.handleId;
 
       final importConfig = await LfsImportPreviewDialog.show(
         context,
         filePath: path,
-        preview: _buildPreview(fullImport),
+        preview: LfsPreview.fromRust(opened.preview),
       );
-      if (importConfig == null || !context.mounted) return;
+      if (importConfig == null) {
+        // User cancelled — drop the staged handle so the registry
+        // does not accumulate orphans.
+        await _safeDropHandle(handleId);
+        handleId = null;
+        return;
+      }
+      if (!context.mounted) {
+        await _safeDropHandle(handleId);
+        handleId = null;
+        return;
+      }
 
-      final filteredResult = fullImport.filtered(
+      await _applyOpenedHandle(
+        context,
+        ref,
+        handleId,
         importConfig.options,
         importConfig.mode,
       );
-      await _applyFilteredImport(context, ref, filteredResult);
+      // Apply consumes the handle on success.
+      handleId = null;
     } catch (e) {
       AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
       if (context.mounted) {
@@ -604,14 +621,17 @@ class _ExportImportTile extends ConsumerWidget {
         );
       }
     } finally {
+      if (handleId != null) {
+        await _safeDropHandle(handleId);
+      }
       passwordCtrl.wipeAndClear();
       passwordCtrl.dispose();
     }
   }
 
   /// Ask for the archive's master password. Skips the prompt entirely for
-  /// an unencrypted archive — `ExportImport.import_` accepts an empty
-  /// password in that branch. Returns null on cancel.
+  /// an unencrypted archive — the Rust reader treats an empty password as
+  /// the no-encryption branch. Returns null on cancel.
   Future<String?> _askImportPassword(
     BuildContext context,
     LfsArchiveKind kind,
@@ -625,11 +645,10 @@ class _ExportImportTile extends ConsumerWidget {
     return password;
   }
 
-  /// Decrypt the archive once so preview + final import share the Argon2id
-  /// key derivation (memory-hard, too expensive to run twice).
-  /// Shows a progress dialog for the duration. Returns null when the
-  /// outer widget is no longer mounted after the work completes.
-  Future<ImportResult?> _decryptForPreview(
+  /// Open the archive Rust-side via `dbImportOpen`. Returns null when the
+  /// host widget unmounts during the await — the staged handle is dropped
+  /// before returning so the registry does not accumulate orphans.
+  Future<rust_archive.DbImportOpenResult?> _openArchive(
     BuildContext context,
     String path,
     String password,
@@ -639,21 +658,16 @@ class _ExportImportTile extends ConsumerWidget {
     AppProgressBarDialog.show(context, reporter);
     var progressShown = true;
     try {
-      return await ExportImport.import_(
-        filePath: path,
-        masterPassword: password,
-        mode: ImportMode.merge, // placeholder — user picks mode in preview
-        options: const ExportOptions(
-          includeSessions: true,
-          includeConfig: true,
-          includeKnownHosts: true,
-          includeAllManagerKeys: true,
-          includeTags: true,
-          includeSnippets: true,
-        ),
-        progress: reporter,
-        l10n: l10n,
+      reporter.phase(l10n.progressDecrypting);
+      final result = await rust_archive.dbImportOpen(
+        path: path,
+        password: password,
       );
+      if (!context.mounted) {
+        await _safeDropHandle(result.handleId);
+        return null;
+      }
+      return result;
     } finally {
       if (progressShown && context.mounted) {
         Navigator.of(context).pop();
@@ -663,22 +677,106 @@ class _ExportImportTile extends ConsumerWidget {
     }
   }
 
-  LfsPreview _buildPreview(ImportResult fullImport) => LfsPreview(
-    sessions: fullImport.sessions,
-    hasConfig: fullImport.config != null,
-    hasKnownHosts:
-        fullImport.knownHostsContent != null &&
-        fullImport.knownHostsContent!.isNotEmpty,
-    emptyFolders: fullImport.emptyFolders,
-    managerKeyCount: fullImport.managerKeys.length,
-    tagCount: fullImport.tags.length,
-    snippetCount: fullImport.snippets.length,
-  );
+  Future<void> _safeDropHandle(String handleId) async {
+    try {
+      await rust_archive.dbImportDrop(handleId: handleId);
+    } catch (_) {
+      // Best-effort cleanup — registry mismatch is harmless.
+    }
+  }
 
-  /// Apply an already-decrypted [ImportResult] to state.
-  ///
-  /// Called after the archive has been decrypted once (for preview) and
-  /// filtered by the user's data-type selections.
+  /// Apply an already-staged Rust handle through the apply driver.
+  /// Mirrors what `applyResultViaRust` does for the QR / paste-link
+  /// flows but skips the Dart-side staging round-trip.
+  Future<void> _applyOpenedHandle(
+    BuildContext context,
+    WidgetRef ref,
+    String handleId,
+    ExportOptions options,
+    ImportMode mode,
+  ) async {
+    final l10n = S.of(context);
+    final reporter = ProgressReporter(l10n.progressWorking);
+    AppProgressBarDialog.show(context, reporter);
+    var progressShown = true;
+    try {
+      final apply = await applyOpenedHandle(
+        handleId: handleId,
+        mode: mode,
+        applySessions: options.includeSessions,
+        applyKeys: options.includeManagerKeys,
+        applyTags: options.includeTags,
+        applySnippets: options.includeSnippets,
+        applyKnownHosts: options.includeKnownHosts,
+        refreshAfterImport: () async {
+          await ref.read(sessionStoreProvider).load();
+          await ref.read(tagStoreProvider).loadAll();
+          await ref.read(snippetStoreProvider).loadAll();
+        },
+      );
+      // Config restore (file IO, not a DB write) stays Dart-side.
+      // Security tier setup is per-machine and never travels — keep
+      // the local value, merge the rest.
+      final cfg = options.includeConfig ? decodeConfigFromApply(apply) : null;
+      if (cfg != null) {
+        ref
+            .read(configProvider.notifier)
+            .update(
+              (current) => cfg.copyWithSecurity(security: current.security),
+            );
+      }
+      ref.invalidate(sshKeysProvider);
+      ref.invalidate(tagsProvider);
+      ref.invalidate(snippetsProvider);
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
+        Toast.show(
+          context,
+          message: formatImportSummary(
+            S.of(context),
+            ImportSummary(
+              sessions: apply.sessionsApplied.toInt(),
+              folders: apply.foldersApplied.toInt(),
+              managerKeys: apply.keysApplied.toInt(),
+              tags: apply.tagsApplied.toInt(),
+              snippets: apply.snippetsApplied.toInt(),
+              configApplied: cfg != null,
+              knownHostsApplied: apply.knownHostsApplied > 0,
+              skippedSessions: 0,
+              skippedLinks: 0,
+            ),
+          ),
+          level: ToastLevel.success,
+        );
+      }
+    } catch (e) {
+      AppLogger.instance.log('Import failed: $e', name: 'Settings', error: e);
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+        progressShown = false;
+      }
+      if (context.mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).importFailed(localizeError(S.of(context), e)),
+          level: ToastLevel.error,
+        );
+      }
+    } finally {
+      if (progressShown && context.mounted) {
+        Navigator.of(context).pop();
+      }
+      reporter.dispose();
+    }
+  }
+
+  /// Apply a Dart-built [ImportResult] (QR / paste-link / SSH dir
+  /// imports) through the Rust apply driver. The `.lfs` archive
+  /// flow uses [_applyOpenedHandle] instead so the staged handle
+  /// from `dbImportOpen` is consumed without a round-trip through
+  /// a Dart `ImportResult` tree.
   Future<void> _applyFilteredImport(
     BuildContext context,
     WidgetRef ref,
@@ -689,26 +787,14 @@ class _ExportImportTile extends ConsumerWidget {
     AppProgressBarDialog.show(context, reporter);
     var progressShown = true;
     try {
-      // Apply the bulk of the archive (sessions, keys, tags,
-      // snippets, junctions, folders, known_hosts) through the
-      // Rust apply driver under a single sqlite transaction.
-      // Replace mode rolls back automatically on failure;
-      // merge mode upserts row-by-row.
       final apply = await applyResultViaRust(
         importResult,
         refreshAfterImport: () async {
-          // Rust wrote through the DB directly; reload the
-          // Dart-side in-memory caches the UI binds to. Each
-          // store exposes a `load()` that re-reads the DB into
-          // its in-memory list.
           await ref.read(sessionStoreProvider).load();
           await ref.read(tagStoreProvider).loadAll();
           await ref.read(snippetStoreProvider).loadAll();
         },
       );
-      // Config restore (file IO, not a DB write) stays
-      // Dart-side. Security tier setup is per-machine and
-      // never travels — keep the local value, merge the rest.
       final cfg = importResult.config;
       if (cfg != null) {
         ref
@@ -717,9 +803,6 @@ class _ExportImportTile extends ConsumerWidget {
               (current) => cfg.copyWithSecurity(security: current.security),
             );
       }
-      // Refresh cached FutureProviders so newly imported keys,
-      // tags and snippets appear in the UI without an app
-      // restart.
       ref.invalidate(sshKeysProvider);
       ref.invalidate(tagsProvider);
       ref.invalidate(snippetsProvider);

@@ -119,7 +119,10 @@ mod tests {
     use ThreatStatus::*;
     use ThreatTier::*;
 
-    fn case(tier: ThreatTier, password: bool) -> std::collections::HashMap<SecurityThreat, ThreatStatus> {
+    fn case(
+        tier: ThreatTier,
+        password: bool,
+    ) -> std::collections::HashMap<SecurityThreat, ThreatStatus> {
         evaluate(ThreatModel::new(tier, password, false))
     }
 

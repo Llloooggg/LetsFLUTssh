@@ -315,9 +315,8 @@ fn unpack(blob: &[u8]) -> Option<(&[u8], &[u8])> {
     }
     let pub_bytes = &blob[4..4 + pub_len];
     let priv_len_off = 4 + pub_len;
-    let priv_len = u32::from_be_bytes(
-        blob[priv_len_off..priv_len_off + 4].try_into().unwrap(),
-    ) as usize;
+    let priv_len =
+        u32::from_be_bytes(blob[priv_len_off..priv_len_off + 4].try_into().unwrap()) as usize;
     let priv_off = priv_len_off + 4;
     if priv_off + priv_len > blob.len() {
         return None;

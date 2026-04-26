@@ -82,7 +82,9 @@ pub async fn recorder_record_frame(id: String, plaintext: Vec<u8>) -> Result<u64
 pub async fn recorder_close(id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
-        app.recorders.close_with_io(&id, &app.bus).map_err(|e| e.to_string())
+        app.recorders
+            .close_with_io(&id, &app.bus)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("recorder close task: {e}"))?

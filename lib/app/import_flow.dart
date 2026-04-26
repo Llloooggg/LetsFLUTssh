@@ -63,7 +63,11 @@ Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
       ref.read(configProvider.notifier).update((_) => importResult.config!);
     }
     _invalidateImportProviders(ref);
-    final summary = _summaryFromApply(apply, importResult);
+    final summary = _summaryFromApply(
+      apply,
+      importResult.config != null,
+      skippedSessions: importResult.skippedSessions,
+    );
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -107,6 +111,11 @@ Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
 /// content (e.g. `.apk` with an LFS extension filter Android
 /// ignored) is rejected up front, and unencrypted plain-ZIP exports
 /// skip the password prompt.
+///
+/// The archive opens via `dbImportOpen` Rust-side; the staged handle
+/// is consumed by the apply step on success or dropped on cancel /
+/// failure. Plaintext payload (session passwords, key PEM) never
+/// crosses the FRB boundary outwards.
 Future<void> showLfsImportDialog(
   BuildContext context,
   WidgetRef ref,
@@ -138,33 +147,33 @@ Future<void> showLfsImportDialog(
   final progress = ProgressReporter(l10n.progressReadingArchive);
   AppProgressBarDialog.show(context, progress);
   var progressShown = true;
+  String? handleId;
 
   try {
-    final importResult = await ExportImport.import_(
-      filePath: filePath,
-      masterPassword: result.password,
-      mode: result.mode,
-      options: const ExportOptions(
-        includeSessions: true,
-        includeConfig: true,
-        includeKnownHosts: true,
-        includeManagerKeys: true,
-        includeTags: true,
-        includeSnippets: true,
-      ),
-      progress: progress,
-      l10n: l10n,
+    progress.phase(l10n.progressDecrypting);
+    final opened = await rust_archive.dbImportOpen(
+      path: filePath,
+      password: result.password,
     );
+    handleId = opened.handleId;
 
-    final apply = await applyResultViaRust(
-      importResult,
+    final apply = await applyOpenedHandle(
+      handleId: handleId,
+      mode: result.mode,
+      applySessions: true,
+      applyKeys: true,
+      applyTags: true,
+      applySnippets: true,
+      applyKnownHosts: opened.preview.hasKnownHosts,
       refreshAfterImport: () => _refreshStores(ref),
     );
-    if (importResult.config != null) {
-      ref.read(configProvider.notifier).update((_) => importResult.config!);
+    handleId = null; // consumed by apply on success
+    final restoredConfig = decodeConfigFromApply(apply);
+    if (restoredConfig != null) {
+      ref.read(configProvider.notifier).update((_) => restoredConfig);
     }
     _invalidateImportProviders(ref);
-    final summary = _summaryFromApply(apply, importResult);
+    final summary = _summaryFromApply(apply, restoredConfig != null);
 
     AppLogger.instance.log(
       'LFS import success: ${summary.sessions} session(s)',
@@ -193,6 +202,11 @@ Future<void> showLfsImportDialog(
       );
     }
   } finally {
+    if (handleId != null) {
+      try {
+        await rust_archive.dbImportDrop(handleId: handleId);
+      } catch (_) {}
+    }
     if (progressShown && context.mounted) {
       Navigator.of(context).pop();
     }
@@ -219,23 +233,23 @@ Future<void> _refreshStores(WidgetRef ref) async {
   await ref.read(snippetStoreProvider).loadAll();
 }
 
-/// Build a Dart-side `ImportSummary` from the Rust `DbApplyResult`
-/// + the original `ImportResult`. Counters route from Rust;
-/// `configApplied` mirrors the Dart-side config restore branch
-/// since the Rust apply doesn't touch `config.json`.
+/// Build a Dart-side `ImportSummary` from the Rust `DbApplyResult`.
+/// `configApplied` mirrors the Dart-side config-restore branch since
+/// the Rust apply leaves `config.json` to the caller.
 ImportSummary _summaryFromApply(
   rust_archive.DbApplyResult apply,
-  ImportResult source,
-) {
+  bool configApplied, {
+  int skippedSessions = 0,
+}) {
   return ImportSummary(
     sessions: apply.sessionsApplied.toInt(),
     folders: apply.foldersApplied.toInt(),
     managerKeys: apply.keysApplied.toInt(),
     tags: apply.tagsApplied.toInt(),
     snippets: apply.snippetsApplied.toInt(),
-    configApplied: source.config != null,
+    configApplied: configApplied,
     knownHostsApplied: apply.knownHostsApplied > 0,
-    skippedSessions: source.skippedSessions,
+    skippedSessions: skippedSessions,
     skippedLinks: 0,
   );
 }

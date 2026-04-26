@@ -256,12 +256,7 @@ impl RecorderRegistry {
     /// file. Plaintext mode writes the bytes verbatim. Returns
     /// the running byte total. Errors when the actor was not
     /// registered through [`RecorderRegistry::register_with_io`].
-    pub fn record_frame(
-        &self,
-        id: &str,
-        plaintext: &[u8],
-        bus: &EventBus,
-    ) -> Result<u64, Error> {
+    pub fn record_frame(&self, id: &str, plaintext: &[u8], bus: &EventBus) -> Result<u64, Error> {
         // Snapshot the IO handle + key under the registry lock,
         // then drop the lock before doing the (potentially
         // blocking) write. Other registry operations stay
@@ -460,8 +455,7 @@ mod tests {
         assert_eq!(len, payload.len());
         let nonce = &on_disk[9..21];
         let ct = &on_disk[21..];
-        let pt = crate::crypto::aes_gcm_decrypt_raw(&key, nonce, ct, &[])
-            .expect("decrypt");
+        let pt = crate::crypto::aes_gcm_decrypt_raw(&key, nonce, ct, &[]).expect("decrypt");
         assert_eq!(pt, payload);
         let _ = std::fs::remove_file(&path);
     }

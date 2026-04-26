@@ -66,7 +66,13 @@ pub fn parse_openssh_config(
     max_include_depth: usize,
 ) -> Vec<HostEntry> {
     let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let expanded = expand_includes(content, include_reader, base_dir, max_include_depth, &mut visited);
+    let expanded = expand_includes(
+        content,
+        include_reader,
+        base_dir,
+        max_include_depth,
+        &mut visited,
+    );
     let blocks = parse_blocks(&expanded);
 
     let mut wildcard_blocks: Vec<&RawBlock> = Vec::new();
@@ -526,7 +532,10 @@ mod tests {
         // concrete hosts at once isn't possible here without two
         // blocks; assert via the lower-level matcher.
         let blocks = parse_blocks(cfg);
-        let wild = blocks.iter().find(|b| b.patterns.contains(&"*.internal".into())).unwrap();
+        let wild = blocks
+            .iter()
+            .find(|b| b.patterns.contains(&"*.internal".into()))
+            .unwrap();
         assert!(wild.matches("foo.internal"));
         assert!(!wild.matches("secret.internal"));
         assert!(!wild.matches("public.example"));
@@ -576,7 +585,9 @@ mod tests {
         let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
         let names: Vec<&str> = entries.iter().map(|e| e.host.as_str()).collect();
         assert_eq!(names, vec!["prod", "stage"]);
-        assert!(entries.iter().all(|e| e.host_name.as_deref() == Some("common.example")));
+        assert!(entries
+            .iter()
+            .all(|e| e.host_name.as_deref() == Some("common.example")));
     }
 
     #[test]

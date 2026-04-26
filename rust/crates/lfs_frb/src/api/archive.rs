@@ -202,10 +202,7 @@ fn random_handle_id() -> String {
 /// `password` empty → assumes a raw-ZIP archive (matches the
 /// "no encryption" export branch). Wrong password / malformed
 /// envelope surfaces as an error and no handle is registered.
-pub async fn db_import_open(
-    path: String,
-    password: String,
-) -> Result<DbImportOpenResult, String> {
+pub async fn db_import_open(path: String, password: String) -> Result<DbImportOpenResult, String> {
     tokio::task::spawn_blocking(move || {
         let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, &password)
             .map_err(|e| e.to_string())?;
@@ -320,6 +317,12 @@ pub struct DbApplyOptions {
 
 /// Counters returned by [`db_import_apply`]. Mirrors
 /// `lfs_core::archive::ApplyResult` field-for-field.
+///
+/// `config_json` carries the staged `config.json` payload back to
+/// the Dart caller — `config.json` is a Dart-managed file artefact,
+/// not a DB row, so the apply driver leaves it alone and returns
+/// the JSON for the caller to parse + restore. Only populated when
+/// the staged archive carried a config entry; `None` otherwise.
 #[derive(Debug, Clone)]
 pub struct DbApplyResult {
     pub sessions_applied: i64,
@@ -332,6 +335,7 @@ pub struct DbApplyResult {
     pub session_tags_applied: i64,
     pub session_snippets_applied: i64,
     pub errors: Vec<String>,
+    pub config_json: Option<String>,
 }
 
 impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
@@ -347,6 +351,7 @@ impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
             session_tags_applied: r.session_tags_applied,
             session_snippets_applied: r.session_snippets_applied,
             errors: r.errors,
+            config_json: None,
         }
     }
 }
@@ -375,18 +380,16 @@ pub async fn db_import_apply(
             .imports
             .take(&handle_id)
             .ok_or_else(|| format!("import handle {handle_id} not found"))?;
+        let staged_config_json = pending.config_json.clone();
         let db = require_db()?;
         let result = db
             .with_conn_mut(|c| {
-                lfs_core::archive::apply_pending_import(
-                    c,
-                    &pending,
-                    &core_options,
-                    created_at_ms,
-                )
+                lfs_core::archive::apply_pending_import(c, &pending, &core_options, created_at_ms)
             })
             .map_err(|e| e.to_string())?;
-        Ok(DbApplyResult::from(result))
+        let mut frb_result = DbApplyResult::from(result);
+        frb_result.config_json = staged_config_json;
+        Ok(frb_result)
     })
     .await
     .map_err(|e| format!("import apply task: {e}"))?

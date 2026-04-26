@@ -3,8 +3,10 @@
 
 use std::path::Path;
 
-use super::cert_factory::{CertFactory, CertFactoryError, DEFAULT_COMMON_NAME, DEFAULT_ORGANISATION};
-use super::codesigner::{Codesigner, CodesignError};
+use super::cert_factory::{
+    CertFactory, CertFactoryError, DEFAULT_COMMON_NAME, DEFAULT_ORGANISATION,
+};
+use super::codesigner::{CodesignError, Codesigner};
 use super::keychain::{Keychain, KeychainError};
 use super::process::Runner;
 
@@ -79,12 +81,7 @@ impl<'a> ResignService<'a> {
         }
         let codesigner = Codesigner::new(self.runner);
         let entitlements = codesigner.extract_entitlements(app_bundle);
-        codesigner.resign_inside_out(
-            app_bundle,
-            common_name,
-            entitlements.as_deref(),
-            false,
-        )?;
+        codesigner.resign_inside_out(app_bundle, common_name, entitlements.as_deref(), false)?;
         let ok = codesigner.verify(app_bundle);
         Ok(if ok {
             ResignOutcome::Succeeded

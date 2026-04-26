@@ -118,6 +118,12 @@ class DbApplyOptions {
 
 /// Counters returned by [`db_import_apply`]. Mirrors
 /// `lfs_core::archive::ApplyResult` field-for-field.
+///
+/// `config_json` carries the staged `config.json` payload back to
+/// the Dart caller — `config.json` is a Dart-managed file artefact,
+/// not a DB row, so the apply driver leaves it alone and returns
+/// the JSON for the caller to parse + restore. Only populated when
+/// the staged archive carried a config entry; `None` otherwise.
 class DbApplyResult {
   final PlatformInt64 sessionsApplied;
   final PlatformInt64 keysApplied;
@@ -129,6 +135,7 @@ class DbApplyResult {
   final PlatformInt64 sessionTagsApplied;
   final PlatformInt64 sessionSnippetsApplied;
   final List<String> errors;
+  final String? configJson;
 
   const DbApplyResult({
     required this.sessionsApplied,
@@ -141,6 +148,7 @@ class DbApplyResult {
     required this.sessionTagsApplied,
     required this.sessionSnippetsApplied,
     required this.errors,
+    this.configJson,
   });
 
   @override
@@ -154,7 +162,8 @@ class DbApplyResult {
       foldersApplied.hashCode ^
       sessionTagsApplied.hashCode ^
       sessionSnippetsApplied.hashCode ^
-      errors.hashCode;
+      errors.hashCode ^
+      configJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -170,7 +179,8 @@ class DbApplyResult {
           foldersApplied == other.foldersApplied &&
           sessionTagsApplied == other.sessionTagsApplied &&
           sessionSnippetsApplied == other.sessionSnippetsApplied &&
-          errors == other.errors;
+          errors == other.errors &&
+          configJson == other.configJson;
 }
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB

@@ -18,7 +18,8 @@ typedef LfsImportDialogResult = ({String password, ImportMode mode});
 /// Returns [LfsImportDialogResult] on submit, null on cancel. When
 /// [isEncrypted] is false (unencrypted ZIP archive), the password field is
 /// hidden and the import button is always enabled; an empty password is
-/// passed to [ExportImport.import_] to signal the unencrypted path.
+/// passed to the Rust reader (`dbImportOpen`) to signal the unencrypted
+/// path.
 class LfsImportDialog extends StatefulWidget {
   final String filePath;
   final bool isEncrypted;

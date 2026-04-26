@@ -89,7 +89,7 @@ otherwise.
 
 ### Step 2 — drop Dart-side LFSE decrypt + parse
 
-**Status:** TODO
+**Status:** DONE
 
 **Why second:** Step 1 reduces the consumer surface so the
 decrypt-side rewire is mechanical.

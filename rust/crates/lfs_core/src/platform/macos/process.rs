@@ -126,15 +126,11 @@ pub(crate) mod test_support {
         }
 
         fn next_reply(&self) -> ProcOutput {
-            self.replies
-                .lock()
-                .unwrap()
-                .pop()
-                .unwrap_or(ProcOutput {
-                    status: 0,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                })
+            self.replies.lock().unwrap().pop().unwrap_or(ProcOutput {
+                status: 0,
+                stdout: String::new(),
+                stderr: String::new(),
+            })
         }
     }
 

@@ -201,6 +201,18 @@ const SALT_LEN: usize = 32;
 const IV_LEN: usize = 12;
 const AES_KEY_LEN: u32 = 32;
 
+/// Hard ceiling on the Argon2id memory cost we are willing to honour
+/// from an untrusted archive header. Desktop = 1 GiB; mobile drops
+/// to 512 MiB so the OOM killer on a 2 GB-baseline phone does not
+/// terminate the process before the KDF returns. Exceeding any cap
+/// rejects the archive as malformed before the KDF runs.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+const MAX_IMPORT_MEMORY_KIB: u32 = 512 * 1024;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const MAX_IMPORT_MEMORY_KIB: u32 = 1024 * 1024;
+const MAX_IMPORT_ITERATIONS: u32 = 20;
+const MAX_IMPORT_PARALLELISM: u32 = 16;
+
 /// What sections the caller wants in the archive. Mirrors the bool
 /// fields on `ExportOptions` Dart-side; the orchestrator only emits
 /// an entry when its toggle is on AND the underlying source has
@@ -714,9 +726,7 @@ fn encrypt_with_password(
 /// failure (wrong password).
 pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<Vec<u8>, Error> {
     if envelope.len() < 4 + 1 + 10 + SALT_LEN + IV_LEN {
-        return Err(Error::Crypto(
-            "archive envelope too short".to_string(),
-        ));
+        return Err(Error::Crypto("archive envelope too short".to_string()));
     }
     if envelope[..4] != ENC_HEADER_MAGIC {
         return Err(Error::Crypto("not an LFSE archive".to_string()));
@@ -741,6 +751,14 @@ pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<
     cursor += 4;
     let parallelism = envelope[cursor] as u32;
     cursor += 1;
+    if memory_kib > MAX_IMPORT_MEMORY_KIB
+        || iterations > MAX_IMPORT_ITERATIONS
+        || parallelism > MAX_IMPORT_PARALLELISM
+    {
+        return Err(Error::Crypto(format!(
+            "Argon2id params exceed import caps (m={memory_kib}, t={iterations}, p={parallelism})"
+        )));
+    }
     let salt = &envelope[cursor..cursor + SALT_LEN];
     cursor += SALT_LEN;
     let iv = &envelope[cursor..cursor + IV_LEN];
@@ -764,8 +782,8 @@ pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<
 /// entries actually move data, the preview just reports counts.
 pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Error> {
     let cursor = Cursor::new(zip_bytes);
-    let mut zip = ZipArchive::new(cursor)
-        .map_err(|e| Error::Io(format!("import zip open: {e}")))?;
+    let mut zip =
+        ZipArchive::new(cursor).map_err(|e| Error::Io(format!("import zip open: {e}")))?;
 
     let mut pending = PendingImport {
         manifest_json: None,
@@ -825,8 +843,7 @@ pub fn read_archive_to_pending(
     path: &str,
     password: &str,
 ) -> Result<(PendingImport, ImportPreview), Error> {
-    let bytes = std::fs::read(path)
-        .map_err(|e| Error::Io(format!("import read {path}: {e}")))?;
+    let bytes = std::fs::read(path).map_err(|e| Error::Io(format!("import read {path}: {e}")))?;
     let zip_bytes = if bytes.len() >= 4 && bytes[..4] == ENC_HEADER_MAGIC {
         decrypt_archive_with_password(&bytes, password)?
     } else if bytes.len() >= 4 && &bytes[..4] == b"PK\x03\x04" {
@@ -907,7 +924,14 @@ fn parse_iso8601_or_now(s: &str, now_ms: i64) -> i64 {
     let mm = parse(14, 2).unwrap_or(0);
     let ss = parse(17, 2).unwrap_or(0);
     let ms = parse(20, 3).unwrap_or(0);
-    civil_to_unix_ms(year, month as u32, day as u32, hh as u32, mm as u32, ss as u32) + ms
+    civil_to_unix_ms(
+        year,
+        month as u32,
+        day as u32,
+        hh as u32,
+        mm as u32,
+        ss as u32,
+    ) + ms
 }
 
 /// Inverse of `unix_to_civil` — used by the import apply driver
@@ -1043,9 +1067,7 @@ fn run_replace_clear(conn: &Connection, options: &ApplyOptions, result: &mut App
     // an already-empty table.
     if options.apply_sessions {
         if let Err(e) = sessions::delete_all(conn) {
-            result
-                .errors
-                .push(format!("replace clear sessions: {e}"));
+            result.errors.push(format!("replace clear sessions: {e}"));
         }
         if let Err(e) = folders::delete_all(conn) {
             result.errors.push(format!("replace clear folders: {e}"));
@@ -1191,7 +1213,9 @@ fn apply_empty_folders(
                     parent_id = Some(id);
                 }
                 Err(e) => {
-                    result.errors.push(format!("empty_folder {accum} upsert: {e}"));
+                    result
+                        .errors
+                        .push(format!("empty_folder {accum} upsert: {e}"));
                     parent_id = None;
                 }
             }
@@ -1246,7 +1270,10 @@ fn apply_session_snippets(conn: &Connection, json: &str, result: &mut ApplyResul
 }
 
 fn json_string(v: &Value, key: &str) -> String {
-    v.get(key).and_then(|x| x.as_str()).unwrap_or("").to_string()
+    v.get(key)
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn json_i64(v: &Value, key: &str) -> i64 {
@@ -1331,7 +1358,9 @@ fn apply_sessions(
         }
         match sessions::upsert(conn, &row) {
             Ok(_) => result.sessions_applied += 1,
-            Err(e) => result.errors.push(format!("session {} upsert: {e}", row.id)),
+            Err(e) => result
+                .errors
+                .push(format!("session {} upsert: {e}", row.id)),
         }
     }
 }
@@ -1373,7 +1402,10 @@ fn apply_keys(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResu
             private_key: json_string(&v, "private_key"),
             public_key,
             key_type: json_string(&v, "key_type"),
-            is_generated: v.get("is_generated").and_then(|x| x.as_bool()).unwrap_or(false),
+            is_generated: v
+                .get("is_generated")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false),
             created_at_ms: parse_iso8601_or_now(
                 v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""),
                 now_ms,
@@ -1447,7 +1479,9 @@ fn apply_snippets(conn: &Connection, json: &str, now_ms: i64, result: &mut Apply
         }
         match snippets::upsert(conn, &row) {
             Ok(_) => result.snippets_applied += 1,
-            Err(e) => result.errors.push(format!("snippet {} upsert: {e}", row.id)),
+            Err(e) => result
+                .errors
+                .push(format!("snippet {} upsert: {e}", row.id)),
         }
     }
 }

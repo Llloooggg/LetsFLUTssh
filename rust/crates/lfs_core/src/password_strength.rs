@@ -51,10 +51,8 @@ pub fn assess(password: &str) -> PasswordStrength {
             has_symbol = true;
         }
     }
-    let classes = u32::from(has_lower)
-        + u32::from(has_upper)
-        + u32::from(has_digit)
-        + u32::from(has_symbol);
+    let classes =
+        u32::from(has_lower) + u32::from(has_upper) + u32::from(has_digit) + u32::from(has_symbol);
 
     if length < 8 || classes < 2 {
         return PasswordStrength::Weak;

@@ -391,9 +391,7 @@ impl From<BusCommand> for lfs_core::bus::Command {
             BusCommand::ConnectionDisconnect { id } => {
                 lfs_core::bus::Command::ConnectionDisconnect { id }
             }
-            BusCommand::ConnectionDisconnectAll => {
-                lfs_core::bus::Command::ConnectionDisconnectAll
-            }
+            BusCommand::ConnectionDisconnectAll => lfs_core::bus::Command::ConnectionDisconnectAll,
             BusCommand::AutoLockOnPointerActivity => {
                 lfs_core::bus::Command::AutoLockOnPointerActivity
             }

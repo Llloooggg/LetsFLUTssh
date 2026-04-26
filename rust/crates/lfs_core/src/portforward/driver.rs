@@ -113,12 +113,7 @@ impl ChannelFactory for DirectTcpipFactory {
         let port = self.target_port as u32;
         Box::pin(async move {
             let stream = session
-                .open_direct_tcpip_stream(
-                    &host,
-                    port,
-                    &peer.ip().to_string(),
-                    peer.port() as u32,
-                )
+                .open_direct_tcpip_stream(&host, port, &peer.ip().to_string(), peer.port() as u32)
                 .await?;
             let (r, w) = tokio::io::split(stream);
             let reader: ReaderHalf = Box::pin(r);
@@ -220,11 +215,7 @@ async fn accept_loop(
 /// propagates an EOF + writer-shutdown into the channel, the
 /// peer drains, and the channel reader returns its final
 /// bytes before the downstream side closes the socket.
-pub async fn pump(
-    socket: TcpStream,
-    reader: ReaderHalf,
-    writer: WriterHalf,
-) -> Result<(), Error> {
+pub async fn pump(socket: TcpStream, reader: ReaderHalf, writer: WriterHalf) -> Result<(), Error> {
     let (sock_r, sock_w) = socket.into_split();
 
     let upstream = tokio::spawn(copy_one_way_owned(sock_r, writer));

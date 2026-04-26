@@ -104,9 +104,7 @@ fn as_user_re() -> &'static Regex {
 
 fn user_eq_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"\b(user|login)=([a-zA-Z0-9_.\-]+)").expect("valid user= regex")
-    })
+    R.get_or_init(|| Regex::new(r"\b(user|login)=([a-zA-Z0-9_.\-]+)").expect("valid user= regex"))
 }
 
 fn host_port_re() -> &'static Regex {
@@ -135,11 +133,10 @@ fn unix_path_re() -> &'static Regex {
 pub fn sanitize_error_message(input: &str) -> String {
     let after_v6 = ipv6_re().replace_all(input, "<ip>");
     let after_v4 = ipv4_re().replace_all(&after_v6, "<ip>");
-    let after_userhost = user_at_host_re()
-        .replace_all(&after_v4, |c: &regex::Captures<'_>| {
-            let host = c.get(2).map_or("<host>", |m| m.as_str());
-            format!("<user>@{host}")
-        });
+    let after_userhost = user_at_host_re().replace_all(&after_v4, |c: &regex::Captures<'_>| {
+        let host = c.get(2).map_or("<host>", |m| m.as_str());
+        format!("<user>@{host}")
+    });
     let after_as = as_user_re().replace_all(&after_userhost, "as <user>");
     let after_userq = user_eq_re().replace_all(&after_as, |c: &regex::Captures<'_>| {
         let key = c.get(1).map_or("user", |m| m.as_str());
@@ -169,7 +166,8 @@ mod tests {
 
     #[test]
     fn redacts_rsa_pem_block() {
-        let msg = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
+        let msg =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
         let r = redact_secrets(msg);
         assert_eq!(r, "[REDACTED PRIVATE KEY]");
     }
@@ -279,9 +277,8 @@ mod tests {
 
     #[test]
     fn sanitize_full_error_chain() {
-        let r = sanitize_error_message(
-            "Connecting to 10.0.0.1:22 as burzuf for /home/burzuf/.ssh/key",
-        );
+        let r =
+            sanitize_error_message("Connecting to 10.0.0.1:22 as burzuf for /home/burzuf/.ssh/key");
         assert_eq!(
             r,
             "Connecting to <ip>:<port> as <user> for /<user>/.ssh/key"

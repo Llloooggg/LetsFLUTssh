@@ -21,7 +21,10 @@ fn default_keychain_path() -> String {
 #[derive(Debug, thiserror::Error)]
 pub enum KeychainError {
     #[error("keychain {stage}: {message}")]
-    Failed { stage: &'static str, message: String },
+    Failed {
+        stage: &'static str,
+        message: String,
+    },
     #[error("keychain spawn: {0}")]
     Spawn(String),
 }
@@ -68,11 +71,7 @@ impl<'a> Keychain<'a> {
     /// Import a PKCS#12 bundle into the keychain. `-T` grants
     /// silent access to `codesign` + `security` so subsequent
     /// re-signs and uninstalls don't prompt.
-    pub fn import_pkcs12(
-        &self,
-        p12_path: &str,
-        passphrase: &str,
-    ) -> Result<(), KeychainError> {
+    pub fn import_pkcs12(&self, p12_path: &str, passphrase: &str) -> Result<(), KeychainError> {
         let res = self
             .runner
             .run(

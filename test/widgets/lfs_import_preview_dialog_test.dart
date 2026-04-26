@@ -1,8 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/widgets/lfs_import_preview_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
@@ -23,24 +21,18 @@ void main() {
     int sessionsCount = 3,
     bool hasConfig = true,
     bool hasKnownHosts = true,
-    Set<String> emptyFolders = const {'FolderA', 'FolderB'},
+    int emptyFoldersCount = 2,
     int managerKeyCount = 2,
     int tagCount = 4,
     int snippetCount = 5,
   }) {
-    final sessions = List.generate(
-      sessionsCount,
-      (i) => Session(
-        id: 's$i',
-        label: 'Session $i',
-        server: ServerAddress(host: 'host$i.com', user: 'user'),
-      ),
-    );
     return LfsPreview(
-      sessions: sessions,
+      schemaVersion: ExportImport.currentSchemaVersion,
+      sessionCount: sessionsCount,
+      sessionLabels: List.generate(sessionsCount, (i) => 'Session $i'),
       hasConfig: hasConfig,
       hasKnownHosts: hasKnownHosts,
-      emptyFolders: emptyFolders,
+      emptyFoldersCount: emptyFoldersCount,
       managerKeyCount: managerKeyCount,
       tagCount: tagCount,
       snippetCount: snippetCount,
@@ -192,7 +184,7 @@ void main() {
 
     testWidgets('Import button is disabled when no selection', (tester) async {
       const preview = LfsPreview(
-        sessions: [],
+        schemaVersion: ExportImport.currentSchemaVersion,
         hasConfig: false,
         hasKnownHosts: false,
       );
@@ -311,7 +303,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       const preview = LfsPreview(
-        sessions: [],
+        schemaVersion: ExportImport.currentSchemaVersion,
         hasConfig: false,
         hasKnownHosts: false,
       );
@@ -336,7 +328,7 @@ void main() {
         // existing tags. The UI must keep every checkbox clickable regardless
         // of preview counts so that intent can be expressed.
         const preview = LfsPreview(
-          sessions: [],
+          schemaVersion: ExportImport.currentSchemaVersion,
           hasConfig: false,
           hasKnownHosts: false,
           managerKeyCount: 0,

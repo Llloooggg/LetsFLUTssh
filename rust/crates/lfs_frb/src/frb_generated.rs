@@ -7615,6 +7615,7 @@ impl SseDecode for crate::api::archive::DbApplyResult {
         let mut var_sessionTagsApplied = <i64>::sse_decode(deserializer);
         let mut var_sessionSnippetsApplied = <i64>::sse_decode(deserializer);
         let mut var_errors = <Vec<String>>::sse_decode(deserializer);
+        let mut var_configJson = <Option<String>>::sse_decode(deserializer);
         return crate::api::archive::DbApplyResult {
             sessions_applied: var_sessionsApplied,
             keys_applied: var_keysApplied,
@@ -7626,6 +7627,7 @@ impl SseDecode for crate::api::archive::DbApplyResult {
             session_tags_applied: var_sessionTagsApplied,
             session_snippets_applied: var_sessionSnippetsApplied,
             errors: var_errors,
+            config_json: var_configJson,
         };
     }
 }
@@ -9534,6 +9536,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::archive::DbApplyResult {
             self.session_tags_applied.into_into_dart().into_dart(),
             self.session_snippets_applied.into_into_dart().into_dart(),
             self.errors.into_into_dart().into_dart(),
+            self.config_json.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10726,6 +10729,7 @@ impl SseEncode for crate::api::archive::DbApplyResult {
         <i64>::sse_encode(self.session_tags_applied, serializer);
         <i64>::sse_encode(self.session_snippets_applied, serializer);
         <Vec<String>>::sse_encode(self.errors, serializer);
+        <Option<String>>::sse_encode(self.config_json, serializer);
     }
 }
 

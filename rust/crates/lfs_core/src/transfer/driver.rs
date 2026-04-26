@@ -21,7 +21,7 @@ use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 
 use crate::error::Error;
-use crate::transfer::{TaskKind, TaskState, TaskSnapshot};
+use crate::transfer::{TaskKind, TaskSnapshot, TaskState};
 
 /// What the worker pool calls per task. Production wraps SFTP
 /// download / upload; tests substitute a closure that walks a
@@ -164,7 +164,8 @@ async fn run_one<E: TaskExecutor + ?Sized>(
         .await
         .insert(task_id.to_string(), token.clone());
 
-    app.transfers.set_state(task_id, TaskState::Running, &app.bus);
+    app.transfers
+        .set_state(task_id, TaskState::Running, &app.bus);
     let result = executor.execute(snap, token.clone()).await;
 
     cancel_tokens.lock().await.remove(task_id);
@@ -208,9 +209,9 @@ impl TaskExecutor for SftpTaskExecutor {
                 let guard = actor
                     .lock()
                     .map_err(|_| Error::Io("actor mutex poisoned".to_string()))?;
-                guard
-                    .clone_session()
-                    .ok_or_else(|| Error::Io(format!("session {} has no live handle", task.session_id)))?
+                guard.clone_session().ok_or_else(|| {
+                    Error::Io(format!("session {} has no live handle", task.session_id))
+                })?
             };
             let sftp = session.open_sftp().await?;
             match task.kind {

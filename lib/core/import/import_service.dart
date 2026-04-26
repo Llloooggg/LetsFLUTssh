@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../src/rust/api/archive.dart' as rust_archive;
+import '../config/app_config.dart';
 import '../security/key_store.dart';
 import '../snippets/snippet.dart';
 import '../tags/tag.dart';
@@ -51,6 +52,12 @@ class ImportSummary {
 /// all happen Rust-side under a sqlite transaction — on failure the whole
 /// apply rolls back atomically.
 ///
+/// Used by callers that hold an in-memory [ImportResult] tree
+/// (QR import, paste-link import, OpenSSH config import). For
+/// `.lfs` archive imports the bytes are decoded Rust-side and the
+/// caller routes through [applyOpenedHandle] instead — no Dart-side
+/// staging round-trip.
+///
 /// The caller is expected to refresh any in-memory caches (Riverpod
 /// providers, store `_sessions` lists) after this call returns — the Rust
 /// path writes through the DB directly without going through the per-store
@@ -66,21 +73,69 @@ Future<rust_archive.DbApplyResult> applyResultViaRust(
 }) async {
   final staged = _stageFromResult(result);
   final handleId = await rust_archive.dbImportStage(input: staged);
+  return _applyHandle(
+    handleId: handleId,
+    mode: result.mode,
+    applySessions: result.sessions.isNotEmpty || result.emptyFolders.isNotEmpty,
+    applyKeys: result.managerKeys.isNotEmpty,
+    applyTags: result.tags.isNotEmpty,
+    applySnippets: result.snippets.isNotEmpty,
+    applyKnownHosts:
+        result.knownHostsContent != null &&
+        result.knownHostsContent!.isNotEmpty,
+    refreshAfterImport: refreshAfterImport,
+  );
+}
+
+/// Apply an already-staged Rust-side import handle (from
+/// `dbImportOpen`). The Rust apply driver consumes the handle on
+/// success; failures wrap into [LfsImportRolledBackException] in
+/// replace mode same as [applyResultViaRust]. Caller passes the
+/// per-entity toggles from the preview dialog.
+Future<rust_archive.DbApplyResult> applyOpenedHandle({
+  required String handleId,
+  required ImportMode mode,
+  required bool applySessions,
+  required bool applyKeys,
+  required bool applyTags,
+  required bool applySnippets,
+  required bool applyKnownHosts,
+  Future<void> Function()? refreshAfterImport,
+}) {
+  return _applyHandle(
+    handleId: handleId,
+    mode: mode,
+    applySessions: applySessions,
+    applyKeys: applyKeys,
+    applyTags: applyTags,
+    applySnippets: applySnippets,
+    applyKnownHosts: applyKnownHosts,
+    refreshAfterImport: refreshAfterImport,
+  );
+}
+
+Future<rust_archive.DbApplyResult> _applyHandle({
+  required String handleId,
+  required ImportMode mode,
+  required bool applySessions,
+  required bool applyKeys,
+  required bool applyTags,
+  required bool applySnippets,
+  required bool applyKnownHosts,
+  Future<void> Function()? refreshAfterImport,
+}) async {
   try {
     final apply = await rust_archive.dbImportApply(
       handleId: handleId,
       options: rust_archive.DbApplyOptions(
-        mode: result.mode == ImportMode.replace
+        mode: mode == ImportMode.replace
             ? rust_archive.DbImportMode.replace
             : rust_archive.DbImportMode.merge,
-        applySessions:
-            result.sessions.isNotEmpty || result.emptyFolders.isNotEmpty,
-        applyKeys: result.managerKeys.isNotEmpty,
-        applyTags: result.tags.isNotEmpty,
-        applySnippets: result.snippets.isNotEmpty,
-        applyKnownHosts:
-            result.knownHostsContent != null &&
-            result.knownHostsContent!.isNotEmpty,
+        applySessions: applySessions,
+        applyKeys: applyKeys,
+        applyTags: applyTags,
+        applySnippets: applySnippets,
+        applyKnownHosts: applyKnownHosts,
       ),
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
     );
@@ -95,11 +150,20 @@ Future<rust_archive.DbApplyResult> applyResultViaRust(
     try {
       await rust_archive.dbImportDrop(handleId: handleId);
     } catch (_) {}
-    if (result.mode == ImportMode.replace) {
+    if (mode == ImportMode.replace) {
       throw LfsImportRolledBackException(cause: e);
     }
     rethrow;
   }
+}
+
+/// Decode an [AppConfig] from the JSON returned by [applyOpenedHandle]
+/// / [applyResultViaRust] in `DbApplyResult.configJson`. Returns null
+/// if the staged archive carried no config entry.
+AppConfig? decodeConfigFromApply(rust_archive.DbApplyResult apply) {
+  final raw = apply.configJson;
+  if (raw == null || raw.isEmpty) return null;
+  return AppConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
 }
 
 /// Serialise an [ImportResult] into the JSON-string envelope the Rust

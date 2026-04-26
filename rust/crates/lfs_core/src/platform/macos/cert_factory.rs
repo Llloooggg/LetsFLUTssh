@@ -26,7 +26,10 @@ const P12_PASSPHRASE: &str = "lfs-transient";
 #[derive(Debug, thiserror::Error)]
 pub enum CertFactoryError {
     #[error("cert factory {stage}: {message}")]
-    Failed { stage: &'static str, message: String },
+    Failed {
+        stage: &'static str,
+        message: String,
+    },
     #[error("cert factory io: {0}")]
     Io(String),
 }
