@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
+use crate::bus::EventBus;
 use crate::db::Db;
 use crate::error::Error;
 use crate::secrets::SecretStore;
@@ -27,6 +28,10 @@ pub struct AppState {
     /// master key in hand. Callers that hit a `None` here surface
     /// "DB not initialized" up the stack rather than panicking.
     db: Mutex<Option<Arc<Db>>>,
+    /// Phase 5 typed Command / Event bus. Domain actors append
+    /// events; FRB subscribers consume them via per-screen view
+    /// streams. See `crate::bus` for the wire contract.
+    pub bus: EventBus,
 }
 
 impl AppState {
@@ -34,6 +39,7 @@ impl AppState {
         Self {
             secrets: SecretStore::new(),
             db: Mutex::new(None),
+            bus: EventBus::new(),
         }
     }
 

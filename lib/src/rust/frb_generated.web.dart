@@ -9,6 +9,7 @@
 import 'api.dart';
 import 'api/app.dart';
 import 'api/archive.dart';
+import 'api/bus.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/forward.dart';
@@ -170,6 +171,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<BusEvent> dco_decode_StreamSink_bus_event_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<SshShellEvent> dco_decode_StreamSink_ssh_shell_event_Sse(
     dynamic raw,
   );
@@ -185,6 +189,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardedConnection(
     dynamic raw,
   );
+
+  @protected
+  BusCommand dco_decode_box_autoadd_bus_command(dynamic raw);
 
   @protected
   DbAppConfig dco_decode_box_autoadd_db_app_config(dynamic raw);
@@ -230,6 +237,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent dco_decode_box_autoadd_ssh_shell_event(dynamic raw);
+
+  @protected
+  BusCommand dco_decode_bus_command(dynamic raw);
+
+  @protected
+  BusEvent dco_decode_bus_event(dynamic raw);
+
+  @protected
+  BusTopic dco_decode_bus_topic(dynamic raw);
 
   @protected
   DbAppConfig dco_decode_db_app_config(dynamic raw);
@@ -278,6 +294,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag dco_decode_db_tag(dynamic raw);
+
+  @protected
+  int dco_decode_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
@@ -502,6 +521,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<BusEvent> sse_decode_StreamSink_bus_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<SshShellEvent> sse_decode_StreamSink_ssh_shell_event_Sse(
     SseDeserializer deserializer,
   );
@@ -517,6 +541,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardedConnection(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BusCommand sse_decode_box_autoadd_bus_command(SseDeserializer deserializer);
 
   @protected
   DbAppConfig sse_decode_box_autoadd_db_app_config(
@@ -582,6 +609,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BusCommand sse_decode_bus_command(SseDeserializer deserializer);
+
+  @protected
+  BusEvent sse_decode_bus_event(SseDeserializer deserializer);
+
+  @protected
+  BusTopic sse_decode_bus_topic(SseDeserializer deserializer);
+
+  @protected
   DbAppConfig sse_decode_db_app_config(SseDeserializer deserializer);
 
   @protected
@@ -634,6 +670,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
@@ -757,9 +796,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -901,6 +937,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_bus_event_Sse(
+    RustStreamSink<BusEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_ssh_shell_event_Sse(
     RustStreamSink<SshShellEvent> self,
     SseSerializer serializer,
@@ -916,6 +958,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardedConnection(
     SshForwardedConnection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_bus_command(
+    BusCommand self,
     SseSerializer serializer,
   );
 
@@ -1007,6 +1055,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_bus_command(BusCommand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bus_event(BusEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bus_topic(BusTopic self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_app_config(DbAppConfig self, SseSerializer serializer);
 
   @protected
@@ -1077,6 +1134,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_tag(DbTag self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
@@ -1237,9 +1297,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class
